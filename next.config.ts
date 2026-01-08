@@ -84,9 +84,29 @@ const nextConfig: NextConfig = {
     // Resolve thread-stream to a synchronous stub to avoid dynamic module names
     // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
     // which cannot be resolved in serverless environments
+    // Note: turbopack requires relative paths from project root
     resolveAlias: {
       "thread-stream": "./lib/stubs/thread-stream.ts",
+      "@walletconnect/logger": "./lib/stubs/walletconnect-logger.ts",
     },
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Resolve thread-stream to synchronous stub in production webpack builds
+      // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
+      const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
+      const loggerStubPath = path.join(
+        __dirname,
+        "lib/stubs/walletconnect-logger.ts",
+      );
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "thread-stream": stubPath,
+        // Stub walletconnect logger to prevent nested pino 7.x from loading
+        "@walletconnect/logger": loggerStubPath,
+      };
+    }
+    return config;
   },
   transpilePackages: ["next-mdx-remote"],
   typescript: {
@@ -100,13 +120,6 @@ const nextConfig: NextConfig = {
     "/api/v1/containers/[id]": ["./scripts/cloudformation/**/*"],
     "/api/v1/cron/deployment-monitor": ["./scripts/cloudformation/**/*"],
   },
-  outputFileTracingExcludes: {
-    "*": [
-      "node_modules/thread-stream/**/*",
-      "node_modules/pino/**/*",
-      "node_modules/sonic-boom/**/*",
-    ],
-  },
   serverExternalPackages: [
     "pdfjs-dist",
     "canvas",
@@ -116,61 +129,41 @@ const nextConfig: NextConfig = {
     "mcp-handler",
     "express",
     "worker_threads",
-    "agent0-sdk",
     "ipfs-http-client",
     "ipfs-utils",
     "electron-fetch",
     "electron",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
-    // pino uses thread-stream for worker threads which creates dynamic module names
-    // that can't be resolved in serverless environments
-    "pino",
-    "pino-std-serializers",
-    "thread-stream",
-    "sonic-boom",
-    "on-exit-leak-free",
-    "process-warning",
-    // @elizaos/core uses pino internally
-    "@elizaos/core",
+    // NOTE: pino and thread-stream are NOT external - they get bundled with
+    // the thread-stream alias to our synchronous stub, preventing dynamic
+    // worker module loading (pino-28069d5257187539) that fails in serverless
   ],
 
-  webpack: (config, { isServer, dev }) => {
-    // Fix for worker_threads not being handled by Turbopack
-    if (isServer) {
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push("worker_threads");
-      }
-
-      // Redirect thread-stream to our synchronous stub to avoid dynamic module names
-      // that cannot be resolved in serverless environments
-      config.resolve = config.resolve || {};
-      config.resolve.alias = config.resolve.alias || {};
-      config.resolve.alias["thread-stream"] = path.resolve(
-        __dirname,
-        "lib/stubs/thread-stream.ts",
-      );
-    }
-
-    // Enable bundle analyzer if env variable is set (dev only)
-    if (process.env.ANALYZE === "true" && !dev && !isServer) {
-      const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
-      config.plugins.push(
-        new BundleAnalyzerPlugin({
-          analyzerMode: "static",
-          reportFilename: "./analyze/client.html",
-          openAnalyzer: false,
-        }),
-      );
-    }
-
-    return config;
-  },
   async headers() {
     return [
+      // CORS headers for all API routes - allow any origin with valid auth
+      // Note: Credentials cannot be used with wildcard origin - auth is via tokens in headers
       {
-        source: "/:path*",
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value:
+              "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie",
+          },
+          { key: "Access-Control-Max-Age", value: "86400" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      // CSP headers for non-API routes
+      {
+        source: "/:path((?!api).*)",
         headers: [
           {
             key: "Content-Security-Policy",
@@ -181,36 +174,16 @@ const nextConfig: NextConfig = {
               // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com",
-              // Fonts - allow self and Monaco Editor CDN
-              "font-src 'self' https://cdn.jsdelivr.net",
+              // Fonts - allow self, Monaco Editor CDN, and Vercel sandboxes (for iframe embedding)
+              "font-src 'self' https://cdn.jsdelivr.net https://*.vercel.run https://*.vercel.app",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
-              "frame-ancestors 'none'",
+              // Allow iframes from any origin - sandbox apps need to embed
+              "frame-ancestors *",
               "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
               "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
-              [
-                "connect-src 'self'",
-                "https://auth.privy.io",
-                "wss://relay.walletconnect.com",
-                "wss://relay.walletconnect.org",
-                "wss://www.walletlink.org",
-                "https://*.rpc.privy.systems",
-                "https://explorer-api.walletconnect.com",
-                "https://api.relay.link",
-                "https://api.testnets.relay.link",
-                "https://api.mainnet-beta.solana.com",
-                "https://api.devnet.solana.com",
-                "https://api.testnet.solana.com",
-                "https://api.openai.com",
-                "https://api.stripe.com",
-                "https://api.coingecko.com",
-                "https://*.fal.ai",
-                "https://api.elevenlabs.io",
-                "https://cdn.jsdelivr.net",
-                "https://vitals.vercel-insights.com",
-                "https://*.vercel.run",
-              ].join(" "),
+              ["connect-src *"].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
               // Media - allow self, data URIs, blob URIs, Vercel blob storage (for videos), and video placeholder domain
@@ -219,13 +192,13 @@ const nextConfig: NextConfig = {
               .join("; ")
               .replace(/\s+/g, " "),
           },
-          { key: "X-Frame-Options", value: "DENY" },
+          // Remove X-Frame-Options to allow iframes - frame-ancestors CSP handles this now
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: "camera=(), microphone=(self), geolocation=()",
           },
         ],
       },

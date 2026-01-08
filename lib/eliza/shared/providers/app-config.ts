@@ -6,11 +6,11 @@
  */
 
 import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
-import type { PromptConfig } from "@/miniapp/app/config";
 import {
   buildAppSystemContext,
   getPresetFromEnv,
   mergePromptConfig,
+  type PromptConfig,
 } from "../../prompt-presets";
 
 /**

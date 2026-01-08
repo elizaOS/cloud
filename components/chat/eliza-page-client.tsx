@@ -216,7 +216,10 @@ export function ElizaPageClient({
           }
         })
         .catch((error) => {
-          console.error("[ElizaPageClient] Failed to create anonymous session:", error);
+          console.error(
+            "[ElizaPageClient] Failed to create anonymous session:",
+            error,
+          );
         })
         .finally(() => {
           // Always set loading to false regardless of success/failure

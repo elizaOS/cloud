@@ -63,6 +63,8 @@ interface SendMessageOptions {
   sessionToken?: string;
   /** Whether web search is enabled for this message. */
   webSearchEnabled?: boolean;
+  /** Whether image creation is enabled for this message. */
+  createImageEnabled?: boolean;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
   /** Callback invoked for each text chunk (real-time streaming). */
@@ -91,6 +93,7 @@ export async function sendStreamingMessage({
   model,
   sessionToken,
   webSearchEnabled,
+  createImageEnabled,
   onMessage,
   onChunk,
   onReasoning,
@@ -122,6 +125,8 @@ export async function sendStreamingMessage({
         ...(sessionToken && { sessionToken }),
         // Always include webSearchEnabled (defaults to true, explicitly false disables)
         webSearchEnabled: webSearchEnabled ?? true,
+        // Include createImageEnabled (defaults to false)
+        createImageEnabled: createImageEnabled ?? false,
       }),
     });
   } catch (error) {
@@ -177,6 +182,8 @@ export async function sendStreamingMessage({
   const decoder = new TextDecoder();
   let buffer = "";
 
+  let completeCalled = false;
+
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -191,12 +198,19 @@ export async function sendStreamingMessage({
               onChunk,
               onReasoning,
               onError,
-              onComplete,
+              () => {
+                completeCalled = true;
+                onComplete?.();
+              },
             );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
             onError?.("Stream ended unexpectedly");
           }
+        }
+        // Always call onComplete when stream ends, if not already called
+        if (!completeCalled) {
+          onComplete?.();
         }
         break;
       }

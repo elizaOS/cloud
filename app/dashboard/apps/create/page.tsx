@@ -1,8 +1,26 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useChatInput } from "@/lib/app-builder/store";
+import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
+import { markdownComponents } from "@/lib/app-builder/markdown-components";
+import type {
+  Message,
+  SessionData,
+  SessionStatus,
+  ProgressStep,
+  TemplateType,
+  AppData,
+  GitStatusInfo,
+  CommitInfo,
+  TemplateOption,
+  SourceType,
+  SourceContext,
+  PreviewTab,
+} from "@/lib/app-builder/types";
+import { ChatInput, HistoryTab } from "@/components/app-builder";
 
 async function fetchWithRetry(
   url: string,
@@ -39,7 +57,6 @@ async function fetchWithRetry(
 }
 import {
   Loader2,
-  Send,
   Sparkles,
   RefreshCw,
   ExternalLink,
@@ -71,15 +88,16 @@ import {
   Rocket,
   FolderCode,
   MessageSquare,
-  BarChart3,
   FileCode,
-  Layers,
-  Zap,
   Globe,
   Wand2,
-  TrendingUp,
   DollarSign,
   LineChart,
+  Menu,
+  X,
+  PanelLeftClose,
+  PanelRightClose,
+  MoreVertical,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -88,114 +106,152 @@ import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type TemplateType =
-  | "chat"
-  | "agent-dashboard"
-  | "landing-page"
-  | "analytics"
-  | "blank"
-  | "mcp-service"
-  | "a2a-agent";
-
-type SessionStatus =
-  | "idle"
-  | "initializing"
-  | "ready"
-  | "generating"
-  | "error"
-  | "stopped"
-  | "timeout"
-  | "not_configured";
-
-type ProgressStep =
-  | "creating"
-  | "installing"
-  | "starting"
-  | "restoring"
-  | "ready"
-  | "error";
-type SourceType = "agent" | "workflow" | "service" | "standalone";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  filesAffected?: string[];
-  timestamp: string;
-  _thinkingId?: number;
-}
-
-interface SessionData {
-  id: string;
-  sandboxId: string;
-  sandboxUrl: string;
+// Memoized chat message component to prevent re-renders when input changes
+interface ChatMessageProps {
+  msg: Message;
+  index: number;
+  session: SessionData | null;
   status: SessionStatus;
-  examplePrompts: string[];
-  expiresAt: string | null;
-  appId?: string;
-  githubRepo?: string | null;
+  sendPrompt: (promptText?: string) => void;
 }
 
-interface SourceContext {
-  type: SourceType;
-  id: string;
-  name: string;
-}
+const ChatMessage = memo(function ChatMessage({
+  msg,
+  index: i,
+  session,
+  status,
+  sendPrompt,
+}: ChatMessageProps) {
+  const isProcessing = !!msg._thinkingId;
+  const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-interface AppData {
-  id: string;
-  name: string;
-  description: string | null;
-  monetization_enabled?: boolean;
-  github_repo?: string | null;
-}
+  return (
+    <div
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+    >
+      <div
+        className={`${
+          msg.role === "user"
+            ? "max-w-[90%] xl:max-w-[85%] py-2 xl:py-2.5 px-3 xl:px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
+            : isProcessing
+              ? "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
+              : "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-1 xl:mb-1.5">
+          <div className="flex items-center gap-1.5 xl:gap-2">
+            {isProcessing && (
+              <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-violet-400" />
+            )}
+            <span
+              className={`text-[10px] xl:text-[11px] ${
+                msg.role === "user"
+                  ? "text-[#FF5800]/70"
+                  : isProcessing
+                    ? "text-violet-300/70"
+                    : "text-white/35"
+              }`}
+            >
+              {msg.role === "user"
+                ? "You"
+                : isProcessing
+                  ? "Building"
+                  : "Assistant"}
+            </span>
+          </div>
+          <span className="text-[9px] xl:text-[10px] text-white/20 font-mono opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity">
+            {msgTime}
+          </span>
+        </div>
+        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
+            {msg.content}
+          </ReactMarkdown>
+        </div>
+        {i === 0 &&
+          msg.role === "assistant" &&
+          session?.examplePrompts &&
+          session.examplePrompts.length > 0 && (
+            <div className="mt-3 xl:mt-4 pt-2.5 xl:pt-3 border-t border-white/[0.05]">
+              <p className="text-[9px] xl:text-[10px] text-white/35 mb-1.5 xl:mb-2 uppercase tracking-wider">
+                Suggestions
+              </p>
+              <div className="flex flex-wrap gap-1 xl:gap-1.5">
+                {session.examplePrompts.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => sendPrompt(prompt)}
+                    disabled={status !== "ready"}
+                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        {msg.filesAffected && msg.filesAffected.length > 0 && (
+          <div className="mt-2.5 xl:mt-3 pt-2 xl:pt-2.5 border-t border-white/[0.04]">
+            <p className="text-[9px] xl:text-[10px] text-white/30 mb-1 xl:mb-1.5 uppercase tracking-wider">
+              Changed
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {msg.filesAffected.map((file) => (
+                <span
+                  key={file}
+                  className="px-1.5 xl:px-2 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded truncate max-w-full"
+                >
+                  {file}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
-interface GitStatusInfo {
-  hasChanges: boolean;
-  staged: string[];
-  unstaged: string[];
-  untracked: string[];
-  currentCommitSha: string | null;
-  lastSavedCommitSha: string | null;
-}
-
-interface CommitInfo {
-  sha: string;
-  message: string;
-  author: string;
-  date: string;
-}
-
-interface TemplateOption {
-  value: TemplateType;
-  label: string;
-  description: string;
-  longDescription: string;
-  icon: LucideIcon;
-  color: string;
-  gradient: string;
-  features: string[];
-  techStack: string[];
-  comingSoon?: boolean;
-}
-
-const TEMPLATE_OPTIONS: TemplateOption[] = [
+// Template options with icons - icon field uses LucideIcon type from types.ts
+const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
   {
     value: "blank",
     label: "Blank Canvas",
     description: "Start from scratch",
-    longDescription: "A clean slate with Next.js, React, and Tailwind CSS ready to go. Build anything you can imagine.",
+    longDescription:
+      "A clean slate with Next.js, React, and Tailwind CSS ready to go. Build anything you can imagine.",
     icon: FileCode,
     color: "#64748B",
     gradient: "from-slate-500 to-slate-700",
@@ -206,7 +262,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     value: "chat",
     label: "AI Chat App",
     description: "Conversational AI interface",
-    longDescription: "A sleek chat interface with real-time streaming, conversation history, and AI model integration.",
+    longDescription:
+      "A sleek chat interface with real-time streaming, conversation history, and AI model integration.",
     icon: MessageSquare,
     color: "#06B6D4",
     gradient: "from-cyan-500 to-blue-600",
@@ -217,7 +274,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     value: "landing-page",
     label: "Landing Page",
     description: "Marketing & conversion",
-    longDescription: "Beautiful, conversion-optimized landing page with hero sections, features, and call-to-actions.",
+    longDescription:
+      "Beautiful, conversion-optimized landing page with hero sections, features, and call-to-actions.",
     icon: Globe,
     color: "#8B5CF6",
     gradient: "from-violet-500 to-purple-600",
@@ -225,21 +283,11 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     techStack: ["Next.js", "Framer Motion", "Tailwind"],
   },
   {
-    value: "analytics",
-    label: "Analytics Dashboard",
-    description: "Data visualization",
-    longDescription: "Interactive dashboard with charts, metrics, and real-time data visualization components.",
-    icon: BarChart3,
-    color: "#10B981",
-    gradient: "from-emerald-500 to-teal-600",
-    features: ["Interactive charts", "Real-time data", "Custom metrics"],
-    techStack: ["Next.js", "Recharts", "Tailwind"],
-  },
-  {
     value: "mcp-service",
     label: "MCP Service",
     description: "Model Context Protocol",
-    longDescription: "Build a Model Context Protocol server that extends AI capabilities with custom tools and resources.",
+    longDescription:
+      "Build a Model Context Protocol server that extends AI capabilities with custom tools and resources.",
     icon: Puzzle,
     color: "#F59E0B",
     gradient: "from-amber-500 to-orange-600",
@@ -251,7 +299,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     value: "a2a-agent",
     label: "A2A Agent",
     description: "Agent-to-Agent protocol",
-    longDescription: "Create an agent endpoint that can communicate with other AI agents using standardized protocols.",
+    longDescription:
+      "Create an agent endpoint that can communicate with other AI agents using standardized protocols.",
     icon: Workflow,
     color: "#EC4899",
     gradient: "from-pink-500 to-rose-600",
@@ -263,7 +312,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     value: "agent-dashboard",
     label: "Agent Dashboard",
     description: "Manage AI agents",
-    longDescription: "A control center to monitor, configure, and interact with your AI agents in real-time.",
+    longDescription:
+      "A control center to monitor, configure, and interact with your AI agents in real-time.",
     icon: Bot,
     color: "#0B35F1",
     gradient: "from-blue-600 to-indigo-700",
@@ -363,15 +413,16 @@ export default function AppCreatorPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  // Input is managed by Zustand for isolated re-renders - see useChatInput
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
+  const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console" | "files">(
-    "preview",
-  );
+  const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -387,6 +438,9 @@ export default function AppCreatorPage() {
     total: number;
     filePath: string;
   } | null>(null);
+  // Track if we just loaded a session that needs user action (timeout/expired)
+  // This prevents jarring layout flash between loading card and full UI overlay
+  const [showStandaloneTimeout, setShowStandaloneTimeout] = useState(false);
   const [appSnapshotInfo, setAppSnapshotInfo] = useState<{
     githubRepo: string;
     lastBackup: string | null;
@@ -400,7 +454,12 @@ export default function AppCreatorPage() {
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
-  const [showCommitHistory, setShowCommitHistory] = useState(false);
+
+  // Sandbox health tracking for automatic recovery
+  const [sandboxHealthy, setSandboxHealthy] = useState(true);
+  const healthCheckFailCountRef = useRef(0);
+  const isRecoveringRef = useRef(false);
+  const lastHealthCheckRef = useRef<number>(0);
 
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
@@ -469,16 +528,17 @@ export default function AppCreatorPage() {
         // Session must have a sandbox URL or be expired/stopped to be valid
         if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
 
-        // Restore session state
-        setSession({
+        // Restore session state first
+        const sessionData = {
           id: data.session.id,
           sandboxId: data.session.sandboxId || "",
           sandboxUrl: data.session.sandboxUrl || "",
           status: sessionStatus,
           examplePrompts: data.session.examplePrompts || [],
           expiresAt: data.session.expiresAt || null,
-        });
-        setStatus(sessionStatus);
+        };
+
+        setSession(sessionData);
         setStep("building");
 
         // Restore messages from session or sessionStorage
@@ -489,8 +549,11 @@ export default function AppCreatorPage() {
           if (stored) {
             try {
               setMessages(JSON.parse(stored));
-            } catch {
-              /* ignore */
+            } catch (parseError) {
+              console.warn(
+                "[AppBuilder] Failed to parse stored messages:",
+                parseError,
+              );
             }
           }
         }
@@ -509,8 +572,45 @@ export default function AppCreatorPage() {
           }
         }
 
+        // If session is supposedly "ready", verify sandbox is actually healthy
+        // Otherwise, auto-trigger recovery in the background
+        if (sessionStatus === "ready" && data.session.sandboxUrl) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            await fetch(data.session.sandboxUrl, {
+              method: "HEAD",
+              mode: "no-cors",
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            // Sandbox is healthy, set status to ready
+            setStatus("ready");
+            setSandboxHealthy(true);
+          } catch (healthCheckError) {
+            // Sandbox is not responding - set to recovering and let the
+            // health check useEffect handle auto-recovery
+            console.warn(
+              "[AppBuilder] Sandbox health check failed, initiating recovery:",
+              healthCheckError,
+            );
+            setStatus("recovering");
+            setSandboxHealthy(false);
+            healthCheckFailCountRef.current = 2;
+          }
+        } else {
+          setStatus(sessionStatus);
+          // If session is expired/stopped, show standalone timeout card to avoid layout flash
+          if (sessionStatus === "timeout" || sessionStatus === "stopped") {
+            setShowStandaloneTimeout(true);
+          }
+        }
+
         return true;
-      } catch {
+      } catch (restoreError) {
+        console.warn("[AppBuilder] Session restore failed:", restoreError);
         return false;
       }
     };
@@ -525,7 +625,7 @@ export default function AppCreatorPage() {
 
     const loadAppData = async (appId: string) => {
       try {
-        // Fetch app details
+        // Fetch app details first (must complete before other checks)
         const appResponse = await fetchWithRetry(`/api/v1/apps/${appId}`);
         if (!appResponse.ok) {
           toast.error("App not found");
@@ -541,10 +641,17 @@ export default function AppCreatorPage() {
           setIncludeMonetization(appData.app.monetization_enabled || false);
         }
 
-        // Check for existing active session
-        const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
-        );
+        // Run session and snapshot checks in parallel for faster loading
+        const [sessionResponse, snapshotResponse] = await Promise.all([
+          fetchWithRetry(
+            `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
+          ),
+          fetchWithRetry(
+            `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
+          ),
+        ]);
+
+        // Process session response
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           if (sessionData.success && sessionData.sessions?.length > 0) {
@@ -558,17 +665,15 @@ export default function AppCreatorPage() {
           }
         }
 
-        // Check GitHub snapshot info
-        const snapshotResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
-        );
+        // Process snapshot response
         if (snapshotResponse.ok) {
           const snapshotData = await snapshotResponse.json();
           if (snapshotData.success && snapshotData.snapshotInfo) {
             setAppSnapshotInfo(snapshotData.snapshotInfo);
           }
         }
-      } catch {
+      } catch (loadError) {
+        console.error("[AppBuilder] Failed to load app data:", loadError);
         toast.error("Failed to load app");
         router.push("/dashboard/apps");
       }
@@ -661,7 +766,11 @@ export default function AppCreatorPage() {
 
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
-    setConsoleLogs((prev) => [...prev, `[${timestamp}] [${level}] ${message}`]);
+    // Limit console logs to prevent memory issues
+    setConsoleLogs((prev) => [
+      ...prev.slice(-499),
+      `[${timestamp}] [${level}] ${message}`,
+    ]);
   }, []);
 
   const extendSession = useCallback(async () => {
@@ -690,7 +799,8 @@ export default function AppCreatorPage() {
       toast.success("Session extended", {
         description: "Your session has been extended by 15 minutes.",
       });
-    } catch {
+    } catch (extendError) {
+      console.warn("[AppBuilder] Failed to extend session:", extendError);
       toast.error("Failed to extend session");
       addLog("Failed to extend session", "error");
     } finally {
@@ -714,8 +824,9 @@ export default function AppCreatorPage() {
           });
         }
       }
-    } catch {
-      // Snapshot check failed, not critical
+    } catch (snapshotError) {
+      // Snapshot check failed, not critical but log for debugging
+      console.warn("[AppBuilder] Snapshot check failed:", snapshotError);
     }
   }, [session]);
 
@@ -739,8 +850,9 @@ export default function AppCreatorPage() {
           });
         }
       }
-    } catch {
-      // Git status check failed, not critical
+    } catch (gitStatusError) {
+      // Git status check failed, not critical but log for debugging
+      console.warn("[AppBuilder] Git status check failed:", gitStatusError);
     }
   }, [session]);
 
@@ -756,8 +868,9 @@ export default function AppCreatorPage() {
           setCommitHistory(data.commits);
         }
       }
-    } catch {
-      // Commit history fetch failed, not critical
+    } catch (historyError) {
+      // Commit history fetch failed, not critical but log for debugging
+      console.warn("[AppBuilder] Commit history fetch failed:", historyError);
     }
   }, [session]);
 
@@ -785,13 +898,20 @@ export default function AppCreatorPage() {
       const data = await response.json();
       if (data.success) {
         setLastSaveTime(new Date());
-        toast.success("Saved to GitHub", {
-          description: `${data.filesCommitted} file(s) committed`,
-        });
-        addLog(
-          `Saved to GitHub: ${data.commitSha?.substring(0, 7)}`,
-          "success",
-        );
+        if (data.filesCommitted > 0 && data.commitSha) {
+          toast.success("Saved to GitHub", {
+            description: `${data.filesCommitted} file(s) committed`,
+          });
+          addLog(
+            `Saved to GitHub: ${data.commitSha.substring(0, 7)} (${data.filesCommitted} files)`,
+            "success",
+          );
+        } else {
+          toast.info("No changes to save", {
+            description: "All files are already up to date",
+          });
+          addLog("No changes to commit - files already up to date", "info");
+        }
         // Refresh git status
         await checkGitStatus();
         // Refresh commit history
@@ -883,8 +1003,12 @@ export default function AppCreatorPage() {
             setProductionUrl(data.productionUrl);
           }
         }
-      } catch {
-        // Not critical
+      } catch (deployInfoError) {
+        // Not critical but log for debugging
+        console.warn(
+          "[AppBuilder] Deployment info fetch failed:",
+          deployInfoError,
+        );
       }
     };
 
@@ -895,9 +1019,10 @@ export default function AppCreatorPage() {
   useEffect(() => {
     if (status !== "ready" || !session || !appData?.github_repo) return;
 
-    // Initial fetch
-    checkGitStatus();
-    fetchCommitHistory();
+    // Initial fetch - run both in parallel for faster load
+    Promise.all([checkGitStatus(), fetchCommitHistory()]).catch(() => {
+      // Silently handle errors - these are non-critical
+    });
 
     // Poll every 30 seconds
     const interval = setInterval(() => {
@@ -979,6 +1104,7 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
+                setShowStandaloneTimeout(false);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1034,6 +1160,184 @@ export default function AppCreatorPage() {
     }
   }, [status, session, checkSnapshots]);
 
+  // Auto-recovery function - runs silently in background
+  const autoRecoverSession = useCallback(async () => {
+    if (isRecoveringRef.current || !session) return;
+    isRecoveringRef.current = true;
+
+    setStatus("recovering");
+    setProgressStep("creating");
+    addLog("Sandbox connection lost, auto-recovering...", "info");
+
+    // Show a non-blocking toast notification
+    const toastId = toast.loading("Reconnecting to sandbox...", {
+      description: "This happens automatically - no action needed",
+    });
+
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to recover session (HTTP ${response.status})`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (eventType === "progress") {
+                setProgressStep(data.step as ProgressStep);
+              } else if (eventType === "complete") {
+                setSession({
+                  ...data.session,
+                  expiresAt: data.session.expiresAt,
+                });
+                setStatus("ready");
+                setShowStandaloneTimeout(false);
+                setSandboxHealthy(true);
+                healthCheckFailCountRef.current = 0;
+
+                if (data.session.expiresAt) {
+                  setExpiresAt(new Date(data.session.expiresAt));
+                }
+
+                toast.success("Sandbox reconnected!", {
+                  id: toastId,
+                  description: "You can continue building.",
+                });
+                addLog("Auto-recovery complete", "success");
+              } else if (eventType === "error") {
+                throw new Error(data.error || "Recovery failed");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            eventType = "";
+          }
+        }
+      }
+    } catch (error) {
+      const errorMsg =
+        error instanceof Error ? error.message : "Recovery failed";
+      addLog(`Auto-recovery failed: ${errorMsg}`, "error");
+
+      // Only show timeout status if recovery truly failed
+      // This will display the recovery UI as a fallback
+      setStatus("timeout");
+      toast.error("Could not reconnect", {
+        id: toastId,
+        description: "Click 'Restore' to try again.",
+      });
+    } finally {
+      isRecoveringRef.current = false;
+    }
+  }, [session, addLog]);
+
+  // Sandbox health check - detects when sandbox dies and auto-recovers
+  useEffect(() => {
+    // Only check health when we think sandbox is ready
+    if (!session?.sandboxUrl || status !== "ready") {
+      return;
+    }
+
+    const checkSandboxHealth = async () => {
+      // Throttle checks - don't check more than once every 5 seconds
+      const now = Date.now();
+      if (now - lastHealthCheckRef.current < 5000) return;
+      lastHealthCheckRef.current = now;
+
+      try {
+        // Try to fetch the sandbox URL with no-cors mode first (just to test connectivity)
+        // We can't read the response body due to CORS, but we can detect network errors
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(session.sandboxUrl, {
+          method: "HEAD",
+          mode: "no-cors",
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        // If we got here, the request completed (even if opaque)
+        // Reset fail counter on success
+        healthCheckFailCountRef.current = 0;
+        setSandboxHealthy(true);
+      } catch (error) {
+        // Network error or timeout - sandbox may be dead
+        healthCheckFailCountRef.current++;
+
+        // After 2 consecutive failures, trigger auto-recovery
+        if (healthCheckFailCountRef.current >= 2 && !isRecoveringRef.current) {
+          setSandboxHealthy(false);
+          addLog(
+            `Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`,
+            "warning",
+          );
+          autoRecoverSession();
+        }
+      }
+    };
+
+    // Check health every 15 seconds
+    const interval = setInterval(checkSandboxHealth, 15000);
+
+    // Initial check after a short delay
+    const initialCheck = setTimeout(checkSandboxHealth, 3000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialCheck);
+    };
+  }, [session?.sandboxUrl, status, autoRecoverSession, addLog]);
+
+  // Handle iframe load errors - triggers auto-recovery
+  const handleIframeError = useCallback(() => {
+    if (status === "ready" && session && !isRecoveringRef.current) {
+      healthCheckFailCountRef.current = 2; // Immediately trigger recovery
+      setSandboxHealthy(false);
+      addLog("Preview failed to load, initiating recovery...", "warning");
+      autoRecoverSession();
+    }
+  }, [status, session, autoRecoverSession, addLog]);
+
+  // Handle iframe load success - reset health tracking
+  const handleIframeLoad = useCallback(() => {
+    if (status === "ready") {
+      healthCheckFailCountRef.current = 0;
+      setSandboxHealthy(true);
+    }
+  }, [status]);
+
+  // Trigger auto-recovery when status becomes "recovering"
+  useEffect(() => {
+    if (status === "recovering" && !isRecoveringRef.current && session) {
+      autoRecoverSession();
+    }
+  }, [status, session, autoRecoverSession]);
+
   const lastLogIndexRef = useRef<number>(0);
   useEffect(() => {
     if (!session || status !== "ready") {
@@ -1073,8 +1377,11 @@ export default function AppCreatorPage() {
             lastLogIndexRef.current = data.logs.length;
           }
         }
-      } catch {
-        // Silently ignore network errors
+      } catch (logsError) {
+        // Network errors during log polling are expected, log only in debug
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[AppBuilder] Log polling error:", logsError);
+        }
       }
     };
 
@@ -1200,6 +1507,15 @@ export default function AppCreatorPage() {
                 const newUrl = effectiveAppId
                   ? `/dashboard/apps/create?appId=${effectiveAppId}&sessionId=${data.session.id}`
                   : `/dashboard/apps/create?sessionId=${data.session.id}`;
+
+                // Update refs BEFORE router.replace to prevent the initialization
+                // effect from detecting this as a "session change" and resetting state
+                // (which causes the flash-to-recovery-then-back jank on new app creation)
+                prevSessionIdRef.current = data.session.id;
+                if (effectiveAppId) {
+                  prevAppIdRef.current = effectiveAppId;
+                }
+
                 router.replace(newUrl, { scroll: false });
 
                 addLog(
@@ -1251,40 +1567,31 @@ Some ideas:
                   });
                 }
               } else if (eventType === "thinking") {
-                addLog("Planning changes...", "info");
+                // Stream actual reasoning text to show chain of thought
+                const reasoningText = data.text || "Planning changes...";
+                addLog(`💭 ${reasoningText.substring(0, 80)}...`, "info");
+
+                // Update the thinking message with the reasoning
+                if (initialThinkingIdRef.current) {
+                  const thinkingId = initialThinkingIdRef.current;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      (m as Message & { _thinkingId?: number })._thinkingId ===
+                      thinkingId
+                        ? {
+                            ...m,
+                            content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*`,
+                          }
+                        : m,
+                    ),
+                  );
+                }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
-                let toolDisplay = "";
-                let detail = "";
-
-                if (toolName === "write_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = "Writing file";
-                  detail = path;
-                } else if (toolName === "read_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = "Reading file";
-                  detail = path;
-                } else if (toolName === "install_packages") {
-                  const packages =
-                    data.input?.packages?.join(", ") || "packages";
-                  toolDisplay = "Installing packages";
-                  detail = packages;
-                } else if (toolName === "check_build") {
-                  toolDisplay = "Checking build";
-                  detail = "Verifying project compiles";
-                } else if (toolName === "list_files") {
-                  const path = data.input?.path || ".";
-                  toolDisplay = "Listing directory";
-                  detail = path;
-                } else if (toolName === "run_command") {
-                  const cmd = data.input?.command || "command";
-                  toolDisplay = "Running command";
-                  detail = cmd;
-                } else {
-                  toolDisplay = toolName.replace(/_/g, " ");
-                  detail = JSON.stringify(data.input || {}).slice(0, 50);
-                }
+                const { display: toolDisplay, detail } = formatToolDisplay(
+                  toolName,
+                  data.input,
+                );
 
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
@@ -1313,7 +1620,7 @@ Some ideas:
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
-                      action.status === "active" ? "[RUNNING]" : "[DONE]";
+                      action.status === "active" ? "⏳" : "✓";
                     progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
@@ -1331,6 +1638,7 @@ Some ideas:
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
+                setShowStandaloneTimeout(false);
 
                 if (
                   data.session.initialPromptResult &&
@@ -1352,7 +1660,7 @@ Some ideas:
                     assistantContent += "\n\n---\n\n";
                     assistantContent += "**Operations Completed**\n\n";
                     sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `\`${action.timestamp}\` **${action.tool}**\n`;
+                      assistantContent += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
                       assistantContent += `> \`${action.detail}\`\n\n`;
                     });
                   }
@@ -1427,7 +1735,9 @@ Some ideas:
 
   const sendPrompt = useCallback(
     async (promptText?: string) => {
-      const text = promptText || input.trim();
+      // Get input from Zustand store for isolation
+      const currentInput = useChatInput.getState().input;
+      const text = promptText || currentInput.trim();
       if (!text || !session || isLoading) return;
 
       setIsLoading(true);
@@ -1444,7 +1754,8 @@ Some ideas:
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
-      setInput("");
+      // Clear input using Zustand
+      useChatInput.getState().clearInput();
 
       const thinkingId = Date.now();
       const actionsLog: {
@@ -1454,22 +1765,23 @@ Some ideas:
         status: "active" | "done";
       }[] = [];
 
-      const getTimeString = () => {
-        return new Date().toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-      };
+      // getTimeString is imported from @/lib/app-builder
 
-      const buildProgressContent = (currentStatus?: string) => {
+      // Track current reasoning text for display
+      let currentReasoning = "";
+
+      const buildLocalProgressContent = (currentStatus?: string) => {
         let content = "**Processing your request**\n\n";
 
+        // Show current chain-of-thought reasoning
+        if (currentReasoning) {
+          content += `💭 *${currentReasoning.substring(0, 200)}${currentReasoning.length > 200 ? "..." : ""}*\n\n`;
+        }
+
         if (actionsLog.length > 0) {
-          actionsLog.forEach((action, idx) => {
+          actionsLog.forEach((action) => {
             const isActive = action.status === "active";
-            const statusMarker = isActive ? "[RUNNING]" : "[DONE]";
+            const statusMarker = isActive ? "⏳" : "✓";
             content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
             content += `> \`${action.detail}\`\n\n`;
           });
@@ -1483,7 +1795,7 @@ Some ideas:
       };
 
       const updateThinking = (currentStatus?: string) => {
-        const content = buildProgressContent(currentStatus);
+        const content = buildLocalProgressContent(currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -1556,47 +1868,21 @@ Some ideas:
                   // Heartbeat received, connection is alive
                   continue;
                 } else if (eventType === "thinking") {
-                  updateThinking("Planning changes...");
+                  // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
+                  const reasoningText = data.text || "Planning changes...";
+                  currentReasoning = reasoningText;
+                  updateThinking("Analyzing...");
+                  addLog(
+                    `💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`,
+                    "info",
+                  );
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
-                  let toolDisplay = "";
-                  let detail = "";
-                  let statusMsg = "Working...";
-
-                  if (toolName === "write_file") {
-                    const path = data.input?.path || "file";
-                    toolDisplay = "Writing file";
-                    detail = path;
-                    statusMsg = `Writing ${path.split("/").pop()}...`;
-                  } else if (toolName === "read_file") {
-                    const path = data.input?.path || "file";
-                    toolDisplay = "Reading file";
-                    detail = path;
-                    statusMsg = "Reading file...";
-                  } else if (toolName === "install_packages") {
-                    const packages =
-                      data.input?.packages?.join(", ") || "packages";
-                    toolDisplay = "Installing packages";
-                    detail = packages;
-                    statusMsg = "Installing dependencies...";
-                  } else if (toolName === "check_build") {
-                    toolDisplay = "Checking build";
-                    detail = "Verifying project compiles";
-                    statusMsg = "Running build check...";
-                  } else if (toolName === "list_files") {
-                    const path = data.input?.path || ".";
-                    toolDisplay = "Listing directory";
-                    detail = path;
-                    statusMsg = "Exploring project structure...";
-                  } else if (toolName === "run_command") {
-                    const cmd = data.input?.command || "command";
-                    toolDisplay = "Running command";
-                    detail = cmd;
-                    statusMsg = "Executing command...";
-                  } else {
-                    toolDisplay = toolName.replace(/_/g, " ");
-                    detail = JSON.stringify(data.input || {}).slice(0, 50);
-                  }
+                  const {
+                    display: toolDisplay,
+                    detail,
+                    statusMessage,
+                  } = formatToolDisplay(toolName, data.input);
 
                   if (actionsLog.length > 0) {
                     actionsLog[actionsLog.length - 1].status = "done";
@@ -1607,7 +1893,7 @@ Some ideas:
                     timestamp: getTimeString(),
                     status: "active",
                   });
-                  updateThinking(statusMsg);
+                  updateThinking(statusMessage);
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
@@ -1652,7 +1938,7 @@ Some ideas:
                 content += "\n\n---\n\n";
                 content += "**Operations Completed**\n\n";
                 actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                  content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
                   content += `> \`${action.detail}\`\n\n`;
                 });
               }
@@ -1718,7 +2004,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [input, session, isLoading, addLog],
+    [session, isLoading, addLog],
   );
 
   const stopSession = useCallback(async () => {
@@ -1741,7 +2027,8 @@ Some ideas:
 
       addLog("Session stopped", "info");
       toast.success("Session stopped");
-    } catch {
+    } catch (stopError) {
+      console.error("[AppBuilder] Failed to stop session:", stopError);
       toast.error("Failed to stop session");
     }
   }, [session, addLog, router, appIdFromUrl, messagesStorageKey]);
@@ -1760,7 +2047,7 @@ Some ideas:
 
   if (isInitializing) {
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -1774,6 +2061,184 @@ Some ideas:
                   ? "Loading your sandbox environment..."
                   : "Preparing app builder..."}
               </p>
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
+
+  // Show standalone timeout card instead of full UI with overlay - prevents layout flash
+  if (
+    showStandaloneTimeout &&
+    (status === "timeout" || status === "stopped") &&
+    !isRestoring
+  ) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
+        <BrandCard className="relative">
+          <CornerBrackets className="opacity-20" />
+          <div className="relative z-10 p-8">
+            <div className="max-w-md mx-auto text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+                <Timer className="h-8 w-8 text-amber-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Session Expired</h2>
+              <p className="text-white/60">
+                Your sandbox session has timed out. Your code is safely saved
+                and can be restored.
+              </p>
+
+              {snapshotInfo?.canRestore ? (
+                <div className="space-y-3 pt-2">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Your code is saved to GitHub
+                    </p>
+                    {snapshotInfo.githubRepo && (
+                      <p className="text-xs text-white/50 mt-1">
+                        <span className="font-mono">
+                          {snapshotInfo.githubRepo.split("/").pop()}
+                        </span>
+                        {snapshotInfo.lastBackup && (
+                          <>
+                            {" "}
+                            · Last updated{" "}
+                            {new Date(
+                              snapshotInfo.lastBackup,
+                            ).toLocaleDateString()}
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={restoreSession}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restore & Continue
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : appSnapshotInfo?.githubRepo ? (
+                <div className="space-y-3 pt-2">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Your code is saved to GitHub
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">
+                      <span className="font-mono">
+                        {appSnapshotInfo.githubRepo.split("/").pop()}
+                      </span>
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={restoreSession}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restore & Continue
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <p className="text-xs text-white/40">
+                    Start a new session to continue building.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      startSession();
+                    }}
+                    className="w-full"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Start New Session
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
+
+  // If restoring from standalone timeout, show the unified restore progress card
+  if (showStandaloneTimeout && isRestoring) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
+        <BrandCard className="relative">
+          <CornerBrackets className="opacity-20" />
+          <div className="relative z-10 p-8">
+            <div className="max-w-md mx-auto text-center space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto" />
+              <h2 className="text-xl font-bold text-white">
+                Restoring Session
+              </h2>
+              <p className="text-white/60">
+                Setting up your development environment and restoring your
+                files...
+              </p>
+
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-sm text-green-400 font-medium">
+                  {restoreProgress
+                    ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
+                    : progressStep === "creating"
+                      ? "Creating sandbox..."
+                      : progressStep === "installing"
+                        ? "Installing dependencies..."
+                        : progressStep === "starting"
+                          ? "Starting dev server..."
+                          : progressStep === "restoring"
+                            ? "Restoring files..."
+                            : "Preparing..."}
+                </p>
+                {snapshotInfo?.githubRepo && (
+                  <p className="text-xs text-white/50 mt-1">
+                    From{" "}
+                    <span className="font-mono">
+                      {snapshotInfo.githubRepo.split("/").pop()}
+                    </span>
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </BrandCard>
@@ -1884,68 +2349,111 @@ ANTHROPIC_API_KEY=your_key_here`}
       toast.error("Please enter an app name first");
       return;
     }
-    
+
     setIsGeneratingDescription(true);
-    const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
-    
-    // Simulate AI generation (replace with actual API call)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const descriptions: Record<TemplateType, string> = {
-      blank: `${appName} - A custom application built with modern web technologies. Features a clean, responsive design with seamless user experience.`,
-      chat: `${appName} - An intelligent conversational AI application that provides real-time responses with natural language understanding and message history.`,
-      "landing-page": `${appName} - A stunning, conversion-optimized landing page designed to captivate visitors and drive engagement with compelling visuals and clear calls-to-action.`,
-      analytics: `${appName} - A powerful analytics dashboard featuring interactive visualizations, real-time metrics tracking, and customizable data views.`,
-      "mcp-service": `${appName} - A Model Context Protocol service that extends AI capabilities with custom tools, resources, and seamless integration.`,
-      "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint enabling intelligent communication and task coordination between AI agents.`,
-      "agent-dashboard": `${appName} - A comprehensive control center for monitoring, configuring, and interacting with AI agents in real-time.`,
-    };
-    
-    setAppDescription(descriptions[templateType] || descriptions.blank);
-    setIsGeneratingDescription(false);
-    toast.success("Description generated!");
+    const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
+      (t) => t.value === templateType,
+    );
+
+    try {
+      const response = await fetchWithRetry("/api/v1/generate-prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `Generate a concise, professional app description (2-3 sentences, under 200 characters) for an app called "${appName}". The app is based on the "${selectedTemplateInfo?.label || templateType}" template which is designed for: ${selectedTemplateInfo?.longDescription || "general web applications"}. Focus on the value proposition and key features.`,
+          maxTokens: 150,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate description");
+      }
+
+      const data = await response.json();
+      if (data.success && data.prompts?.[0]) {
+        setAppDescription(data.prompts[0]);
+        toast.success("Description generated!");
+      } else {
+        throw new Error("Invalid response from API");
+      }
+    } catch (error) {
+      console.warn("[generateAIDescription] Failed to generate:", error);
+      // Fallback to template-based descriptions
+      const fallbackDescriptions: Record<TemplateType, string> = {
+        blank: `${appName} - A custom application built with modern web technologies.`,
+        chat: `${appName} - An intelligent conversational AI application with real-time responses.`,
+        "landing-page": `${appName} - A conversion-optimized landing page with compelling visuals.`,
+        "mcp-service": `${appName} - A Model Context Protocol service extending AI capabilities.`,
+        "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint for AI coordination.`,
+        "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
+      };
+      setAppDescription(
+        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
+      );
+      toast.success("Description generated!");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   // Get the selected template data
-  const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
+  const selectedTemplate = TEMPLATE_OPTIONS.find(
+    (t) => t.value === templateType,
+  );
 
   if (step === "setup" && !isEditMode && status !== "initializing") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-black via-black to-slate-950">
+      <div className="min-h-screen bg-[#0A0A0A]">
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div 
-            className="absolute top-1/3 -left-32 w-72 h-72 rounded-full blur-[100px] opacity-15"
+          <div
+            className="absolute top-1/3 -left-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-15"
             style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
           />
-          <div 
-            className="absolute bottom-1/3 -right-32 w-72 h-72 rounded-full blur-[100px] opacity-10"
+          <div
+            className="absolute bottom-1/3 -right-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-10"
             style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
           />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-6 py-5">
+        <div className="relative max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-5">
           {/* Header - compact */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between mb-3 md:mb-5">
+            <div className="flex items-center gap-2 md:gap-3">
               <Link
                 href={backLink}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
+                className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
               >
                 <ArrowLeft className="h-4 w-4 text-white/60" />
               </Link>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full blur-sm opacity-50" />
-                  <Sparkles className="relative h-5 w-5 text-white" />
+                  <Sparkles className="relative h-4 w-4 md:h-5 md:w-5 text-white" />
                 </div>
-                <h1 className="text-xl font-semibold tracking-tight text-white">
+                <h1 className="text-base md:text-xl font-semibold tracking-tight text-white">
                   App Creator
                 </h1>
               </div>
             </div>
 
-            {/* Step indicator */}
+            {/* Mobile step indicator */}
+            <div className="flex md:hidden items-center gap-1">
+              {[1, 2, 3].map((num) => (
+                <div
+                  key={num}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    setupStep === num
+                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6"
+                      : setupStep > num
+                        ? "bg-white/40 w-3"
+                        : "bg-white/10 w-3"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Desktop step indicator */}
             <div className="hidden md:flex items-center gap-2">
               {[
                 { num: 1, label: "Template" },
@@ -1955,7 +2463,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div key={s.num} className="flex items-center">
                   <button
                     onClick={() => {
-                      if (s.num === 1 || (s.num === 2 && templateType) || (s.num === 3 && appName.trim())) {
+                      if (
+                        s.num === 1 ||
+                        (s.num === 2 && templateType) ||
+                        (s.num === 3 && appName.trim())
+                      ) {
                         setSetupStep(s.num as 1 | 2 | 3);
                       }
                     }}
@@ -1976,16 +2488,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/5 text-white/40"
                       }`}
                     >
-                      {setupStep > s.num ? <Check className="h-3 w-3" /> : s.num}
+                      {setupStep > s.num ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        s.num
+                      )}
                     </span>
-                    <span className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}>
+                    <span
+                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
+                    >
                       {s.label}
                     </span>
                   </button>
                   {i < 2 && (
-                    <div className={`w-8 h-px mx-1 transition-colors duration-300 ${
-                      setupStep > s.num ? "bg-white/30" : "bg-white/10"
-                    }`} />
+                    <div
+                      className={`w-8 h-px mx-1 transition-colors duration-300 ${
+                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -1993,228 +2513,276 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {sourceContext && (
-            <div 
-              className="mb-4 p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
-              style={{ borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+            <div
+              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
+              style={{
+                borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
+              }}
             >
               <div className="flex items-center gap-2">
                 {(() => {
                   const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
                   return (
                     <Icon
-                      className="h-4 w-4"
-                      style={{ color: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+                      className="h-3.5 w-3.5 md:h-4 md:w-4"
+                      style={{
+                        color: SOURCE_CONTEXT_INFO[sourceContext.type].color,
+                      }}
                     />
                   );
                 })()}
-                <p className="text-xs text-white/70">
-                  Building for <span className="text-white font-medium">{sourceContext.name}</span>
+                <p className="text-[11px] md:text-xs text-white/70">
+                  Building for{" "}
+                  <span className="text-white font-medium">
+                    {sourceContext.name}
+                  </span>
                 </p>
               </div>
             </div>
           )}
 
           {/* STEP 1: Template Selection */}
-          <div className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
-            {setupStep === 1 && (() => {
-              const totalPages = Math.ceil(TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE);
-              const visibleTemplates = TEMPLATE_OPTIONS.slice(
-                templatePage * TEMPLATES_PER_PAGE,
-                (templatePage + 1) * TEMPLATES_PER_PAGE
-              );
-              
-              return (
-                <div className="space-y-5">
-                  {/* Header row with title and navigation */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">
-                        What are you building?
-                      </h2>
-                      <p className="text-white/50 text-sm">
-                        Choose a template to kickstart your project
-                      </p>
-                    </div>
-                    
-                    {/* Carousel navigation */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setTemplatePage(p => Math.max(0, p - 1))}
-                        disabled={templatePage === 0}
-                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
-                      >
-                        <ChevronLeft className="h-5 w-5 text-white/70" />
-                      </button>
-                      <div className="flex items-center gap-2">
-                        {Array.from({ length: totalPages }).map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setTemplatePage(i)}
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                              i === templatePage 
-                                ? "bg-white/70 w-6" 
-                                : "bg-white/20 hover:bg-white/40 w-2"
-                            }`}
-                          />
-                        ))}
+          <div
+            className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
+            {setupStep === 1 &&
+              (() => {
+                const totalPages = Math.ceil(
+                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE,
+                );
+                const visibleTemplates = TEMPLATE_OPTIONS.slice(
+                  templatePage * TEMPLATES_PER_PAGE,
+                  (templatePage + 1) * TEMPLATES_PER_PAGE,
+                );
+
+                return (
+                  <div className="space-y-3 md:space-y-5">
+                    {/* Header row with title and navigation */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+                      <div>
+                        <h2 className="text-xl md:text-2xl font-bold text-white">
+                          What are you building?
+                        </h2>
+                        <p className="text-white/50 text-xs md:text-sm">
+                          Choose a template to kickstart your project
+                        </p>
                       </div>
-                      <button
-                        onClick={() => setTemplatePage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={templatePage >= totalPages - 1}
-                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
-                      >
-                        <ChevronRight className="h-5 w-5 text-white/70" />
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* Template cards - larger, more detailed */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {visibleTemplates.map((template) => {
-                      const Icon = template.icon;
-                      const isSelected = templateType === template.value;
-                      const isDisabled = template.comingSoon;
-                      
-                      return (
+                      {/* Carousel navigation */}
+                      <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3">
                         <button
-                          key={template.value}
-                          onClick={() => {
-                            if (!isDisabled) {
-                              setTemplateType(template.value);
-                            }
-                          }}
-                          disabled={isDisabled}
-                          className={`group relative p-5 rounded-2xl text-left transition-all duration-300 border ${
-                            isSelected
-                              ? "bg-white/10 border-white/30 scale-[1.02]"
-                              : isDisabled
-                                ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
-                                : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20"
-                          }`}
+                          onClick={() =>
+                            setTemplatePage((p) => Math.max(0, p - 1))
+                          }
+                          disabled={templatePage === 0}
+                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
                         >
-                          {/* Glow effect on selected */}
-                          {isSelected && (
-                            <div 
-                              className="absolute inset-0 rounded-2xl blur-xl opacity-20 -z-10"
-                              style={{ backgroundColor: template.color }}
+                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                        </button>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setTemplatePage(i)}
+                              className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
+                                i === templatePage
+                                  ? "bg-white/70 w-5 md:w-6"
+                                  : "bg-white/20 hover:bg-white/40 w-1.5 md:w-2"
+                              }`}
                             />
-                          )}
+                          ))}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setTemplatePage((p) =>
+                              Math.min(totalPages - 1, p + 1),
+                            )
+                          }
+                          disabled={templatePage >= totalPages - 1}
+                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                        >
+                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                        </button>
+                      </div>
+                    </div>
 
-                          {/* Coming soon badge */}
-                          {isDisabled && (
-                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
-                              <span className="text-[10px] font-medium text-amber-400">Coming Soon</span>
-                            </div>
-                          )}
+                    {/* Template cards - larger, more detailed */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
+                      {visibleTemplates.map((template) => {
+                        const Icon = template.icon;
+                        const isSelected = templateType === template.value;
+                        const isDisabled = template.comingSoon;
 
-                          {/* Selection indicator */}
-                          {!isDisabled && (
-                            <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                              isSelected 
-                                ? "border-white bg-white" 
-                                : "border-white/20 group-hover:border-white/40"
-                            }`}>
-                              {isSelected && <Check className="h-3 w-3 text-black" />}
-                            </div>
-                          )}
-
-                          {/* Icon */}
-                          <div 
-                            className={`inline-flex p-3 rounded-xl mb-3 transition-all duration-300 ${
-                              isSelected ? "scale-110" : "group-hover:scale-105"
-                            }`}
-                            style={{ 
-                              backgroundColor: `${template.color}20`,
-                              boxShadow: isSelected ? `0 0 20px ${template.color}40` : undefined
+                        return (
+                          <button
+                            key={template.value}
+                            onClick={() => {
+                              if (!isDisabled) {
+                                setTemplateType(template.value);
+                              }
                             }}
+                            disabled={isDisabled}
+                            className={`group relative p-3 md:p-5 rounded-xl md:rounded-2xl text-left transition-all duration-300 border touch-manipulation ${
+                              isSelected
+                                ? "bg-white/10 border-white/30 scale-[1.02]"
+                                : isDisabled
+                                  ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
+                                  : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20 active:scale-[0.98]"
+                            }`}
                           >
-                            <Icon 
-                              className="h-6 w-6 transition-colors duration-300" 
-                              style={{ color: template.color }}
-                            />
-                          </div>
+                            {/* Glow effect on selected */}
+                            {isSelected && (
+                              <div
+                                className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-20 -z-10"
+                                style={{ backgroundColor: template.color }}
+                              />
+                            )}
 
-                          {/* Content */}
-                          <h3 className="text-base font-semibold text-white mb-1">
-                            {template.label}
-                          </h3>
-                          <p className="text-sm text-white/50 mb-3 line-clamp-2">
-                            {template.description}
-                          </p>
+                            {/* Coming soon badge */}
+                            {isDisabled && (
+                              <div className="absolute top-2 right-2 md:top-3 md:right-3 px-1.5 md:px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                                <span className="text-[8px] md:text-[10px] font-medium text-amber-400">
+                                  Soon
+                                </span>
+                              </div>
+                            )}
 
-                          {/* Features */}
-                          <div className="flex flex-wrap gap-1.5">
-                            {template.features.map((feature) => (
-                              <span
-                                key={feature}
-                                className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                            {/* Selection indicator */}
+                            {!isDisabled && (
+                              <div
+                                className={`absolute top-2.5 right-2.5 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                                  isSelected
+                                    ? "border-white bg-white"
+                                    : "border-white/20 group-hover:border-white/40"
+                                }`}
                               >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
+                                {isSelected && (
+                                  <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-black" />
+                                )}
+                              </div>
+                            )}
 
-                          {/* Tech stack on hover/selected */}
-                          <div className={`mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
-                            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                          }`}>
-                            <div className="flex gap-2">
-                              {template.techStack.map((tech) => (
-                                <span key={tech} className="text-[10px] text-white/40">
-                                  {tech}
+                            {/* Icon */}
+                            <div
+                              className={`inline-flex p-2 md:p-3 rounded-lg md:rounded-xl mb-2 md:mb-3 transition-all duration-300 ${
+                                isSelected
+                                  ? "scale-110"
+                                  : "group-hover:scale-105"
+                              }`}
+                              style={{
+                                backgroundColor: `${template.color}20`,
+                                boxShadow: isSelected
+                                  ? `0 0 20px ${template.color}40`
+                                  : undefined,
+                              }}
+                            >
+                              <Icon
+                                className="h-4 w-4 md:h-6 md:w-6 transition-colors duration-300"
+                                style={{ color: template.color }}
+                              />
+                            </div>
+
+                            {/* Content */}
+                            <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 pr-6">
+                              {template.label}
+                            </h3>
+                            <p className="text-xs md:text-sm text-white/50 mb-2 md:mb-3 line-clamp-2">
+                              {template.description}
+                            </p>
+
+                            {/* Features - hidden on mobile to save space */}
+                            <div className="hidden md:flex flex-wrap gap-1.5">
+                              {template.features.map((feature) => (
+                                <span
+                                  key={feature}
+                                  className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                                >
+                                  {feature}
                                 </span>
                               ))}
                             </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
 
-                  {/* Continue button row */}
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-sm text-white/40">
-                      {selectedTemplate ? (
-                        <>Selected: <span className="text-white/60 font-medium">{selectedTemplate.label}</span></>
-                      ) : (
-                        "Select a template to continue"
-                      )}
-                    </p>
-                    <button
-                      onClick={() => setSetupStep(2)}
-                      disabled={!templateType || TEMPLATE_OPTIONS.find(t => t.value === templateType)?.comingSoon}
-                      className="group flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
-                    >
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                            {/* Tech stack on hover/selected - desktop only */}
+                            <div
+                              className={`hidden md:block mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
+                                isSelected
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}
+                            >
+                              <div className="flex gap-2">
+                                {template.techStack.map((tech) => (
+                                  <span
+                                    key={tech}
+                                    className="text-[10px] text-white/40"
+                                  >
+                                    {tech}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Continue button row */}
+                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+                      <p className="text-xs md:text-sm text-white/40 text-center md:text-left">
+                        {selectedTemplate ? (
+                          <>
+                            Selected:{" "}
+                            <span className="text-white/60 font-medium">
+                              {selectedTemplate.label}
+                            </span>
+                          </>
+                        ) : (
+                          "Select a template to continue"
+                        )}
+                      </p>
+                      <button
+                        onClick={() => setSetupStep(2)}
+                        disabled={
+                          !templateType ||
+                          TEMPLATE_OPTIONS.find((t) => t.value === templateType)
+                            ?.comingSoon
+                        }
+                        className="group flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white text-sm md:text-base font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
 
           {/* STEP 2: App Details */}
-          <div className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+          <div
+            className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
             {setupStep === 2 && (
-              <div className="max-w-2xl mx-auto space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
                   <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">
                       Tell us about your app
                     </h2>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-white/50 text-xs md:text-sm">
                       Give your creation a name and description
                     </p>
                   </div>
                   {/* Selected template preview */}
                   {selectedTemplate && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-                      <selectedTemplate.icon 
-                        className="h-4 w-4" 
+                    <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
                         style={{ color: selectedTemplate.color }}
                       />
-                      <span className="text-xs text-white/60">{selectedTemplate.label}</span>
+                      <span className="text-[11px] md:text-xs text-white/60">
+                        {selectedTemplate.label}
+                      </span>
                       <button
                         onClick={() => setSetupStep(1)}
                         className="text-[10px] text-white/40 hover:text-white/60 underline"
@@ -2225,15 +2793,20 @@ ANTHROPIC_API_KEY=your_key_here`}
                   )}
                 </div>
 
-                <div className="space-y-4 p-5 rounded-xl bg-white/[0.02] border border-white/10">
+                <div className="space-y-3 md:space-y-4 p-3 md:p-5 rounded-xl bg-white/[0.02] border border-white/10">
                   {/* App Name */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/70 text-xs">App Name</Label>
-                      <span className={`text-[10px] transition-colors ${
-                        appName.length > 100 ? "text-red-400" : 
-                        appName.length > 80 ? "text-yellow-400" : "text-white/30"
-                      }`}>
+                      <span
+                        className={`text-[10px] transition-colors ${
+                          appName.length > 100
+                            ? "text-red-400"
+                            : appName.length > 80
+                              ? "text-yellow-400"
+                              : "text-white/30"
+                        }`}
+                      >
                         {appName.length}/100
                       </span>
                     </div>
@@ -2249,7 +2822,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Description */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/70 text-xs">Description</Label>
+                      <Label className="text-white/70 text-xs">
+                        Description
+                      </Label>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={generateAIDescription}
@@ -2263,10 +2838,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                           )}
                           AI Assist
                         </button>
-                        <span className={`text-[10px] transition-colors ${
-                          appDescription.length > 500 ? "text-red-400" : 
-                          appDescription.length > 400 ? "text-yellow-400" : "text-white/30"
-                        }`}>
+                        <span
+                          className={`text-[10px] transition-colors ${
+                            appDescription.length > 500
+                              ? "text-red-400"
+                              : appDescription.length > 400
+                                ? "text-yellow-400"
+                                : "text-white/30"
+                          }`}
+                        >
                           {appDescription.length}/500
                         </span>
                       </div>
@@ -2286,18 +2866,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center justify-between pt-2 md:pt-3">
                   <button
                     onClick={() => setSetupStep(1)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
                     Back
                   </button>
                   <button
                     onClick={() => setSetupStep(3)}
-                    disabled={!appName.trim() || appName.length > 100 || appDescription.length > 500}
-                    className="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
+                    disabled={
+                      !appName.trim() ||
+                      appName.length > 100 ||
+                      appDescription.length > 500
+                    }
+                    className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
                   >
                     Continue
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
@@ -2308,59 +2892,77 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {/* STEP 3: Features */}
-          <div className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+          <div
+            className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
             {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
                   <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">
                       Supercharge your app
                     </h2>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-white/50 text-xs md:text-sm">
                       Add powerful features to your project
                     </p>
                   </div>
                   {/* App summary */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
                     {selectedTemplate && (
-                      <selectedTemplate.icon 
-                        className="h-4 w-4" 
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
                         style={{ color: selectedTemplate.color }}
                       />
                     )}
-                    <span className="text-xs text-white/70">{appName || "Your App"}</span>
+                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">
+                      {appName || "Your App"}
+                    </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5 md:gap-3">
                   {/* Monetization */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeMonetization
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`p-2 rounded-lg transition-colors ${
-                        includeMonetization ? "bg-emerald-500/20" : "bg-white/5"
-                      }`}>
-                        <DollarSign className={`h-4 w-4 ${
-                          includeMonetization ? "text-emerald-400" : "text-white/40"
-                        }`} />
+                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                      <div
+                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
+                          includeMonetization
+                            ? "bg-emerald-500/20"
+                            : "bg-white/5"
+                        }`}
+                      >
+                        <DollarSign
+                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                            includeMonetization
+                              ? "text-emerald-400"
+                              : "text-white/40"
+                          }`}
+                        />
                       </div>
-                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
-                        includeMonetization ? "bg-emerald-500 justify-end" : "bg-white/10 justify-start"
-                      }`}>
-                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                      <div
+                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                          includeMonetization
+                            ? "bg-emerald-500 justify-end"
+                            : "bg-white/10 justify-start"
+                        }`}
+                      >
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-white">Monetization</h3>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <h3 className="text-xs md:text-sm font-medium text-white">
+                      Monetization
+                    </h3>
+                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Payments & subscriptions
                     </p>
-                    <div className="flex gap-1 mt-2">
+                    <div className="hidden md:flex gap-1 mt-2">
                       <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
                         Stripe
                       </span>
@@ -2373,31 +2975,41 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Analytics */}
                   <button
                     onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeAnalytics
                         ? "bg-blue-500/10 border-blue-500/30"
                         : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`p-2 rounded-lg transition-colors ${
-                        includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
-                      }`}>
-                        <LineChart className={`h-4 w-4 ${
-                          includeAnalytics ? "text-blue-400" : "text-white/40"
-                        }`} />
+                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                      <div
+                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
+                          includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
+                        }`}
+                      >
+                        <LineChart
+                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                            includeAnalytics ? "text-blue-400" : "text-white/40"
+                          }`}
+                        />
                       </div>
-                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
-                        includeAnalytics ? "bg-blue-500 justify-end" : "bg-white/10 justify-start"
-                      }`}>
-                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                      <div
+                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                          includeAnalytics
+                            ? "bg-blue-500 justify-end"
+                            : "bg-white/10 justify-start"
+                        }`}
+                      >
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-white">Analytics</h3>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <h3 className="text-xs md:text-sm font-medium text-white">
+                      Analytics
+                    </h3>
+                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Track users & events
                     </p>
-                    <div className="flex gap-1 mt-2">
+                    <div className="hidden md:flex gap-1 mt-2">
                       <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
                         Real-time
                       </span>
@@ -2408,18 +3020,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center justify-between pt-2 md:pt-3">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
                     Back
                   </button>
                   <button
                     onClick={startSession}
                     disabled={isLoading}
-                    className="group relative flex items-center gap-2 px-6 py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
+                    className="group relative flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
                   >
                     {/* Animated gradient background */}
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
@@ -2429,12 +3041,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {isLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Launching...
+                          <span className="hidden sm:inline">Launching...</span>
+                          <span className="sm:hidden">...</span>
                         </>
                       ) : (
                         <>
                           <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                          Start Building
+                          <span className="hidden sm:inline">
+                            Start Building
+                          </span>
+                          <span className="sm:hidden">Start</span>
                         </>
                       )}
                     </span>
@@ -2442,7 +3058,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
 
                 {/* Summary footer */}
-                <p className="text-center text-[10px] text-white/25 pt-3">
+                <p className="text-center text-[9px] md:text-[10px] text-white/25 pt-2 md:pt-3">
                   Live sandbox • Hot reload • AI assistance • GitHub integration
                 </p>
               </div>
@@ -2453,8 +3069,12 @@ ANTHROPIC_API_KEY=your_key_here`}
         {/* Shimmer animation */}
         <style jsx global>{`
           @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% {
+              background-position: 200% 0;
+            }
+            100% {
+              background-position: -200% 0;
+            }
           }
         `}</style>
       </div>
@@ -2577,7 +3197,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     const currentStepIndex = steps.findIndex((s) => s.key === progressStep);
 
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -2626,7 +3246,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (status === "error") {
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -2652,8 +3272,242 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10">
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
+    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-300">
+      {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
+      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Link
+            href={backLink}
+            className="p-1.5 hover:bg-white/10 rounded-md transition-colors flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4 text-white/60" />
+          </Link>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
+            <span
+              className="text-xs text-white truncate"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              {appData?.name || appName}
+            </span>
+          </div>
+        </div>
+
+        {/* Mobile Panel Toggle */}
+        <div className="flex items-center gap-1 mx-2">
+          <button
+            onClick={() => setMobilePanel("chat")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              mobilePanel === "chat"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+            }`}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Chat
+          </button>
+          <button
+            onClick={() => setMobilePanel("preview")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              mobilePanel === "preview"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+            }`}
+          >
+            <Monitor className="h-3.5 w-3.5" />
+            Preview
+          </button>
+        </div>
+
+        {/* Mobile Actions Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1.5 hover:bg-white/10 rounded-md transition-colors flex-shrink-0">
+              <MoreVertical className="h-5 w-5 text-white/60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 bg-[#1a1a1a] border-white/10"
+          >
+            {/* Timer & Session */}
+            {timeRemaining && (
+              <>
+                <div className="px-2 py-1.5 flex items-center gap-2">
+                  <Timer
+                    className={`h-3.5 w-3.5 ${
+                      timeRemaining === "Expired"
+                        ? "text-red-400"
+                        : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                          ? "text-yellow-400"
+                          : "text-white/60"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-mono ${
+                      timeRemaining === "Expired"
+                        ? "text-red-400"
+                        : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                          ? "text-yellow-400"
+                          : "text-white/60"
+                    }`}
+                  >
+                    {timeRemaining} remaining
+                  </span>
+                </div>
+                <DropdownMenuSeparator className="bg-white/10" />
+              </>
+            )}
+
+            {/* Session Actions */}
+            {status === "timeout" && snapshotInfo?.canRestore ? (
+              <DropdownMenuItem
+                onClick={restoreSession}
+                disabled={isRestoring}
+                className="text-green-400 focus:text-green-400 focus:bg-green-500/10"
+              >
+                {isRestoring ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Restore Session
+              </DropdownMenuItem>
+            ) : (
+              status !== "timeout" && (
+                <DropdownMenuItem
+                  onClick={extendSession}
+                  disabled={isExtending || status !== "ready"}
+                  className="text-cyan-400 focus:text-cyan-400 focus:bg-cyan-500/10"
+                >
+                  {isExtending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Extend +15 minutes
+                </DropdownMenuItem>
+              )
+            )}
+
+            {/* GitHub Actions */}
+            {(status === "ready" || status === "recovering") &&
+              appData?.github_repo && (
+                <>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    onClick={saveToGitHub}
+                    disabled={
+                      isSaving ||
+                      !gitStatus?.hasChanges ||
+                      status === "recovering"
+                    }
+                    className={
+                      gitStatus?.hasChanges
+                        ? "text-green-400 focus:text-green-400 focus:bg-green-500/10"
+                        : ""
+                    }
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {isSaving
+                      ? "Saving..."
+                      : gitStatus?.hasChanges
+                        ? "Save to GitHub"
+                        : "Saved"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={deployToProduction}
+                    disabled={isDeploying || status === "recovering"}
+                    className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
+                  >
+                    {isDeploying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Rocket className="h-4 w-4" />
+                    )}
+                    {isDeploying ? "Deploying..." : "Deploy"}
+                  </DropdownMenuItem>
+                  {productionUrl && (
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={productionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 focus:text-cyan-400"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        View Live Site
+                      </a>
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+
+            {/* GitHub Repo Link */}
+            {appData?.github_repo && (
+              <DropdownMenuItem asChild>
+                <a
+                  href={`https://github.com/${appData.github_repo}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70"
+                >
+                  <GitBranch className="h-4 w-4" />
+                  View on GitHub
+                </a>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator className="bg-white/10" />
+
+            {/* Sandbox Actions */}
+            {session?.sandboxUrl && (
+              <>
+                <DropdownMenuItem onClick={copySandboxUrl}>
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                  {copied ? "Copied!" : "Copy Preview URL"}
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    href={session.sandboxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in New Tab
+                  </a>
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* Stop Session */}
+            {(status === "ready" || status === "recovering") && (
+              <>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={stopSession}
+                  disabled={status === "recovering"}
+                  className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                >
+                  <Square className="h-4 w-4" />
+                  Stop Session
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* DESKTOP TOOLBAR - visible from xl (1280px) and up */}
+      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-4">
           <Link
             href={backLink}
@@ -2698,21 +3552,18 @@ ANTHROPIC_API_KEY=your_key_here`}
               title="View on GitHub"
             >
               <GitBranch className="h-3 w-3" />
-              <span
-                className="hidden sm:inline"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
+              <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
                 {appData.github_repo.split("/").pop()}
               </span>
               <Cloud className="h-3 w-3" />
             </a>
-          ) : status === "ready" ? (
+          ) : status === "ready" || status === "recovering" ? (
             <div
               className="flex items-center gap-1.5 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded"
               title="GitHub not configured"
             >
               <CloudOff className="h-3 w-3" />
-              <span className="hidden sm:inline">No GitHub</span>
+              <span>No GitHub</span>
             </div>
           ) : null}
         </div>
@@ -2746,6 +3597,16 @@ ANTHROPIC_API_KEY=your_key_here`}
               )}
               <span className="ml-1">Restore</span>
             </Button>
+          ) : status === "recovering" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              className="h-7 text-xs text-cyan-400"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span className="ml-1">Reconnecting...</span>
+            </Button>
           ) : (
             <Button
               variant="ghost"
@@ -2763,127 +3624,85 @@ ANTHROPIC_API_KEY=your_key_here`}
             </Button>
           )}
           {/* GitHub Save Button */}
-          {status === "ready" && appData?.github_repo && (
-            <>
-              <div className="w-px h-4 bg-white/10" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={saveToGitHub}
-                disabled={isSaving || !gitStatus?.hasChanges}
-                className={`h-7 text-xs ${
-                  gitStatus?.hasChanges
-                    ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                    : "text-white/40 hover:bg-white/5"
-                }`}
-                title={
-                  gitStatus?.hasChanges
-                    ? "Save changes to GitHub"
-                    : "No unsaved changes"
-                }
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Save className="h-3 w-3" />
-                )}
-                <span className="ml-1 hidden sm:inline">
-                  {isSaving
-                    ? "Saving..."
-                    : gitStatus?.hasChanges
-                      ? "Save"
-                      : "Saved"}
-                </span>
-              </Button>
-              {/* Commit History Button */}
-              <div className="relative">
+          {(status === "ready" || status === "recovering") &&
+            appData?.github_repo && (
+              <>
+                <div className="w-px h-4 bg-white/10" />
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowCommitHistory(!showCommitHistory)}
-                  className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10"
-                  title="View commit history"
+                  onClick={saveToGitHub}
+                  disabled={
+                    isSaving ||
+                    !gitStatus?.hasChanges ||
+                    status === "recovering"
+                  }
+                  className={`h-7 text-xs ${
+                    gitStatus?.hasChanges && status !== "recovering"
+                      ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                      : "text-white/40 hover:bg-white/5"
+                  }`}
+                  title={
+                    status === "recovering"
+                      ? "Reconnecting..."
+                      : gitStatus?.hasChanges
+                        ? "Save changes to GitHub"
+                        : "No unsaved changes"
+                  }
                 >
-                  <History className="h-3 w-3" />
-                  <ChevronDown
-                    className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`}
-                  />
+                  {isSaving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                  <span className="ml-1">
+                    {isSaving
+                      ? "Saving..."
+                      : gitStatus?.hasChanges
+                        ? "Save"
+                        : "Saved"}
+                  </span>
                 </Button>
-                {/* Commit History Dropdown */}
-                {showCommitHistory && (
-                  <div className="absolute right-0 top-full mt-1 w-72 bg-black/95 border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
-                    <div className="p-2 border-b border-white/10">
-                      <span className="text-xs text-white/60 font-medium">
-                        Recent Commits
-                      </span>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {commitHistory.length > 0 ? (
-                        commitHistory.slice(0, 10).map((commit) => (
-                          <div
-                            key={commit.sha}
-                            className="px-3 py-2 hover:bg-white/5 border-b border-white/5 last:border-0"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-cyan-400">
-                                {commit.sha.substring(0, 7)}
-                              </span>
-                              <span className="text-xs text-white/40">
-                                {new Date(commit.date).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-xs text-white/80 mt-0.5 line-clamp-2">
-                              {commit.message.split("\n")[0]}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-4 text-center text-xs text-white/40">
-                          No commits yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Deploy to Production Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={deployToProduction}
-                disabled={isDeploying}
-                className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                title={
-                  productionUrl
-                    ? `Deploy to ${productionUrl}`
-                    : "Deploy to production"
-                }
-              >
-                {isDeploying ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Rocket className="h-3 w-3" />
-                )}
-                <span className="ml-1 hidden sm:inline">
-                  {isDeploying ? "Deploying..." : "Deploy"}
-                </span>
-              </Button>
-              {/* Production URL Link */}
-              {productionUrl && (
-                <a
-                  href={productionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
-                  title={`View live at ${productionUrl}`}
+                {/* Deploy to Production Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={deployToProduction}
+                  disabled={isDeploying || status === "recovering"}
+                  className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
+                  title={
+                    status === "recovering"
+                      ? "Reconnecting..."
+                      : productionUrl
+                        ? `Deploy to ${productionUrl}`
+                        : "Deploy to production"
+                  }
                 >
-                  <ExternalLink className="h-3 w-3" />
-                  <span className="hidden sm:inline">Live</span>
-                </a>
-              )}
-              <div className="w-px h-4 bg-white/10" />
-            </>
-          )}
+                  {isDeploying ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Rocket className="h-3 w-3" />
+                  )}
+                  <span className="ml-1">
+                    {isDeploying ? "Deploying..." : "Deploy"}
+                  </span>
+                </Button>
+                {/* Production URL Link */}
+                {productionUrl && (
+                  <a
+                    href={productionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
+                    title={`View live at ${productionUrl}`}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>Live</span>
+                  </a>
+                )}
+                <div className="w-px h-4 bg-white/10" />
+              </>
+            )}
           {session?.sandboxUrl && (
             <>
               <button
@@ -2919,11 +3738,14 @@ ANTHROPIC_API_KEY=your_key_here`}
               <Maximize2 className="h-4 w-4 text-white/60" />
             )}
           </button>
-          {status === "ready" && (
+          {(status === "ready" || status === "recovering") && (
             <button
               onClick={stopSession}
-              className="p-2 hover:bg-red-500/20 transition-colors"
-              title="Stop session"
+              disabled={status === "recovering"}
+              className="p-2 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                status === "recovering" ? "Reconnecting..." : "Stop session"
+              }
             >
               <Square className="h-4 w-4 text-red-400" />
             </button>
@@ -2931,24 +3753,40 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       </div>
 
+      {/* Auto-recovery indicator - non-blocking banner */}
+      {status === "recovering" && !isRestoring && (
+        <div className="absolute top-[49px] xl:top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-cyan-500/20 via-violet-500/20 to-cyan-500/20 border-b border-cyan-500/30">
+          <div className="flex items-center justify-center gap-2 xl:gap-3 px-3 xl:px-4 py-1.5 xl:py-2">
+            <Loader2 className="h-3.5 w-3.5 xl:h-4 xl:w-4 animate-spin text-cyan-400 flex-shrink-0" />
+            <span className="text-xs xl:text-sm text-white/80">
+              Reconnecting...
+            </span>
+            <span className="text-[10px] xl:text-xs text-white/50 hidden sm:inline">
+              This happens automatically
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Full overlay only for timeout/manual restore - not for auto-recovery */}
       {(status === "timeout" || isRestoring) && (
-        <div className="absolute inset-0 top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center">
-          <BrandCard className="max-w-md mx-4">
+        <div className="absolute inset-0 top-[49px] xl:top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+          <BrandCard className="max-w-md w-full">
             <CornerBrackets className="opacity-20" />
-            <div className="relative z-10 text-center space-y-4">
+            <div className="relative z-10 text-center space-y-3 xl:space-y-4 p-4 xl:p-6">
               <div
-                className={`w-16 h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
+                className={`w-12 h-12 xl:w-16 xl:h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
               >
                 {isRestoring ? (
-                  <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+                  <Loader2 className="h-6 w-6 xl:h-8 xl:w-8 text-green-400 animate-spin" />
                 ) : (
-                  <Timer className="h-8 w-8 text-red-400" />
+                  <Timer className="h-6 w-6 xl:h-8 xl:w-8 text-red-400" />
                 )}
               </div>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-lg xl:text-xl font-semibold text-white">
                 {isRestoring ? "Restoring Session" : "Session Expired"}
               </h2>
-              <p className="text-sm text-white/60">
+              <p className="text-xs xl:text-sm text-white/60">
                 {isRestoring
                   ? "Setting up your development environment and restoring your files..."
                   : "Your sandbox session has timed out after 30 minutes of inactivity."}
@@ -3070,310 +3908,138 @@ ANTHROPIC_API_KEY=your_key_here`}
       )}
 
       <div className="flex-1 flex overflow-hidden">
+        {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
-          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
+            isFullscreen
+              ? "w-0 hidden"
+              : mobilePanel === "chat"
+                ? "w-full xl:w-1/2"
+                : "hidden xl:flex xl:w-1/2"
+          }`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-5 space-y-4"
+            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30"
           >
-            {messages.map((msg, i) => {
-              const isProcessing = !!(msg as Message & { _thinkingId?: number })
-                ._thinkingId;
-              const msgTime = new Date(msg.timestamp).toLocaleTimeString(
-                "en-US",
-                {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              );
-
-              return (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
-                >
-                  <div
-                    className={`${
-                      msg.role === "user"
-                        ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
-                        : isProcessing
-                          ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
-                          : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        {isProcessing && (
-                          <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
-                        )}
-                        <span
-                          className={`text-[11px] ${
-                            msg.role === "user"
-                              ? "text-[#FF5800]/70"
-                              : isProcessing
-                                ? "text-violet-300/70"
-                                : "text-white/35"
-                          }`}
-                        >
-                          {msg.role === "user"
-                            ? "You"
-                            : isProcessing
-                              ? "Building"
-                              : "Assistant"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
-                        {msgTime}
-                      </span>
-                    </div>
-                    <div className="text-[14px] leading-[1.7] text-white/80">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          h1: ({ children }) => (
-                            <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">
-                              {children}
-                            </h1>
-                          ),
-                          h2: ({ children }) => (
-                            <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">
-                              {children}
-                            </h2>
-                          ),
-                          h3: ({ children }) => (
-                            <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">
-                              {children}
-                            </h3>
-                          ),
-                          p: ({ children }) => (
-                            <p className="text-[14px] text-white/75 mb-2 leading-[1.7]">
-                              {children}
-                            </p>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="my-2 ml-4 space-y-1">{children}</ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="my-2 ml-4 space-y-1 list-decimal">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({ children }) => (
-                            <li className="text-[14px] text-white/75 pl-1 list-item">
-                              {children}
-                            </li>
-                          ),
-                          code: ({ className, children }) => {
-                            const isInline = !className;
-                            if (isInline) {
-                              return (
-                                <code className="px-1.5 py-0.5 bg-sky-500/10 text-sky-300/90 text-[13px] font-mono rounded">
-                                  {children}
-                                </code>
-                              );
-                            }
-                            return (
-                              <code className="block p-3 bg-[#0d1117] border border-white/[0.04] text-[#e6edf3] text-[13px] font-mono rounded-lg overflow-x-auto my-2">
-                                {children}
-                              </code>
-                            );
-                          },
-                          pre: ({ children }) => (
-                            <pre className="bg-[#0d1117] border border-white/[0.04] rounded-lg overflow-hidden my-2.5">
-                              {children}
-                            </pre>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className="font-medium text-white/90">
-                              {children}
-                            </strong>
-                          ),
-                          em: ({ children }) => (
-                            <em className="text-white/65 italic">{children}</em>
-                          ),
-                          a: ({ href, children }) => (
-                            <a
-                              href={href}
-                              className="text-sky-400/90 hover:text-sky-300 underline underline-offset-2 decoration-sky-400/30"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {children}
-                            </a>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-2 border-white/20 pl-3 my-2.5 text-white/55 italic">
-                              {children}
-                            </blockquote>
-                          ),
-                          hr: () => <hr className="border-white/[0.06] my-4" />,
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.06]">
-                              <table className="w-full text-[13px]">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-white/[0.03]">
-                              {children}
-                            </thead>
-                          ),
-                          tbody: ({ children }) => (
-                            <tbody className="divide-y divide-white/[0.04]">
-                              {children}
-                            </tbody>
-                          ),
-                          tr: ({ children }) => (
-                            <tr className="hover:bg-white/[0.02] transition-colors">
-                              {children}
-                            </tr>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-3 py-2 text-white/55 text-[13px]">
-                              {children}
-                            </td>
-                          ),
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                    {i === 0 &&
-                      msg.role === "assistant" &&
-                      session?.examplePrompts &&
-                      session.examplePrompts.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-white/[0.05]">
-                          <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
-                            Suggestions
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {session.examplePrompts.map((prompt, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => sendPrompt(prompt)}
-                                disabled={status !== "ready"}
-                                className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                              >
-                                {prompt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    {msg.filesAffected && msg.filesAffected.length > 0 && (
-                      <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
-                        <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
-                          Changed
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {msg.filesAffected.map((file) => (
-                            <span
-                              key={file}
-                              className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
-                            >
-                              {file}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {messages.map((msg, i) => (
+              <ChatMessage
+                key={`${msg.timestamp}-${i}`}
+                msg={msg}
+                index={i}
+                session={session}
+                status={status}
+                sendPrompt={sendPrompt}
+              />
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-white/[0.04]">
-            {/* Visor Scanner Animation Styles */}
-            <style jsx global>{`
-              @keyframes visor-scan {
-                0% {
-                  left: -100px;
-                }
-                100% {
-                  left: calc(100% + 100px);
-                }
-              }
-              @keyframes visor-scan-delayed {
-                0% {
-                  left: -80px;
-                }
-                100% {
-                  left: calc(100% + 80px);
-                }
-              }
-            `}</style>
-            <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden transition-all focus-within:border-white/[0.12] focus-within:bg-white/[0.025]">
-              {/* Subtle scanning animation */}
-              {status === "generating" && (
-                <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
-                  <div
-                    className="absolute h-full w-32 bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
-                    style={{
-                      animation: "visor-scan 3s ease-in-out infinite",
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Textarea */}
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (status === "ready" && input.trim()) {
-                      sendPrompt();
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "48px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 120) + "px";
-                }}
-                rows={1}
-                placeholder="Describe what you want to build..."
-                disabled={status !== "ready"}
-                className="w-full bg-transparent px-4 pt-3 pb-2 text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-                style={{ minHeight: "48px", maxHeight: "120px" }}
-              />
-
-              {/* Bottom bar with send button */}
-              <div className="flex items-center justify-end px-2 pb-2">
-                <Button
-                  type="button"
-                  onClick={() => sendPrompt()}
-                  disabled={!input.trim() || status !== "ready"}
-                  size="icon"
-                  className="h-7 w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all"
-                >
-                  {status === "generating" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
-                  ) : (
-                    <Send className="h-3.5 w-3.5 text-white/60" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
+          {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
+          <ChatInput onSendPrompt={sendPrompt} status={status} />
         </div>
 
+        {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
         <div
-          className={`flex-1 flex flex-col overflow-hidden ${isFullscreen ? "w-full" : ""}`}
+          className={`flex-1 flex flex-col overflow-hidden ${
+            isFullscreen
+              ? "w-full"
+              : mobilePanel === "preview"
+                ? "w-full xl:flex"
+                : "hidden xl:flex"
+          }`}
         >
-          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
+          {/* Mobile/Tablet Preview Tabs */}
+          <div className="flex-shrink-0 flex xl:hidden items-center gap-1.5 px-2 py-2 border-b border-white/10 bg-black/20 overflow-x-auto">
+            <div className="flex bg-white/5 rounded-md p-0.5 flex-shrink-0">
+              <button
+                onClick={() => setPreviewTab("preview")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "preview"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                Preview
+              </button>
+              <button
+                onClick={() => setPreviewTab("console")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "console"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                Console
+                {consoleLogs.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
+                    {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setPreviewTab("files")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "files"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <FolderCode className="h-3.5 w-3.5" />
+                Files
+              </button>
+              <button
+                onClick={() => setPreviewTab("history")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "history"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+                {commitHistory.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px] min-w-[18px] text-center">
+                    {commitHistory.length > 99 ? "99+" : commitHistory.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            {/* Mobile/Tablet action buttons */}
+            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+              {previewTab === "console" && consoleLogs.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setConsoleLogs([])}
+                  title="Clear console"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {previewTab === "preview" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    if (iframeRef.current && session) {
+                      iframeRef.current.src = session.sandboxUrl;
+                    }
+                  }}
+                  title="Refresh preview"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Preview Tabs */}
+          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
             <div className="flex bg-white/5 rounded-md p-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
@@ -3413,6 +4079,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <FolderCode className="h-3.5 w-3.5" />
                 Files
               </button>
+              <button
+                onClick={() => setPreviewTab("history")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "history"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+                {commitHistory.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px]">
+                    {commitHistory.length}
+                  </span>
+                )}
+              </button>
             </div>
             {previewTab === "console" && consoleLogs.length > 0 && (
               <Button
@@ -3451,6 +4133,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   className="w-full h-full border-0"
                   title="App Preview"
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  onError={handleIframeError}
+                  onLoad={handleIframeLoad}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
@@ -3474,8 +4158,34 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
               )
+            ) : previewTab === "history" ? (
+              session?.id ? (
+                <HistoryTab
+                  sessionId={session.id}
+                  className="h-full"
+                  currentCommitSha={gitStatus?.currentCommitSha}
+                  onRollbackComplete={() => {
+                    // Refresh the iframe after rollback
+                    if (iframeRef.current && session?.sandboxUrl) {
+                      iframeRef.current.src = session.sandboxUrl;
+                    }
+                    // Refresh git status
+                    checkGitStatus();
+                    // Refresh commit history
+                    fetchCommitHistory();
+                    addLog("Rolled back to previous version", "success");
+                  }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-white/30">
+                    <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>Session not ready</p>
+                  </div>
+                </div>
+              )
             ) : (
-              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs">
+              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
                 {consoleLogs.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-white/30">
                     <div className="text-center">

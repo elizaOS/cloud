@@ -9,7 +9,6 @@
  *
  * Supports:
  * - API key authentication (uses org credits)
- * - x402 payment (permissionless, pay-per-request)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
  */
@@ -26,7 +25,6 @@ import {
   getProviderFromModel,
   estimateRequestCost,
 } from "@/lib/pricing";
-import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
 
@@ -183,46 +181,11 @@ export async function POST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  // NOTE: This endpoint uses credit-based auth. For x402 payments, clients should:
-  // 1. Top up credits via /api/v1/credits/topup (x402 enabled)
-  // 2. Then use their API key or session here
   const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
     () => null,
   );
 
   if (!authResult) {
-    // Return 402 with x402 topup info if enabled
-    if (X402_ENABLED && isX402Configured()) {
-      const {
-        getDefaultNetwork,
-        X402_RECIPIENT_ADDRESS,
-        USDC_ADDRESSES,
-        TOPUP_PRICE,
-        CREDITS_PER_DOLLAR,
-      } = await import("@/lib/config/x402");
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          error: {
-            code: -32002,
-            message:
-              "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
-            data: {
-              x402: {
-                topupEndpoint: "/api/v1/credits/topup",
-                network: getDefaultNetwork(),
-                asset: USDC_ADDRESSES[getDefaultNetwork()],
-                payTo: X402_RECIPIENT_ADDRESS,
-                minimumTopup: TOPUP_PRICE,
-                creditsPerDollar: CREDITS_PER_DOLLAR,
-              },
-            },
-          },
-          id: rpcId,
-        },
-        { status: 402 },
-      );
-    }
     return NextResponse.json(
       {
         jsonrpc: "2.0",
@@ -232,8 +195,6 @@ export async function POST(
       { status: 401 },
     );
   }
-
-  const paymentMethod = "credits" as const;
 
   // Handle MCP methods
   switch (method) {
@@ -284,13 +245,7 @@ export async function POST(
       });
 
     case "tools/call":
-      return handleToolCall(
-        character,
-        params ?? {},
-        rpcId,
-        authResult,
-        paymentMethod,
-      );
+      return handleToolCall(character, params ?? {}, rpcId, authResult);
 
     case "ping":
       return NextResponse.json({
@@ -327,8 +282,7 @@ async function handleToolCall(
   },
   params: Record<string, unknown>,
   rpcId: string | number,
-  authResult: { user: { id: string; organization_id: string } } | null,
-  paymentMethod: "credits" | "x402",
+  authResult: { user: { id: string; organization_id: string } },
 ) {
   const { name, arguments: args } = params as {
     name: string;
@@ -395,29 +349,27 @@ async function handleToolCall(
     const totalCost = baseCost + creatorMarkup;
 
     // Deduct credits
-    if (paymentMethod === "credits" && authResult) {
-      const deductResult = await creditsService.deductCredits({
-        organizationId: authResult.user.organization_id,
-        amount: totalCost,
-        description: `Agent MCP: ${character.name}`,
-        metadata: {
-          agent_id: character.id,
-          tool: "chat",
-          base_cost: baseCost,
-          creator_markup: creatorMarkup,
-        },
-      });
+    const deductResult = await creditsService.deductCredits({
+      organizationId: authResult.user.organization_id,
+      amount: totalCost,
+      description: `Agent MCP: ${character.name}`,
+      metadata: {
+        agent_id: character.id,
+        tool: "chat",
+        base_cost: baseCost,
+        creator_markup: creatorMarkup,
+      },
+    });
 
-      if (!deductResult.success) {
-        return NextResponse.json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32003,
-            message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
-          },
-          id: rpcId,
-        });
-      }
+    if (!deductResult.success) {
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32003,
+          message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
+        },
+        id: rpcId,
+      });
     }
 
     // Generate response
@@ -453,7 +405,7 @@ async function handleToolCall(
         ownerId: character.user_id,
         ownerOrgId: character.organization_id,
         earnings: actualCreatorMarkup,
-        consumerOrgId: authResult?.user.organization_id,
+        consumerOrgId: authResult.user.organization_id,
         model,
         tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
         protocol: "mcp",
@@ -471,21 +423,19 @@ async function handleToolCall(
 
     // Handle cost difference (refund or charge extra)
     const actualTotal = actualBaseCost + actualCreatorMarkup;
-    if (paymentMethod === "credits" && authResult) {
-      const diff = actualTotal - totalCost;
-      if (diff < 0) {
-        await creditsService.refundCredits({
-          organizationId: authResult.user.organization_id,
-          amount: -diff,
-          description: `Agent MCP refund: ${character.name}`,
-        });
-      } else if (diff > 0) {
-        await creditsService.deductCredits({
-          organizationId: authResult.user.organization_id,
-          amount: diff,
-          description: `Agent MCP additional: ${character.name}`,
-        });
-      }
+    const diff = actualTotal - totalCost;
+    if (diff < 0) {
+      await creditsService.refundCredits({
+        organizationId: authResult.user.organization_id,
+        amount: -diff,
+        description: `Agent MCP refund: ${character.name}`,
+      });
+    } else if (diff > 0) {
+      await creditsService.deductCredits({
+        organizationId: authResult.user.organization_id,
+        amount: diff,
+        description: `Agent MCP additional: ${character.name}`,
+      });
     }
 
     return NextResponse.json({

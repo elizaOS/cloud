@@ -11,25 +11,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CharacterForm } from "@/components/character-builder";
+import { CharacterForm, type FormTab } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import {
-  Zap,
-  BookOpen,
-  Sparkles,
-  Puzzle,
-  CloudUpload,
-  Upload,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  BrandTabsResponsive,
-  type TabItem,
-} from "@/components/brand/brand-tabs-responsive";
+import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSearchParams } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 
@@ -37,6 +26,8 @@ interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  onExit?: () => void;
+  hasUnsavedChanges?: boolean;
   preUploadedFiles?: PreUploadedFile[];
   onPreUploadedFilesAdd?: (files: PreUploadedFile[]) => void;
   onPreUploadedFileRemove?: (fileId: string) => void;
@@ -48,6 +39,8 @@ export function CharacterEditor({
   character,
   onChange,
   onSave,
+  onExit,
+  hasUnsavedChanges = true,
   preUploadedFiles,
   onPreUploadedFilesAdd,
   onPreUploadedFileRemove,
@@ -58,6 +51,7 @@ export function CharacterEditor({
   const [activeTab, setActiveTab] = useState<MainTab>(
     initialTab && validTabs.includes(initialTab) ? initialTab : "character",
   );
+  const [activeFormTab, setActiveFormTab] = useState<FormTab>("basics");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -71,23 +65,23 @@ export function CharacterEditor({
     }
   }, [searchParams]);
 
-  const tabs: TabItem[] = [
-    {
-      value: "character",
-      label: "Agent",
-      icon: <Sparkles className="h-4 w-4" />,
-    },
-    {
-      value: "plugins",
-      label: "Plugins",
-      icon: <Puzzle className="h-4 w-4" />,
-    },
-    {
-      value: "files",
-      label: "Files",
-      icon: <BookOpen className="h-4 w-4" />,
-    },
+  const formTabs = [
+    { value: "basics", label: "Basics" },
+    { value: "personality", label: "Personality" },
+    { value: "style", label: "Style" },
+    { value: "avatar", label: "Avatar" },
   ];
+
+  const otherTabs = [
+    { value: "plugins", label: "Plugins" },
+    { value: "files", label: "Files" },
+  ];
+
+  // Handle form tab click - switches to character view with selected sub-tab
+  const handleFormTabClick = (value: string) => {
+    setActiveFormTab(value as FormTab);
+    setActiveTab("character");
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -112,114 +106,122 @@ export function CharacterEditor({
   };
 
   return (
-    <div className="flex h-full flex-col bg-black/40">
+    <div className="flex h-full flex-col rounded-2xl bg-[#0A0A0A]">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-white/10 px-3 py-2 md:px-6 md:py-4">
-        <div className="flex items-center justify-between mb-1 md:mb-2">
-          <div className="flex items-center gap-1.5 md:gap-2">
-            <h2 className="text-base md:text-xl font-bold text-white">
-              Agent Builder
-            </h2>
-            <Zap className="text-[#FF5800] h-4 w-4 md:h-5 md:w-5" />
+      <div className="flex-shrink-0 px-3 sm:px-6 pt-3 md:pt-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+          <div className="hidden sm:flex items-center gap-2">
+            {showJson ? (
+              <h2 className="text-xl font-bold text-white">JSON Editor</h2>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-white">Agent Builder</h2>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-1.5 md:gap-2">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+              <div className="flex gap-2 items-center justify-between">
+             <div className="md:pl-2">JSON:</div>
+            <div className="flex items-center -space-x-1.5 rounded-2xl border bg-white/10 border-white/20 p-0.5 mr-3">
+           
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5 h-7 px-2 md:h-8 md:px-3 text-xs md:text-sm"
+            size={"sm"}
+              onClick={() => setShowJson(!showJson)}
+              className={`flex pl-3.5 pr-3 items-center rounded-xl text-white transition-colors z-10 border ${
+                showJson
+                  ? "bg-red-900/60 border-red-500/50 hover:bg-red-800/80 hover:border-red-400/70"
+                  : "bg-transparent border-transparent hover:bg-white/15"
+              }`}
             >
-              <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="ml-1.5 hidden sm:inline">Export</span>
+              {showJson ? "Exit" : "Edit"}
             </Button>
             <Button
-              size="sm"
-              onClick={handleSave}
+             size={"sm"}
+              onClick={handleExport}
+              className="flex pl-3 pr-3.5 items-center rounded-xl text-white bg-transparent hover:bg-white/15 transition-colors"
+            >
+              Export
+            </Button>
+            </div>
+            </div>
+            <Button
+              onClick={hasUnsavedChanges ? handleSave : onExit}
               disabled={isSaving}
-              className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 rounded-none h-7 px-2 md:h-8 md:px-3 text-xs md:text-sm"
+              className={`flex items-center w-20 rounded-2xl transition-colors border ${
+                hasUnsavedChanges
+                  ? "bg-[#FF5800]/40 text-white hover:bg-[#FF5800]/55 border-[#FF5800]/50 hover:border-[#FF5800]/90"
+                  : "bg-red-900/60 text-white hover:bg-red-800/80 border-red-500/50 hover:border-red-400/70"
+              }`}
               data-onboarding="build-save"
             >
-              <CloudUpload className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="ml-1.5">
-                {isSaving ? "..." : character.id ? "Save" : "Deploy"}
-              </span>
+              {isSaving ? "Saving" : hasUnsavedChanges ? (character.id ? "Save" : "Deploy") : "Exit"}
             </Button>
           </div>
         </div>
-        <p className="text-xs md:text-sm text-white/60 hidden md:block">
-          Design your AI agent&apos;s personality, voice, and behavior.
-        </p>
+        
       </div>
 
-      {/* Responsive Tabs + JSON Toggle */}
-      <div className="flex-shrink-0 border-b border-white/10 px-3 md:px-6">
-        <div className="flex items-center gap-2 md:gap-3 py-2 md:py-3">
-          {/* Tabs - Dropdown on mobile, tabs on desktop with horizontal scroll */}
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            <BrandTabsResponsive
-              id="character-editor-tabs"
-              tabs={tabs}
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as MainTab)}
-              breakpoint="md"
-            >
-              {/* Empty children - content is rendered below */}
-              <div className="hidden" />
-            </BrandTabsResponsive>
-          </div>
-
-          {/* JSON Toggle Switch - Always inline, compact */}
-          <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-white/10">
-            <span className="text-[10px] md:text-xs text-white/60 whitespace-nowrap">
-              JSON
-            </span>
-            <button
-              onClick={() => setShowJson(!showJson)}
-              className={cn(
-                "relative inline-flex h-4 w-7 md:h-5 md:w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20",
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-2.5 w-2.5 md:h-3 md:w-3 transform rounded-full bg-white transition-transform",
-                  showJson
-                    ? "translate-x-3.5 md:translate-x-5"
-                    : "translate-x-1",
-                )}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-      {/* Content Area - Full Height */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-        {showJson ? (
-          <JsonEditor
-            character={character}
-            onChange={onChange}
-            onSave={onSave}
-            hideActions={true}
+      {/* Animated Tabs - Hidden in JSON mode */}
+      {!showJson && (
+        <div className="shrink-0 px-3 sm:px-6 pt-0 pb-6 flex flex-wrap items-center gap-y-2 gap-x-3">
+          {/* Agent form tabs - always visible */}
+          <AnimatedTabs
+            tabs={formTabs}
+            value={activeTab === "character" ? activeFormTab : ""}
+            onValueChange={handleFormTabClick}
           />
+          {/* Plugins/Files tabs */}
+          <AnimatedTabs
+            tabs={otherTabs}
+            value={activeTab !== "character" ? activeTab : ""}
+            onValueChange={(value) => setActiveTab(value as MainTab)}
+          />
+        </div>
+      )}
+      {/* Content Area - Full Height */}
+      <div className="flex-1 overflow-hidden relative">
+        {showJson ? (
+          <div className="h-full px-3 sm:px-6 pb-3 sm:pb-6">
+            <JsonEditor
+              character={character}
+              onChange={onChange}
+              onSave={onSave}
+              hideActions={true}
+            />
+          </div>
         ) : (
           <>
-            {activeTab === "character" && (
-              <CharacterForm character={character} onChange={onChange} />
-            )}
+            {activeTab === "character" && activeFormTab === "avatar" ? (
+              <div className="h-full px-3 sm:px-6 pt-1.5 pb-3 sm:pb-6">
+                <CharacterForm character={character} onChange={onChange} activeTab={activeFormTab} />
+              </div>
+            ) : activeTab === "character" ? (
+              <ScrollArea className="h-full">
+                <div className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <CharacterForm character={character} onChange={onChange} activeTab={activeFormTab} />
+                </div>
+              </ScrollArea>
+            ) : null}
             {activeTab === "plugins" && (
-              <PluginsTab
-                character={character}
-                onChange={(updates) => onChange({ ...character, ...updates })}
-                onSave={onSave}
-              />
+              <div className="h-full px-3 sm:px-6 pb-3 sm:pb-6">
+                <PluginsTab
+                  character={character}
+                  onChange={(updates) => onChange({ ...character, ...updates })}
+                  onSave={onSave}
+                />
+              </div>
             )}
             {activeTab === "files" && (
-              <UploadsTab
-                characterId={character.id || null}
-                preUploadedFiles={preUploadedFiles}
-                onPreUploadedFilesAdd={onPreUploadedFilesAdd}
-                onPreUploadedFileRemove={onPreUploadedFileRemove}
-              />
+              <ScrollArea className="h-full">
+                <div className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <UploadsTab
+                    characterId={character.id || null}
+                    preUploadedFiles={preUploadedFiles}
+                    onPreUploadedFilesAdd={onPreUploadedFilesAdd}
+                    onPreUploadedFileRemove={onPreUploadedFileRemove}
+                  />
+                </div>
+              </ScrollArea>
             )}
           </>
         )}

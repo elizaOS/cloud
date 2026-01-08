@@ -539,7 +539,11 @@ export class AIAppBuilderService {
       },
       {
         message: commitMessage,
-        author: { name: "ElizaCloud AI Builder", email: "ai@elizacloud.ai" },
+        // Use environment variables for commit author to match your GitHub account for Vercel attribution
+        author: {
+          name: process.env.GIT_COMMIT_AUTHOR_NAME || "ElizaCloud AI Builder",
+          email: process.env.GIT_COMMIT_AUTHOR_EMAIL || "ai@elizacloud.ai",
+        },
       },
     );
 
@@ -786,93 +790,77 @@ export class AIAppBuilderService {
     logger.info("Resuming session", {
       sessionId,
       oldSandboxId: session.sandbox_id,
+      oldSandboxUrl: session.sandbox_url,
       appId: session.app_id,
     });
 
-    // Get the app to check for GitHub repo
+    // Get the app to check for GitHub repo (needed for both reconnection and new sandbox)
     let githubRepo: string | null = null;
-    let templateUrl: string | undefined;
-
     if (session.app_id) {
       const app = await appsService.getById(session.app_id);
       githubRepo = app?.github_repo || null;
+    }
 
-      if (githubRepo) {
-        const repoName = githubRepo.split("/").pop() || githubRepo;
-        try {
-          templateUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
-          logger.info("Resuming from GitHub repo", {
+    let sandboxData: {
+      sandboxId: string;
+      sandboxUrl: string;
+      status: string;
+      devServerUrl?: string;
+      startedAt?: Date;
+    };
+
+    // FAST PATH: Try to reconnect to the existing sandbox first
+    // This can save 30-60 seconds compared to creating a new sandbox
+    if (session.sandbox_id && session.sandbox_url) {
+      logger.info("Attempting fast reconnection to existing sandbox", {
+        sessionId,
+        sandboxId: session.sandbox_id,
+      });
+
+      const reconnected = await sandboxService.tryReconnect(
+        session.sandbox_id,
+        session.sandbox_url,
+        { onProgress, timeoutMs: 30 * 60 * 1000 },
+      );
+
+      if (reconnected) {
+        logger.info(
+          "Successfully reconnected to existing sandbox (fast path)",
+          {
             sessionId,
-            githubRepo,
-            repoName,
-          });
-        } catch (error) {
-          logger.warn("Failed to get authenticated clone URL for resume", {
-            sessionId,
-            githubRepo,
-            error: error instanceof Error ? error.message : "Unknown",
+            sandboxId: reconnected.sandboxId,
+          },
+        );
+        sandboxData = reconnected;
+
+        // Report instant restore
+        if (onRestoreProgress) {
+          onRestoreProgress({
+            current: 1,
+            total: 1,
+            filePath: "Reconnected to existing sandbox",
           });
         }
-      }
-    }
-
-    // Notify progress
-    onProgress?.({
-      step: "creating",
-      message: "Creating new sandbox instance...",
-    });
-
-    // Determine API URL for sandbox
-    const isLocalDev =
-      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
-      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
-
-    const sandboxEnv: Record<string, string> = {};
-
-    if (isLocalDev) {
-      const localServerUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
-
-      if (process.env.ELIZA_API_URL) {
-        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = process.env.ELIZA_API_URL;
-        delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL;
+      } else {
+        logger.info(
+          "Reconnection failed, falling back to new sandbox creation",
+          {
+            sessionId,
+          },
+        );
+        sandboxData = await this.createNewSandboxForResume(
+          session,
+          githubRepo,
+          options,
+        );
       }
     } else {
-      const apiUrl =
-        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
-      if (apiUrl) {
-        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
-      }
-    }
-
-    // Get or regenerate API key for the app
-    if (session.app_id) {
-      const appApiKey = await appsService.regenerateApiKey(session.app_id);
-      if (appApiKey) {
-        sandboxEnv.NEXT_PUBLIC_ELIZA_API_KEY = appApiKey;
-      }
-      sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = session.app_id;
-    }
-
-    // Create new sandbox
-    const sandboxData = await sandboxService.create({
-      templateUrl,
-      timeout: 30 * 60 * 1000,
-      vcpus: 4,
-      organizationId: session.organization_id,
-      projectId: session.app_id || undefined,
-      env: Object.keys(sandboxEnv).length > 0 ? sandboxEnv : undefined,
-      onProgress,
-    });
-
-    // Report restore progress if we're using a GitHub template
-    if (templateUrl && onRestoreProgress) {
-      onRestoreProgress({
-        current: 1,
-        total: 1,
-        filePath: "Cloned from GitHub",
-      });
+      // No existing sandbox info - create new
+      sandboxData = await this.createNewSandboxForResume(
+        session,
+        githubRepo,
+        options,
+      );
     }
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -947,6 +935,113 @@ export class AIAppBuilderService {
       appId: session.app_id || undefined,
       githubRepo,
     };
+  }
+
+  /**
+   * Helper method to create a new sandbox for session resume.
+   * Used when reconnection to existing sandbox fails.
+   */
+  private async createNewSandboxForResume(
+    session: AppSandboxSession,
+    githubRepo: string | null,
+    options: {
+      onProgress?: (progress: SandboxProgress) => void;
+      onRestoreProgress?: (progress: {
+        current: number;
+        total: number;
+        filePath: string;
+      }) => void;
+    },
+  ): Promise<{
+    sandboxId: string;
+    sandboxUrl: string;
+    status: string;
+    devServerUrl?: string;
+    startedAt?: Date;
+  }> {
+    const { onProgress, onRestoreProgress } = options;
+
+    // Determine template URL for sandbox creation
+    let templateUrl: string | undefined;
+
+    if (githubRepo) {
+      const repoName = githubRepo.split("/").pop() || githubRepo;
+      try {
+        templateUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
+        logger.info("Creating sandbox from GitHub repo", {
+          sessionId: session.id,
+          githubRepo,
+          repoName,
+        });
+      } catch (error) {
+        logger.warn("Failed to get authenticated clone URL for resume", {
+          sessionId: session.id,
+          githubRepo,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
+      }
+    }
+
+    // Notify progress
+    onProgress?.({
+      step: "creating",
+      message: "Creating new sandbox instance...",
+    });
+
+    // Determine API URL for sandbox
+    const isLocalDev =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+
+    const sandboxEnv: Record<string, string> = {};
+
+    if (isLocalDev) {
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
+
+      if (process.env.ELIZA_API_URL) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = process.env.ELIZA_API_URL;
+        delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL;
+      }
+    } else {
+      const apiUrl =
+        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      if (apiUrl) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
+      }
+    }
+
+    // Get or regenerate API key for the app
+    if (session.app_id) {
+      const appApiKey = await appsService.regenerateApiKey(session.app_id);
+      if (appApiKey) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_KEY = appApiKey;
+      }
+      sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = session.app_id;
+    }
+
+    // Create new sandbox
+    const sandboxData = await sandboxService.create({
+      templateUrl,
+      timeout: 30 * 60 * 1000,
+      vcpus: 4,
+      organizationId: session.organization_id,
+      projectId: session.app_id || undefined,
+      env: Object.keys(sandboxEnv).length > 0 ? sandboxEnv : undefined,
+      onProgress,
+    });
+
+    // Report restore progress if we're using a GitHub template
+    if (templateUrl && onRestoreProgress) {
+      onRestoreProgress({
+        current: 1,
+        total: 1,
+        filePath: "Cloned from GitHub",
+      });
+    }
+
+    return sandboxData;
   }
 }
 

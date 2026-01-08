@@ -14,7 +14,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod3";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import { agentReputationService } from "@/lib/services/agent-reputation";
 import { logger } from "@/lib/utils/logger";
 import {
   type A2AContext,
@@ -110,36 +109,6 @@ export async function POST(request: NextRequest) {
   try {
     authResult = await requireAuthOrApiKeyWithOrg(request);
   } catch (e) {
-    // Return 402 with payment info if x402 is enabled
-    const {
-      X402_RECIPIENT_ADDRESS,
-      getDefaultNetwork,
-      USDC_ADDRESSES,
-      TOPUP_PRICE,
-      CREDITS_PER_DOLLAR,
-      isX402Configured,
-    } = await import("@/lib/config/x402");
-
-    if (isX402Configured()) {
-      return NextResponse.json(
-        jsonRpcError(
-          A2AErrorCodes.AUTHENTICATION_REQUIRED,
-          "Authentication required. Get an API key or top up credits via x402 payment at /api/v1/credits/topup",
-          id,
-          {
-            x402: {
-              topupEndpoint: "/api/v1/credits/topup",
-              network: getDefaultNetwork(),
-              asset: USDC_ADDRESSES[getDefaultNetwork()],
-              payTo: X402_RECIPIENT_ADDRESS,
-              minimumTopup: TOPUP_PRICE,
-              creditsPerDollar: CREDITS_PER_DOLLAR,
-            },
-          },
-        ),
-        { status: 402 },
-      );
-    }
     return a2aError(
       A2AErrorCodes.AUTHENTICATION_REQUIRED,
       e instanceof Error ? e.message : "Auth failed",
@@ -148,49 +117,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Agent reputation tracking
-  const agentTokenId = request.headers.get("x-agent-token-id");
-  const agentChainId = request.headers.get("x-agent-chain-id");
-  const agentIdentifier =
-    agentChainId && agentTokenId
-      ? `${agentChainId}:${agentTokenId}`
-      : `org:${authResult.user.organization_id}`;
-
-  // Check if agent is banned
-  const isAgentBanned =
-    await agentReputationService.shouldBlockAgent(agentIdentifier);
-  if (isAgentBanned) {
-    return a2aError(
-      A2AErrorCodes.AGENT_BANNED,
-      "Agent is banned due to policy violations",
-      id,
-      403,
-    );
-  }
-
-  // Rate limit based on trust level
-  const agent = await agentReputationService.getAgent(agentIdentifier);
-  const trustLevel = (agent?.trustLevel ?? "neutral") as
-    | "untrusted"
-    | "low"
-    | "neutral"
-    | "trusted"
-    | "verified";
-  const rateLimit =
-    agentReputationService.getRateLimitForTrustLevel(trustLevel);
-
+  // Rate limit
   const rateLimitResult = await checkRateLimitRedis(
-    `a2a:${agentIdentifier}`,
+    `a2a:${authResult.user.organization_id}`,
     60000,
-    rateLimit,
+    100,
   );
   if (!rateLimitResult.allowed) {
-    return a2aError(
-      A2AErrorCodes.RATE_LIMITED,
-      `Rate limited. Trust level: ${trustLevel}`,
-      id,
-      429,
-    );
+    return a2aError(A2AErrorCodes.RATE_LIMITED, "Rate limited", id, 429);
   }
 
   // Find handler
@@ -208,26 +142,16 @@ export async function POST(request: NextRequest) {
   logger.info(`[A2A] ${method}`, {
     org: authResult.user.organization_id,
     user: authResult.user.id,
-    agentIdentifier,
-    trustLevel,
   });
 
   const ctx: A2AContext = {
     user: authResult.user,
     apiKeyId: authResult.apiKey?.id || null,
-    agentIdentifier,
+    agentIdentifier: `org:${authResult.user.organization_id}`,
   };
 
   try {
     const result = await methodDef.handler(params || {}, ctx);
-
-    // Track successful request
-    agentReputationService
-      .recordRequest({ agentIdentifier, isSuccessful: true, method })
-      .catch((err) =>
-        logger.error("[A2A] Failed to record request", { error: err }),
-      );
-
     return a2aSuccess(result, id);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Internal error";
@@ -246,13 +170,6 @@ export async function POST(request: NextRequest) {
       code = A2AErrorCodes.AGENT_BANNED;
       status = 403;
     }
-
-    // Track failed request
-    agentReputationService
-      .recordRequest({ agentIdentifier, isSuccessful: false, method })
-      .catch((err) =>
-        logger.error("[A2A] Failed to record failed request", { error: err }),
-      );
 
     return a2aError(code, msg, id, status);
   }

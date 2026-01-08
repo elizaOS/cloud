@@ -107,5 +107,3 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/video-generation
 - Voice Cloning — Clone voices and generate speech with ElevenLabs integration on elizaOS Cloud.
   https://elizacloud.ai/docs/voice-cloning
-- x402 Payments — Pay for elizaOS Cloud services with cryptocurrency using the x402 protocol.
-  https://elizacloud.ai/docs/x402

@@ -12,31 +12,43 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, usePathname } from "next/navigation";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
 import {
-  ArrowLeft,
   X,
   MessageSquare,
   Loader2,
   Trash2,
   Plus,
+  MoreHorizontal,
+  Wrench,
+  Globe,
+  Lock,
+  Link as LinkIcon,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LockOnButton } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
-
-// Default Eliza avatars - different for build vs chat pages
-const DEFAULT_ELIZA_AVATAR_CHAT =
-  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
-const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ChatSidebarProps {
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -63,16 +75,12 @@ export function ChatSidebar({
   className,
   isOpen = false,
   onToggle,
+  isCollapsed = false,
+  onToggleCollapse,
 }: ChatSidebarProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
 
-  // Use different default avatar for build vs chat pages
-  const isBuildPage = pathname.includes("/build");
-  const defaultElizaAvatar = isBuildPage
-    ? DEFAULT_ELIZA_AVATAR_BUILD
-    : DEFAULT_ELIZA_AVATAR_CHAT;
   const {
     rooms,
     roomId,
@@ -91,12 +99,113 @@ export function ChatSidebar({
     loadingRoomId: null,
   });
 
+  // Share/visibility state
+  const [isPublic, setIsPublic] = useState<boolean | null>(null);
+  const [isTogglingShare, setIsTogglingShare] = useState(false);
+
   const updateOperation = (updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
   };
 
   const handleCloseClick = () => {
     onToggle?.();
+  };
+
+  // Fetch share status when character changes
+  useEffect(() => {
+    if (!selectedCharacterId) {
+      setIsPublic(null);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchShareStatus = async () => {
+      try {
+        const res = await fetch(
+          `/api/my-agents/characters/${selectedCharacterId}/share`,
+          { signal: controller.signal }
+        );
+
+        if (cancelled) return;
+
+        if (res.status === 403 || res.status === 404) {
+          setIsPublic(null);
+          return;
+        }
+
+        if (!res.ok) {
+          setIsPublic(null);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled && data?.success) {
+          setIsPublic(data.data.isPublic);
+        } else if (!cancelled) {
+          setIsPublic(null);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        if (!cancelled) {
+          setIsPublic(null);
+        }
+      }
+    };
+
+    fetchShareStatus();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [selectedCharacterId]);
+
+  // Toggle share status
+  const handleToggleShare = async () => {
+    if (!selectedCharacterId || isPublic === null || isTogglingShare) return;
+
+    const newIsPublic = !isPublic;
+    setIsTogglingShare(true);
+    setIsPublic(newIsPublic);
+
+    try {
+      const response = await fetch(
+        `/api/my-agents/characters/${selectedCharacterId}/share`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        }
+      );
+
+      if (response.ok) {
+        toast.success(
+          newIsPublic ? "Agent is now public" : "Agent is now private"
+        );
+      } else {
+        setIsPublic(!newIsPublic);
+        toast.error("Failed to update visibility");
+      }
+    } catch {
+      setIsPublic(!newIsPublic);
+      toast.error("Failed to update visibility");
+    } finally {
+      setIsTogglingShare(false);
+    }
+  };
+
+  // Copy share link
+  const handleCopyShareLink = async () => {
+    if (!selectedCharacterId) return;
+    const shareUrl = `${window.location.origin}/chat/${selectedCharacterId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied!");
+    } catch {
+      toast.error("Failed to copy link to clipboard");
+    }
   };
 
   // Filter rooms by selected character
@@ -107,16 +216,15 @@ export function ChatSidebar({
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
       return rooms.filter(
-        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
       );
     }
-    // Show rooms for the selected character
     return rooms.filter((room) => room.characterId === selectedCharacterId);
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -210,32 +318,55 @@ export function ChatSidebar({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "flex h-full flex-col border-r border-white/10 bg-[#0A0A0A] transition-transform duration-300 ease-in-out",
+          "flex h-full flex-col transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-            : "w-64",
-          className,
+            ? `fixed bg-[#191919] inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            : isCollapsed
+              ? "w-14 p-1.5"
+              : "w-80 p-1.5",
+          className
         )}
       >
-        {/* Header with Logo */}
-        <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4 overflow-visible">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
-          >
-            <Image
-              src="/cloudlogo.svg"
-              alt="ELIZA"
-              width={80}
-              height={24}
-              className={`invert shrink-0 ${isMobile ? "w-20" : "w-24"}`}
-            />
-          </Link>
+        {/* Header with Logo and Collapse Toggle */}
+        <div
+          className={cn(
+            "relative flex h-14 mb-2 shrink-0 grow-0 items-center overflow-visible",
+            isCollapsed ? "justify-center px-0" : "justify-between px-3"
+          )}
+        >
+          {!isCollapsed && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 hover:opacity-80 relative z-10"
+            >
+              <Image
+                src="/cloudlogo.svg"
+                alt="ELIZA"
+                width={80}
+                height={24}
+                className={`invert shrink-0 ${isMobile ? "w-16" : "w-20"}`}
+              />
+            </Link>
+          )}
+          {/* Collapse Toggle Button (Desktop) */}
+          {!isMobile && onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <PanelLeft className="h-5 w-5 text-neutral-300" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5 text-neutral-300" />
+              )}
+            </button>
+          )}
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
               onClick={handleCloseClick}
-              className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+              className="rounded-lg p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
             >
               <X className="h-4 w-4 text-white" />
@@ -243,65 +374,184 @@ export function ChatSidebar({
           )}
         </div>
 
-        {/* Back Button */}
-        <div className="border-b border-white/10 px-4 py-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            <span>Back</span>
-          </button>
-        </div>
+        {/* Selected Character Info */}
 
-        {/* Selected Character Profile with New Chat Icon */}
-        <div className="border-b border-white/10 px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            {/* Character Avatar or Create New Agent Icon */}
-            {selectedCharacter ? (
-              <ElizaAvatar
-                avatarUrl={selectedCharacter.avatarUrl}
-                name={selectedCharacter.name}
-                className="w-8 h-8 shrink-0"
-                iconClassName="h-4 w-4"
-                fallbackClassName="bg-[#FF5800]/10"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center shrink-0">
-                <Plus className="h-4 w-4 text-[#FF5800]" />
-              </div>
-            )}
-
-            {/* Character Info or Create New Agent */}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
+        <div
+          className={cn(
+            "flex items-center h-10",
+            isCollapsed ? "justify-center" : "gap-3 px-3"
+          )}
+        >
+          {/* Avatar - wrapped in dropdown when collapsed */}
+          {isCollapsed && selectedCharacter ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="rounded-full hover:ring-2 hover:ring-white/20 transition-all">
+                  <ElizaAvatar
+                    avatarUrl={selectedCharacter.avatarUrl}
+                    name={selectedCharacter.name}
+                    className="w-6 h-6 shrink-0 cursor-pointer"
+                    iconClassName="h-3 w-3"
+                    fallbackClassName="bg-[#FF5800]/10"
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-56 rounded-xl border-white/10 bg-[#1a1a1a] backdrop-blur-md p-1.5"
+                align="start"
+                side="right"
+                sideOffset={8}
+              >
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/build?characterId=${selectedCharacterId}`
+                    )
+                  }
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
+                >
+                  <Wrench className="h-4 w-4" />
+                  Edit Agent
+                </DropdownMenuItem>
+                {isPublic !== null && (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-2">
+                      {isPublic ? (
+                        <Globe className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Lock className="h-4 w-4 text-white/60" />
+                      )}
+                      <span className="text-sm text-white/80">
+                        {isPublic ? "Public" : "Private"}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={isPublic}
+                      onCheckedChange={handleToggleShare}
+                      className="data-[state=checked]:bg-green-500/30 data-[state=unchecked]:bg-white/20 [&_span]:data-[state=checked]:bg-green-500 [&_span]:data-[state=unchecked]:bg-white/60"
+                    />
+                  </div>
+                )}
+                {isPublic && (
+                  <DropdownMenuItem
+                    onClick={handleCopyShareLink}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Copy Share Link
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : selectedCharacter ? (
+            <ElizaAvatar
+              avatarUrl={selectedCharacter.avatarUrl}
+              name={selectedCharacter.name}
+              className="w-6 h-6 shrink-0"
+              iconClassName="h-3 w-3"
+              fallbackClassName="bg-[#FF5800]/10"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center shrink-0">
+              <Plus className="h-3 w-3 text-[#FF5800]" />
+            </div>
+          )}
+          {!isCollapsed && (
+            <>
+              <div className="text-sm font-medium text-white truncate flex-1">
                 {selectedCharacter?.name || "Create New Agent"}
               </div>
+              {/* Settings Dropdown */}
               {selectedCharacter && (
-                <div className="text-[10px] text-white/40 truncate">
-                  {filteredRooms.length} chat
-                  {filteredRooms.length !== 1 ? "s" : ""}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                      <MoreHorizontal className="h-5 w-5 text-neutral-300" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-56 rounded-xl border-white/10 bg-[#1a1a1a] backdrop-blur-md p-1.5"
+                    align="end"
+                    side="bottom"
+                    sideOffset={8}
+                  >
+                    <DropdownMenuItem
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/build?characterId=${selectedCharacterId}`
+                        )
+                      }
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
+                    >
+                      <Wrench className="h-4 w-4" />
+                      Edit Agent
+                    </DropdownMenuItem>
+                    {isPublic !== null && (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 transition-colors">
+                        <div className="flex items-center gap-2">
+                          {isPublic ? (
+                            <Globe className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Lock className="h-4 w-4 text-white/60" />
+                          )}
+                          <span className="text-sm text-white/80">
+                            {isPublic ? "Public" : "Private"}
+                          </span>
+                        </div>
+                        <Switch
+                          checked={isPublic}
+                          onCheckedChange={handleToggleShare}
+                          className="data-[state=checked]:bg-green-500/30 data-[state=unchecked]:bg-white/20 [&_span]:data-[state=checked]:bg-green-500 [&_span]:data-[state=unchecked]:bg-white/60"
+                        />
+                      </div>
+                    )}
+                    {isPublic && (
+                      <DropdownMenuItem
+                        onClick={handleCopyShareLink}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
+                      >
+                        <LinkIcon className="h-4 w-4" />
+                        Copy Share Link
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* New Chat Button or Create Agent Button */}
+        <div
+          className={cn(
+            "h-12 flex items-center mb-4",
+            isCollapsed ? "justify-center" : "pr-3"
+          )}
+        >
+          {selectedCharacter ? (
+            <button
+              onClick={handleNewChat}
+              disabled={operationState.isCreatingRoom}
+              className={cn(
+                "flex items-center rounded-lg text-white hover:bg-white/10 transition-colors disabled:opacity-50 h-10",
+                isCollapsed ? "justify-center p-2" : "gap-3 w-full pl-3"
+              )}
+            >
+              {operationState.isCreatingRoom ? (
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <Loader2 className="h-4 w-4 text-white/70 animate-spin" />
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-[#FF5800] flex items-center justify-center shrink-0">
+                  <Plus className="size-4 text-white" strokeWidth={2.5} />
                 </div>
               )}
-            </div>
-
-            {/* New Chat Button or Create Agent Button */}
-            {selectedCharacter ? (
-              <LockOnButton
-                onClick={handleNewChat}
-                disabled={operationState.isCreatingRoom}
-                size="sm"
-                cornerSize="petite"
-                className="shrink-0 h-7 px-3 text-xs"
-              >
-                {operationState.isCreatingRoom ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <span className="text-base mb-0.5">+</span>
-                )}
-              </LockOnButton>
-            ) : (
+              {!isCollapsed && (
+                <span className="text-sm whitespace-nowrap">New chat</span>
+              )}
+            </button>
+          ) : (
+            !isCollapsed && (
               <LockOnButton
                 onClick={() => router.push("/dashboard/build")}
                 size="sm"
@@ -310,103 +560,101 @@ export function ChatSidebar({
               >
                 <span className="text-xs">Build</span>
               </LockOnButton>
-            )}
-          </div>
+            )
+          )}
         </div>
 
-        {/* Rooms/Conversations List */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {isLoadingRooms && filteredRooms.length === 0 ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+        {/* Rooms/Conversations List - hidden when collapsed */}
+        {!isCollapsed && (
+          <nav className="flex-1 overflow-y-auto py-3 px-2">
+            {/* Chats Title */}
+            <div className="px-2 pb-2 text-xs text-white/50 whitespace-nowrap">
+              Chats ({filteredRooms.length})
             </div>
-          ) : (
-            <div className="space-y-0.5">
-              {filteredRooms.map((room) => {
-                const isDeleting = operationState.deletingRoomId === room.id;
-                const isLoading = operationState.loadingRoomId === room.id;
-                return (
-                  <div
-                    key={room.id}
-                    className={cn(
-                      "group relative w-full text-left rounded-sm transition-all duration-200",
-                      "hover:bg-white/5",
-                      roomId === room.id &&
-                        "bg-white/10 border-l-2 border-[#FF5800]",
-                      (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none",
-                    )}
-                  >
-                    <div className="relative">
-                      <button
-                        onClick={() => handleSelectRoom(room.id)}
-                        disabled={isDeleting || isLoading}
-                        className="w-full text-left px-2.5 py-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          {isLoading ? (
-                            <Loader2 className="h-3.5 w-3.5 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
-                          ) : (
-                            <MessageSquare className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0 pr-6">
-                            <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                              <span className="text-[11px] font-medium text-white/90 truncate">
-                                {room.title || "New Chat"}
-                              </span>
-                              {room.lastTime && !isLoading && (
-                                <span className="text-[10px] text-white/30 shrink-0 group-hover:opacity-0 transition-opacity duration-200">
-                                  {formatTimestamp(room.lastTime)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                      {/* Delete button with gradient background overlay */}
-                      <div
-                        className={cn(
-                          "absolute top-0 right-0 h-full flex items-center",
-                          "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                          "bg-gradient-to-l from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent",
-                          "pl-4 pr-1",
-                        )}
-                      >
+            {isLoadingRooms && filteredRooms.length === 0 ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredRooms.map((room) => {
+                  const isDeleting = operationState.deletingRoomId === room.id;
+                  const isLoading = operationState.loadingRoomId === room.id;
+                  return (
+                    <div
+                      key={room.id}
+                      className={cn(
+                        "group relative w-full text-left rounded-lg transition-all duration-200",
+                        "hover:bg-white/5",
+                        roomId === room.id && "bg-white/10",
+                        (isDeleting || isLoading) &&
+                          "opacity-50 pointer-events-none"
+                      )}
+                    >
+                      <div className="relative">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteRoom(room.id);
-                          }}
-                          disabled={isDeleting}
+                          onClick={() => handleSelectRoom(room.id)}
+                          disabled={isDeleting || isLoading}
+                          className="w-full text-left px-3 py-2.5"
+                        >
+                          {isLoading && (
+                            <Loader2 className="h-3.5 w-3.5 text-white/70 absolute right-3 top-1/2 -translate-y-1/2 animate-spin" />
+                          )}
+                          <div className="flex items-center justify-between gap-1.5 overflow-hidden">
+                            <span className="text-[13px] font-medium text-white/90 truncate whitespace-nowrap">
+                              {room.title || "New Chat"}
+                            </span>
+                            {room.lastTime && !isLoading && (
+                              <span className="text-[11px] text-white/30 shrink-0 whitespace-nowrap group-hover:opacity-0 transition-opacity duration-200">
+                                {formatTimestamp(room.lastTime)}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                        {/* Delete button */}
+                        <div
                           className={cn(
-                            "h-6 w-6 flex items-center justify-center rounded",
-                            "hover:bg-red-500/20 text-white/60 hover:text-red-400",
-                            "transition-colors duration-150",
+                            "absolute top-0 right-0 h-full flex items-center",
+                            "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                            "pr-1.5"
                           )}
                         >
-                          {isDeleting ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRoom(room.id);
+                            }}
+                            disabled={isDeleting}
+                            className={cn(
+                              "h-7 w-7 flex items-center justify-center rounded-md",
+                              "hover:bg-red-500/20 text-white/60 hover:text-red-400",
+                              "transition-colors duration-150"
+                            )}
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+                {filteredRooms.length === 0 && !isLoadingRooms && (
+                  <div className="px-3 py-6 text-center">
+                    <MessageSquare className="h-8 w-8 text-white/15 mx-auto mb-2" />
+                    <p className="text-[10px] text-white/40">No chats yet</p>
                   </div>
-                );
-              })}
-              {filteredRooms.length === 0 && !isLoadingRooms && (
-                <div className="px-3 py-6 text-center">
-                  <MessageSquare className="h-8 w-8 text-white/15 mx-auto mb-2" />
-                  <p className="text-[10px] text-white/40">No chats yet</p>
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
+                )}
+              </div>
+            )}
+          </nav>
+        )}
 
-        {/* User Settings Panel */}
-        <SidebarBottomPanel />
+        {/* User Settings Panel - hidden when collapsed */}
+        {!isCollapsed && <SidebarBottomPanel />}
       </aside>
     </>
   );

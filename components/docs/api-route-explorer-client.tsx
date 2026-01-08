@@ -31,7 +31,6 @@ const GROUP_LABELS: Record<string, string> = {
   "generate-video": "Video Generation",
   knowledge: "Knowledge Base",
   mcps: "MCP Integrations",
-  miniapp: "Mini App",
   models: "Models",
   redemptions: "Redemptions",
   responses: "Responses",

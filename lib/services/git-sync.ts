@@ -70,9 +70,18 @@ export interface GitStatusResult {
   untracked: string[];
 }
 
+/**
+ * Default git author for commits.
+ * Configure via environment variables to use your own email for Vercel attribution:
+ * - GIT_COMMIT_AUTHOR_NAME: Name for commits (default: "ElizaCloud Bot")
+ * - GIT_COMMIT_AUTHOR_EMAIL: Email for commits (default: "bot@elizacloud.ai")
+ *
+ * Important: For Vercel deployments, use an email that matches your GitHub account
+ * to ensure proper commit author attribution.
+ */
 const DEFAULT_AUTHOR = {
-  name: "ElizaCloud Bot",
-  email: "bot@elizacloud.ai",
+  name: process.env.GIT_COMMIT_AUTHOR_NAME || "ElizaCloud Bot",
+  email: process.env.GIT_COMMIT_AUTHOR_EMAIL || "bot@elizacloud.ai",
 };
 
 export class GitSyncService {
@@ -158,6 +167,35 @@ export class GitSyncService {
             error: `Git init failed: ${initResult.stderr}`,
           };
         await this.runGitCommand(sandbox, ["checkout", "-b", branch]);
+      } else {
+        // Repo exists (cloned from template) - ensure we're on the right branch
+        const currentBranch = await this.runGitCommand(sandbox, [
+          "branch",
+          "--show-current",
+        ]);
+        const currentBranchName = currentBranch.stdout.trim();
+        logger.info("Current git branch", {
+          sandboxId,
+          currentBranch: currentBranchName,
+          targetBranch: branch,
+        });
+
+        // If not on the target branch, try to switch or create it
+        if (currentBranchName !== branch) {
+          // Try to checkout existing branch or create new one
+          const checkoutResult = await this.runGitCommand(sandbox, [
+            "checkout",
+            "-B",
+            branch,
+          ]);
+          if (checkoutResult.exitCode !== 0) {
+            logger.warn("Failed to switch to target branch", {
+              sandboxId,
+              targetBranch: branch,
+              error: checkoutResult.stderr,
+            });
+          }
+        }
       }
 
       await this.runGitCommand(sandbox, [
@@ -190,7 +228,20 @@ export class GitSyncService {
         ]);
       }
 
-      await this.runGitCommand(sandbox, ["fetch", "origin", branch]);
+      // Fetch from origin (may fail if remote branch doesn't exist yet, that's ok)
+      const fetchResult = await this.runGitCommand(sandbox, [
+        "fetch",
+        "origin",
+        branch,
+      ]);
+      if (fetchResult.exitCode !== 0) {
+        logger.info("Fetch from origin failed (branch may not exist yet)", {
+          sandboxId,
+          branch,
+          stderr: fetchResult.stderr,
+        });
+        // This is ok - the branch might not exist on remote yet (new repo)
+      }
 
       logger.info("Git configured successfully", {
         sandboxId,
@@ -257,13 +308,36 @@ export class GitSyncService {
     files?: string[],
   ): Promise<{ success: boolean; error?: string }> {
     const sandbox = this.getSandbox(sandboxId);
-    if (!sandbox) return { success: false, error: "Sandbox not found" };
+    if (!sandbox) {
+      logger.error("Sandbox not found for staging files", { sandboxId });
+      return { success: false, error: "Sandbox not found" };
+    }
 
     try {
+      // Log current working directory and file list before staging
+      const pwdResult = await sandbox.runCommand({ cmd: "pwd", args: [] });
+      const lsResult = await sandbox.runCommand({
+        cmd: "ls",
+        args: ["-la"],
+      });
+      logger.info("Staging files - current state", {
+        sandboxId,
+        pwd: (await pwdResult.stdout()).trim(),
+        files: files ?? "all (-A)",
+        lsOutput: (await lsResult.stdout()).substring(0, 500),
+      });
+
       const result =
         files && files.length > 0
           ? await this.runGitCommand(sandbox, ["add", ...files])
           : await this.runGitCommand(sandbox, ["add", "-A"]);
+
+      logger.info("Git add result", {
+        sandboxId,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
 
       if (result.exitCode !== 0)
         return { success: false, error: result.stderr };
@@ -287,6 +361,10 @@ export class GitSyncService {
     const { message, author = DEFAULT_AUTHOR, files } = options;
 
     try {
+      // Configure author first
+      await this.runGitCommand(sandbox, ["config", "user.name", author.name]);
+      await this.runGitCommand(sandbox, ["config", "user.email", author.email]);
+
       const stageResult = await this.stageFiles(sandboxId, files);
       if (!stageResult.success) {
         return {
@@ -296,19 +374,53 @@ export class GitSyncService {
         };
       }
 
-      const status = await this.getStatus(sandboxId);
-      if (!status || status.staged.length === 0) {
+      // Get raw git status for debugging
+      const rawStatus = await this.runGitCommand(sandbox, [
+        "status",
+        "--porcelain",
+      ]);
+      logger.info("Git status after staging", {
+        sandboxId,
+        exitCode: rawStatus.exitCode,
+        stdout: rawStatus.stdout,
+        stderr: rawStatus.stderr,
+      });
+
+      // Also check diff --cached to see what's actually staged
+      const diffCached = await this.runGitCommand(sandbox, [
+        "diff",
+        "--cached",
+        "--name-only",
+      ]);
+      const stagedFiles = diffCached.stdout
+        .trim()
+        .split("\n")
+        .filter((f) => f.trim());
+
+      logger.info("Staged files from diff --cached", {
+        sandboxId,
+        stagedFiles,
+        count: stagedFiles.length,
+      });
+
+      // If nothing staged according to diff --cached, nothing to commit
+      if (stagedFiles.length === 0) {
+        logger.info("No files staged for commit", { sandboxId });
         return { success: true, filesCommitted: 0 };
       }
-
-      await this.runGitCommand(sandbox, ["config", "user.name", author.name]);
-      await this.runGitCommand(sandbox, ["config", "user.email", author.email]);
 
       const commitResult = await this.runGitCommand(sandbox, [
         "commit",
         "-m",
         message,
       ]);
+
+      logger.info("Commit result", {
+        sandboxId,
+        exitCode: commitResult.exitCode,
+        stdout: commitResult.stdout,
+        stderr: commitResult.stderr,
+      });
 
       if (commitResult.exitCode !== 0) {
         if (
@@ -333,9 +445,9 @@ export class GitSyncService {
       logger.info("Commit created", {
         sandboxId,
         commitSha,
-        filesCommitted: status.staged.length,
+        filesCommitted: stagedFiles.length,
       });
-      return { success: true, commitSha, filesCommitted: status.staged.length };
+      return { success: true, commitSha, filesCommitted: stagedFiles.length };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";

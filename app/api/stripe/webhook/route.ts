@@ -4,7 +4,6 @@ import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { referralsService } from "@/lib/services/referrals";
-import { agentReputationService } from "@/lib/services/agent-reputation";
 import { discordService } from "@/lib/services/discord";
 import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
@@ -238,22 +237,6 @@ async function handleStripeWebhook(req: NextRequest) {
             logger.info(
               `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
             );
-
-            // Track payment for agent reputation (fire and forget)
-            const agentIdentifier = `org:${organizationId}`;
-            agentReputationService
-              .recordPayment({
-                agentIdentifier,
-                amountUsd: credits,
-                paymentType: "stripe",
-                transactionId: paymentIntentId,
-              })
-              .catch((err) => {
-                logger.error(
-                  "[Stripe Webhook] Failed to record payment for reputation",
-                  { error: err },
-                );
-              });
 
             // Log payment to Discord (fire and forget)
             organizationsRepository.findById(organizationId).then((org) => {

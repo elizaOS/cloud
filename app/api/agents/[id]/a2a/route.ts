@@ -9,7 +9,6 @@
  *
  * Supports:
  * - API key authentication (uses org credits)
- * - x402 payment (permissionless, pay-per-request)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
  */
@@ -19,7 +18,6 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
-import { agentRegistryService } from "@/lib/services/agent-registry";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -27,9 +25,9 @@ import {
   getProviderFromModel,
   estimateRequestCost,
 } from "@/lib/pricing";
-import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
+import type { UserCharacter } from "@/db/schemas/user-characters";
 
 export const maxDuration = 60;
 
@@ -43,6 +41,79 @@ const JsonRpcRequestSchema = z.object({
   params: z.record(z.unknown()).optional(),
   id: z.union([z.string(), z.number()]),
 });
+
+// ============================================================================
+// Agent Card Generation
+// ============================================================================
+
+/**
+ * Generate A2A Agent Card for a character
+ */
+function generateAgentCard(character: UserCharacter, baseUrl: string) {
+  const bioText = Array.isArray(character.bio)
+    ? character.bio.join("\n")
+    : character.bio;
+
+  const markupPct = Number(character.inference_markup_percentage || 0);
+  const hasMonetization = character.monetization_enabled && markupPct > 0;
+
+  return {
+    name: character.name,
+    description: bioText,
+    image: character.avatar_url || `${baseUrl}/default-avatar.png`,
+    version: "1.0.0",
+
+    capabilities: {
+      streaming: true,
+      pushNotifications: false,
+      stateTransitionHistory: true,
+    },
+
+    authentication: {
+      schemes: [
+        {
+          scheme: "bearer",
+          description: "API Key authentication via Authorization header",
+        },
+      ],
+    },
+
+    skills: [
+      {
+        id: "chat",
+        name: "Chat",
+        description: `Chat with ${character.name}`,
+        pricing: {
+          type: "token-based" as const,
+          inputCostPer1k: 0.005,
+          outputCostPer1k: 0.015,
+          ...(hasMonetization && { markupPercentage: markupPct }),
+        },
+      },
+      {
+        id: "generate_image",
+        name: "Image Generation",
+        description: `Generate images as ${character.name}`,
+        pricing: {
+          type: "fixed" as const,
+          amount: 0.05,
+          ...(hasMonetization && { markupPercentage: markupPct }),
+        },
+      },
+    ],
+
+    pricing: {
+      currency: "USD",
+      paymentMethods: ["api_key_credits"],
+      minimumPayment: 0.001,
+    },
+
+    contact: {
+      creatorId: character.user_id,
+      organizationId: character.organization_id,
+    },
+  };
+}
 
 // ============================================================================
 // Handlers
@@ -77,7 +148,7 @@ export async function GET(
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-  const agentCard = agentRegistryService.generateAgentCard(character, baseUrl);
+  const agentCard = generateAgentCard(character, baseUrl);
 
   return NextResponse.json(agentCard, {
     headers: {
@@ -140,46 +211,11 @@ export async function POST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  // NOTE: This endpoint uses credit-based auth. For x402 payments, clients should:
-  // 1. Top up credits via /api/v1/credits/topup (x402 enabled)
-  // 2. Then use their API key or session here
   const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
     () => null,
   );
 
   if (!authResult) {
-    // Return 402 with x402 topup info if enabled
-    if (X402_ENABLED && isX402Configured()) {
-      const {
-        getDefaultNetwork,
-        X402_RECIPIENT_ADDRESS,
-        USDC_ADDRESSES,
-        TOPUP_PRICE,
-        CREDITS_PER_DOLLAR,
-      } = await import("@/lib/config/x402");
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          error: {
-            code: -32002,
-            message:
-              "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
-            data: {
-              x402: {
-                topupEndpoint: "/api/v1/credits/topup",
-                network: getDefaultNetwork(),
-                asset: USDC_ADDRESSES[getDefaultNetwork()],
-                payTo: X402_RECIPIENT_ADDRESS,
-                minimumTopup: TOPUP_PRICE,
-                creditsPerDollar: CREDITS_PER_DOLLAR,
-              },
-            },
-          },
-          id: rpcId,
-        },
-        { status: 402 },
-      );
-    }
     return NextResponse.json(
       {
         jsonrpc: "2.0",
@@ -190,18 +226,9 @@ export async function POST(
     );
   }
 
-  const paymentMethod = "credits" as const;
-
   // Handle method
   if (method === "chat") {
-    return handleChat(
-      request,
-      character,
-      params ?? {},
-      rpcId,
-      authResult,
-      paymentMethod,
-    );
+    return handleChat(request, character, params ?? {}, rpcId, authResult);
   }
 
   if (method === "getAgentInfo") {
@@ -233,7 +260,7 @@ export async function POST(
  * Handle chat method with monetization
  */
 async function handleChat(
-  request: NextRequest,
+  _request: NextRequest,
   character: {
     id: string;
     name: string;
@@ -246,8 +273,7 @@ async function handleChat(
   },
   params: Record<string, unknown>,
   rpcId: string | number,
-  authResult: { user: { id: string; organization_id: string } } | null,
-  paymentMethod: "credits" | "x402",
+  authResult: { user: { id: string; organization_id: string } },
 ) {
   const { model = "gpt-4o-mini", messages } = params as {
     model?: string;
@@ -288,30 +314,28 @@ async function handleChat(
     : 0;
   const totalCost = baseCost + creatorMarkup;
 
-  // Deduct credits if using credit payment
-  if (paymentMethod === "credits" && authResult) {
-    const deductResult = await creditsService.deductCredits({
-      organizationId: authResult.user.organization_id,
-      amount: totalCost,
-      description: `Agent: ${character.name} (${model})`,
-      metadata: {
-        agent_id: character.id,
-        agent_name: character.name,
-        base_cost: baseCost,
-        creator_markup: creatorMarkup,
-      },
-    });
+  // Deduct credits
+  const deductResult = await creditsService.deductCredits({
+    organizationId: authResult.user.organization_id,
+    amount: totalCost,
+    description: `Agent: ${character.name} (${model})`,
+    metadata: {
+      agent_id: character.id,
+      agent_name: character.name,
+      base_cost: baseCost,
+      creator_markup: creatorMarkup,
+    },
+  });
 
-    if (!deductResult.success) {
-      return NextResponse.json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32003,
-          message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
-        },
-        id: rpcId,
-      });
-    }
+  if (!deductResult.success) {
+    return NextResponse.json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32003,
+        message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
+      },
+      id: rpcId,
+    });
   }
 
   // Generate response
@@ -348,7 +372,7 @@ async function handleChat(
       ownerId: character.user_id,
       ownerOrgId: character.organization_id,
       earnings: actualCreatorMarkup,
-      consumerOrgId: authResult?.user.organization_id,
+      consumerOrgId: authResult.user.organization_id,
       model,
       tokens: usage?.totalTokens,
       protocol: "a2a",
@@ -362,21 +386,19 @@ async function handleChat(
   }
 
   // Handle cost difference (refund or charge extra)
-  if (paymentMethod === "credits" && authResult) {
-    const diff = actualTotal - totalCost;
-    if (diff < 0) {
-      await creditsService.refundCredits({
-        organizationId: authResult.user.organization_id,
-        amount: -diff,
-        description: `Agent refund: ${character.name}`,
-      });
-    } else if (diff > 0) {
-      await creditsService.deductCredits({
-        organizationId: authResult.user.organization_id,
-        amount: diff,
-        description: `Agent additional: ${character.name}`,
-      });
-    }
+  const diff = actualTotal - totalCost;
+  if (diff < 0) {
+    await creditsService.refundCredits({
+      organizationId: authResult.user.organization_id,
+      amount: -diff,
+      description: `Agent refund: ${character.name}`,
+    });
+  } else if (diff > 0) {
+    await creditsService.deductCredits({
+      organizationId: authResult.user.organization_id,
+      amount: diff,
+      description: `Agent additional: ${character.name}`,
+    });
   }
 
   return NextResponse.json({

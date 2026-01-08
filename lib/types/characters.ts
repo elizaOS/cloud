@@ -30,7 +30,7 @@ export type SortOrder = "asc" | "desc";
 /**
  * Source of character creation.
  */
-export type CharacterSource = "cloud" | "miniapp";
+export type CharacterSource = "cloud";
 
 /**
  * Statistics for a character.

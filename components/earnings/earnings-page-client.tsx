@@ -127,6 +127,12 @@ const SOURCE_ICONS = {
   mcp: Server,
 };
 
+const SOURCE_LABELS = {
+  miniapp: "Apps",
+  agent: "Agents",
+  mcp: "MCPs",
+};
+
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
   approved: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -383,8 +389,8 @@ export function EarningsPageClient() {
               return (
                 <div key={source.source} className="text-center">
                   <Icon className="h-4 w-4 mx-auto text-white/40 mb-1" />
-                  <p className="text-xs text-white/60 capitalize">
-                    {source.source}s
+                  <p className="text-xs text-white/60">
+                    {SOURCE_LABELS[source.source]}
                   </p>
                   <p className="text-sm font-semibold text-white">
                     {formatCurrency(source.totalEarned)}
@@ -431,7 +437,7 @@ export function EarningsPageClient() {
               How Token Redemption Works
             </h4>
             <p className="text-sm text-white/60">
-              Earnings from your miniapps, agents, and MCPs can be redeemed for
+              Earnings from your apps, agents, and MCPs can be redeemed for
               elizaOS tokens. The conversion rate is $1 = equivalent value in
               elizaOS at current market price. Tokens are sent directly to your
               wallet on your chosen network (Base, Solana, Ethereum, or BNB).

@@ -383,45 +383,12 @@ export async function getUserFromApiKey(
 
 /**
  * Require authentication via session or API key
- * Supports X-API-Key header, Authorization: Bearer header, and X-Miniapp-Token header
+ * Supports X-API-Key header and Authorization: Bearer header
  * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for miniapp token (pass-through auth from miniapps)
-  const miniappToken = request.headers.get("X-Miniapp-Token");
-  if (miniappToken) {
-    const { miniappAuthSessionsService } =
-      await import("@/lib/services/miniapp-auth-sessions");
-    const tokenData =
-      await miniappAuthSessionsService.verifyToken(miniappToken);
-
-    if (!tokenData) {
-      throw new Error("Unauthorized: Invalid or expired miniapp token");
-    }
-
-    // IMPORTANT: Use getWithOrganization to include org data for billing/credits
-    const user = await usersService.getWithOrganization(tokenData.userId);
-
-    if (!user) {
-      throw new Error("Unauthorized: User not found");
-    }
-
-    if (!user.is_active) {
-      throw new Error("Unauthorized: User account is inactive");
-    }
-
-    if (user.organization && !user.organization.is_active) {
-      throw new Error("Forbidden: Organization is inactive");
-    }
-
-    return {
-      user,
-      authMethod: "api_key", // Treat as API key for billing purposes
-    };
-  }
-
   // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
 
@@ -553,17 +520,6 @@ export async function getUserFromRequest(
   // Check cookies
   return getCurrentUser();
 }
-
-// Re-export x402 utilities for permissionless access
-export {
-  requireCreditsWithX402Fallback,
-  hasX402Payment,
-  getX402Price,
-  generate402Response,
-  refundIfCredits,
-  chargeAdditionalIfCredits,
-  type PaymentContext,
-} from "./auth/x402-or-credits";
 
 // Admin authentication - requires wallet connection and admin role
 import { adminService } from "@/lib/services/admin";

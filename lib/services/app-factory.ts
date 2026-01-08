@@ -2,6 +2,7 @@ import { logger } from "@/lib/utils/logger";
 import { appsService } from "./apps";
 import { githubReposService } from "./github-repos";
 import { vercelDeploymentsService } from "./vercel-deployments";
+import { discordService } from "./discord";
 import type { App } from "@/db/repositories/apps";
 
 /**
@@ -94,110 +95,146 @@ export class AppFactoryService {
       slug: app.slug,
     });
 
-    // Step 2: Create GitHub repo if requested
+    // Step 2: Run GitHub repo creation and subdomain assignment in PARALLEL
+    // This can save 3-10 seconds compared to sequential execution
+    const parallelTasks: Promise<void>[] = [];
+
+    // GitHub repo creation task
     if (createGitHubRepo) {
-      try {
-        const repoName =
-          options.repoName ||
-          githubReposService.generateRepoName(app.id, app.slug);
+      const repoTask = (async () => {
+        try {
+          const repoName =
+            options.repoName ||
+            githubReposService.generateRepoName(app.id, app.slug);
 
-        logger.info("AppFactory: Creating GitHub repo", {
-          appId: app.id,
-          repoName,
-        });
-
-        const repoInfo = await githubReposService.createAppRepo({
-          name: repoName,
-          description: `ElizaCloud App: ${app.name}`,
-          isPrivate: repoPrivate,
-        });
-
-        githubRepo = repoInfo.fullName;
-        githubRepoCreated = true;
-
-        // Step 3: Update app with GitHub repo reference
-        await appsService.update(app.id, {
-          github_repo: repoInfo.fullName,
-        });
-
-        // Update local app object
-        app.github_repo = repoInfo.fullName;
-
-        logger.info("AppFactory: GitHub repo created and linked", {
-          appId: app.id,
-          githubRepo: repoInfo.fullName,
-        });
-      } catch (repoError) {
-        const errorMessage =
-          repoError instanceof Error
-            ? repoError.message
-            : "Unknown error creating GitHub repo";
-
-        errors.push(`GitHub repo creation failed: ${errorMessage}`);
-
-        logger.warn("AppFactory: Failed to create GitHub repo", {
-          appId: app.id,
-          error: errorMessage,
-        });
-
-        // App is still usable without GitHub repo
-        // The repo can be created later
-      }
-    }
-
-    // Step 3: Assign subdomain if requested
-    if (assignSubdomain) {
-      try {
-        logger.info("AppFactory: Assigning subdomain", {
-          appId: app.id,
-          preferredSubdomain,
-        });
-
-        const subdomainResult = await vercelDeploymentsService.assignSubdomain(
-          app.id,
-          preferredSubdomain || app.slug,
-        );
-
-        if (subdomainResult.success && subdomainResult.subdomain) {
-          subdomain = subdomainResult.subdomain;
-          productionUrl = subdomainResult.fullDomain
-            ? `https://${subdomainResult.fullDomain}`
-            : undefined;
-          subdomainAssigned = true;
-
-          // Update app with production URL
-          await appsService.update(app.id, {
-            app_url: productionUrl || app.app_url,
+          logger.info("AppFactory: Creating GitHub repo", {
+            appId: app.id,
+            repoName,
           });
 
-          logger.info("AppFactory: Subdomain assigned", {
-            appId: app.id,
-            subdomain,
-            productionUrl,
+          const repoInfo = await githubReposService.createAppRepo({
+            name: repoName,
+            description: `ElizaCloud App: ${app.name}`,
+            isPrivate: repoPrivate,
           });
-        } else {
-          errors.push(
-            `Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`,
-          );
-          logger.warn("AppFactory: Failed to assign subdomain", {
+
+          githubRepo = repoInfo.fullName;
+          githubRepoCreated = true;
+          app.github_repo = repoInfo.fullName;
+
+          logger.info("AppFactory: GitHub repo created", {
             appId: app.id,
-            error: subdomainResult.error,
+            githubRepo: repoInfo.fullName,
+          });
+        } catch (repoError) {
+          const errorMessage =
+            repoError instanceof Error
+              ? repoError.message
+              : "Unknown error creating GitHub repo";
+
+          errors.push(`GitHub repo creation failed: ${errorMessage}`);
+
+          logger.warn("AppFactory: Failed to create GitHub repo", {
+            appId: app.id,
+            error: errorMessage,
           });
         }
-      } catch (subdomainError) {
-        const errorMessage =
-          subdomainError instanceof Error
-            ? subdomainError.message
-            : "Unknown error assigning subdomain";
-
-        errors.push(`Subdomain assignment failed: ${errorMessage}`);
-
-        logger.warn("AppFactory: Subdomain assignment error", {
-          appId: app.id,
-          error: errorMessage,
-        });
-      }
+      })();
+      parallelTasks.push(repoTask);
     }
+
+    // Subdomain assignment task
+    if (assignSubdomain) {
+      const subdomainTask = (async () => {
+        try {
+          logger.info("AppFactory: Assigning subdomain", {
+            appId: app.id,
+            preferredSubdomain,
+          });
+
+          const subdomainResult =
+            await vercelDeploymentsService.assignSubdomain(
+              app.id,
+              preferredSubdomain || app.slug,
+            );
+
+          if (subdomainResult.success && subdomainResult.subdomain) {
+            subdomain = subdomainResult.subdomain;
+            productionUrl = subdomainResult.fullDomain
+              ? `https://${subdomainResult.fullDomain}`
+              : undefined;
+            subdomainAssigned = true;
+
+            logger.info("AppFactory: Subdomain assigned", {
+              appId: app.id,
+              subdomain,
+              productionUrl,
+            });
+          } else {
+            errors.push(
+              `Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`,
+            );
+            logger.warn("AppFactory: Failed to assign subdomain", {
+              appId: app.id,
+              error: subdomainResult.error,
+            });
+          }
+        } catch (subdomainError) {
+          const errorMessage =
+            subdomainError instanceof Error
+              ? subdomainError.message
+              : "Unknown error assigning subdomain";
+
+          errors.push(`Subdomain assignment failed: ${errorMessage}`);
+
+          logger.warn("AppFactory: Subdomain assignment error", {
+            appId: app.id,
+            error: errorMessage,
+          });
+        }
+      })();
+      parallelTasks.push(subdomainTask);
+    }
+
+    // Wait for both tasks to complete
+    await Promise.all(parallelTasks);
+
+    // Step 3: Batch update app record with all results (single DB call)
+    const updates: Record<string, string | null> = {};
+    if (githubRepo) {
+      updates.github_repo = githubRepo;
+    }
+    if (productionUrl) {
+      updates.app_url = productionUrl;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await appsService.update(app.id, updates);
+      logger.info("AppFactory: App record updated with parallel results", {
+        appId: app.id,
+        updates: Object.keys(updates),
+      });
+    }
+
+    // Send Discord notification for app creation (non-blocking)
+    discordService
+      .logAppCreated({
+        appId: app.id,
+        appName: app.name,
+        slug: app.slug,
+        userId: data.created_by_user_id,
+        organizationId: data.organization_id,
+        appUrl: productionUrl || data.app_url,
+        description: data.description,
+        githubRepo,
+        subdomain,
+      })
+      .catch((err) => {
+        logger.warn("AppFactory: Failed to send Discord notification", {
+          appId: app.id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      });
 
     return {
       app,

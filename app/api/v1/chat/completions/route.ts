@@ -15,11 +15,7 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import {
-  validateOrigin,
-  addCorsHeaders,
-  createPreflightResponse,
-} from "@/lib/middleware/cors-apps";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
@@ -51,13 +47,16 @@ async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
   const origin = req.headers.get("origin");
 
-  // Helper to add CORS headers to any response
+  // Helper to add CORS headers to any response - fully open, security via auth
   const withCors = (response: Response | NextResponse): Response => {
     const headers = new Headers(response.headers);
-    if (origin) {
-      headers.set("Access-Control-Allow-Origin", origin);
-      headers.set("Access-Control-Allow-Credentials", "true");
-    }
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    );
+    headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -66,20 +65,7 @@ async function handlePOST(req: NextRequest) {
   };
 
   try {
-    // Validate CORS for cross-origin requests
-    const corsResult = await validateOrigin(req);
-    if (!corsResult.allowed) {
-      logger.warn("[Chat Completions] CORS validation failed", {
-        origin,
-        allowed: corsResult.allowed,
-      });
-      return withCors(
-        NextResponse.json(
-          { error: { message: "Origin not allowed", type: "cors_error" } },
-          { status: 403 },
-        ),
-      );
-    }
+    // CORS is fully open - security is via auth tokens (validated below)
 
     // 1. Authenticate
     const { user, apiKey, session_token } =
@@ -916,17 +902,17 @@ function handleStreamingResponse(
     }
   })();
 
-  // Return streaming response immediately with CORS headers
+  // Return streaming response immediately with CORS headers - fully open
   const headers: Record<string, string> = {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Max-Age": "86400",
   };
-
-  if (origin) {
-    headers["Access-Control-Allow-Origin"] = origin;
-    headers["Access-Control-Allow-Credentials"] = "true";
-  }
 
   return new Response(readable, { headers });
 }

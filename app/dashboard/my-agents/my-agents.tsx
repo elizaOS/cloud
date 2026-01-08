@@ -10,8 +10,8 @@ import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
 import type { AgentWithOwnership } from "@/components/my-agents/character-library-card";
 
-type ViewMode = "grid" | "list";
-type SortOption = "name" | "created" | "modified" | "recent";
+export type ViewMode = "grid" | "list";
+export type SortOption = "name" | "created" | "modified" | "recent";
 
 /** Response type for saved agents API */
 interface SavedAgent {
@@ -167,13 +167,11 @@ export function MyAgentsClient() {
   });
 
   // Sort characters - most recent interaction first by default
-  // Note: "recent" and "modified" both sort by the most recent activity
   const sortedCharacters = [...filteredCharacters].sort((a, b) => {
     if (sortBy === "name") {
       return (a.name || "").localeCompare(b.name || "");
     }
-    // Default: sort by most recent activity (handles "recent", "modified", and default)
-    // For owned agents, use updated_at; for saved agents, use lastInteraction
+    // Default: sort by most recent activity
     const getRecentTime = (char: AgentWithOwnership): number => {
       if (char.isOwned) {
         return char.updated_at ? new Date(char.updated_at).getTime() : 0;
@@ -182,7 +180,6 @@ export function MyAgentsClient() {
     };
     const timeDiff = getRecentTime(b) - getRecentTime(a);
     if (timeDiff !== 0) return timeDiff;
-    // Fallback to name for stable sort when times are equal
     return (a.name || '').localeCompare(b.name || '');
   });
 
@@ -222,6 +219,7 @@ export function MyAgentsClient() {
         onSortChange={setSortBy}
         totalCount={characters.length}
         filteredCount={filteredCharacters.length}
+        onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid
