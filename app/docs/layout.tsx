@@ -129,7 +129,7 @@ const footer = (
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-white font-bold text-lg tracking-tight">
-                  elizaOS
+                  Eliza
                 </span>
                 <span className="text-[#ff5800] font-bold text-lg tracking-tight">
                   Cloud
