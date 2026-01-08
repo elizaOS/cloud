@@ -139,6 +139,7 @@ export function ElizaChatInterface({
   const {
     roomId,
     rooms,
+    isLoadingRooms,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -1311,13 +1312,14 @@ export function ElizaChatInterface({
 
   // Check if this is the first conversation with this character
   // Count rooms that belong to the same character (excluding current room)
+  // Default to "first conversation" when rooms are loading to avoid flicker
   const isFirstConversation = useMemo(() => {
-    if (!selectedCharacterId) return true;
+    if (!selectedCharacterId || isLoadingRooms) return true;
     const characterRooms = rooms.filter(
       (r) => r.characterId === selectedCharacterId && r.id !== roomId
     );
     return characterRooms.length === 0;
-  }, [rooms, selectedCharacterId, roomId]);
+  }, [rooms, selectedCharacterId, roomId, isLoadingRooms]);
 
   return (
     <div className="flex h-full w-full min-h-0 justify-center py-3 pr-3">
