@@ -2,11 +2,10 @@
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
 import {
-  reserveCredits,
+  creditsService,
   InsufficientCreditsError,
-  estimateTokens,
-} from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -15,6 +14,7 @@ import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
+  estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -321,7 +321,7 @@ async function handlePOST(req: NextRequest) {
 
     let reservation: CreditReservation;
     try {
-      reservation = await reserveCredits({
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!!,
         model,
         provider,

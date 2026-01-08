@@ -15,7 +15,6 @@ import type {
   ReserveCreditsParams,
 } from "@/lib/services/credits";
 import { estimateTokens } from "@/lib/pricing";
-import { ESTIMATED_COSTS, getEstimatedCost } from "@/lib/utils/agent-billing";
 
 describe("Credits Constants", () => {
   test("COST_BUFFER is 1.5", () => {
@@ -94,30 +93,6 @@ describe("estimateTokens", () => {
 
   test("returns 0 for empty string", () => {
     expect(estimateTokens("")).toBe(0);
-  });
-});
-
-describe("ESTIMATED_COSTS", () => {
-  test("has predefined costs for common operations", () => {
-    expect(ESTIMATED_COSTS.chat_small).toBeDefined();
-    expect(ESTIMATED_COSTS.chat_large).toBeDefined();
-    expect(ESTIMATED_COSTS.image_gen).toBeDefined();
-    expect(ESTIMATED_COSTS.video_gen).toBeDefined();
-    expect(ESTIMATED_COSTS.voice_tts).toBeDefined();
-    expect(ESTIMATED_COSTS.mcp_call).toBeDefined();
-  });
-
-  test("all costs are positive numbers", () => {
-    for (const value of Object.values(ESTIMATED_COSTS)) {
-      expect(typeof value).toBe("number");
-      expect(value).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe("getEstimatedCost", () => {
-  test("returns cost for known operation", () => {
-    expect(getEstimatedCost("image_gen")).toBe(ESTIMATED_COSTS.image_gen);
   });
 });
 

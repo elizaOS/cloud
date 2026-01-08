@@ -17,15 +17,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  reserveCredits,
+  creditsService,
   InsufficientCreditsError,
-  estimateTokens,
-} from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
 
@@ -345,7 +348,7 @@ async function handleToolCall(
     // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
     try {
-      reservation = await reserveCredits({
+      reservation = await creditsService.reserve({
         organizationId: authResult.user.organization_id,
         model,
         provider,

@@ -26,8 +26,11 @@ import {
 } from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 
 export const maxDuration = 60;
@@ -318,7 +321,7 @@ async function handleChat(
   // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
   let reservation: CreditReservation;
   try {
-    reservation = await reserveCredits({
+    reservation = await creditsService.reserve({
       organizationId: authResult.user.organization_id,
       amount: totalCost,
       userId: authResult.user.id,
