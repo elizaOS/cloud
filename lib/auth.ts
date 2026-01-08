@@ -521,17 +521,6 @@ export async function getUserFromRequest(
   return getCurrentUser();
 }
 
-// Re-export x402 utilities for permissionless access
-export {
-  requireCreditsWithX402Fallback,
-  hasX402Payment,
-  getX402Price,
-  generate402Response,
-  refundIfCredits,
-  chargeAdditionalIfCredits,
-  type PaymentContext,
-} from "./auth/x402-or-credits";
-
 // Admin authentication - requires wallet connection and admin role
 import { adminService } from "@/lib/services/admin";
 

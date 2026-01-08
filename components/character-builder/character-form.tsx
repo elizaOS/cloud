@@ -153,7 +153,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   htmlFor="username"
                   className="text-xs font-medium text-white/70"
                 >
-                  Username
+                  Username *
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">

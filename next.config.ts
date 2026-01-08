@@ -103,7 +103,7 @@ const nextConfig: NextConfig = {
       const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
       const loggerStubPath = path.join(
         __dirname,
-        "lib/stubs/walletconnect-logger.ts"
+        "lib/stubs/walletconnect-logger.ts",
       );
       config.resolve.alias = {
         ...config.resolve.alias,
@@ -135,7 +135,6 @@ const nextConfig: NextConfig = {
     "mcp-handler",
     "express",
     "worker_threads",
-    "agent0-sdk",
     "ipfs-http-client",
     "ipfs-utils",
     "electron-fetch",
