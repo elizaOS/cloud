@@ -26,6 +26,7 @@ import {
   Play,
 } from "lucide-react";
 import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
+import { SocialConnectionHint } from "@/components/promotion/social-connection-hint";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -70,6 +71,19 @@ interface AutomationStatus {
   };
 }
 
+interface SocialConnectionStatus {
+  discord: {
+    configured: boolean;
+    connected: boolean;
+    guildCount?: number;
+  };
+  telegram: {
+    configured: boolean;
+    connected: boolean;
+    botUsername?: string;
+  };
+}
+
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
@@ -84,6 +98,11 @@ export function AppPromote({ app }: AppPromoteProps) {
     telegram: { enabled: false, ready: false },
     twitter: { enabled: false, ready: false },
   });
+  const [socialConnectionStatus, setSocialConnectionStatus] =
+    useState<SocialConnectionStatus>({
+      discord: { configured: false, connected: false },
+      telegram: { configured: false, connected: false },
+    });
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
   const [isPostingTo, setIsPostingTo] = useState<string | null>(null);
@@ -121,6 +140,42 @@ export function AppPromote({ app }: AppPromoteProps) {
           const data = await twitterRes.json();
           setTwitterStatus(data);
         }
+      }
+
+      // Fetch Discord connection status
+      try {
+        const discordRes = await fetch("/api/v1/discord/status");
+        if (discordRes.ok) {
+          const data = await discordRes.json();
+          setSocialConnectionStatus((prev) => ({
+            ...prev,
+            discord: {
+              configured: data.configured ?? false,
+              connected: data.connected ?? false,
+              guildCount: data.guilds?.length ?? 0,
+            },
+          }));
+        }
+      } catch {
+        // Silently fail - hint will show as not connected
+      }
+
+      // Fetch Telegram connection status
+      try {
+        const telegramRes = await fetch("/api/v1/telegram/status");
+        if (telegramRes.ok) {
+          const data = await telegramRes.json();
+          setSocialConnectionStatus((prev) => ({
+            ...prev,
+            telegram: {
+              configured: data.configured ?? false,
+              connected: data.connected ?? false,
+              botUsername: data.botUsername,
+            },
+          }));
+        }
+      } catch {
+        // Silently fail - hint will show as not connected
       }
 
       // Check automation status from app data
@@ -292,6 +347,15 @@ export function AppPromote({ app }: AppPromoteProps) {
           Launch Promotion
         </Button>
       </div>
+
+      {/* Social Connection Hints - Show when Discord/Telegram not connected AND automation not enabled */}
+      <SocialConnectionHint
+        connectionStatus={socialConnectionStatus}
+        automationStatus={{
+          discord: automationStatus.discord,
+          telegram: automationStatus.telegram,
+        }}
+      />
 
       {/* Twitter Connection Banner - Only show when Twitter is enabled */}
       {TWITTER_ENABLED && !twitterStatus.connected && (
