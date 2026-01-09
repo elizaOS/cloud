@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userCharactersRepository } from "@/db/repositories/characters";
@@ -17,6 +18,23 @@ import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
 export const maxDuration = 300; // 5 minutes for large file processing
 
+const MAX_FILENAME_LENGTH = 255;
+
+// Runtime validation schema for request body
+const FileSchema = z.object({
+  blobUrl: z.string().min(1),
+  filename: z.string().min(1).max(MAX_FILENAME_LENGTH),
+  contentType: z.string().min(1),
+  size: z.number().positive().max(KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE),
+});
+
+const RequestSchema = z.object({
+  characterId: z.string().uuid(),
+  files: z.array(FileSchema).min(1).max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
+});
+
+type FileToProcess = z.infer<typeof FileSchema>;
+
 /**
  * Fetches a blob URL with timeout protection.
  * Prevents hanging requests from consuming the entire request timeout.
@@ -30,18 +48,14 @@ async function fetchWithTimeout(
 
   try {
     return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-const MAX_FILENAME_LENGTH = 255;
-
-interface FileToProcess {
-  blobUrl: string;
-  filename: string;
-  contentType: string;
-  size: number;
 }
 
 interface ProcessResult {
@@ -73,18 +87,25 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
-  const { characterId, files } = body as {
-    characterId: string;
-    files: FileToProcess[];
-  };
-
-  if (!characterId) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json(
-      { error: "characterId is required" },
+      { error: "Invalid JSON body" },
       { status: 400 },
     );
   }
+
+  const parseResult = RequestSchema.safeParse(body);
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parseResult.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
+
+  const { characterId, files } = parseResult.data;
 
   const character = await userCharactersRepository.findById(characterId);
   if (!character || character.organization_id !== user.organization_id) {
@@ -94,73 +115,25 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    return NextResponse.json({ error: "No files provided" }, { status: 400 });
-  }
-
-  if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
-    return NextResponse.json(
-      {
-        error: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request`,
-      },
-      { status: 400 },
-    );
-  }
-
-  // Validate each file first (type checks must happen before batch size calculation)
+  // Validate business rules (Zod handles type validation above)
   for (const file of files) {
-    if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
+    if (!isValidBlobUrl(file.blobUrl)) {
       return NextResponse.json(
-        {
-          error: `Invalid or untrusted blobUrl for file: ${file.filename || "unknown"}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (
-      !file.filename ||
-      typeof file.filename !== "string" ||
-      file.filename.length > MAX_FILENAME_LENGTH
-    ) {
-      return NextResponse.json(
-        {
-          error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters`,
-        },
+        { error: `Invalid or untrusted blobUrl for file: ${file.filename}` },
         { status: 400 },
       );
     }
 
     if (!isValidFilename(file.filename)) {
       return NextResponse.json(
-        {
-          error: `Invalid filename: ${file.filename} contains path-unsafe characters`,
-        },
+        { error: `Invalid filename: ${file.filename} contains path-unsafe characters` },
         { status: 400 },
       );
     }
 
-    if (
-      !file.contentType ||
-      !ALLOWED_CONTENT_TYPES.includes(
-        file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
-      )
-    ) {
+    if (!ALLOWED_CONTENT_TYPES.includes(file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
       return NextResponse.json(
         { error: `Invalid content type: ${file.contentType}` },
-        { status: 400 },
-      );
-    }
-
-    if (
-      typeof file.size !== "number" ||
-      file.size <= 0 ||
-      file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE
-    ) {
-      return NextResponse.json(
-        {
-          error: `Invalid file size for ${file.filename}: must be between 1 byte and ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / (1024 * 1024)}MB`,
-        },
         { status: 400 },
       );
     }

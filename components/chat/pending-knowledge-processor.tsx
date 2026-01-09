@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,9 +51,14 @@ export function PendingKnowledgeProcessor({
     failedCount: 0,
   });
   const [dismissed, setDismissed] = useState(false);
+  const isProcessingRef = useRef(false);
 
   const processFiles = useCallback(
     async (pending: PendingKnowledge) => {
+      // Prevent duplicate processing
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+
       const storageKey = `${PENDING_KEY_PREFIX}${pending.characterId}`;
 
       setState({
@@ -79,7 +84,11 @@ export function PendingKnowledgeProcessor({
           const data = await response.json();
 
           // Only clear sessionStorage on success - preserves data for retry on failure
-          sessionStorage.removeItem(storageKey);
+          try {
+            sessionStorage.removeItem(storageKey);
+          } catch {
+            // sessionStorage may fail in private browsing
+          }
 
           setState({
             status: "completed",
@@ -130,6 +139,8 @@ export function PendingKnowledgeProcessor({
         toast.error("File processing failed", {
           description: "Network error - you can try again from the Files tab",
         });
+      } finally {
+        isProcessingRef.current = false;
       }
     },
     [onProcessingComplete],
@@ -139,33 +150,49 @@ export function PendingKnowledgeProcessor({
     if (!characterId || dismissed) return;
 
     const key = `${PENDING_KEY_PREFIX}${characterId}`;
-    const stored = sessionStorage.getItem(key);
+    let stored: string | null = null;
+    try {
+      stored = sessionStorage.getItem(key);
+    } catch {
+      // sessionStorage may fail in private browsing
+      return;
+    }
 
     if (!stored) return;
 
-    const pending: PendingKnowledge = JSON.parse(stored);
+    let pending: PendingKnowledge;
+    try {
+      pending = JSON.parse(stored);
+    } catch {
+      // Invalid JSON, remove corrupted data
+      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+      return;
+    }
 
     // Check if pending data is too old (prevent processing stale data)
     if (Date.now() - pending.createdAt > MAX_AGE_MS) {
-      sessionStorage.removeItem(key);
+      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
       return;
     }
 
     // Verify characterId matches
     if (pending.characterId !== characterId) {
-      sessionStorage.removeItem(key);
+      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
       return;
     }
 
-    // Start processing - intentionally triggers state update to sync with sessionStorage
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // Start processing
     processFiles(pending);
   }, [characterId, dismissed, processFiles]);
 
   const handleDismiss = () => {
     setDismissed(true);
     if (characterId) {
-      sessionStorage.removeItem(`${PENDING_KEY_PREFIX}${characterId}`);
+      try {
+        sessionStorage.removeItem(`${PENDING_KEY_PREFIX}${characterId}`);
+      } catch {
+        // sessionStorage may fail in private browsing
+      }
     }
   };
 

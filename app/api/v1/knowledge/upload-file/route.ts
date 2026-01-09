@@ -154,8 +154,7 @@ async function handlePOST(req: NextRequest) {
               uploadedAt: Date.now(),
               organizationId: user.organization_id,
               fileSize: file.size,
-              fileName: file.name,
-              filename: file.name, // Add both for compatibility
+              filename: file.name,
             },
           });
 
