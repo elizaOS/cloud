@@ -10,7 +10,6 @@ import {
   type Memory,
   parseKeyValueXml,
   type UUID,
-  type State,
 } from "@elizaos/core";
 import { v4 } from "uuid";
 import {

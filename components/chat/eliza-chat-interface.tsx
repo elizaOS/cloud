@@ -64,7 +64,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { ADDITIONAL_MODELS } from "@/lib/models";
+import { ADDITIONAL_MODELS, IMAGE_TIERS, ADDITIONAL_IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from "@/lib/models";
+import { useModelAvailability } from "./hooks/use-model-availability";
 import { usePrivy } from "@privy-io/react-auth";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 import { ContentType, type Media } from "@elizaos/core";
@@ -294,6 +295,7 @@ export function ElizaChatInterface({
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [createImageEnabled, setCreateImageEnabled] = useState(false);
+  const [selectedImageModel, setSelectedImageModel] = useState(DEFAULT_IMAGE_MODEL);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   // Track if anonymous user has reached message limit - disables input
   const [isMessageLimitReached, setIsMessageLimitReached] = useState(false);
@@ -307,6 +309,13 @@ export function ElizaChatInterface({
 
   // Model selector tab: "text" or "image"
   const [modelSelectorTab, setModelSelectorTab] = useState<"text" | "image">("text");
+
+  // Model availability check - shows which models are currently available
+  const allImageModelIds = useMemo(
+    () => [...IMAGE_TIERS.map(t => t.model), ...ADDITIONAL_IMAGE_MODELS].map(m => m.modelId),
+    []
+  );
+  const { availability: modelAvailability, reasons: modelUnavailableReasons } = useModelAvailability(allImageModelIds);
 
   // Reasoning/chain-of-thought state - shows LLM's thinking process
   const [reasoningState, setReasoningState] = useState<{
@@ -764,6 +773,7 @@ export function ElizaChatInterface({
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
           webSearchEnabled, // Pass web search toggle state
           createImageEnabled, // Pass create image toggle state
+          imageModel: selectedImageModel.modelId, // Pass selected image model for image generation
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onReasoning: handleReasoningChunk, // Handle chain-of-thought display
@@ -845,6 +855,7 @@ export function ElizaChatInterface({
       anonymousSessionToken,
       webSearchEnabled,
       createImageEnabled,
+      selectedImageModel,
       handleStreamMessage,
       handleStreamChunk,
       handleReasoningChunk,
@@ -1662,7 +1673,7 @@ export function ElizaChatInterface({
                       onClick={() => setCreateImageEnabled(false)}
                       className="flex items-center gap-1 h-7 px-3 rounded-lg bg-transparent hover:bg-[#FF5800]/10 text-[#FF5800] text-sm transition-colors"
                     >
-                      <span>Image</span>
+                      <span>{selectedImageModel.name}</span>
                       <X className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -1834,34 +1845,123 @@ export function ElizaChatInterface({
 
                       {/* Image models tab */}
                       {modelSelectorTab === "image" && (
-                        <DropdownMenuItem
-                          className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer data-[highlighted]:bg-white/5 focus:bg-white/5"
-                          onSelect={() => {
-                            setCreateImageEnabled(true);
-                          }}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="mt-0.5 text-white/50">
-                              <Zap className="h-4 w-4" />
-                            </span>
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[14px] font-medium text-white">
-                                  Flash
-                                </span>
-                                <span className="text-[11px] text-white/30 font-mono">
-                                  gemini-2.5-flash-image
-                                </span>
-                              </div>
-                              <span className="text-[12px] text-white/40">
-                                Fastest image generation
-                              </span>
-                            </div>
-                          </div>
-                          {createImageEnabled && (
-                            <Check className="h-4 w-4 text-[#FF5800]" />
-                          )}
-                        </DropdownMenuItem>
+                        <>
+                          {IMAGE_TIERS.map((tier) => {
+                            const isAvailable = modelAvailability.get(tier.model.modelId) !== false;
+                            const unavailableReason = modelUnavailableReasons.get(tier.model.modelId);
+                            return (
+                              <DropdownMenuItem
+                                key={tier.id}
+                                className={cn(
+                                  "flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer data-[highlighted]:bg-white/5 focus:bg-white/5",
+                                  !isAvailable && "opacity-60"
+                                )}
+                                onSelect={() => {
+                                  if (!isAvailable) {
+                                    toast.error(`${tier.name} is currently unavailable. ${unavailableReason || "Try another model."}`);
+                                    return;
+                                  }
+                                  setSelectedImageModel(tier.model);
+                                  setCreateImageEnabled(true);
+                                }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <span className="mt-0.5 text-white/50 relative">
+                                    {tier.id === "fast" ? (
+                                      <Zap className="h-4 w-4" />
+                                    ) : tier.id === "pro" ? (
+                                      <Sparkles className="h-4 w-4" />
+                                    ) : (
+                                      <Crown className="h-4 w-4" />
+                                    )}
+                                    {!isAvailable && (
+                                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" title={unavailableReason} />
+                                    )}
+                                  </span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn("text-[14px] font-medium", isAvailable ? "text-white" : "text-white/60")}>
+                                        {tier.name}
+                                      </span>
+                                      <span className="text-[11px] text-white/30 font-mono">
+                                        {tier.model.modelId.split("/")[1]}
+                                      </span>
+                                      {!isAvailable && (
+                                        <span className="text-[10px] text-red-400 font-medium px-1.5 py-0.5 bg-red-500/10 rounded">
+                                          Offline
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[12px] text-white/40">
+                                      {!isAvailable ? (unavailableReason || "Provider unavailable") : tier.description}
+                                    </span>
+                                  </div>
+                                </div>
+                                {createImageEnabled && selectedImageModel.id === tier.model.id && (
+                                  <Check className="h-4 w-4 text-[#FF5800]" />
+                                )}
+                              </DropdownMenuItem>
+                            );
+                          })}
+
+                          {/* More image models submenu */}
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-[14px] text-white/70 data-[highlighted]:bg-white/5 focus:bg-white/5">
+                              More models
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent
+                              className="w-64 rounded-xl border-white/10 bg-neutral-800/60 backdrop-blur-md p-1.5"
+                              sideOffset={8}
+                            >
+                              {ADDITIONAL_IMAGE_MODELS.map((model) => {
+                                const isAvailable = modelAvailability.get(model.modelId) !== false;
+                                const unavailableReason = modelUnavailableReasons.get(model.modelId);
+                                return (
+                                  <DropdownMenuItem
+                                    key={model.id}
+                                    className={cn(
+                                      "flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer data-[highlighted]:bg-white/5 focus:bg-white/5",
+                                      !isAvailable && "opacity-60"
+                                    )}
+                                    onSelect={() => {
+                                      if (!isAvailable) {
+                                        toast.error(`${model.name} is currently unavailable. ${unavailableReason || "Try another model."}`);
+                                        return;
+                                      }
+                                      setSelectedImageModel(model);
+                                      setCreateImageEnabled(true);
+                                    }}
+                                  >
+                                    <div className="flex flex-col">
+                                      <div className="flex items-center gap-2">
+                                        {!isAvailable && (
+                                          <span className="h-2 w-2 rounded-full bg-red-500 flex-shrink-0" title={unavailableReason} />
+                                        )}
+                                        <span className={cn("text-[13px] font-medium", isAvailable ? "text-white" : "text-white/60")}>
+                                          {model.name}
+                                        </span>
+                                        <span className="text-[10px] text-white/30 font-mono">
+                                          {model.modelId.split("/")[1]}
+                                        </span>
+                                        {!isAvailable && (
+                                          <span className="text-[10px] text-red-400 font-medium px-1.5 py-0.5 bg-red-500/10 rounded">
+                                            Offline
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-[11px] text-white/40">
+                                        {!isAvailable ? (unavailableReason || "Provider unavailable") : model.description}
+                                      </span>
+                                    </div>
+                                    {createImageEnabled && selectedImageModel.id === model.id && (
+                                      <Check className="h-4 w-4 text-[#FF5800]" />
+                                    )}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

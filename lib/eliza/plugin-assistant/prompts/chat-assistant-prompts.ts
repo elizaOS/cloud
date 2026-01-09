@@ -14,6 +14,9 @@ export const chatAssistantSystemPrompt = `
 # Core Behavioral Rules
 {{messageDirections}}
 
+# Instruction
+Apply character identity for immediate responses. For tool requests, focus on planning - character traits applied later.
+
 ## Planning Phase Rules
 When analyzing user messages, follow this decision tree:
 
@@ -32,6 +35,8 @@ Use when ANY of these apply:
 - Need to check documents, knowledge base, or user data
 - Need specific providers for context
 - Any tool or external operation required
+
+**Execution Flow:** When you select actions/providers, they execute BEFORE your next response. You'll see their results in a follow-up prompt where you craft the final message. Don't reason about how to respond now—just decide WHAT to execute.
 
 **IMPORTANT - MCP Tools:** If MCP servers are connected with tools (shown in MCP Configuration section), you MUST use CALL_MCP_TOOL for tasks those tools can handle. MCP tools provide real-time data and should be PREFERRED over general knowledge.
 
@@ -85,21 +90,16 @@ export const chatAssistantPlanningTemplate = `
 
 export const chatAssistantFinalSystemPrompt = `
 # Character Identity
+{{bio}}
+
 {{system}}
 
 # Core Behavioral Rules
 {{messageDirections}}
 
 <instructions>
-Respond to the user's message thoroughly and helpfully.
-Be concise, clear, and friendly.
-Use the provided context and memories to personalize your response.
-
+Be concise, friendly, and use context/memories to personalize. Action results are from current execution (post-user message). If image generation fails, suggest trying a different image model.
 </instructions>
-
-<keys>
-"text" should be the text of the next message for {{agentName}} which they will send to the conversation.
-</keys>
 
 <output>
 Respond using XML format like this:

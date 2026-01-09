@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "eliza-cloud-v2",
@@ -18,7 +17,7 @@
         "@elevenlabs/elevenlabs-js": "^2.29.0",
         "@elizaos/core": "^1.7.0",
         "@elizaos/plugin-elevenlabs": "^1.6.0",
-        "@elizaos/plugin-elizacloud": "^1.7.3",
+        "@elizaos/plugin-elizacloud": "^1.7.4",
         "@elizaos/plugin-knowledge": "^1.6.1",
         "@elizaos/plugin-mcp": "^1.7.0",
         "@elizaos/plugin-memory": "1.1.2",
@@ -418,7 +417,7 @@
 
     "@elizaos/plugin-elevenlabs": ["@elizaos/plugin-elevenlabs@1.6.0", "", { "dependencies": { "@elevenlabs/elevenlabs-js": "^2.16.0", "@elizaos/core": "1.5.10" } }, "sha512-sXxFWCxa3F3Wx2gKWLYlM11Usj5NGSC7znt0I2DwnPGAvhfVYcCMfOHqbkpN+KtJOAJTxZf51eZKDZse3Y5Cmg=="],
 
-    "@elizaos/plugin-elizacloud": ["@elizaos/plugin-elizacloud@1.7.3", "", { "dependencies": { "@ai-sdk/openai": "^2.0.88", "@elizaos/core": "^1.7.0", "ai": "^5.0.116", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^4.2.1" } }, "sha512-n0jwYavOlu7BSdMsLtqYMPPm0KKref67NZSuG+c50SpYYAK63fUYoul5bVpuGPtjmgkRjGZzqZ8wi3lycCTUpQ=="],
+    "@elizaos/plugin-elizacloud": ["@elizaos/plugin-elizacloud@1.7.4", "", { "dependencies": { "@ai-sdk/openai": "^2.0.88", "@elizaos/core": "^1.7.0", "ai": "^5.0.116", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^4.2.1" } }, "sha512-csp9Kw4CzQqUtxUSIbhC5s+qcGBC4+df21PeNEEZCJI+HMmB94Pg4tpUfEUMhYXB/x/sbzBq0ver2fgiAyOJkw=="],
 
     "@elizaos/plugin-knowledge": ["@elizaos/plugin-knowledge@1.6.1", "", { "dependencies": { "@ai-sdk/anthropic": "^2.0.17", "@ai-sdk/google": "^2.0.14", "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.7.0", "@openrouter/ai-sdk-provider": "^1.2.0", "@tanstack/react-query": "^5.51.1", "ai": "^5.0.48", "clsx": "^2.1.1", "dotenv": "^17.2.0", "lucide-react": "^0.525.0", "mammoth": "^1.9.0", "multer": "^2.0.1", "react": "^19.1.0", "react-dom": "^19.1.0", "react-force-graph-2d": "^1.27.1", "tailwind-merge": "^3.3.1", "unpdf": "^1.4.0", "zod": "3.25.76" } }, "sha512-6YpP53Xod3+6qpWRCFBbnZImugPD5YKTc1An3LkFhweq1BeXK5CTzUax5bWoQEdAkz5OJUtcUxTtPeGL2d8b4w=="],
 
