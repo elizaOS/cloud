@@ -11,8 +11,8 @@
 
 "use client";
 
-import { useState, useRef } from "react";
-import { X, Loader2, Camera, ImagePlus } from "lucide-react";
+import { useState, useRef, forwardRef, useImperativeHandle } from "react";
+import { X, Loader2, ImagePlus } from "lucide-react";
 import { uploadCharacterAvatar } from "@/app/actions/characters";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -21,18 +21,26 @@ interface AvatarUploadProps {
   value?: string;
   onChange: (url: string) => void;
   name?: string;
-  size?: "sm" | "lg";
+  size?: "sm" | "lg" | "xl";
 }
 
-export function AvatarUpload({
+export interface AvatarUploadRef {
+  triggerUpload: () => void;
+}
+
+export const AvatarUpload = forwardRef<AvatarUploadRef, AvatarUploadProps>(function AvatarUpload({
   value,
   onChange,
   name,
   size = "lg",
-}: AvatarUploadProps) {
+}, ref) {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    triggerUpload: () => fileInputRef.current?.click(),
+  }));
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -82,11 +90,11 @@ export function AvatarUpload({
     handleFileSelect(e.dataTransfer.files);
   };
 
-  const sizeClasses = size === "lg" ? "h-32 w-32" : "h-20 w-20";
-  const iconSize = size === "lg" ? "h-8 w-8" : "h-5 w-5";
+  const sizeClasses = size === "xl" ? "h-28 w-28 sm:h-36 sm:w-36" : size === "lg" ? "h-32 w-32" : "h-20 w-20";
+  const iconSize = size === "xl" ? "h-8 w-8 sm:h-10 sm:w-10" : size === "lg" ? "h-8 w-8" : "h-5 w-5";
 
   return (
-    <div className="relative group">
+    <div className={cn("relative group", sizeClasses)}>
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
@@ -97,12 +105,12 @@ export function AvatarUpload({
         className={cn(
           sizeClasses,
           "relative rounded-2xl overflow-hidden transition-all duration-300",
-          "border-2 border-dashed",
+          "border-2",
           isDragging
-            ? "border-[#FF5800] bg-[#FF5800]/10 scale-105"
+            ? "border-dashed border-[#FF5800] bg-[#FF5800]/10 scale-105"
             : value
-              ? "border-transparent"
-              : "border-white/20 hover:border-[#FF5800]/50",
+              ? "border-solid border-white/10"
+              : "border-dashed border-white/20 hover:border-[#FF5800]/50",
           "focus:outline-none focus:ring-2 focus:ring-[#FF5800] focus:ring-offset-2 focus:ring-offset-black",
           isUploading && "animate-pulse",
         )}
@@ -117,7 +125,7 @@ export function AvatarUpload({
             />
             {/* Hover Overlay */}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera className="h-6 w-6 text-white" />
+              <ImagePlus className="h-6 w-6 text-white" />
             </div>
           </>
         ) : (
@@ -136,11 +144,11 @@ export function AvatarUpload({
                 <ImagePlus
                   className={cn(
                     iconSize,
-                    "text-white/40 group-hover:text-[#FF5800] transition-colors",
+                    "text-neutral-500 group-hover:text-[#FF5800] transition-colors",
                   )}
                 />
-                {size === "lg" && (
-                  <span className="text-[10px] uppercase tracking-wider text-white/30 group-hover:text-white/50 transition-colors">
+                {(size === "lg" || size === "xl") && (
+                  <span className="text-xs font-medium text-neutral-400 group-hover:text-white transition-colors">
                     Drop or click
                   </span>
                 )}
@@ -159,13 +167,13 @@ export function AvatarUpload({
             onChange("");
           }}
           className={cn(
-            "absolute -top-2 -right-2 p-1.5 rounded-full",
-            "bg-rose-500 text-white",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
-            "hover:bg-rose-600 hover:scale-110 transition-transform",
+            "absolute -top-1 -right-1 p-1 rounded-lg",
+            "bg-black/80 backdrop-blur-sm border border-white/20 text-white/70",
+            "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all",
+            "hover:bg-red-500/80 hover:border-red-500/50 hover:text-white",
           )}
         >
-          <X className="h-3 w-3" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
 
@@ -178,4 +186,4 @@ export function AvatarUpload({
       />
     </div>
   );
-}
+});

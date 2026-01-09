@@ -101,7 +101,9 @@ export type FullAppTemplateType =
   | "analytics"
   | "blank"
   | "mcp-service"
-  | "a2a-agent";
+  | "a2a-agent"
+  | "saas-starter"
+  | "ai-tool";
 
 /**
  * Base system prompt for full app building with Vercel Sandbox
@@ -280,6 +282,100 @@ This catches TypeScript type errors that the dev server doesn't show. If there a
 
 **CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
 
+## ABSOLUTELY CRITICAL: USE REAL SDK - NO MOCKS/DEMOS
+
+**NEVER create mock, demo, placeholder, or fake implementations!**
+
+The SDK is REAL and WORKING. Use it directly:
+
+❌ **NEVER DO THIS:**
+\`\`\`tsx
+// WRONG - Demo/mock response
+const handleSend = async (message: string) => {
+  // Simulated delay
+  await new Promise(r => setTimeout(r, 1000));
+  setResponse("I'm a demo response!"); // WRONG - fake!
+};
+\`\`\`
+
+❌ **NEVER DO THIS:**
+\`\`\`tsx
+// WRONG - Placeholder AI responses
+const demoResponses = [
+  "Hello! I'm Eliza...",
+  "That's interesting!",
+];
+const response = demoResponses[Math.floor(Math.random() * demoResponses.length)];
+\`\`\`
+
+✅ **ALWAYS DO THIS - Use the REAL SDK:**
+\`\`\`tsx
+'use client';
+import { useChatStream } from '@/hooks/use-eliza';
+
+function Chat() {
+  const { stream, loading } = useChatStream();
+  const [response, setResponse] = useState('');
+
+  const handleSend = async (message: string) => {
+    setResponse('');
+    for await (const chunk of stream([{ role: 'user', content: message }])) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) setResponse(prev => prev + delta);
+    }
+  };
+  // ... rest of component
+}
+\`\`\`
+
+✅ **For agents/characters - Use REAL agent chat:**
+\`\`\`tsx
+'use client';
+import { useAgentChat } from '@/hooks/use-eliza';
+
+function CharacterChat({ agentId }: { agentId: string }) {
+  const { agent, messages, send, loading } = useAgentChat(agentId);
+
+  const handleSend = async (text: string) => {
+    await send(text); // REAL API call - messages array updates automatically
+  };
+  // ... rest of component
+}
+\`\`\`
+
+✅ **For credits - Use REAL credit balance:**
+\`\`\`tsx
+'use client';
+import { useAppCredits, AppCreditDisplay, PurchaseCreditsButton } from '@/components/eliza';
+
+function Header() {
+  const { balance, hasLowBalance } = useAppCredits();
+  
+  return (
+    <header>
+      <AppCreditDisplay showRefresh />  {/* REAL balance from API */}
+      <PurchaseCreditsButton amount={50} />  {/* REAL Stripe checkout */}
+    </header>
+  );
+}
+\`\`\`
+
+✅ **For auth - Use REAL authentication:**
+\`\`\`tsx
+'use client';
+import { useElizaAuth, SignInButton, UserMenu, ProtectedRoute } from '@/components/eliza';
+
+function App() {
+  return (
+    <ProtectedRoute>  {/* REAL auth check */}
+      <Dashboard />
+    </ProtectedRoute>
+  );
+}
+\`\`\`
+
+**THE SDK IS PRODUCTION-READY. USE IT. NO EXCUSES.**
+
 ## CRITICAL: ElizaProvider in layout.tsx
 **NEVER remove ElizaProvider from layout.tsx!** The template includes it by default.
 When writing layout.tsx, you MUST:
@@ -433,6 +529,301 @@ Build an Agent-to-Agent protocol endpoint with:
 
 This template is coming soon. Using blank template as fallback.
 `,
+
+  "saas-starter": `${FULL_APP_BASE_PROMPT}
+
+## SaaS Starter Template
+Build a complete SaaS application with user authentication and billing:
+
+### Authentication (Pre-built - just import and use!)
+\`\`\`typescript
+// Sign in button
+import { SignInButton, UserMenu, ProtectedRoute } from '@/components/eliza';
+
+// Use in header
+<SignInButton />  // Redirects to Eliza Cloud login
+
+// Protected route wrapper
+<ProtectedRoute>
+  <Dashboard />  // Only shown to authenticated users
+</ProtectedRoute>
+
+// Auth hook
+import { useElizaAuth } from '@/components/eliza';
+const { user, isAuthenticated, signIn, signOut } = useElizaAuth();
+\`\`\`
+
+### User Credits (Each user has their own balance!)
+\`\`\`typescript
+import { 
+  AppCreditDisplay,       // Shows user's balance
+  PurchaseCreditsButton,  // Opens Stripe checkout
+  AppLowBalanceWarning,   // Warning when low
+  useAppCredits,          // Hook for balance
+} from '@/components/eliza';
+
+// In your component
+const { balance, hasLowBalance, purchase } = useAppCredits();
+
+// Display balance in header
+<AppCreditDisplay showRefresh />
+
+// Purchase button
+<PurchaseCreditsButton amount={50} />
+\`\`\`
+
+### Recommended Structure
+\`\`\`
+src/app/
+├── page.tsx                    # Public landing page
+├── auth/
+│   └── callback/page.tsx       # OAuth callback (already exists!)
+├── billing/
+│   ├── page.tsx                # Billing/purchase page
+│   └── success/page.tsx        # Purchase success (already exists!)
+├── dashboard/
+│   ├── layout.tsx              # Protected layout with <ProtectedRoute>
+│   ├── page.tsx                # Main dashboard
+│   └── settings/page.tsx       # User settings
+\`\`\`
+
+### Example Protected Dashboard Layout
+\`\`\`tsx
+'use client';
+import { ProtectedRoute, UserMenu, AppCreditDisplay } from '@/components/eliza';
+import { LayoutDashboard, Settings, CreditCard } from 'lucide-react';
+import Link from 'next/link';
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <div className="flex h-screen">
+        {/* Sidebar */}
+        <aside className="w-64 border-r border-gray-800 flex flex-col">
+          <div className="p-4 border-b border-gray-800">
+            <h1 className="text-lg font-bold text-eliza-orange">My App</h1>
+          </div>
+          <nav className="flex-1 p-4 space-y-1">
+            <NavLink href="/dashboard" icon={LayoutDashboard}>Dashboard</NavLink>
+            <NavLink href="/dashboard/billing" icon={CreditCard}>Billing</NavLink>
+            <NavLink href="/dashboard/settings" icon={Settings}>Settings</NavLink>
+          </nav>
+          <div className="p-4 border-t border-gray-800 space-y-3">
+            <AppCreditDisplay showRefresh />
+            <UserMenu />
+          </div>
+        </aside>
+        
+        {/* Main content */}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </ProtectedRoute>
+  );
+}
+
+function NavLink({ href, icon: Icon, children }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+      <Icon className="h-5 w-5" />
+      {children}
+    </Link>
+  );
+}
+\`\`\`
+
+### AI Operations with User Credits
+When user is authenticated, all AI API calls automatically use their credits:
+\`\`\`tsx
+import { useChat, useAppCredits } from '@/hooks/use-eliza';
+
+function ChatWithBilling() {
+  const { balance, hasLowBalance } = useAppCredits();
+  const { send, loading, error } = useChat();
+
+  // SDK automatically deducts from user's balance
+  const handleSend = async (message: string) => {
+    try {
+      const response = await send([{ role: 'user', content: message }]);
+      // Success! Credits were deducted
+    } catch (e) {
+      if (e.message.includes('INSUFFICIENT_CREDITS')) {
+        // Prompt user to purchase credits
+      }
+    }
+  };
+}
+\`\`\`
+
+### Key Points
+- Auth callback page exists at /auth/callback - don't recreate it
+- Billing success page exists at /billing/success - don't recreate it
+- Use ProtectedRoute to guard authenticated pages
+- Use useAppCredits for user's balance (NOT useElizaCredits which is org-level)
+- SignInButton redirects to Eliza Cloud login automatically
+`,
+
+  "ai-tool": `${FULL_APP_BASE_PROMPT}
+
+## AI Tool Template
+Build a focused, single-purpose AI tool with pay-per-use billing:
+
+### Architecture
+- Simple landing explaining the tool and cost
+- Sign in for access
+- One main interface for the AI operation
+- Clear cost display per operation
+- Purchase credits when low
+
+### Example: AI Image Generator Tool
+\`\`\`tsx
+'use client';
+import { useState } from 'react';
+import { useImageGeneration } from '@/hooks/use-eliza';
+import { 
+  useElizaAuth, 
+  useAppCredits,
+  SignInButton, 
+  AppCreditDisplay, 
+  PurchaseCreditsButton,
+  AppLowBalanceWarning,
+} from '@/components/eliza';
+import { ImageIcon, Loader2, Download } from 'lucide-react';
+
+const COST_PER_IMAGE = 0.50;
+
+export default function ImageTool() {
+  const { isAuthenticated, loading: authLoading } = useElizaAuth();
+  const { balance, hasLowBalance } = useAppCredits();
+  const { generate, loading, result, error } = useImageGeneration();
+  const [prompt, setPrompt] = useState('');
+
+  // Show landing for non-authenticated users
+  if (authLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-8">
+        <div className="max-w-md text-center space-y-6">
+          <ImageIcon className="h-16 w-16 text-eliza-orange mx-auto" />
+          <h1 className="text-3xl font-bold">AI Image Generator</h1>
+          <p className="text-gray-400">
+            Generate stunning AI images for just \${COST_PER_IMAGE} per image.
+            Sign in to get started.
+          </p>
+          <SignInButton size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  const handleGenerate = async () => {
+    if (!prompt.trim() || loading) return;
+    
+    if (balance < COST_PER_IMAGE) {
+      alert('Please purchase more credits to continue');
+      return;
+    }
+    
+    await generate(prompt);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Header with balance */}
+      <header className="border-b border-gray-800 p-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <ImageIcon className="h-6 w-6 text-eliza-orange" />
+          Image Generator
+        </h1>
+        <div className="flex items-center gap-4">
+          <AppCreditDisplay showRefresh />
+          <PurchaseCreditsButton amount={10} variant="outline">
+            Top up
+          </PurchaseCreditsButton>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 p-8 max-w-4xl mx-auto w-full space-y-6">
+        {hasLowBalance && <AppLowBalanceWarning />}
+        
+        <div className="card-eliza">
+          <label className="block text-sm font-medium text-gray-400 mb-2">
+            Describe your image
+          </label>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="A serene mountain lake at sunset with reflections..."
+            rows={3}
+            className="input-eliza resize-none"
+          />
+          
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-sm text-gray-500">
+              Cost: \${COST_PER_IMAGE} per image
+            </span>
+            <button 
+              onClick={handleGenerate}
+              disabled={loading || !prompt.trim()}
+              className="btn-eliza"
+            >
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+              ) : (
+                <><ImageIcon className="h-4 w-4" /> Generate</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+            {error}
+          </div>
+        )}
+
+        {result?.images?.[0]?.url && (
+          <div className="card-eliza relative group">
+            <img 
+              src={result.images[0].url} 
+              alt={prompt}
+              className="w-full rounded-lg"
+            />
+            <a
+              href={result.images[0].url}
+              download
+              className="absolute top-4 right-4 p-2 bg-gray-900/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Download className="h-5 w-5" />
+            </a>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-eliza-orange" />
+    </div>
+  );
+}
+\`\`\`
+
+### Key Points
+- Show clear pricing on landing page
+- Require sign-in before using the tool
+- Check balance before expensive operations
+- Show purchase prompt when balance is insufficient
+- Use useImageGeneration, useChat, etc. hooks (they auto-bill user)
+`,
 };
 
 /**
@@ -480,6 +871,19 @@ export const FULL_APP_EXAMPLE_PROMPTS: Record<FullAppTemplateType, string[]> = {
     "Implement task submission handler",
     "Add agent discovery mechanism",
     "Create message routing logic",
+  ],
+  "saas-starter": [
+    "Set up the dashboard layout with sidebar navigation and user menu",
+    "Create a billing page where users can see balance and purchase credits",
+    "Add a settings page with user profile editing",
+    "Create the main dashboard with usage stats and quick actions",
+    "Add a protected API playground page",
+  ],
+  "ai-tool": [
+    "Create an image generator tool with prompt input and result display",
+    "Build a text summarizer tool with document upload",
+    "Create a code assistant tool with syntax highlighting",
+    "Build a writing assistant with tone/style options",
   ],
 };
 

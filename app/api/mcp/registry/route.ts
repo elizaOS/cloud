@@ -91,9 +91,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Real-time cryptocurrency price data from major exchanges. Get current prices, 24h changes, market cap, and volume for thousands of cryptocurrencies.",
     category: "finance",
-    endpoint: "/api/mcp/demos/crypto/sse",
+    endpoint: "/api/mcps/crypto/sse",
     type: "streamable-http",
-    version: "1.0.0",
+    version: "2.0.0",
     status: "live",
     icon: "coins",
     color: "#F7931A",
@@ -109,7 +109,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "crypto-prices": {
           type: "sse",
-          url: "/api/mcp/demos/crypto/sse",
+          url: "/api/mcps/crypto/sse",
         },
       },
     },
@@ -120,9 +120,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Get current time, convert between timezones, and perform date calculations. Perfect for scheduling and time-aware agents.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/time/sse",
+    endpoint: "/api/mcps/time/sse",
     type: "streamable-http",
-    version: "1.0.0",
+    version: "2.0.0",
     status: "live",
     icon: "clock",
     color: "#6366F1",
@@ -144,7 +144,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "time-server": {
           type: "sse",
-          url: "/api/mcp/demos/time/sse",
+          url: "/api/mcps/time/sse",
         },
       },
     },
@@ -155,25 +155,25 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/weather/sse",
+    endpoint: "/api/mcps/weather/sse",
     type: "streamable-http",
-    version: "1.0.0",
-    status: "coming_soon",
+    version: "2.0.0",
+    status: "live",
     icon: "cloud",
     color: "#3B82F6",
-    toolCount: 2,
-    features: ["current_weather", "forecast"],
+    toolCount: 4,
+    features: ["get_current_weather", "get_weather_forecast", "compare_weather", "search_location"],
     pricing: {
       type: "credits",
-      description: "0.001 credits per request",
-      pricePerRequest: "0.001",
+      description: "1-2 credits per request",
+      pricePerRequest: "1-2",
     },
     x402Enabled: false,
     configTemplate: {
       servers: {
         weather: {
           type: "sse",
-          url: "/api/mcp/demos/weather/sse",
+          url: "/api/mcps/weather/sse",
         },
       },
     },
@@ -220,7 +220,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Search the web and retrieve information from websites. Powered by multiple search providers for comprehensive results.",
     category: "search",
-    endpoint: "/api/mcp/demos/search/sse",
+    endpoint: "/api/mcps/search/sse",
     type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
@@ -238,7 +238,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "web-search": {
           type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/demos/search/sse",
+          url: "${BASE_URL}/api/mcps/search/sse",
         },
       },
     },

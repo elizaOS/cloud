@@ -95,7 +95,7 @@ const publicPaths = [
   "/api/privy/webhook",
   "/api/cron",
   "/api/v1/cron",
-  "/api/mcp/demos",
+  "/api/mcps",
   "/api/mcp/list",
   "/api/mcp",
   "/api/a2a",

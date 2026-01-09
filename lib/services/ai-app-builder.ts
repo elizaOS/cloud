@@ -26,6 +26,10 @@ const EXAMPLE_PROMPTS = {
   "landing-page": getExamplePrompts("landing-page"),
   analytics: getExamplePrompts("analytics"),
   blank: getExamplePrompts("blank"),
+  "mcp-service": getExamplePrompts("mcp-service"),
+  "a2a-agent": getExamplePrompts("a2a-agent"),
+  "saas-starter": getExamplePrompts("saas-starter"),
+  "ai-tool": getExamplePrompts("ai-tool"),
 };
 
 export interface BuilderSessionConfig {

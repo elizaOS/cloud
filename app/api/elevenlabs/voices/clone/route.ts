@@ -2,7 +2,11 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -119,60 +123,42 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    // Calculate cost
     const cost =
       cloneType === "instant"
         ? VOICE_CLONE_INSTANT_COST
         : VOICE_CLONE_PROFESSIONAL_COST;
 
-    // Check credit balance (use org from auth, avoids redundant DB call)
-    if (Number(user.organization.credit_balance) < cost) {
-      logger.warn("[Voice Clone API] Insufficient credits", {
-        organizationId: user.organization_id,
-        required: cost,
-        balance: user.organization.credit_balance,
-      });
-      return NextResponse.json(
-        {
-          error: "Insufficient balance",
-          details: {
-            required: cost,
-            available: user.organization.credit_balance,
-            cloneType,
-          },
-        },
-        { status: 402 },
-      );
-    }
-
-    // Deduct credits BEFORE processing
-    const deductionResult = await creditsService.deductCredits({
-      organizationId: user.organization_id!!,
-      amount: cost,
-      description: `Voice cloning (${cloneType}): ${name}`,
-      metadata: {
-        userId: user.id,
-        voiceName: name,
-        cloneType,
-        fileCount: files.length,
-      },
-    });
-
-    if (!deductionResult.success) {
-      logger.error("[Voice Clone API] Failed to deduct credits", {
+    let reservation: CreditReservation;
+    try {
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!!,
-        cost,
+        amount: cost,
+        userId: user.id,
+        description: `Voice cloning (${cloneType}): ${name}`,
       });
-      return NextResponse.json(
-        { error: "Failed to deduct credits. Please try again." },
-        { status: 500 },
-      );
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        logger.warn("[Voice Clone API] Insufficient credits", {
+          organizationId: user.organization_id,
+          required: error.required,
+        });
+        return NextResponse.json(
+          {
+            error: "Insufficient balance",
+            details: {
+              required: error.required,
+              cloneType,
+            },
+          },
+          { status: 402 },
+        );
+      }
+      throw error;
     }
 
-    logger.info("[Voice Clone API] Cost charged successfully", {
+    logger.info("[Voice Clone API] Credits reserved", {
       organizationId: user.organization_id!!,
       amount: cost,
-      newBalance: deductionResult.newBalance,
     });
 
     try {
@@ -195,7 +181,8 @@ export async function POST(request: NextRequest) {
         duration,
       });
 
-      // Record usage
+      await reservation.reconcile(cost);
+
       await usageService.create({
         organization_id: user.organization_id!!,
         user_id: user.id,
@@ -216,7 +203,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Return success response
       return NextResponse.json(
         {
           success: true,
@@ -236,30 +222,19 @@ export async function POST(request: NextRequest) {
             progress: result.job.progress,
           },
           creditsDeducted: cost,
-          newBalance: deductionResult.newBalance,
           estimatedCompletionTime:
             cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
         { status: 201 },
       );
     } catch (error) {
-      // Refund credits on failure
       logger.error("[Voice Clone API] Error creating voice clone", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
-      await creditsService.addCredits({
-        organizationId: user.organization_id!!,
-        amount: cost,
-        description: `Refund for failed voice cloning: ${name}`,
-        metadata: {
-          user_id: user.id,
-          reason: "voice_cloning_failed",
-          originalError: error instanceof Error ? error.message : "Unknown",
-        },
-      });
+      await reservation.reconcile(0);
 
-      logger.info("[Voice Clone API] Credits refunded", {
+      logger.info("[Voice Clone API] Credits refunded via reconcile(0)", {
         organizationId: user.organization_id!!,
         amount: cost,
       });
