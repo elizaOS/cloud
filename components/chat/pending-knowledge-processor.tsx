@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface PendingFile {
@@ -16,6 +15,11 @@ interface PendingKnowledge {
   characterName: string;
   files: PendingFile[];
   createdAt: number;
+  // Cross-tab processing claim to prevent duplicate processing
+  processingBy?: {
+    tabId: string;
+    claimedAt: number;
+  };
 }
 
 interface ProcessingState {
@@ -34,6 +38,11 @@ interface PendingKnowledgeProcessorProps {
 
 const PENDING_KEY_PREFIX = "pendingKnowledge_";
 const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age for pending files
+const CLAIM_TIMEOUT_MS = 30 * 1000; // 30 seconds - if claim is older, consider it stale
+
+// Generate a unique ID for this tab to prevent cross-tab duplicate processing
+const generateTabId = () =>
+  `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 /**
  * Component that processes pending knowledge files after character creation.
@@ -56,6 +65,15 @@ export function PendingKnowledgeProcessor({
   const processingCharacterIdRef = useRef<string | null>(null);
   // Track previous characterId to detect switches
   const previousCharacterIdRef = useRef<string | null>(characterId);
+  // Track current characterId prop for race condition prevention in async callbacks
+  const currentCharacterIdRef = useRef<string | null>(characterId);
+  // Unique ID for this tab to prevent cross-tab duplicate processing
+  const tabIdRef = useRef<string>(generateTabId());
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    currentCharacterIdRef.current = characterId;
+  }, [characterId]);
 
   // Reset dismissed state when characterId changes
   // This allows processing pending files for a new character after dismissing for another
@@ -80,6 +98,12 @@ export function PendingKnowledgeProcessor({
       processingCharacterIdRef.current = pending.characterId;
 
       const storageKey = `${PENDING_KEY_PREFIX}${pending.characterId}`;
+      // Capture the characterId we're processing to check against current prop later
+      const processingForCharacterId = pending.characterId;
+
+      // Helper to check if we should update state (prevents race condition when user switches characters)
+      const shouldUpdateState = () =>
+        currentCharacterIdRef.current === processingForCharacterId;
 
       setState({
         status: "processing",
@@ -148,55 +172,64 @@ export function PendingKnowledgeProcessor({
             }
           }
 
-          setState({
-            status: "completed",
-            totalFiles: pending.files.length,
-            processedFiles: pending.files.length,
-            successCount,
-            failedCount,
-          });
+          // Only update UI if user hasn't switched to a different character
+          if (shouldUpdateState()) {
+            setState({
+              status: "completed",
+              totalFiles: pending.files.length,
+              processedFiles: pending.files.length,
+              successCount,
+              failedCount,
+            });
 
-          if (failedCount > 0) {
-            toast.warning("Some files failed to process", {
-              description: `${successCount} succeeded, ${failedCount} failed. You may need to re-upload failed files.`,
-            });
-          } else {
-            toast.success("Knowledge base ready!", {
-              description: `${successCount} file(s) processed successfully`,
-            });
+            if (failedCount > 0) {
+              toast.warning("Some files failed to process", {
+                description: `${successCount} succeeded, ${failedCount} failed. You may need to re-upload failed files.`,
+              });
+            } else {
+              toast.success("Knowledge base ready!", {
+                description: `${successCount} file(s) processed successfully`,
+              });
+            }
+
+            onProcessingComplete?.();
           }
-
-          onProcessingComplete?.();
         } else {
           const errorData = await response.json().catch(() => ({}));
           // Keep sessionStorage on error so user can retry
+          // Only update UI if user hasn't switched to a different character
+          if (shouldUpdateState()) {
+            setState({
+              status: "error",
+              totalFiles: pending.files.length,
+              processedFiles: 0,
+              successCount: 0,
+              failedCount: pending.files.length,
+              error: errorData.error || "Failed to process files",
+            });
+
+            toast.error("File processing failed", {
+              description: "You can try again from the Files tab",
+            });
+          }
+        }
+      } catch (error) {
+        // Keep sessionStorage on network error so user can retry
+        // Only update UI if user hasn't switched to a different character
+        if (shouldUpdateState()) {
           setState({
             status: "error",
             totalFiles: pending.files.length,
             processedFiles: 0,
             successCount: 0,
             failedCount: pending.files.length,
-            error: errorData.error || "Failed to process files",
+            error: error instanceof Error ? error.message : "Network error",
           });
 
           toast.error("File processing failed", {
-            description: "You can try again from the Files tab",
+            description: "Network error - you can try again from the Files tab",
           });
         }
-      } catch (error) {
-        // Keep sessionStorage on network error so user can retry
-        setState({
-          status: "error",
-          totalFiles: pending.files.length,
-          processedFiles: 0,
-          successCount: 0,
-          failedCount: pending.files.length,
-          error: error instanceof Error ? error.message : "Network error",
-        });
-
-        toast.error("File processing failed", {
-          description: "Network error - you can try again from the Files tab",
-        });
       } finally {
         processingCharacterIdRef.current = null;
       }
@@ -239,90 +272,40 @@ export function PendingKnowledgeProcessor({
       return;
     }
 
+    // Cross-tab deduplication: check if another tab has claimed processing
+    const myTabId = tabIdRef.current;
+    if (pending.processingBy) {
+      const { tabId, claimedAt } = pending.processingBy;
+      const claimAge = Date.now() - claimedAt;
+
+      // If another tab claimed it recently, skip processing
+      if (tabId !== myTabId && claimAge < CLAIM_TIMEOUT_MS) {
+        return;
+      }
+      // If claim is stale (tab may have crashed), we can take over
+    }
+
+    // Claim processing for this tab before starting
+    try {
+      const claimedPending: PendingKnowledge = {
+        ...pending,
+        processingBy: {
+          tabId: myTabId,
+          claimedAt: Date.now(),
+        },
+      };
+      sessionStorage.setItem(key, JSON.stringify(claimedPending));
+    } catch {
+      // If we can't claim, another tab may process it
+      // Continue anyway since this is best-effort deduplication
+    }
+
     // Start processing
     processFiles(pending);
   }, [characterId, dismissed, processFiles]);
 
-  const handleDismiss = () => {
-    setDismissed(true);
-    if (characterId) {
-      try {
-        sessionStorage.removeItem(`${PENDING_KEY_PREFIX}${characterId}`);
-      } catch {
-        // sessionStorage may fail in private browsing
-      }
-    }
-  };
-
-  // Don't render if idle or dismissed
-  if (state.status === "idle" || dismissed) {
-    return null;
-  }
-
-  return (
-    <div className="border-b border-white/10 bg-gradient-to-r from-[#FF5800]/10 to-transparent">
-      <div className="px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          {state.status === "processing" && (
-            <>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#FF5800]/20">
-                <Loader2 className="w-4 h-4 text-[#FF5800] animate-spin" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white">
-                  Processing knowledge files...
-                </p>
-                <p className="text-xs text-white/60 truncate">
-                  {state.totalFiles} file(s) • You can chat while this runs
-                </p>
-              </div>
-            </>
-          )}
-
-          {state.status === "completed" && (
-            <>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white">
-                  Knowledge base ready!
-                </p>
-                <p className="text-xs text-white/60 truncate">
-                  {state.successCount} file(s) processed
-                  {state.failedCount > 0 && `, ${state.failedCount} failed`}
-                </p>
-              </div>
-            </>
-          )}
-
-          {state.status === "error" && (
-            <>
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20">
-                <AlertCircle className="w-4 h-4 text-red-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white">
-                  File processing failed
-                </p>
-                <p className="text-xs text-white/60 truncate">
-                  {state.error || "Try again from the Files tab"}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-
-        {(state.status === "completed" || state.status === "error") && (
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <X className="w-4 h-4 text-white/60" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
+  // This component processes files in the background and shows toast notifications
+  // No visible UI - just background processing with toast feedback
+  return null;
 }
 

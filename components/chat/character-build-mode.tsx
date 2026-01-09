@@ -216,17 +216,42 @@ export function CharacterBuildMode({
             const successCount = data.successCount || 0;
 
             if (failedCount > 0 && data.results && Array.isArray(data.results)) {
-              // Partial failure - only clear successfully processed files
+              // Partial failure - store failed files in sessionStorage for retry
               const failedBlobUrls = new Set(
                 data.results
                   .filter((r: { status: string }) => r.status === "error")
                   .map((r: { blobUrl: string }) => r.blobUrl)
               );
-              setPreUploadedFiles((prev) =>
-                prev.filter((f) => failedBlobUrls.has(f.blobUrl)),
+              const failedFiles = filesToProcess.filter((f) =>
+                failedBlobUrls.has(f.blobUrl)
               );
+
+              // Store failed files in sessionStorage for PendingKnowledgeProcessor to pick up
+              if (failedFiles.length > 0) {
+                try {
+                  sessionStorage.setItem(
+                    `pendingKnowledge_${character.id}`,
+                    JSON.stringify({
+                      characterId: character.id,
+                      characterName: character.name,
+                      files: failedFiles.map((f) => ({
+                        blobUrl: f.blobUrl,
+                        filename: f.filename,
+                        contentType: f.contentType,
+                        size: f.size,
+                      })),
+                      createdAt: Date.now(),
+                    }),
+                  );
+                } catch {
+                  // sessionStorage may fail in private browsing
+                }
+              }
+
+              // Clear all pre-uploaded files from component state since they're now in sessionStorage
+              setPreUploadedFiles([]);
               toast.warning("Character updated with partial file failures", {
-                description: `${successCount} file(s) processed, ${failedCount} failed. Failed files can be retried from the Files tab.`,
+                description: `${successCount} file(s) processed, ${failedCount} failed. Failed files will be retried automatically.`,
                 duration: 6000,
               });
             } else {
@@ -282,20 +307,29 @@ export function CharacterBuildMode({
               })),
               createdAt: Date.now(),
             };
+            let sessionStorageSucceeded = false;
             try {
               sessionStorage.setItem(
                 `pendingKnowledge_${saved.id}`,
                 JSON.stringify(pendingKnowledge),
               );
+              sessionStorageSucceeded = true;
             } catch {
               // sessionStorage may fail in private browsing - files won't auto-process
               // but character creation still succeeded
             }
 
-            toast.success("Character created!", {
-              description: `${filesToProcess.length} file(s) will be processed in the background`,
-              duration: 4000,
-            });
+            if (sessionStorageSucceeded) {
+              toast.success("Character created!", {
+                description: `${filesToProcess.length} file(s) will be processed in the background`,
+                duration: 4000,
+              });
+            } else {
+              toast.success("Character created!", {
+                description: `File processing unavailable. You can upload files from the Files tab.`,
+                duration: 5000,
+              });
+            }
           } else {
             toast.success("Character created! Redirecting to chat...", {
               duration: 2000,
