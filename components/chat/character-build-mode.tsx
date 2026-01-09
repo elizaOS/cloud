@@ -212,13 +212,33 @@ export function CharacterBuildMode({
 
           if (response.ok) {
             const data = await response.json();
-            setPreUploadedFiles((prev) =>
-              prev.filter((f) => !processedFileIds.has(f.id)),
-            );
-            toast.success("Character updated! Redirecting to chat...", {
-              description: `Processed ${data.successCount} file(s) for RAG knowledge base`,
-              duration: 4000,
-            });
+            const failedCount = data.failedCount || 0;
+            const successCount = data.successCount || 0;
+
+            if (failedCount > 0 && data.results && Array.isArray(data.results)) {
+              // Partial failure - only clear successfully processed files
+              const failedBlobUrls = new Set(
+                data.results
+                  .filter((r: { status: string }) => r.status === "error")
+                  .map((r: { blobUrl: string }) => r.blobUrl)
+              );
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => failedBlobUrls.has(f.blobUrl)),
+              );
+              toast.warning("Character updated with partial file failures", {
+                description: `${successCount} file(s) processed, ${failedCount} failed. Failed files can be retried from the Files tab.`,
+                duration: 6000,
+              });
+            } else {
+              // All files succeeded - clear all processed files
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !processedFileIds.has(f.id)),
+              );
+              toast.success("Character updated! Redirecting to chat...", {
+                description: `Processed ${successCount} file(s) for RAG knowledge base`,
+                duration: 4000,
+              });
+            }
           } else {
             const data = await response.json().catch(() => ({}));
             toast.warning("Character updated, but file processing failed", {

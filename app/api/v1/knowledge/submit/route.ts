@@ -226,6 +226,7 @@ async function handlePOST(req: NextRequest) {
           organizationId: user.organization_id,
           fileSize: file.size,
           filename: file.filename,
+          fileName: file.filename, // camelCase for getDocumentName() compatibility
           blobUrl: file.blobUrl,
         },
       });

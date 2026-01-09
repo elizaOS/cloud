@@ -51,13 +51,15 @@ export function PendingKnowledgeProcessor({
     failedCount: 0,
   });
   const [dismissed, setDismissed] = useState(false);
-  const isProcessingRef = useRef(false);
+  // Track which characterId is being processed (null = none)
+  // This allows processing different characters if user switches
+  const processingCharacterIdRef = useRef<string | null>(null);
 
   const processFiles = useCallback(
     async (pending: PendingKnowledge) => {
-      // Prevent duplicate processing
-      if (isProcessingRef.current) return;
-      isProcessingRef.current = true;
+      // Prevent duplicate processing for the same character
+      if (processingCharacterIdRef.current === pending.characterId) return;
+      processingCharacterIdRef.current = pending.characterId;
 
       const storageKey = `${PENDING_KEY_PREFIX}${pending.characterId}`;
 
@@ -85,13 +87,46 @@ export function PendingKnowledgeProcessor({
           const failedCount = data.failedCount || 0;
           const successCount = data.successCount || pending.files.length;
 
-          // Only clear sessionStorage when ALL files succeed
-          // If some files failed, preserve blob URLs for potential retry/cleanup
+          // Handle sessionStorage based on processing results
           if (failedCount === 0) {
+            // All files succeeded - clear sessionStorage
             try {
               sessionStorage.removeItem(storageKey);
             } catch {
               // sessionStorage may fail in private browsing
+            }
+          } else if (data.results && Array.isArray(data.results)) {
+            // Partial failure - update sessionStorage to only contain failed files
+            // This prevents re-processing already successful files on refresh
+            const failedBlobUrls = new Set(
+              data.results
+                .filter((r: { status: string }) => r.status === "error")
+                .map((r: { blobUrl: string }) => r.blobUrl)
+            );
+            const failedFiles = pending.files.filter((f) =>
+              failedBlobUrls.has(f.blobUrl)
+            );
+
+            if (failedFiles.length > 0) {
+              try {
+                sessionStorage.setItem(
+                  storageKey,
+                  JSON.stringify({
+                    ...pending,
+                    files: failedFiles,
+                    createdAt: Date.now(), // Reset timestamp for retry window
+                  })
+                );
+              } catch {
+                // sessionStorage may fail in private browsing
+              }
+            } else {
+              // No failed files found (edge case) - clear storage
+              try {
+                sessionStorage.removeItem(storageKey);
+              } catch {
+                // sessionStorage may fail in private browsing
+              }
             }
           }
 
@@ -145,7 +180,7 @@ export function PendingKnowledgeProcessor({
           description: "Network error - you can try again from the Files tab",
         });
       } finally {
-        isProcessingRef.current = false;
+        processingCharacterIdRef.current = null;
       }
     },
     [onProcessingComplete],
