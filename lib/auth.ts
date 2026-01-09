@@ -382,32 +382,28 @@ export async function getUserFromApiKey(
 }
 
 /**
+ * Check if a token looks like a JWT (has three base64 parts separated by dots)
+ */
+function looksLikeJwt(token: string): boolean {
+  const parts = token.split(".");
+  return parts.length === 3 && parts.every((part) => part.length > 0);
+}
+
+/**
  * Require authentication via session or API key
- * Supports X-API-Key header and Authorization: Bearer header
+ * Supports X-API-Key header and Authorization: Bearer header (API key or JWT)
  * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for API key in X-API-Key header
+  // Check for API key in X-API-Key header (always treated as API key)
   const apiKeyHeader = request.headers.get("X-API-Key");
-
-  // Check for API key in Authorization header (standard)
   const authHeader = request.headers.get("authorization");
-  let apiKeyValue: string | null = null;
 
-  if (apiKeyHeader) {
-    apiKeyValue = apiKeyHeader;
-  } else if (authHeader?.startsWith("Bearer ")) {
-    apiKeyValue = authHeader.substring(7);
-  }
-
-  if (apiKeyValue) {
-    if (!apiKeyValue || apiKeyValue.trim().length === 0) {
-      throw new Error("Invalid API key format");
-    }
-
-    const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
+  // If X-API-Key is provided, validate it as an API key
+  if (apiKeyHeader && apiKeyHeader.trim().length > 0) {
+    const apiKey = await apiKeysService.validateApiKey(apiKeyHeader);
 
     if (!apiKey) {
       throw new Error("Invalid or expired API key");
@@ -444,7 +440,86 @@ export async function requireAuthOrApiKey(
     };
   }
 
-  // Fall back to session authentication
+  // Check Authorization: Bearer header
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerValue = authHeader.substring(7).trim();
+
+    if (bearerValue.length === 0) {
+      throw new Error("Invalid authorization header");
+    }
+
+    // If the bearer token looks like a JWT, try to validate it as a Privy token first
+    if (looksLikeJwt(bearerValue)) {
+      const verifiedClaims = await verifyAuthTokenCached(bearerValue);
+
+      if (verifiedClaims) {
+        // Get user from Privy ID
+        const user = await usersService.getByPrivyId(verifiedClaims.userId);
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        if (!user.is_active) {
+          throw new Error("User account is inactive");
+        }
+
+        if (!user.organization?.is_active) {
+          throw new Error("Organization is inactive");
+        }
+
+        return {
+          user,
+          authMethod: "session",
+          session_token: bearerValue,
+        };
+      }
+    }
+
+    // Try as API key (fallback for non-JWT tokens or if JWT validation failed)
+    const apiKey = await apiKeysService.validateApiKey(bearerValue);
+
+    if (apiKey) {
+      if (!apiKey.is_active) {
+        throw new Error("API key is inactive");
+      }
+
+      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+        throw new Error("API key has expired");
+      }
+
+      const user = await getUserFromApiKey(apiKey);
+
+      if (!user) {
+        throw new Error("User associated with API key not found");
+      }
+
+      if (!user.is_active) {
+        throw new Error("User account is inactive");
+      }
+
+      if (!user.organization?.is_active) {
+        throw new Error("Organization is inactive");
+      }
+
+      await apiKeysService.incrementUsage(apiKey.id);
+
+      return {
+        user,
+        apiKey,
+        authMethod: "api_key",
+      };
+    }
+
+    // If it looked like a JWT but failed verification, give a helpful error
+    if (looksLikeJwt(bearerValue)) {
+      throw new Error("Invalid or expired token");
+    }
+
+    throw new Error("Invalid or expired API key");
+  }
+
+  // Fall back to session authentication (cookie-based)
   const user = await requireAuth();
 
   // Get session token from cookies
