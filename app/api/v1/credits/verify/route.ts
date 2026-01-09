@@ -1,13 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * Credits Verify API (v1)
+ *
+ * GET /api/v1/credits/verify
+ * Verifies a completed Stripe checkout session and confirms credits were added.
+ *
+ * CORS: Reflects origin header. Security is via auth tokens.
+ */
+
+import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { appCreditsService } from "@/lib/services/app-credits";
-import Stripe from "stripe";
+import { requireStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-11-20.acacia",
-});
 
 // CORS headers - reflect origin for credentialed requests
 function getCorsHeaders(origin: string | null) {
@@ -22,8 +26,7 @@ function getCorsHeaders(origin: string | null) {
 }
 
 /**
- * OPTIONS /api/v1/app-credits/verify
- * CORS preflight handler
+ * OPTIONS handler for CORS preflight
  */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -34,9 +37,8 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 /**
- * GET /api/v1/app-credits/verify
- *
- * Verify a completed checkout session and confirm credits were added.
+ * GET /api/v1/credits/verify
+ * Verifies a completed checkout session.
  *
  * Query Params:
  * - session_id: Stripe checkout session ID
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Retrieve the checkout session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -82,9 +84,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify this is an app credit purchase
+    // Verify this is an organization credit purchase
     const metadata = session.metadata || {};
-    if (metadata.type !== "app_credit_purchase") {
+    if (metadata.type !== "custom_amount" && metadata.type !== "credit_pack") {
       return NextResponse.json(
         {
           success: false,
@@ -94,65 +96,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const appId = metadata.app_id;
-    const userId = metadata.user_id;
-    const organizationId = metadata.organization_id;
-    const amount = parseFloat(metadata.amount || "0");
+    const amount = parseFloat(metadata.credits || "0");
 
-    if (!appId || !userId || !organizationId || !amount) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid session metadata",
-        },
-        { headers: corsHeaders },
-      );
-    }
+    logger.info("Verified credits checkout session", {
+      sessionId,
+      organizationId: metadata.organization_id,
+      amount,
+    });
 
-    // Process the purchase (add credits to user's app balance)
-    // This is idempotent - if credits were already added via webhook,
-    // this will just return success
-    try {
-      await appCreditsService.processPurchase({
-        appId,
-        userId,
-        organizationId,
-        amount,
-        stripeSessionId: sessionId,
-        description: "Credit purchase via checkout",
-      });
-
-      logger.info("Verified and processed app credit purchase", {
-        sessionId,
-        appId,
-        userId,
-        amount,
-      });
-    } catch (e) {
-      // If purchase was already processed (duplicate verification), that's OK
-      const errorMsg = e instanceof Error ? e.message : "";
-      if (!errorMsg.includes("already processed")) {
-        throw e;
-      }
-      logger.info("Purchase already processed", { sessionId });
-    }
-
+    // Credits are added via Stripe webhook - this endpoint just verifies payment status
     return NextResponse.json(
       {
         success: true,
         amount,
-        message: "Credits added successfully",
+        message: "Payment verified successfully",
       },
       { headers: corsHeaders },
     );
   } catch (error) {
-    logger.error("Failed to verify purchase:", error);
+    logger.error("[Credits Verify API v1] Error:", error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Verification failed",
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: corsHeaders },
     );
   }
 }

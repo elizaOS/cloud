@@ -8,23 +8,27 @@ import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-// CORS headers - fully open, security via auth tokens
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-  "Access-Control-Max-Age": "86400",
-};
+// CORS headers - reflect origin for credentialed requests
+function getCorsHeaders(origin: string | null) {
+  return {
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
 
 /**
  * OPTIONS /api/v1/app-credits/balance
  * CORS preflight handler
  */
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
   return new NextResponse(null, {
     status: 204,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(origin),
   });
 }
 
@@ -47,6 +51,9 @@ export async function OPTIONS() {
  * - isLow: Whether balance is below threshold
  */
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   try {
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get("app_id") || request.headers.get("X-App-Id");
@@ -54,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (!appId) {
       return NextResponse.json(
         { success: false, error: "app_id is required" },
-        { status: 400, headers: CORS_HEADERS },
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -96,7 +103,7 @@ export async function GET(request: NextRequest) {
       } catch {
         return NextResponse.json(
           { success: false, error: "Authentication required" },
-          { status: 401, headers: CORS_HEADERS },
+          { status: 401, headers: corsHeaders },
         );
       }
     }
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
     if (!organizationId) {
       return NextResponse.json(
         { success: false, error: "User organization not found" },
-        { status: 400, headers: CORS_HEADERS },
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -127,7 +134,7 @@ export async function GET(request: NextRequest) {
         totalSpent: balance?.totalSpent ?? 0,
         isLow: (balance?.balance ?? 0) < LOW_BALANCE_THRESHOLD,
       },
-      { headers: CORS_HEADERS },
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("Failed to get app credits balance:", error);
@@ -136,7 +143,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get balance",
       },
-      { status: 500, headers: CORS_HEADERS },
+      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
     );
   }
 }
