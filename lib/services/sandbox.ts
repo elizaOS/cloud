@@ -1028,7 +1028,7 @@ export class SandboxService {
           !layoutContent.includes("ElizaAnalytics") &&
           !layoutContent.includes("ElizaProvider")
         ) {
-          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\nimport { Analytics } from '@vercel/analytics/react';\n`;
+          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\nimport { Analytics } from '@vercel/analytics/next';\n`;
           let updatedLayout = analyticsImport + layoutContent;
 
           // Insert analytics components inside the body tag

@@ -112,7 +112,7 @@ const CONSTRAINTS = `
 When writing layout.tsx, you MUST include:
 \`\`\`tsx
 import { ElizaProvider } from '@/components/eliza';
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 
 export default function RootLayout({ children }) {
   return (

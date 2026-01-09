@@ -147,7 +147,7 @@ import {
 // Provides credits context
 
 // Analytics - ALWAYS add in layout.tsx for dashboard metrics
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 // <Analytics /> inside body, after ElizaProvider
 
 // useElizaCredits - credit balance from context

@@ -381,14 +381,14 @@ function App() {
 **ALWAYS include Analytics** for dashboard metrics on deployed apps.
 When writing layout.tsx, you MUST:
 1. Import: \`import { ElizaProvider } from '@/components/eliza';\`
-2. Import: \`import { Analytics } from '@vercel/analytics/react';\`
+2. Import: \`import { Analytics } from '@vercel/analytics/next';\`
 3. Wrap children: \`<ElizaProvider>{children}</ElizaProvider>\`
 4. Add Analytics: \`<Analytics />\` inside body (after ElizaProvider)
 
 Example layout.tsx structure (ALWAYS follow this pattern):
 \`\`\`tsx
 import { ElizaProvider } from '@/components/eliza';
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 export const metadata = { /* your unique metadata */ };
