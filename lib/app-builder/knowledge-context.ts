@@ -106,17 +106,20 @@ const CONSTRAINTS = `
 - \`@/hooks/use-eliza.ts\` - React hooks are pre-built
 - \`@/components/eliza/\` - Provider and utilities are ready to use
 
-### CRITICAL: ElizaProvider in layout.tsx
+### CRITICAL: ElizaProvider and Analytics in layout.tsx
 **NEVER remove ElizaProvider from layout.tsx!** Without it, all Eliza hooks will fail.
+**ALWAYS include Analytics** for dashboard metrics on deployed apps.
 When writing layout.tsx, you MUST include:
 \`\`\`tsx
 import { ElizaProvider } from '@/components/eliza';
+import { Analytics } from '@vercel/analytics/react';
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
         <ElizaProvider>{children}</ElizaProvider>
+        <Analytics />
       </body>
     </html>
   );

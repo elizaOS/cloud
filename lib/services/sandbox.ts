@@ -1020,7 +1020,7 @@ export class SandboxService {
 
         logger.info("SDK files injected", { sandboxId });
 
-        // Inject ElizaAnalytics into layout.tsx for templates without ElizaProvider
+        // Inject ElizaAnalytics and Vercel Analytics into layout.tsx for templates without ElizaProvider
         const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
         const layoutContent = await readFileViaSh(sandbox, layoutPath);
         if (
@@ -1028,21 +1028,21 @@ export class SandboxService {
           !layoutContent.includes("ElizaAnalytics") &&
           !layoutContent.includes("ElizaProvider")
         ) {
-          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\nimport { Analytics } from '@vercel/analytics/react';\n`;
           let updatedLayout = analyticsImport + layoutContent;
 
-          // Insert <ElizaAnalytics /> inside the body tag, right after opening
+          // Insert analytics components inside the body tag
           const bodyMatch = updatedLayout.match(/<body[^>]*>/);
           if (bodyMatch) {
             const bodyTag = bodyMatch[0];
             updatedLayout = updatedLayout.replace(
               bodyTag,
-              `${bodyTag}\n        <ElizaAnalytics />`,
+              `${bodyTag}\n        <ElizaAnalytics />\n        <Analytics />`,
             );
           }
 
           await writeFileViaSh(sandbox, layoutPath, updatedLayout);
-          logger.info("Injected ElizaAnalytics component into layout.tsx", {
+          logger.info("Injected analytics components into layout.tsx", {
             sandboxId,
             layoutPath,
           });

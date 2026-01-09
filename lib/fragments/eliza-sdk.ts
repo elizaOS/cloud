@@ -35,6 +35,9 @@ export const ELIZA_SDK_COMPACT = `
 - \`CreditDisplay\` - Show balance
 - \`LowBalanceWarning\` - Warning banner
 
+### Analytics (@vercel/analytics/react):
+- \`<Analytics />\` - ALWAYS add inside body in layout.tsx for dashboard metrics
+
 **DO NOT recreate these files. DO NOT create API key inputs.**
 `;
 
@@ -141,7 +144,11 @@ import {
 } from '@/components/eliza';
 
 // ElizaProvider - already in layout.tsx
-// Provides analytics tracking and credits context
+// Provides credits context
+
+// Analytics - ALWAYS add in layout.tsx for dashboard metrics
+import { Analytics } from '@vercel/analytics/react';
+// <Analytics /> inside body, after ElizaProvider
 
 // useElizaCredits - credit balance from context
 const { balance, hasLowBalance, refresh } = useElizaCredits();
@@ -171,6 +178,7 @@ export const ELIZA_INTEGRATION_PROMPT = `
 1. SDK files are PRE-BUILT - DO NOT recreate them
 2. API key is PRE-CONFIGURED - DO NOT create input fields for it
 3. ElizaProvider is in layout.tsx - DO NOT add it again
+4. Analytics from @vercel/analytics/react - ALWAYS add \`<Analytics />\` in layout.tsx
 
 ### Quick Start:
 \`\`\`typescript
