@@ -181,8 +181,8 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
               // Allow iframes from any origin - sandbox apps need to embed
               "frame-ancestors *",
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
+              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
+              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com https://www.elizacloud.ai https://elizacloud.ai",
               ["connect-src *"].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
