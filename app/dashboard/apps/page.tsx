@@ -6,8 +6,7 @@ import { appsService } from "@/lib/services/apps";
 import { AppsTable } from "@/components/apps/apps-table";
 import { AppsSkeleton } from "@/components/apps/apps-skeleton";
 import { Grid3x3, Users, TrendingUp, Activity, Sparkles } from "lucide-react";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
-import { CreateAppButton } from "@/components/apps/create-app-button";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 export const metadata: Metadata = {
   title: "Apps",
@@ -57,15 +56,19 @@ export default async function AppsPage() {
             Create and manage apps that integrate with your Eliza Cloud services
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/apps/create">
-            <BrandButton variant="hud">
-              <Sparkles className="h-4 w-4 mr-2" />
+        <Link href="/dashboard/apps/create">
+          <button className="group relative inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white overflow-hidden rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(255,88,0,0.4)]">
+            {/* Animated gradient background */}
+            <span className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-[#FF2D92] to-[#9D4EDD] animate-gradient-x bg-[length:200%_100%]" />
+            {/* Shimmer effect */}
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            {/* Content */}
+            <span className="relative flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
               Build with AI
-            </BrandButton>
-          </Link>
-          <CreateAppButton />
-        </div>
+            </span>
+          </button>
+        </Link>
       </div>
 
       {/* Stats Grid */}

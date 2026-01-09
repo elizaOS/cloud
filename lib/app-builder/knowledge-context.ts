@@ -173,6 +173,15 @@ export default function RootLayout({ children }) {
   - \`PurchaseCreditsModal\` - Modal with amount selection
   - \`CreditBalanceCard\` - Full card with balance and purchase
 - SDK automatically bills user's credits when they're authenticated
+
+### ABSOLUTELY FORBIDDEN - NO MOCKS/DEMOS/PLACEHOLDERS:
+- **NEVER** create fake, mock, demo, or simulated AI responses
+- **NEVER** use placeholder arrays like \`demoResponses = ["Hello!", "I'm demo..."]\`
+- **NEVER** use \`setTimeout\` to fake API delays
+- **NEVER** write "demo", "mock", "placeholder", "simulated" in comments
+- **ALWAYS** call the REAL SDK functions - they work!
+- The SDK connects to REAL Eliza Cloud servers with REAL AI
+- There is ZERO reason to mock anything - the SDK is production-ready
 `;
 
 // ============================================================================

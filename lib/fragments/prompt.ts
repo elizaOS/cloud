@@ -282,6 +282,100 @@ This catches TypeScript type errors that the dev server doesn't show. If there a
 
 **CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
 
+## ABSOLUTELY CRITICAL: USE REAL SDK - NO MOCKS/DEMOS
+
+**NEVER create mock, demo, placeholder, or fake implementations!**
+
+The SDK is REAL and WORKING. Use it directly:
+
+❌ **NEVER DO THIS:**
+\`\`\`tsx
+// WRONG - Demo/mock response
+const handleSend = async (message: string) => {
+  // Simulated delay
+  await new Promise(r => setTimeout(r, 1000));
+  setResponse("I'm a demo response!"); // WRONG - fake!
+};
+\`\`\`
+
+❌ **NEVER DO THIS:**
+\`\`\`tsx
+// WRONG - Placeholder AI responses
+const demoResponses = [
+  "Hello! I'm Eliza...",
+  "That's interesting!",
+];
+const response = demoResponses[Math.floor(Math.random() * demoResponses.length)];
+\`\`\`
+
+✅ **ALWAYS DO THIS - Use the REAL SDK:**
+\`\`\`tsx
+'use client';
+import { useChatStream } from '@/hooks/use-eliza';
+
+function Chat() {
+  const { stream, loading } = useChatStream();
+  const [response, setResponse] = useState('');
+
+  const handleSend = async (message: string) => {
+    setResponse('');
+    for await (const chunk of stream([{ role: 'user', content: message }])) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) setResponse(prev => prev + delta);
+    }
+  };
+  // ... rest of component
+}
+\`\`\`
+
+✅ **For agents/characters - Use REAL agent chat:**
+\`\`\`tsx
+'use client';
+import { useAgentChat } from '@/hooks/use-eliza';
+
+function CharacterChat({ agentId }: { agentId: string }) {
+  const { agent, messages, send, loading } = useAgentChat(agentId);
+
+  const handleSend = async (text: string) => {
+    await send(text); // REAL API call - messages array updates automatically
+  };
+  // ... rest of component
+}
+\`\`\`
+
+✅ **For credits - Use REAL credit balance:**
+\`\`\`tsx
+'use client';
+import { useAppCredits, AppCreditDisplay, PurchaseCreditsButton } from '@/components/eliza';
+
+function Header() {
+  const { balance, hasLowBalance } = useAppCredits();
+  
+  return (
+    <header>
+      <AppCreditDisplay showRefresh />  {/* REAL balance from API */}
+      <PurchaseCreditsButton amount={50} />  {/* REAL Stripe checkout */}
+    </header>
+  );
+}
+\`\`\`
+
+✅ **For auth - Use REAL authentication:**
+\`\`\`tsx
+'use client';
+import { useElizaAuth, SignInButton, UserMenu, ProtectedRoute } from '@/components/eliza';
+
+function App() {
+  return (
+    <ProtectedRoute>  {/* REAL auth check */}
+      <Dashboard />
+    </ProtectedRoute>
+  );
+}
+\`\`\`
+
+**THE SDK IS PRODUCTION-READY. USE IT. NO EXCUSES.**
+
 ## CRITICAL: ElizaProvider in layout.tsx
 **NEVER remove ElizaProvider from layout.tsx!** The template includes it by default.
 When writing layout.tsx, you MUST:
