@@ -265,9 +265,31 @@ export function CharacterBuildMode({
               });
             }
           } else {
-            const data = await response.json().catch(() => ({}));
+            const errorData = await response.json().catch(() => ({}));
+
+            // Store all files in sessionStorage for retry since API call failed
+            try {
+              sessionStorage.setItem(
+                `pendingKnowledge_${character.id}`,
+                JSON.stringify({
+                  characterId: character.id,
+                  characterName: character.name,
+                  files: filesToProcess.map((f) => ({
+                    blobUrl: f.blobUrl,
+                    filename: f.filename,
+                    contentType: f.contentType,
+                    size: f.size,
+                  })),
+                  createdAt: Date.now(),
+                }),
+              );
+            } catch {
+              // sessionStorage may fail in private browsing
+            }
+
+            setPreUploadedFiles([]);
             toast.warning("Character updated, but file processing failed", {
-              description: data.error || "You can retry from the character's Files tab.",
+              description: errorData.error || "Files will be retried automatically.",
               duration: 6000,
             });
             onUnsavedChanges?.(false);

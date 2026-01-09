@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { isValidBlobUrl } from "@/lib/blob";
+import { isValidBlobUrl, deleteBlob } from "@/lib/blob";
 import {
   KNOWLEDGE_CONSTANTS,
   ALLOWED_CONTENT_TYPES,
@@ -262,6 +262,19 @@ async function handlePOST(req: NextRequest) {
     const agentIdStr = runtime.agentId as string;
     await invalidateRuntime(agentIdStr).catch((e) => {
       logger.warn(`[KnowledgeSubmit] Failed to invalidate runtime: ${e}`);
+    });
+
+    // Cleanup successfully processed blobs to prevent storage bloat
+    const successfulResults = results.filter((r) => r.status === "success");
+    const cleanupPromises = successfulResults.map((r) =>
+      deleteBlob(r.blobUrl).catch((err) => {
+        logger.warn(`[KnowledgeSubmit] Failed to delete blob ${r.blobUrl}:`, err);
+      })
+    );
+    await Promise.allSettled(cleanupPromises);
+
+    logger.info("[KnowledgeSubmit] Cleaned up blobs", {
+      count: successfulResults.length,
     });
   }
 
