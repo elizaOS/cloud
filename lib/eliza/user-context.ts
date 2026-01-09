@@ -8,7 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
-import type { PromptConfig } from "@/miniapp/app/config";
+import type { PromptConfig } from "./prompt-presets";
 
 export interface UserContext {
   // Core identity
@@ -37,7 +37,7 @@ export interface UserContext {
   name?: string;
   email?: string;
 
-  // App monetization context (for miniapp billing)
+  // App monetization context (for app billing)
   appId?: string;
 
   // App-specific prompt configuration
@@ -45,6 +45,9 @@ export interface UserContext {
 
   // Feature flags for this request
   webSearchEnabled?: boolean;
+
+  // Image generation preferences
+  imageModel?: string;
 }
 
 export class UserContextService {

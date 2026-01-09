@@ -1,27 +1,42 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
+import { appsService } from "@/lib/services/apps";
 import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
-  estimateRequestCost,
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
   OpenAIChatMessage,
 } from "@/lib/providers/types";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
+
+/**
+ * OPTIONS /api/v1/chat/completions
+ * CORS preflight handler for chat completions endpoint.
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return createPreflightResponse(origin, ["POST", "OPTIONS"]);
+}
 
 /**
  * POST /api/v1/chat/completions
@@ -33,11 +48,38 @@ export const maxDuration = 60;
  */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const origin = req.headers.get("origin");
+
+  // Helper to add CORS headers to any response - fully open, security via auth
+  const withCors = (response: Response | NextResponse): Response => {
+    const headers = new Headers(response.headers);
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+    );
+    headers.set("Access-Control-Max-Age", "86400");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
 
   try {
+    // CORS is fully open - security is via auth tokens (validated below)
+
     // 1. Authenticate
     const { user, apiKey, session_token } =
       await requireAuthOrApiKeyWithOrg(req);
+
+    // Extract client info for analytics
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
@@ -270,46 +312,52 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 4. Check credits BEFORE making API call
-    // estimateRequestCost now handles both string and multimodal content
-    const estimatedCost = await estimateRequestCost(model, request.messages);
+    // 4. RESERVE credits BEFORE making API call (prevents TOCTOU race condition)
+    const inputText = request.messages
+      .map((m) =>
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      )
+      .join(" ");
 
-    // Check if organization has sufficient credits
-    // Use org data from auth (already fetched, avoids redundant DB call)
-    const creditCheck = {
-      sufficient: Number(user.organization.credit_balance) >= estimatedCost,
-      required: estimatedCost,
-      balance: Number(user.organization.credit_balance),
-    };
-
-    if (!creditCheck.sufficient) {
-      logger.warn("[OpenAI Proxy] Insufficient credits", {
+    let reservation: CreditReservation;
+    try {
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!!,
-        required: creditCheck.required,
-        balance: creditCheck.balance,
+        model,
+        provider,
+        estimatedInputTokens: estimateTokens(inputText),
+        estimatedOutputTokens: 500,
+        userId: user.id,
+        description: `Chat Completions: ${model}`,
       });
-
-      return Response.json(
-        {
-          error: {
-            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        logger.warn("[Chat Completions] Insufficient credits", {
+          organizationId: user.organization_id!!,
+          required: error.required,
+        });
+        return Response.json(
+          {
+            error: {
+              message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
+              type: "insufficient_quota",
+              code: "insufficient_balance",
+            },
           },
-        },
-        { status: 402 },
-      );
+          { status: 402 },
+        );
+      }
+      throw error;
     }
 
-    logger.info("[OpenAI Proxy] Chat completion request", {
+    logger.info("[Chat Completions] Request started", {
       organizationId: user.organization_id!!,
       userId: user.id,
       model,
-      normalizedModel,
       provider,
       streaming: isStreaming,
       messageCount: request.messages.length,
-      estimatedCost,
+      reservedAmount: reservation.reservedAmount,
     });
 
     // 5. Forward to Vercel AI Gateway
@@ -327,16 +375,25 @@ async function handlePOST(req: NextRequest) {
         startTime,
         request.messages,
         session_token,
+        origin,
+        ipAddress,
+        userAgent,
+        reservation,
       );
     } else {
-      return handleNonStreamingResponse(
-        providerResponse,
-        user,
-        apiKey ?? null,
-        normalizedModel,
-        provider,
-        startTime,
-        session_token,
+      return withCors(
+        await handleNonStreamingResponse(
+          providerResponse,
+          user,
+          apiKey ?? null,
+          normalizedModel,
+          provider,
+          startTime,
+          origin,
+          ipAddress,
+          userAgent,
+          reservation,
+        ),
       );
     }
   } catch (error) {
@@ -357,24 +414,28 @@ async function handlePOST(req: NextRequest) {
       const status = (error as { status: unknown }).status;
       if (typeof status === "number") {
         const gatewayError = error as GatewayError;
-        return Response.json(
-          { error: gatewayError.error },
-          { status: gatewayError.status },
+        return withCors(
+          Response.json(
+            { error: gatewayError.error },
+            { status: gatewayError.status },
+          ),
         );
       }
     }
 
     // Fallback to generic error
-    return Response.json(
-      {
-        error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
-          code: "internal_server_error",
+    return withCors(
+      Response.json(
+        {
+          error: {
+            message:
+              error instanceof Error ? error.message : "Internal server error",
+            type: "api_error",
+            code: "internal_server_error",
+          },
         },
-      },
-      { status: 500 },
+        { status: 500 },
+      ),
     );
   }
 }
@@ -387,7 +448,10 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
-  session_token?: string,
+  origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
+  reservation?: CreditReservation,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -396,8 +460,8 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Deduct credits SYNCHRONOUSLY before returning response
-  if (usage) {
+  // Reconcile credits: refund difference if actual < reserved
+  if (usage && reservation) {
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -405,37 +469,7 @@ async function handleNonStreamingResponse(
       usage.completion_tokens,
     );
 
-    // CRITICAL: Deduct credits before returning response
-    const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id!!,
-      amount: totalCost,
-      description: `OpenAI Proxy: ${model}`,
-      metadata: { user_id: user.id },
-      session_token,
-      tokens_consumed: usage.total_tokens,
-    });
-
-    if (!deductResult.success) {
-      // This should rarely happen since we checked credits before the call
-      // But it can happen if credits were spent elsewhere between check and now
-      logger.error("[OpenAI Proxy] Failed to deduct credits after completion", {
-        organizationId: user.organization_id!!,
-        cost: String(totalCost),
-        balance: deductResult.newBalance,
-      });
-
-      // Return error instead of giving free service
-      return Response.json(
-        {
-          error: {
-            message: "Credit deduction failed. Please contact support.",
-            type: "billing_error",
-            code: "credit_deduction_failed",
-          },
-        },
-        { status: 402 },
-      );
-    }
+    await reservation.reconcile(totalCost);
 
     // Background analytics (usage records, generation records)
     // These are not critical for billing, so can be async
@@ -478,6 +512,20 @@ async function handleNonStreamingResponse(
               totalTokens: usage.total_tokens,
             },
           });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens: usage.prompt_tokens,
+            outputTokens: usage.completion_tokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
+          });
         }
 
         logger.info("[OpenAI Proxy] Chat completion completed", {
@@ -506,7 +554,10 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
-  session_token?: string,
+  origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
+  reservation?: CreditReservation,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -629,29 +680,9 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await creditsService.deductCredits({
-          organizationId: user.organization_id!!,
-          amount: totalCost,
-          description: `OpenAI Proxy: ${model}`,
-          metadata: { user_id: user.id },
-          session_token,
-          tokens_consumed: totalTokens,
-        });
-
-        if (!deductResult.success) {
-          // CRITICAL: This should rarely happen since we checked credits before streaming
-          // But it can happen if credits were spent elsewhere between check and stream completion
-          logger.error(
-            "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
-            {
-              organizationId: user.organization_id!!,
-              userId: user.id,
-              cost: String(totalCost),
-              balance: deductResult.newBalance,
-            },
-          );
-          // Stream has already completed, so we can't return an error to the client
-          // This should trigger an alert for manual review
+        // Reconcile credits: refund difference if actual < reserved
+        if (reservation) {
+          await reservation.reconcile(totalCost);
         }
 
         const usageRecord = await usageService.create({
@@ -691,6 +722,20 @@ function handleStreamingResponse(
               totalTokens,
             },
           });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens,
+            outputTokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
+          });
         }
 
         logger.info("[OpenAI Proxy] Streaming chat completed", {
@@ -700,19 +745,37 @@ function handleStreamingResponse(
         });
       }
     } catch (error) {
-      logger.error("[OpenAI Proxy] Streaming error:", error);
+      logger.error("[Chat Completions] Streaming error:", error);
+
+      // Refund reserved credits if streaming failed (reconcile with 0 cost)
+      if (reservation) {
+        await reservation.reconcile(0);
+        logger.info(
+          "[Chat Completions] Refunded credits after streaming error",
+          {
+            organizationId: user.organization_id,
+            refundedAmount: reservation.reservedAmount,
+          },
+        );
+      }
+
       writer.abort();
     }
   })();
 
-  // Return streaming response immediately
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+  // Return streaming response immediately with CORS headers - fully open
+  const headers: Record<string, string> = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+    "Access-Control-Max-Age": "86400",
+  };
+
+  return new Response(readable, { headers });
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

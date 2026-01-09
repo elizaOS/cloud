@@ -274,21 +274,18 @@ export function UploadsTab({
   const displayCount = displayFiles.length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-1">Files</h3>
-        <p className="text-sm text-white/60">
-          Upload documents to give your agent context and information.
-        </p>
-      </div>
+      <p className="text-sm text-white/70">
+        Upload documents to give your agent context and information.
+      </p>
 
       {/* Upload Section */}
-      <div className="space-y-4">
+      <div>
         <div
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          className="relative border-2 border-dashed border-white/10 rounded-lg hover:border-white/20 transition-colors"
+          className="group relative border-2 border-dashed border-white/20 rounded-xl bg-white/5 hover:border-[#FF5800]/50 transition-all"
         >
           <Input
             id="uploads-tab-file-input"
@@ -310,26 +307,30 @@ export function UploadsTab({
                 document.getElementById("uploads-tab-file-input")?.click();
               }
             }}
-            className={`p-8 text-center cursor-pointer ${uploading ? "opacity-50" : ""}`}
+            className={`p-8 text-center cursor-pointer min-h-[140px] flex items-center justify-center ${uploading ? "opacity-50" : ""}`}
           >
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
-                <p className="text-sm text-white/80 font-medium">
-                  Uploading files...
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="p-3 rounded-full bg-white/5">
-                  <Upload className="h-6 w-6 text-white/60" />
+                <div className="p-3 rounded-xl bg-[#FF5800]/20">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
                 </div>
                 <div>
                   <p className="text-sm text-white/80 font-medium mb-1">
-                    Drop files here or{" "}
-                    <span className="text-[#FF5800]">browse</span>
+                    Uploading files...
                   </p>
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-white/50">Please wait</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 rounded-xl bg-white/5 group-hover:bg-[#FF5800]/20 transition-colors">
+                  <Upload className="h-6 w-6 text-neutral-500 group-hover:text-[#FF5800] transition-colors" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80 font-medium mb-1">
+                    Drop files here or browse
+                  </p>
+                  <p className="text-xs text-white/50">
                     PDF, TXT, MD, DOC, DOCX, JSON, XML, YAML, CSV
                   </p>
                 </div>
@@ -337,49 +338,44 @@ export function UploadsTab({
             )}
           </div>
         </div>
-
-        <p className="text-xs text-white/40 text-center">
-          Files upload automatically after selection
-        </p>
       </div>
 
       {/* Documents List */}
-      <div className="border-t border-white/10 pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm text-white/60">
-            {displayCount} {isPreUploadMode ? "file" : "document"}
-            {displayCount !== 1 ? "s" : ""}{" "}
-            {isPreUploadMode ? "ready to process" : "uploaded"}
-          </span>
-          {!isPreUploadMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={fetchDocuments}
-              disabled={loading}
-              className="text-white/50 hover:text-white hover:bg-white/5"
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-          )}
-        </div>
+      <div className="pt-6">
+        {(displayCount > 0 || !isPreUploadMode) && (
+          <div className="flex items-center justify-between mb-4">
+            {displayCount > 0 && (
+              <span className="text-sm font-medium text-white/70">
+                {displayCount} {isPreUploadMode ? "file" : "document"}
+                {displayCount !== 1 ? "s" : ""}{" "}
+                {isPreUploadMode ? "ready to process" : "uploaded"}
+              </span>
+            )}
+            {!isPreUploadMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchDocuments}
+                disabled={loading}
+                className="text-white/50 hover:text-white hover:bg-white/10 rounded-xl ml-auto"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-white/40" />
           </div>
         ) : displayCount === 0 ? (
-          <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
-            <FileText className="h-12 w-12 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40 mb-1">No files uploaded yet</p>
-            <p className="text-xs text-white/30">
-              {isPreUploadMode
-                ? "Upload files now - they'll be processed when you save the character"
-                : "Upload files to give your agent context"}
-            </p>
+          <div className="text-center py-8">
+            <FileText className="h-10 w-10 text-neutral-600 mx-auto mb-2" />
+            <p className="text-neutral-500 text-sm">No files uploaded yet</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -387,17 +383,17 @@ export function UploadsTab({
               ? preUploadedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl group hover:border-white/20 transition-colors"
                   >
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className="p-2 bg-white/5 rounded-lg">
-                        <FileText className="h-5 w-5 text-white/40" />
+                      <div className="p-2 bg-white/10 rounded-xl">
+                        <FileText className="h-5 w-5 text-white/50" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-white/90 truncate">
                           {file.filename}
                         </p>
-                        <p className="text-xs text-white/40">
+                        <p className="text-xs text-white/50">
                           {formatDistanceToNow(new Date(file.uploadedAt), {
                             addSuffix: true,
                           })}
@@ -408,7 +404,7 @@ export function UploadsTab({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeletePreUpload(file.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                      className="text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -417,17 +413,17 @@ export function UploadsTab({
               : documents.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl group hover:border-white/20 transition-colors"
                   >
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className="p-2 bg-white/5 rounded-lg">
-                        <FileText className="h-5 w-5 text-white/40" />
+                      <div className="p-2 bg-white/10 rounded-xl">
+                        <FileText className="h-5 w-5 text-white/50" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-white/90 truncate">
                           {getDocumentName(doc)}
                         </p>
-                        <p className="text-xs text-white/40">
+                        <p className="text-xs text-white/50">
                           {getDocumentAge(doc)}
                         </p>
                       </div>
@@ -436,7 +432,7 @@ export function UploadsTab({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(doc.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                      className="text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

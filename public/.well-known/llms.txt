@@ -51,6 +51,8 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/api/video
 - Voice & TTS — Text-to-speech and voice cloning on elizaOS Cloud.
   https://elizacloud.ai/docs/api/voice
+- App Domains — Configure custom domains for your multi-tenant applications on elizaOS Cloud. Add wildcard subdomains and bring your own custom domains.
+  https://elizacloud.ai/docs/app-domains
 - Apps — Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
   https://elizacloud.ai/docs/apps
 - Authentication — Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
@@ -105,5 +107,3 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/video-generation
 - Voice Cloning — Clone voices and generate speech with ElevenLabs integration on elizaOS Cloud.
   https://elizacloud.ai/docs/voice-cloning
-- x402 Payments — Pay for elizaOS Cloud services with cryptocurrency using the x402 protocol.
-  https://elizacloud.ai/docs/x402

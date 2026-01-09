@@ -146,10 +146,7 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
           if (typeof part === "object" && part !== null && "type" in part) {
             const typedPart = part as { type: string; text?: string };
             // Keep text blocks only if they have non-empty text
-            if (
-              typedPart.type === "text" ||
-              typedPart.type === "input_text"
-            ) {
+            if (typedPart.type === "text" || typedPart.type === "input_text") {
               const hasNonEmptyText =
                 typeof typedPart.text === "string" &&
                 typedPart.text.trim() !== "";
@@ -504,7 +501,10 @@ async function handlePOST(req: NextRequest) {
           const hasValidTextContent = msg.content.some((part) => {
             if (typeof part === "object" && part !== null && "type" in part) {
               const typedPart = part as { type: string; text?: string };
-              if (typedPart.type === "text" || typedPart.type === "input_text") {
+              if (
+                typedPart.type === "text" ||
+                typedPart.type === "input_text"
+              ) {
                 return (
                   typeof typedPart.text === "string" &&
                   typedPart.text.trim() !== ""
@@ -598,11 +598,12 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 5. Check credits BEFORE making API call (skip for anonymous users)
+    // 5. DEDUCT credits BEFORE making API call (prevents TOCTOU race condition)
+    // Skip for anonymous users - they use message limits instead
     const estimatedCost = await estimateRequestCost(model, request.messages);
     let org = null;
+    let reservedAmount = 0;
 
-    // Anonymous users don't have organizations - they use message limits instead
     if (isAnonymous) {
       logger.info("[Responses API] Anonymous user - skipping credit check", {
         userId: user.id,
@@ -623,38 +624,30 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      // Check if organization has sufficient credits
-      org = await organizationsService.getById(user.organization_id);
-      if (!org) {
-        return Response.json(
-          {
-            error: {
-              message: "Organization not found",
-              type: "invalid_request_error",
-              code: "organization_not_found",
-            },
-          },
-          { status: 404 },
-        );
-      }
+      // Add 50% buffer to estimated cost to account for longer responses
+      const COST_BUFFER = 1.5;
+      reservedAmount = estimatedCost * COST_BUFFER;
 
-      const creditCheck = {
-        sufficient: Number(org.credit_balance) >= estimatedCost,
-        required: estimatedCost,
-        balance: Number(org.credit_balance),
-      };
+      // Atomically deduct credits BEFORE calling the API
+      // This prevents race conditions where multiple requests pass the check
+      const reservationResult = await creditsService.reserveAndDeductCredits({
+        organizationId: user.organization_id,
+        amount: reservedAmount,
+        description: `Responses API (reserved): ${model}`,
+        metadata: { user_id: user.id, type: "reservation", estimated: true },
+      });
 
-      if (!creditCheck.sufficient) {
+      if (!reservationResult.success) {
         logger.warn("[Responses API] Insufficient credits", {
           organizationId: user.organization_id,
-          required: creditCheck.required,
-          balance: creditCheck.balance,
+          required: reservedAmount,
+          reason: reservationResult.reason,
         });
 
         return Response.json(
           {
             error: {
-              message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
+              message: `Insufficient balance. Required: $${reservedAmount.toFixed(2)}`,
               type: "insufficient_quota",
               code: "insufficient_balance",
             },
@@ -662,7 +655,7 @@ async function handlePOST(req: NextRequest) {
           { status: 402 },
         );
       }
-    } // End of non-anonymous credit check block
+    } // End of non-anonymous credit deduction block
 
     // Log for anonymous users
     if (isAnonymous) {
@@ -700,6 +693,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
+        reservedAmount,
       );
     } else {
       return handleNonStreamingResponse(
@@ -709,6 +703,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        reservedAmount,
       );
     }
   } catch (error) {
@@ -778,6 +773,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  reservedAmount?: number,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -786,8 +782,8 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Deduct credits SYNCHRONOUSLY before returning response (skip for anonymous users)
-  if (usage && user.organization_id) {
+  // Reconcile credits: refund difference if actual < reserved
+  if (usage && user.organization_id && reservedAmount) {
     const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
@@ -796,35 +792,13 @@ async function handleNonStreamingResponse(
       usage.completion_tokens,
     );
 
-    // CRITICAL: Deduct credits before returning response
-    const deductResult = await creditsService.deductCredits({
+    await creditsService.reconcile({
       organizationId,
-      amount: totalCost,
+      reservedAmount,
+      actualCost: totalCost,
       description: `Responses API: ${model}`,
       metadata: { user_id: user.id },
     });
-
-    if (!deductResult.success) {
-      logger.error(
-        "[Responses API] Failed to deduct credits after completion",
-        {
-          organizationId,
-          cost: String(totalCost),
-          balance: deductResult.newBalance,
-        },
-      );
-
-      return Response.json(
-        {
-          error: {
-            message: "Credit deduction failed. Please contact support.",
-            type: "billing_error",
-            code: "credit_deduction_failed",
-          },
-        },
-        { status: 402 },
-      );
-    }
 
     // Background analytics (usage records, generation records)
     (async () => {
@@ -896,6 +870,7 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
+  reservedAmount?: number,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -1145,26 +1120,15 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        // Only deduct credits and record usage for authenticated users with organizations
-        if (user.organization_id) {
-          const deductResult = await creditsService.deductCredits({
+        // Reconcile credits: refund difference if actual < reserved
+        if (user.organization_id && reservedAmount) {
+          await creditsService.reconcile({
             organizationId: user.organization_id,
-            amount: totalCost,
+            reservedAmount,
+            actualCost: totalCost,
             description: `Responses API: ${model}`,
             metadata: { user_id: user.id },
           });
-
-          if (!deductResult.success) {
-            logger.error(
-              "[Responses API] CRITICAL: Failed to deduct credits after streaming",
-              {
-                organizationId: user.organization_id,
-                userId: user.id,
-                cost: String(totalCost),
-                balance: deductResult.newBalance,
-              },
-            );
-          }
 
           const usageRecord = await usageService.create({
             organization_id: user.organization_id,

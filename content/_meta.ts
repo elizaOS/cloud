@@ -77,6 +77,9 @@ export default {
   apps: {
     title: "Apps",
   },
+  "app-domains": {
+    title: "App Domains",
+  },
   containers: {
     title: "Containers",
   },
@@ -124,9 +127,6 @@ export default {
   },
   mcp: {
     title: "MCP Protocol",
-  },
-  x402: {
-    title: "x402 Payments",
   },
 
   // ─────────────────────────────────────────────────────────────────────

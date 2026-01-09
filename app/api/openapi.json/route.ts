@@ -8,14 +8,6 @@
  */
 
 import { NextResponse } from "next/server";
-import {
-  X402_ENABLED,
-  isX402Configured,
-  getDefaultNetwork,
-  USDC_ADDRESSES,
-  TOPUP_PRICE,
-  CREDITS_PER_DOLLAR,
-} from "@/lib/config/x402";
 import { discoverApiV1Routes } from "@/lib/docs/api-route-discovery";
 
 type OpenApiPathItem = Record<
@@ -51,7 +43,6 @@ function tagForPath(routePath: string) {
 
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-  const network = getDefaultNetwork();
 
   const discovered = await discoverApiV1Routes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};
@@ -85,7 +76,7 @@ export async function GET() {
       title: "Eliza Cloud API",
       version: "1.0.0",
       description:
-        "AI agent infrastructure API. Supports REST, MCP, and A2A protocols with x402 or API key authentication.",
+        "AI agent infrastructure API. Supports REST, MCP, and A2A protocols with API key authentication.",
       contact: {
         name: "Eliza Cloud",
         url: "https://elizacloud.ai",
@@ -101,11 +92,7 @@ export async function GET() {
         description: "Production server",
       },
     ],
-    security: [
-      { bearerAuth: [] },
-      { apiKeyAuth: [] },
-      ...(X402_ENABLED && isX402Configured() ? [{ x402: [] }] : []),
-    ],
+    security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
     paths: {
       ...discoveredPaths,
     },
@@ -122,16 +109,6 @@ export async function GET() {
           name: "X-API-Key",
           description: "API Key for programmatic access",
         },
-        ...(X402_ENABLED && isX402Configured()
-          ? {
-              x402: {
-                type: "apiKey",
-                in: "header",
-                name: "X-PAYMENT",
-                description: `x402 payment header. Network: ${network}, Asset: USDC (${USDC_ADDRESSES[network]}), Min: ${TOPUP_PRICE}`,
-              },
-            }
-          : {}),
       },
     },
     tags: [],

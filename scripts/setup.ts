@@ -5,20 +5,17 @@
  * Handles complete development environment setup with minimal configuration:
  * 1. Checks and creates .env.local with defaults
  * 2. Validates database connection
- * 3. Sets up ERC-8004 and x402 configuration
- * 4. Optionally registers agent on-chain
+ * 3. Sets up x402 configuration
  *
  * Usage:
  *   bun run setup              # Full setup
- *   bun run setup --onchain    # Register agent on-chain
  *   bun run setup --check      # Just validate current config
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { createPublicClient, http, formatUnits } from "viem";
 import { baseSepolia, base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import erc8004Config from "@/config/erc8004.json";
 
 const ENV_FILE = ".env.local";
 const EXAMPLE_ENV = "example.env.local";
@@ -76,12 +73,6 @@ interface ConfigStatus {
   database: { configured: boolean; connected?: boolean; error?: string };
   auth: { configured: boolean; provider: string };
   payments: { stripe: boolean; x402: boolean };
-  erc8004: {
-    configured: boolean;
-    network: string;
-    registered: boolean;
-    agentId?: number;
-  };
   wallet: { configured: boolean; address?: string; balance?: string };
 }
 
@@ -92,14 +83,12 @@ async function checkConfiguration(
     database: { configured: false },
     auth: { configured: false, provider: "privy" },
     payments: { stripe: false, x402: false },
-    erc8004: { configured: false, network: "base-sepolia", registered: false },
     wallet: { configured: false },
   };
 
   // Database
   if (env.DATABASE_URL) {
     status.database.configured = true;
-    // Don't actually connect during setup check
   }
 
   // Auth (Privy)
@@ -117,46 +106,28 @@ async function checkConfiguration(
     status.payments.x402 = true;
   }
 
-  // ERC-8004
-  const network = (env.ERC8004_NETWORK ||
-    "base-sepolia") as keyof typeof erc8004Config.networks;
-  const networkConfig = erc8004Config.networks[network];
-
-  if (networkConfig?.contracts?.identity) {
-    status.erc8004.configured = true;
-    status.erc8004.network = network;
-
-    const envKey =
-      network === "base-sepolia"
-        ? "ELIZA_CLOUD_AGENT_ID_SEPOLIA"
-        : "ELIZA_CLOUD_AGENT_ID_BASE";
-
-    const agentId =
-      env[envKey] ||
-      (networkConfig.agentId ? String(networkConfig.agentId) : null);
-    if (agentId) {
-      status.erc8004.registered = true;
-      status.erc8004.agentId = parseInt(agentId, 10);
-    }
-  }
-
   // Wallet
-  const privateKey = env.AGENT0_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY;
+  const privateKey = env.DEPLOYER_PRIVATE_KEY;
   if (privateKey) {
     status.wallet.configured = true;
     const account = privateKeyToAccount(privateKey as `0x${string}`);
     status.wallet.address = account.address;
 
     // Check balance
+    const network = env.X402_NETWORK || "base-sepolia";
     const chain = network === "base" ? base : baseSepolia;
     const rpcUrl =
       network === "base"
         ? "https://mainnet.base.org"
         : "https://sepolia.base.org";
 
-    const client = createPublicClient({ chain, transport: http(rpcUrl) });
-    const balance = await client.getBalance({ address: account.address });
-    status.wallet.balance = formatUnits(balance, 18);
+    try {
+      const client = createPublicClient({ chain, transport: http(rpcUrl) });
+      const balance = await client.getBalance({ address: account.address });
+      status.wallet.balance = formatUnits(balance, 18);
+    } catch {
+      status.wallet.balance = "unknown";
+    }
   }
 
   return status;
@@ -192,22 +163,12 @@ function displayStatus(status: ConfigStatus): void {
     `${x402Icon} x402 Crypto: ${status.payments.x402 ? "Enabled" : "Disabled"}`,
   );
 
-  // ERC-8004
-  const erc8004Icon = status.erc8004.configured ? "✅" : "⬜";
-  console.log(
-    `${erc8004Icon} ERC-8004 (${status.erc8004.network}): ${status.erc8004.configured ? "Configured" : "Optional"}`,
-  );
-
-  if (status.erc8004.registered) {
-    console.log(`   └── Agent ID: ${status.erc8004.agentId}`);
-  }
-
   // Wallet
   if (status.wallet.configured) {
     console.log(`✅ Wallet: ${status.wallet.address?.slice(0, 10)}...`);
     console.log(`   └── Balance: ${status.wallet.balance} ETH`);
   } else {
-    console.log(`⬜ Wallet: Not configured (needed for on-chain registration)`);
+    console.log(`⬜ Wallet: Not configured (needed for deployments)`);
   }
 }
 
@@ -221,7 +182,6 @@ async function setupDefaults(env: Record<string, string>): Promise<void> {
   const defaults: Record<string, string> = {
     NEXT_PUBLIC_APP_URL: "http://localhost:3000",
     NEXT_PUBLIC_API_URL: "http://localhost:3000",
-    ERC8004_NETWORK: "base-sepolia",
     X402_NETWORK: "base-sepolia",
     CACHE_ENABLED: "true",
     NEXT_PUBLIC_CREDITS_SSE_ENABLED: "true",
@@ -269,7 +229,6 @@ async function main() {
 
   const args = process.argv.slice(2);
   const checkOnly = args.includes("--check");
-  const onchain = args.includes("--onchain");
 
   // Step 1: Ensure .env.local exists
   console.log("\n📁 Environment File");
@@ -290,28 +249,6 @@ async function main() {
   // Step 4: Show what's missing
   await promptForMissing(env);
 
-  // Step 5: On-chain registration
-  if (onchain) {
-    console.log("\n🔗 On-Chain Registration");
-    console.log("=========================");
-
-    if (!status.wallet.configured) {
-      console.log("   ❌ Wallet not configured");
-      console.log("   Add AGENT0_PRIVATE_KEY to .env.local first");
-    } else if (status.erc8004.registered) {
-      console.log(
-        `   ✅ Already registered as Agent ID ${status.erc8004.agentId}`,
-      );
-    } else {
-      console.log("   Running registration script...");
-      const { spawn } = await import("child_process");
-      const child = spawn("bun", ["run", "erc8004:register"], {
-        stdio: "inherit",
-      });
-      await new Promise((resolve) => child.on("close", resolve));
-    }
-  }
-
   // Summary
   console.log("\n🚀 Next Steps");
   console.log("==============");
@@ -323,9 +260,6 @@ async function main() {
     console.log("   1. Add required configuration to .env.local");
     console.log("   2. Run: bun run setup --check");
     console.log("   3. Run: bun run dev");
-  } else if (!status.erc8004.registered && status.wallet.configured) {
-    console.log("   1. Run: bun run setup --onchain   # Register on ERC-8004");
-    console.log("   2. Run: bun run dev");
   } else {
     console.log("   ✅ Ready! Run: bun run dev");
   }

@@ -3,8 +3,6 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
 import { userMcpsService } from "@/lib/services/user-mcps";
-import { agent0Service } from "@/lib/services/agent0";
-import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +42,6 @@ const queryParamsSchema = z.object({
     .max(100)
     .optional()
     .describe("Search term for filtering by name or description"),
-  includeExternal: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe("Include external ERC-8004 registered MCPs"),
 });
 
 /**
@@ -98,9 +91,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Real-time cryptocurrency price data from major exchanges. Get current prices, 24h changes, market cap, and volume for thousands of cryptocurrencies.",
     category: "finance",
-    endpoint: "/api/mcp/demos/crypto/sse",
+    endpoint: "/api/mcps/crypto/sse",
     type: "streamable-http",
-    version: "1.0.0",
+    version: "2.0.0",
     status: "live",
     icon: "coins",
     color: "#F7931A",
@@ -116,7 +109,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "crypto-prices": {
           type: "sse",
-          url: "/api/mcp/demos/crypto/sse",
+          url: "/api/mcps/crypto/sse",
         },
       },
     },
@@ -127,9 +120,9 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Get current time, convert between timezones, and perform date calculations. Perfect for scheduling and time-aware agents.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/time/sse",
+    endpoint: "/api/mcps/time/sse",
     type: "streamable-http",
-    version: "1.0.0",
+    version: "2.0.0",
     status: "live",
     icon: "clock",
     color: "#6366F1",
@@ -151,7 +144,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "time-server": {
           type: "sse",
-          url: "/api/mcp/demos/time/sse",
+          url: "/api/mcps/time/sse",
         },
       },
     },
@@ -162,25 +155,30 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/weather/sse",
+    endpoint: "/api/mcps/weather/sse",
     type: "streamable-http",
-    version: "1.0.0",
-    status: "coming_soon",
+    version: "2.0.0",
+    status: "live",
     icon: "cloud",
     color: "#3B82F6",
-    toolCount: 2,
-    features: ["current_weather", "forecast"],
+    toolCount: 4,
+    features: [
+      "get_current_weather",
+      "get_weather_forecast",
+      "compare_weather",
+      "search_location",
+    ],
     pricing: {
       type: "credits",
-      description: "0.001 credits per request",
-      pricePerRequest: "0.001",
+      description: "1-2 credits per request",
+      pricePerRequest: "1-2",
     },
     x402Enabled: false,
     configTemplate: {
       servers: {
         weather: {
           type: "sse",
-          url: "/api/mcp/demos/weather/sse",
+          url: "/api/mcps/weather/sse",
         },
       },
     },
@@ -227,7 +225,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Search the web and retrieve information from websites. Powered by multiple search providers for comprehensive results.",
     category: "search",
-    endpoint: "/api/mcp/demos/search/sse",
+    endpoint: "/api/mcps/search/sse",
     type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
@@ -245,7 +243,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "web-search": {
           type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/demos/search/sse",
+          url: "${BASE_URL}/api/mcps/search/sse",
         },
       },
     },
@@ -288,8 +286,6 @@ export async function GET(request: NextRequest) {
         ? parseInt(request.nextUrl.searchParams.get("limit")!, 10)
         : 100,
       search: request.nextUrl.searchParams.get("search") || undefined,
-      includeExternal:
-        request.nextUrl.searchParams.get("includeExternal") === "true",
     };
 
     // Validate query parameters with Zod schema
@@ -309,8 +305,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { category, status, limit, search, includeExternal } =
-      validationResult.data;
+    const { category, status, limit, search } = validationResult.data;
 
     // Process built-in registry entries
     const builtInRegistry = MCP_REGISTRY.map((entry) => ({
@@ -354,71 +349,8 @@ export async function GET(request: NextRequest) {
       console.warn("[MCP Registry] Failed to load user MCPs:", error);
     }
 
-    // Fetch external ERC-8004 registered MCPs if requested
-    let externalMcpRegistry: typeof builtInRegistry = [];
-    if (includeExternal) {
-      try {
-        const network = getDefaultNetwork();
-        const chainId = CHAIN_IDS[network];
-
-        // Search for services with MCP endpoints
-        const externalAgents = await agent0Service.searchAgentsCached({
-          name: search,
-          active: true,
-        });
-
-        // Filter to only include agents with MCP endpoints
-        const mcpAgents = externalAgents.filter((agent) => agent.mcpEndpoint);
-
-        externalMcpRegistry = mcpAgents.map((agent) => ({
-          id: `erc8004-${agent.agentId}`,
-          name: agent.name,
-          description: agent.description || "External MCP service",
-          category: "external",
-          endpoint: agent.mcpEndpoint!,
-          type: "streamable-http" as const,
-          version: "1.0.0",
-          status: "live" as const,
-          icon: "globe",
-          color: "#8B5CF6",
-          toolCount: agent.mcpTools?.length || 0,
-          features: agent.mcpTools || [],
-          pricing: {
-            type: agent.x402Support ? ("x402" as const) : ("free" as const),
-            description: agent.x402Support
-              ? "Pay-per-request via x402"
-              : "Free to use",
-          },
-          x402Enabled: agent.x402Support,
-          source: "erc8004" as const,
-          fullEndpoint: agent.mcpEndpoint!,
-          configTemplate: {
-            servers: {
-              [agent.agentId.replace(":", "-")]: {
-                type: "streamable-http" as const,
-                url: agent.mcpEndpoint!,
-              },
-            },
-          },
-          // ERC-8004 specific metadata
-          erc8004: {
-            agentId: agent.agentId,
-            network,
-            chainId,
-            walletAddress: agent.walletAddress,
-          },
-        }));
-      } catch (error) {
-        console.warn("[MCP Registry] Failed to load ERC-8004 MCPs:", error);
-      }
-    }
-
     // Combine registries
-    const registry = [
-      ...builtInRegistry,
-      ...userMcpRegistry,
-      ...externalMcpRegistry,
-    ];
+    const registry = [...builtInRegistry, ...userMcpRegistry];
 
     let filteredRegistry = registry;
 
@@ -460,13 +392,11 @@ export async function GET(request: NextRequest) {
       totalInRegistry: registry.length,
       platformMcps: builtInRegistry.length,
       communityMcps: userMcpRegistry.length,
-      externalMcps: externalMcpRegistry.length,
       appliedFilters: {
         category: category !== "all" ? category : null,
         status: status !== "all" ? status : null,
         search: search || null,
         limit,
-        includeExternal,
       },
       isAuthenticated,
     });

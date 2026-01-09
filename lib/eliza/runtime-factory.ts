@@ -20,6 +20,7 @@ import {
   getDefaultModels,
   buildElevenLabsSettings,
 } from "./config";
+import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
@@ -43,6 +44,7 @@ interface RuntimeSettings {
   IS_ANONYMOUS?: boolean;
   ELIZAOS_CLOUD_SMALL_MODEL?: string;
   ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL?: string;
   appPromptConfig?: unknown;
   [key: string]: unknown;
 }
@@ -57,22 +59,32 @@ interface CachedRuntime {
   characterName: string;
 }
 
+const safeClose = async (
+  closeable: { close(): Promise<void> },
+  label: string,
+  id: string,
+): Promise<void> => {
+  await closeable
+    .close()
+    .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
+};
+
 class RuntimeCache {
   private cache = new Map<string, CachedRuntime>();
   private readonly MAX_SIZE = 50; // Max cached runtimes
   private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
-  get(agentId: string): AgentRuntime | null {
+  async get(agentId: string): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
 
     const now = Date.now();
-    // Check if expired
     if (
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -90,23 +102,21 @@ class RuntimeCache {
     if (!entry) return null;
 
     const now = Date.now();
-    // Check if expired by time
     if (
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
     }
 
-    // Check if DB connection is still alive via the adapter pool
     const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
     if (!isHealthy) {
-      elizaLogger.warn(
-        `[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`,
-      );
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
+      elizaLogger.debug(`[RuntimeCache] Evicted unhealthy runtime: ${agentId}`);
       return null;
     }
 
@@ -114,39 +124,46 @@ class RuntimeCache {
     return entry.runtime;
   }
 
-  set(agentId: string, runtime: AgentRuntime, characterName: string): void {
+  async set(
+    cacheKey: string,
+    runtime: AgentRuntime,
+    characterName: string,
+    actualAgentId: UUID,
+  ): Promise<void> {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_SIZE) {
-      this.evictOldest();
+      await this.evictOldest();
     }
 
     const now = Date.now();
-    this.cache.set(agentId, {
+    this.cache.set(cacheKey, {
       runtime,
       lastUsed: now,
       createdAt: now,
-      agentId: agentId as UUID,
+      agentId: actualAgentId,
       characterName,
     });
     elizaLogger.debug(
-      `[RuntimeCache] Cached runtime: ${characterName} (${agentId})`,
+      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey})`,
     );
   }
 
-  delete(agentId: string): boolean {
-    const existed = this.cache.has(agentId);
-    if (existed) {
+  async delete(agentId: string): Promise<boolean> {
+    const entry = this.cache.get(agentId);
+    if (entry) {
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
+      return true;
     }
-    return existed;
+    return false;
   }
 
   has(agentId: string): boolean {
     return this.cache.has(agentId);
   }
 
-  private evictOldest(): void {
+  private async evictOldest(): Promise<void> {
     let oldest: { key: string; lastUsed: number } | null = null;
     for (const [key, entry] of this.cache.entries()) {
       if (!oldest || entry.lastUsed < oldest.lastUsed) {
@@ -154,8 +171,11 @@ class RuntimeCache {
       }
     }
     if (oldest) {
+      const entry = this.cache.get(oldest.key);
+      if (entry) {
+        await safeClose(entry.runtime, "RuntimeCache", oldest.key);
+      }
       this.cache.delete(oldest.key);
-      elizaLogger.debug(`[RuntimeCache] Evicted oldest runtime: ${oldest.key}`);
     }
   }
 
@@ -163,9 +183,13 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
+    await Promise.all(
+      Array.from(this.cache.entries()).map(([id, entry]) =>
+        safeClose(entry.runtime, "RuntimeCache", id),
+      ),
+    );
     this.cache.clear();
-    elizaLogger.info("[RuntimeCache] Cleared all cached runtimes");
   }
 }
 
@@ -186,11 +210,12 @@ class DbAdapterPool {
         return existingAdapter;
       }
 
+      await safeClose(existingAdapter, "DbAdapterPool", key);
+      this.adapters.delete(key);
+      adapterEmbeddingDimensions.delete(key);
       elizaLogger.warn(
         `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
       );
-      this.adapters.delete(key);
-      adapterEmbeddingDimensions.delete(key);
     }
 
     if (this.initPromises.has(key)) {
@@ -236,7 +261,7 @@ class DbAdapterPool {
     if (!adapter) return true;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
-    if (!isHealthy) this.invalidateAdapter(key);
+    if (!isHealthy) await this.invalidateAdapter(key);
     return isHealthy;
   }
 
@@ -278,10 +303,13 @@ class DbAdapterPool {
     return adapter;
   }
 
-  invalidateAdapter(agentId: string): void {
+  async invalidateAdapter(agentId: string): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (adapter) {
+      await safeClose(adapter, "DbAdapterPool", agentId);
+    }
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
-    elizaLogger.debug(`[DbAdapterPool] Invalidated adapter for ${agentId}`);
   }
 }
 
@@ -311,16 +339,16 @@ export class RuntimeFactory {
     return { runtime: runtimeCache.getStats() };
   }
 
-  clearCaches(): void {
-    runtimeCache.clear();
+  async clearCaches(): Promise<void> {
+    await runtimeCache.clear();
   }
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
-    const wasInMemoryBase = runtimeCache.delete(agentId);
-    const wasInMemoryWs = runtimeCache.delete(`${agentId}:ws`);
+    const wasInMemoryBase = await runtimeCache.delete(agentId);
+    const wasInMemoryWs = await runtimeCache.delete(`${agentId}:ws`);
     const wasInMemory = wasInMemoryBase || wasInMemoryWs;
 
-    dbAdapterPool.invalidateAdapter(agentId);
+    await dbAdapterPool.invalidateAdapter(agentId);
 
     try {
       await edgeRuntimeCache.invalidateCharacter(agentId);
@@ -423,7 +451,7 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    runtimeCache.set(cacheKey, runtime, character.name);
+    await runtimeCache.set(cacheKey, runtime, character.name, agentId);
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
@@ -456,6 +484,10 @@ export class RuntimeFactory {
       settings.ELIZAOS_CLOUD_LARGE_MODEL =
         context.modelPreferences.largeModel ||
         settings.ELIZAOS_CLOUD_LARGE_MODEL;
+    }
+
+    if (context.imageModel) {
+      settings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
     }
 
     if (context.appPromptConfig) {
@@ -509,6 +541,12 @@ export class RuntimeFactory {
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+      ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
+        context.imageModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
+          DEFAULT_IMAGE_MODEL.modelId,
+        ),
       ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {

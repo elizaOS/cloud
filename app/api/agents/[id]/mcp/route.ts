@@ -9,7 +9,6 @@
  *
  * Supports:
  * - API key authentication (uses org credits)
- * - x402 payment (permissionless, pay-per-request)
  *
  * When monetization is enabled, the agent creator earns their markup percentage.
  */
@@ -17,16 +16,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
   calculateCost,
   getProviderFromModel,
-  estimateRequestCost,
+  estimateTokens,
 } from "@/lib/pricing";
-import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
 
@@ -39,7 +41,7 @@ export const maxDuration = 60;
 const MCPRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
   method: z.string(),
-  params: z.record(z.unknown()).optional(),
+  params: z.record(z.string(), z.unknown()).optional(),
   id: z.union([z.string(), z.number()]),
 });
 
@@ -183,46 +185,11 @@ export async function POST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  // NOTE: This endpoint uses credit-based auth. For x402 payments, clients should:
-  // 1. Top up credits via /api/v1/credits/topup (x402 enabled)
-  // 2. Then use their API key or session here
   const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
     () => null,
   );
 
   if (!authResult) {
-    // Return 402 with x402 topup info if enabled
-    if (X402_ENABLED && isX402Configured()) {
-      const {
-        getDefaultNetwork,
-        X402_RECIPIENT_ADDRESS,
-        USDC_ADDRESSES,
-        TOPUP_PRICE,
-        CREDITS_PER_DOLLAR,
-      } = await import("@/lib/config/x402");
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          error: {
-            code: -32002,
-            message:
-              "Authentication required. Top up credits via x402 at /api/v1/credits/topup",
-            data: {
-              x402: {
-                topupEndpoint: "/api/v1/credits/topup",
-                network: getDefaultNetwork(),
-                asset: USDC_ADDRESSES[getDefaultNetwork()],
-                payTo: X402_RECIPIENT_ADDRESS,
-                minimumTopup: TOPUP_PRICE,
-                creditsPerDollar: CREDITS_PER_DOLLAR,
-              },
-            },
-          },
-          id: rpcId,
-        },
-        { status: 402 },
-      );
-    }
     return NextResponse.json(
       {
         jsonrpc: "2.0",
@@ -232,8 +199,6 @@ export async function POST(
       { status: 401 },
     );
   }
-
-  const paymentMethod = "credits" as const;
 
   // Handle MCP methods
   switch (method) {
@@ -284,13 +249,7 @@ export async function POST(
       });
 
     case "tools/call":
-      return handleToolCall(
-        character,
-        params ?? {},
-        rpcId,
-        authResult,
-        paymentMethod,
-      );
+      return handleToolCall(character, params ?? {}, rpcId, authResult);
 
     case "ping":
       return NextResponse.json({
@@ -327,8 +286,7 @@ async function handleToolCall(
   },
   params: Record<string, unknown>,
   rpcId: string | number,
-  authResult: { user: { id: string; organization_id: string } } | null,
-  paymentMethod: "credits" | "x402",
+  authResult: { user: { id: string; organization_id: string } },
 ) {
   const { name, arguments: args } = params as {
     name: string;
@@ -373,7 +331,6 @@ async function handleToolCall(
       });
     }
 
-    // Build system prompt
     const bioText = Array.isArray(character.bio)
       ? character.bio.join("\n")
       : character.bio;
@@ -385,132 +342,124 @@ async function handleToolCall(
       { role: "user" as const, content: message },
     ];
 
-    // Calculate costs
     const provider = getProviderFromModel(model);
-    const baseCost = await estimateRequestCost(model, messages);
     const markupPct = Number(character.inference_markup_percentage || 0);
-    const creatorMarkup = character.monetization_enabled
-      ? baseCost * (markupPct / 100)
-      : 0;
-    const totalCost = baseCost + creatorMarkup;
 
-    // Deduct credits
-    if (paymentMethod === "credits" && authResult) {
-      const deductResult = await creditsService.deductCredits({
+    // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
+    let reservation: CreditReservation;
+    try {
+      reservation = await creditsService.reserve({
         organizationId: authResult.user.organization_id,
-        amount: totalCost,
+        model,
+        provider,
+        estimatedInputTokens: estimateTokens(systemPrompt + message),
+        estimatedOutputTokens: 500,
+        userId: authResult.user.id,
         description: `Agent MCP: ${character.name}`,
-        metadata: {
-          agent_id: character.id,
-          tool: "chat",
-          base_cost: baseCost,
-          creator_markup: creatorMarkup,
-        },
       });
-
-      if (!deductResult.success) {
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
         return NextResponse.json({
           jsonrpc: "2.0",
           error: {
             code: -32003,
-            message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
+            message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
           },
           id: rpcId,
         });
       }
+      throw error;
     }
 
-    // Generate response
-    const result = await streamText({
-      model: gateway.languageModel(model),
-      messages,
-    });
-
-    let fullText = "";
-    for await (const delta of result.textStream) {
-      fullText += delta;
-    }
-
-    const usage = await result.usage;
-
-    // Calculate actual costs
-    const { totalCost: actualBaseCost } = await calculateCost(
-      model,
-      provider,
-      usage?.inputTokens || 0,
-      usage?.outputTokens || 0,
-    );
-    const actualCreatorMarkup = character.monetization_enabled
-      ? actualBaseCost * (markupPct / 100)
-      : 0;
-
-    // Credit the creator
-    // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
-    if (character.monetization_enabled && actualCreatorMarkup > 0) {
-      await agentMonetizationService.recordCreatorEarnings({
-        agentId: character.id,
-        agentName: character.name,
-        ownerId: character.user_id,
-        ownerOrgId: character.organization_id,
-        earnings: actualCreatorMarkup,
-        consumerOrgId: authResult?.user.organization_id,
-        model,
-        tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
-        protocol: "mcp",
+    try {
+      const result = await streamText({
+        model: gateway.languageModel(model),
+        messages,
       });
 
-      logger.info(
-        "[Agent MCP] Creator earnings credited to redeemable balance",
-        {
-          agentId: character.id,
-          ownerId: character.user_id,
-          earnings: actualCreatorMarkup,
-        },
-      );
-    }
-
-    // Handle cost difference (refund or charge extra)
-    const actualTotal = actualBaseCost + actualCreatorMarkup;
-    if (paymentMethod === "credits" && authResult) {
-      const diff = actualTotal - totalCost;
-      if (diff < 0) {
-        await creditsService.refundCredits({
-          organizationId: authResult.user.organization_id,
-          amount: -diff,
-          description: `Agent MCP refund: ${character.name}`,
-        });
-      } else if (diff > 0) {
-        await creditsService.deductCredits({
-          organizationId: authResult.user.organization_id,
-          amount: diff,
-          description: `Agent MCP additional: ${character.name}`,
-        });
+      let fullText = "";
+      for await (const delta of result.textStream) {
+        fullText += delta;
       }
-    }
 
-    return NextResponse.json({
-      jsonrpc: "2.0",
-      result: {
-        content: [
+      const usage = await result.usage;
+
+      const { totalCost: actualBaseCost } = await calculateCost(
+        model,
+        provider,
+        usage?.inputTokens || 0,
+        usage?.outputTokens || 0,
+      );
+      const actualCreatorMarkup = character.monetization_enabled
+        ? actualBaseCost * (markupPct / 100)
+        : 0;
+      const actualTotal = actualBaseCost + actualCreatorMarkup;
+
+      if (character.monetization_enabled && actualCreatorMarkup > 0) {
+        await agentMonetizationService.recordCreatorEarnings({
+          agentId: character.id,
+          agentName: character.name,
+          ownerId: character.user_id,
+          ownerOrgId: character.organization_id,
+          earnings: actualCreatorMarkup,
+          consumerOrgId: authResult.user.organization_id,
+          model,
+          tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
+          protocol: "mcp",
+        });
+
+        logger.info(
+          "[Agent MCP] Creator earnings credited to redeemable balance",
           {
-            type: "text",
-            text: fullText,
+            agentId: character.id,
+            ownerId: character.user_id,
+            earnings: actualCreatorMarkup,
           },
-        ],
-        _meta: {
-          cost: {
-            base: actualBaseCost,
-            markup: actualCreatorMarkup,
-            total: actualBaseCost + actualCreatorMarkup,
-          },
-          usage: {
-            inputTokens: usage?.inputTokens || 0,
-            outputTokens: usage?.outputTokens || 0,
+        );
+      }
+
+      // Reconcile with actual cost (handles refund or overage)
+      await reservation.reconcile(actualTotal);
+
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: fullText,
+            },
+          ],
+          _meta: {
+            cost: {
+              base: actualBaseCost,
+              markup: actualCreatorMarkup,
+              total: actualTotal,
+            },
+            usage: {
+              inputTokens: usage?.inputTokens || 0,
+              outputTokens: usage?.outputTokens || 0,
+            },
           },
         },
-      },
-      id: rpcId,
-    });
+        id: rpcId,
+      });
+    } catch (error) {
+      // Refund reserved credits on failure
+      await reservation.reconcile(0);
+      logger.error("[Agent MCP] Error generating response", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        agentId: character.id,
+      });
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: error instanceof Error ? error.message : "Internal error",
+        },
+        id: rpcId,
+      });
+    }
   }
 
   return NextResponse.json({
@@ -530,7 +479,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
     },
   });
 }

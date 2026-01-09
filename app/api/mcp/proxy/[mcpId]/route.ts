@@ -24,12 +24,9 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
-import {
-  X402_ENABLED,
-  isX402Configured,
-  CREDITS_PER_DOLLAR,
-} from "@/lib/config/x402";
 import { logger } from "@/lib/utils/logger";
+
+const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -93,31 +90,6 @@ export async function POST(
   );
 
   if (!authResult) {
-    // Return 402 with x402 topup info if enabled
-    if (X402_ENABLED && isX402Configured()) {
-      const {
-        getDefaultNetwork,
-        X402_RECIPIENT_ADDRESS,
-        USDC_ADDRESSES,
-        TOPUP_PRICE,
-      } = await import("@/lib/config/x402");
-      return NextResponse.json(
-        {
-          error: "Authentication required",
-          message:
-            "Top up credits via x402 at /api/v1/credits/topup, then use your API key here.",
-          x402: {
-            topupEndpoint: "/api/v1/credits/topup",
-            network: getDefaultNetwork(),
-            asset: USDC_ADDRESSES[getDefaultNetwork()],
-            payTo: X402_RECIPIENT_ADDRESS,
-            minimumTopup: TOPUP_PRICE,
-            creditsPerDollar: CREDITS_PER_DOLLAR,
-          },
-        },
-        { status: 402 },
-      );
-    }
     return NextResponse.json(
       { error: "Authentication required" },
       { status: 401 },
@@ -158,31 +130,6 @@ export async function POST(
   });
 
   if (!preChargeResult.success) {
-    // Return 402 with balance info
-    if (X402_ENABLED && isX402Configured()) {
-      const {
-        getDefaultNetwork,
-        X402_RECIPIENT_ADDRESS,
-        USDC_ADDRESSES,
-        TOPUP_PRICE,
-      } = await import("@/lib/config/x402");
-      return NextResponse.json(
-        {
-          error: "Insufficient credits",
-          message: `Required: ${creditsRequired} credits. Top up at /api/v1/credits/topup`,
-          balance: preChargeResult.newBalance,
-          x402: {
-            topupEndpoint: "/api/v1/credits/topup",
-            network: getDefaultNetwork(),
-            asset: USDC_ADDRESSES[getDefaultNetwork()],
-            payTo: X402_RECIPIENT_ADDRESS,
-            minimumTopup: TOPUP_PRICE,
-            creditsPerDollar: CREDITS_PER_DOLLAR,
-          },
-        },
-        { status: 402 },
-      );
-    }
     return NextResponse.json(
       {
         error: "Insufficient credits",
@@ -336,7 +283,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
     },
   });
 }

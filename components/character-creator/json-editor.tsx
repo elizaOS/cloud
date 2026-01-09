@@ -109,7 +109,7 @@ export function JsonEditor({
   };
 
   return (
-    <div className="flex h-full flex-col bg-black/60">
+    <div className="flex h-full flex-col rounded-2xl overflow-hidden bg-black/90">
       {!hideActions && (
         <div className="flex-shrink-0 border-b border-white/10 p-4">
           <div className="flex items-center justify-between">

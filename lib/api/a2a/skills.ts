@@ -7,7 +7,11 @@
 
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { organizationsService } from "@/lib/services/organizations";
 import { generationsService } from "@/lib/services/generations";
@@ -58,82 +62,77 @@ export async function executeSkillChatCompletion(
   const provider = getProviderFromModel(model);
   const estimatedCost = await estimateRequestCost(model, messages);
 
-  if (Number(ctx.user.organization.credit_balance) < estimatedCost) {
-    throw new Error(
-      `Insufficient credits: need $${estimatedCost.toFixed(4)}, have $${Number(ctx.user.organization.credit_balance).toFixed(4)}`,
+  // Reserve credits BEFORE the operation (TOCTOU-safe)
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
+      organizationId: ctx.user.organization_id,
+      amount: estimatedCost,
+      userId: ctx.user.id,
+      description: `A2A chat: ${model}`,
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      throw new Error(
+        `Insufficient credits: need $${error.required.toFixed(4)}, have $${error.available.toFixed(4)}`,
+      );
+    }
+    throw error;
+  }
+
+  try {
+    const result = await streamText({
+      model: gateway.languageModel(model),
+      messages: messages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })),
+      ...options,
+    });
+
+    let fullText = "";
+    for await (const delta of result.textStream) fullText += delta;
+    const usage = await result.usage;
+
+    const { inputCost, outputCost, totalCost } = await calculateCost(
+      model,
+      provider,
+      usage?.inputTokens || 0,
+      usage?.outputTokens || 0,
     );
-  }
 
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: estimatedCost,
-    description: `A2A chat: ${model}`,
-    metadata: { user_id: ctx.user.id, model },
-  });
+    // Reconcile with actual cost
+    await reservation.reconcile(totalCost);
 
-  if (!deduction.success) throw new Error("Credit deduction failed");
-
-  const result = await streamText({
-    model: gateway.languageModel(model),
-    messages: messages.map((m) => ({
-      role: m.role as "user" | "assistant" | "system",
-      content: m.content,
-    })),
-    ...options,
-  });
-
-  let fullText = "";
-  for await (const delta of result.textStream) fullText += delta;
-  const usage = await result.usage;
-
-  const { inputCost, outputCost, totalCost } = await calculateCost(
-    model,
-    provider,
-    usage?.inputTokens || 0,
-    usage?.outputTokens || 0,
-  );
-  const costDiff = totalCost - estimatedCost;
-
-  if (costDiff > 0) {
-    await creditsService.deductCredits({
-      organizationId: ctx.user.organization_id,
-      amount: costDiff,
-      description: `A2A chat additional: ${model}`,
-      metadata: { user_id: ctx.user.id },
+    await usageService.create({
+      organization_id: ctx.user.organization_id,
+      user_id: ctx.user.id,
+      api_key_id: ctx.apiKeyId,
+      type: "chat",
+      model,
+      provider,
+      input_tokens: usage?.inputTokens || 0,
+      output_tokens: usage?.outputTokens || 0,
+      input_cost: String(inputCost),
+      output_cost: String(outputCost),
+      is_successful: true,
     });
-  } else if (costDiff < 0) {
-    await creditsService.refundCredits({
-      organizationId: ctx.user.organization_id,
-      amount: -costDiff,
-      description: `A2A chat refund: ${model}`,
-      metadata: { user_id: ctx.user.id },
-    });
+
+    return {
+      content: fullText,
+      model,
+      usage: {
+        inputTokens: usage?.inputTokens || 0,
+        outputTokens: usage?.outputTokens || 0,
+        totalTokens: usage?.totalTokens || 0,
+      },
+      cost: totalCost,
+    };
+  } catch (error) {
+    // Refund on failure
+    await reservation.reconcile(0);
+    throw error;
   }
-
-  await usageService.create({
-    organization_id: ctx.user.organization_id,
-    user_id: ctx.user.id,
-    api_key_id: ctx.apiKeyId,
-    type: "chat",
-    model,
-    provider,
-    input_tokens: usage?.inputTokens || 0,
-    output_tokens: usage?.outputTokens || 0,
-    input_cost: String(inputCost),
-    output_cost: String(outputCost),
-    is_successful: true,
-  });
-
-  return {
-    content: fullText,
-    model,
-    usage: {
-      inputTokens: usage?.inputTokens || 0,
-      outputTokens: usage?.outputTokens || 0,
-      totalTokens: usage?.totalTokens || 0,
-    },
-    cost: totalCost,
-  };
 }
 
 /**
@@ -149,81 +148,89 @@ export async function executeSkillImageGeneration(
 
   if (!prompt) throw new Error("Image prompt required");
 
-  if (Number(ctx.user.organization.credit_balance) < IMAGE_GENERATION_COST) {
-    throw new Error(
-      `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`,
-    );
-  }
-
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: IMAGE_GENERATION_COST,
-    description: "A2A image generation",
-    metadata: { user_id: ctx.user.id },
-  });
-  if (!deduction.success) throw new Error("Credit deduction failed");
-
-  const generation = await generationsService.create({
-    organization_id: ctx.user.organization_id,
-    user_id: ctx.user.id,
-    api_key_id: ctx.apiKeyId,
-    type: "image",
-    model: "google/gemini-2.5-flash-image",
-    provider: "google",
-    prompt,
-    status: "pending",
-    credits: String(IMAGE_GENERATION_COST),
-    cost: String(IMAGE_GENERATION_COST),
-  });
-
-  const aspectDesc: Record<string, string> = {
-    "1:1": "square",
-    "16:9": "wide landscape",
-    "9:16": "tall portrait",
-    "4:3": "landscape",
-    "3:4": "portrait",
-  };
-
-  const result = streamText({
-    model: "google/gemini-2.5-flash-image",
-    providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
-    prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
-  });
-
-  let imageBase64: string | null = null;
-  let mimeType = "image/png";
-
-  for await (const delta of result.fullStream) {
-    if (delta.type === "file" && delta.file.mediaType.startsWith("image/")) {
-      mimeType = delta.file.mediaType || "image/png";
-      imageBase64 = `data:${mimeType};base64,${Buffer.from(delta.file.uint8Array).toString("base64")}`;
-      break;
-    }
-  }
-
-  if (!imageBase64) {
-    await creditsService.refundCredits({
+  // Reserve credits BEFORE the operation (TOCTOU-safe)
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
       organizationId: ctx.user.organization_id,
       amount: IMAGE_GENERATION_COST,
-      description: "A2A image refund (failed)",
-      metadata: { generation_id: generation.id },
+      userId: ctx.user.id,
+      description: "A2A image generation",
     });
-    throw new Error("No image generated");
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      throw new Error(
+        `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`,
+      );
+    }
+    throw error;
   }
 
-  await generationsService.update(generation.id, {
-    status: "completed",
-    content: imageBase64,
-    mime_type: mimeType,
-    completed_at: new Date(),
-  });
+  try {
+    const generation = await generationsService.create({
+      organization_id: ctx.user.organization_id,
+      user_id: ctx.user.id,
+      api_key_id: ctx.apiKeyId,
+      type: "image",
+      model: "google/gemini-2.5-flash-image",
+      provider: "google",
+      prompt,
+      status: "pending",
+      credits: String(IMAGE_GENERATION_COST),
+      cost: String(IMAGE_GENERATION_COST),
+    });
 
-  return {
-    image: imageBase64,
-    mimeType,
-    aspectRatio,
-    cost: IMAGE_GENERATION_COST,
-  };
+    const aspectDesc: Record<string, string> = {
+      "1:1": "square",
+      "16:9": "wide landscape",
+      "9:16": "tall portrait",
+      "4:3": "landscape",
+      "3:4": "portrait",
+    };
+
+    const result = streamText({
+      model: "google/gemini-2.5-flash-image",
+      providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
+      prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
+    });
+
+    let imageBase64: string | null = null;
+    let mimeType = "image/png";
+
+    for await (const delta of result.fullStream) {
+      if (delta.type === "file" && delta.file.mediaType.startsWith("image/")) {
+        mimeType = delta.file.mediaType || "image/png";
+        imageBase64 = `data:${mimeType};base64,${Buffer.from(delta.file.uint8Array).toString("base64")}`;
+        break;
+      }
+    }
+
+    if (!imageBase64) {
+      await reservation.reconcile(0); // Full refund
+      throw new Error("No image generated");
+    }
+
+    await generationsService.update(generation.id, {
+      status: "completed",
+      content: imageBase64,
+      mime_type: mimeType,
+      completed_at: new Date(),
+    });
+
+    // Reconcile with actual cost (same as estimated for fixed-price operations)
+    await reservation.reconcile(IMAGE_GENERATION_COST);
+
+    return {
+      image: imageBase64,
+      mimeType,
+      aspectRatio,
+      cost: IMAGE_GENERATION_COST,
+    };
+  } catch (error) {
+    // Refund on failure
+    await reservation.reconcile(0);
+    throw error;
+  }
 }
 
 /**
@@ -346,26 +353,41 @@ export async function executeSkillSaveMemory(
   if (!content || !roomId) throw new Error("content and roomId required");
 
   const COST = 1;
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: COST,
-    description: `A2A memory: ${type}`,
-    metadata: { user_id: ctx.user.id },
-  });
-  if (!deduction.success) throw new Error("Insufficient credits");
 
-  const result = await memoryService.saveMemory({
-    organizationId: ctx.user.organization_id,
-    roomId,
-    entityId: ctx.user.id,
-    content,
-    type,
-    tags,
-    metadata,
-    persistent: true,
-  });
+  // Reserve credits BEFORE the operation (TOCTOU-safe)
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
+      organizationId: ctx.user.organization_id,
+      amount: COST,
+      userId: ctx.user.id,
+      description: `A2A memory: ${type}`,
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      throw new Error("Insufficient credits");
+    }
+    throw error;
+  }
 
-  return { memoryId: result.memoryId, storage: result.storage, cost: COST };
+  try {
+    const result = await memoryService.saveMemory({
+      organizationId: ctx.user.organization_id,
+      roomId,
+      entityId: ctx.user.id,
+      content,
+      type,
+      tags,
+      metadata,
+      persistent: true,
+    });
+
+    await reservation.reconcile(COST);
+    return { memoryId: result.memoryId, storage: result.storage, cost: COST };
+  } catch (error) {
+    await reservation.reconcile(0);
+    throw error;
+  }
 }
 
 /**
@@ -423,28 +445,43 @@ export async function executeSkillCreateConversation(
   if (!title) throw new Error("title required");
 
   const COST = 1;
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: COST,
-    description: `A2A conversation: ${title}`,
-    metadata: { user_id: ctx.user.id },
-  });
-  if (!deduction.success) throw new Error("Insufficient credits");
 
-  const conv = await conversationsService.create({
-    organization_id: ctx.user.organization_id,
-    user_id: ctx.user.id,
-    title,
-    model,
-    settings: { systemPrompt },
-  });
+  // Reserve credits BEFORE the operation (TOCTOU-safe)
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
+      organizationId: ctx.user.organization_id,
+      amount: COST,
+      userId: ctx.user.id,
+      description: `A2A conversation: ${title}`,
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      throw new Error("Insufficient credits");
+    }
+    throw error;
+  }
 
-  return {
-    conversationId: conv.id,
-    title: conv.title,
-    model: conv.model,
-    cost: COST,
-  };
+  try {
+    const conv = await conversationsService.create({
+      organization_id: ctx.user.organization_id,
+      user_id: ctx.user.id,
+      title,
+      model,
+      settings: { systemPrompt },
+    });
+
+    await reservation.reconcile(COST);
+    return {
+      conversationId: conv.id,
+      title: conv.title,
+      model: conv.model,
+      cost: COST,
+    };
+  } catch (error) {
+    await reservation.reconcile(0);
+    throw error;
+  }
 }
 
 /**
@@ -533,36 +570,46 @@ export async function executeSkillVideoGeneration(
 
   const VIDEO_COST = 5; // $5 per video
 
-  if (Number(ctx.user.organization.credit_balance) < VIDEO_COST) {
-    throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+  // Reserve credits BEFORE the operation (TOCTOU-safe)
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
+      organizationId: ctx.user.organization_id,
+      amount: VIDEO_COST,
+      userId: ctx.user.id,
+      description: "A2A video generation",
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      throw new Error(`Insufficient credits: need $${VIDEO_COST.toFixed(2)}`);
+    }
+    throw error;
   }
 
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: VIDEO_COST,
-    description: "A2A video generation",
-    metadata: { user_id: ctx.user.id, model },
-  });
-  if (!deduction.success) throw new Error("Credit deduction failed");
+  try {
+    const generation = await generationsService.create({
+      organization_id: ctx.user.organization_id,
+      user_id: ctx.user.id,
+      api_key_id: ctx.apiKeyId,
+      type: "video",
+      model,
+      provider: "fal",
+      prompt,
+      status: "pending",
+      credits: String(VIDEO_COST),
+      cost: String(VIDEO_COST),
+    });
 
-  const generation = await generationsService.create({
-    organization_id: ctx.user.organization_id,
-    user_id: ctx.user.id,
-    api_key_id: ctx.apiKeyId,
-    type: "video",
-    model,
-    provider: "fal",
-    prompt,
-    status: "pending",
-    credits: String(VIDEO_COST),
-    cost: String(VIDEO_COST),
-  });
-
-  return {
-    jobId: generation.id,
-    status: "pending",
-    cost: VIDEO_COST,
-  };
+    await reservation.reconcile(VIDEO_COST);
+    return {
+      jobId: generation.id,
+      status: "pending",
+      cost: VIDEO_COST,
+    };
+  } catch (error) {
+    await reservation.reconcile(0);
+    throw error;
+  }
 }
 
 /**

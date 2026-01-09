@@ -39,7 +39,6 @@
   "exclude": [
     "node_modules",
     "ignore",
-    "miniapp",
     "e2e",
     "scripts",
     "tests",

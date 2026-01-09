@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { appsService } from "@/lib/services/apps";
+import { githubReposService } from "@/lib/services/github-repos";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -10,40 +13,88 @@ const CreateSessionSchema = z.object({
   appDescription: z.string().max(500).optional(),
   initialPrompt: z.string().max(2000).optional(),
   templateType: z
-    .enum(["chat", "agent-dashboard", "landing-page", "analytics", "blank"])
+    .enum([
+      "chat",
+      "agent-dashboard",
+      "landing-page",
+      "analytics",
+      "blank",
+      "mcp-service",
+      "a2a-agent",
+      "saas-starter",
+      "ai-tool",
+    ])
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
 });
 
-/**
- * GET /api/v1/app-builder
- * List all app builder sessions for the authenticated user
- */
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const appId = searchParams.get("appId") || undefined;
+    const checkSnapshots = searchParams.get("checkSnapshots") === "true";
+
+    // Check if app has GitHub storage (Git-based persistence)
+    if (checkSnapshots && appId) {
+      const app = await appsService.getById(appId);
+
+      if (!app?.github_repo) {
+        return NextResponse.json({
+          success: true,
+          snapshotInfo: null,
+        });
+      }
+
+      let lastBackup: string | null = null;
+      try {
+        const repoName = app.github_repo.split("/").pop() || app.github_repo;
+        const commits = await githubReposService.listCommits(repoName, {
+          limit: 1,
+        });
+        if (commits.length > 0) {
+          lastBackup = commits[0].date;
+        }
+      } catch (error) {
+        logger.warn("Failed to fetch commits", {
+          appId,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        snapshotInfo: {
+          githubRepo: app.github_repo,
+          lastBackup,
+        },
+      });
+    }
+
+    const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 100);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
     const sessions = await aiAppBuilderService.listSessions(user.id, {
       limit,
       includeInactive,
+      appId,
     });
 
+    // Map to response format (listSessions now returns camelCase)
     return NextResponse.json({
       success: true,
       sessions: sessions.map((s) => ({
         id: s.id,
-        sandboxId: s.sandbox_id,
-        sandboxUrl: s.sandbox_url,
+        sandboxId: s.sandboxId,
+        sandboxUrl: s.sandboxUrl,
         status: s.status,
-        appName: s.app_name,
-        templateType: s.template_type,
-        createdAt: s.created_at,
-        expiresAt: s.expires_at,
+        appName: s.appName,
+        templateType: s.templateType,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
       })),
     });
   } catch (error) {
@@ -57,13 +108,14 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+}, RateLimitPresets.STANDARD);
 
-/**
- * POST /api/v1/app-builder
- * Create a new app builder session
- */
-export async function POST(request: NextRequest) {
+const SESSION_CREATE_LIMIT = {
+  windowMs: 3600000,
+  maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
+};
+
+export const POST = withRateLimit(async (request: NextRequest) => {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -121,4 +173,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+}, SESSION_CREATE_LIMIT);

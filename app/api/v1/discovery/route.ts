@@ -1,33 +1,66 @@
 /**
  * Discovery API
  *
- * Provides a single endpoint to discover services from both:
- * - Local Eliza Cloud agents and MCPs
- * - External ERC-8004 registry (decentralized agents, MCPs)
- *
- * This enables agents to find and interact with services across
- * the entire ecosystem, not just those hosted on Eliza Cloud.
+ * Provides a single endpoint to discover services from
+ * local Eliza Cloud agents and MCPs.
  *
  * @route GET /api/v1/discovery
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { charactersService } from "@/lib/services/characters";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { createHash } from "crypto";
 import { logger } from "@/lib/utils/logger";
-import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
-import {
-  type DiscoveredService,
-  type DiscoveryResponse,
-  type ServiceType,
-  type ServiceSource,
-  agent0ToDiscoveredService,
-} from "@/lib/types/erc8004";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type ServiceType = "agent" | "mcp" | "a2a" | "app";
+
+interface ServicePricing {
+  type: "free" | "credits" | "x402" | "subscription";
+  amount?: number;
+  currency?: string;
+  description?: string;
+}
+
+interface DiscoveredService {
+  id: string;
+  name: string;
+  description: string;
+  type: ServiceType;
+  source: "local";
+  image?: string;
+  category?: string;
+  tags: string[];
+  active: boolean;
+  pricing?: ServicePricing;
+  a2aEndpoint?: string;
+  mcpEndpoint?: string;
+  mcpTools?: string[];
+  a2aSkills?: string[];
+  x402Support: boolean;
+  organizationId?: string;
+  creatorId?: string;
+  verified?: boolean;
+  slug?: string;
+}
+
+interface DiscoveryResponse {
+  services: DiscoveredService[];
+  total: number;
+  hasMore: boolean;
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+  cached?: boolean;
+}
 
 // ============================================================================
 // Request Validation
@@ -38,10 +71,6 @@ const querySchema = z.object({
   types: z
     .string()
     .transform((s) => s.split(",") as ServiceType[])
-    .optional(),
-  sources: z
-    .string()
-    .transform((s) => s.split(",") as ServiceSource[])
     .optional(),
   categories: z
     .string()
@@ -96,123 +125,97 @@ export async function GET(request: NextRequest) {
     .update(JSON.stringify(params))
     .digest("hex")
     .substring(0, 12);
-  const cacheKey = CacheKeys.erc8004.discovery(paramHash);
+  const cacheKey = CacheKeys.discovery.list(paramHash);
 
-  // Use SWR caching for discovery results
-  const result = await cache.getWithSWR<DiscoveryResponse>(
-    cacheKey,
-    CacheStaleTTL.erc8004.discovery,
-    async () => {
-      logger.debug("[Discovery] Cache miss, fetching fresh data", { params });
+  // Use cache for discovery results
+  const cached = await cache.get<DiscoveryResponse>(cacheKey);
+  if (cached) {
+    return NextResponse.json({
+      ...cached,
+      cached: true,
+    });
+  }
 
-      const services: DiscoveredService[] = [];
-      const sources = params.sources ?? ["local", "erc8004"];
+  logger.debug("[Discovery] Cache miss, fetching fresh data", { params });
 
-      // ========================================================================
-      // Fetch from local sources
-      // ========================================================================
-      if (sources.includes("local")) {
-        const types = params.types ?? ["agent", "mcp", "app"];
+  const services: DiscoveredService[] = [];
+  const types = params.types ?? ["agent", "mcp", "app"];
 
-        // Fetch local agents
-        if (types.includes("agent")) {
-          const localAgents = await fetchLocalAgents(params);
-          services.push(...localAgents);
-        }
+  // Fetch local agents
+  if (types.includes("agent")) {
+    const localAgents = await fetchLocalAgents(params);
+    services.push(...localAgents);
+  }
 
-        // Fetch local MCPs
-        if (types.includes("mcp")) {
-          const localMcps = await fetchLocalMcps(params);
-          services.push(...localMcps);
-        }
-      }
+  // Fetch local MCPs
+  if (types.includes("mcp")) {
+    const localMcps = await fetchLocalMcps(params);
+    services.push(...localMcps);
+  }
 
-      // ========================================================================
-      // Fetch from ERC-8004 registry
-      // ========================================================================
-      if (sources.includes("erc8004")) {
-        const externalServices = await fetchERC8004Services(params);
-        services.push(...externalServices);
-      }
+  // ========================================================================
+  // Apply filtering and pagination
+  // ========================================================================
 
-      // ========================================================================
-      // Deduplicate services (prefer local over ERC-8004 for same service)
-      // ========================================================================
+  let filtered = services;
 
-      const deduped = deduplicateServices(services);
-
-      // ========================================================================
-      // Apply filtering and pagination
-      // ========================================================================
-
-      let filtered = deduped;
-
-      // Text search
-      if (params.query) {
-        const query = params.query.toLowerCase();
-        filtered = filtered.filter(
-          (s) =>
-            s.name.toLowerCase().includes(query) ||
-            s.description.toLowerCase().includes(query),
-        );
-      }
-
-      // Filter by x402 support
-      if (params.x402Only) {
-        filtered = filtered.filter((s) => s.x402Support);
-      }
-
-      // Filter by active status
-      if (params.activeOnly) {
-        filtered = filtered.filter((s) => s.active);
-      }
-
-      // Filter by categories
-      if (params.categories?.length) {
-        filtered = filtered.filter(
-          (s) => s.category && params.categories!.includes(s.category),
-        );
-      }
-
-      // Filter by tags
-      if (params.tags?.length) {
-        filtered = filtered.filter((s) =>
-          s.tags.some((tag) => params.tags!.includes(tag)),
-        );
-      }
-
-      // Sort by name (could add more sort options)
-      filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-      // Pagination
-      const total = filtered.length;
-      const paginated = filtered.slice(
-        params.offset,
-        params.offset + params.limit,
-      );
-
-      return {
-        services: paginated,
-        total,
-        hasMore: params.offset + paginated.length < total,
-        pagination: {
-          limit: params.limit,
-          offset: params.offset,
-        },
-      };
-    },
-  );
-
-  if (!result) {
-    return NextResponse.json(
-      { error: "Failed to fetch discovery results" },
-      { status: 500 },
+  // Text search
+  if (params.query) {
+    const query = params.query.toLowerCase();
+    filtered = filtered.filter(
+      (s) =>
+        s.name.toLowerCase().includes(query) ||
+        s.description.toLowerCase().includes(query),
     );
   }
 
+  // Filter by x402 support
+  if (params.x402Only) {
+    filtered = filtered.filter((s) => s.x402Support);
+  }
+
+  // Filter by active status
+  if (params.activeOnly) {
+    filtered = filtered.filter((s) => s.active);
+  }
+
+  // Filter by categories
+  if (params.categories?.length) {
+    filtered = filtered.filter(
+      (s) => s.category && params.categories!.includes(s.category),
+    );
+  }
+
+  // Filter by tags
+  if (params.tags?.length) {
+    filtered = filtered.filter((s) =>
+      s.tags.some((tag) => params.tags!.includes(tag)),
+    );
+  }
+
+  // Sort by name
+  filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Pagination
+  const total = filtered.length;
+  const paginated = filtered.slice(params.offset, params.offset + params.limit);
+
+  const result: DiscoveryResponse = {
+    services: paginated,
+    total,
+    hasMore: params.offset + paginated.length < total,
+    pagination: {
+      limit: params.limit,
+      offset: params.offset,
+    },
+  };
+
+  // Cache the result
+  await cache.set(cacheKey, result, CacheTTL.discovery.list);
+
   return NextResponse.json({
     ...result,
-    cached: true, // Will be true if served from cache
+    cached: false,
   });
 }
 
@@ -337,90 +340,4 @@ async function fetchLocalMcps(
               },
     }),
   );
-}
-
-/**
- * Fetch services from the ERC-8004 registry
- */
-async function fetchERC8004Services(
-  params: z.infer<typeof querySchema>,
-): Promise<DiscoveredService[]> {
-  const network = getDefaultNetwork();
-  const chainId = CHAIN_IDS[network];
-
-  // Use cached search from agent0Service
-  const agents = await agent0Service.searchAgentsCached({
-    name: params.query,
-    mcpTools: params.mcpTools,
-    a2aSkills: params.a2aSkills,
-    x402Support: params.x402Only,
-    active: params.activeOnly,
-  });
-
-  return agents.map((agent) =>
-    agent0ToDiscoveredService(agent, network, chainId),
-  );
-}
-
-/**
- * Deduplicate services by preferring local over ERC-8004
- *
- * When a service exists in both local and ERC-8004 registry,
- * we prefer the local version since it has richer metadata.
- *
- * Deduplication is based on:
- * 1. Same name (case-insensitive)
- * 2. Same endpoints (A2A or MCP)
- */
-function deduplicateServices(
-  services: DiscoveredService[],
-): DiscoveredService[] {
-  const seen = new Map<string, DiscoveredService>();
-
-  // Process local services first (they have priority)
-  const localServices = services.filter((s) => s.source === "local");
-  const erc8004Services = services.filter((s) => s.source === "erc8004");
-
-  // Add all local services
-  for (const service of localServices) {
-    const key = getServiceDedupeKey(service);
-    seen.set(key, service);
-  }
-
-  // Add ERC-8004 services only if not already present
-  for (const service of erc8004Services) {
-    const key = getServiceDedupeKey(service);
-    if (!seen.has(key)) {
-      seen.set(key, service);
-    }
-  }
-
-  return Array.from(seen.values());
-}
-
-/**
- * Generate a deduplication key for a service
- */
-function getServiceDedupeKey(service: DiscoveredService): string {
-  // Primary key: normalized name + type
-  const normalizedName = service.name.toLowerCase().trim();
-
-  // Secondary: endpoint matching
-  const endpointKey = service.a2aEndpoint || service.mcpEndpoint || "";
-
-  // Combine for unique key
-  return `${normalizedName}:${service.type}:${normalizeEndpoint(endpointKey)}`;
-}
-
-/**
- * Normalize endpoint URL for comparison
- */
-function normalizeEndpoint(url: string): string {
-  if (!url) return "";
-
-  // Remove protocol and trailing slashes for comparison
-  return url
-    .replace(/^https?:\/\//, "")
-    .replace(/\/$/, "")
-    .toLowerCase();
 }

@@ -8,31 +8,91 @@ import { CharacterFilters } from "@/components/my-agents/character-filters";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
-import type { ElizaCharacter } from "@/lib/types";
+import type { AgentWithOwnership } from "@/components/my-agents/character-library-card";
 
-type ViewMode = "grid" | "list";
-type SortOption = "name" | "created" | "modified" | "recent";
+export type ViewMode = "grid" | "list";
+export type SortOption = "name" | "created" | "modified" | "recent";
+
+/** Response type for saved agents API */
+interface SavedAgent {
+  id: string;
+  name: string;
+  bio?: string | string[];
+  avatarUrl?: string;
+  avatar_url?: string;
+  username?: string | null;
+  owner_id: string;
+  owner_name: string | null;
+  last_interaction_time?: string;
+}
 
 /**
  * My Agents client component that handles character listing, filtering, and management.
- * Fetches characters client-side to enable real-time updates.
+ * Fetches both owned and saved agents client-side to enable real-time updates.
  */
 export function MyAgentsClient() {
   const router = useRouter();
   const claimAttempted = useRef(false);
-  const [characters, setCharacters] = useState<ElizaCharacter[]>([]);
+  const [characters, setCharacters] = useState<AgentWithOwnership[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("modified");
 
-  // Fetch characters
+  // Fetch both owned and saved characters
   const fetchCharacters = useCallback(async () => {
     try {
-      const response = await fetch("/api/my-agents/characters");
-      if (!response.ok) throw new Error("Failed to fetch characters");
-      const result = await response.json();
-      setCharacters(result.data?.characters || []);
+      // Fetch owned and saved agents in parallel
+      const [ownedResponse, savedResponse] = await Promise.all([
+        fetch("/api/my-agents/characters"),
+        fetch("/api/my-agents/saved"),
+      ]);
+
+      // Process owned agents
+      let ownedAgents: AgentWithOwnership[] = [];
+      let ownedFetchFailed = false;
+      if (ownedResponse.ok) {
+        const ownedResult = await ownedResponse.json();
+        ownedAgents = (ownedResult.data?.characters || []).map(
+          (char: AgentWithOwnership) => ({
+            ...char,
+            isOwned: true,
+          }),
+        );
+      } else {
+        ownedFetchFailed = true;
+        logger.error("[MyAgents] Failed to fetch owned characters");
+      }
+
+      // Process saved agents (may not exist yet - gracefully handle 404)
+      let savedAgents: AgentWithOwnership[] = [];
+      if (savedResponse.ok) {
+        const savedResult = await savedResponse.json();
+        savedAgents = (savedResult.data?.agents || []).map(
+          (agent: SavedAgent) => ({
+            id: agent.id,
+            name: agent.name,
+            bio: agent.bio || "",
+            avatarUrl: agent.avatarUrl || agent.avatar_url,
+            avatar_url: agent.avatar_url || agent.avatarUrl,
+            username: agent.username,
+            isOwned: false,
+            ownerUsername: agent.owner_name || "Unknown",
+            lastInteraction: agent.last_interaction_time,
+          }),
+        );
+      } else if (savedResponse.status !== 404) {
+        // Only log error if it's not a 404 (endpoint may not exist yet)
+        logger.error("[MyAgents] Failed to fetch saved agents");
+      }
+
+      // Show error toast if owned agents failed to load
+      if (ownedFetchFailed) {
+        toast.error("Failed to load your agents");
+      }
+
+      // Merge both lists
+      setCharacters([...ownedAgents, ...savedAgents]);
     } catch (error) {
       logger.error("[MyAgents] Failed to fetch characters:", error);
       toast.error("Failed to load your agents");
@@ -106,19 +166,42 @@ export function MyAgentsClient() {
     );
   });
 
-  // Sort characters
+  // Sort characters - most recent interaction first by default
   const sortedCharacters = [...filteredCharacters].sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return (a.name || "").localeCompare(b.name || "");
-      default:
-        return 0;
+    if (sortBy === "name") {
+      return (a.name || "").localeCompare(b.name || "");
     }
+    if (sortBy === "created") {
+      // Sort by created_at timestamp (newest first)
+      const getCreatedTime = (char: AgentWithOwnership): number => {
+        return char.created_at ? new Date(char.created_at).getTime() : 0;
+      };
+      const timeDiff = getCreatedTime(b) - getCreatedTime(a);
+      if (timeDiff !== 0) return timeDiff;
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    // Default: sort by most recent activity
+    const getRecentTime = (char: AgentWithOwnership): number => {
+      if (char.isOwned) {
+        return char.updated_at ? new Date(char.updated_at).getTime() : 0;
+      }
+      return char.lastInteraction
+        ? new Date(char.lastInteraction).getTime()
+        : 0;
+    };
+    const timeDiff = getRecentTime(b) - getRecentTime(a);
+    if (timeDiff !== 0) return timeDiff;
+    return (a.name || "").localeCompare(b.name || "");
   });
 
   const handleCreateNew = useCallback(() => {
     router.push("/dashboard/build");
   }, [router]);
+
+  // Handler for removing saved agents from the list
+  const handleRemoveSaved = useCallback((characterId: string) => {
+    setCharacters((prev) => prev.filter((char) => char.id !== characterId));
+  }, []);
 
   useSetPageHeader(
     {
@@ -147,12 +230,14 @@ export function MyAgentsClient() {
         onSortChange={setSortBy}
         totalCount={characters.length}
         filteredCount={filteredCharacters.length}
+        onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid
         characters={sortedCharacters}
         viewMode={viewMode}
         onCreateNew={handleCreateNew}
+        onRemoveSaved={handleRemoveSaved}
       />
     </div>
   );

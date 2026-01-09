@@ -19,14 +19,17 @@ type AuthResultWithOrg = AuthResult & {
   };
 };
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { conversationsService } from "@/lib/services/conversations";
 import { memoryService } from "@/lib/services/memory";
 import { containersService } from "@/lib/services/containers";
 import { contentModerationService } from "@/lib/services/content-moderation";
-import { agentReputationService } from "@/lib/services/agent-reputation";
 import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
 import { agentService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -298,13 +301,10 @@ const mcpHandler = createMcpHandler(
       },
       async ({ prompt, model = "gpt-4o", maxLength = 1000 }) => {
         let generationId: string | undefined;
-        let creditsDeducted = false;
-        let deductedAmount = 0;
-        let userOrganizationId: string | undefined;
+        let reservation: CreditReservation | null = null;
 
         try {
           const { user, apiKey } = getAuthContext();
-          userOrganizationId = user.organization_id!;
 
           // Check if user is blocked due to moderation violations
           if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -341,49 +341,38 @@ const mcpHandler = createMcpHandler(
 
           const provider = getProviderFromModel(model);
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          // Estimate cost before generation (returns integer credits)
-          const estimatedCost = await estimateRequestCost(model, [
-            { role: "user", content: prompt },
-          ]);
-
-          // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
-          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: estimatedCost,
-            description: `MCP text generation (pending): ${model}`,
-            metadata: {
-              user_id: user.id,
-              model: model,
-              prompt: prompt.substring(0, 100),
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: estimatedCost,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE generation to prevent TOCTOU race condition
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              model,
+              provider,
+              estimatedInputTokens: Math.ceil(prompt.length / 4),
+              estimatedOutputTokens: Math.min(maxLength, 500),
+              userId: user.id,
+              description: `MCP text generation: ${model}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
-
-          creditsDeducted = true;
-          deductedAmount = estimatedCost;
 
           // Create generation record
           const generation = await generationsService.create({
@@ -395,8 +384,8 @@ const mcpHandler = createMcpHandler(
             provider: provider,
             prompt: prompt,
             status: "pending",
-            credits: String(estimatedCost),
-            cost: String(estimatedCost),
+            credits: String(reservation?.reservedAmount ?? 0),
+            cost: String(reservation?.reservedAmount ?? 0),
           });
 
           generationId = generation.id;
@@ -427,56 +416,8 @@ const mcpHandler = createMcpHandler(
             usage?.outputTokens || 0,
           );
 
-          // Handle cost difference: refund excess or deduct additional
-          const costDifference = totalCost - deductedAmount;
-          if (costDifference > 0) {
-            // Need to deduct more
-            const additionalDeduction = await creditsService.deductCredits({
-              organizationId: user.organization_id!!,
-              amount: costDifference,
-              description: `MCP text generation (additional): ${model}`,
-              metadata: {
-                user_id: user.id,
-                model: model,
-                generation_id: generationId,
-              },
-            });
-            if (!additionalDeduction.success) {
-              // Refund the initial deduction since we can't complete
-              await creditsService.refundCredits({
-                organizationId: user.organization_id!!,
-                amount: deductedAmount,
-                description: `MCP text generation refund (insufficient balance): ${model}`,
-                metadata: { user_id: user.id, generation_id: generationId },
-              });
-              return {
-                content: [
-                  {
-                    type: "text" as const,
-                    text: JSON.stringify(
-                      {
-                        error: "Insufficient balance for actual cost",
-                        estimated: deductedAmount,
-                        actual: totalCost,
-                        refunded: deductedAmount,
-                      },
-                      null,
-                      2,
-                    ),
-                  },
-                ],
-                isError: true,
-              };
-            }
-          } else if (costDifference < 0) {
-            // Refund excess
-            await creditsService.refundCredits({
-              organizationId: user.organization_id!!,
-              amount: -costDifference,
-              description: `MCP text generation refund (overestimate): ${model}`,
-              metadata: { user_id: user.id, generation_id: generationId },
-            });
-          }
+          // Reconcile credits (refund excess or charge additional)
+          await reservation?.reconcile(totalCost);
 
           // Create usage record
           const usageRecord = await usageService.create({
@@ -519,22 +460,11 @@ const mcpHandler = createMcpHandler(
             ],
           };
         } catch (error) {
-          // CRITICAL FIX: Refund credits if generation failed after deduction
-          if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
-            try {
-              await creditsService.refundCredits({
-                organizationId: userOrganizationId,
-                amount: deductedAmount,
-                description: `MCP text generation refund (failed): ${model}`,
-                metadata: {
-                  error:
-                    error instanceof Error ? error.message : "Unknown error",
-                  generation_id: generationId,
-                },
-              });
-            } catch (refundError) {
-              logger.error("Failed to refund credits:", refundError);
-            }
+          // Refund credits if generation failed
+          try {
+            await reservation?.reconcile(0);
+          } catch (refundError) {
+            logger.error("Failed to refund credits:", refundError);
           }
 
           // Mark generation as failed if we have an ID
@@ -561,7 +491,6 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Text generation failed",
-                    refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
                   2,
@@ -595,13 +524,10 @@ const mcpHandler = createMcpHandler(
       },
       async ({ prompt, aspectRatio = "1:1" }) => {
         let generationId: string | undefined;
-        let creditsDeducted = false;
-        let deductedAmount = 0;
-        let userOrganizationId: string | undefined;
+        let reservation: CreditReservation | null = null;
 
         try {
           const { user, apiKey } = getAuthContext();
-          userOrganizationId = user.organization_id!;
 
           // Check if user is blocked due to moderation violations
           if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -636,41 +562,36 @@ const mcpHandler = createMcpHandler(
             },
           );
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
-          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
-          const initialDeduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: IMAGE_GENERATION_COST,
-            description:
-              "MCP image generation (pending): google/gemini-2.5-flash-image",
-            metadata: { user_id: user.id, prompt: prompt.substring(0, 100) },
-          });
-
-          if (!initialDeduction.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: IMAGE_GENERATION_COST,
-                      available: initialDeduction.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE generation to prevent TOCTOU race condition
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: IMAGE_GENERATION_COST,
+              userId: user.id,
+              description:
+                "MCP image generation: google/gemini-2.5-flash-image",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
-
-          creditsDeducted = true;
-          deductedAmount = IMAGE_GENERATION_COST;
 
           // Create generation record
           const generation = await generationsService.create({
@@ -733,20 +654,8 @@ const mcpHandler = createMcpHandler(
           }
 
           if (!imageBase64) {
-            // CRITICAL FIX: Refund credits since image generation failed
-            if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
-              try {
-                await creditsService.refundCredits({
-                  organizationId: userOrganizationId,
-                  amount: deductedAmount,
-                  description:
-                    "MCP image generation refund (no image): google/gemini-2.5-flash-image",
-                  metadata: { generation_id: generationId },
-                });
-              } catch (refundError) {
-                logger.error("Failed to refund credits:", refundError);
-              }
-            }
+            // Refund credits since image generation failed
+            await reservation?.reconcile(0);
 
             const usageRecord = await usageService.create({
               organization_id: user.organization_id!!,
@@ -777,10 +686,7 @@ const mcpHandler = createMcpHandler(
                 {
                   type: "text" as const,
                   text: JSON.stringify(
-                    {
-                      error: "No image was generated",
-                      refunded: deductedAmount,
-                    },
+                    { error: "No image was generated" },
                     null,
                     2,
                   ),
@@ -821,6 +727,9 @@ const mcpHandler = createMcpHandler(
             logger.error("Failed to upload to Vercel Blob:", blobError);
           }
 
+          // Reconcile credits (confirm the charge)
+          await reservation?.reconcile(IMAGE_GENERATION_COST);
+
           // Update generation record
           await generationsService.update(generationId, {
             status: "completed",
@@ -847,7 +756,6 @@ const mcpHandler = createMcpHandler(
                     url: blobUrl !== imageBase64 ? blobUrl : undefined,
                     aspectRatio,
                     cost: String(IMAGE_GENERATION_COST),
-                    newBalance: initialDeduction.newBalance,
                   },
                   null,
                   2,
@@ -856,23 +764,11 @@ const mcpHandler = createMcpHandler(
             ],
           };
         } catch (error) {
-          // CRITICAL FIX: Refund credits if generation failed after deduction
-          if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
-            try {
-              await creditsService.refundCredits({
-                organizationId: userOrganizationId,
-                amount: deductedAmount,
-                description:
-                  "MCP image generation refund (failed): google/gemini-2.5-flash-image",
-                metadata: {
-                  error:
-                    error instanceof Error ? error.message : "Unknown error",
-                  generation_id: generationId,
-                },
-              });
-            } catch (refundError) {
-              logger.error("Failed to refund credits:", refundError);
-            }
+          // Refund credits if generation failed
+          try {
+            await reservation?.reconcile(0);
+          } catch (refundError) {
+            logger.error("Failed to refund credits:", refundError);
           }
 
           if (generationId) {
@@ -898,7 +794,6 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Image generation failed",
-                    refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
                   2,
@@ -1057,36 +952,35 @@ const mcpHandler = createMcpHandler(
               .filter((tag: string) => tag.length > 0); // Remove empty tags
           }
 
-          // CRITICAL FIX: Deduct credits BEFORE expensive operation to prevent race conditions
-          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: MEMORY_SAVE_COST,
-            description: `MCP memory save (pending): ${type}`,
-            metadata: {
-              user_id: user.id,
-              type,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: MEMORY_SAVE_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE expensive operation to prevent TOCTOU race condition
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: MEMORY_SAVE_COST,
+              userId: user.id,
+              description: `MCP memory save: ${type}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
           let result: Awaited<ReturnType<typeof memoryService.saveMemory>>;
@@ -1103,21 +997,13 @@ const mcpHandler = createMcpHandler(
               persistent,
             });
           } catch (saveError) {
-            // CRITICAL FIX: Refund credits if save failed after deduction
-            await creditsService.refundCredits({
-              organizationId: user.organization_id!!,
-              amount: MEMORY_SAVE_COST,
-              description: `MCP memory save refund (failed): ${type}`,
-              metadata: {
-                user_id: user.id,
-                error:
-                  saveError instanceof Error
-                    ? saveError.message
-                    : "Unknown error",
-              },
-            });
+            // Refund credits if save failed
+            await reservation?.reconcile(0);
             throw saveError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(MEMORY_SAVE_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -1220,39 +1106,35 @@ const mcpHandler = createMcpHandler(
           // Use org data from auth context (already fetched, avoids redundant DB call)
           const org = user.organization;
 
-          // CRITICAL FIX: Deduct credits BEFORE retrieval to prevent race conditions
-          // Estimate max cost upfront, then refund difference if actual cost is lower
-          const estimatedMaxCost = MEMORY_RETRIEVAL_MAX_COST;
-
-          const initialDeduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: estimatedMaxCost,
-            description: "MCP memory retrieval (pending): estimated max",
-            metadata: {
-              user_id: user.id,
-              query,
-              estimated: true,
-            },
-          });
-
-          if (!initialDeduction.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: estimatedMaxCost,
-                      available: initialDeduction.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve max credits BEFORE retrieval to prevent TOCTOU race condition
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: MEMORY_RETRIEVAL_MAX_COST,
+              userId: user.id,
+              description: "MCP memory retrieval",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
           let memories: Awaited<
@@ -1269,44 +1151,17 @@ const mcpHandler = createMcpHandler(
               sortBy,
             });
           } catch (retrieveError) {
-            // CRITICAL FIX: Refund credits if retrieval failed
-            await creditsService.refundCredits({
-              organizationId: user.organization_id!!,
-              amount: estimatedMaxCost,
-              description: "MCP memory retrieval refund (failed)",
-              metadata: {
-                user_id: user.id,
-                error:
-                  retrieveError instanceof Error
-                    ? retrieveError.message
-                    : "Unknown error",
-              },
-            });
+            // Refund credits if retrieval failed
+            await reservation?.reconcile(0);
             throw retrieveError;
           }
 
-          // Calculate actual cost and refund difference if lower than estimated
+          // Calculate actual cost and reconcile (refund excess if any)
           const actualCost = Math.min(
             Math.ceil(memories.length * MEMORY_RETRIEVAL_COST_PER_ITEM),
             MEMORY_RETRIEVAL_MAX_COST,
           );
-
-          const costDifference = estimatedMaxCost - actualCost;
-          if (costDifference > 0) {
-            // Refund the overestimate
-            await creditsService.refundCredits({
-              organizationId: user.organization_id!!,
-              amount: costDifference,
-              description: `MCP memory retrieval refund (overestimate): ${memories.length} memories`,
-              metadata: {
-                user_id: user.id,
-                query,
-                count: memories.length,
-                estimated: estimatedMaxCost,
-                actual: actualCost,
-              },
-            });
-          }
+          await reservation?.reconcile(actualCost);
 
           if (actualCost > 0) {
             await usageService.create({
@@ -1484,65 +1339,51 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONTEXT_RETRIEVAL_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONTEXT_RETRIEVAL_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation to prevent TOCTOU race condition
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONTEXT_RETRIEVAL_COST,
+              userId: user.id,
+              description: `MCP conversation context: ${roomId}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const context = await memoryService.getRoomContext(
-            roomId,
-            user.organization_id!,
-            depth,
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONTEXT_RETRIEVAL_COST,
-            description: `MCP conversation context: ${roomId}`,
-            metadata: {
-              user_id: user.id,
-              room_id: roomId,
+          let context;
+          try {
+            context = await memoryService.getRoomContext(
+              roomId,
+              user.organization_id!,
               depth,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONTEXT_RETRIEVAL_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(CONTEXT_RETRIEVAL_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -1642,69 +1483,56 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONVERSATION_CREATE_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONVERSATION_CREATE_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation to prevent TOCTOU race condition
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONVERSATION_CREATE_COST,
+              userId: user.id,
+              description: `MCP conversation created: ${title}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const conversation = await conversationsService.create({
-            organization_id: user.organization_id!!,
-            user_id: user.id,
-            title,
-            model: actualModel,
-            settings: {
-              ...settings,
-              systemPrompt,
-            },
-          });
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONVERSATION_CREATE_COST,
-            description: `MCP conversation created: ${title}`,
-            metadata: {
+          let conversation;
+          try {
+            conversation = await conversationsService.create({
+              organization_id: user.organization_id!!,
               user_id: user.id,
-              conversation_id: conversation.id,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONVERSATION_CREATE_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+              title,
+              model: actualModel,
+              settings: {
+                ...settings,
+                systemPrompt,
+              },
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(CONVERSATION_CREATE_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -1731,7 +1559,6 @@ const mcpHandler = createMcpHandler(
                     title: conversation.title,
                     model: conversation.model,
                     cost: String(CONVERSATION_CREATE_COST),
-                    newBalance: deductionResult.newBalance,
                   },
                   null,
                   2,
@@ -1792,63 +1619,49 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONVERSATION_SEARCH_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONVERSATION_SEARCH_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONVERSATION_SEARCH_COST,
+              userId: user.id,
+              description: `MCP conversation search: ${query || "all"}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const conversations = await conversationsService.listByOrganization(
-            user.organization_id!,
-            limit,
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONVERSATION_SEARCH_COST,
-            description: `MCP conversation search: ${query || "all"}`,
-            metadata: {
-              user_id: user.id,
-              query,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONVERSATION_SEARCH_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          let conversations;
+          try {
+            conversations = await conversationsService.listByOrganization(
+              user.organization_id!,
+              limit,
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          await reservation?.reconcile(CONVERSATION_SEARCH_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -1947,77 +1760,63 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
+          // Reserve max cost BEFORE operation
           const estimatedCost = Math.min(
             CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
             CONVERSATION_SUMMARY_MAX_COST,
           );
-          if (Number(org.credit_balance) < estimatedCost) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      estimated: estimatedCost,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: estimatedCost,
+              userId: user.id,
+              description: `MCP conversation summary: ${roomId}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const summary = await memoryService.summarizeConversation({
-            roomId,
-            organizationId: user.organization_id!!,
-            lastN,
-            style,
-            includeMetadata,
-          });
+          let summary;
+          try {
+            summary = await memoryService.summarizeConversation({
+              roomId,
+              organizationId: user.organization_id!!,
+              lastN,
+              style,
+              includeMetadata,
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
 
+          // Calculate actual cost and reconcile
           const actualCost = Math.min(
             CONVERSATION_SUMMARY_BASE_COST +
               Math.ceil(summary.tokenCount / 1000),
             CONVERSATION_SUMMARY_MAX_COST,
           );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: actualCost,
-            description: `MCP conversation summary: ${roomId}`,
-            metadata: {
-              user_id: user.id,
-              room_id: roomId,
-              tokens: summary.tokenCount,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: actualCost,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          await reservation?.reconcile(actualCost);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -2106,67 +1905,54 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONTEXT_OPTIMIZATION_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONTEXT_OPTIMIZATION_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONTEXT_OPTIMIZATION_COST,
+              userId: user.id,
+              description: `MCP context optimization: ${roomId}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                        available: error.available,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const optimized = await memoryService.optimizeContextWindow(
-            roomId,
-            user.organization_id!,
-            maxTokens,
-            query,
-            preserveRecent,
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONTEXT_OPTIMIZATION_COST,
-            description: `MCP context optimization: ${roomId}`,
-            metadata: {
-              user_id: user.id,
-              room_id: roomId,
-              max_tokens: maxTokens,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONTEXT_OPTIMIZATION_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          let optimized;
+          try {
+            optimized = await memoryService.optimizeContextWindow(
+              roomId,
+              user.organization_id!,
+              maxTokens,
+              query,
+              preserveRecent,
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(CONTEXT_OPTIMIZATION_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -2197,7 +1983,6 @@ const mcpHandler = createMcpHandler(
                     messageCount: optimized.messageCount,
                     relevanceScores: optimized.relevanceScores,
                     cost: String(CONTEXT_OPTIMIZATION_COST),
-                    newBalance: deductionResult.newBalance,
                   },
                   null,
                   2,
@@ -2252,65 +2037,52 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONVERSATION_EXPORT_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONVERSATION_EXPORT_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONVERSATION_EXPORT_COST,
+              userId: user.id,
+              description: `MCP conversation export: ${conversationId}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                        available: error.available,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const exportData = await memoryService.exportConversation(
-            conversationId,
-            user.organization_id!,
-            format,
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONVERSATION_EXPORT_COST,
-            description: `MCP conversation export: ${conversationId}`,
-            metadata: {
-              user_id: user.id,
-              conversation_id: conversationId,
+          let exportData;
+          try {
+            exportData = await memoryService.exportConversation(
+              conversationId,
+              user.organization_id!,
               format,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONVERSATION_EXPORT_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(CONVERSATION_EXPORT_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -2336,7 +2108,6 @@ const mcpHandler = createMcpHandler(
                     format: exportData.format,
                     size: exportData.size,
                     cost: String(CONVERSATION_EXPORT_COST),
-                    newBalance: deductionResult.newBalance,
                   },
                   null,
                   2,
@@ -2401,71 +2172,58 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < CONVERSATION_CLONE_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: CONVERSATION_CLONE_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: CONVERSATION_CLONE_COST,
+              userId: user.id,
+              description: `MCP conversation clone: ${conversationId}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                        available: error.available,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const cloneResult = await memoryService.cloneConversation(
-            conversationId,
-            user.organization_id!,
-            user.id,
-            {
-              newTitle,
-              preserveMessages,
-              preserveMemories,
-              newModel,
-            },
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: CONVERSATION_CLONE_COST,
-            description: `MCP conversation clone: ${conversationId}`,
-            metadata: {
-              user_id: user.id,
-              source_conversation_id: conversationId,
-              new_conversation_id: cloneResult.conversationId,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: CONVERSATION_CLONE_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          let cloneResult;
+          try {
+            cloneResult = await memoryService.cloneConversation(
+              conversationId,
+              user.organization_id!,
+              user.id,
+              {
+                newTitle,
+                preserveMessages,
+                preserveMemories,
+                newModel,
+              },
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(CONVERSATION_CLONE_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -2491,7 +2249,6 @@ const mcpHandler = createMcpHandler(
                     conversationId: cloneResult.conversationId,
                     clonedMessageCount: cloneResult.clonedMessageCount,
                     cost: String(CONVERSATION_CLONE_COST),
-                    newBalance: deductionResult.newBalance,
                   },
                   null,
                   2,
@@ -2548,63 +2305,51 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
-          if (Number(org.credit_balance) < MEMORY_ANALYSIS_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: MEMORY_ANALYSIS_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: MEMORY_ANALYSIS_COST,
+              userId: user.id,
+              description: `MCP memory analysis: ${analysisType}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                        available: error.available,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const analysis = await memoryService.analyzeMemoryPatterns(
-            user.organization_id!,
-            analysisType,
-          );
-
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: MEMORY_ANALYSIS_COST,
-            description: `MCP memory analysis: ${analysisType}`,
-            metadata: {
-              user_id: user.id,
-              analysis_type: analysisType,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      required: MEMORY_ANALYSIS_COST,
-                      available: deductionResult.newBalance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          let analysis;
+          try {
+            analysis = await memoryService.analyzeMemoryPatterns(
+              user.organization_id!,
+              analysisType,
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
           }
+
+          // Confirm the charge
+          await reservation?.reconcile(MEMORY_ANALYSIS_COST);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -2631,7 +2376,6 @@ const mcpHandler = createMcpHandler(
                     data: analysis.data,
                     chartData: analysis.chartData,
                     cost: String(MEMORY_ANALYSIS_COST),
-                    newBalance: deductionResult.newBalance,
                   },
                   null,
                   2,
@@ -2729,46 +2473,65 @@ const mcpHandler = createMcpHandler(
             },
           );
 
-          // Use org data from auth context (already fetched, avoids redundant DB call)
-          const org = user.organization;
-
+          // Estimate cost and reserve credits BEFORE operation
           const estimatedInputTokens = Math.ceil(message.length / 4);
           const estimatedCost = Math.max(
             AGENT_CHAT_MIN_COST,
             Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST),
           );
 
-          if (Number(org.credit_balance) < estimatedCost) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient balance",
-                      required: estimatedCost,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: estimatedCost * 2, // Reserve 2x estimated for output tokens
+              userId: user.id,
+              description: "MCP chat with agent",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient balance",
+                        required: error.required,
+                        available: error.available,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            throw error;
           }
 
-          const actualRoomId =
-            roomId ||
-            (await agentService.getOrCreateRoom(entityId || user.id, org.id));
+          let actualRoomId;
+          let response;
+          try {
+            actualRoomId =
+              roomId ||
+              (await agentService.getOrCreateRoom(
+                entityId || user.id,
+                user.organization_id!,
+              ));
 
-          const response = await agentService.sendMessage({
-            roomId: actualRoomId,
-            entityId: entityId || user.id,
-            message,
-            organizationId: user.organization_id!!,
-            streaming,
-          });
+            response = await agentService.sendMessage({
+              roomId: actualRoomId,
+              entityId: entityId || user.id,
+              message,
+              organizationId: user.organization_id!!,
+              streaming,
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
 
           const actualCost = Math.ceil(
             (response.usage?.inputTokens || estimatedInputTokens) *
@@ -2777,18 +2540,8 @@ const mcpHandler = createMcpHandler(
                 AGENT_CHAT_OUTPUT_TOKEN_COST,
           );
 
-          await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: actualCost,
-            description: "MCP chat with agent",
-            metadata: {
-              user_id: user.id,
-              room_id: actualRoomId,
-              message_id: response.messageId,
-              input_tokens: response.usage?.inputTokens || 0,
-              output_tokens: response.usage?.outputTokens || 0,
-            },
-          });
+          // Reconcile with actual cost
+          await reservation?.reconcile(actualCost);
 
           await usageService.create({
             organization_id: user.organization_id!!,
@@ -3320,32 +3073,45 @@ const mcpHandler = createMcpHandler(
           const { user, apiKey } = getAuthContext();
           const VIDEO_COST = 5;
 
-          if (Number(user.organization.credit_balance) < VIDEO_COST) {
-            throw new Error(
-              `Insufficient credits: need $${VIDEO_COST.toFixed(2)}`,
-            );
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: VIDEO_COST,
+              userId: user.id,
+              description: `MCP video generation: ${model}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error(
+                `Insufficient credits: need $${VIDEO_COST.toFixed(2)}`,
+              );
+            }
+            throw error;
           }
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: VIDEO_COST,
-            description: `MCP video generation: ${model}`,
-            metadata: { user_id: user.id, model },
-          });
-          if (!deduction.success) throw new Error("Credit deduction failed");
+          let generation;
+          try {
+            generation = await generationsService.create({
+              organization_id: user.organization_id!,
+              user_id: user.id,
+              api_key_id: apiKey?.id || null,
+              type: "video",
+              model,
+              provider: "fal",
+              prompt,
+              status: "pending",
+              credits: String(VIDEO_COST),
+              cost: String(VIDEO_COST),
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
 
-          const generation = await generationsService.create({
-            organization_id: user.organization_id!,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "video",
-            model,
-            provider: "fal",
-            prompt,
-            status: "pending",
-            credits: String(VIDEO_COST),
-            cost: String(VIDEO_COST),
-          });
+          // Confirm the charge
+          await reservation?.reconcile(VIDEO_COST);
 
           return {
             content: [
@@ -3417,24 +3183,37 @@ const mcpHandler = createMcpHandler(
           const COST_PER_TOKEN = 0.00002 / 1000;
           const cost = totalTokens * COST_PER_TOKEN;
 
-          if (Number(user.organization.credit_balance) < cost) {
-            throw new Error(`Insufficient credits: need $${cost.toFixed(6)}`);
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: cost,
+              userId: user.id,
+              description: `MCP embeddings: ${model}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error(`Insufficient credits: need $${cost.toFixed(6)}`);
+            }
+            throw error;
           }
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: cost,
-            description: `MCP embeddings: ${model}`,
-            metadata: { user_id: user.id, tokenCount: totalTokens },
-          });
-          if (!deduction.success) throw new Error("Credit deduction failed");
+          let data;
+          try {
+            const provider = getProvider();
+            const response = await provider.createEmbeddings({
+              model,
+              input: inputs,
+            });
+            data = await response.json();
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
 
-          const provider = getProvider();
-          const response = await provider.createEmbeddings({
-            model,
-            input: inputs,
-          });
-          const data = await response.json();
+          // Confirm the charge
+          await reservation?.reconcile(cost);
 
           return {
             content: [
@@ -3708,25 +3487,42 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const TTS_COST = 0.001 * Math.ceil(text.length / 100);
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: TTS_COST,
-            description: "MCP text-to-speech",
-            metadata: { user_id: user.id, chars: text.length },
-          });
-          if (!deduction.success) throw new Error("Insufficient credits");
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: TTS_COST,
+              userId: user.id,
+              description: "MCP text-to-speech",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error("Insufficient credits");
+            }
+            throw error;
+          }
 
-          const elevenLabs = await getElevenLabsService();
-          const audioBuffer = await elevenLabs.textToSpeech(
-            text,
-            voiceId || "21m00Tcm4TlvDq8ikWAM",
-          );
-          const { uploadFromBuffer } = await import("@/lib/blob");
-          const audioUrl = await uploadFromBuffer(
-            audioBuffer,
-            `tts-${Date.now()}.mp3`,
-            "audio/mpeg",
-          );
+          let audioUrl;
+          try {
+            const elevenLabs = await getElevenLabsService();
+            const audioBuffer = await elevenLabs.textToSpeech(
+              text,
+              voiceId || "21m00Tcm4TlvDq8ikWAM",
+            );
+            const { uploadFromBuffer } = await import("@/lib/blob");
+            audioUrl = await uploadFromBuffer(
+              audioBuffer,
+              `tts-${Date.now()}.mp3`,
+              "audio/mpeg",
+            );
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
+
+          // Confirm the charge
+          await reservation?.reconcile(TTS_COST);
 
           return {
             content: [
@@ -4142,23 +3938,41 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const COST = 0.01;
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: COST,
-            description: "MCP prompt generation",
-            metadata: { user_id: user.id },
-          });
-          if (!deduction.success) throw new Error("Insufficient credits");
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: COST,
+              userId: user.id,
+              description: "MCP prompt generation",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error("Insufficient credits");
+            }
+            throw error;
+          }
 
-          const { openai } = await import("@ai-sdk/openai");
-          const { generateText } = await import("ai");
+          let prompts;
+          try {
+            const { openai } = await import("@ai-sdk/openai");
+            const { generateText } = await import("ai");
 
-          const { text } = await generateText({
-            model: openai("gpt-4o-mini"),
-            prompt: `Generate 4 short, practical AI agent concepts (max 8 words each). Return ONLY a JSON array of strings.`,
-          });
+            const { text } = await generateText({
+              model: openai("gpt-4o-mini"),
+              prompt: `Generate 4 short, practical AI agent concepts (max 8 words each). Return ONLY a JSON array of strings.`,
+            });
 
-          const prompts = JSON.parse(text);
+            prompts = JSON.parse(text);
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
+
+          // Confirm the charge
+          await reservation?.reconcile(COST);
+
           return {
             content: [
               {
@@ -4213,20 +4027,37 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const COST = 0.01;
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: COST,
-            description: "MCP knowledge upload",
-            metadata: { user_id: user.id, title },
-          });
-          if (!deduction.success) throw new Error("Insufficient credits");
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: COST,
+              userId: user.id,
+              description: "MCP knowledge upload",
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error("Insufficient credits");
+            }
+            throw error;
+          }
 
-          const result = await memoryService.saveMemory({
-            organizationId: user.organization_id!,
-            content,
-            roomId: characterId,
-            metadata: { title, type: "knowledge" },
-          });
+          let result;
+          try {
+            result = await memoryService.saveMemory({
+              organizationId: user.organization_id!,
+              content,
+              roomId: characterId,
+              metadata: { title, type: "knowledge" },
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
+
+          // Confirm the charge
+          await reservation?.reconcile(COST);
 
           return {
             content: [
@@ -5002,29 +4833,42 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const DEPLOYMENT_COST = 10;
 
-          if (Number(user.organization.credit_balance) < DEPLOYMENT_COST) {
-            throw new Error(`Insufficient credits: need $${DEPLOYMENT_COST}`);
+          // Reserve credits BEFORE operation
+          let reservation: CreditReservation | null = null;
+          try {
+            reservation = await creditsService.reserve({
+              organizationId: user.organization_id!,
+              amount: DEPLOYMENT_COST,
+              userId: user.id,
+              description: `MCP container deployment: ${name}`,
+            });
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              throw new Error(`Insufficient credits: need $${DEPLOYMENT_COST}`);
+            }
+            throw error;
           }
 
-          const deduction = await creditsService.deductCredits({
-            organizationId: user.organization_id!,
-            amount: DEPLOYMENT_COST,
-            description: `MCP container deployment: ${name}`,
-            metadata: { user_id: user.id },
-          });
-          if (!deduction.success) throw new Error("Credit deduction failed");
+          let container;
+          try {
+            container = await containersService.create({
+              organization_id: user.organization_id!,
+              name,
+              project_name: projectName,
+              ecr_image_uri: ecrImageUri,
+              port,
+              cpu,
+              memory,
+              environment_vars: environmentVars || {},
+              status: "deploying",
+            });
+          } catch (opError) {
+            await reservation?.reconcile(0);
+            throw opError;
+          }
 
-          const container = await containersService.create({
-            organization_id: user.organization_id!,
-            name,
-            project_name: projectName,
-            ecr_image_uri: ecrImageUri,
-            port,
-            cpu,
-            memory,
-            environment_vars: environmentVars || {},
-            status: "deploying",
-          });
+          // Confirm the charge
+          await reservation?.reconcile(DEPLOYMENT_COST);
 
           return {
             content: [
@@ -5535,17 +5379,17 @@ const mcpHandler = createMcpHandler(
     );
 
     // =========================================================================
-    // ERC-8004 Discovery Tools
-    // Tools for discovering and searching services on the decentralized registry
+    // Discovery Tools
+    // Tools for discovering services on Eliza Cloud
     // =========================================================================
 
-    // Tool: Discover Services - Search the discovery API
+    // Tool: Discover Services - Search Eliza Cloud services
     server.registerTool(
       "discover_services",
       {
         description:
-          "Discover services (agents, MCPs, apps) from both Eliza Cloud and the ERC-8004 registry. " +
-          "Use this to find external services to interact with. FREE tool.",
+          "Discover services (agents, MCPs, apps) from Eliza Cloud. " +
+          "Use this to find services to interact with. FREE tool.",
         inputSchema: {
           query: z
             .string()
@@ -5555,25 +5399,11 @@ const mcpHandler = createMcpHandler(
             .array(z.enum(["agent", "mcp", "a2a", "app"]))
             .optional()
             .describe("Types of services to find"),
-          sources: z
-            .array(z.enum(["local", "erc8004"]))
-            .optional()
-            .describe(
-              "Sources to search (local = Eliza Cloud, erc8004 = decentralized)",
-            ),
           categories: z
             .array(z.string())
             .optional()
             .describe("Filter by categories"),
           tags: z.array(z.string()).optional().describe("Filter by tags"),
-          mcpTools: z
-            .array(z.string())
-            .optional()
-            .describe("Find services with specific MCP tools"),
-          a2aSkills: z
-            .array(z.string())
-            .optional()
-            .describe("Find services with specific A2A skills"),
           x402Only: z
             .boolean()
             .optional()
@@ -5588,17 +5418,7 @@ const mcpHandler = createMcpHandler(
             .describe("Max results"),
         },
       },
-      async ({
-        query,
-        types,
-        sources,
-        categories,
-        tags,
-        mcpTools,
-        a2aSkills,
-        x402Only,
-        limit,
-      }) => {
+      async ({ query, types, categories, x402Only, limit }) => {
         try {
           const baseUrl =
             process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -5614,101 +5434,65 @@ const mcpHandler = createMcpHandler(
             x402Support: boolean;
           }> = [];
 
-          const searchSources = sources ?? ["local", "erc8004"];
           const searchTypes = types ?? ["agent", "mcp"];
 
-          // Search local services
-          if (searchSources.includes("local")) {
-            if (searchTypes.includes("agent")) {
-              let chars = await charactersService.listPublic();
-              // Apply basic filtering
-              if (query) {
-                const q = query.toLowerCase();
-                chars = chars.filter(
-                  (c) =>
-                    c.name.toLowerCase().includes(q) ||
-                    (typeof c.bio === "string" &&
-                      c.bio.toLowerCase().includes(q)) ||
-                    (Array.isArray(c.bio) &&
-                      c.bio.some((b) => b.toLowerCase().includes(q))),
-                );
-              }
-              if (categories?.length) {
-                chars = chars.filter((c) =>
-                  categories.includes(c.category ?? ""),
-                );
-              }
-              chars = chars.slice(0, limit ?? 20);
-              for (const char of chars) {
-                services.push({
-                  id: char.id,
-                  name: char.name,
-                  description: Array.isArray(char.bio)
-                    ? char.bio.join(" ")
-                    : char.bio,
-                  type: "agent",
-                  source: "local",
-                  a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
-                  mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
-                  x402Support: false,
-                });
-              }
+          // Search agents
+          if (searchTypes.includes("agent")) {
+            let chars = await charactersService.listPublic();
+            // Apply basic filtering
+            if (query) {
+              const q = query.toLowerCase();
+              chars = chars.filter(
+                (c) =>
+                  c.name.toLowerCase().includes(q) ||
+                  (typeof c.bio === "string" &&
+                    c.bio.toLowerCase().includes(q)) ||
+                  (Array.isArray(c.bio) &&
+                    c.bio.some((b) => b.toLowerCase().includes(q))),
+              );
             }
-
-            if (searchTypes.includes("mcp")) {
-              const mcps = await userMcpsService.listPublic({
-                category: categories?.[0],
-                search: query,
-                limit: limit,
+            if (categories?.length) {
+              chars = chars.filter((c) =>
+                categories.includes(c.category ?? ""),
+              );
+            }
+            chars = chars.slice(0, limit ?? 20);
+            for (const char of chars) {
+              services.push({
+                id: char.id,
+                name: char.name,
+                description: Array.isArray(char.bio)
+                  ? char.bio.join(" ")
+                  : char.bio,
+                type: "agent",
+                source: "local",
+                a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+                mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+                x402Support: false,
               });
-              for (const mcp of mcps) {
-                services.push({
-                  id: mcp.id,
-                  name: mcp.name,
-                  description: mcp.description,
-                  type: "mcp",
-                  source: "local",
-                  mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
-                  x402Support: mcp.x402_enabled,
-                });
-              }
             }
           }
 
-          // Search ERC-8004 registry
-          if (searchSources.includes("erc8004")) {
-            const network = getDefaultNetwork();
-            const chainId = CHAIN_IDS[network];
-
-            const agents = await agent0Service.searchAgentsCached({
-              name: query,
-              mcpTools: mcpTools,
-              a2aSkills: a2aSkills,
-              x402Support: x402Only,
-              active: true,
+          // Search MCPs
+          if (searchTypes.includes("mcp")) {
+            let mcps = await userMcpsService.listPublic({
+              category: categories?.[0],
+              search: query,
+              limit: limit,
             });
-
-            for (const agent of agents) {
-              const discovered = agent0ToDiscoveredService(
-                agent,
-                network,
-                chainId,
-              );
-              if (
-                !searchTypes.length ||
-                searchTypes.includes(discovered.type)
-              ) {
-                services.push({
-                  id: discovered.id,
-                  name: discovered.name,
-                  description: discovered.description,
-                  type: discovered.type,
-                  source: "erc8004",
-                  mcpEndpoint: discovered.mcpEndpoint,
-                  a2aEndpoint: discovered.a2aEndpoint,
-                  x402Support: discovered.x402Support,
-                });
-              }
+            if (x402Only) {
+              mcps = mcps.filter((m) => m.x402_enabled);
+            }
+            for (const mcp of mcps) {
+              services.push({
+                id: mcp.id,
+                name: mcp.name,
+                description: mcp.description,
+                type: "mcp",
+                source: "local",
+                mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+                x402Support: mcp.x402_enabled,
+              });
             }
           }
 
@@ -5739,238 +5523,6 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Discovery failed",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Get Service Details - Get detailed info about a discovered service
-    server.registerTool(
-      "get_service_details",
-      {
-        description:
-          "Get detailed information about a specific service from the ERC-8004 registry. " +
-          "Use agentId in format 'chainId:tokenId'. FREE tool.",
-        inputSchema: {
-          agentId: z
-            .string()
-            .describe(
-              "Agent ID in format 'chainId:tokenId' (e.g., '84532:123')",
-            ),
-        },
-      },
-      async ({ agentId }) => {
-        try {
-          const agent = await agent0Service.getAgentCached(agentId);
-          if (!agent) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Agent not found", agentId },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
-
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-          const service = agent0ToDiscoveredService(agent, network, chainId);
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    service,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to get service details",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Find MCP Tools - Search for services that provide specific MCP tools
-    server.registerTool(
-      "find_mcp_tools",
-      {
-        description:
-          "Find services that provide specific MCP tools. " +
-          "Useful for discovering external capabilities. FREE tool.",
-        inputSchema: {
-          tools: z
-            .array(z.string())
-            .describe("List of MCP tool names to search for"),
-          x402Only: z
-            .boolean()
-            .optional()
-            .describe("Only return services with x402 payment"),
-        },
-      },
-      async ({ tools, x402Only }) => {
-        try {
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-
-          const agents = await agent0Service.findAgentsWithToolsCached(tools);
-          const filtered = x402Only
-            ? agents.filter((a) => a.x402Support)
-            : agents;
-
-          const results = filtered.map((agent) => ({
-            agentId: agent.agentId,
-            name: agent.name,
-            description: agent.description,
-            mcpEndpoint: agent.mcpEndpoint,
-            mcpTools: agent.mcpTools,
-            x402Support: agent.x402Support,
-            network,
-            chainId,
-          }));
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    searchedTools: tools,
-                    count: results.length,
-                    services: results,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to find MCP tools",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Find A2A Skills - Search for agents with specific skills
-    server.registerTool(
-      "find_a2a_skills",
-      {
-        description:
-          "Find agents that have specific A2A skills for agent-to-agent communication. " +
-          "Useful for discovering agents to collaborate with. FREE tool.",
-        inputSchema: {
-          skills: z
-            .array(z.string())
-            .describe("List of A2A skill names to search for"),
-          x402Only: z
-            .boolean()
-            .optional()
-            .describe("Only return services with x402 payment"),
-        },
-      },
-      async ({ skills, x402Only }) => {
-        try {
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-
-          const agents = await agent0Service.findAgentsWithSkillsCached(skills);
-          const filtered = x402Only
-            ? agents.filter((a) => a.x402Support)
-            : agents;
-
-          const results = filtered.map((agent) => ({
-            agentId: agent.agentId,
-            name: agent.name,
-            description: agent.description,
-            a2aEndpoint: agent.a2aEndpoint,
-            a2aSkills: agent.a2aSkills,
-            x402Support: agent.x402Support,
-            network,
-            chainId,
-          }));
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    searchedSkills: skills,
-                    count: results.length,
-                    agents: results,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to find A2A skills",
                   },
                   null,
                   2,
@@ -6024,18 +5576,6 @@ async function handleRequest(req: NextRequest) {
       );
     }
 
-    // Track request for agent reputation (fire and forget)
-    const agentIdentifier = `org:${authResult.user.organization_id}`;
-    agentReputationService
-      .recordRequest({
-        agentIdentifier,
-        isSuccessful: true,
-        method: "mcp",
-      })
-      .catch(() => {
-        // Ignore errors - don't fail MCP request for reputation tracking
-      });
-
     // Run MCP handler within auth context using AsyncLocalStorage
     // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
     // that adds an optional `auth` property. Direct cast is safe since NextRequest is a subtype.
@@ -6043,42 +5583,6 @@ async function handleRequest(req: NextRequest) {
       return await mcpHandler(req as Request);
     });
   } catch (error) {
-    // Return 402 with x402 payment info if enabled and configured
-    const {
-      X402_ENABLED,
-      X402_RECIPIENT_ADDRESS,
-      getDefaultNetwork,
-      USDC_ADDRESSES,
-      TOPUP_PRICE,
-      CREDITS_PER_DOLLAR,
-      isX402Configured,
-    } = await import("@/lib/config/x402");
-
-    if (isX402Configured()) {
-      return NextResponse.json(
-        {
-          error: "authentication_failed",
-          error_description:
-            "Authentication required. Get an API key or top up credits via x402 payment.",
-          x402: {
-            topupEndpoint: "/api/v1/credits/topup",
-            network: getDefaultNetwork(),
-            asset: USDC_ADDRESSES[getDefaultNetwork()],
-            payTo: X402_RECIPIENT_ADDRESS,
-            minimumTopup: TOPUP_PRICE,
-            creditsPerDollar: CREDITS_PER_DOLLAR,
-          },
-        },
-        {
-          status: 402,
-          headers: {
-            "WWW-Authenticate":
-              'Bearer realm="MCP Server", error="invalid_token"',
-          },
-        },
-      );
-    }
-
     // Return auth error in MCP format
     return NextResponse.json(
       {

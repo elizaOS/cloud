@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const PROMPT_RATE_LIMIT = {
+  windowMs: 60000,
+  maxRequests: process.env.NODE_ENV === "production" ? 20 : 100,
+};
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -12,17 +18,29 @@ const SendPromptSchema = z.object({
   prompt: z.string().min(1).max(10000),
 });
 
-/**
- * POST /api/v1/app-builder/sessions/:sessionId/prompts
- * Send a prompt to Claude Code in the sandbox
- */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    // Verify user owns this session
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Rate limit exceeded. Maximum ${PROMPT_RATE_LIMIT.maxRequests} prompts per minute.`,
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
+          },
+        },
+      );
+    }
+
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
@@ -38,9 +56,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const result = await aiAppBuilderService.sendPrompt(
+    const result = await aiAppBuilder.sendPrompt(
       sessionId,
       validationResult.data.prompt,
+      user.id,
     );
 
     return NextResponse.json({
@@ -53,17 +72,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     logger.error("Failed to send prompt", { error });
     const message =
       error instanceof Error ? error.message : "Failed to send prompt";
-    const status = message.includes("Unauthorized")
-      ? 403
-      : message.includes("not found")
-        ? 404
-        : 500;
-    return NextResponse.json(
-      {
-        success: false,
-        error: message,
-      },
-      { status },
-    );
+
+    let status = 500;
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
+      status = 401;
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
+      status = 403;
+    } else if (message.includes("not found") || message.includes("not ready")) {
+      status = 404;
+    } else if (message.includes("Rate limit")) {
+      status = 429;
+    }
+
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

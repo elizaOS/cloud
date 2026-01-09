@@ -25,8 +25,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { MessageSquare, FileCode2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
@@ -61,8 +60,9 @@ export function CharacterBuildMode({
   );
 
   // Mobile view state: 'assistant' or 'editor'
+  // Default to 'editor' when editing existing character, 'assistant' when creating new
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
-    "assistant",
+    initialCharacterId ? "editor" : "assistant",
   );
 
   // Store the default character in a ref to prevent it from changing between renders
@@ -161,9 +161,22 @@ export function CharacterBuildMode({
     [],
   );
 
+  const handleExit = useCallback(() => {
+    if (character.id) {
+      router.push(`/dashboard/chat?characterId=${character.id}`);
+    } else {
+      router.push("/dashboard");
+    }
+  }, [character.id, router]);
+
   const handleSave = useCallback(async () => {
     if (!character.name) {
       toast.error("Character name is required");
+      return;
+    }
+
+    if (!character.username) {
+      toast.error("Username is required");
       return;
     }
 
@@ -204,7 +217,7 @@ export function CharacterBuildMode({
             setPreUploadedFiles((prev) =>
               prev.filter((f) => !processedFileIds.has(f.id)),
             );
-            toast.success("Character updated!", {
+            toast.success("Character updated! Redirecting to chat...", {
               description: `Processed ${data.successCount} file(s) for RAG knowledge base`,
               duration: 4000,
             });
@@ -215,13 +228,20 @@ export function CharacterBuildMode({
               duration: 6000,
             });
             onUnsavedChanges?.(false);
+            // Still navigate to chat after update
+            setPendingNavigation(character.id);
             return;
           }
         } else {
-          toast.success("Character updated successfully!");
+          toast.success("Character updated! Redirecting to chat...", {
+            duration: 2000,
+          });
         }
 
         onUnsavedChanges?.(false);
+
+        // Navigate to chat mode after successful update
+        setPendingNavigation(character.id);
       } else {
         // Create new character (creator mode)
         const saved = await createCharacter(character);
@@ -343,31 +363,19 @@ export function CharacterBuildMode({
       />
 
       {/* Mobile Toggle Bar */}
-      <div className="lg:hidden flex border-b border-[#353535] bg-[#0A0A0A] shrink-0">
-        <button
-          onClick={() => setMobileView("assistant")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
-            mobileView === "assistant"
-              ? "bg-[#FF5800] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5",
-          )}
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span>AI Assistant</span>
-        </button>
-        <button
-          onClick={() => setMobileView("editor")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
-            mobileView === "editor"
-              ? "bg-[#FF5800] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5",
-          )}
-        >
-          <FileCode2 className="h-4 w-4" />
-          <span>Editor</span>
-        </button>
+      <div className="lg:hidden py-3 px-3 sm:px-6 bg-black shrink-0">
+        <AnimatedTabs
+          tabs={[
+            { value: "assistant", label: "AI Assistant" },
+            { value: "editor", label: "Editor" },
+          ]}
+          value={mobileView}
+          onValueChange={(value) =>
+            setMobileView(value as "assistant" | "editor")
+          }
+          variant="orange"
+          fullWidth
+        />
       </div>
 
       {/* Mobile Single Panel View */}
@@ -391,6 +399,8 @@ export function CharacterBuildMode({
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
+              onExit={handleExit}
+              hasUnsavedChanges={hasUnsavedChanges}
               preUploadedFiles={preUploadedFiles}
               onPreUploadedFilesAdd={handlePreUploadedFilesAdd}
               onPreUploadedFileRemove={handlePreUploadedFileRemove}
@@ -403,9 +413,9 @@ export function CharacterBuildMode({
       <div className="z-0 hidden lg:flex h-full w-full min-h-0 overflow-hidden flex-1">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left Panel - AI Assistant Chat */}
-          <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+          <ResizablePanel defaultSize={50} minSize={40} maxSize={60}>
             <div
-              className="flex h-full flex-col overflow-hidden"
+              className="flex h-full flex-col overflow-hidden pl-3 pb-3 pt-3 pr-1.5 bg-black"
               data-onboarding="build-assistant"
             >
               <BuildModeAssistant
@@ -425,16 +435,17 @@ export function CharacterBuildMode({
           <ResizableHandle withHandle />
 
           {/* Right Panel - Character Editor */}
-          <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+          <ResizablePanel defaultSize={50} minSize={40} maxSize={60}>
             <div
-              className="flex h-full flex-col overflow-hidden border-l"
-              style={{ borderColor: "#353535" }}
+              className="flex h-full flex-col overflow-hidden pr-3 pb-3 pt-3 pl-1.5 bg-black"
               data-onboarding="build-editor"
             >
               <CharacterEditor
                 character={character}
                 onChange={setCharacter}
                 onSave={handleSave}
+                onExit={handleExit}
+                hasUnsavedChanges={hasUnsavedChanges}
                 preUploadedFiles={preUploadedFiles}
                 onPreUploadedFilesAdd={handlePreUploadedFilesAdd}
                 onPreUploadedFileRemove={handlePreUploadedFileRemove}

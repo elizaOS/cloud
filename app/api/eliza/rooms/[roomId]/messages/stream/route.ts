@@ -29,7 +29,7 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180; // 3 minutes for image generation support
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
@@ -61,6 +61,8 @@ export async function POST(
       appId: bodyAppId,
       appPromptConfig,
       webSearchEnabled,
+      createImageEnabled,
+      imageModel,
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
@@ -111,10 +113,12 @@ export async function POST(
       );
     }
 
-    // Determine agent mode: explicit > webSearch toggle > default
+    // Determine agent mode: explicit > features toggle > default
+    // Use ASSISTANT mode when web search OR image generation is enabled
+    // Only use CHAT mode when both are disabled
     if (agentMode) {
       agentModeConfig = agentMode;
-    } else if (effectiveWebSearchEnabled) {
+    } else if (effectiveWebSearchEnabled || createImageEnabled) {
       agentModeConfig = { mode: AgentMode.ASSISTANT };
     } else {
       agentModeConfig = { mode: AgentMode.CHAT };
@@ -371,6 +375,14 @@ export async function POST(
       );
     } else {
       logger.info("[Stream] No model preference set, using defaults");
+    }
+
+    // Log image generation settings and store model in context for runtime
+    if (createImageEnabled) {
+      userContext.imageModel = imageModel;
+      logger.info(
+        `[Stream] Image generation enabled - model: ${imageModel || "default"}, mode: ${agentModeConfig.mode}`,
+      );
     }
 
     // Apply character if specified

@@ -64,6 +64,7 @@ export default async function BuildPage({ searchParams }: PageProps) {
     <BuildPageClient
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
+      userId={user?.id || null}
       initialCharacterId={initialCharacterId}
     />
   );

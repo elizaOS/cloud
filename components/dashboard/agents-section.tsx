@@ -34,6 +34,9 @@ import {
   Trash2,
   MoreHorizontal,
   Upload,
+  Globe,
+  Lock,
+  Link as LinkIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,7 +52,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 import { Skeleton } from "../ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 interface Agent {
   id: string;
@@ -58,6 +63,7 @@ interface Agent {
   avatarUrl: string | null;
   category: string | null;
   isPublic: boolean;
+  username?: string | null;
   stats?: AgentStats;
 }
 
@@ -279,12 +285,14 @@ function getAgentColor(name: string): string {
 // Individual Agent Card - Full card style with prominent avatar
 function AgentCard({ agent }: { agent: Agent }) {
   const router = useRouter();
+  const { loadRooms, rooms } = useChatStore();
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
   const isDeployed = agent.stats?.deploymentStatus === "deployed";
   const isStopped = agent.stats?.deploymentStatus === "stopped";
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [isPublic, setIsPublic] = React.useState(agent.isPublic);
 
   const handleDuplicate = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -329,6 +337,55 @@ function AgentCard({ agent }: { agent: Agent }) {
     toast.success("Agent exported successfully");
   };
 
+  const handleToggleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newIsPublic = !isPublic;
+    setIsPublic(newIsPublic); // Optimistic update
+
+    try {
+      const response = await fetch(
+        `/api/my-agents/characters/${agent.id}/share`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        },
+      );
+
+      if (response.ok) {
+        toast.success(
+          newIsPublic ? "Agent is now public" : "Agent is now private",
+        );
+      } else {
+        setIsPublic(!newIsPublic); // Revert on error
+        toast.error("Failed to update sharing");
+      }
+    } catch {
+      setIsPublic(!newIsPublic); // Revert on error
+      toast.error("Failed to update sharing");
+    }
+  };
+
+  const handleCopyShareLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+
+    if (!agent.username) {
+      toast.error("Set a username first to share this agent");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/chat/@${agent.username}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied!");
+    } catch {
+      toast.error("Failed to copy link to clipboard");
+    }
+  };
+
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -362,18 +419,43 @@ function AgentCard({ agent }: { agent: Agent }) {
     setShowDeleteConfirm(false);
   };
 
-  // Prevent card click when delete dialog is open
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = async (e: React.MouseEvent) => {
     if (showDeleteConfirm) {
       e.preventDefault();
+      return;
+    }
+
+    e.preventDefault();
+
+    // Ensure rooms are loaded
+    if (rooms.length === 0) {
+      await loadRooms();
+    }
+
+    const currentRooms = useChatStore.getState().rooms;
+    const characterRooms = currentRooms
+      .filter((r) => r.characterId === agent.id)
+      .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+    if (characterRooms.length > 0) {
+      router.push(
+        `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`,
+      );
+    } else {
+      router.push(`/dashboard/chat?characterId=${agent.id}`);
     }
   };
 
   return (
-    <Link
-      href={`/dashboard/chat?characterId=${agent.id}`}
-      className="block h-full"
+    <div
+      className="block h-full cursor-pointer"
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ")
+          handleCardClick(e as unknown as React.MouseEvent);
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
         <div className={cn("relative aspect-square w-full overflow-hidden")}>
@@ -440,10 +522,37 @@ function AgentCard({ agent }: { agent: Agent }) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleDeleteClick}
-                className="cursor-pointer text-red-600 focus:text-red-600"
+                onClick={handleToggleShare}
+                className="cursor-pointer flex items-center justify-between"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <span className="flex items-center">
+                  {isPublic ? (
+                    <Globe className="h-4 w-4 mr-4 text-green-500" />
+                  ) : (
+                    <Lock className="h-4 w-4 mr-4" />
+                  )}
+                  {isPublic ? "Public" : "Private"}
+                </span>
+                <Switch
+                  checked={isPublic}
+                  className="pointer-events-none data-[state=checked]:bg-green-500/20 [&_[data-slot=switch-thumb]]:data-[state=checked]:bg-green-500 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:bg-white/40"
+                />
+              </DropdownMenuItem>
+              {isPublic && (
+                <DropdownMenuItem
+                  onClick={handleCopyShareLink}
+                  className="cursor-pointer"
+                >
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDeleteClick}
+                className="cursor-pointer text-red-500 bg-red-500/10 hover:bg-red-500/20 focus:bg-red-500/20 focus:text-red-500"
+              >
+                <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -497,7 +606,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

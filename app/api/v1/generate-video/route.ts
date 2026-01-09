@@ -4,14 +4,19 @@ import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { usageService } from "@/lib/services/usage";
-import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
+import { discordService } from "@/lib/services/discord";
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing";
 import { uploadFromUrl, isFalAiUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -78,6 +83,28 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    // Reserve credits BEFORE generation
+    let reservation: CreditReservation;
+    try {
+      reservation = await creditsService.reserve({
+        organizationId: user.organization_id!,
+        amount: VIDEO_GENERATION_COST,
+        userId: user.id,
+        description: `Video generation: ${model}`,
+      });
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        return NextResponse.json(
+          {
+            error: "Insufficient credits for video generation",
+            required: error.required,
+          },
+          { status: 402 },
+        );
+      }
+      throw error;
+    }
+
     const generation = await generationsService.create({
       organization_id: user.organization_id!!,
       user_id: user.id,
@@ -104,6 +131,8 @@ async function handlePOST(request: NextRequest) {
 
     if (!data?.video?.url) {
       logger.error("[VIDEO GENERATION] No video URL in response:", data);
+      // Reconcile with 0 cost (full refund)
+      await reservation.reconcile(0);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -142,41 +171,20 @@ async function handlePOST(request: NextRequest) {
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
         blobError,
       );
-      // Don't fallback to Fal.ai URL - return error instead
+      // Reconcile with 0 cost (full refund) - video generated but storage failed
+      await reservation.reconcile(0);
       return NextResponse.json(
         { error: "Failed to store video in our storage. Please try again." },
         { status: 500 },
       );
     }
 
-    const deductionResult = await creditsService.deductCredits({
-      organizationId: user.organization_id!!,
-      amount: VIDEO_GENERATION_COST,
-      description: `Video generation: ${model}`,
-      metadata: { user_id: user.id },
-      session_token,
+    // Reconcile with actual cost (video successfully generated and stored)
+    await reservation.reconcile(VIDEO_GENERATION_COST);
+    logger.info("[VIDEO GENERATION] Credits reconciled", {
+      reserved: reservation.reservedAmount,
+      actual: VIDEO_GENERATION_COST,
     });
-
-    // FIXED: Fail the request if credit deduction fails to prevent revenue leak
-    if (!deductionResult.success) {
-      logger.error(
-        "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
-        {
-          organizationId: user.organization_id!!,
-          cost: String(VIDEO_GENERATION_COST),
-          balance: deductionResult.newBalance,
-        },
-      );
-
-      return NextResponse.json(
-        {
-          error: "Insufficient credits to complete video generation",
-          required: VIDEO_GENERATION_COST,
-          available: deductionResult.newBalance,
-        },
-        { status: 402 }, // Payment Required
-      );
-    }
 
     const usageRecord = await usageService.create({
       organization_id: user.organization_id!!,
@@ -219,6 +227,30 @@ async function handlePOST(request: NextRequest) {
           requestId: result.requestId,
         },
       });
+
+      // Send Discord notification for video generation (non-blocking)
+      discordService
+        .logVideoGenerated({
+          generationId,
+          prompt: prompt.trim(),
+          videoUrl: blobUrl,
+          userId: user.id,
+          organizationId: user.organization_id!,
+          model,
+          width: data.video.width,
+          height: data.video.height,
+          fileSize: blobFileSize ? Number(blobFileSize) : undefined,
+          cost: VIDEO_GENERATION_COST,
+        })
+        .catch((err) => {
+          logger.warn(
+            "[VIDEO GENERATION] Failed to send Discord notification",
+            {
+              generationId,
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+          );
+        });
     }
 
     return NextResponse.json(
@@ -245,26 +277,19 @@ async function handlePOST(request: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
 
-    try {
-      const {
-        user: fallbackUser,
-        apiKey: fallbackApiKey,
-        session_token: fallbackSessionToken,
-      } = await requireAuthOrApiKeyWithOrg(request);
-
-      const fallbackDeduction = await creditsService.deductCredits({
-        organizationId: fallbackUser.organization_id,
-        amount: VIDEO_GENERATION_FALLBACK_COST,
-        description: "Video generation (fallback): fal-ai/veo3",
-        metadata: { user_id: fallbackUser.id },
-        session_token: fallbackSessionToken,
+    // If reservation was made, reconcile with fallback cost (partial charge for attempt)
+    // @ts-expect-error - reservation may not be defined if error occurred before reservation
+    if (typeof reservation !== "undefined") {
+      // @ts-expect-error - reservation is defined at this point
+      await reservation.reconcile(VIDEO_GENERATION_FALLBACK_COST);
+      logger.info("[VIDEO GENERATION] Credits reconciled with fallback cost", {
+        fallbackCost: VIDEO_GENERATION_FALLBACK_COST,
       });
+    }
 
-      if (!fallbackDeduction.success) {
-        logger.error(
-          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
-        );
-      }
+    try {
+      const { user: fallbackUser, apiKey: fallbackApiKey } =
+        await requireAuthOrApiKeyWithOrg(request);
 
       const fallbackUsageRecord = await usageService.create({
         organization_id: fallbackUser.organization_id,
@@ -285,7 +310,7 @@ async function handlePOST(request: NextRequest) {
         await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
-          storage_url: null, // No storage URL for fallback - generation failed
+          storage_url: null,
           mime_type: "video/mp4",
           dimensions: {
             width: 1920,
@@ -298,7 +323,7 @@ async function handlePOST(request: NextRequest) {
           result: {
             isFallback: true,
             originalError: errorMessage,
-            video: null, // No video URL - generation failed
+            video: null,
           },
         });
       }

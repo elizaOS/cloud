@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
     // Pagination
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
-      50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+      1000,
+      Math.max(1, parseInt(searchParams.get("limit") || "30", 10)),
     );
 
     logger.debug("[My Agents API] Search request:", {
@@ -66,18 +66,23 @@ export async function GET(request: NextRequest) {
 
     // Sort characters
     characters.sort((a, b) => {
-      const multiplier = order === "desc" ? -1 : 1;
       switch (sortBy) {
-        case "name":
-          return multiplier * a.name.localeCompare(b.name);
-        case "newest":
+        case "name": {
+          const result = a.name.localeCompare(b.name);
+          return order === "desc" ? -result : result;
+        }
+        case "newest": {
           const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return multiplier * (dateB - dateA);
-        case "updated":
+          // Descending: newest first (higher timestamp first)
+          return order === "desc" ? dateB - dateA : dateA - dateB;
+        }
+        case "updated": {
           const updA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
           const updB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return multiplier * (updB - updA);
+          // Descending: most recently updated first (higher timestamp first)
+          return order === "desc" ? updB - updA : updA - updB;
+        }
         default:
           return 0;
       }

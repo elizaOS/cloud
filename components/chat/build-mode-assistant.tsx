@@ -140,9 +140,14 @@ export function BuildModeAssistant({
     BUILD_MODE_TIERS[DEFAULT_MODEL_TIER].modelId;
 
   const tierIcons: Record<string, React.ReactNode> = {
-    fast: <Zap className="h-3.5 w-3.5" />,
-    pro: <Sparkles className="h-3.5 w-3.5" />,
-    ultra: <Crown className="h-3.5 w-3.5" />,
+    fast: <Zap className="size-5 text-white/40" />,
+    pro: <Sparkles className="size-5 text-white/40" />,
+    ultra: <Crown className="size-5 text-white/40" />,
+  };
+  const tierIconsSmall: Record<string, React.ReactNode> = {
+    fast: <Zap className="size-3.5 text-white/50" />,
+    pro: <Sparkles className="size-3.5 text-white/50" />,
+    ultra: <Crown className="size-3.5 text-white/50" />,
   };
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
@@ -223,7 +228,8 @@ export function BuildModeAssistant({
         }
 
         // No existing room found - create new one with welcome message
-        const welcomeText = `${character?.name || "Your agent"} is live. Tell me what you want to change - I'll update the character file as we talk, or you can edit directly on the right. What needs tweaking?`;
+        const welcomeText =
+          "You can update your agent by describing the changes you have in mind here, or edit the agent directly on the right. What needs tweaking?";
         const roomTitle = `[BUILD] ${character?.name || "Character"} (${character?.id})`;
 
         const createResponse = await fetch("/api/eliza/rooms", {
@@ -269,7 +275,7 @@ export function BuildModeAssistant({
 
       // Creator mode: always create fresh room with Eliza
       const welcomeText =
-        "Hey, I'm Eliza. I'm going to help you build an agent. Just describe what you're imagining - personality, purpose, whatever - and I'll write the character file as we go. You can also build manually by adding or editing anything on the right. So. What are we making?";
+        "Hi, I'm Eliza. There are two different ways to build your agent:\n1. You can describe what you're imagining - personality, purpose, whatever - and I'll create the agent by building its personality and assigning its capabilities as we go.\n2. You can also build the agent manually on the right.\n\nSo, what are we making?";
       const roomTitle = `[CREATOR] New Character Builder ${Date.now()}`;
 
       const createResponse = await fetch("/api/eliza/rooms", {
@@ -905,11 +911,11 @@ export function BuildModeAssistant({
   };
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
+    <div className="flex h-full w-full min-h-0 flex-col rounded-2xl bg-[#0A0A0A]">
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full py-6" ref={scrollAreaRef}>
-          <div className="space-y-6 pl-[56px] md:pl-[64px] pr-4 md:pr-6">
+      <div className="flex-1 min-h-0 overflow-hidden pt-4 md:pt-6 pr-1 md:pr-2">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
+          <div className="space-y-6 pl-4 md:pl-6 pr-3 md:pr-4">
             {/* Only render messages if they're not stale (from a different mode/character) */}
             {!messagesAreStale &&
               messages.map((message, index) => {
@@ -937,17 +943,17 @@ export function BuildModeAssistant({
                     }
                   >
                     {isAgent ? (
-                      <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+                      <div className="flex flex-col gap-1.5 max-w-[85%] md:max-w-[75%] group/message">
                         {/* Agent Name Row with Avatar */}
-                        <div className="flex items-center gap-2 pl-1">
+                        <div className="flex items-end gap-2.5">
                           <ElizaAvatar
                             avatarUrl={displayAvatar}
                             name={displayName}
-                            className="flex-shrink-0 w-5 h-5"
-                            iconClassName="h-3 w-3"
+                            className="flex-shrink-0 w-7 h-7"
+                            iconClassName="h-4 w-4"
                             fallbackClassName="bg-[#FF5800]"
                           />
-                          <span className="text-xs font-medium text-white/50">
+                          <span className="text-sm font-medium text-white/60">
                             {displayName}
                           </span>
                         </div>
@@ -1204,7 +1210,7 @@ export function BuildModeAssistant({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message items-end">
+                      <div className="flex flex-col gap-1.5 max-w-[85%] md:max-w-[75%] group/message items-end">
                         {/* User Message */}
                         <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 ml-auto">
                           <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
@@ -1242,7 +1248,7 @@ export function BuildModeAssistant({
               (isInitializing && messages.length === 0)) &&
               !messages.some((m) => m.id.startsWith("streaming-")) && (
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
+                  <div className="flex flex-col gap-1.5 max-w-[85%] md:max-w-[75%]">
                     <div className="flex items-center gap-2 pl-1">
                       <ElizaAvatar
                         avatarUrl={displayAvatar}
@@ -1273,7 +1279,7 @@ export function BuildModeAssistant({
       {lockedRoom && (
         <div className="border-t border-white/[0.06] py-4">
           <div className="pl-[56px] md:pl-[64px] pr-4 md:pr-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/[0.08] rounded-lg">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/[0.08] rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500/10 border border-green-500/20">
                   <Lock className="w-5 h-5 text-green-500" />
@@ -1301,12 +1307,9 @@ export function BuildModeAssistant({
 
       {/* Input Area - Hidden when room is locked */}
       {!lockedRoom && (
-        <form
-          onSubmit={handleSubmit}
-          className="border-t border-white/[0.06] py-4"
-        >
-          <div className="mx-auto px-4 sm:px-6">
-            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+        <form onSubmit={handleSubmit} className="py-4 md:py-6">
+          <div className="mx-auto px-4 md:px-6">
+            <div className="relative rounded-2xl border border-white/12 bg-white/4 overflow-hidden shadow-lg shadow-black/20">
               {/* Robot Eye Visor Scanner - Only show when loading */}
               {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
@@ -1366,7 +1369,7 @@ export function BuildModeAssistant({
                       className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
                     >
                       <span className="flex items-center gap-1.5 text-sm text-white/50">
-                        {tierIcons[selectedTier]}
+                        {tierIconsSmall[selectedTier]}
                         {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
                           ?.name || "Pro"}
                       </span>
@@ -1386,7 +1389,7 @@ export function BuildModeAssistant({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
-                    className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
+                    className="w-72 rounded-xl border-white/10 bg-neutral-600/10 backdrop-blur-md p-1.5"
                     align="end"
                     side="top"
                     sideOffset={8}
@@ -1394,25 +1397,23 @@ export function BuildModeAssistant({
                     {BUILD_MODE_TIER_LIST.map((tier) => (
                       <DropdownMenuItem
                         key={tier.id}
-                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
+                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer data-[highlighted]:bg-white/5 focus:bg-white/5"
                         onSelect={() => {
                           setSelectedTier(tier.id as "fast" | "pro" | "ultra");
                         }}
                       >
-                        <div className="flex items-start gap-3">
-                          <span className="mt-0.5 text-white/50">
-                            {tierIcons[tier.id]}
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <span>{tierIcons[tier.id]}</span>
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="text-[14px] font-medium text-white">
                                 {tier.name}
                               </span>
-                              <span className="text-[11px] text-white/30 font-mono">
+                              <span className="text-[11px] text-white/50 font-mono">
                                 {tier.modelId.split("/")[1]}
                               </span>
                             </div>
-                            <span className="text-[12px] text-white/40">
+                            <span className="text-[12px] text-white/60">
                               {tier.description}
                             </span>
                           </div>
@@ -1430,12 +1431,12 @@ export function BuildModeAssistant({
                   type="submit"
                   disabled={isLoading || !inputText.trim()}
                   size="icon"
-                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors ml-1"
+                  className="group h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] border-0 transition-colors ml-1"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                   ) : (
-                    <Send className="h-4 w-4 text-[#FF5800]" />
+                    <Send className="h-4 w-4 text-[#FF5800] group-disabled:text-white/50 transition-colors" />
                   )}
                 </Button>
               </div>
