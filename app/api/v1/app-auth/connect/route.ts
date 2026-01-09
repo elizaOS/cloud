@@ -7,9 +7,31 @@ import { eq, and } from "drizzle-orm";
 import { verifyAuthTokenCached } from "@/lib/auth";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
+// CORS headers - fully open, security via auth tokens
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Max-Age": "86400",
+};
+
 const ConnectSchema = z.object({
   appId: z.string().uuid(),
 });
+
+/**
+ * OPTIONS /api/v1/app-auth/connect
+ * CORS preflight handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
 
 /**
  * POST /api/v1/app-auth/connect
@@ -32,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
         { success: false, error: "Authorization header required" },
-        { status: 401 },
+        { status: 401, headers: CORS_HEADERS },
       );
     }
     
@@ -44,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!verifiedClaims) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired token" },
-        { status: 401 },
+        { status: 401, headers: CORS_HEADERS },
       );
     }
     
@@ -59,7 +81,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 },
+        { status: 400, headers: CORS_HEADERS },
       );
     }
     
@@ -71,13 +93,13 @@ export async function POST(request: NextRequest) {
         id: users.id,
       })
       .from(users)
-      .where(eq(users.privy_id, verifiedClaims.userId))
+      .where(eq(users.privy_user_id, verifiedClaims.userId))
       .limit(1);
     
     if (!user) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404 },
+        { status: 404, headers: CORS_HEADERS },
       );
     }
     
@@ -100,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 },
+        { status: 404, headers: CORS_HEADERS },
       );
     }
     
@@ -158,7 +180,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Connected successfully",
-    });
+    }, { headers: CORS_HEADERS });
   } catch (error) {
     logger.error("App auth connect error:", error);
     return NextResponse.json(
@@ -166,7 +188,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Connection failed",
       },
-      { status: 500 },
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

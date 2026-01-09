@@ -57,7 +57,7 @@ async function handlePOST(req: NextRequest) {
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
     );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
