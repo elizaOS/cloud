@@ -54,6 +54,24 @@ export function PendingKnowledgeProcessor({
   // Track which characterId is being processed (null = none)
   // This allows processing different characters if user switches
   const processingCharacterIdRef = useRef<string | null>(null);
+  // Track previous characterId to detect switches
+  const previousCharacterIdRef = useRef<string | null>(characterId);
+
+  // Reset dismissed state when characterId changes
+  // This allows processing pending files for a new character after dismissing for another
+  useEffect(() => {
+    if (characterId !== previousCharacterIdRef.current) {
+      setDismissed(false);
+      setState({
+        status: "idle",
+        totalFiles: 0,
+        processedFiles: 0,
+        successCount: 0,
+        failedCount: 0,
+      });
+      previousCharacterIdRef.current = characterId;
+    }
+  }, [characterId]);
 
   const processFiles = useCallback(
     async (pending: PendingKnowledge) => {
@@ -84,8 +102,8 @@ export function PendingKnowledgeProcessor({
 
         if (response.ok) {
           const data = await response.json();
-          const failedCount = data.failedCount || 0;
-          const successCount = data.successCount || pending.files.length;
+          const failedCount = data.failedCount ?? 0;
+          const successCount = data.successCount ?? 0;
 
           // Handle sessionStorage based on processing results
           if (failedCount === 0) {
