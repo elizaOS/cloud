@@ -7,6 +7,7 @@
 
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
+import { appsRepository } from "@/db/repositories/apps";
 import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import { logger } from "@/lib/utils/logger";
 
@@ -60,22 +61,22 @@ export async function uploadPromotionalAsset(appId: string, formData: FormData) 
       userId: user.id,
     });
 
-    // Get image dimensions (we'll use default dimensions, or you could use a library to detect)
-    // For simplicity, we'll use common social media dimensions
+    // Get image dimensions from form data if provided by client, otherwise use defaults
+    // Client can extract dimensions using browser's Image API before upload
+    const widthStr = formData.get("width") as string | null;
+    const heightStr = formData.get("height") as string | null;
+    const width = widthStr ? parseInt(widthStr, 10) : 1200;
+    const height = heightStr ? parseInt(heightStr, 10) : 630;
+
     const newAsset: PromotionalAsset = {
       type: "custom",
       url,
-      size: { width: 1200, height: 630 }, // Default social card dimensions
+      size: { width, height },
       generatedAt: new Date().toISOString(),
     };
 
-    // Append to existing assets
-    const existingAssets = (app.promotional_assets as PromotionalAsset[] | null) || [];
-    const updatedAssets = [...existingAssets, newAsset];
-
-    await appsService.update(appId, {
-      promotional_assets: updatedAssets,
-    });
+    // Atomically append to existing assets (avoids race conditions)
+    await appsRepository.appendPromotionalAsset(appId, newAsset);
 
     logger.info("[Apps Action] Uploaded promotional asset", {
       appId,
@@ -110,29 +111,24 @@ export async function deletePromotionalAsset(appId: string, assetUrl: string) {
       return { success: false, error: "App not found" };
     }
 
-    const existingAssets = (app.promotional_assets as PromotionalAsset[] | null) || [];
+    // Atomically remove the asset (avoids race conditions)
+    const { removedAsset } = await appsRepository.removePromotionalAsset(
+      appId,
+      assetUrl
+    );
 
-    // Find and remove the asset
-    const assetIndex = existingAssets.findIndex((a) => a.url === assetUrl);
-    if (assetIndex === -1) {
+    if (!removedAsset) {
       return { success: false, error: "Asset not found" };
     }
 
-    const removedAsset = existingAssets[assetIndex];
-    const updatedAssets = existingAssets.filter((_, i) => i !== assetIndex);
-
-    // Update app with removed asset
-    await appsService.update(appId, {
-      promotional_assets: updatedAssets.length > 0 ? updatedAssets : null,
-    });
-
     // Try to delete from blob storage if it's our blob URL
-    if (isValidBlobUrl(removedAsset.url)) {
+    const assetWithUrl = removedAsset as { url: string };
+    if (isValidBlobUrl(assetWithUrl.url)) {
       try {
-        await deleteBlob(removedAsset.url);
+        await deleteBlob(assetWithUrl.url);
         logger.info("[Apps Action] Deleted blob for promotional asset", {
           appId,
-          url: removedAsset.url,
+          url: assetWithUrl.url,
         });
       } catch (blobError) {
         // Log but don't fail - the database is already updated

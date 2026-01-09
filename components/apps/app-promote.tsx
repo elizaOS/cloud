@@ -344,8 +344,33 @@ export function AppPromote({ app }: AppPromoteProps) {
 
     setIsUploadingAsset(true);
 
+    // Extract image dimensions using browser's Image API
+    let width = 1200;
+    let height = 630;
+    try {
+      const img = document.createElement("img");
+      const objectUrl = URL.createObjectURL(file);
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          width = img.naturalWidth;
+          height = img.naturalHeight;
+          URL.revokeObjectURL(objectUrl);
+          resolve();
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error("Failed to load image"));
+        };
+        img.src = objectUrl;
+      });
+    } catch {
+      // Use default dimensions if extraction fails
+    }
+
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("width", width.toString());
+    formData.append("height", height.toString());
 
     const result = await uploadPromotionalAsset(app.id, formData);
 

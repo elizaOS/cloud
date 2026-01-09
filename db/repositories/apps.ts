@@ -590,6 +590,76 @@ export class AppsRepository {
 
     return results;
   }
+
+  // ============================================================================
+  // PROMOTIONAL ASSETS - Atomic operations
+  // ============================================================================
+
+  /**
+   * Atomically appends a promotional asset to an app's promotional_assets array.
+   * Uses JSONB concatenation to avoid read-modify-write race conditions.
+   */
+  async appendPromotionalAsset(
+    appId: string,
+    asset: {
+      type: string;
+      url: string;
+      size: { width: number; height: number };
+      generatedAt: string;
+    }
+  ): Promise<App | undefined> {
+    const [updated] = await dbWrite
+      .update(apps)
+      .set({
+        promotional_assets: sql`
+          COALESCE(${apps.promotional_assets}, '[]'::jsonb) || ${JSON.stringify(asset)}::jsonb
+        `,
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, appId))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Atomically removes a promotional asset from an app by URL.
+   * Uses JSONB operations to avoid read-modify-write race conditions.
+   */
+  async removePromotionalAsset(
+    appId: string,
+    assetUrl: string
+  ): Promise<{ app: App | undefined; removedAsset: unknown }> {
+    // First get the asset we're about to remove (for blob cleanup)
+    const app = await this.findById(appId);
+    const assets = (app?.promotional_assets as Array<{ url: string }>) || [];
+    const removedAsset = assets.find((a) => a.url === assetUrl);
+
+    if (!removedAsset) {
+      return { app, removedAsset: undefined };
+    }
+
+    // Atomically remove the asset using JSONB operations
+    const [updated] = await dbWrite
+      .update(apps)
+      .set({
+        promotional_assets: sql`
+          CASE
+            WHEN jsonb_array_length(COALESCE(${apps.promotional_assets}, '[]'::jsonb)) <= 1
+            THEN NULL
+            ELSE (
+              SELECT jsonb_agg(elem)
+              FROM jsonb_array_elements(COALESCE(${apps.promotional_assets}, '[]'::jsonb)) AS elem
+              WHERE elem->>'url' != ${assetUrl}
+            )
+          END
+        `,
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, appId))
+      .returning();
+
+    return { app: updated, removedAsset };
+  }
 }
 
 /**
