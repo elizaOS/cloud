@@ -81,6 +81,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate each modelId is a non-empty string
+  if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
+    return Response.json(
+      { error: "Each modelId must be a non-empty string" },
+      { status: 400 }
+    );
+  }
+
   const provider = getProvider();
   
   // Get all models from gateway catalog
