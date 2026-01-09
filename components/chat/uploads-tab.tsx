@@ -294,9 +294,7 @@ export function UploadsTab({
                   <p className="text-sm text-white/80 font-medium mb-1">
                     Uploading files...
                   </p>
-                  <p className="text-xs text-white/50">
-                    Please wait
-                  </p>
+                  <p className="text-xs text-white/50">Please wait</p>
                 </div>
               </div>
             ) : (

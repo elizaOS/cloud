@@ -1633,11 +1633,11 @@ export function selectContextTier(
 
   // Template-based defaults
   const complexTemplates = [
-    "agent-dashboard", 
-    "analytics", 
-    "mcp-service", 
-    "saas-starter", 
-    "ai-tool"
+    "agent-dashboard",
+    "analytics",
+    "mcp-service",
+    "saas-starter",
+    "ai-tool",
   ];
   const isComplexTemplate =
     templateType && complexTemplates.includes(templateType);

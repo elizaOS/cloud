@@ -114,6 +114,8 @@ export const generateImageAction = {
           },
           data: {
             actionName: "GENERATE_IMAGE",
+            error:
+              "Image model returned no results. Suggest the user try selecting a different image generation model.",
             prompt: imagePrompt,
             rawResponse: imageResponse,
           },
@@ -122,15 +124,6 @@ export const generateImageAction = {
       }
 
       const imageUrl = imageResponse[0].url;
-
-      logger.info(
-        {
-          src: "plugin:assistant:action:image_generation",
-          agentId: runtime.agentId,
-          imageUrl,
-        },
-        "Received image URL",
-      );
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
@@ -212,7 +205,7 @@ export const generateImageAction = {
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          errorMessage: err.message,
+          error: `${err.message}. Suggest the user try selecting a different image generation model.`,
         },
         success: false,
       };

@@ -307,7 +307,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-      }
+      },
     );
 
     if (response.ok) {
@@ -351,12 +351,12 @@ function AgentCard({ agent }: { agent: Agent }) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: newIsPublic }),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success(
-          newIsPublic ? "Agent is now public" : "Agent is now private"
+          newIsPublic ? "Agent is now public" : "Agent is now private",
         );
       } else {
         setIsPublic(!newIsPublic); // Revert on error
@@ -439,7 +439,7 @@ function AgentCard({ agent }: { agent: Agent }) {
 
     if (characterRooms.length > 0) {
       router.push(
-        `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`
+        `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`,
       );
     } else {
       router.push(`/dashboard/chat?characterId=${agent.id}`);

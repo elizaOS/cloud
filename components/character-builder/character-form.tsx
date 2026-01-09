@@ -60,14 +60,18 @@ export function CharacterForm({
   }, [character.isPublic, isTogglingShare]);
 
   const handleToggleShare = async () => {
-    if (!character.id) {
-      toast.error("Save the agent first to change visibility");
-      return;
-    }
-
     if (isTogglingShare) return; // Prevent double-clicking
 
     const newIsPublic = !isPublic;
+
+    // If character is not saved yet, just update local state
+    if (!character.id) {
+      setIsPublic(newIsPublic);
+      onChange({ ...character, isPublic: newIsPublic });
+      return;
+    }
+
+    // Character is saved, update via API
     setIsTogglingShare(true);
     setIsPublic(newIsPublic);
 
@@ -78,12 +82,12 @@ export function CharacterForm({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: newIsPublic }),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success(
-          newIsPublic ? "Agent is now public" : "Agent is now private"
+          newIsPublic ? "Agent is now public" : "Agent is now private",
         );
       } else {
         setIsPublic(!newIsPublic);
@@ -134,7 +138,7 @@ export function CharacterForm({
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index)
+      currentArray.filter((_, i) => i !== index),
     );
   };
 
@@ -159,7 +163,7 @@ export function CharacterForm({
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index)
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 
@@ -188,6 +192,7 @@ export function CharacterForm({
                 value={character.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Agent name"
+                autoCapitalize="words"
                 className="rounded-full border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
               />
             </div>
@@ -197,7 +202,7 @@ export function CharacterForm({
                 htmlFor="username"
                 className="text-sm font-medium text-white/70"
               >
-                Username
+                Username *
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">
@@ -314,11 +319,13 @@ export function CharacterForm({
                 type="button"
                 role="switch"
                 aria-checked={isPublic}
-                aria-label={isPublic ? "Make agent private" : "Make agent public"}
+                aria-label={
+                  isPublic ? "Make agent private" : "Make agent public"
+                }
                 onClick={handleToggleShare}
-                disabled={!character.id || isTogglingShare}
+                disabled={isTogglingShare}
                 className={`relative w-[62px] rounded-full p-1 transition-colors duration-300 border ${
-                  character.id && !isTogglingShare
+                  !isTogglingShare
                     ? "cursor-pointer"
                     : "cursor-not-allowed opacity-50"
                 } ${
@@ -446,7 +453,7 @@ export function CharacterForm({
                     const currentAdjectives = character.adjectives || [];
                     updateField(
                       "adjectives",
-                      currentAdjectives.filter((_, i) => i !== index)
+                      currentAdjectives.filter((_, i) => i !== index),
                     );
                   }}
                   className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
@@ -528,7 +535,7 @@ export function CharacterForm({
                     const currentTopics = character.topics || [];
                     updateField(
                       "topics",
-                      currentTopics.filter((_, i) => i !== index)
+                      currentTopics.filter((_, i) => i !== index),
                     );
                   }}
                   className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"

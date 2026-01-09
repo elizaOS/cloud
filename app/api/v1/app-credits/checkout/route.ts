@@ -43,15 +43,15 @@ export async function OPTIONS() {
 
 /**
  * POST /api/v1/app-credits/checkout
- * 
+ *
  * Create a Stripe checkout session for purchasing app credits.
- * 
+ *
  * Body:
  * - app_id: The app ID
  * - amount: Amount in dollars to purchase
  * - success_url: URL to redirect after success
  * - cancel_url: URL to redirect if cancelled
- * 
+ *
  * Returns:
  * - url: Stripe checkout URL
  * - sessionId: Checkout session ID
@@ -60,24 +60,24 @@ export async function POST(request: NextRequest) {
   try {
     // Verify user authentication
     const authHeader = request.headers.get("Authorization");
-    
+
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
-        { status: 401, headers: CORS_HEADERS }
+        { status: 401, headers: CORS_HEADERS },
       );
     }
-    
+
     const token = authHeader.slice(7);
     const verifiedClaims = await verifyAuthTokenCached(token);
-    
+
     if (!verifiedClaims) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired token" },
-        { status: 401, headers: CORS_HEADERS }
+        { status: 401, headers: CORS_HEADERS },
       );
     }
-    
+
     // Get user
     const [user] = await dbRead
       .select({
@@ -88,18 +88,18 @@ export async function POST(request: NextRequest) {
       .from(users)
       .where(eq(users.privy_user_id, verifiedClaims.userId))
       .limit(1);
-    
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404, headers: CORS_HEADERS }
+        { status: 404, headers: CORS_HEADERS },
       );
     }
-    
+
     // Parse and validate body
     const body = await request.json();
     const validation = CheckoutSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return NextResponse.json(
         {
@@ -107,21 +107,21 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: CORS_HEADERS },
       );
     }
-    
+
     const { app_id, amount, success_url, cancel_url } = validation.data;
-    
+
     // Verify app exists
     const app = await appsService.getById(app_id);
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404, headers: CORS_HEADERS }
+        { status: 404, headers: CORS_HEADERS },
       );
     }
-    
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -150,27 +150,31 @@ export async function POST(request: NextRequest) {
         amount: amount.toString(),
       },
     });
-    
+
     logger.info("Created app credit checkout session", {
       sessionId: session.id,
       appId: app_id,
       userId: user.id,
       amount,
     });
-    
-    return NextResponse.json({
-      success: true,
-      url: session.url,
-      sessionId: session.id,
-    }, { headers: CORS_HEADERS });
+
+    return NextResponse.json(
+      {
+        success: true,
+        url: session.url,
+        sessionId: session.id,
+      },
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     logger.error("Failed to create checkout session:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create checkout",
+        error:
+          error instanceof Error ? error.message : "Failed to create checkout",
       },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

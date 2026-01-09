@@ -57,13 +57,13 @@ export function CharacterBuildMode({
 
   // Track pending navigation after character creation to avoid race conditions
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(
-    null
+    null,
   );
 
   // Mobile view state: 'assistant' or 'editor'
   // Default to 'editor' when editing existing character, 'assistant' when creating new
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
-    initialCharacterId ? "editor" : "assistant"
+    initialCharacterId ? "editor" : "assistant",
   );
 
   // Store the default character in a ref to prevent it from changing between renders
@@ -101,12 +101,12 @@ export function CharacterBuildMode({
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
   const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>(
-    []
+    [],
   );
 
   // Track the character ID to detect actual character switches vs reference changes
   const previousCharacterIdRef = useRef<string | undefined>(
-    initialCharacter.id
+    initialCharacter.id,
   );
 
   // Use functional updates to avoid stale closure issues with concurrent operations
@@ -114,7 +114,7 @@ export function CharacterBuildMode({
     (newFiles: PreUploadedFile[]) => {
       setPreUploadedFiles((prev) => [...prev, ...newFiles]);
     },
-    []
+    [],
   );
 
   const handlePreUploadedFileRemove = useCallback((fileId: string) => {
@@ -159,7 +159,7 @@ export function CharacterBuildMode({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    []
+    [],
   );
 
   const handleExit = useCallback(() => {
@@ -221,7 +221,7 @@ export function CharacterBuildMode({
               markKnowledgeProcessingPending(character.id);
               // Only remove the files that were queued, preserve any newly added files
               setPreUploadedFiles((prev) =>
-                prev.filter((f) => !queuedFileIds.has(f.id))
+                prev.filter((f) => !queuedFileIds.has(f.id)),
               );
               toast.success("Character updated! Redirecting to chat...", {
                 description: `Processing ${filesToQueue.length} file(s) for RAG knowledge base...`,
@@ -296,7 +296,7 @@ export function CharacterBuildMode({
                 markKnowledgeProcessingPending(saved.id);
                 // Only remove the files that were queued, preserve any newly added files
                 setPreUploadedFiles((prev) =>
-                  prev.filter((f) => !queuedFileIds.has(f.id))
+                  prev.filter((f) => !queuedFileIds.has(f.id)),
                 );
 
                 toast.success("Character created!", {
@@ -326,7 +326,7 @@ export function CharacterBuildMode({
               });
               // Clear only the files we attempted to queue, preserve any newly added files
               setPreUploadedFiles((prev) =>
-                prev.filter((f) => !queuedFileIds.has(f.id))
+                prev.filter((f) => !queuedFileIds.has(f.id)),
               );
             }
           }
@@ -374,7 +374,7 @@ export function CharacterBuildMode({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save character. Please try again."
+          : "Failed to save character. Please try again.",
       );
     }
   }, [character, onUnsavedChanges, setRoomId, preUploadedFiles]);
@@ -407,7 +407,7 @@ export function CharacterBuildMode({
       // This avoids race conditions where the next page renders with stale state
       setPendingNavigation(characterId);
     },
-    [onUnsavedChanges, setRoomId, setSelectedCharacterId]
+    [onUnsavedChanges, setRoomId, setSelectedCharacterId],
   );
 
   return (

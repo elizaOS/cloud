@@ -45,6 +45,9 @@ export interface UserContext {
 
   // Feature flags for this request
   webSearchEnabled?: boolean;
+
+  // Image generation preferences
+  imageModel?: string;
 }
 
 export class UserContextService {

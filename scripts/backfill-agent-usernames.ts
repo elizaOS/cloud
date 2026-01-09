@@ -114,10 +114,7 @@ async function backfillUsernames(): Promise<void> {
 
   if (process.env.DATABASE_URL) {
     // Mask the connection string for security
-    const masked = process.env.DATABASE_URL.replace(
-      /\/\/[^@]+@/,
-      "//*****@",
-    );
+    const masked = process.env.DATABASE_URL.replace(/\/\/[^@]+@/, "//*****@");
     console.log(`📊 Database: ${masked}\n`);
   }
 
@@ -142,7 +139,10 @@ async function backfillUsernames(): Promise<void> {
     for (const char of characters) {
       try {
         // Generate unique username
-        const newUsername = generateUniqueUsernameFromName(char.name, existingUsernames);
+        const newUsername = generateUniqueUsernameFromName(
+          char.name,
+          existingUsernames,
+        );
 
         // Validate the generated username
         const validation = validateUsername(newUsername);
@@ -155,7 +155,9 @@ async function backfillUsernames(): Promise<void> {
             status: "error",
             error: validation.error,
           });
-          console.log(`   ❌ ${char.name}: Invalid username "${newUsername}" - ${validation.error}`);
+          console.log(
+            `   ❌ ${char.name}: Invalid username "${newUsername}" - ${validation.error}`,
+          );
           continue;
         }
 
@@ -192,7 +194,8 @@ async function backfillUsernames(): Promise<void> {
           console.log(`   ... processed ${processed}/${characters.length}`);
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         results.push({
           id: char.id,
           name: char.name,
@@ -213,7 +216,9 @@ async function backfillUsernames(): Promise<void> {
     const updated = results.filter((r) => r.status === "updated").length;
     const errors = results.filter((r) => r.status === "error").length;
 
-    console.log(`✅ Successfully ${isDryRun ? "would update" : "updated"}: ${updated}`);
+    console.log(
+      `✅ Successfully ${isDryRun ? "would update" : "updated"}: ${updated}`,
+    );
     console.log(`❌ Errors: ${errors}`);
     console.log(`📁 Total processed: ${results.length}`);
 

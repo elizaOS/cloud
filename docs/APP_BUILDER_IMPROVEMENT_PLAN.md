@@ -1,4 +1,5 @@
 # App Builder Improvement Plan
+
 ## Comprehensive Review & Roadmap for AAA Eliza Cloud Apps
 
 **Date:** January 8, 2026  
@@ -11,7 +12,9 @@
 The current app builder successfully scaffolds Next.js apps with Eliza Cloud AI capabilities. However, it **cannot build production-ready apps** that users can sign into and pay for. This is the critical missing piece preventing the creation of real SaaS applications.
 
 ### The Vision
+
 Users should be able to describe an app and have Claude build a fully functional SaaS with:
+
 - ✅ User authentication (sign in with Eliza Cloud)
 - ✅ Per-user credit system (users buy their own credits)
 - ✅ Payment processing (Stripe checkout within apps)
@@ -52,38 +55,44 @@ Users should be able to describe an app and have Claude build a fully functional
 #### 1. NO USER AUTHENTICATION FOR APPS
 
 **Current State:**
+
 - Apps authenticate with the APP's API key, not user tokens
 - All API calls draw from the organization's credit balance
 - No way for app users to sign in
 - No user-specific state or data
 
 **Impact:**
+
 - Cannot build SaaS apps with user accounts
 - Cannot track per-user usage
 - Cannot bill individual users
 - Apps are essentially "anonymous" experiences
 
 **Evidence:**
+
 ```typescript
 // Current SDK - uses org-level auth only
-const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';  // App's key
-const { balance } = await getBalance();  // Returns ORG balance, not user balance
+const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || ""; // App's key
+const { balance } = await getBalance(); // Returns ORG balance, not user balance
 ```
 
 #### 2. NO PAYMENT RAILS FOR APP USERS
 
 **Current State:**
+
 - `AppCreditsService` exists but has no frontend integration
 - No checkout flow components
 - No Stripe integration for apps
 - Credit purchases go through main platform only
 
 **Impact:**
+
 - App users cannot purchase credits
 - App creators cannot monetize directly
 - No revenue share mechanism for creators
 
 **Evidence:**
+
 ```typescript
 // Backend exists but no SDK/frontend exposure
 class AppCreditsService {
@@ -95,6 +104,7 @@ class AppCreditsService {
 #### 3. PROMPTS LACK CRITICAL PATTERNS
 
 **Missing from prompts:**
+
 - User authentication flows (sign-in, sign-up, protected routes)
 - Payment/checkout patterns
 - User dashboard patterns
@@ -103,6 +113,7 @@ class AppCreditsService {
 - Error states for insufficient credits
 
 **Current prompt focus:**
+
 - AI chat interfaces
 - Dashboard layouts
 - Credit display (but for org, not user)
@@ -110,6 +121,7 @@ class AppCreditsService {
 #### 4. SDK MISSING USER CONTEXT
 
 **Current SDK exports:**
+
 ```typescript
 // What exists:
 - chat, chatStream, generateImage, generateVideo
@@ -127,9 +139,11 @@ class AppCreditsService {
 #### 5. TEMPLATE TYPES TOO LIMITED
 
 **Current:**
+
 - chat, agent-dashboard, landing-page, analytics, blank
 
 **Missing:**
+
 - `saas-starter` - Full SaaS with auth + billing
 - `ai-tool` - Single-purpose AI tool with pay-per-use
 - `marketplace` - Multi-user platform
@@ -146,6 +160,7 @@ class AppCreditsService {
 **Goal:** Allow app users to sign in with their Eliza Cloud credentials
 
 **New Components:**
+
 ```
 lib/app-auth/
 ├── eliza-auth-client.ts     # Frontend auth client
@@ -154,6 +169,7 @@ lib/app-auth/
 ```
 
 **Key Functions:**
+
 ```typescript
 // New SDK functions
 export function signInWithEliza(): Promise<User>;
@@ -168,6 +184,7 @@ export function useElizaAuth() {
 ```
 
 **Implementation Approach:**
+
 - Use Eliza Cloud's existing Privy auth
 - App generates a OAuth-style redirect to cloud login
 - User authenticates on elizacloud.ai
@@ -175,6 +192,7 @@ export function useElizaAuth() {
 - App stores token and includes in API calls
 
 **Backend Changes:**
+
 ```
 app/api/v1/app-auth/
 ├── authorize/route.ts       # Start OAuth flow
@@ -186,6 +204,7 @@ app/api/v1/app-auth/
 #### 1.2 Update cloud-apps-template
 
 Add new files to the template:
+
 ```
 src/
 ├── lib/
@@ -209,6 +228,7 @@ src/
 **Goal:** Users can buy credits directly within apps
 
 **New SDK Functions:**
+
 ```typescript
 // Get user's credit balance in this app
 export async function getUserAppCredits(): Promise<{
@@ -219,7 +239,7 @@ export async function getUserAppCredits(): Promise<{
 
 // Create checkout session for credit purchase
 export async function createCheckoutSession(params: {
-  amount: number;  // Credits to purchase
+  amount: number; // Credits to purchase
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ url: string; sessionId: string }>;
@@ -229,6 +249,7 @@ export async function verifyPurchase(sessionId: string): Promise<boolean>;
 ```
 
 **New Hooks:**
+
 ```typescript
 export function useAppCredits() {
   return {
@@ -243,6 +264,7 @@ export function useAppCredits() {
 ```
 
 **Backend Changes:**
+
 ```
 app/api/v1/app-credits/
 ├── balance/route.ts         # Get user's app balance
@@ -254,11 +276,13 @@ app/api/v1/app-credits/
 #### 2.2 Stripe Integration for Apps
 
 **Configuration:**
+
 - Each app can have its own Stripe Connect account (optional)
 - Default: purchases go through platform with revenue share
 - Platform takes X%, app creator gets Y%, user spends Z
 
 **Environment Variables:**
+
 ```env
 # App-level (injected at build)
 NEXT_PUBLIC_ELIZA_APP_ID=app_xxx
@@ -270,17 +294,18 @@ NEXT_PUBLIC_STRIPE_CONNECTED_ACCOUNT_ID=acct_xxx
 #### 2.3 Credit Usage & Billing
 
 **Automatic deduction from user's app balance:**
+
 ```typescript
 // Before AI operation
 const hasCredits = await checkUserAppCredits(userId, appId, estimatedCost);
 if (!hasCredits) {
-  return { error: 'INSUFFICIENT_CREDITS', balance, required: estimatedCost };
+  return { error: "INSUFFICIENT_CREDITS", balance, required: estimatedCost };
 }
 
 // After AI operation
 await deductUserAppCredits(userId, appId, actualCost, {
-  operation: 'chat',
-  model: 'gpt-4o',
+  operation: "chat",
+  model: "gpt-4o",
   tokens: 1500,
 });
 ```
@@ -290,6 +315,7 @@ await deductUserAppCredits(userId, appId, actualCost, {
 #### 3.1 New Template Types
 
 **`saas-starter` Template:**
+
 ```typescript
 export const SAAS_STARTER_PROMPT = `${FULL_APP_BASE_PROMPT}
 
@@ -392,6 +418,7 @@ function ChatInterface() {
 ```
 
 **`ai-tool` Template:**
+
 ```typescript
 export const AI_TOOL_PROMPT = `${FULL_APP_BASE_PROMPT}
 
@@ -449,16 +476,16 @@ export default function ImageTool() {
 ```typescript
 export const FULL_APP_EXAMPLE_PROMPTS: Record<FullAppTemplateType, string[]> = {
   // ... existing ...
-  
-  'saas-starter': [
+
+  "saas-starter": [
     "Set up protected dashboard with sidebar navigation",
     "Add user settings page with profile editing",
     "Create billing page with credit purchase options",
     "Add usage history table showing past operations",
     "Create onboarding flow for new users",
   ],
-  
-  'ai-tool': [
+
+  "ai-tool": [
     "Create a one-page image generator with cost display",
     "Add before/after comparison for generated content",
     "Create a history of past generations",
@@ -473,8 +500,8 @@ Add to `knowledge-context.ts`:
 
 ```typescript
 const AUTH_PATTERNS: Record<string, { description: string; code: string }> = {
-  'protected-route': {
-    description: 'Protect routes that require authentication',
+  "protected-route": {
+    description: "Protect routes that require authentication",
     code: `'use client';
 import { ProtectedRoute } from '@/components/eliza';
 
@@ -489,9 +516,9 @@ export default function DashboardLayout({ children }) {
   );
 }`,
   },
-  
-  'sign-in-flow': {
-    description: 'Add sign in/sign out functionality',
+
+  "sign-in-flow": {
+    description: "Add sign in/sign out functionality",
     code: `'use client';
 import { useElizaAuth, SignInButton, UserMenu } from '@/components/eliza';
 
@@ -510,9 +537,9 @@ export function Header() {
   );
 }`,
   },
-  
-  'credit-purchase': {
-    description: 'Allow users to purchase credits',
+
+  "credit-purchase": {
+    description: "Allow users to purchase credits",
     code: `'use client';
 import { useAppCredits, PurchaseCreditsModal } from '@/components/eliza';
 import { useState } from 'react';
@@ -551,12 +578,13 @@ export function BillingSection() {
 ```typescript
 /**
  * Eliza Cloud Authentication
- * 
+ *
  * Sign in app users with their Eliza Cloud accounts.
  */
 
-const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://www.elizacloud.ai';
-const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
+const apiBase =
+  process.env.NEXT_PUBLIC_ELIZA_API_URL || "https://www.elizacloud.ai";
+const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || "";
 
 export interface ElizaUser {
   id: string;
@@ -573,10 +601,10 @@ export interface AuthState {
 }
 
 // Token storage
-const TOKEN_KEY = 'eliza_app_token';
+const TOKEN_KEY = "eliza_app_token";
 
 function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -595,8 +623,8 @@ function clearToken(): void {
 export function signIn(options?: { redirectUrl?: string }): void {
   const redirectUrl = options?.redirectUrl || window.location.href;
   const loginUrl = new URL(`${apiBase}/app-auth/authorize`);
-  loginUrl.searchParams.set('app_id', appId);
-  loginUrl.searchParams.set('redirect_uri', redirectUrl);
+  loginUrl.searchParams.set("app_id", appId);
+  loginUrl.searchParams.set("redirect_uri", redirectUrl);
   window.location.href = loginUrl.toString();
 }
 
@@ -607,8 +635,8 @@ export async function signOut(): Promise<void> {
   const token = getToken();
   if (token) {
     await fetch(`${apiBase}/api/v1/app-auth/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
   }
   clearToken();
@@ -621,10 +649,10 @@ export async function signOut(): Promise<void> {
 export async function getUser(): Promise<ElizaUser | null> {
   const token = getToken();
   if (!token) return null;
-  
+
   try {
     const res = await fetch(`${apiBase}/api/v1/app-auth/session`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
       clearToken();
@@ -643,20 +671,20 @@ export async function getUser(): Promise<ElizaUser | null> {
  */
 export async function handleCallback(): Promise<ElizaUser | null> {
   const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
-  const error = params.get('error');
-  
+  const token = params.get("token");
+  const error = params.get("error");
+
   if (error) {
     throw new Error(error);
   }
-  
+
   if (token) {
     setToken(token);
     // Clean URL
-    window.history.replaceState({}, '', window.location.pathname);
+    window.history.replaceState({}, "", window.location.pathname);
     return getUser();
   }
-  
+
   return null;
 }
 
@@ -672,7 +700,7 @@ export function isAuthenticated(): boolean {
  */
 export function getAuthHeaders(): Record<string, string> {
   const token = getToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 ```
 
@@ -681,14 +709,15 @@ export function getAuthHeaders(): Record<string, string> {
 ```typescript
 /**
  * App-level credit management
- * 
+ *
  * Users have their own credit balance per app.
  */
 
-import { getAuthHeaders } from './eliza-auth';
+import { getAuthHeaders } from "./eliza-auth";
 
-const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://www.elizacloud.ai';
-const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
+const apiBase =
+  process.env.NEXT_PUBLIC_ELIZA_API_URL || "https://www.elizacloud.ai";
+const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || "";
 
 export interface AppCreditBalance {
   balance: number;
@@ -705,10 +734,13 @@ export interface CheckoutSession {
  * Get current user's credit balance for this app
  */
 export async function getAppCredits(): Promise<AppCreditBalance> {
-  const res = await fetch(`${apiBase}/api/v1/app-credits/balance?app_id=${appId}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to fetch credits');
+  const res = await fetch(
+    `${apiBase}/api/v1/app-credits/balance?app_id=${appId}`,
+    {
+      headers: getAuthHeaders(),
+    },
+  );
+  if (!res.ok) throw new Error("Failed to fetch credits");
   return res.json();
 }
 
@@ -721,19 +753,20 @@ export async function createCheckout(params: {
   cancelUrl?: string;
 }): Promise<CheckoutSession> {
   const res = await fetch(`${apiBase}/api/v1/app-credits/checkout`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     body: JSON.stringify({
       app_id: appId,
       amount: params.amount,
-      success_url: params.successUrl || `${window.location.origin}/billing/success`,
+      success_url:
+        params.successUrl || `${window.location.origin}/billing/success`,
       cancel_url: params.cancelUrl || `${window.location.origin}/billing`,
     }),
   });
-  if (!res.ok) throw new Error('Failed to create checkout');
+  if (!res.ok) throw new Error("Failed to create checkout");
   return res.json();
 }
 
@@ -748,10 +781,13 @@ export async function getPurchaseHistory(): Promise<{
     createdAt: string;
   }>;
 }> {
-  const res = await fetch(`${apiBase}/api/v1/app-credits/history?app_id=${appId}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to fetch history');
+  const res = await fetch(
+    `${apiBase}/api/v1/app-credits/history?app_id=${appId}`,
+    {
+      headers: getAuthHeaders(),
+    },
+  );
+  if (!res.ok) throw new Error("Failed to fetch history");
   return res.json();
 }
 ```
@@ -761,24 +797,27 @@ export async function getPurchaseHistory(): Promise<{
 Add user context to all API calls:
 
 ```typescript
-import { getAuthHeaders, isAuthenticated } from './eliza-auth';
+import { getAuthHeaders, isAuthenticated } from "./eliza-auth";
 
 // Update elizaFetch to include user auth when available
-async function elizaFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function elizaFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const url = `${apiBase}${path}`;
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
-    ...getAuthHeaders(),  // Include user token if authenticated
+    ...getAuthHeaders(), // Include user token if authenticated
   };
-  
+
   if (apiKey) {
-    headers['X-Api-Key'] = apiKey;  // Still include app API key
+    headers["X-Api-Key"] = apiKey; // Still include app API key
   }
-  
+
   if (appId) {
-    headers['X-App-Id'] = appId;  // Include app ID for routing
+    headers["X-App-Id"] = appId; // Include app ID for routing
   }
-  
+
   // ... rest of function
 }
 ```
@@ -794,11 +833,11 @@ Add to `components/eliza/`:
 'use client';
 import { signIn } from '@/lib/eliza-auth';
 
-export function SignInButton({ 
+export function SignInButton({
   children = 'Sign in with Eliza',
   variant = 'primary',
   className = '',
-}: { 
+}: {
   children?: React.ReactNode;
   variant?: 'primary' | 'outline';
   className?: string;
@@ -831,7 +870,7 @@ export function ProtectedRoute({
   const { isAuthenticated, isLoading } = useElizaAuth();
 
   if (isLoading) return loadingFallback;
-  
+
   if (!isAuthenticated) {
     return fallback || <DefaultLoginPrompt />;
   }
@@ -908,6 +947,7 @@ export function PurchaseCreditsButton({
 ## Implementation Priority
 
 ### Week 1-2: User Authentication
+
 1. Create `/api/v1/app-auth/*` endpoints
 2. Add `eliza-auth.ts` to cloud-apps-template
 3. Create auth hooks and components
@@ -915,6 +955,7 @@ export function PurchaseCreditsButton({
 5. Test end-to-end auth flow
 
 ### Week 3-4: Payment Rails
+
 1. Create `/api/v1/app-credits/*` endpoints
 2. Integrate Stripe for app checkouts
 3. Add `eliza-credits.ts` to template
@@ -922,6 +963,7 @@ export function PurchaseCreditsButton({
 5. Update SDK to use user credits in API calls
 
 ### Week 5: Prompts & Templates
+
 1. Create `saas-starter` template prompt
 2. Create `ai-tool` template prompt
 3. Add auth patterns to knowledge-context.ts
@@ -929,6 +971,7 @@ export function PurchaseCreditsButton({
 5. Update example prompts
 
 ### Week 6: Polish & Testing
+
 1. End-to-end testing of complete flows
 2. Documentation updates
 3. Error handling improvements
@@ -987,6 +1030,7 @@ After implementation, the app builder should be able to create:
 4. **Marketplaces** - "Create a platform where creators sell AI-generated content"
 
 Each of these should result in:
+
 - ✅ Working authentication (sign in with Eliza)
 - ✅ User-specific credit balance
 - ✅ Functional payment processing
@@ -1043,4 +1087,4 @@ app/api/v1/
 
 ---
 
-*This plan transforms the app builder from a demo tool into a production-ready platform for building monetizable AI applications.*
+_This plan transforms the app builder from a demo tool into a production-ready platform for building monetizable AI applications._

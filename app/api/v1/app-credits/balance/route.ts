@@ -30,16 +30,16 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/app-credits/balance
- * 
+ *
  * Get the user's credit balance for a specific app.
- * 
+ *
  * Query Params:
  * - app_id: The app ID (required)
- * 
+ *
  * Headers:
  * - Authorization: Bearer <user_token>
  * - X-Api-Key: <app_api_key> (optional, for app context)
- * 
+ *
  * Returns:
  * - balance: Current credit balance
  * - totalPurchased: Total credits ever purchased
@@ -50,25 +50,25 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get("app_id") || request.headers.get("X-App-Id");
-    
+
     if (!appId) {
       return NextResponse.json(
         { success: false, error: "app_id is required" },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: CORS_HEADERS },
       );
     }
-    
+
     // Get user from auth token
     const authHeader = request.headers.get("Authorization");
     let userId: string | null = null;
     let organizationId: string | null = null;
-    
+
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
-      
+
       // Check if it's a Privy token (user auth)
       const verifiedClaims = await verifyAuthTokenCached(token);
-      
+
       if (verifiedClaims) {
         // Get user from Privy ID
         const [user] = await dbRead
@@ -79,14 +79,14 @@ export async function GET(request: NextRequest) {
           .from(users)
           .where(eq(users.privy_user_id, verifiedClaims.userId))
           .limit(1);
-        
+
         if (user) {
           userId = user.id;
           organizationId = user.organization_id;
         }
       }
     }
-    
+
     // Fallback to API key auth if no user token
     if (!userId) {
       try {
@@ -96,36 +96,39 @@ export async function GET(request: NextRequest) {
       } catch {
         return NextResponse.json(
           { success: false, error: "Authentication required" },
-          { status: 401, headers: CORS_HEADERS }
+          { status: 401, headers: CORS_HEADERS },
         );
       }
     }
-    
+
     if (!organizationId) {
       return NextResponse.json(
         { success: false, error: "User organization not found" },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: CORS_HEADERS },
       );
     }
-    
+
     // Get user's balance for this app
     let balance = await appCreditsService.getBalance(appId, userId);
-    
+
     // If no balance exists, create one with 0 credits
     if (!balance) {
       await appCreditsService.getOrCreateBalance(appId, userId, organizationId);
       balance = await appCreditsService.getBalance(appId, userId);
     }
-    
+
     const LOW_BALANCE_THRESHOLD = 5;
-    
-    return NextResponse.json({
-      success: true,
-      balance: balance?.balance ?? 0,
-      totalPurchased: balance?.totalPurchased ?? 0,
-      totalSpent: balance?.totalSpent ?? 0,
-      isLow: (balance?.balance ?? 0) < LOW_BALANCE_THRESHOLD,
-    }, { headers: CORS_HEADERS });
+
+    return NextResponse.json(
+      {
+        success: true,
+        balance: balance?.balance ?? 0,
+        totalPurchased: balance?.totalPurchased ?? 0,
+        totalSpent: balance?.totalSpent ?? 0,
+        isLow: (balance?.balance ?? 0) < LOW_BALANCE_THRESHOLD,
+      },
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     logger.error("Failed to get app credits balance:", error);
     return NextResponse.json(
@@ -133,7 +136,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get balance",
       },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

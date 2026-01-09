@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuthWithOrg();
@@ -29,7 +29,7 @@ export async function GET(
 
     const result = await charactersService.getSavedAgentDetails(
       user.id,
-      agentId
+      agentId,
     );
 
     if (!result) {
@@ -38,7 +38,7 @@ export async function GET(
           success: false,
           error: "Agent not found or not accessible",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -62,11 +62,9 @@ export async function GET(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get saved agent",
+          error instanceof Error ? error.message : "Failed to get saved agent",
       },
-      { status }
+      { status },
     );
   }
 }
@@ -85,7 +83,7 @@ export async function GET(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuthWithOrg();
@@ -104,7 +102,7 @@ export async function DELETE(
           success: false,
           error: result.error,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -138,7 +136,7 @@ export async function DELETE(
             ? error.message
             : "Failed to remove saved agent",
       },
-      { status }
+      { status },
     );
   }
 }

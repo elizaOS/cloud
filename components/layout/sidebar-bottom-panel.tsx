@@ -20,7 +20,10 @@ interface SidebarBottomPanelProps {
   isCollapsed?: boolean;
 }
 
-export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
+export function SidebarBottomPanel({
+  className,
+  isCollapsed = false,
+}: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
 

@@ -31,12 +31,12 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/app-credits/verify
- * 
+ *
  * Verify a completed checkout session and confirm credits were added.
- * 
+ *
  * Query Params:
  * - session_id: Stripe checkout session ID
- * 
+ *
  * Returns:
  * - success: Whether the purchase was successful
  * - amount: Amount of credits purchased (if successful)
@@ -45,54 +45,63 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id");
-    
+
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: "session_id is required" },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: CORS_HEADERS },
       );
     }
-    
+
     // Retrieve the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    
+
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404, headers: CORS_HEADERS }
+        { status: 404, headers: CORS_HEADERS },
       );
     }
-    
+
     // Check if payment was successful
     if (session.payment_status !== "paid") {
-      return NextResponse.json({
-        success: false,
-        error: "Payment not completed",
-        status: session.payment_status,
-      }, { headers: CORS_HEADERS });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Payment not completed",
+          status: session.payment_status,
+        },
+        { headers: CORS_HEADERS },
+      );
     }
-    
+
     // Verify this is an app credit purchase
     const metadata = session.metadata || {};
     if (metadata.type !== "app_credit_purchase") {
-      return NextResponse.json({
-        success: false,
-        error: "Invalid session type",
-      }, { headers: CORS_HEADERS });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid session type",
+        },
+        { headers: CORS_HEADERS },
+      );
     }
-    
+
     const appId = metadata.app_id;
     const userId = metadata.user_id;
     const organizationId = metadata.organization_id;
     const amount = parseFloat(metadata.amount || "0");
-    
+
     if (!appId || !userId || !organizationId || !amount) {
-      return NextResponse.json({
-        success: false,
-        error: "Invalid session metadata",
-      }, { headers: CORS_HEADERS });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid session metadata",
+        },
+        { headers: CORS_HEADERS },
+      );
     }
-    
+
     // Process the purchase (add credits to user's app balance)
     // This is idempotent - if credits were already added via webhook,
     // this will just return success
@@ -105,7 +114,7 @@ export async function GET(request: NextRequest) {
         stripeSessionId: sessionId,
         description: "Credit purchase via checkout",
       });
-      
+
       logger.info("Verified and processed app credit purchase", {
         sessionId,
         appId,
@@ -120,12 +129,15 @@ export async function GET(request: NextRequest) {
       }
       logger.info("Purchase already processed", { sessionId });
     }
-    
-    return NextResponse.json({
-      success: true,
-      amount,
-      message: "Credits added successfully",
-    }, { headers: CORS_HEADERS });
+
+    return NextResponse.json(
+      {
+        success: true,
+        amount,
+        message: "Credits added successfully",
+      },
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     logger.error("Failed to verify purchase:", error);
     return NextResponse.json(
@@ -133,7 +145,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Verification failed",
       },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

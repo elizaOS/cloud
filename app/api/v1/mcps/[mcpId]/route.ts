@@ -182,7 +182,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }
