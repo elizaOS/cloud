@@ -85,12 +85,13 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
 
     try {
       // Determine the metadata URL based on the endpoint
-      // Demo MCPs: /api/mcp/demos/crypto/sse -> /api/mcp/demos/crypto
+      // MCPs at /api/mcps/crypto -> /api/mcps/crypto (metadata is at base)
       // Platform MCP: /api/mcp -> /api/mcp/info
       let metadataUrl: string;
       if (server.endpoint === "/api/mcp") {
         metadataUrl = "/api/mcp/info";
       } else {
+        // For /api/mcps/* endpoints, metadata is at the base endpoint
         metadataUrl = server.endpoint.replace(/\/(sse|mcp|http)$/, "");
       }
 

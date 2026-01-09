@@ -38,11 +38,16 @@ export interface KnowledgeContext {
 export type PatternType =
   | "streaming-chat"
   | "agent-chat"
+  | "character-chat"
   | "image-generation"
   | "credits-display"
   | "dashboard-layout"
   | "data-fetching"
-  | "form-handling";
+  | "form-handling"
+  | "user-auth"
+  | "protected-route"
+  | "user-credits"
+  | "credit-purchase";
 
 // ============================================================================
 // TIER CONFIGURATIONS
@@ -144,6 +149,39 @@ export default function RootLayout({ children }) {
   - Browser APIs: window, document, localStorage
 - **Server Components (default) CANNOT use hooks or event handlers**
 - **Forgetting 'use client' causes "useState is not a function" errors**
+
+### Authentication (User Sign-in):
+- **Auth pages are pre-built** - don't recreate them!
+  - \`/auth/callback/page.tsx\` - OAuth callback handler
+  - \`/billing/success/page.tsx\` - Purchase success page
+- **USE pre-built components** from '@/components/eliza':
+  - \`SignInButton\` - Redirects to Eliza Cloud login
+  - \`SignOutButton\` - Signs out user
+  - \`UserMenu\` - Dropdown with user info and sign out
+  - \`ProtectedRoute\` - Wraps content requiring authentication
+- **USE \`useElizaAuth\` hook** for auth state (user, isAuthenticated, loading)
+- **DO NOT** build custom OAuth flows
+
+### User Credits (App-specific):
+- Each user has their **own credit balance per app** (not shared with org)
+- **USE \`useAppCredits\`** hook for user's app credits (balance, purchase, hasLowBalance)
+- **DO NOT** confuse with \`useElizaCredits\` which is for org-level credits
+- **USE pre-built components** for credits:
+  - \`AppCreditDisplay\` - Shows user's balance
+  - \`AppLowBalanceWarning\` - Warning banner when low
+  - \`PurchaseCreditsButton\` - Opens Stripe checkout
+  - \`PurchaseCreditsModal\` - Modal with amount selection
+  - \`CreditBalanceCard\` - Full card with balance and purchase
+- SDK automatically bills user's credits when they're authenticated
+
+### ABSOLUTELY FORBIDDEN - NO MOCKS/DEMOS/PLACEHOLDERS:
+- **NEVER** create fake, mock, demo, or simulated AI responses
+- **NEVER** use placeholder arrays like \`demoResponses = ["Hello!", "I'm demo..."]\`
+- **NEVER** use \`setTimeout\` to fake API delays
+- **NEVER** write "demo", "mock", "placeholder", "simulated" in comments
+- **ALWAYS** call the REAL SDK functions - they work!
+- The SDK connects to REAL Eliza Cloud servers with REAL AI
+- There is ZERO reason to mock anything - the SDK is production-ready
 `;
 
 // ============================================================================
@@ -188,11 +226,13 @@ for await (const chunk of chatStream([{ role: 'user', content: 'Hello!' }])) {
 ### Image Generation
 
 \`\`\`typescript
-const { url, id } = await generateImage('A sunset over mountains', {
+const result = await generateImage('A sunset over mountains', {
   model: 'dall-e-3',
   width: 1024,
   height: 1024
 });
+// Access the image URL:
+const imageUrl = result.images?.[0]?.url || result.url;
 \`\`\`
 
 ### Video Generation
@@ -207,22 +247,32 @@ const { url, id } = await generateVideo('A timelapse of clouds', {
 
 \`\`\`typescript
 // List available agents
-const { agents } = await listAgents();
+const agents = await listAgents();
+
+// Get a specific agent
+const agent = await getAgent('agent-id');
+console.log(agent.name, agent.description);
 
 // Chat with an agent (maintains conversation via roomId)
 let roomId: string | undefined;
-const { response, roomId: newRoomId } = await chatWithAgent(
-  'agent-123',
+const { text, roomId: newRoomId } = await chatWithAgent(
+  'agent-id',
   'Hello!',
   roomId
 );
 roomId = newRoomId; // Save for continued conversation
+
+// Streaming agent chat
+for await (const chunk of chatWithAgentStream('agent-id', 'Hello!', roomId)) {
+  console.log(chunk.text);
+}
 \`\`\`
 
 ### File Upload
 
 \`\`\`typescript
-const { url, id } = await uploadFile(file, 'document.pdf');
+const { url, filename, size, mimeType } = await uploadFile(file, 'document.pdf');
+console.log('Uploaded to:', url);
 \`\`\`
 
 ### Credits
@@ -239,7 +289,9 @@ import {
   useChat,
   useChatStream,
   useImageGeneration,
-  useAgents,
+  useVideoGeneration,
+  useAgents,         // List agents + chatWith helper
+  useAgentChat,      // Full chat interface for a specific agent
   useCredits,
   useFileUpload,
   usePageTracking
@@ -277,10 +329,10 @@ const handleStream = async () => {
 ### useImageGeneration
 
 \`\`\`typescript
-const { generate, loading, error, imageUrl, reset } = useImageGeneration();
+const { generate, loading, error, result, reset } = useImageGeneration();
 
 await generate('A beautiful landscape');
-// imageUrl is automatically updated
+// Access image: result?.images?.[0]?.url
 \`\`\`
 
 ### useAgents - List and chat with agents
@@ -289,8 +341,32 @@ await generate('A beautiful landscape');
 const { agents, loading, error, chatWith } = useAgents();
 
 // agents is auto-fetched on mount
-const { response } = await chatWith(agents[0].id, 'Hello!');
-// Conversation state is tracked automatically
+const response = await chatWith(agents[0].id, 'Hello!');
+console.log(response.text);
+// Conversation state is tracked automatically per agent
+\`\`\`
+
+### useAgentChat - Full chat interface for a specific agent
+
+\`\`\`typescript
+// Best for building dedicated character chat interfaces
+const { 
+  agent,        // Agent info (name, avatar, description)
+  messages,     // Array of { role, content }
+  loading, 
+  error, 
+  send,         // Send a message
+  sendStream,   // Send with streaming response
+  reset         // Clear conversation
+} = useAgentChat('agent-id');
+
+// Send a message - messages array updates automatically
+await send('Hello!');
+
+// Streaming
+for await (const chunk of sendStream('Tell me a story')) {
+  console.log(chunk); // Real-time text
+}
 \`\`\`
 
 ### useCredits - Balance management
@@ -331,8 +407,10 @@ const SDK_REFERENCE_COMPACT = `
 ### Hooks (\`@/hooks/use-eliza\`):
 - \`useChat()\` - { send, loading, error }
 - \`useChatStream()\` - { stream, loading, error }
-- \`useImageGeneration()\` - { generate, loading, imageUrl }
-- \`useAgents()\` - { agents, loading, chatWith }
+- \`useImageGeneration()\` - { generate, loading, result, reset }
+- \`useVideoGeneration()\` - { generate, loading, videoUrl }
+- \`useAgents()\` - { agents, loading, chatWith } - list agents & quick chat
+- \`useAgentChat(agentId)\` - { agent, messages, send, sendStream, reset } - full chat UI
 - \`useCredits(interval?)\` - { balance, loading, refresh }
 - \`useFileUpload()\` - { upload, loading, uploadedUrl }
 `;
@@ -409,6 +487,77 @@ import { LowBalanceWarning } from '@/components/eliza';
 - \`.prose-eliza\` - Markdown/prose styling
 - \`.animate-fade-in\` - Fade in animation
 - \`.animate-slide-up\` - Slide up animation
+
+---
+
+## Authentication Components (for user sign-in)
+
+### SignInButton
+\`\`\`typescript
+import { SignInButton } from '@/components/eliza';
+
+<SignInButton />  // Redirects to Eliza Cloud login
+<SignInButton variant="outline" size="lg" />
+\`\`\`
+
+### UserMenu
+\`\`\`typescript
+import { UserMenu } from '@/components/eliza';
+
+<UserMenu />  // Dropdown with avatar, name, sign out
+\`\`\`
+
+### ProtectedRoute
+\`\`\`typescript
+import { ProtectedRoute } from '@/components/eliza';
+
+<ProtectedRoute>
+  <Dashboard />  {/* Shows login prompt if not authenticated */}
+</ProtectedRoute>
+\`\`\`
+
+### useElizaAuth Hook
+\`\`\`typescript
+import { useElizaAuth } from '@/components/eliza';
+
+const { user, isAuthenticated, loading, signIn, signOut } = useElizaAuth();
+\`\`\`
+
+---
+
+## User App Credits (user-specific billing)
+
+Each user has their OWN credit balance per app. Use these instead of org-level credits.
+
+### useAppCredits Hook
+\`\`\`typescript
+import { useAppCredits } from '@/components/eliza';
+
+const { balance, hasLowBalance, purchase, refresh } = useAppCredits();
+
+// purchase(50) opens Stripe checkout for $50
+\`\`\`
+
+### AppCreditDisplay
+\`\`\`typescript
+import { AppCreditDisplay } from '@/components/eliza';
+
+<AppCreditDisplay showRefresh />
+\`\`\`
+
+### PurchaseCreditsButton
+\`\`\`typescript
+import { PurchaseCreditsButton } from '@/components/eliza';
+
+<PurchaseCreditsButton amount={50} />  // Opens Stripe checkout
+\`\`\`
+
+### CreditBalanceCard
+\`\`\`typescript
+import { CreditBalanceCard } from '@/components/eliza';
+
+<CreditBalanceCard />  // Full card with balance and purchase button
+\`\`\`
 `;
 
 const COMPONENT_REFERENCE_COMPACT = `
@@ -417,9 +566,23 @@ const COMPONENT_REFERENCE_COMPACT = `
 ### From \`@/components/eliza\`:
 - \`ElizaProvider\` - Wrap app (already in layout.tsx)
 - \`useEliza()\` - { credits, appId, isReady }
-- \`useElizaCredits()\` - { balance, loading, hasLowBalance, refresh }
-- \`CreditDisplay\` - Show balance inline
-- \`LowBalanceWarning\` - Warning banner
+- \`useElizaCredits()\` - { balance, loading, hasLowBalance, refresh } (org-level)
+- \`CreditDisplay\` - Show org balance inline
+- \`LowBalanceWarning\` - Warning banner (org-level)
+
+### Auth Components:
+- \`SignInButton\` - Login with Eliza Cloud
+- \`SignOutButton\` - Sign out
+- \`UserMenu\` - User dropdown with sign out
+- \`ProtectedRoute\` - Wrap content requiring auth
+- \`useElizaAuth()\` - { user, isAuthenticated, loading, signIn, signOut }
+
+### User App Credits (user has own balance):
+- \`useAppCredits()\` - { balance, hasLowBalance, purchase, refresh }
+- \`AppCreditDisplay\` - Show user's balance
+- \`AppLowBalanceWarning\` - Warning when user's balance is low
+- \`PurchaseCreditsButton\` - Opens Stripe checkout
+- \`CreditBalanceCard\` - Full balance card with purchase
 
 ### CSS Utilities (globals.css):
 - \`.btn-eliza\` - Primary button
@@ -527,7 +690,7 @@ export default function AgentsPage() {
     
     const result = await chatWith(selected, input);
     if (result) {
-      setMessages(prev => [...prev, { role: 'assistant', content: result.response }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: result.text }]);
     }
     setSending(false);
   };
@@ -590,6 +753,117 @@ export default function AgentsPage() {
             <p className="text-sm text-gray-400 mt-1">{agent.bio}</p>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}`,
+  },
+
+  "character-chat": {
+    description: "Chat interface for a specific AI character/agent",
+    code: `'use client';
+import { useAgentChat } from '@/hooks/use-eliza';
+import { Send, Loader2, Bot, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+
+// Pass the agent ID as a prop or from URL params
+export default function CharacterChat({ agentId }: { agentId: string }) {
+  const { agent, agentLoading, messages, loading, error, send, reset } = useAgentChat(agentId);
+  const [input, setInput] = useState('');
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+    const message = input;
+    setInput('');
+    await send(message);
+  };
+
+  if (agentLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-eliza-orange" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-950">
+      {/* Header with character info */}
+      <header className="p-4 border-b border-gray-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {agent?.avatar ? (
+            <img src={agent.avatar} alt={agent.name} className="h-10 w-10 rounded-full" />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-eliza-orange/20 flex items-center justify-center">
+              <Bot className="h-5 w-5 text-eliza-orange" />
+            </div>
+          )}
+          <div>
+            <h1 className="font-semibold">{agent?.name || 'AI Character'}</h1>
+            {agent?.description && (
+              <p className="text-sm text-gray-400 line-clamp-1">{agent.description}</p>
+            )}
+          </div>
+        </div>
+        <button onClick={reset} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400" title="Start new conversation">
+          <RotateCcw className="h-5 w-5" />
+        </button>
+      </header>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-500 py-12">
+            <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Start chatting with {agent?.name || 'the character'}!</p>
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={\`flex \${m.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
+            <div className={\`max-w-[80%] p-3 rounded-2xl \${
+              m.role === 'user' 
+                ? 'bg-eliza-orange text-white rounded-br-md' 
+                : 'bg-gray-800 text-gray-100 rounded-bl-md'
+            }\`}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800 rounded-2xl rounded-bl-md p-3">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-4 border-t border-gray-800">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder={\`Message \${agent?.name || 'character'}...\`}
+            className="input-eliza flex-1"
+            disabled={loading}
+          />
+          <button 
+            onClick={handleSend} 
+            disabled={loading || !input.trim()}
+            className="btn-eliza px-4"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -974,6 +1248,163 @@ export default function AIFormPage() {
   );
 }`,
   },
+
+  "user-auth": {
+    description: "User authentication with sign in/out",
+    code: `'use client';
+import { useElizaAuth, SignInButton, SignOutButton, UserMenu } from '@/components/eliza';
+
+export function Header() {
+  const { user, isAuthenticated, loading } = useElizaAuth();
+
+  return (
+    <header className="flex items-center justify-between p-4 border-b border-gray-800">
+      <h1 className="text-xl font-bold">My App</h1>
+      
+      <div className="flex items-center gap-4">
+        {loading ? (
+          <div className="h-8 w-8 rounded-full bg-gray-700 animate-pulse" />
+        ) : isAuthenticated ? (
+          <UserMenu />
+        ) : (
+          <SignInButton />
+        )}
+      </div>
+    </header>
+  );
+}`,
+  },
+
+  "protected-route": {
+    description: "Protect pages that require authentication",
+    code: `'use client';
+import { ProtectedRoute, UserMenu, AppCreditDisplay } from '@/components/eliza';
+import Link from 'next/link';
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <div className="flex h-screen">
+        {/* Sidebar */}
+        <aside className="w-64 border-r border-gray-800 flex flex-col">
+          <div className="p-4 border-b border-gray-800">
+            <h1 className="font-bold text-eliza-orange">Dashboard</h1>
+          </div>
+          <nav className="flex-1 p-4 space-y-1">
+            <Link href="/dashboard" className="block px-3 py-2 rounded-lg hover:bg-gray-800">
+              Home
+            </Link>
+            <Link href="/dashboard/settings" className="block px-3 py-2 rounded-lg hover:bg-gray-800">
+              Settings
+            </Link>
+          </nav>
+          <div className="p-4 border-t border-gray-800 space-y-3">
+            <AppCreditDisplay showRefresh />
+            <UserMenu />
+          </div>
+        </aside>
+        
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </ProtectedRoute>
+  );
+}`,
+  },
+
+  "user-credits": {
+    description: "Display and manage user's app credits",
+    code: `'use client';
+import { useAppCredits, AppCreditDisplay, AppLowBalanceWarning, CreditBalanceCard } from '@/components/eliza';
+import { Loader2 } from 'lucide-react';
+
+export default function BillingPage() {
+  const { balance, totalSpent, loading, hasLowBalance, refresh } = useAppCredits();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-eliza-orange" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 max-w-2xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">Billing & Credits</h1>
+      
+      {/* Low balance warning */}
+      <AppLowBalanceWarning />
+      
+      {/* Credit balance card with purchase button */}
+      <CreditBalanceCard />
+      
+      {/* Usage stats */}
+      <div className="card-eliza">
+        <h2 className="text-lg font-medium mb-4">Usage Summary</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-400">Current Balance</p>
+            <p className="text-2xl font-bold text-eliza-orange">\${balance.toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-400">Total Spent</p>
+            <p className="text-2xl font-bold">\${totalSpent.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}`,
+  },
+
+  "credit-purchase": {
+    description: "Credit purchase flow with modal",
+    code: `'use client';
+import { useState } from 'react';
+import { useAppCredits, PurchaseCreditsModal, PurchaseCreditsButton } from '@/components/eliza';
+import { Plus, CreditCard } from 'lucide-react';
+
+export function PurchaseSection() {
+  const { balance } = useAppCredits();
+  const [showModal, setShowModal] = useState(false);
+
+  return (
+    <div className="card-eliza">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-medium">Purchase Credits</h3>
+          <p className="text-sm text-gray-400">Current balance: \${balance.toFixed(2)}</p>
+        </div>
+        <CreditCard className="h-6 w-6 text-eliza-orange" />
+      </div>
+      
+      {/* Quick purchase options */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <PurchaseCreditsButton amount={10} variant="outline">$10</PurchaseCreditsButton>
+        <PurchaseCreditsButton amount={25} variant="outline">$25</PurchaseCreditsButton>
+        <PurchaseCreditsButton amount={50} variant="outline">$50</PurchaseCreditsButton>
+      </div>
+      
+      {/* Or open full modal */}
+      <button 
+        onClick={() => setShowModal(true)}
+        className="w-full btn-eliza-outline justify-center"
+      >
+        <Plus className="h-4 w-4" />
+        Choose amount
+      </button>
+      
+      <PurchaseCreditsModal 
+        open={showModal} 
+        onClose={() => setShowModal(false)}
+        presets={[5, 10, 25, 50, 100]}
+      />
+    </div>
+  );
+}`,
+  },
 };
 
 // ============================================================================
@@ -1172,8 +1603,16 @@ export function selectContextTier(
     "full application",
     "integration",
     "agent",
+    "character",
+    "chat with",
+    "talk to",
     "voice",
     "video",
+    "saas",
+    "sign in",
+    "login",
+    "credits",
+    "payment",
   ];
 
   // Keywords that suggest minimal context is sufficient
@@ -1193,7 +1632,13 @@ export function selectContextTier(
   const hasSimple = simpleKeywords.some((kw) => lowerPrompt.includes(kw));
 
   // Template-based defaults
-  const complexTemplates = ["agent-dashboard", "analytics", "mcp-service"];
+  const complexTemplates = [
+    "agent-dashboard", 
+    "analytics", 
+    "mcp-service", 
+    "saas-starter", 
+    "ai-tool"
+  ];
   const isComplexTemplate =
     templateType && complexTemplates.includes(templateType);
 

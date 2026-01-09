@@ -16,7 +16,7 @@ export function MonacoEditorSkeleton({
 }: MonacoEditorSkeletonProps) {
   return (
     <div
-      className="flex items-center justify-center bg-black/60 border border-white/10"
+      className="flex items-center justify-center bg-black/60"
       style={{ height }}
     >
       <div className="flex flex-col items-center gap-3 text-muted-foreground">

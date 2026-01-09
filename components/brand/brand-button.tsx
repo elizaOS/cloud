@@ -27,13 +27,13 @@ const brandButtonVariants = cva(
         icon: "h-10 w-10 border border-white/20 bg-transparent hover:bg-white/10",
         // Icon button with orange accent
         "icon-primary":
-          "h-10 w-10 border-0 bg-[#FF580040] hover:brightness-125 active:brightness-150 transition-all",
+          "size-10 aspect-square rounded-xl border border-[#FF5800]/30 bg-[#FF580040] hover:border-[#FF5800]/60 hover:bg-[#FF580060] active:bg-[#FF580080] transition-all disabled:bg-white/10 disabled:border-white/10 disabled:opacity-50",
       },
       size: {
         sm: "h-8 px-3 text-xs",
         md: "h-10 px-4 py-2",
         lg: "h-12 px-6 py-3",
-        icon: "h-10 w-10",
+        icon: "size-10 aspect-square",
       },
     },
     defaultVariants: {

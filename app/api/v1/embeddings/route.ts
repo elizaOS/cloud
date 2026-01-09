@@ -1,6 +1,5 @@
 // app/api/v1/embeddings/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import {
   calculateCost,
@@ -15,6 +14,10 @@ import type {
 } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -83,46 +86,42 @@ async function handlePOST(req: NextRequest) {
     const providerName = getProviderFromModel(request.model);
     const normalizedModel = normalizeModelName(request.model);
 
-    // Estimate cost before making API call
+    // Estimate tokens for reservation
     const inputText = Array.isArray(request.input)
       ? request.input.join(" ")
       : request.input;
-    const estimatedTokens = estimateTokens(inputText);
-    const { totalCost: estimatedCost } = await calculateCost(
-      normalizedModel,
-      providerName,
-      estimatedTokens,
-      0, // embeddings don't have output tokens
-    );
+    const estimatedInputTokens = estimateTokens(inputText);
 
-    // Add 50% buffer for safety (increased from 20% to handle usage spikes)
-    const requiredCredits = Math.ceil(estimatedCost * 1.5);
-
-    // Check credits before making API call
-    // Use org data from auth (already fetched, avoids redundant DB call)
-    const creditCheck = {
-      sufficient: Number(user.organization.credit_balance) >= requiredCredits,
-      required: requiredCredits,
-      balance: Number(user.organization.credit_balance),
-    };
-
-    if (!creditCheck.sufficient) {
-      logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
-        organizationId: user.organization_id!!,
-        required: creditCheck.required,
-        balance: creditCheck.balance,
+    // Reserve credits BEFORE making API call to prevent TOCTOU race condition
+    let reservation;
+    try {
+      reservation = await creditsService.reserve({
+        organizationId: user.organization_id!,
+        model: normalizedModel,
+        provider: providerName,
+        estimatedInputTokens,
+        estimatedOutputTokens: 0, // embeddings don't have output tokens
+        userId: user.id,
+        description: `Embeddings: ${request.model}`,
       });
-
-      return Response.json(
-        {
-          error: {
-            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        logger.warn("[Embeddings] Insufficient credits", {
+          organizationId: user.organization_id!,
+          required: error.required,
+        });
+        return Response.json(
+          {
+            error: {
+              message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
+              type: "insufficient_quota",
+              code: "insufficient_balance",
+            },
           },
-        },
-        { status: 402 },
-      );
+          { status: 402 },
+        );
+      }
+      throw error;
     }
 
     // Forward via provider
@@ -130,57 +129,29 @@ async function handlePOST(req: NextRequest) {
     const response = await gatewayProvider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
-    // CRITICAL FIX: Deduct credits SYNCHRONOUSLY before returning response
-    // to prevent free service if deduction fails
+    // Calculate actual cost and reconcile
     if (data.usage) {
       const tokensUsed = data.usage.total_tokens;
-
-      // Use proper cost calculation
       const { inputCost, totalCost } = await calculateCost(
         normalizedModel,
         providerName,
         tokensUsed,
-        0, // embeddings don't have output tokens
+        0,
       );
 
-      const deductResult = await creditsService.deductCredits({
-        organizationId: user.organization_id!!,
-        amount: totalCost,
-        description: `OpenAI Proxy Embeddings: ${request.model}`,
-        metadata: { user_id: user.id },
-        session_token,
-        tokens_consumed: tokensUsed,
+      // Reconcile with actual cost (refund excess if any)
+      await reservation.reconcile(totalCost);
+
+      logger.info("[Embeddings] Credits reconciled", {
+        reserved: reservation.reservedAmount,
+        actual: totalCost,
+        tokens: tokensUsed,
       });
-
-      if (!deductResult.success) {
-        // This should rarely happen since we checked credits before the call
-        // But it can happen if credits were spent elsewhere between check and now
-        logger.error(
-          "[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion",
-          {
-            organizationId: user.organization_id!!,
-            cost: String(totalCost),
-            balance: deductResult.newBalance,
-          },
-        );
-
-        // Return error instead of giving free service
-        return Response.json(
-          {
-            error: {
-              message: "Credit deduction failed. Please contact support.",
-              type: "billing_error",
-              code: "credit_deduction_failed",
-            },
-          },
-          { status: 402 },
-        );
-      }
 
       // Background analytics (not critical for billing)
       void (async () => {
         await usageService.create({
-          organization_id: user.organization_id!!,
+          organization_id: user.organization_id!,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "embeddings",
@@ -192,15 +163,10 @@ async function handlePOST(req: NextRequest) {
           output_cost: String(0),
           is_successful: true,
         });
-
-        logger.info("[OpenAI Proxy] Embeddings completed", {
-          model: request.model,
-          normalizedModel,
-          provider: providerName,
-          tokens: tokensUsed,
-          cost: String(totalCost),
-        });
       })();
+    } else {
+      // No usage data - reconcile with 0 (full refund)
+      await reservation.reconcile(0);
     }
 
     return Response.json(data);
