@@ -182,10 +182,30 @@ export const IMAGE_MODELS: ImageModel[] = [
 ];
 
 /** Image tiers for tier-based selection (like text models) */
-export const IMAGE_TIERS: { id: ModelTier; name: string; description: string; model: ImageModel }[] = [
-  { id: "fast", name: "Fast", description: "Fastest for quick images", model: IMAGE_MODELS[0] },
-  { id: "pro", name: "Pro", description: "Best for everyday images", model: IMAGE_MODELS[1] },
-  { id: "ultra", name: "Ultra", description: "Most capable for complex images", model: IMAGE_MODELS[2] },
+export const IMAGE_TIERS: {
+  id: ModelTier;
+  name: string;
+  description: string;
+  model: ImageModel;
+}[] = [
+  {
+    id: "fast",
+    name: "Fast",
+    description: "Fastest for quick images",
+    model: IMAGE_MODELS[0],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    description: "Best for everyday images",
+    model: IMAGE_MODELS[1],
+  },
+  {
+    id: "ultra",
+    name: "Ultra",
+    description: "Most capable for complex images",
+    model: IMAGE_MODELS[2],
+  },
 ];
 
 /** Additional image models shown in "More models" submenu */

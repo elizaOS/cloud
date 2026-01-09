@@ -357,7 +357,9 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
             {availableMcps.length === 0 ? (
               <div className="text-center py-8">
                 <Puzzle className="h-10 w-10 text-neutral-600 mx-auto mb-2" />
-                <p className="text-neutral-500 text-sm">No MCPs match your search</p>
+                <p className="text-neutral-500 text-sm">
+                  No MCPs match your search
+                </p>
               </div>
             ) : (
               <>
@@ -641,8 +643,8 @@ function McpDetailPanel({
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
       className="absolute inset-x-0 bottom-0 z-50 bg-[#0A0A0A] rounded-xl border border-white/10 shadow-2xl max-h-[calc(100%-1rem)] flex flex-col"
     >
-        {/* Header */}
-        <div className="shrink-0 flex items-start justify-between p-4 sm:p-6 border-b border-white/10">
+      {/* Header */}
+      <div className="shrink-0 flex items-start justify-between p-4 sm:p-6 border-b border-white/10">
         <div className="flex items-center gap-4">
           <div
             className="p-3 rounded-xl border"
@@ -677,8 +679,8 @@ function McpDetailPanel({
       </div>
 
       {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 p-4 sm:p-6">
-          <div className="grid gap-6 md:grid-cols-2">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 p-4 sm:p-6">
+        <div className="grid gap-6 md:grid-cols-2">
           {/* Endpoint Info */}
           <div className="flex flex-col space-y-3">
             <label className="text-xs text-neutral-500 uppercase tracking-wider flex items-center gap-1">
@@ -740,10 +742,10 @@ function McpDetailPanel({
             </p>
           </div>
         )}
-        </div>
+      </div>
 
-        {/* Actions */}
-        <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-t border-white/10">
+      {/* Actions */}
+      <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 border-t border-white/10">
         <div className="flex items-center gap-3">
           {mcp.documentation && (
             <a
@@ -780,7 +782,7 @@ function McpDetailPanel({
             </>
           )}
         </Button>
-        </div>
+      </div>
     </motion.div>
   );
 }

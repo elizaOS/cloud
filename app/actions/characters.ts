@@ -54,7 +54,10 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
   const user = await requireAuthWithOrg();
 
   // Normalize isPublic to ensure consistency between is_public column and character_data
-  const isPublic = typeof elizaCharacter.isPublic === 'boolean' ? elizaCharacter.isPublic : false;
+  const isPublic =
+    typeof elizaCharacter.isPublic === "boolean"
+      ? elizaCharacter.isPublic
+      : false;
 
   const newCharacter: NewUserCharacter = {
     organization_id: user.organization_id!!,

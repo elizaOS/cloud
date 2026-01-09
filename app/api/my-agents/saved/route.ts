@@ -51,7 +51,7 @@ export async function GET(_request: NextRequest) {
             ? error.message
             : "Failed to fetch saved agents",
       },
-      { status }
+      { status },
     );
   }
 }

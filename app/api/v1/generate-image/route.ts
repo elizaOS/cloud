@@ -50,11 +50,11 @@ const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image";
 
 /**
  * Valid image generation models
- * 
+ *
  */
 const ALLOWED_IMAGE_MODELS = [
   "google/gemini-2.5-flash-image",
-  "google/gemini-2.5-flash-image-preview", 
+  "google/gemini-2.5-flash-image-preview",
   "google/gemini-3-pro-image",
   "openai/gpt-5-nano",
   "bfl/flux-kontext-max",
@@ -172,7 +172,8 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Validate and select image model
-    const isModelAllowed = requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
+    const isModelAllowed =
+      requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
     const imageModel = isModelAllowed ? requestedModel : DEFAULT_IMAGE_MODEL;
     const imageProvider = getImageProvider(imageModel);
 
@@ -264,7 +265,6 @@ async function handlePOST(req: NextRequest) {
     };
 
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
-
 
     // Function to generate a single image
     async function generateSingleImage(): Promise<{
@@ -406,11 +406,12 @@ async function handlePOST(req: NextRequest) {
             }
           }
         }
-
       } catch (streamError) {
         logger.error(
           "[Generate Image] streamText error:",
-          streamError instanceof Error ? streamError.message : String(streamError),
+          streamError instanceof Error
+            ? streamError.message
+            : String(streamError),
         );
         return null;
       }
@@ -478,7 +479,6 @@ async function handlePOST(req: NextRequest) {
     // Calculate actual cost based on successful images and reconcile
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
     await reservation.reconcile(actualCost);
-
 
     // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
@@ -653,7 +653,6 @@ async function handlePOST(req: NextRequest) {
         });
       }
     }
-
 
     // Log to Discord only for authenticated users with organization
     if (

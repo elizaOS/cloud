@@ -25,9 +25,11 @@ interface UseModelAvailabilityResult {
  * @param initialModelIds - Optional array of model IDs to check on mount
  */
 export function useModelAvailability(
-  initialModelIds?: string[]
+  initialModelIds?: string[],
 ): UseModelAvailabilityResult {
-  const [availability, setAvailability] = useState<Map<string, boolean>>(new Map());
+  const [availability, setAvailability] = useState<Map<string, boolean>>(
+    new Map(),
+  );
   const [reasons, setReasons] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +52,12 @@ export function useModelAvailability(
         throw new Error("Failed to check model availability");
       }
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         models: ModelAvailability[];
         timestamp: number;
       };
 
-      setAvailability(prev => {
+      setAvailability((prev) => {
         const next = new Map(prev);
         for (const model of data.models) {
           next.set(model.modelId, model.available);
@@ -63,7 +65,7 @@ export function useModelAvailability(
         return next;
       });
 
-      setReasons(prev => {
+      setReasons((prev) => {
         const next = new Map(prev);
         for (const model of data.models) {
           if (model.reason) {
@@ -73,7 +75,9 @@ export function useModelAvailability(
         return next;
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to check availability");
+      setError(
+        err instanceof Error ? err.message : "Failed to check availability",
+      );
     } finally {
       setIsLoading(false);
     }

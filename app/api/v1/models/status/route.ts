@@ -1,12 +1,15 @@
 /**
  * Model Availability Status API
- * 
+ *
  * Checks whether specific AI models are currently available.
  * For image models, verifies the provider is configured and reachable.
  */
 
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAnonymousUser,
+  getOrCreateAnonymousUser,
+} from "@/lib/auth-anonymous";
 import { getProvider } from "@/lib/providers";
 import type { NextRequest } from "next/server";
 
@@ -34,22 +37,25 @@ const UNAVAILABLE_PROVIDERS = new Set([
 /**
  * Check if a model's provider is known to be unavailable
  */
-function isProviderUnavailable(modelId: string): { unavailable: boolean; reason?: string } {
+function isProviderUnavailable(modelId: string): {
+  unavailable: boolean;
+  reason?: string;
+} {
   const provider = modelId.split("/")[0];
-  
+
   if (UNAVAILABLE_PROVIDERS.has(provider)) {
-    return { 
-      unavailable: true, 
-      reason: `${provider} provider is currently unavailable` 
+    return {
+      unavailable: true,
+      reason: `${provider} provider is currently unavailable`,
     };
   }
-  
+
   return { unavailable: false };
 }
 
 /**
  * POST /api/v1/models/status
- * 
+ *
  * Check availability of specific models.
  * Accepts an array of model IDs and returns their availability status.
  */
@@ -70,14 +76,14 @@ export async function POST(request: NextRequest) {
   if (!Array.isArray(modelIds) || modelIds.length === 0) {
     return Response.json(
       { error: "modelIds array is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (modelIds.length > 50) {
     return Response.json(
       { error: "Maximum 50 models can be checked at once" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -85,19 +91,19 @@ export async function POST(request: NextRequest) {
   if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
     return Response.json(
       { error: "Each modelId must be a non-empty string" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const provider = getProvider();
-  
+
   // Get all models from gateway catalog
   const listResponse = await provider.listModels();
-  const listData = await listResponse.json() as { data?: { id: string }[] };
-  const gatewayModelIds = new Set(listData.data?.map(m => m.id) || []);
+  const listData = (await listResponse.json()) as { data?: { id: string }[] };
+  const gatewayModelIds = new Set(listData.data?.map((m) => m.id) || []);
 
   // Check availability for each requested model
-  const results: ModelAvailability[] = modelIds.map(modelId => {
+  const results: ModelAvailability[] = modelIds.map((modelId) => {
     // First check if provider is known to be unavailable
     const providerCheck = isProviderUnavailable(modelId);
     if (providerCheck.unavailable) {

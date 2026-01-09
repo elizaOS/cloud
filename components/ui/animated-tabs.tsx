@@ -15,9 +15,20 @@ interface AnimatedTabsProps {
   fullWidth?: boolean;
 }
 
-export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", fullWidth = false }: AnimatedTabsProps) {
+export function AnimatedTabs({
+  tabs,
+  value,
+  onValueChange,
+  variant = "default",
+  fullWidth = false,
+}: AnimatedTabsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, visible: false, animate: true });
+  const [indicatorStyle, setIndicatorStyle] = useState({
+    left: 0,
+    width: 0,
+    visible: false,
+    animate: true,
+  });
 
   const isOrange = variant === "orange";
 
@@ -35,7 +46,9 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
     const container = containerRef.current;
     if (!container) return;
 
-    const activeIndex = tabsRef.current.findIndex((tab) => tab.value === valueRef.current);
+    const activeIndex = tabsRef.current.findIndex(
+      (tab) => tab.value === valueRef.current,
+    );
     const buttons = container.querySelectorAll("[data-tab-button]");
     const activeButton = buttons[activeIndex];
 
@@ -82,7 +95,9 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
           left: indicatorStyle.left,
           width: indicatorStyle.width,
           opacity: indicatorStyle.visible ? 1 : 0,
-          transition: indicatorStyle.animate ? "all 300ms ease-out" : "opacity 300ms ease-out",
+          transition: indicatorStyle.animate
+            ? "all 300ms ease-out"
+            : "opacity 300ms ease-out",
         }}
         aria-hidden="true"
       />
@@ -100,7 +115,9 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
             fullWidth ? "flex-1 text-center" : ""
           } ${
             value === tab.value
-              ? isOrange ? "text-white" : "text-black"
+              ? isOrange
+                ? "text-white"
+                : "text-black"
               : "text-white/60 hover:text-white hover:bg-white/10"
           }`}
         >

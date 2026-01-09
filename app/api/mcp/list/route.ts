@@ -329,12 +329,14 @@ const mcpDefinitions = [
       },
       {
         name: "get_market_data",
-        description: "Get comprehensive market data including price, volume, supply, ATH/ATL",
+        description:
+          "Get comprehensive market data including price, volume, supply, ATH/ATL",
         cost: "Free",
       },
       {
         name: "list_trending",
-        description: "Get list of trending cryptocurrencies by search popularity",
+        description:
+          "Get list of trending cryptocurrencies by search popularity",
         cost: "Free",
       },
     ],

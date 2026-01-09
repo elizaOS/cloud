@@ -32,11 +32,13 @@ type ImageGenerationPayload = {
 async function generateImage(
   request: APIRequestContext,
   data: Partial<ImageGenerationPayload>,
-  options: { authenticated?: boolean; timeout?: number } = {}
+  options: { authenticated?: boolean; timeout?: number } = {},
 ): Promise<Awaited<ReturnType<APIRequestContext["post"]>>> {
   const { authenticated = true, timeout = IMAGE_GENERATION_TIMEOUT } = options;
   return request.post(`${CLOUD_URL}/api/v1/generate-image`, {
-    headers: authenticated ? authHeaders() : { "Content-Type": "application/json" },
+    headers: authenticated
+      ? authHeaders()
+      : { "Content-Type": "application/json" },
     data,
     timeout,
   });
@@ -45,7 +47,11 @@ async function generateImage(
 test.describe("Image Generation API - /api/v1/generate-image", () => {
   test.describe("Authentication", () => {
     test("returns 401 without authentication", async ({ request }) => {
-      const response = await generateImage(request, { prompt: "A simple test image" }, { authenticated: false });
+      const response = await generateImage(
+        request,
+        { prompt: "A simple test image" },
+        { authenticated: false },
+      );
       expect([200, 401, 402, 429]).toContain(response.status());
     });
 
@@ -54,7 +60,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
       test.setTimeout(IMAGE_GENERATION_TIMEOUT);
 
       test("accepts request with valid API key", async ({ request }) => {
-        const response = await generateImage(request, { prompt: "A simple red circle" });
+        const response = await generateImage(request, {
+          prompt: "A simple red circle",
+        });
         expect([200, 402]).toContain(response.status());
       });
     });
@@ -88,7 +96,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.setTimeout(IMAGE_GENERATION_TIMEOUT);
 
     test("uses default model when none specified", async ({ request }) => {
-      const response = await generateImage(request, { prompt: "A blue square" });
+      const response = await generateImage(request, {
+        prompt: "A blue square",
+      });
       expect([200, 402]).toContain(response.status());
     });
 
@@ -108,7 +118,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
       expect([200, 402]).toContain(response.status());
     });
 
-    test("falls back to default model for invalid model", async ({ request }) => {
+    test("falls back to default model for invalid model", async ({
+      request,
+    }) => {
       const response = await generateImage(request, {
         prompt: "A purple pentagon",
         model: "invalid/model-name",
@@ -148,14 +160,19 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
 
   test.describe("CORS Headers", () => {
     test("OPTIONS returns correct CORS headers", async ({ request }) => {
-      const response = await request.fetch(`${CLOUD_URL}/api/v1/generate-image`, {
-        method: "OPTIONS",
-        headers: { Origin: "https://example.com" },
-      });
+      const response = await request.fetch(
+        `${CLOUD_URL}/api/v1/generate-image`,
+        {
+          method: "OPTIONS",
+          headers: { Origin: "https://example.com" },
+        },
+      );
 
       expect(response.status()).toBe(204);
       expect(response.headers()["access-control-allow-origin"]).toBe("*");
-      expect(response.headers()["access-control-allow-methods"]).toContain("POST");
+      expect(response.headers()["access-control-allow-methods"]).toContain(
+        "POST",
+      );
     });
   });
 
@@ -163,8 +180,12 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.skip(() => !API_KEY, "TEST_API_KEY required");
     test.setTimeout(IMAGE_GENERATION_TIMEOUT);
 
-    test("returns correct response structure on success", async ({ request }) => {
-      const response = await generateImage(request, { prompt: "A simple icon" });
+    test("returns correct response structure on success", async ({
+      request,
+    }) => {
+      const response = await generateImage(request, {
+        prompt: "A simple icon",
+      });
 
       if (response.status() === 200) {
         const body = await response.json();
@@ -196,7 +217,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
      * The AI Gateway resolves strings like "google/gemini-2.5-flash-image" to
      * the appropriate provider, so no LanguageModel instance is required.
      */
-    test("generates image successfully with Google Gemini model (string ID)", async ({ request }) => {
+    test("generates image successfully with Google Gemini model (string ID)", async ({
+      request,
+    }) => {
       const response = await generateImage(request, {
         prompt: "A simple geometric shape in blue color",
         model: "google/gemini-2.5-flash-image",
@@ -211,9 +234,13 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         console.log(`Generated ${body.numImages} image(s)`);
         expect(body.numImages).toBeGreaterThan(0);
         expect(body.images.length).toBeGreaterThan(0);
-        console.log("SUCCESS: streamText() works with string model ID via AI Gateway");
+        console.log(
+          "SUCCESS: streamText() works with string model ID via AI Gateway",
+        );
       } else if (status === 402) {
-        console.log("Test skipped: Insufficient credits (but no runtime error occurred)");
+        console.log(
+          "Test skipped: Insufficient credits (but no runtime error occurred)",
+        );
       } else if (status === 500) {
         const body = await response.json();
         console.log(`Error response: ${JSON.stringify(body)}`);
@@ -226,7 +253,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
       expect([200, 402, 500]).toContain(status);
     });
 
-    test("generates image successfully with OpenAI model (string ID)", async ({ request }) => {
+    test("generates image successfully with OpenAI model (string ID)", async ({
+      request,
+    }) => {
       const response = await generateImage(request, {
         prompt: "A minimalist red icon",
         model: "openai/gpt-5-nano",
@@ -242,7 +271,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         expect(body.numImages).toBeGreaterThan(0);
         console.log("SUCCESS: streamText() works with OpenAI string model ID");
       } else if (status === 402) {
-        console.log("Test passed: Model ID accepted, just insufficient credits");
+        console.log(
+          "Test passed: Model ID accepted, just insufficient credits",
+        );
       } else if (status === 500) {
         const body = await response.json();
         const errorMsg = body.error?.toLowerCase() || "";
@@ -258,7 +289,9 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.skip(() => !API_KEY, "TEST_API_KEY required");
     test.setTimeout(IMAGE_GENERATION_TIMEOUT);
 
-    test("accepts sourceImage for image-to-image generation", async ({ request }) => {
+    test("accepts sourceImage for image-to-image generation", async ({
+      request,
+    }) => {
       const minimalPng =
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
 
@@ -280,9 +313,12 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.skip(() => !API_KEY, "TEST_API_KEY required");
 
     test("returns 402 when insufficient credits", async ({ request }) => {
-      const billingResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-        headers: authHeaders(),
-      });
+      const billingResponse = await request.get(
+        `${CLOUD_URL}/api/v1/miniapp/billing`,
+        {
+          headers: authHeaders(),
+        },
+      );
 
       if (billingResponse.status() !== 200) {
         console.log("Could not check billing, skipping credit test");
@@ -304,7 +340,11 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
 
   test.describe("Rate Limiting", () => {
     test("rate limiting is configured on endpoint", async ({ request }) => {
-      const response = await generateImage(request, { prompt: "Rate limit test" }, { authenticated: false });
+      const response = await generateImage(
+        request,
+        { prompt: "Rate limit test" },
+        { authenticated: false },
+      );
       expect([200, 400, 401, 402, 429, 500]).toContain(response.status());
     });
   });

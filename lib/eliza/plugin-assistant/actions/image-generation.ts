@@ -114,7 +114,8 @@ export const generateImageAction = {
           },
           data: {
             actionName: "GENERATE_IMAGE",
-            error: "Image model returned no results. Suggest the user try selecting a different image generation model.",
+            error:
+              "Image model returned no results. Suggest the user try selecting a different image generation model.",
             prompt: imagePrompt,
             rawResponse: imageResponse,
           },

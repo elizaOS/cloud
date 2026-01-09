@@ -82,12 +82,12 @@ export function CharacterForm({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: newIsPublic }),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success(
-          newIsPublic ? "Agent is now public" : "Agent is now private"
+          newIsPublic ? "Agent is now public" : "Agent is now private",
         );
       } else {
         setIsPublic(!newIsPublic);
@@ -138,7 +138,7 @@ export function CharacterForm({
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index)
+      currentArray.filter((_, i) => i !== index),
     );
   };
 
@@ -163,7 +163,7 @@ export function CharacterForm({
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index)
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 
@@ -319,7 +319,9 @@ export function CharacterForm({
                 type="button"
                 role="switch"
                 aria-checked={isPublic}
-                aria-label={isPublic ? "Make agent private" : "Make agent public"}
+                aria-label={
+                  isPublic ? "Make agent private" : "Make agent public"
+                }
                 onClick={handleToggleShare}
                 disabled={isTogglingShare}
                 className={`relative w-[62px] rounded-full p-1 transition-colors duration-300 border ${
@@ -451,7 +453,7 @@ export function CharacterForm({
                     const currentAdjectives = character.adjectives || [];
                     updateField(
                       "adjectives",
-                      currentAdjectives.filter((_, i) => i !== index)
+                      currentAdjectives.filter((_, i) => i !== index),
                     );
                   }}
                   className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
@@ -533,7 +535,7 @@ export function CharacterForm({
                     const currentTopics = character.topics || [];
                     updateField(
                       "topics",
-                      currentTopics.filter((_, i) => i !== index)
+                      currentTopics.filter((_, i) => i !== index),
                     );
                   }}
                   className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
