@@ -11,6 +11,10 @@ import {
   createInlineKeyboard,
   TELEGRAM_RATE_LIMITS,
 } from "@/lib/utils/telegram-helpers";
+import {
+  TELEGRAM_AUTOMATION_DEFAULTS,
+  getTelegramConfigWithDefaults,
+} from "@/lib/services/automation-constants";
 import type { App } from "@/db/schemas/apps";
 
 export interface TelegramAutomationConfig {
@@ -78,13 +82,9 @@ class TelegramAppAutomationService {
       );
     }
 
-    const currentConfig = app.telegram_automation || {
-      enabled: false,
-      autoReply: true,
-      autoAnnounce: false,
-      announceIntervalMin: 120,
-      announceIntervalMax: 240,
-    };
+    const currentConfig = getTelegramConfigWithDefaults(
+      app.telegram_automation as Record<string, unknown> | null
+    );
 
     const updatedConfig = {
       ...currentConfig,
@@ -111,13 +111,9 @@ class TelegramAppAutomationService {
   async disableAutomation(organizationId: string, appId: string): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
-    const currentConfig = app.telegram_automation || {
-      enabled: false,
-      autoReply: true,
-      autoAnnounce: false,
-      announceIntervalMin: 120,
-      announceIntervalMax: 240,
-    };
+    const currentConfig = getTelegramConfigWithDefaults(
+      app.telegram_automation as Record<string, unknown> | null
+    );
 
     const updatedApp = await appsRepository.update(appId, {
       telegram_automation: {
@@ -518,6 +514,33 @@ Maximum 300 characters.`;
   async getAppsWithActiveAutomation(organizationId: string): Promise<App[]> {
     const apps = await appsRepository.findByOrganization(organizationId);
     return apps.filter((app) => app.telegram_automation?.enabled);
+  }
+
+  /**
+   * Check if an app needs an announcement based on interval settings.
+   * Used by scheduled workers to determine when to post.
+   */
+  isAnnouncementDue(app: App): boolean {
+    const config = app.telegram_automation as TelegramAutomationConfig | null;
+    if (!config?.enabled || !config?.autoAnnounce) return false;
+
+    // If never announced, it's due
+    if (!config.lastAnnouncementAt) return true;
+
+    const lastAnnouncement = new Date(config.lastAnnouncementAt);
+    const now = new Date();
+    const minutesSince =
+      (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
+
+    // Use a random interval between min and max for natural timing
+    const minInterval =
+      config.announceIntervalMin || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMin;
+    const maxInterval =
+      config.announceIntervalMax || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMax;
+    const targetInterval =
+      minInterval + Math.random() * (maxInterval - minInterval);
+
+    return minutesSince >= targetInterval;
   }
 }
 

@@ -7,7 +7,7 @@
  * for an app.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,9 +24,15 @@ import {
   Hash,
   Twitter,
   Play,
+  X,
+  Upload,
 } from "lucide-react";
 import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
 import { SocialConnectionHint } from "@/components/promotion/social-connection-hint";
+import {
+  uploadPromotionalAsset,
+  deletePromotionalAsset,
+} from "@/app/actions/apps";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -108,6 +114,10 @@ export function AppPromote({ app }: AppPromoteProps) {
   const [isPostingTo, setIsPostingTo] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
   const [showPromptInput, setShowPromptInput] = useState(false);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
+  const [deletingAssetUrl, setDeletingAssetUrl] = useState<string | null>(null);
+  const [localAssets, setLocalAssets] = useState(app.promotional_assets || []);
+  const assetInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate total social posts from automation configs
   const discordConfig = app.discord_automation as {
@@ -316,6 +326,55 @@ export function AppPromote({ app }: AppPromoteProps) {
     }
 
     setIsPostingTo(null);
+  };
+
+  const handleAssetUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file type. Please upload an image.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 10MB.");
+      return;
+    }
+
+    setIsUploadingAsset(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const result = await uploadPromotionalAsset(app.id, formData);
+
+    if (result.success && result.asset) {
+      setLocalAssets((prev) => [...prev, result.asset]);
+      toast.success("Asset uploaded successfully!");
+    } else {
+      toast.error(result.error || "Failed to upload asset");
+    }
+
+    setIsUploadingAsset(false);
+    if (assetInputRef.current) {
+      assetInputRef.current.value = "";
+    }
+  };
+
+  const handleAssetDelete = async (assetUrl: string) => {
+    setDeletingAssetUrl(assetUrl);
+
+    const result = await deletePromotionalAsset(app.id, assetUrl);
+
+    if (result.success) {
+      setLocalAssets((prev) => prev.filter((a) => a.url !== assetUrl));
+      toast.success("Asset deleted successfully!");
+    } else {
+      toast.error(result.error || "Failed to delete asset");
+    }
+
+    setDeletingAssetUrl(null);
   };
 
   if (isLoading) {
@@ -627,56 +686,120 @@ export function AppPromote({ app }: AppPromoteProps) {
 
         <div className="grid grid-cols-3 gap-4 mt-4">
           {/* Display generated assets or placeholders */}
-          {app.promotional_assets && app.promotional_assets.length > 0 ? (
+          {localAssets && localAssets.length > 0 ? (
             <>
-              {app.promotional_assets.map((asset, index) => (
-                <a
+              {localAssets.map((asset, index) => (
+                <div
                   key={`asset-${index}-${asset.type}`}
-                  href={asset.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="aspect-square rounded-lg border border-white/20 overflow-hidden hover:border-white/40 transition-colors cursor-pointer relative group"
+                  className="aspect-square rounded-lg border border-white/20 overflow-hidden hover:border-white/40 transition-colors relative group"
                 >
-                  <Image
-                    src={asset.url}
-                    alt={`${asset.type} - ${asset.size.width}x${asset.size.height}`}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
-                    <span className="text-white text-xs font-medium capitalize">
-                      {asset.type.replace("_", " ")}
-                    </span>
-                    <span className="text-white/60 text-xs">
-                      {asset.size.width}x{asset.size.height}
-                    </span>
-                  </div>
-                </a>
+                  <a
+                    href={asset.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block h-full w-full"
+                  >
+                    <Image
+                      src={asset.url}
+                      alt={`${asset.type} - ${asset.size.width}x${asset.size.height}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
+                      <span className="text-white text-xs font-medium capitalize">
+                        {asset.type.replace("_", " ")}
+                      </span>
+                      <span className="text-white/60 text-xs">
+                        {asset.size.width}x{asset.size.height}
+                      </span>
+                    </div>
+                  </a>
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAssetDelete(asset.url);
+                    }}
+                    disabled={deletingAssetUrl === asset.url}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                    title="Delete asset"
+                  >
+                    {deletingAssetUrl === asset.url ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <X className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
               ))}
               {/* Upload placeholder for adding more */}
-              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-                <Plus className="h-8 w-8 mb-2" />
-                <span className="text-xs">Add More</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => assetInputRef.current?.click()}
+                disabled={isUploadingAsset}
+                className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-[#FF5800]/50 hover:text-white/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isUploadingAsset ? (
+                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                ) : (
+                  <Plus className="h-8 w-8 mb-2" />
+                )}
+                <span className="text-xs">
+                  {isUploadingAsset ? "Uploading..." : "Add More"}
+                </span>
+              </button>
             </>
           ) : (
             <>
-              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
+              <button
+                type="button"
+                onClick={handleGenerateAssets}
+                disabled={isGeneratingAssets}
+                className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-[#FF5800]/50 hover:text-white/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isGeneratingAssets ? (
+                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-8 w-8 mb-2" />
+                )}
+                <span className="text-xs">
+                  {isGeneratingAssets ? "Generating..." : "Generate AI"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => assetInputRef.current?.click()}
+                disabled={isUploadingAsset}
+                className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-[#FF5800]/50 hover:text-white/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isUploadingAsset ? (
+                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                ) : (
+                  <Upload className="h-8 w-8 mb-2" />
+                )}
+                <span className="text-xs">
+                  {isUploadingAsset ? "Uploading..." : "Upload Image"}
+                </span>
+              </button>
+              <div className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-white/20">
                 <ImageIcon className="h-8 w-8 mb-2" />
-                <span className="text-xs">Social Card</span>
-              </div>
-              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-                <ImageIcon className="h-8 w-8 mb-2" />
-                <span className="text-xs">Banner</span>
-              </div>
-              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-                <Plus className="h-8 w-8 mb-2" />
-                <span className="text-xs">Upload</span>
+                <span className="text-xs">More coming</span>
               </div>
             </>
           )}
         </div>
+
+        {/* Hidden file input for asset uploads */}
+        <input
+          ref={assetInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleAssetUpload(e.target.files)}
+          className="hidden"
+        />
       </BrandCard>
 
       {/* Suggestions */}
