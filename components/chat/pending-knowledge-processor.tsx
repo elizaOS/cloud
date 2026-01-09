@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, FileText, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface PendingFile {

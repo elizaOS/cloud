@@ -8,6 +8,14 @@ import {
   ALLOWED_CONTENT_TYPES,
   isValidFilename,
 } from "@/lib/constants/knowledge";
+import { logger } from "@/lib/utils/logger";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import type { UUID } from "@elizaos/core";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+
+export const maxDuration = 300; // 5 minutes for large file processing
 
 /**
  * Fetches a blob URL with timeout protection.
@@ -21,20 +29,11 @@ async function fetchWithTimeout(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
-    return response;
+    return await fetch(url, { signal: controller.signal });
   } finally {
     clearTimeout(timeoutId);
   }
 }
-import { logger } from "@/lib/utils/logger";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
-import type { UUID } from "@elizaos/core";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
-
-export const maxDuration = 300; // 5 minutes for large file processing
 
 const MAX_FILENAME_LENGTH = 255;
 
