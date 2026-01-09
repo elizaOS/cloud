@@ -3,7 +3,7 @@ import { logger } from "@/lib/utils/logger";
 import { dbRead, dbWrite } from "@/db/client";
 import { users } from "@/db/schemas/users";
 import { apps, appUsers } from "@/db/schemas/apps";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { verifyAuthTokenCached } from "@/lib/auth";
 import { z } from "zod";
 
@@ -163,11 +163,11 @@ export async function POST(request: NextRequest) {
         user_agent: request.headers.get("user-agent") || null,
       });
       
-      // Increment app's total_users count
+      // Increment app's total_users count using SQL increment
       await dbWrite
         .update(apps)
         .set({
-          total_users: (app as any).total_users + 1,
+          total_users: sql`COALESCE(${apps.total_users}, 0) + 1`,
         })
         .where(eq(apps.id, appId));
       
