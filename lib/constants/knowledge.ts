@@ -4,9 +4,10 @@
  */
 
 export const KNOWLEDGE_CONSTANTS = {
-  MAX_FILES_PER_REQUEST: 10,
+  MAX_FILES_PER_REQUEST: 5,
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB per file
-  MAX_BATCH_SIZE: 5 * 1024 * 1024, // 5MB total per batch
+  MAX_BATCH_SIZE: 5 * 1024 * 1024, // 5MB total per batch (serverless limit)
+  BLOB_FETCH_TIMEOUT_MS: 30_000, // 30 seconds timeout for blob downloads
 } as const;
 
 export const ALLOWED_EXTENSIONS = [

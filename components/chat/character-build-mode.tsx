@@ -81,10 +81,8 @@ export function CharacterBuildMode({
   // Use effectiveCharacterId to get correct character on first render
   const initialCharacter = useMemo(() => {
     if (effectiveCharacterId) {
-      const char = initialCharacters.find((c) => c.id === effectiveCharacterId);
-      if (char) {
-        return char;
-      }
+      const found = initialCharacters.find((c) => c.id === effectiveCharacterId);
+      if (found) return found;
     }
     // In creator mode, use a stable reference for the default character
     if (!defaultCharacterRef.current) {

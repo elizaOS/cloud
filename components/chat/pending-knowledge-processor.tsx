@@ -54,6 +54,8 @@ export function PendingKnowledgeProcessor({
 
   const processFiles = useCallback(
     async (pending: PendingKnowledge) => {
+      const storageKey = `${PENDING_KEY_PREFIX}${pending.characterId}`;
+
       setState({
         status: "processing",
         totalFiles: pending.files.length,
@@ -62,53 +64,71 @@ export function PendingKnowledgeProcessor({
         failedCount: 0,
       });
 
-      const response = await fetch("/api/v1/knowledge/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          characterId: pending.characterId,
-          files: pending.files,
-        }),
-      });
-
-      // Clear from sessionStorage regardless of result
-      sessionStorage.removeItem(`${PENDING_KEY_PREFIX}${pending.characterId}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        setState({
-          status: "completed",
-          totalFiles: pending.files.length,
-          processedFiles: pending.files.length,
-          successCount: data.successCount || pending.files.length,
-          failedCount: data.failedCount || 0,
+      try {
+        const response = await fetch("/api/v1/knowledge/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            characterId: pending.characterId,
+            files: pending.files,
+          }),
         });
 
-        if (data.failedCount > 0) {
-          toast.success("Knowledge files processed", {
-            description: `${data.successCount} succeeded, ${data.failedCount} failed`,
+        if (response.ok) {
+          const data = await response.json();
+
+          // Only clear sessionStorage on success - preserves data for retry on failure
+          sessionStorage.removeItem(storageKey);
+
+          setState({
+            status: "completed",
+            totalFiles: pending.files.length,
+            processedFiles: pending.files.length,
+            successCount: data.successCount || pending.files.length,
+            failedCount: data.failedCount || 0,
           });
+
+          if (data.failedCount > 0) {
+            toast.success("Knowledge files processed", {
+              description: `${data.successCount} succeeded, ${data.failedCount} failed`,
+            });
+          } else {
+            toast.success("Knowledge base ready!", {
+              description: `${data.successCount} file(s) processed successfully`,
+            });
+          }
+
+          onProcessingComplete?.();
         } else {
-          toast.success("Knowledge base ready!", {
-            description: `${data.successCount} file(s) processed successfully`,
+          const errorData = await response.json().catch(() => ({}));
+          // Keep sessionStorage on error so user can retry
+          setState({
+            status: "error",
+            totalFiles: pending.files.length,
+            processedFiles: 0,
+            successCount: 0,
+            failedCount: pending.files.length,
+            error: errorData.error || "Failed to process files",
+          });
+
+          toast.error("File processing failed", {
+            description: "You can try again from the Files tab",
           });
         }
-
-        onProcessingComplete?.();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
+      } catch (error) {
+        // Keep sessionStorage on network error so user can retry
         setState({
           status: "error",
           totalFiles: pending.files.length,
           processedFiles: 0,
           successCount: 0,
           failedCount: pending.files.length,
-          error: errorData.error || "Failed to process files",
+          error: error instanceof Error ? error.message : "Network error",
         });
 
         toast.error("File processing failed", {
-          description: "You can try again from the Files tab",
+          description: "Network error - you can try again from the Files tab",
         });
       }
     },
@@ -137,7 +157,8 @@ export function PendingKnowledgeProcessor({
       return;
     }
 
-    // Start processing
+    // Start processing - intentionally triggers state update to sync with sessionStorage
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     processFiles(pending);
   }, [characterId, dismissed, processFiles]);
 

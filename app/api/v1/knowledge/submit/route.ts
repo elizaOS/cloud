@@ -8,6 +8,25 @@ import {
   ALLOWED_CONTENT_TYPES,
   isValidFilename,
 } from "@/lib/constants/knowledge";
+
+/**
+ * Fetches a blob URL with timeout protection.
+ * Prevents hanging requests from consuming the entire request timeout.
+ */
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 import { logger } from "@/lib/utils/logger";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
@@ -187,7 +206,10 @@ async function handlePOST(req: NextRequest) {
   // Process files synchronously
   for (const file of files) {
     try {
-      const response = await fetch(file.blobUrl);
+      const response = await fetchWithTimeout(
+        file.blobUrl,
+        KNOWLEDGE_CONSTANTS.BLOB_FETCH_TIMEOUT_MS,
+      );
       if (!response.ok) {
         throw new Error(
           `Failed to fetch blob: ${response.status} ${response.statusText}`,

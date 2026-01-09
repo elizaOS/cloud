@@ -240,6 +240,34 @@ async function handlePOST(req: NextRequest) {
     }
   }
 
+  // Cleanup: If some files failed, delete successfully uploaded blobs to avoid orphans
+  if (errors.length > 0 && results.length > 0) {
+    logger.info("[PreUpload] Partial failure - cleaning up successful uploads", {
+      successCount: results.length,
+      errorCount: errors.length,
+    });
+
+    for (const uploaded of results) {
+      try {
+        await deleteBlob(uploaded.blobUrl);
+        logger.info("[PreUpload] Cleaned up orphaned blob", { blobUrl: uploaded.blobUrl });
+      } catch (cleanupError) {
+        logger.warn("[PreUpload] Failed to cleanup blob", {
+          blobUrl: uploaded.blobUrl,
+          error: cleanupError,
+        });
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error: "Some files failed to upload - batch rolled back",
+        details: errors,
+      },
+      { status: 400 },
+    );
+  }
+
   if (results.length === 0) {
     return NextResponse.json(
       {
