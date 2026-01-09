@@ -1,4 +1,5 @@
 import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import {
   getAnonymousUser,
@@ -21,7 +22,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
 
-export const maxDuration = 30;
+export const maxDuration = 180; // 3 minutes for image generation
 
 // CORS headers - fully open, security via auth tokens
 function getCorsHeaders(_origin: string | null) {
@@ -45,8 +46,26 @@ export async function OPTIONS(request: NextRequest) {
   });
 }
 
-const IMAGE_MODEL = "google/gemini-2.5-flash-image";
-const IMAGE_PROVIDER = "google";
+const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image";
+
+/**
+ * Valid image generation models
+ * 
+ */
+const ALLOWED_IMAGE_MODELS = [
+  "google/gemini-2.5-flash-image",
+  "google/gemini-2.5-flash-image-preview", 
+  "google/gemini-3-pro-image",
+  "openai/gpt-5-nano",
+  "bfl/flux-kontext-max",
+];
+
+function getImageProvider(modelId: string): string {
+  if (modelId.includes("/")) {
+    return modelId.split("/")[0];
+  }
+  return "google";
+}
 
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
 type StylePreset =
@@ -70,6 +89,7 @@ interface GenerateImageRequest {
   aspectRatio?: AspectRatio;
   stylePreset?: StylePreset;
   sourceImage?: string; // Base64 data URL for image-to-image generation
+  model?: string; // Image model to use (defaults to gemini-2.5-flash-image)
 }
 
 interface AuthContext {
@@ -92,24 +112,16 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
       session_token: authResult.session_token,
       isAnonymous: false,
     };
-  } catch (authError) {
+  } catch {
     // Fall back to anonymous user
-    logger.info("[Generate Image] Privy auth failed, trying anonymous...");
-
     let anonData = await getAnonymousUser();
 
     if (!anonData) {
-      logger.info(
-        "[Generate Image] No session cookie - creating new anonymous session",
-      );
       const newAnonData = await getOrCreateAnonymousUser();
       anonData = {
         user: newAnonData.user,
         session: newAnonData.session,
       };
-      logger.info("[Generate Image] Created anonymous user:", anonData.user.id);
-    } else {
-      logger.info("[Generate Image] Anonymous user found:", anonData.user.id);
     }
 
     // Create a minimal UserWithOrganization for anonymous users
@@ -142,17 +154,15 @@ async function handlePOST(req: NextRequest) {
     const authContext = await authenticateUser(req);
     const { user, apiKey, session_token, isAnonymous } = authContext;
 
-    logger.info(
-      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`,
-    );
-
+    const requestBody = await req.json();
     const {
       prompt,
       numImages = 1,
       aspectRatio = "1:1",
       stylePreset,
       sourceImage,
-    }: GenerateImageRequest = await req.json();
+      model: requestedModel,
+    }: GenerateImageRequest = requestBody;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json(
@@ -160,6 +170,11 @@ async function handlePOST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Validate and select image model
+    const isModelAllowed = requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
+    const imageModel = isModelAllowed ? requestedModel : DEFAULT_IMAGE_MODEL;
+    const imageProvider = getImageProvider(imageModel);
 
     // Calculate total cost based on number of images
     const estimatedCost = IMAGE_GENERATION_COST * numImages;
@@ -172,7 +187,7 @@ async function handlePOST(req: NextRequest) {
           organizationId: user.organization_id,
           amount: estimatedCost,
           userId: user.id,
-          description: `Image generation (${numImages}x): ${IMAGE_MODEL}`,
+          description: `Image generation (${numImages}x): ${imageModel}`,
         });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
@@ -197,8 +212,8 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: IMAGE_MODEL,
-        provider: IMAGE_PROVIDER,
+        model: imageModel,
+        provider: imageProvider,
         prompt: prompt,
         status: "pending",
         credits: String(0),
@@ -250,9 +265,6 @@ async function handlePOST(req: NextRequest) {
 
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
-    logger.info(
-      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user${sourceImage ? " (with source image)" : ""} with prompt: ${enhancedPrompt.substring(0, 100)}...`,
-    );
 
     // Function to generate a single image
     async function generateSingleImage(): Promise<{
@@ -260,65 +272,147 @@ async function handlePOST(req: NextRequest) {
       textResponse: string;
       mimeType: string;
     } | null> {
-      // Build the request based on whether we have a source image
-      const streamConfig: Parameters<typeof streamText>[0] = {
-        model: IMAGE_MODEL,
-        providerOptions: {
-          google: { responseModalities: ["TEXT", "IMAGE"] },
-        },
-      };
+      // Detect provider from model string (e.g., "openai/gpt-5-nano" -> "openai")
+      const isOpenAIModel = imageModel.startsWith("openai/");
 
-      if (sourceImage) {
-        // Image-to-image: use messages format with source image
-        // Extract base64 data and media type from data URL
+      // Build the request based on provider and whether we have a source image
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let streamConfig: any;
+
+      if (isOpenAIModel) {
+        // OpenAI models use tools for image generation per AI SDK docs:
+        // https://sdk.vercel.ai/docs/ai-sdk-core/image-generation#openai-models-with-image-generation-tool
+        // The bare `prompt` field is valid here - AI SDK internally converts it to messages format.
+        // Images are returned as tool-result events (handled below in the stream processor).
+        streamConfig = {
+          model: imageModel,
+          prompt: `Generate an image: ${enhancedPrompt}`,
+          tools: {
+            image_generation: openai.tools.imageGeneration({
+              outputFormat: "webp",
+              quality: "high",
+            }),
+          },
+        };
+
+        // For image-to-image with OpenAI, include the source image in the prompt
+        if (sourceImage) {
+          const mediaTypeMatch = sourceImage.match(/^data:([^;]+);base64,/);
+          const mediaType = mediaTypeMatch ? mediaTypeMatch[1] : "image/png";
+          const base64Data = sourceImage.replace(/^data:[^;]+;base64,/, "");
+
+          streamConfig = {
+            model: imageModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    image: base64Data,
+                    mediaType: mediaType,
+                  },
+                  {
+                    type: "text",
+                    text: `Using the provided image as a reference, generate a new image: ${enhancedPrompt}`,
+                  },
+                ],
+              },
+            ],
+            tools: {
+              image_generation: openai.tools.imageGeneration({
+                outputFormat: "webp",
+                quality: "high",
+              }),
+            },
+          };
+        }
+      } else if (sourceImage) {
+        // Google/other models: Image-to-image with messages format
         const mediaTypeMatch = sourceImage.match(/^data:([^;]+);base64,/);
         const mediaType = mediaTypeMatch ? mediaTypeMatch[1] : "image/png";
         const base64Data = sourceImage.replace(/^data:[^;]+;base64,/, "");
 
-        streamConfig.messages = [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                image: base64Data,
-                mimeType: mediaType,
-              },
-              {
-                type: "text",
-                text: `Using the provided image as a reference, generate a new image: ${enhancedPrompt}`,
-              },
-            ],
+        streamConfig = {
+          model: imageModel,
+          providerOptions: {
+            google: { responseModalities: ["TEXT", "IMAGE"] },
           },
-        ];
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  image: base64Data,
+                  mediaType: mediaType,
+                },
+                {
+                  type: "text",
+                  text: `Using the provided image as a reference, generate a new image: ${enhancedPrompt}`,
+                },
+              ],
+            },
+          ],
+        };
       } else {
-        // Text-to-image: use simple prompt
-        streamConfig.prompt = `Generate an image: ${enhancedPrompt}`;
+        // Google/other models: Text-to-image with simple prompt
+        streamConfig = {
+          model: imageModel,
+          providerOptions: {
+            google: { responseModalities: ["TEXT", "IMAGE"] },
+          },
+          prompt: `Generate an image: ${enhancedPrompt}`,
+        };
       }
-
-      const result = streamText(streamConfig);
 
       let imageBase64: string | null = null;
       let textResponse = "";
 
-      for await (const delta of result.fullStream) {
-        switch (delta.type) {
-          case "text-delta": {
-            textResponse += delta.text;
-            break;
-          }
+      try {
+        const result = streamText(streamConfig);
 
-          case "file": {
-            if (delta.file.mediaType.startsWith("image/")) {
-              const uint8Array = delta.file.uint8Array;
-              const base64 = Buffer.from(uint8Array).toString("base64");
-              const mimeType = delta.file.mediaType || "image/png";
-              imageBase64 = `data:${mimeType};base64,${base64}`;
+        for await (const delta of result.fullStream) {
+          switch (delta.type) {
+            case "text-delta": {
+              textResponse += delta.text;
               break;
             }
-            break;
+
+            // Google/Gemini models return images as file events
+            case "file": {
+              if (delta.file.mediaType.startsWith("image/")) {
+                const uint8Array = delta.file.uint8Array;
+                const base64 = Buffer.from(uint8Array).toString("base64");
+                const mimeType = delta.file.mediaType || "image/png";
+                imageBase64 = `data:${mimeType};base64,${base64}`;
+              }
+              break;
+            }
+
+            // OpenAI models return images as tool-result events
+            // Per AI Gateway docs: check !delta.dynamic and use delta.output.result
+            case "tool-result": {
+              if (delta.toolName === "image_generation" && !delta.dynamic) {
+                // Per AI Gateway docs: image is in delta.output.result
+                const toolOutput = delta.output as { result?: string };
+                const base64Image = toolOutput?.result;
+                if (base64Image && typeof base64Image === "string") {
+                  // OpenAI returns webp format based on our config
+                  imageBase64 = `data:image/webp;base64,${base64Image}`;
+                }
+              }
+              break;
+            }
           }
         }
+
+      } catch (streamError) {
+        logger.error(
+          "[Generate Image] streamText error:",
+          streamError instanceof Error ? streamError.message : String(streamError),
+        );
+        return null;
       }
 
       if (!imageBase64) {
@@ -353,8 +447,8 @@ async function handlePOST(req: NextRequest) {
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "image",
-          model: IMAGE_MODEL,
-          provider: IMAGE_PROVIDER,
+          model: imageModel,
+          provider: imageProvider,
           input_tokens: 0,
           output_tokens: 0,
           input_cost: String(0),
@@ -385,13 +479,6 @@ async function handlePOST(req: NextRequest) {
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
     await reservation.reconcile(actualCost);
 
-    if (!isAnonymous) {
-      logger.info("[Generate Image] Credits reconciled", {
-        reserved: reservation.reservedAmount,
-        actual: actualCost,
-        refunded: reservation.reservedAmount - actualCost,
-      });
-    }
 
     // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
@@ -401,8 +488,8 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: IMAGE_MODEL,
-        provider: IMAGE_PROVIDER,
+        model: imageModel,
+        provider: imageProvider,
         input_tokens: 0,
         output_tokens: 0,
         input_cost: String(actualCost),
@@ -424,7 +511,7 @@ async function handlePOST(req: NextRequest) {
           ipAddress,
           userAgent,
           userId: user.id,
-          model: IMAGE_MODEL,
+          model: imageModel,
           creditsUsed: String(actualCost),
           status: "success",
         });
@@ -455,9 +542,6 @@ async function handlePOST(req: NextRequest) {
         });
         blobUrl = blobResult.url;
         fileSize = blobResult.size ? BigInt(blobResult.size) : null;
-        logger.info(
-          `[Generate Image] Uploaded image ${index + 1} to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
-        );
       } catch (blobError) {
         logger.error(
           `[Generate Image] Failed to upload image ${index + 1} to Vercel Blob:`,
@@ -525,8 +609,8 @@ async function handlePOST(req: NextRequest) {
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
-            model: IMAGE_MODEL,
-            provider: IMAGE_PROVIDER,
+            model: imageModel,
+            provider: imageProvider,
             prompt: prompt,
             status: "completed",
             content: uploadResults[i].imageBase64,
@@ -570,15 +654,6 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    if (!isAnonymous) {
-      logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}`,
-      );
-    } else {
-      logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s) for anonymous user (no charge)`,
-      );
-    }
 
     // Log to Discord only for authenticated users with organization
     if (
@@ -598,7 +673,7 @@ async function handlePOST(req: NextRequest) {
           organizationName: user.organization.name,
           numImages: successfulResults.length,
           aspectRatio: aspectRatio,
-          model: IMAGE_MODEL,
+          model: imageModel,
         })
         .catch((error) => {
           logger.error(

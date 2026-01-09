@@ -20,6 +20,7 @@ import {
   getDefaultModels,
   buildElevenLabsSettings,
 } from "./config";
+import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
@@ -43,6 +44,7 @@ interface RuntimeSettings {
   IS_ANONYMOUS?: boolean;
   ELIZAOS_CLOUD_SMALL_MODEL?: string;
   ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL?: string;
   appPromptConfig?: unknown;
   [key: string]: unknown;
 }
@@ -484,6 +486,10 @@ export class RuntimeFactory {
         settings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
+    if (context.imageModel) {
+      settings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
+    }
+
     if (context.appPromptConfig) {
       settings.appPromptConfig = context.appPromptConfig;
     }
@@ -535,6 +541,12 @@ export class RuntimeFactory {
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+      ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
+        context.imageModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
+          DEFAULT_IMAGE_MODEL.modelId,
+        ),
       ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {
