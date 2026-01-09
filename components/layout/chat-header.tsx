@@ -1,9 +1,9 @@
 /**
- * Chat header component for the /chat page with agent picker and mode toggle.
- * Renders different UI based on viewer state:
- * - Owner: Full controls (dropdown, edit, share toggle)
- * - Non-owner (authenticated): Static display, copy agent button
- * - Unauthenticated: Static display, copy link only
+ * Chat header component for the /chat page.
+ * Supports switching to build mode and sidebar toggle.
+ *
+ * @param props - Chat header configuration
+ * @param props.onToggleSidebar - Optional callback to toggle sidebar visibility
  */
 
 "use client";
@@ -15,15 +15,15 @@ import {
   Menu,
   ChevronDown,
   ChevronLeft,
-  MessageSquare,
   Wrench,
-  Plus,
   Check,
   Copy,
   Globe,
   Lock,
   Link2,
   GitFork,
+  MessageSquare,
+  Plus,
 } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -35,8 +35,91 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/lib/stores/chat-store";
-import { ElizaAvatar } from "@/components/chat/eliza-avatar";
+import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
+import { ElizaAvatar } from "@/components/ui/eliza-avatar";
+
+// ==========================================================================
+// SHARED COMPONENTS (defined at module scope to prevent re-creation on render)
+// ==========================================================================
+
+interface AgentDisplayProps {
+  agent:
+    | {
+        id: string;
+        name: string;
+        avatarUrl?: string | null;
+        username?: string | null;
+        creatorUsername?: string | null;
+      }
+    | undefined;
+  showCreatorAttribution?: boolean;
+}
+
+// Shared agent display component used in both static display and owner picker
+function AgentDisplay({
+  agent,
+  showCreatorAttribution = false,
+}: AgentDisplayProps) {
+  if (!agent) {
+    return <span className="text-sm text-white/60">No agent selected</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <ElizaAvatar
+        avatarUrl={agent.avatarUrl}
+        name={agent.name}
+        className="w-6 h-6"
+        iconClassName="h-3 w-3"
+        fallbackClassName="bg-[#FF5800]"
+        data-testid="agent-avatar"
+      />
+      <div className="flex flex-col items-start">
+        <span className="text-sm font-medium text-white">{agent.name}</span>
+        {agent.username && (
+          <span className="text-xs text-white/60">@{agent.username}</span>
+        )}
+      </div>
+      {/* Creator attribution for non-owners */}
+      {showCreatorAttribution && agent.creatorUsername && (
+        <span
+          className="text-xs text-white/40 ml-2"
+          data-testid="creator-attribution"
+        >
+          by @{agent.creatorUsername}
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface CopyLinkButtonProps {
+  copied: boolean;
+  onCopyShareLink: () => void;
+}
+
+// Shared copy link button component used in non-owner and unauthenticated controls
+function CopyLinkButton({ copied, onCopyShareLink }: CopyLinkButtonProps) {
+  return (
+    <button
+      onClick={onCopyShareLink}
+      className={cn(
+        "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
+        "border border-white/10 bg-black/40 hover:bg-white/5",
+        "text-white/80 hover:text-white",
+      )}
+      data-testid="copy-link-btn"
+    >
+      {copied ? (
+        <Check className="h-4 w-4 text-green-500" />
+      ) : (
+        <Link2 className="h-4 w-4" />
+      )}
+      <span className="hidden md:inline">{copied ? "Copied!" : "Share"}</span>
+    </button>
+  );
+}
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
@@ -45,13 +128,14 @@ interface ChatHeaderProps {
 export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { authenticated: isAuthenticated } = usePrivy();
   const {
-    availableCharacters,
     selectedCharacterId,
     setSelectedCharacterId,
     setRoomId,
+    rooms,
+    availableCharacters,
     viewerState,
-    isAuthenticated,
   } = useChatStore();
 
   // Share status state (only fetched for owners)
@@ -65,7 +149,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
+    (a) => a.id === selectedCharacterId
   );
 
   // Determine if user is the owner of the selected character
@@ -78,17 +162,14 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       return;
     }
 
-    let cancelled = false;
     const controller = new AbortController();
 
     const fetchShareStatus = async () => {
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal },
+          { signal: controller.signal }
         );
-
-        if (cancelled) return;
 
         if (res.status === 403 || res.status === 404) {
           setIsPublic(null);
@@ -101,33 +182,34 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         }
 
         const data = await res.json();
-        if (!cancelled && data?.success) {
+        if (data?.success) {
           setIsPublic(data.data.isPublic);
-        } else if (!cancelled) {
+        } else {
           setIsPublic(null);
         }
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
-        if (!cancelled) {
-          setIsPublic(null);
-        }
+        setIsPublic(null);
       }
     };
 
     fetchShareStatus();
 
     return () => {
-      cancelled = true;
       controller.abort();
     };
   }, [selectedCharacterId, isOwner]);
 
   // Copy share link to clipboard
+  // Uses the @username URL format when available for cleaner, more shareable links
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const shareUrl = `${baseUrl}/dashboard/chat?characterId=${selectedCharacterId}`;
+    // Prefer username-based URL for public sharing (cleaner and works for non-auth users)
+    const shareUrl = selectedAgent?.username
+      ? `${baseUrl}/chat/@${selectedAgent.username}`
+      : `${baseUrl}/chat/${selectedCharacterId}`;
 
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -179,7 +261,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: !isPublic }),
-        },
+        }
       );
 
       const data = await response.json();
@@ -196,10 +278,27 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   const handleAgentChange = (characterId: string) => {
     setSelectedCharacterId(characterId);
-    setRoomId(null);
 
     const params = new URLSearchParams();
     params.set("characterId", characterId);
+
+    // Only handle room selection when in chat mode
+    if (mode === "chat") {
+      const characterRooms = rooms
+        .filter((room) => room.characterId === characterId)
+        .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+      if (characterRooms.length > 0) {
+        const mostRecentRoom = characterRooms[0];
+        setRoomId(mostRecentRoom.id);
+        params.set("roomId", mostRecentRoom.id);
+      } else {
+        setRoomId(null);
+      }
+    } else {
+      setRoomId(null);
+    }
+
     const path = mode === "build" ? "/dashboard/build" : "/dashboard/chat";
     router.push(`${path}?${params.toString()}`);
   };
@@ -217,6 +316,19 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     const params = new URLSearchParams();
     if (selectedCharacterId) {
       params.set("characterId", selectedCharacterId);
+
+      // When switching to chat mode, open most recent conversation if one exists
+      if (newMode === "chat") {
+        const characterRooms = rooms
+          .filter((room) => room.characterId === selectedCharacterId)
+          .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+        if (characterRooms.length > 0) {
+          const mostRecentRoom = characterRooms[0];
+          setRoomId(mostRecentRoom.id);
+          params.set("roomId", mostRecentRoom.id);
+        }
+      }
     }
 
     const path = newMode === "build" ? "/dashboard/build" : "/dashboard/chat";
@@ -235,39 +347,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       )}
       data-testid="agent-name"
     >
-      {selectedAgent ? (
-        <div className="flex items-center gap-2">
-          <ElizaAvatar
-            avatarUrl={selectedAgent.avatarUrl}
-            name={selectedAgent.name}
-            className="w-6 h-6"
-            iconClassName="h-3 w-3"
-            fallbackClassName="bg-[#FF5800]"
-            data-testid="agent-avatar"
-          />
-          <div className="flex flex-col items-start">
-            <span className="text-sm font-medium text-white">
-              {selectedAgent.name}
-            </span>
-            {selectedAgent.username && (
-              <span className="text-xs text-white/60">
-                @{selectedAgent.username}
-              </span>
-            )}
-          </div>
-          {/* Creator attribution for non-owners */}
-          {viewerState === "non-owner" && selectedAgent.creatorUsername && (
-            <span
-              className="text-xs text-white/40 ml-2"
-              data-testid="creator-attribution"
-            >
-              by @{selectedAgent.creatorUsername}
-            </span>
-          )}
-        </div>
-      ) : (
-        <span className="text-sm text-white/60">No agent selected</span>
-      )}
+      <AgentDisplay
+        agent={selectedAgent}
+        showCreatorAttribution={viewerState === "non-owner"}
+      />
     </div>
   );
 
@@ -288,25 +371,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         >
           {selectedAgent ? (
             <>
-              <div className="flex items-center gap-2">
-                <ElizaAvatar
-                  avatarUrl={selectedAgent.avatarUrl}
-                  name={selectedAgent.name}
-                  className="w-6 h-6"
-                  iconClassName="h-3 w-3"
-                  fallbackClassName="bg-[#FF5800]"
-                />
-                <div className="flex flex-col items-start">
-                  <span className="text-sm font-medium text-white">
-                    {selectedAgent.name}
-                  </span>
-                  {selectedAgent.username && (
-                    <span className="text-xs text-white/60">
-                      @{selectedAgent.username}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <AgentDisplay agent={selectedAgent} />
               <ChevronDown className="h-4 w-4 text-white/60" />
             </>
           ) : (
@@ -356,23 +421,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                   selectedCharacterId === character.id && "bg-white/10",
                 )}
               >
-                <ElizaAvatar
-                  avatarUrl={character.avatarUrl}
-                  name={character.name}
-                  className="w-6 h-6"
-                  iconClassName="h-3 w-3"
-                  fallbackClassName="bg-[#FF5800]"
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-white">
-                    {character.name}
-                  </span>
-                  {character.username && (
-                    <span className="text-xs text-white/60">
-                      @{character.username}
-                    </span>
-                  )}
-                </div>
+                <AgentDisplay agent={character} />
               </DropdownMenuItem>
             ))}
           </>
@@ -534,22 +583,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       )}
 
       {/* Copy Link button */}
-      <button
-        onClick={handleCopyShareLink}
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
-          "border border-white/10 bg-black/40 hover:bg-white/5",
-          "text-white/80 hover:text-white",
-        )}
-        data-testid="copy-link-btn"
-      >
-        {copied ? (
-          <Check className="h-4 w-4 text-green-500" />
-        ) : (
-          <Link2 className="h-4 w-4" />
-        )}
-        <span className="hidden md:inline">{copied ? "Copied!" : "Share"}</span>
-      </button>
+      <CopyLinkButton copied={copied} onCopyShareLink={handleCopyShareLink} />
     </div>
   );
 
@@ -559,28 +593,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const renderUnauthenticatedControls = () => (
     <div className="flex items-center gap-2">
       {/* Copy Link button */}
-      <button
-        onClick={handleCopyShareLink}
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
-          "border border-white/10 bg-black/40 hover:bg-white/5",
-          "text-white/80 hover:text-white",
-        )}
-        data-testid="copy-link-btn"
-      >
-        {copied ? (
-          <Check className="h-4 w-4 text-green-500" />
-        ) : (
-          <Link2 className="h-4 w-4" />
-        )}
-        <span className="hidden md:inline">{copied ? "Copied!" : "Share"}</span>
-      </button>
+      <CopyLinkButton copied={copied} onCopyShareLink={handleCopyShareLink} />
     </div>
   );
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-16 items-center justify-between backdrop-blur-3xl px-2 md:px-3">
+      <div className="flex items-center gap-1.5">
         {/* Mobile Menu Button */}
         {onToggleSidebar && (
           <BrandButton
@@ -598,10 +617,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         {isBuildPage && (
           <Link
             href="/dashboard"
-            className="flex items-center justify-center w-7 h-7 text-white/40 hover:text-white hover:bg-white/5 rounded transition-colors"
+            className="flex items-center justify-center size-10 border border-transparent hover:border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-2xl transition-colors"
             aria-label="Back to dashboard"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="size-5" />
           </Link>
         )}
 

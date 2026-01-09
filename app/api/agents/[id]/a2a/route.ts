@@ -16,7 +16,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
@@ -27,6 +26,11 @@ import {
 } from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 
 export const maxDuration = 60;
@@ -303,7 +307,7 @@ async function handleChat(
     })),
   ];
 
-  // Calculate costs
+  // Calculate estimated costs
   const provider = getProviderFromModel(model);
   const baseCost = await estimateRequestCost(model, fullMessages);
 
@@ -314,111 +318,117 @@ async function handleChat(
     : 0;
   const totalCost = baseCost + creatorMarkup;
 
-  // Deduct credits
-  const deductResult = await creditsService.deductCredits({
-    organizationId: authResult.user.organization_id,
-    amount: totalCost,
-    description: `Agent: ${character.name} (${model})`,
-    metadata: {
-      agent_id: character.id,
-      agent_name: character.name,
-      base_cost: baseCost,
-      creator_markup: creatorMarkup,
-    },
-  });
+  // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
+  let reservation: CreditReservation;
+  try {
+    reservation = await creditsService.reserve({
+      organizationId: authResult.user.organization_id,
+      amount: totalCost,
+      userId: authResult.user.id,
+      description: `Agent: ${character.name} (${model})`,
+    });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32003,
+          message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
+        },
+        id: rpcId,
+      });
+    }
+    throw error;
+  }
 
-  if (!deductResult.success) {
+  // Generate response
+  try {
+    const result = await streamText({
+      model: gateway.languageModel(model),
+      messages: fullMessages,
+    });
+
+    let fullText = "";
+    for await (const delta of result.textStream) {
+      fullText += delta;
+    }
+
+    const usage = await result.usage;
+
+    // Calculate actual cost and handle difference
+    const { totalCost: actualBaseCost } = await calculateCost(
+      model,
+      provider,
+      usage?.inputTokens || 0,
+      usage?.outputTokens || 0,
+    );
+    const actualCreatorMarkup = character.monetization_enabled
+      ? actualBaseCost * (markupPct / 100)
+      : 0;
+    const actualTotal = actualBaseCost + actualCreatorMarkup;
+
+    // Credit the creator their markup if monetization is enabled
+    // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
+    if (character.monetization_enabled && actualCreatorMarkup > 0) {
+      await agentMonetizationService.recordCreatorEarnings({
+        agentId: character.id,
+        agentName: character.name,
+        ownerId: character.user_id,
+        ownerOrgId: character.organization_id,
+        earnings: actualCreatorMarkup,
+        consumerOrgId: authResult.user.organization_id,
+        model,
+        tokens: usage?.totalTokens,
+        protocol: "a2a",
+      });
+
+      logger.info(
+        "[Agent A2A] Creator earnings credited to redeemable balance",
+        {
+          agentId: character.id,
+          ownerId: character.user_id,
+          earnings: actualCreatorMarkup,
+        },
+      );
+    }
+
+    // Reconcile with actual cost (handles refund or overage)
+    await reservation.reconcile(actualTotal);
+
+    return NextResponse.json({
+      jsonrpc: "2.0",
+      result: {
+        content: fullText,
+        model,
+        usage: {
+          prompt_tokens: usage?.inputTokens || 0,
+          completion_tokens: usage?.outputTokens || 0,
+          total_tokens: usage?.totalTokens || 0,
+        },
+        cost: {
+          base: actualBaseCost,
+          markup: actualCreatorMarkup,
+          total: actualTotal,
+        },
+      },
+      id: rpcId,
+    });
+  } catch (error) {
+    // Refund reserved credits on failure
+    await reservation.reconcile(0);
+    logger.error("[Agent A2A] Error generating response", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      agentId: character.id,
+    });
     return NextResponse.json({
       jsonrpc: "2.0",
       error: {
-        code: -32003,
-        message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
+        code: -32000,
+        message: error instanceof Error ? error.message : "Internal error",
       },
       id: rpcId,
     });
   }
-
-  // Generate response
-  const result = await streamText({
-    model: gateway.languageModel(model),
-    messages: fullMessages,
-  });
-
-  let fullText = "";
-  for await (const delta of result.textStream) {
-    fullText += delta;
-  }
-
-  const usage = await result.usage;
-
-  // Calculate actual cost and handle difference
-  const { totalCost: actualBaseCost } = await calculateCost(
-    model,
-    provider,
-    usage?.inputTokens || 0,
-    usage?.outputTokens || 0,
-  );
-  const actualCreatorMarkup = character.monetization_enabled
-    ? actualBaseCost * (markupPct / 100)
-    : 0;
-  const actualTotal = actualBaseCost + actualCreatorMarkup;
-
-  // Credit the creator their markup if monetization is enabled
-  // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
-  if (character.monetization_enabled && actualCreatorMarkup > 0) {
-    await agentMonetizationService.recordCreatorEarnings({
-      agentId: character.id,
-      agentName: character.name,
-      ownerId: character.user_id,
-      ownerOrgId: character.organization_id,
-      earnings: actualCreatorMarkup,
-      consumerOrgId: authResult.user.organization_id,
-      model,
-      tokens: usage?.totalTokens,
-      protocol: "a2a",
-    });
-
-    logger.info("[Agent A2A] Creator earnings credited to redeemable balance", {
-      agentId: character.id,
-      ownerId: character.user_id,
-      earnings: actualCreatorMarkup,
-    });
-  }
-
-  // Handle cost difference (refund or charge extra)
-  const diff = actualTotal - totalCost;
-  if (diff < 0) {
-    await creditsService.refundCredits({
-      organizationId: authResult.user.organization_id,
-      amount: -diff,
-      description: `Agent refund: ${character.name}`,
-    });
-  } else if (diff > 0) {
-    await creditsService.deductCredits({
-      organizationId: authResult.user.organization_id,
-      amount: diff,
-      description: `Agent additional: ${character.name}`,
-    });
-  }
-
-  return NextResponse.json({
-    jsonrpc: "2.0",
-    result: {
-      content: fullText,
-      model,
-      usage: {
-        prompt_tokens: usage?.inputTokens || 0,
-        completion_tokens: usage?.outputTokens || 0,
-        total_tokens: usage?.totalTokens || 0,
-      },
-      cost: {
-        base: actualBaseCost,
-        markup: actualCreatorMarkup,
-        total: actualTotal,
-      },
-    },
-    id: rpcId,
-  });
 }
 
 /**
@@ -431,7 +441,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT",
     },
   });
 }

@@ -26,7 +26,11 @@ import { organizations } from "@/db/schemas/organizations";
 import { users } from "@/db/schemas/users";
 import { eq, and, lt, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import { creditsService } from "./credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "./credits";
 import { emailService } from "./email";
 import Decimal from "decimal.js";
 
@@ -425,83 +429,101 @@ class AgentBudgetService {
       return { success: false, newBalance: 0, error: "Agent not found" };
     }
 
-    return await dbWrite.transaction(async (tx) => {
-      // Lock budget row
-      const [lockedBudget] = await tx
-        .select()
-        .from(agentBudgets)
-        .where(eq(agentBudgets.id, budget.id))
-        .for("update");
-
-      // Deduct from org credits if requested
-      if (fromOrgCredits) {
-        const deductResult = await creditsService.deductCredits({
+    // Reserve credits BEFORE the transaction to prevent TOCTOU issues
+    let reservation: CreditReservation | null = null;
+    if (fromOrgCredits) {
+      try {
+        reservation = await creditsService.reserve({
           organizationId: budget.owner_org_id,
           amount,
           description: description || `Budget allocation to agent ${agentId}`,
-          metadata: { agent_id: agentId, type: "budget_allocation" },
         });
-
-        if (!deductResult.success) {
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          const currentBalance =
+            Number(budget.allocated_budget) - Number(budget.spent_budget);
           return {
             success: false,
-            newBalance:
-              Number(lockedBudget.allocated_budget) -
-              Number(lockedBudget.spent_budget),
+            newBalance: currentBalance,
             error: "Insufficient organization credits",
           };
         }
+        throw error;
+      }
+    }
+
+    try {
+      const result = await dbWrite.transaction(async (tx) => {
+        // Lock budget row
+        const [lockedBudget] = await tx
+          .select()
+          .from(agentBudgets)
+          .where(eq(agentBudgets.id, budget.id))
+          .for("update");
+
+        // Add to allocated budget
+        const currentAllocated = new Decimal(lockedBudget.allocated_budget);
+        const newAllocated = currentAllocated.plus(amount);
+        const newBalance = newAllocated.minus(lockedBudget.spent_budget);
+
+        // Update budget
+        await tx
+          .update(agentBudgets)
+          .set({
+            allocated_budget: newAllocated.toFixed(4),
+            // Unpause if was paused due to depletion
+            is_paused:
+              lockedBudget.is_paused &&
+              lockedBudget.pause_reason === "Budget depleted"
+                ? false
+                : lockedBudget.is_paused,
+            pause_reason:
+              lockedBudget.pause_reason === "Budget depleted"
+                ? null
+                : lockedBudget.pause_reason,
+            low_budget_alert_sent: false, // Reset alert flag
+            updated_at: new Date(),
+          })
+          .where(eq(agentBudgets.id, lockedBudget.id));
+
+        // Record transaction
+        await tx.insert(agentBudgetTransactions).values({
+          budget_id: lockedBudget.id,
+          agent_id: agentId,
+          type: "allocation",
+          amount: new Decimal(amount).toFixed(4),
+          balance_after: newBalance.toFixed(4),
+          description: description || "Budget allocation",
+          source_type: fromOrgCredits ? "org_transfer" : "manual",
+          metadata: { from_org_credits: fromOrgCredits },
+        });
+
+        logger.info("[AgentBudgets] Budget allocated", {
+          agentId,
+          amount,
+          newBalance: newBalance.toNumber(),
+          fromOrgCredits,
+        });
+
+        return {
+          success: true,
+          newBalance: newBalance.toNumber(),
+        };
+      });
+
+      // Reconcile the reservation after successful transaction
+      if (reservation) {
+        await reservation.reconcile(amount);
       }
 
-      // Add to allocated budget
-      const currentAllocated = new Decimal(lockedBudget.allocated_budget);
-      const newAllocated = currentAllocated.plus(amount);
-      const newBalance = newAllocated.minus(lockedBudget.spent_budget);
-
-      // Update budget
-      await tx
-        .update(agentBudgets)
-        .set({
-          allocated_budget: newAllocated.toFixed(4),
-          // Unpause if was paused due to depletion
-          is_paused:
-            lockedBudget.is_paused &&
-            lockedBudget.pause_reason === "Budget depleted"
-              ? false
-              : lockedBudget.is_paused,
-          pause_reason:
-            lockedBudget.pause_reason === "Budget depleted"
-              ? null
-              : lockedBudget.pause_reason,
-          low_budget_alert_sent: false, // Reset alert flag
-          updated_at: new Date(),
-        })
-        .where(eq(agentBudgets.id, lockedBudget.id));
-
-      // Record transaction
-      await tx.insert(agentBudgetTransactions).values({
-        budget_id: lockedBudget.id,
-        agent_id: agentId,
-        type: "allocation",
-        amount: new Decimal(amount).toFixed(4),
-        balance_after: newBalance.toFixed(4),
-        description: description || "Budget allocation",
-        source_type: fromOrgCredits ? "org_transfer" : "manual",
-        metadata: { from_org_credits: fromOrgCredits },
-      });
-
-      logger.info("[AgentBudgets] Budget allocated", {
-        agentId,
-        amount,
-        newBalance: newBalance.toNumber(),
-        fromOrgCredits,
-      });
-
-      return {
-        success: true,
-        newBalance: newBalance.toNumber(),
-      };
-    });
+      return result;
+    } catch (error) {
+      // Refund on failure
+      if (reservation) {
+        await reservation.reconcile(0);
+      }
+      throw error;
+    }
   }
 
   /**

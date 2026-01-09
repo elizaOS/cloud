@@ -95,7 +95,7 @@ const publicPaths = [
   "/api/privy/webhook",
   "/api/cron",
   "/api/v1/cron",
-  "/api/mcp/demos",
+  "/api/mcps",
   "/api/mcp/list",
   "/api/mcp",
   "/api/a2a",
@@ -128,7 +128,7 @@ export async function proxy(request: NextRequest) {
         "Access-Control-Allow-Methods":
           "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },

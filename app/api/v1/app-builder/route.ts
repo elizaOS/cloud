@@ -21,6 +21,8 @@ const CreateSessionSchema = z.object({
       "blank",
       "mcp-service",
       "a2a-agent",
+      "saas-starter",
+      "ai-tool",
     ])
     .default("blank"),
   includeMonetization: z.boolean().default(false),

@@ -29,7 +29,7 @@ import { logger } from "@/lib/utils/logger";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Api-Key",
+  "Access-Control-Allow-Headers": "Content-Type, X-Api-Key, X-App-Id",
   "Access-Control-Max-Age": "86400",
 };
 

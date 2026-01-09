@@ -1,7 +1,11 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import type { CreditReservation } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -10,7 +14,6 @@ import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
-  estimateRequestCost,
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
@@ -54,7 +57,7 @@ async function handlePOST(req: NextRequest) {
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
     );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
@@ -309,88 +312,59 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 4. Check credits BEFORE making API call
-    // estimateRequestCost now handles both string and multimodal content
-    const estimatedCost = await estimateRequestCost(model, request.messages);
+    // 4. RESERVE credits BEFORE making API call (prevents TOCTOU race condition)
+    const inputText = request.messages
+      .map((m) =>
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      )
+      .join(" ");
 
-    // Check if organization has sufficient credits
-    // Use org data from auth (already fetched, avoids redundant DB call)
-    const creditCheck = {
-      sufficient: Number(user.organization.credit_balance) >= estimatedCost,
-      required: estimatedCost,
-      balance: Number(user.organization.credit_balance),
-    };
-
-    if (!creditCheck.sufficient) {
-      logger.warn("[OpenAI Proxy] Insufficient credits", {
+    let reservation: CreditReservation;
+    try {
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!!,
-        required: creditCheck.required,
-        balance: creditCheck.balance,
+        model,
+        provider,
+        estimatedInputTokens: estimateTokens(inputText),
+        estimatedOutputTokens: 500,
+        userId: user.id,
+        description: `Chat Completions: ${model}`,
       });
-
-      return Response.json(
-        {
-          error: {
-            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
-          },
-        },
-        { status: 402 },
-      );
-    }
-
-    logger.info("[OpenAI Proxy] Chat completion request", {
-      organizationId: user.organization_id!!,
-      userId: user.id,
-      model,
-      normalizedModel,
-      provider,
-      streaming: isStreaming,
-      messageCount: request.messages.length,
-      estimatedCost,
-    });
-
-    // 5. For streaming requests, reserve credits BEFORE making API call
-    // This prevents race conditions where credits could be spent elsewhere during streaming
-    let creditReservation: {
-      success: boolean;
-      reservationId: string | null;
-      reservedAmount: number;
-    } | null = null;
-
-    if (isStreaming) {
-      creditReservation = await creditsService.reserveCredits({
-        organizationId: user.organization_id!!,
-        amount: estimatedCost,
-        description: `OpenAI Proxy (reserved): ${model}`,
-        metadata: { user_id: user.id, type: "streaming_reservation" },
-      });
-
-      if (!creditReservation.success) {
-        logger.warn("[OpenAI Proxy] Failed to reserve credits for streaming", {
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        logger.warn("[Chat Completions] Insufficient credits", {
           organizationId: user.organization_id!!,
-          estimatedCost,
+          required: error.required,
         });
-
         return Response.json(
           {
             error: {
-              message: "Failed to reserve credits for streaming request",
+              message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
               type: "insufficient_quota",
-              code: "credit_reservation_failed",
+              code: "insufficient_balance",
             },
           },
           { status: 402 },
         );
       }
+      throw error;
     }
 
-    // 6. Forward to Vercel AI Gateway
+    logger.info("[Chat Completions] Request started", {
+      organizationId: user.organization_id!!,
+      userId: user.id,
+      model,
+      provider,
+      streaming: isStreaming,
+      messageCount: request.messages.length,
+      reservedAmount: reservation.reservedAmount,
+    });
+
+    // 5. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
     const providerResponse = await providerInstance.chatCompletions(request);
 
-    // 7. Handle streaming vs non-streaming
+    // 6. Handle streaming vs non-streaming
     if (isStreaming) {
       return handleStreamingResponse(
         providerResponse,
@@ -404,7 +378,7 @@ async function handlePOST(req: NextRequest) {
         origin,
         ipAddress,
         userAgent,
-        creditReservation!.reservedAmount,
+        reservation,
       );
     } else {
       return withCors(
@@ -415,30 +389,15 @@ async function handlePOST(req: NextRequest) {
           normalizedModel,
           provider,
           startTime,
-          session_token,
           origin,
           ipAddress,
           userAgent,
+          reservation,
         ),
       );
     }
   } catch (error) {
     logger.error("[OpenAI Proxy] Error:", error);
-
-    // Refund reserved credits if reservation was made before the error
-    if (creditReservation?.success && creditReservation.reservedAmount > 0) {
-      await creditsService.refundCredits({
-        organizationId: user.organization_id!!,
-        amount: creditReservation.reservedAmount,
-        description: `OpenAI Proxy (refund - request failed): ${request.model}`,
-        metadata: { user_id: user.id, reason: "request_failed" },
-      });
-
-      logger.info("[OpenAI Proxy] Refunded reserved credits after error", {
-        organizationId: user.organization_id!!,
-        refundedAmount: creditReservation.reservedAmount,
-      });
-    }
 
     // Check if error is a structured gateway error
     interface GatewayError {
@@ -489,10 +448,10 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
-  session_token?: string,
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
+  reservation?: CreditReservation,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -501,8 +460,8 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Deduct credits SYNCHRONOUSLY before returning response
-  if (usage) {
+  // Reconcile credits: refund difference if actual < reserved
+  if (usage && reservation) {
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -510,37 +469,7 @@ async function handleNonStreamingResponse(
       usage.completion_tokens,
     );
 
-    // CRITICAL: Deduct credits before returning response
-    const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id!!,
-      amount: totalCost,
-      description: `OpenAI Proxy: ${model}`,
-      metadata: { user_id: user.id },
-      session_token,
-      tokens_consumed: usage.total_tokens,
-    });
-
-    if (!deductResult.success) {
-      // This should rarely happen since we checked credits before the call
-      // But it can happen if credits were spent elsewhere between check and now
-      logger.error("[OpenAI Proxy] Failed to deduct credits after completion", {
-        organizationId: user.organization_id!!,
-        cost: String(totalCost),
-        balance: deductResult.newBalance,
-      });
-
-      // Return error instead of giving free service
-      return Response.json(
-        {
-          error: {
-            message: "Credit deduction failed. Please contact support.",
-            type: "billing_error",
-            code: "credit_deduction_failed",
-          },
-        },
-        { status: 402 },
-      );
-    }
+    await reservation.reconcile(totalCost);
 
     // Background analytics (usage records, generation records)
     // These are not critical for billing, so can be async
@@ -625,17 +554,15 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
-  session_token?: string,
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservedAmount?: number,
+  reservation?: CreditReservation,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
   let outputTokens = 0;
   let fullContent = "";
-  let creditsSettled = false;
 
   // Create transform stream to track usage
   const { readable, writable } = new TransformStream();
@@ -753,65 +680,9 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        // Settle the credit reservation - credits were already reserved before streaming
-        // This adjusts the balance based on actual usage (refund if less, charge more if needed)
-        if (reservedAmount !== undefined && reservedAmount > 0) {
-          const settlementResult = await creditsService.settleReservation({
-            organizationId: user.organization_id!!,
-            reservedAmount,
-            actualAmount: totalCost,
-            description: `OpenAI Proxy: ${model}`,
-            metadata: { user_id: user.id },
-            session_token,
-            tokens_consumed: totalTokens,
-          });
-
-          creditsSettled = true;
-
-          if (!settlementResult.success) {
-            // Additional charge was needed but failed - log for monitoring
-            // The reserved amount was still charged, so no free service was given
-            logger.warn(
-              "[OpenAI Proxy] Settlement partial: additional charge failed (reserved amount was charged)",
-              {
-                organizationId: user.organization_id!!,
-                userId: user.id,
-                reservedAmount: String(reservedAmount),
-                actualCost: String(totalCost),
-                finalCost: String(settlementResult.finalCost),
-              },
-            );
-          } else if (settlementResult.adjustmentType !== "none") {
-            logger.info("[OpenAI Proxy] Credit settlement completed", {
-              adjustmentType: settlementResult.adjustmentType,
-              adjustment: String(settlementResult.adjustment),
-              finalCost: String(settlementResult.finalCost),
-            });
-          }
-        } else {
-          // Fallback: No reservation (shouldn't happen for streaming, but handle gracefully)
-          const deductResult = await creditsService.deductCredits({
-            organizationId: user.organization_id!!,
-            amount: totalCost,
-            description: `OpenAI Proxy: ${model}`,
-            metadata: { user_id: user.id },
-            session_token,
-            tokens_consumed: totalTokens,
-          });
-
-          creditsSettled = true;
-
-          if (!deductResult.success) {
-            logger.error(
-              "[OpenAI Proxy] Failed to deduct credits after streaming (no reservation)",
-              {
-                organizationId: user.organization_id!!,
-                userId: user.id,
-                cost: String(totalCost),
-                balance: deductResult.newBalance,
-              },
-            );
-          }
+        // Reconcile credits: refund difference if actual < reserved
+        if (reservation) {
+          await reservation.reconcile(totalCost);
         }
 
         const usageRecord = await usageService.create({
@@ -874,26 +745,16 @@ function handleStreamingResponse(
         });
       }
     } catch (error) {
-      logger.error("[OpenAI Proxy] Streaming error:", error);
+      logger.error("[Chat Completions] Streaming error:", error);
 
-      // Refund reserved credits only if streaming failed BEFORE settlement
-      if (
-        !creditsSettled &&
-        reservedAmount !== undefined &&
-        reservedAmount > 0
-      ) {
-        await creditsService.refundCredits({
-          organizationId: user.organization_id,
-          amount: reservedAmount,
-          description: `OpenAI Proxy (refund - streaming failed): ${model}`,
-          metadata: { user_id: user.id, reason: "streaming_failed" },
-        });
-
+      // Refund reserved credits if streaming failed (reconcile with 0 cost)
+      if (reservation) {
+        await reservation.reconcile(0);
         logger.info(
-          "[OpenAI Proxy] Refunded reserved credits after streaming error",
+          "[Chat Completions] Refunded credits after streaming error",
           {
             organizationId: user.organization_id,
-            refundedAmount: reservedAmount,
+            refundedAmount: reservation.reservedAmount,
           },
         );
       }
@@ -910,7 +771,7 @@ function handleStreamingResponse(
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
     "Access-Control-Max-Age": "86400",
   };
 

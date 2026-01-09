@@ -201,7 +201,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-PAYMENT, X-Agent-Token-Id, X-Agent-Chain-Id",
+        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT, X-Agent-Token-Id, X-Agent-Chain-Id",
     },
   });
 }
