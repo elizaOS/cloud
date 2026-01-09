@@ -516,7 +516,7 @@ export async function OPTIONS(request: NextRequest) {
     headers: {
       "Access-Control-Allow-Origin": "*", // Adjust in production
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }
