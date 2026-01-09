@@ -247,22 +247,29 @@ async function handlePOST(req: NextRequest) {
       errorCount: errors.length,
     });
 
-    for (const uploaded of results) {
-      try {
-        await deleteBlob(uploaded.blobUrl);
-        logger.info("[PreUpload] Cleaned up orphaned blob", { blobUrl: uploaded.blobUrl });
-      } catch (cleanupError) {
-        logger.warn("[PreUpload] Failed to cleanup blob", {
-          blobUrl: uploaded.blobUrl,
-          error: cleanupError,
+    // Parallel cleanup for better performance
+    const cleanupResults = await Promise.allSettled(
+      results.map((uploaded) => deleteBlob(uploaded.blobUrl)),
+    );
+
+    const orphanedBlobs: string[] = [];
+    cleanupResults.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        logger.info("[PreUpload] Cleaned up blob", { blobUrl: results[index].blobUrl });
+      } else {
+        orphanedBlobs.push(results[index].blobUrl);
+        logger.warn("[PreUpload] Failed to cleanup blob - orphaned", {
+          blobUrl: results[index].blobUrl,
+          error: result.reason,
         });
       }
-    }
+    });
 
     return NextResponse.json(
       {
         error: "Some files failed to upload - batch rolled back",
         details: errors,
+        orphanedBlobs: orphanedBlobs.length > 0 ? orphanedBlobs : undefined,
       },
       { status: 400 },
     );
