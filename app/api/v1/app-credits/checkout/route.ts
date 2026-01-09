@@ -8,9 +8,20 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import Stripe from "stripe";
 
+export const dynamic = "force-dynamic";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia",
 });
+
+// CORS headers - fully open, security via auth tokens
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Max-Age": "86400",
+};
 
 const CheckoutSchema = z.object({
   app_id: z.string().uuid(),
@@ -18,6 +29,17 @@ const CheckoutSchema = z.object({
   success_url: z.string().url(),
   cancel_url: z.string().url(),
 });
+
+/**
+ * OPTIONS /api/v1/app-credits/checkout
+ * CORS preflight handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
 
 /**
  * POST /api/v1/app-credits/checkout
@@ -42,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
     
@@ -52,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!verifiedClaims) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired token" },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
     
@@ -64,13 +86,13 @@ export async function POST(request: NextRequest) {
         organization_id: users.organization_id,
       })
       .from(users)
-      .where(eq(users.privy_id, verifiedClaims.userId))
+      .where(eq(users.privy_user_id, verifiedClaims.userId))
       .limit(1);
     
     if (!user) {
       return NextResponse.json(
         { success: false, error: "User not found" },
-        { status: 404 }
+        { status: 404, headers: CORS_HEADERS }
       );
     }
     
@@ -85,7 +107,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
     
@@ -96,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404, headers: CORS_HEADERS }
       );
     }
     
@@ -140,7 +162,7 @@ export async function POST(request: NextRequest) {
       success: true,
       url: session.url,
       sessionId: session.id,
-    });
+    }, { headers: CORS_HEADERS });
   } catch (error) {
     logger.error("Failed to create checkout session:", error);
     return NextResponse.json(
@@ -148,7 +170,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to create checkout",
       },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

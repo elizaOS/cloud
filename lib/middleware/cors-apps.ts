@@ -46,7 +46,7 @@ export function addCorsHeaders(
   response.headers.set("Access-Control-Allow-Methods", methods.join(", "));
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie",
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie",
   );
   // Note: credentials cannot be used with wildcard, but we use auth tokens instead
   response.headers.set("Access-Control-Max-Age", "86400");

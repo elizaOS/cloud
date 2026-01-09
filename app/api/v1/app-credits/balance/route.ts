@@ -6,6 +6,28 @@ import { dbRead } from "@/db/client";
 import { users } from "@/db/schemas/users";
 import { eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
+// CORS headers - fully open, security via auth tokens
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Max-Age": "86400",
+};
+
+/**
+ * OPTIONS /api/v1/app-credits/balance
+ * CORS preflight handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 /**
  * GET /api/v1/app-credits/balance
  * 
@@ -32,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (!appId) {
       return NextResponse.json(
         { success: false, error: "app_id is required" },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
     
@@ -55,7 +77,7 @@ export async function GET(request: NextRequest) {
             organization_id: users.organization_id,
           })
           .from(users)
-          .where(eq(users.privy_id, verifiedClaims.userId))
+          .where(eq(users.privy_user_id, verifiedClaims.userId))
           .limit(1);
         
         if (user) {
@@ -74,7 +96,7 @@ export async function GET(request: NextRequest) {
       } catch {
         return NextResponse.json(
           { success: false, error: "Authentication required" },
-          { status: 401 }
+          { status: 401, headers: CORS_HEADERS }
         );
       }
     }
@@ -82,7 +104,7 @@ export async function GET(request: NextRequest) {
     if (!organizationId) {
       return NextResponse.json(
         { success: false, error: "User organization not found" },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
     
@@ -103,7 +125,7 @@ export async function GET(request: NextRequest) {
       totalPurchased: balance?.totalPurchased ?? 0,
       totalSpent: balance?.totalSpent ?? 0,
       isLow: (balance?.balance ?? 0) < LOW_BALANCE_THRESHOLD,
-    });
+    }, { headers: CORS_HEADERS });
   } catch (error) {
     logger.error("Failed to get app credits balance:", error);
     return NextResponse.json(
@@ -111,7 +133,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get balance",
       },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

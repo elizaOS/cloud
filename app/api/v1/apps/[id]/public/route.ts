@@ -4,6 +4,28 @@ import { apps } from "@/db/schemas/apps";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
+export const dynamic = "force-dynamic";
+
+// CORS headers - fully open, security via auth tokens
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Max-Age": "86400",
+};
+
+/**
+ * OPTIONS /api/v1/apps/[id]/public
+ * CORS preflight handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 /**
  * GET /api/v1/apps/[id]/public
  * 
@@ -42,7 +64,7 @@ export async function GET(
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 },
+        { status: 404, headers: CORS_HEADERS },
       );
     }
 
@@ -55,7 +77,7 @@ export async function GET(
         logo_url: app.logo_url,
         website_url: app.website_url,
       },
-    });
+    }, { headers: CORS_HEADERS });
   } catch (error) {
     logger.error("Failed to get public app info:", error);
     return NextResponse.json(
@@ -63,7 +85,7 @@ export async function GET(
         success: false,
         error: "Failed to get app info",
       },
-      { status: 500 },
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

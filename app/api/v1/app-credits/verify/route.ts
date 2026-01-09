@@ -3,9 +3,31 @@ import { logger } from "@/lib/utils/logger";
 import { appCreditsService } from "@/lib/services/app-credits";
 import Stripe from "stripe";
 
+export const dynamic = "force-dynamic";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia",
 });
+
+// CORS headers - fully open, security via auth tokens
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Max-Age": "86400",
+};
+
+/**
+ * OPTIONS /api/v1/app-credits/verify
+ * CORS preflight handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
 
 /**
  * GET /api/v1/app-credits/verify
@@ -27,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: "session_id is required" },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
     
@@ -37,7 +59,7 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404, headers: CORS_HEADERS }
       );
     }
     
@@ -47,7 +69,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: "Payment not completed",
         status: session.payment_status,
-      });
+      }, { headers: CORS_HEADERS });
     }
     
     // Verify this is an app credit purchase
@@ -56,7 +78,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: "Invalid session type",
-      });
+      }, { headers: CORS_HEADERS });
     }
     
     const appId = metadata.app_id;
@@ -68,7 +90,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: "Invalid session metadata",
-      });
+      }, { headers: CORS_HEADERS });
     }
     
     // Process the purchase (add credits to user's app balance)
@@ -103,7 +125,7 @@ export async function GET(request: NextRequest) {
       success: true,
       amount,
       message: "Credits added successfully",
-    });
+    }, { headers: CORS_HEADERS });
   } catch (error) {
     logger.error("Failed to verify purchase:", error);
     return NextResponse.json(
@@ -111,7 +133,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Verification failed",
       },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }
