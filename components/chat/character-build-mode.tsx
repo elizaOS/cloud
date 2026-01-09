@@ -222,7 +222,7 @@ export function CharacterBuildMode({
           } else {
             const data = await response.json().catch(() => ({}));
             toast.warning("Character updated, but file processing failed", {
-              description: data.error || "You can retry by clicking Save again.",
+              description: data.error || "You can retry from the character's Files tab.",
               duration: 6000,
             });
             onUnsavedChanges?.(false);
@@ -262,10 +262,15 @@ export function CharacterBuildMode({
               })),
               createdAt: Date.now(),
             };
-            sessionStorage.setItem(
-              `pendingKnowledge_${saved.id}`,
-              JSON.stringify(pendingKnowledge),
-            );
+            try {
+              sessionStorage.setItem(
+                `pendingKnowledge_${saved.id}`,
+                JSON.stringify(pendingKnowledge),
+              );
+            } catch {
+              // sessionStorage may fail in private browsing - files won't auto-process
+              // but character creation still succeeded
+            }
 
             toast.success("Character created!", {
               description: `${filesToProcess.length} file(s) will be processed in the background`,

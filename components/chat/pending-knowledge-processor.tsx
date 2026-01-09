@@ -82,29 +82,34 @@ export function PendingKnowledgeProcessor({
 
         if (response.ok) {
           const data = await response.json();
+          const failedCount = data.failedCount || 0;
+          const successCount = data.successCount || pending.files.length;
 
-          // Only clear sessionStorage on success - preserves data for retry on failure
-          try {
-            sessionStorage.removeItem(storageKey);
-          } catch {
-            // sessionStorage may fail in private browsing
+          // Only clear sessionStorage when ALL files succeed
+          // If some files failed, preserve blob URLs for potential retry/cleanup
+          if (failedCount === 0) {
+            try {
+              sessionStorage.removeItem(storageKey);
+            } catch {
+              // sessionStorage may fail in private browsing
+            }
           }
 
           setState({
             status: "completed",
             totalFiles: pending.files.length,
             processedFiles: pending.files.length,
-            successCount: data.successCount || pending.files.length,
-            failedCount: data.failedCount || 0,
+            successCount,
+            failedCount,
           });
 
-          if (data.failedCount > 0) {
-            toast.success("Knowledge files processed", {
-              description: `${data.successCount} succeeded, ${data.failedCount} failed`,
+          if (failedCount > 0) {
+            toast.warning("Some files failed to process", {
+              description: `${successCount} succeeded, ${failedCount} failed. You may need to re-upload failed files.`,
             });
           } else {
             toast.success("Knowledge base ready!", {
-              description: `${data.successCount} file(s) processed successfully`,
+              description: `${successCount} file(s) processed successfully`,
             });
           }
 
