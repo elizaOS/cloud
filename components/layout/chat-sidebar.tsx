@@ -199,7 +199,12 @@ export function ChatSidebar({
   // Copy share link
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
-    const shareUrl = `${window.location.origin}/chat/${selectedCharacterId}`;
+    const character = availableCharacters.find((c) => c.id === selectedCharacterId);
+    if (!character?.username) {
+      toast.error("Set a username first to share this agent");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/chat/@${character.username}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");

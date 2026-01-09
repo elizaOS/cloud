@@ -8,182 +8,108 @@ import { CharacterFilters } from "@/components/my-agents/character-filters";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
+import type { AgentWithOwnership } from "@/components/my-agents/character-library-card";
 
 export type ViewMode = "grid" | "list";
 export type SortOption = "name" | "created" | "modified" | "recent";
 
-const PAGE_SIZE = 30;
-
-interface MyAgentCharacter {
+/** Response type for saved agents API */
+interface SavedAgent {
   id: string;
   name: string;
-  bio: string | string[];
+  bio?: string | string[];
   avatarUrl?: string;
   avatar_url?: string;
-  topics?: string[];
-  adjectives?: string[];
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface PaginationState {
-  page: number;
-  hasMore: boolean;
-  totalCount: number;
-}
-
-// Map client sort options to API sort options
-function getApiSortParams(sort: SortOption): { sortBy: string; order: string } {
-  switch (sort) {
-    case "name":
-      return { sortBy: "name", order: "asc" };
-    case "created":
-      return { sortBy: "newest", order: "desc" };
-    case "modified":
-      return { sortBy: "updated", order: "desc" };
-    default:
-      return { sortBy: "updated", order: "desc" };
-  }
+  username?: string | null;
+  owner_id: string;
+  owner_name: string | null;
+  last_interaction_time?: string;
 }
 
 /**
  * My Agents client component that handles character listing, filtering, and management.
- * Fetches characters client-side with infinite scroll pagination.
+ * Fetches both owned and saved agents client-side to enable real-time updates.
  */
 export function MyAgentsClient() {
   const router = useRouter();
   const claimAttempted = useRef(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const [characters, setCharacters] = useState<MyAgentCharacter[]>([]);
+  const [characters, setCharacters] = useState<AgentWithOwnership[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("modified");
-  const [pagination, setPagination] = useState<PaginationState>({
-    page: 1,
-    hasMore: false,
-    totalCount: 0,
-  });
 
-  // Fetch characters with pagination
-  const fetchCharacters = useCallback(
-    async (page: number, sort: SortOption, append = false) => {
-      const { sortBy: apiSortBy, order } = getApiSortParams(sort);
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(PAGE_SIZE),
-        sortBy: apiSortBy,
-        order,
-      });
+  // Fetch both owned and saved characters
+  const fetchCharacters = useCallback(async () => {
+    try {
+      // Fetch owned and saved agents in parallel
+      const [ownedResponse, savedResponse] = await Promise.all([
+        fetch("/api/my-agents/characters"),
+        fetch("/api/my-agents/saved"),
+      ]);
 
-      const response = await fetch(`/api/my-agents/characters?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch characters");
-
-      const result = await response.json();
-      const newCharacters = result.data?.characters || [];
-      const paginationData = result.data?.pagination;
-
-      if (append) {
-        setCharacters((prev) => [...prev, ...newCharacters]);
+      // Process owned agents
+      let ownedAgents: AgentWithOwnership[] = [];
+      let ownedFetchFailed = false;
+      if (ownedResponse.ok) {
+        const ownedResult = await ownedResponse.json();
+        ownedAgents = (ownedResult.data?.characters || []).map(
+          (char: AgentWithOwnership) => ({
+            ...char,
+            isOwned: true,
+          })
+        );
       } else {
-        setCharacters(newCharacters);
+        ownedFetchFailed = true;
+        logger.error("[MyAgents] Failed to fetch owned characters");
       }
 
-      setPagination({
-        page: paginationData?.page || page,
-        hasMore: paginationData?.hasMore || false,
-        totalCount: paginationData?.totalCount || 0,
-      });
+      // Process saved agents (may not exist yet - gracefully handle 404)
+      let savedAgents: AgentWithOwnership[] = [];
+      if (savedResponse.ok) {
+        const savedResult = await savedResponse.json();
+        savedAgents = (savedResult.data?.agents || []).map(
+          (agent: SavedAgent) => ({
+            id: agent.id,
+            name: agent.name,
+            bio: agent.bio || "",
+            avatarUrl: agent.avatarUrl || agent.avatar_url,
+            avatar_url: agent.avatar_url || agent.avatarUrl,
+            username: agent.username,
+            isOwned: false,
+            ownerUsername: agent.owner_name || "Unknown",
+            lastInteraction: agent.last_interaction_time,
+          })
+        );
+      } else if (savedResponse.status !== 404) {
+        // Only log error if it's not a 404 (endpoint may not exist yet)
+        logger.error("[MyAgents] Failed to fetch saved agents");
+      }
 
-      return { hasMore: paginationData?.hasMore || false };
-    },
-    [],
-  );
+      // Show error toast if owned agents failed to load
+      if (ownedFetchFailed) {
+        toast.error("Failed to load your agents");
+      }
 
-  // Initial fetch and when sort changes
+      // Merge both lists
+      setCharacters([...ownedAgents, ...savedAgents]);
+    } catch (error) {
+      logger.error("[MyAgents] Failed to fetch characters:", error);
+      toast.error("Failed to load your agents");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Initial fetch and listen for updates
   useEffect(() => {
-    let cancelled = false;
+    fetchCharacters();
 
-    const loadInitial = async () => {
-      setIsLoading(true);
-      setCharacters([]);
-      setPagination({ page: 1, hasMore: false, totalCount: 0 });
-
-      try {
-        await fetchCharacters(1, sortBy, false);
-      } catch (error) {
-        if (!cancelled) {
-          logger.error("[MyAgents] Failed to fetch characters:", error);
-          toast.error("Failed to load your agents");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadInitial();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sortBy, fetchCharacters]);
-
-  // Listen for character updates
-  useEffect(() => {
-    const handleUpdate = async () => {
-      setCharacters([]);
-      setPagination({ page: 1, hasMore: false, totalCount: 0 });
-      try {
-        await fetchCharacters(1, sortBy, false);
-      } catch (error) {
-        logger.error("[MyAgents] Failed to refresh characters:", error);
-      }
-    };
-
+    // Listen for character updates
+    const handleUpdate = () => fetchCharacters();
     window.addEventListener("characters-updated", handleUpdate);
     return () => window.removeEventListener("characters-updated", handleUpdate);
-  }, [sortBy, fetchCharacters]);
-
-  // Load more function for infinite scroll
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !pagination.hasMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      await fetchCharacters(pagination.page + 1, sortBy, true);
-    } catch (error) {
-      logger.error("[MyAgents] Failed to load more characters:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [
-    pagination.page,
-    pagination.hasMore,
-    isLoadingMore,
-    sortBy,
-    fetchCharacters,
-  ]);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element || isLoading || isLoadingMore || !pagination.hasMore) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1, rootMargin: "100px" },
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [isLoading, isLoadingMore, pagination.hasMore, loadMore]);
+  }, [fetchCharacters]);
 
   // Claim any affiliate characters the user has interacted with
   useEffect(() => {
@@ -199,7 +125,7 @@ export function MyAgentsClient() {
       body: JSON.stringify({ sessionToken: sessionToken || undefined }),
     })
       .then((res) => res.json())
-      .then(async (data) => {
+      .then((data) => {
         if (data.success && data.claimed?.length > 0) {
           toast.success(
             `${data.claimed.length} agent(s) added to your library!`,
@@ -209,19 +135,23 @@ export function MyAgentsClient() {
                 .join(", "),
             },
           );
-          await fetchCharacters(1, sortBy, false);
+          fetchCharacters();
 
           if (sessionToken) {
-            localStorage.removeItem("eliza-anon-session-token");
+            try {
+              localStorage.removeItem("eliza-anon-session-token");
+            } catch {
+              // Ignore cleanup errors
+            }
           }
         }
       })
       .catch((error) => {
         logger.error("[MyAgents] Failed to claim affiliate characters:", error);
       });
-  }, [sortBy, fetchCharacters]);
+  }, [fetchCharacters]);
 
-  // Filter characters based on search (client-side for instant feedback)
+  // Filter characters based on search
   const filteredCharacters = characters.filter((char) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -236,9 +166,40 @@ export function MyAgentsClient() {
     );
   });
 
+  // Sort characters - most recent interaction first by default
+  const sortedCharacters = [...filteredCharacters].sort((a, b) => {
+    if (sortBy === "name") {
+      return (a.name || "").localeCompare(b.name || "");
+    }
+    if (sortBy === "created") {
+      // Sort by created_at timestamp (newest first)
+      const getCreatedTime = (char: AgentWithOwnership): number => {
+        return char.created_at ? new Date(char.created_at).getTime() : 0;
+      };
+      const timeDiff = getCreatedTime(b) - getCreatedTime(a);
+      if (timeDiff !== 0) return timeDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    // Default: sort by most recent activity
+    const getRecentTime = (char: AgentWithOwnership): number => {
+      if (char.isOwned) {
+        return char.updated_at ? new Date(char.updated_at).getTime() : 0;
+      }
+      return char.lastInteraction ? new Date(char.lastInteraction).getTime() : 0;
+    };
+    const timeDiff = getRecentTime(b) - getRecentTime(a);
+    if (timeDiff !== 0) return timeDiff;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
   const handleCreateNew = useCallback(() => {
     router.push("/dashboard/build");
   }, [router]);
+
+  // Handler for removing saved agents from the list
+  const handleRemoveSaved = useCallback((characterId: string) => {
+    setCharacters((prev) => prev.filter((char) => char.id !== characterId));
+  }, []);
 
   useSetPageHeader(
     {
@@ -265,25 +226,17 @@ export function MyAgentsClient() {
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortChange={setSortBy}
-        totalCount={pagination.totalCount}
+        totalCount={characters.length}
         filteredCount={filteredCharacters.length}
         onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid
-        characters={filteredCharacters}
+        characters={sortedCharacters}
         viewMode={viewMode}
         onCreateNew={handleCreateNew}
+        onRemoveSaved={handleRemoveSaved}
       />
-
-      {/* Infinite scroll sentinel */}
-      <div ref={loadMoreRef} className="h-4" />
-
-      {isLoadingMore && (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
     </div>
   );
 }

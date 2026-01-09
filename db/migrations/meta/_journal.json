@@ -43,6 +43,13 @@
       "when": 1767123673825,
       "tag": "0005_add_project_name_to_alb_priorities",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767903409196,
+      "tag": "0006_add-unique-username-constraint",
+      "breakpoints": true
     }
   ]
 }

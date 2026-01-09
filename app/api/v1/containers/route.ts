@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { discordService } from "@/lib/services/discord";
 import {
@@ -244,7 +248,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       container = updatedContainer;
 
-      // For updates, still need to calculate cost and deduct credits
+      // For updates, still need to calculate cost and reserve credits
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
@@ -252,30 +256,32 @@ async function handleCreateContainer(request: NextRequest) {
         includeUpload: false,
       });
 
-      // Deduct credits for update deployment
-      const creditResult = await creditsService.deductCredits({
-        organizationId: user.organization_id!!,
-        amount: deploymentCost,
-        description: `Container update deployment: ${validatedData.name}`,
-        metadata: {
-          type: "container_update",
-          containerId: container.id,
-          projectName: validatedData.project_name,
-        },
-      });
-
-      if (!creditResult.success) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Insufficient balance for update deployment",
-            requiredCredits: deploymentCost,
-          },
-          { status: 402 }, // Payment Required
-        );
+      // Reserve credits BEFORE update deployment
+      let updateReservation: CreditReservation;
+      try {
+        updateReservation = await creditsService.reserve({
+          organizationId: user.organization_id!!,
+          amount: deploymentCost,
+          userId: user.id,
+          description: `Container update deployment: ${validatedData.name}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Insufficient balance for update deployment",
+              requiredCredits: deploymentCost,
+            },
+            { status: 402 }, // Payment Required
+          );
+        }
+        throw error;
       }
 
-      newBalance = creditResult.newBalance;
+      // Confirm the reservation immediately for updates (reconciled later if stack fails)
+      await updateReservation.reconcile(deploymentCost);
+      newBalance = updateReservation.reservedAmount;
 
       creditEventEmitter.emitCreditUpdate({
         organizationId: user.organization_id!!,
@@ -314,54 +320,53 @@ async function handleCreateContainer(request: NextRequest) {
         },
       };
 
-      // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false, // Image build/push is charged separately
+        includeUpload: false,
       });
 
-      // CRITICAL: Wrap container creation AND credit deduction in a single transaction
-      // This prevents race condition where container exists but credits fail to deduct
+      let createReservation: CreditReservation;
       try {
-        const result =
-          await containersService.createContainerWithCreditDeduction(
-            containerData,
-            user.id,
-            deploymentCost,
-          );
-
-        container = result.container;
-        newBalance = result.newBalance;
-
-        // Emit credit update event for real-time balance updates
-        creditEventEmitter.emitCreditUpdate({
+        createReservation = await creditsService.reserve({
           organizationId: user.organization_id!!,
-          newBalance: newBalance,
-          delta: -deploymentCost,
-          reason: `Container deployment: ${validatedData.name}`,
+          amount: deploymentCost,
           userId: user.id,
-          timestamp: new Date(),
+          description: `Container deployment: ${validatedData.name}`,
         });
       } catch (error) {
-        // Transaction rolled back - no orphaned container or credit inconsistency
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-
-        if (errorMessage.includes("Insufficient balance")) {
+        if (error instanceof InsufficientCreditsError) {
           return NextResponse.json(
             {
               success: false,
-              error: errorMessage,
+              error: `Insufficient balance. Required: $${deploymentCost.toFixed(2)}`,
               requiredCredits: deploymentCost,
             },
-            { status: 402 }, // Payment Required
+            { status: 402 },
           );
         }
-
-        throw error; // Re-throw for outer error handler
+        throw error;
       }
+
+      try {
+        container = await containersService.createWithQuotaCheck(containerData);
+      } catch (error) {
+        await createReservation.reconcile(0);
+        throw error;
+      }
+
+      await createReservation.reconcile(deploymentCost);
+      newBalance = createReservation.reservedAmount;
+
+      creditEventEmitter.emitCreditUpdate({
+        organizationId: user.organization_id!!,
+        newBalance: newBalance,
+        delta: -deploymentCost,
+        reason: `Container deployment: ${validatedData.name}`,
+        userId: user.id,
+        timestamp: new Date(),
+      });
 
       // Create usage record for audit trail
       // NOTE: is_successful is FALSE initially - deployment monitor will mark it
