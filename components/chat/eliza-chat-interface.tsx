@@ -138,6 +138,8 @@ export function ElizaChatInterface({
   // Use chat store for room and character management
   const {
     roomId,
+    rooms,
+    isLoadingRooms,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -1308,6 +1310,17 @@ export function ElizaChatInterface({
   const isEmptyChat =
     messages.length === 0 && !loadingState.isLoadingMessages && !error;
 
+  // Check if this is the first conversation with this character
+  // Count rooms that belong to the same character (excluding current room)
+  // Default to "first conversation" when rooms are loading to avoid flicker
+  const isFirstConversation = useMemo(() => {
+    if (!selectedCharacterId || isLoadingRooms) return true;
+    const characterRooms = rooms.filter(
+      (r) => r.characterId === selectedCharacterId && r.id !== roomId
+    );
+    return characterRooms.length === 0;
+  }, [rooms, selectedCharacterId, roomId, isLoadingRooms]);
+
   return (
     <div className="flex h-full w-full min-h-0 justify-center py-3 pr-3">
       {/* Main Chat Area - Centered with max width for readability */}
@@ -1316,9 +1329,9 @@ export function ElizaChatInterface({
       >
         {/* Messages Area - Hidden when empty to center input */}
         {!isEmptyChat && (
-          <div className="flex-1 min-h-0 max-w-4xl w-full overflow-hidden">
-            <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
-              <div className="space-y-6">
+          <div className="flex-1 min-h-0 w-full overflow-hidden">
+            <ScrollArea className="h-full py-6" ref={scrollAreaRef}>
+              <div className="max-w-4xl mx-auto px-2 space-y-6">
                 {error && (
                   <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
                     <p className="text-sm text-destructive">{error}</p>
@@ -1403,7 +1416,7 @@ export function ElizaChatInterface({
                     : "text-4xl sm:text-5xl md:text-6xl"
               )}
             >
-              Say hi to {characterName}
+              {isFirstConversation ? `Meet ${characterName}.` : `Say hi to ${characterName}.`}
             </h1>
           </div>
         )}

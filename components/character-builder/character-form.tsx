@@ -60,14 +60,18 @@ export function CharacterForm({
   }, [character.isPublic, isTogglingShare]);
 
   const handleToggleShare = async () => {
-    if (!character.id) {
-      toast.error("Save the agent first to change visibility");
-      return;
-    }
-
     if (isTogglingShare) return; // Prevent double-clicking
 
     const newIsPublic = !isPublic;
+
+    // If character is not saved yet, just update local state
+    if (!character.id) {
+      setIsPublic(newIsPublic);
+      onChange({ ...character, isPublic: newIsPublic });
+      return;
+    }
+
+    // Character is saved, update via API
     setIsTogglingShare(true);
     setIsPublic(newIsPublic);
 
@@ -188,6 +192,7 @@ export function CharacterForm({
                 value={character.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Agent name"
+                autoCapitalize="words"
                 className="rounded-full border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
               />
             </div>
@@ -197,7 +202,7 @@ export function CharacterForm({
                 htmlFor="username"
                 className="text-sm font-medium text-white/70"
               >
-                Username
+                Username *
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">
@@ -316,9 +321,9 @@ export function CharacterForm({
                 aria-checked={isPublic}
                 aria-label={isPublic ? "Make agent private" : "Make agent public"}
                 onClick={handleToggleShare}
-                disabled={!character.id || isTogglingShare}
+                disabled={isTogglingShare}
                 className={`relative w-[62px] rounded-full p-1 transition-colors duration-300 border ${
-                  character.id && !isTogglingShare
+                  !isTogglingShare
                     ? "cursor-pointer"
                     : "cursor-not-allowed opacity-50"
                 } ${
