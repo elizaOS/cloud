@@ -227,6 +227,7 @@ export function CharacterBuildMode({
               );
 
               // Store failed files in sessionStorage for PendingKnowledgeProcessor to pick up
+              let sessionStorageSucceeded = false;
               if (failedFiles.length > 0) {
                 try {
                   sessionStorage.setItem(
@@ -243,6 +244,7 @@ export function CharacterBuildMode({
                       createdAt: Date.now(),
                     }),
                   );
+                  sessionStorageSucceeded = true;
                 } catch {
                   // sessionStorage may fail in private browsing
                 }
@@ -250,10 +252,17 @@ export function CharacterBuildMode({
 
               // Clear all pre-uploaded files from component state since they're now in sessionStorage
               setPreUploadedFiles([]);
-              toast.warning("Character updated with partial file failures", {
-                description: `${successCount} file(s) processed, ${failedCount} failed. Failed files will be retried automatically.`,
-                duration: 6000,
-              });
+              if (sessionStorageSucceeded) {
+                toast.warning("Character updated with partial file failures", {
+                  description: `${successCount} file(s) processed, ${failedCount} failed. Failed files will be retried automatically.`,
+                  duration: 6000,
+                });
+              } else {
+                toast.warning("Character updated with partial file failures", {
+                  description: `${successCount} file(s) processed, ${failedCount} failed. You can re-upload failed files from the Files tab.`,
+                  duration: 6000,
+                });
+              }
             } else {
               // All files succeeded - clear all processed files
               setPreUploadedFiles((prev) =>
@@ -268,6 +277,7 @@ export function CharacterBuildMode({
             const errorData = await response.json().catch(() => ({}));
 
             // Store all files in sessionStorage for retry since API call failed
+            let sessionStorageSucceeded = false;
             try {
               sessionStorage.setItem(
                 `pendingKnowledge_${character.id}`,
@@ -283,15 +293,23 @@ export function CharacterBuildMode({
                   createdAt: Date.now(),
                 }),
               );
+              sessionStorageSucceeded = true;
             } catch {
               // sessionStorage may fail in private browsing
             }
 
             setPreUploadedFiles([]);
-            toast.warning("Character updated, but file processing failed", {
-              description: errorData.error || "Files will be retried automatically.",
-              duration: 6000,
-            });
+            if (sessionStorageSucceeded) {
+              toast.warning("Character updated, but file processing failed", {
+                description: errorData.error || "Files will be retried automatically.",
+                duration: 6000,
+              });
+            } else {
+              toast.warning("Character updated, but file processing failed", {
+                description: "File retry unavailable. You can re-upload files from the Files tab.",
+                duration: 6000,
+              });
+            }
             onUnsavedChanges?.(false);
             // Still navigate to chat after update
             setPendingNavigation(character.id);
