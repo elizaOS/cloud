@@ -188,8 +188,27 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
+      // Validate content-length to prevent malicious oversized responses
+      const contentLength = response.headers.get("content-length");
+      if (contentLength) {
+        const actualSize = parseInt(contentLength, 10);
+        if (actualSize > file.size * 1.1) {
+          // Allow 10% tolerance for encoding differences
+          throw new Error(
+            `Blob size mismatch: expected ${file.size} bytes, got ${actualSize}`,
+          );
+        }
+      }
+
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+
+      // Double-check actual downloaded size
+      if (buffer.length > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
+        throw new Error(
+          `Downloaded file exceeds max size: ${buffer.length} > ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE}`,
+        );
+      }
       const base64Content = buffer.toString("base64");
 
       const result = await knowledgeService.addKnowledge({
