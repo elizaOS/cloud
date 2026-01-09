@@ -13,14 +13,18 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  // Check if Discord is configured at all
-  const isConfigured = discordAutomationService.isConfigured();
-  if (!isConfigured) {
+  // Check if Discord OAuth is configured (for adding bot to servers)
+  const isOAuthConfigured = discordAutomationService.isOAuthConfigured();
+  // Check if bot can send messages (only needs bot token)
+  const canSendMessages = discordAutomationService.canSendMessages();
+
+  // If bot can't even send messages, it's not usable at all
+  if (!canSendMessages) {
     return NextResponse.json({
       configured: false,
       connected: false,
       guilds: [],
-      error: "Discord integration not configured",
+      error: "Discord bot token not configured",
     });
   }
 
@@ -29,7 +33,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   );
 
   return NextResponse.json({
-    configured: true,
+    // configured = can users add bot to new servers (OAuth flow)
+    configured: isOAuthConfigured,
+    // connected = does org have guilds AND can bot send messages
     connected: status.connected,
     guilds: status.guilds,
     error: status.error,

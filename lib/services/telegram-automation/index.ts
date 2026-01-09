@@ -15,6 +15,14 @@ const WEBHOOK_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   "https://eliza.gg";
 
+// Cache TTL for connection status (5 minutes)
+const STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface CachedStatus {
+  status: TelegramConnectionStatus;
+  cachedAt: number;
+}
+
 export interface TelegramBotInfo {
   botId: number;
   botUsername: string;
@@ -38,6 +46,16 @@ export interface TelegramCredentials {
 }
 
 class TelegramAutomationService {
+  // In-memory cache for connection status
+  private statusCache = new Map<string, CachedStatus>();
+
+  /**
+   * Invalidate cached status for an organization.
+   */
+  invalidateStatusCache(organizationId: string): void {
+    this.statusCache.delete(organizationId);
+  }
+
   /**
    * Validate a bot token by calling Telegram's getMe API.
    */
@@ -125,6 +143,9 @@ class TelegramAutomationService {
       audit
     );
 
+    // Invalidate cache so next status check fetches fresh data
+    this.invalidateStatusCache(organizationId);
+
     logger.info("[TelegramAutomation] Credentials stored", {
       organizationId,
       botUsername: credentials.botUsername,
@@ -169,6 +190,9 @@ class TelegramAutomationService {
       }
     }
 
+    // Invalidate cache so next status check fetches fresh data
+    this.invalidateStatusCache(organizationId);
+
     logger.info("[TelegramAutomation] Credentials removed", { organizationId });
   }
 
@@ -181,10 +205,20 @@ class TelegramAutomationService {
 
   /**
    * Get connection status for an organization.
+   * Results are cached for STATUS_CACHE_TTL_MS to reduce API calls.
    */
   async getConnectionStatus(
-    organizationId: string
+    organizationId: string,
+    options?: { skipCache?: boolean }
   ): Promise<TelegramConnectionStatus> {
+    // Check cache first (unless explicitly skipped)
+    if (!options?.skipCache) {
+      const cached = this.statusCache.get(organizationId);
+      if (cached && Date.now() - cached.cachedAt < STATUS_CACHE_TTL_MS) {
+        return cached.status;
+      }
+    }
+
     const [botToken, botUsername, botId] = await Promise.all([
       secretsService.get(organizationId, "TELEGRAM_BOT_TOKEN"),
       secretsService.get(organizationId, "TELEGRAM_BOT_USERNAME"),
@@ -192,19 +226,26 @@ class TelegramAutomationService {
     ]);
 
     if (!botToken) {
-      return { connected: false, configured: false };
+      const status: TelegramConnectionStatus = {
+        connected: false,
+        configured: false,
+      };
+      this.statusCache.set(organizationId, { status, cachedAt: Date.now() });
+      return status;
     }
 
     try {
       const bot = new Telegraf(botToken);
       const me = await bot.telegram.getMe();
 
-      return {
+      const status: TelegramConnectionStatus = {
         connected: true,
         configured: true,
         botUsername: me.username || botUsername || undefined,
         botId: me.id,
       };
+      this.statusCache.set(organizationId, { status, cachedAt: Date.now() });
+      return status;
     } catch (error) {
       logger.warn(
         "[TelegramAutomation] Token validation failed during status check",
@@ -214,14 +255,20 @@ class TelegramAutomationService {
         }
       );
 
-      // Return stored data even if validation fails
-      return {
+      // Return stored data even if validation fails (don't cache error state)
+      const status: TelegramConnectionStatus = {
         connected: true,
         configured: true,
         botUsername: botUsername || undefined,
         botId: botId ? parseInt(botId, 10) : undefined,
         error: "Token may be invalid. Try reconnecting.",
       };
+      // Cache with shorter TTL for error state (1 minute)
+      this.statusCache.set(organizationId, {
+        status,
+        cachedAt: Date.now() - STATUS_CACHE_TTL_MS + 60_000,
+      });
+      return status;
     }
   }
 

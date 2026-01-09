@@ -13,6 +13,10 @@ import {
   createEmbed,
   truncate,
 } from "@/lib/utils/discord-helpers";
+import {
+  DISCORD_AUTOMATION_DEFAULTS,
+  getDiscordConfigWithDefaults,
+} from "@/lib/services/automation-constants";
 import type { App } from "@/db/schemas/apps";
 import type {
   DiscordAutomationConfig,
@@ -20,9 +24,7 @@ import type {
   PostResult,
 } from "./types";
 
-// Constants for automation intervals
-const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
-const DEFAULT_INTERVAL_MAX = 240; // 4 hours maximum
+// Content length constants
 const MAX_ANNOUNCEMENT_LENGTH = 300; // Max chars for AI-generated announcement
 const TRUNCATE_LENGTH = 500; // Max chars after truncation
 
@@ -83,12 +85,9 @@ class DiscordAppAutomationService {
       }
     }
 
-    const currentConfig = (app.discord_automation as DiscordAutomationConfig) || {
-      enabled: false,
-      autoAnnounce: false,
-      announceIntervalMin: DEFAULT_INTERVAL_MIN,
-      announceIntervalMax: DEFAULT_INTERVAL_MAX,
-    };
+    const currentConfig = getDiscordConfigWithDefaults(
+      app.discord_automation as Record<string, unknown> | null
+    ) as DiscordAutomationConfig;
 
     const updatedConfig: DiscordAutomationConfig = {
       ...currentConfig,
@@ -119,12 +118,9 @@ class DiscordAppAutomationService {
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
-    const currentConfig = (app.discord_automation as DiscordAutomationConfig) || {
-      enabled: false,
-      autoAnnounce: false,
-      announceIntervalMin: DEFAULT_INTERVAL_MIN,
-      announceIntervalMax: DEFAULT_INTERVAL_MAX,
-    };
+    const currentConfig = getDiscordConfigWithDefaults(
+      app.discord_automation as Record<string, unknown> | null
+    ) as DiscordAutomationConfig;
 
     const updatedApp = await appsRepository.update(appId, {
       discord_automation: {
@@ -153,12 +149,9 @@ class DiscordAppAutomationService {
       organizationId
     );
 
-    const config = (app.discord_automation as DiscordAutomationConfig) || {
-      enabled: false,
-      autoAnnounce: false,
-      announceIntervalMin: DEFAULT_INTERVAL_MIN,
-      announceIntervalMax: DEFAULT_INTERVAL_MAX,
-    };
+    const config = getDiscordConfigWithDefaults(
+      app.discord_automation as Record<string, unknown> | null
+    ) as DiscordAutomationConfig;
 
     // Get guild and channel names if configured
     let guildName: string | undefined;
@@ -370,9 +363,11 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
     const now = new Date();
     const minutesSince = (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
 
-    // Use a random interval between min and max
-    const minInterval = config.announceIntervalMin || 120;
-    const maxInterval = config.announceIntervalMax || 240;
+    // Use a random interval between min and max for natural timing
+    const minInterval =
+      config.announceIntervalMin || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMin;
+    const maxInterval =
+      config.announceIntervalMax || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMax;
     const targetInterval =
       minInterval + Math.random() * (maxInterval - minInterval);
 

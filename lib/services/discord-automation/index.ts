@@ -42,12 +42,29 @@ const BOT_PERMISSIONS = "83968";
 
 class DiscordAutomationService {
   /**
-   * Check if Discord is configured (has required env vars)
+   * Check if Discord OAuth is configured (has all required env vars for OAuth flow)
+   * Use this for checking if users can add the bot to servers
    */
-  isConfigured(): boolean {
+  isOAuthConfigured(): boolean {
     return Boolean(
       DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN
     );
+  }
+
+  /**
+   * Check if Discord bot can send messages (only needs bot token)
+   * Use this for checking if posting/messaging will work
+   */
+  canSendMessages(): boolean {
+    return Boolean(DISCORD_BOT_TOKEN);
+  }
+
+  /**
+   * Check if Discord is configured (alias for isOAuthConfigured for backwards compatibility)
+   * @deprecated Use isOAuthConfigured() or canSendMessages() instead
+   */
+  isConfigured(): boolean {
+    return this.isOAuthConfigured();
   }
 
   /**
@@ -153,12 +170,14 @@ class DiscordAutomationService {
 
   /**
    * Get connection status for an organization
+   * Uses canSendMessages() to check if bot can actually post (only needs bot token)
    */
   async getConnectionStatus(
     organizationId: string
   ): Promise<DiscordConnectionStatus> {
-    if (!this.isConfigured()) {
-      return { connected: false, guilds: [], error: "Discord not configured" };
+    // Check if bot can send messages (only needs DISCORD_BOT_TOKEN)
+    if (!this.canSendMessages()) {
+      return { connected: false, guilds: [], error: "Discord bot not configured" };
     }
 
     try {
