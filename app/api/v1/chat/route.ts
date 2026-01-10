@@ -23,9 +23,17 @@ import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
 
+const VALID_MESSAGE_ROLES = ["user", "assistant", "system", "tool"] as const;
+type ValidRole = (typeof VALID_MESSAGE_ROLES)[number];
+
+function isValidRole(role: string): role is ValidRole {
+  return VALID_MESSAGE_ROLES.includes(role as ValidRole);
+}
+
 /**
  * Normalize messages to UIMessage format.
  * Accepts both UIMessage format (with parts) and OpenAI format (with content).
+ * @throws Error if a message has an invalid role.
  */
 function normalizeMessages(
   messages: Array<{
@@ -34,7 +42,14 @@ function normalizeMessages(
     parts?: Array<{ type: string; text?: string }>;
   }>,
 ): UIMessage[] {
-  return messages.map((msg) => {
+  return messages.map((msg, index) => {
+    // Validate role
+    if (!isValidRole(msg.role)) {
+      throw new Error(
+        `Invalid message role "${msg.role}" at index ${index}. Valid roles: ${VALID_MESSAGE_ROLES.join(", ")}`,
+      );
+    }
+
     // If message already has parts array, use it
     if (msg.parts && Array.isArray(msg.parts)) {
       return msg as UIMessage;
@@ -49,7 +64,7 @@ function normalizeMessages(
     }
 
     return {
-      role: msg.role as UIMessage["role"],
+      role: msg.role,
       parts: [{ type: "text" as const, text: content }],
     } as UIMessage;
   });
@@ -140,7 +155,18 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
-    const messages = normalizeMessages(rawMessages);
+    let messages: UIMessage[];
+    try {
+      messages = normalizeMessages(rawMessages);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Invalid message role")) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
 
     const modelConfig = resolveModel(tier || id);
     const selectedModel = modelConfig.modelId;

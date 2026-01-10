@@ -4,9 +4,18 @@ import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+const DEFAULT_AGENT_BIO = "A helpful AI assistant";
+
 const CreateAgentSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100),
-  bio: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(100)
+    .transform((s) => s.trim()),
+  bio: z
+    .string()
+    .optional()
+    .transform((s) => s?.trim()),
 });
 
 /**
@@ -37,9 +46,9 @@ export async function POST(request: NextRequest) {
 
     const character = await charactersService.create({
       name,
-      bio: bio ? [bio] : ["A helpful AI assistant"],
+      bio: bio ? [bio] : [DEFAULT_AGENT_BIO],
       user_id: user.id,
-      organization_id: user.organization_id!,
+      organization_id: user.organization_id,
       source: "cloud",
     });
 
