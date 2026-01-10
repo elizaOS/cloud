@@ -5,16 +5,19 @@ import { appCleanupService } from "@/lib/services/app-cleanup";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
-// Helper to allow empty strings and transform them to undefined
-const optionalUrl = z
-  .string()
-  .transform((val) => (val === "" ? undefined : val))
-  .pipe(z.string().url().optional());
+// Helper to allow empty strings (transform to null to clear) and omitted fields (undefined)
+// - Omitted field → undefined (Drizzle skips, keeps old value)
+// - Empty string "" → null (Drizzle sets NULL, clears the value)
+// - Valid URL → the URL string
+const optionalUrl = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().url().nullish(),
+);
 
-const optionalEmail = z
-  .string()
-  .transform((val) => (val === "" ? undefined : val))
-  .pipe(z.string().email().optional());
+const optionalEmail = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().email().nullish(),
+);
 
 const UpdateAppSchema = z.object({
   name: z.string().min(1).max(100).optional(),

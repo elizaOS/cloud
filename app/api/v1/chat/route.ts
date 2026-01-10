@@ -56,13 +56,20 @@ function normalizeMessages(
 }
 
 /**
+ * Extract text content from message parts.
+ */
+function extractTextFromParts(
+  parts: Array<{ type: string; text?: string }>,
+): string {
+  return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+}
+
+/**
  * Extract text content from a message (handles both formats).
  */
 function getMessageText(msg: UIMessage | { content?: string }): string {
   if ("parts" in msg && Array.isArray(msg.parts)) {
-    return msg.parts
-      .map((p) => (p.type === "text" ? p.text : ""))
-      .join("");
+    return extractTextFromParts(msg.parts);
   }
   if ("content" in msg && typeof msg.content === "string") {
     return msg.content;
@@ -123,6 +130,14 @@ async function handlePOST(req: NextRequest) {
       id?: string;
       tier?: string;
     } = body;
+
+    // Validate messages array is not empty
+    if (!rawMessages || rawMessages.length === 0) {
+      return NextResponse.json(
+        { error: "Messages array cannot be empty" },
+        { status: 400 },
+      );
+    }
 
     // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
     const messages = normalizeMessages(rawMessages);
@@ -218,9 +233,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!isAnonymous && user.organization_id) {
       const messageText = messages
-        .map((m) =>
-          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
-        )
+        .map((m) => extractTextFromParts(m.parts))
         .join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
 
@@ -303,9 +316,7 @@ async function handlePOST(req: NextRequest) {
             // Add user message
             await conversationsService.addMessageWithSequence(conversationId, {
               role: "user",
-              content: userMessage.parts
-                .map((p) => (p.type === "text" ? p.text : ""))
-                .join(""),
+              content: extractTextFromParts(userMessage.parts),
               model: selectedModel,
               tokens: usage.inputTokens,
               cost: String(inputCost),
@@ -321,49 +332,52 @@ async function handlePOST(req: NextRequest) {
             });
           }
 
-          // Create usage record (with NULL organization_id for anonymous users)
-          const usageRecord = await usageService.create({
-            organization_id: user.organization_id || null,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "chat",
-            model: selectedModel,
-            provider: provider,
-            input_tokens: usage.inputTokens,
-            output_tokens: usage.outputTokens,
-            input_cost: String(inputCost),
-            output_cost: String(outputCost),
-            is_successful: true,
-          });
-
-          if (apiKey || isAnonymous) {
-            const userPrompt =
-              messages[messages.length - 1]?.parts
-                .map((p) => (p.type === "text" ? p.text : ""))
-                .join("") || "";
-            await generationsService.create({
-              organization_id: user.organization_id || null,
+          // Create usage/generation records only for authenticated users with org
+          // Anonymous users are tracked via anonymousSessionsService
+          if (user.organization_id) {
+            const usageRecord = await usageService.create({
+              organization_id: user.organization_id,
               user_id: user.id,
               api_key_id: apiKey?.id || null,
               type: "chat",
               model: selectedModel,
               provider: provider,
-              prompt: userPrompt,
-              status: "completed",
-              content: text,
-              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: String(isAnonymous ? 0 : totalCost),
-              credits: String(isAnonymous ? 0 : totalCost),
-              usage_record_id: usageRecord.id,
-              completed_at: new Date(),
-              result: {
-                text: text,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-                totalTokens:
-                  (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              },
+              input_tokens: usage.inputTokens,
+              output_tokens: usage.outputTokens,
+              input_cost: String(inputCost),
+              output_cost: String(outputCost),
+              is_successful: true,
             });
+
+            if (apiKey) {
+              const lastMessageParts = messages[messages.length - 1]?.parts;
+              const userPrompt = lastMessageParts
+                ? extractTextFromParts(lastMessageParts)
+                : "";
+              await generationsService.create({
+                organization_id: user.organization_id,
+                user_id: user.id,
+                api_key_id: apiKey.id,
+                type: "chat",
+                model: selectedModel,
+                provider: provider,
+                prompt: userPrompt,
+                status: "completed",
+                content: text,
+                tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                cost: String(totalCost),
+                credits: String(totalCost),
+                usage_record_id: usageRecord.id,
+                completed_at: new Date(),
+                result: {
+                  text: text,
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  totalTokens:
+                    (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                },
+              });
+            }
           }
 
           logger.info("chat-api", "Cost charged", {
@@ -378,7 +392,7 @@ async function handlePOST(req: NextRequest) {
             { error: error instanceof Error ? error.message : "Unknown error" },
           );
 
-          if (usage) {
+          if (usage && user.organization_id) {
             try {
               const errorUsageRecord = await usageService.create({
                 organization_id: user.organization_id,
@@ -397,10 +411,10 @@ async function handlePOST(req: NextRequest) {
               });
 
               if (apiKey) {
-                const userPrompt =
-                  messages[messages.length - 1]?.parts
-                    .map((p) => (p.type === "text" ? p.text : ""))
-                    .join("") || "";
+                const lastMessageParts = messages[messages.length - 1]?.parts;
+                const userPrompt = lastMessageParts
+                  ? extractTextFromParts(lastMessageParts)
+                  : "";
                 await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
