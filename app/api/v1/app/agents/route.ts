@@ -9,9 +9,9 @@ const DEFAULT_AGENT_BIO = "A helpful AI assistant";
 const CreateAgentSchema = z.object({
   name: z
     .string()
-    .min(1, "Name is required")
     .max(100)
-    .transform((s) => s.trim()),
+    .transform((s) => s.trim())
+    .pipe(z.string().min(1, "Name is required")),
   bio: z
     .string()
     .optional()
