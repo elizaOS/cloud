@@ -288,7 +288,7 @@ class DbAdapterPool {
     if (!adapter) return true;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
-    if (!isHealthy) await this.invalidateAdapter(key);
+    if (!isHealthy) this.removeAdapter(key);
     return isHealthy;
   }
 
