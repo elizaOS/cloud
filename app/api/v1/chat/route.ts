@@ -29,6 +29,53 @@ import type { AnonymousSession } from "@/db/schemas";
 export const maxDuration = 60;
 
 /**
+ * Normalize messages to UIMessage format.
+ * Accepts both UIMessage format (with parts) and OpenAI format (with content).
+ */
+function normalizeMessages(
+  messages: Array<{
+    role: string;
+    content?: string | string[];
+    parts?: Array<{ type: string; text?: string }>;
+  }>,
+): UIMessage[] {
+  return messages.map((msg) => {
+    // If message already has parts array, use it
+    if (msg.parts && Array.isArray(msg.parts)) {
+      return msg as UIMessage;
+    }
+
+    // Convert content string to parts format
+    let content = "";
+    if (typeof msg.content === "string") {
+      content = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      content = msg.content.join("");
+    }
+
+    return {
+      role: msg.role as UIMessage["role"],
+      parts: [{ type: "text" as const, text: content }],
+    } as UIMessage;
+  });
+}
+
+/**
+ * Extract text content from a message (handles both formats).
+ */
+function getMessageText(msg: UIMessage | { content?: string }): string {
+  if ("parts" in msg && Array.isArray(msg.parts)) {
+    return msg.parts
+      .map((p) => (p.type === "text" ? p.text : ""))
+      .join("");
+  }
+  if ("content" in msg && typeof msg.content === "string") {
+    return msg.content;
+  }
+  return "";
+}
+
+/**
  * POST /api/v1/chat
  * Chat completion endpoint supporting both authenticated and anonymous users.
  * Processes chat messages and returns AI responses with credit deduction.
@@ -71,21 +118,34 @@ async function handlePOST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      messages,
+      messages: rawMessages,
       id,
       tier,
-    }: { messages: UIMessage[]; id?: string; tier?: string } = body;
+    }: {
+      messages: Array<{
+        role: string;
+        content?: string;
+        parts?: Array<{ type: string; text?: string }>;
+        metadata?: unknown;
+      }>;
+      id?: string;
+      tier?: string;
+    } = body;
+
+    // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
+    const messages = normalizeMessages(rawMessages);
 
     const modelConfig = resolveModel(tier || id);
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
+    const lastRawMessage = rawMessages[rawMessages.length - 1];
     interface MessageMetadata {
       conversationId?: string;
     }
     const metadata =
-      lastMessage?.metadata && typeof lastMessage.metadata === "object"
-        ? (lastMessage.metadata as MessageMetadata)
+      lastRawMessage?.metadata && typeof lastRawMessage.metadata === "object"
+        ? (lastRawMessage.metadata as MessageMetadata)
         : null;
     const conversationId = metadata?.conversationId;
 
@@ -104,10 +164,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastMessageText =
-      lastMessage?.parts
-        ?.map((p) => (p.type === "text" ? p.text : ""))
-        .join("") || "";
+    const lastMessageText = getMessageText(lastMessage);
 
     if (lastMessageText) {
       contentModerationService.moderateInBackground(
