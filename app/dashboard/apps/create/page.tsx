@@ -1110,6 +1110,9 @@ export default function AppCreatorPage() {
                   description:
                     "Your work has been restored. You can continue building.",
                 });
+                
+                // Refresh git status after session restore
+                checkGitStatus();
               } else if (eventType === "error") {
                 throw new Error(data.error || "Restoration failed");
               }
@@ -1142,7 +1145,7 @@ export default function AppCreatorPage() {
       setIsRestoring(false);
       setRestoreProgress(null);
     }
-  }, [session, isRestoring, addLog]);
+  }, [session, isRestoring, addLog, checkGitStatus]);
 
   // No more complex auto-restore effect needed
   // Expired sessions are handled by simply starting a new session (which clones from GitHub)
@@ -1214,6 +1217,9 @@ export default function AppCreatorPage() {
                   description: "You can continue building.",
                 });
                 addLog("Auto-recovery complete", "success");
+                
+                // Refresh git status after sandbox recovery
+                checkGitStatus();
               } else if (eventType === "error") {
                 throw new Error(data.error || "Recovery failed");
               }
@@ -1240,7 +1246,7 @@ export default function AppCreatorPage() {
     } finally {
       isRecoveringRef.current = false;
     }
-  }, [session, addLog]);
+  }, [session, addLog, checkGitStatus]);
 
   // Sandbox health check - detects when sandbox dies and auto-recovers
   useEffect(() => {
@@ -1686,6 +1692,10 @@ Some ideas:
 
                 setIsLoading(false);
                 addLog("Build complete", "success");
+                
+                // Refresh git status after initial scaffolding completes
+                // (auto-commit may have already pushed changes to GitHub)
+                checkGitStatus();
               } else if (eventType === "cancelled") {
                 throw new Error("Session creation was cancelled");
               } else if (eventType === "error") {
@@ -1722,6 +1732,7 @@ Some ideas:
     sourceContext,
     addLog,
     router,
+    checkGitStatus,
   ]);
 
   // Auto-start session when in edit mode with no session
@@ -1985,6 +1996,10 @@ Some ideas:
         }
 
         setStatus("ready");
+        
+        // Refresh git status after prompt completes
+        // (auto-commit may have already pushed changes to GitHub)
+        checkGitStatus();
       } catch (error) {
         setMessages((prev) => {
           return prev.map((m) => {
@@ -2026,7 +2041,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [session, isLoading, addLog],
+    [session, isLoading, addLog, checkGitStatus],
   );
 
   const stopSession = useCallback(async () => {
