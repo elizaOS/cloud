@@ -5,14 +5,25 @@ import { appCleanupService } from "@/lib/services/app-cleanup";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+// Helper to allow empty strings and transform them to undefined
+const optionalUrl = z
+  .string()
+  .transform((val) => (val === "" ? undefined : val))
+  .pipe(z.string().url().optional());
+
+const optionalEmail = z
+  .string()
+  .transform((val) => (val === "" ? undefined : val))
+  .pipe(z.string().email().optional());
+
 const UpdateAppSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  app_url: z.string().url().optional(),
-  website_url: z.string().url().optional(),
-  contact_email: z.string().email().optional(),
+  app_url: optionalUrl,
+  website_url: optionalUrl,
+  contact_email: optionalEmail,
   allowed_origins: z.array(z.string()).optional(),
-  logo_url: z.string().url().optional(),
+  logo_url: optionalUrl,
   is_active: z.boolean().optional(),
 });
 

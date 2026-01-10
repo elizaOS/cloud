@@ -129,7 +129,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
         (origin): origin is string => typeof origin === "string",
       )
     : [];
-  const maskedApiKey = "elizakey_" + "•".repeat(32);
+  const maskedApiKey = "eliza_" + "•".repeat(32);
 
   return (
     <div className="space-y-6">
