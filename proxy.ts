@@ -101,7 +101,15 @@ const publicPaths = [
   "/api/a2a",
   "/api/agents",
   "/api/v1/track",
+  "/api/v1/app-auth",
+  "/app-auth",
   "/.well-known",
+];
+
+// Public endpoint patterns that need special matching (e.g., /api/v1/apps/[id]/public)
+const publicPathPatterns = [
+  /^\/api\/v1\/apps\/[^/]+\/public$/,
+  /^\/api\/characters\/[^/]+\/public$/,
 ];
 
 const protectedPaths = [
@@ -134,9 +142,9 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  const isPublicPath = publicPaths.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  const isPublicPath =
+    publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    publicPathPatterns.some((pattern) => pattern.test(pathname));
   if (isPublicPath) {
     const response = NextResponse.next();
     response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);

@@ -20,7 +20,7 @@ import type {
   SourceContext,
   PreviewTab,
 } from "@/lib/app-builder/types";
-import { ChatInput, HistoryTab } from "@/components/app-builder";
+import { ChatInput, HistoryTab, SessionLoader } from "@/components/app-builder";
 
 async function fetchWithRetry(
   url: string,
@@ -82,7 +82,6 @@ import {
   History,
   Cloud,
   CloudOff,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Rocket,
@@ -93,27 +92,17 @@ import {
   Wand2,
   DollarSign,
   LineChart,
-  Menu,
   X,
-  PanelLeftClose,
-  PanelRightClose,
   MoreVertical,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,13 +110,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -419,11 +401,12 @@ export default function AppCreatorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  // Track iframe loading state to prevent white flash
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -438,9 +421,6 @@ export default function AppCreatorPage() {
     total: number;
     filePath: string;
   } | null>(null);
-  // Track if we just loaded a session that needs user action (timeout/expired)
-  // This prevents jarring layout flash between loading card and full UI overlay
-  const [showStandaloneTimeout, setShowStandaloneTimeout] = useState(false);
   const [appSnapshotInfo, setAppSnapshotInfo] = useState<{
     githubRepo: string;
     lastBackup: string | null;
@@ -465,8 +445,15 @@ export default function AppCreatorPage() {
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
 
+  // ============================================================================
+  // SIMPLE INITIALIZATION FLOW
+  // 1. New app (no appId) → show setup wizard
+  // 2. Edit app (appId) → load app data, then start/connect to session
+  // 3. Session in URL → try to connect, if expired/gone → start fresh
+  // ============================================================================
+  
   useEffect(() => {
-    // Track URL parameter changes
+    // Track URL changes
     const appChanged = prevAppIdRef.current !== appIdFromUrl;
     const sessionChanged = prevSessionIdRef.current !== sessionIdFromUrl;
 
@@ -475,11 +462,12 @@ export default function AppCreatorPage() {
       prevSessionIdRef.current = sessionIdFromUrl;
       initializationRef.current = false;
 
-      // Reset state when URL changes
+      // Reset state for fresh load
       setSession(null);
       setMessages([]);
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
+      setIframeLoaded(false);
 
       if (appChanged) {
         setAppData(null);
@@ -491,195 +479,145 @@ export default function AppCreatorPage() {
     if (initializationRef.current) return;
     initializationRef.current = true;
 
-    const loadPage = async () => {
-      // Case 1: Session ID in URL - restore that specific session
-      if (sessionIdFromUrl) {
-        const restored = await tryRestoreSession(sessionIdFromUrl);
-        if (restored) {
-          setIsInitializing(false);
+    // Main initialization logic
+    const init = async () => {
+      try {
+        // CASE 1: Have a specific session ID - try to connect to it
+        if (sessionIdFromUrl && appIdFromUrl) {
+          const connected = await connectToSession(sessionIdFromUrl, appIdFromUrl);
+          if (connected) {
+            setIsInitializing(false);
+            return;
+          }
+          // Session is gone/expired - remove from URL and start fresh
+          router.replace(`/dashboard/apps/create?appId=${appIdFromUrl}`, { scroll: false });
+          initializationRef.current = false;
           return;
         }
-        // Session invalid - remove from URL and continue
-        removeSessionFromUrl();
-      }
 
-      // Case 2: App ID in URL - load app and check for existing sessions
-      if (appIdFromUrl) {
-        await loadAppData(appIdFromUrl);
-      }
-
-      setIsInitializing(false);
-    };
-
-    const tryRestoreSession = async (sessionId: string): Promise<boolean> => {
-      try {
-        const response = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${sessionId}`,
-        );
-        if (!response.ok) return false;
-
-        const data = await response.json();
-        if (!data.success || !data.session) return false;
-
-        const sessionStatus = data.session.status as SessionStatus;
-        const isExpiredOrStopped =
-          sessionStatus === "timeout" || sessionStatus === "stopped";
-
-        // Session must have a sandbox URL or be expired/stopped to be valid
-        if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
-
-        // Restore session state first
-        const sessionData = {
-          id: data.session.id,
-          sandboxId: data.session.sandboxId || "",
-          sandboxUrl: data.session.sandboxUrl || "",
-          status: sessionStatus,
-          examplePrompts: data.session.examplePrompts || [],
-          expiresAt: data.session.expiresAt || null,
-        };
-
-        setSession(sessionData);
-        setStep("building");
-
-        // Restore messages from session or sessionStorage
-        if (isExpiredOrStopped && data.session.messages?.length > 0) {
-          setMessages(data.session.messages);
-        } else {
-          const stored = sessionStorage.getItem(messagesStorageKey);
-          if (stored) {
-            try {
-              setMessages(JSON.parse(stored));
-            } catch (parseError) {
-              console.warn(
-                "[AppBuilder] Failed to parse stored messages:",
-                parseError,
-              );
-            }
-          }
-        }
-
-        // Load app data if we have appId
+        // CASE 2: Have appId but no sessionId - load app and check for sessions
         if (appIdFromUrl) {
-          const appResponse = await fetchWithRetry(
-            `/api/v1/apps/${appIdFromUrl}`,
-          );
-          if (appResponse.ok) {
-            const appData = await appResponse.json();
-            if (appData.success && appData.app) {
-              setAppData(appData.app);
-              setAppName(appData.app.name);
-            }
-          }
+          await loadAppAndSession(appIdFromUrl);
         }
 
-        // If session is supposedly "ready", verify sandbox is actually healthy
-        // Otherwise, auto-trigger recovery in the background
-        if (sessionStatus === "ready" && data.session.sandboxUrl) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-            await fetch(data.session.sandboxUrl, {
-              method: "HEAD",
-              mode: "no-cors",
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-
-            // Sandbox is healthy, set status to ready
-            setStatus("ready");
-            setSandboxHealthy(true);
-          } catch (healthCheckError) {
-            // Sandbox is not responding - set to recovering and let the
-            // health check useEffect handle auto-recovery
-            console.warn(
-              "[AppBuilder] Sandbox health check failed, initiating recovery:",
-              healthCheckError,
-            );
-            setStatus("recovering");
-            setSandboxHealthy(false);
-            healthCheckFailCountRef.current = 2;
-          }
-        } else {
-          setStatus(sessionStatus);
-          // If session is expired/stopped, show standalone timeout card to avoid layout flash
-          if (sessionStatus === "timeout" || sessionStatus === "stopped") {
-            setShowStandaloneTimeout(true);
-          }
-        }
-
-        return true;
-      } catch (restoreError) {
-        console.warn("[AppBuilder] Session restore failed:", restoreError);
-        return false;
+        setIsInitializing(false);
+      } catch (error) {
+        console.error("[AppBuilder] Initialization failed:", error);
+        setIsInitializing(false);
+        setStatus("error");
+        setErrorMessage(error instanceof Error ? error.message : "Initialization failed");
       }
     };
 
-    const removeSessionFromUrl = () => {
-      const newUrl = appIdFromUrl
-        ? `/dashboard/apps/create?appId=${appIdFromUrl}`
-        : "/dashboard/apps/create";
-      router.replace(newUrl, { scroll: false });
-      sessionStorage.removeItem(messagesStorageKey);
-    };
+    // Connect to existing session - returns true if successful
+    const connectToSession = async (sessionId: string, appId: string): Promise<boolean> => {
+      // Fetch session and app data together
+      const [sessionRes, appRes] = await Promise.all([
+        fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`),
+        fetchWithRetry(`/api/v1/apps/${appId}`),
+      ]);
 
-    const loadAppData = async (appId: string) => {
-      try {
-        // Fetch app details first (must complete before other checks)
-        const appResponse = await fetchWithRetry(`/api/v1/apps/${appId}`);
-        if (!appResponse.ok) {
-          toast.error("App not found");
-          router.push("/dashboard/apps");
-          return;
-        }
+      if (!sessionRes.ok) return false;
+      const sessionData = await sessionRes.json();
+      if (!sessionData.success || !sessionData.session) return false;
 
-        const appData = await appResponse.json();
+      // Load app data
+      if (appRes.ok) {
+        const appData = await appRes.json();
         if (appData.success && appData.app) {
           setAppData(appData.app);
           setAppName(appData.app.name);
-          setAppDescription(appData.app.description || "");
-          setIncludeMonetization(appData.app.monetization_enabled || false);
         }
-
-        // Run session and snapshot checks in parallel for faster loading
-        const [sessionResponse, snapshotResponse] = await Promise.all([
-          fetchWithRetry(
-            `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
-          ),
-          fetchWithRetry(
-            `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
-          ),
-        ]);
-
-        // Process session response
-        if (sessionResponse.ok) {
-          const sessionData = await sessionResponse.json();
-          if (sessionData.success && sessionData.sessions?.length > 0) {
-            // Redirect to existing session
-            router.replace(
-              `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-              { scroll: false },
-            );
-            initializationRef.current = false;
-            return;
-          }
-        }
-
-        // Process snapshot response
-        if (snapshotResponse.ok) {
-          const snapshotData = await snapshotResponse.json();
-          if (snapshotData.success && snapshotData.snapshotInfo) {
-            setAppSnapshotInfo(snapshotData.snapshotInfo);
-          }
-        }
-      } catch (loadError) {
-        console.error("[AppBuilder] Failed to load app data:", loadError);
-        toast.error("Failed to load app");
-        router.push("/dashboard/apps");
       }
+
+      const sess = sessionData.session;
+      const sessStatus = sess.status as SessionStatus;
+      const isExpired = sessStatus === "timeout" || sessStatus === "stopped";
+
+      // If session is expired, don't try to connect - start fresh instead
+      // The startSession API will automatically clone from GitHub
+      if (isExpired) {
+        return false;
+      }
+
+      // Session looks valid - set up state
+      setSession({
+        id: sess.id,
+        sandboxId: sess.sandboxId || "",
+        sandboxUrl: sess.sandboxUrl || "",
+        status: sessStatus,
+        examplePrompts: sess.examplePrompts || [],
+        expiresAt: sess.expiresAt || null,
+      });
+      setStep("building");
+
+      // Restore messages
+      const storedMsgs = sessionStorage.getItem(messagesStorageKey);
+      if (storedMsgs) {
+        try {
+          setMessages(JSON.parse(storedMsgs));
+        } catch { /* ignore */ }
+      }
+
+      // Verify sandbox is actually reachable
+      if (sessStatus === "ready" && sess.sandboxUrl) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          await fetch(sess.sandboxUrl, { method: "HEAD", mode: "no-cors", signal: controller.signal });
+          clearTimeout(timeout);
+          setStatus("ready");
+          setSandboxHealthy(true);
+        } catch {
+          // Sandbox not responding - needs recovery
+          setStatus("recovering");
+          setSandboxHealthy(false);
+          healthCheckFailCountRef.current = 2;
+        }
+      } else {
+        setStatus(sessStatus);
+      }
+
+      return true;
     };
 
-    loadPage();
+    // Load app data and optionally redirect to existing session
+    const loadAppAndSession = async (appId: string) => {
+      // Fetch app first
+      const appRes = await fetchWithRetry(`/api/v1/apps/${appId}`);
+      if (!appRes.ok) {
+        toast.error("App not found");
+        router.push("/dashboard/apps");
+        return;
+      }
+
+      const appData = await appRes.json();
+      if (appData.success && appData.app) {
+        setAppData(appData.app);
+        setAppName(appData.app.name);
+        setAppDescription(appData.app.description || "");
+        setIncludeMonetization(appData.app.monetization_enabled || false);
+      }
+
+      // Check for existing active session
+      const sessionRes = await fetchWithRetry(`/api/v1/app-builder?appId=${appId}&limit=1`);
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json();
+        if (sessionData.success && sessionData.sessions?.length > 0) {
+          // Found active session - redirect to it
+          router.replace(
+            `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
+            { scroll: false },
+          );
+          initializationRef.current = false;
+          return;
+        }
+      }
+      
+      // No active session - will auto-start via effect
+    };
+
+    init();
   }, [appIdFromUrl, sessionIdFromUrl, router, messagesStorageKey]);
 
   useEffect(() => {
@@ -1104,7 +1042,6 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
-                setShowStandaloneTimeout(false);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1154,11 +1091,9 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog]);
 
-  useEffect(() => {
-    if (status === "timeout" && session) {
-      checkSnapshots();
-    }
-  }, [status, session, checkSnapshots]);
+  // No more complex auto-restore effect needed
+  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
+  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
@@ -1214,7 +1149,6 @@ export default function AppCreatorPage() {
                   expiresAt: data.session.expiresAt,
                 });
                 setStatus("ready");
-                setShowStandaloneTimeout(false);
                 setSandboxHealthy(true);
                 healthCheckFailCountRef.current = 0;
 
@@ -1329,6 +1263,8 @@ export default function AppCreatorPage() {
       healthCheckFailCountRef.current = 0;
       setSandboxHealthy(true);
     }
+    // Mark iframe as loaded to prevent white flash
+    setIframeLoaded(true);
   }, [status]);
 
   // Trigger auto-recovery when status becomes "recovering"
@@ -1638,7 +1574,6 @@ Some ideas:
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
-                setShowStandaloneTimeout(false);
 
                 if (
                   data.session.initialPromptResult &&
@@ -1686,6 +1621,7 @@ Some ideas:
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
+                    setIframeLoaded(false);
                     iframeRef.current.src = data.session.sandboxUrl;
                   }
 
@@ -1732,6 +1668,36 @@ Some ideas:
     addLog,
     router,
   ]);
+
+  // Auto-start session when in edit mode with no session
+  // Skip the old "AI App Builder" intermediate screen - just start automatically
+  const autoStartTriggeredRef = useRef(false);
+  
+  useEffect(() => {
+    // Only auto-start if:
+    // - We're in edit mode (have appId)
+    // - App data is loaded
+    // - No active session
+    // - Not currently loading/restoring
+    // - Haven't already triggered auto-start
+    if (
+      isEditMode && 
+      appData && 
+      !session && 
+      status === "idle" && 
+      !isLoading && 
+      !isRestoring && 
+      !autoStartTriggeredRef.current
+    ) {
+      autoStartTriggeredRef.current = true;
+      startSession();
+    }
+    
+    // Reset flag if we get a session or leave edit mode
+    if (session || !isEditMode) {
+      autoStartTriggeredRef.current = false;
+    }
+  }, [isEditMode, appData, session, status, isLoading, isRestoring, startSession]);
 
   const sendPrompt = useCallback(
     async (promptText?: string) => {
@@ -1959,6 +1925,7 @@ Some ideas:
         addLog("Changes applied, refreshing preview...", "info");
 
         if (iframeRef.current && session) {
+          setIframeLoaded(false);
           iframeRef.current.src = session.sandboxUrl;
         }
 
@@ -2045,210 +2012,58 @@ Some ideas:
     ? `/dashboard/apps/${appIdFromUrl}`
     : "/dashboard/apps";
 
-  if (isInitializing) {
+  // ============================================================================
+  // SIMPLE VIEW STATE - Priority order matters!
+  // 1. Loading states (initializing, starting) take precedence
+  // 2. Then error states
+  // 3. Then setup wizard
+  // 4. Then building UI
+  // ============================================================================
+  const viewState = useMemo(() => {
+    // Fetching data on page load
+    if (isInitializing) return "initializing";
+    
+    // Manual restore in progress
+    if (isRestoring) return "restoring";
+    
+    // Sandbox starting - check BEFORE setup so clicking "create" immediately shows starting
+    if (status === "initializing") return "starting";
+    
+    // Error states
+    if (status === "error") return "error";
+    if (status === "not_configured") return "not_configured";
+    
+    // Edit mode waiting for data or session
+    if (isEditMode && !appData) return "initializing";
+    if (isEditMode && !session && status === "idle") return "starting";
+    
+    // New app setup wizard - only show if not already starting
+    if (step === "setup" && !isEditMode && status === "idle") return "setup";
+    
+    // Everything else = building UI
+    return "building";
+  }, [isInitializing, isRestoring, status, step, isEditMode, appData, session]);
+
+  // Simple loading states - just initializing or restoring
+  if (viewState === "initializing" || viewState === "restoring") {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">
-                {sessionIdFromUrl ? "Restoring Session" : "Loading"}
-              </h2>
-              <p className="text-white/60">
-                {sessionIdFromUrl
-                  ? "Loading your sandbox environment..."
-                  : "Preparing app builder..."}
-              </p>
-            </div>
-          </div>
-        </BrandCard>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+        <SessionLoader
+          mode={viewState}
+          progressStep={progressStep}
+          restoreProgress={restoreProgress}
+          appName={appData?.name || appName}
+          backLink={backLink}
+          isRestoring={isRestoring}
+          appGithubRepo={appData?.github_repo}
+        />
       </div>
     );
   }
 
-  // Show standalone timeout card instead of full UI with overlay - prevents layout flash
-  if (
-    showStandaloneTimeout &&
-    (status === "timeout" || status === "stopped") &&
-    !isRestoring
-  ) {
+  if (viewState === "not_configured") {
     return (
       <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
-                <Timer className="h-8 w-8 text-amber-400" />
-              </div>
-              <h2 className="text-xl font-bold text-white">Session Expired</h2>
-              <p className="text-white/60">
-                Your sandbox session has timed out. Your code is safely saved
-                and can be restored.
-              </p>
-
-              {snapshotInfo?.canRestore ? (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Your code is saved to GitHub
-                    </p>
-                    {snapshotInfo.githubRepo && (
-                      <p className="text-xs text-white/50 mt-1">
-                        <span className="font-mono">
-                          {snapshotInfo.githubRepo.split("/").pop()}
-                        </span>
-                        {snapshotInfo.lastBackup && (
-                          <>
-                            {" "}
-                            · Last updated{" "}
-                            {new Date(
-                              snapshotInfo.lastBackup,
-                            ).toLocaleDateString()}
-                          </>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={restoreSession}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore & Continue
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : appSnapshotInfo?.githubRepo ? (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Your code is saved to GitHub
-                    </p>
-                    <p className="text-xs text-white/50 mt-1">
-                      <span className="font-mono">
-                        {appSnapshotInfo.githubRepo.split("/").pop()}
-                      </span>
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={restoreSession}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore & Continue
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <p className="text-xs text-white/40">
-                    Start a new session to continue building.
-                  </p>
-                  <Button
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      startSession();
-                    }}
-                    className="w-full"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Start New Session
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </BrandCard>
-      </div>
-    );
-  }
-
-  // If restoring from standalone timeout, show the unified restore progress card
-  if (showStandaloneTimeout && isRestoring) {
-    return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto" />
-              <h2 className="text-xl font-bold text-white">
-                Restoring Session
-              </h2>
-              <p className="text-white/60">
-                Setting up your development environment and restoring your
-                files...
-              </p>
-
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <p className="text-sm text-green-400 font-medium">
-                  {restoreProgress
-                    ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
-                    : progressStep === "creating"
-                      ? "Creating sandbox..."
-                      : progressStep === "installing"
-                        ? "Installing dependencies..."
-                        : progressStep === "starting"
-                          ? "Starting dev server..."
-                          : progressStep === "restoring"
-                            ? "Restoring files..."
-                            : "Preparing..."}
-                </p>
-                {snapshotInfo?.githubRepo && (
-                  <p className="text-xs text-white/50 mt-1">
-                    From{" "}
-                    <span className="font-mono">
-                      {snapshotInfo.githubRepo.split("/").pop()}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </BrandCard>
-      </div>
-    );
-  }
-
-  if (status === "not_configured") {
-    return (
-      <div className="max-w-4xl mx-auto py-10">
         <BrandCard className="relative shadow-lg shadow-black/50">
           <CornerBrackets size="sm" className="opacity-50" />
           <div className="relative z-10 p-8">
@@ -2401,9 +2216,9 @@ ANTHROPIC_API_KEY=your_key_here`}
     (t) => t.value === templateType,
   );
 
-  if (step === "setup" && !isEditMode && status !== "initializing") {
+  if (viewState === "setup") {
     return (
-      <div className="min-h-screen bg-[#0A0A0A]">
+      <div className="min-h-screen bg-[#0A0A0A] animate-in fade-in duration-200">
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div
@@ -3081,198 +2896,37 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  if (status === "idle" && isEditMode && !session) {
+  // Show unified loader for starting sandbox
+  if (viewState === "starting") {
     return (
-      <div className="max-w-4xl mx-auto py-10 space-y-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href={backLink}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-white/60" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
-              />
-              <h1
-                className="text-3xl font-normal tracking-tight text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {appData?.name || "Loading..."}
-              </h1>
-            </div>
-            <p className="text-white/60">
-              Edit your app with AI-powered code generation
-            </p>
-          </div>
-        </div>
-
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-600 to-[#FF5800] mb-6">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
-
-              <h2 className="text-2xl font-bold text-white mb-3">
-                AI App Builder
-              </h2>
-              <p className="text-white/60 mb-8 max-w-md mx-auto">
-                Launch a sandbox environment to enhance your app with AI
-                assistance.
-              </p>
-
-              {appSnapshotInfo ? (
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <RefreshCw className="h-4 w-4 text-green-400" />
-                    <p className="text-sm text-green-400 font-medium">
-                      Code saved to GitHub
-                    </p>
-                  </div>
-                  <p className="text-xs text-white/50">
-                    Your code will be restored from{" "}
-                    <span className="font-mono text-green-400/80">
-                      {appSnapshotInfo.githubRepo.split("/").pop()}
-                    </span>
-                    {appSnapshotInfo.lastBackup && (
-                      <>
-                        {" "}
-                        (last updated{" "}
-                        {new Date(
-                          appSnapshotInfo.lastBackup,
-                        ).toLocaleDateString()}
-                        )
-                      </>
-                    )}
-                  </p>
-                </div>
-              ) : appData?.github_repo ? (
-                <p className="text-xs text-white/40 mb-4">
-                  No previous work found for this app.
-                </p>
-              ) : null}
-
-              <Button
-                onClick={startSession}
-                disabled={isLoading}
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-[#FF5800] hover:opacity-90"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Starting...
-                  </>
-                ) : appSnapshotInfo || appData?.github_repo ? (
-                  <>
-                    <RefreshCw className="h-5 w-5 mr-2" />
-                    Start Building
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    Start Building
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </BrandCard>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+        <SessionLoader
+          mode="starting"
+          progressStep={progressStep}
+          appName={appData?.name || appName}
+          backLink={backLink}
+        />
       </div>
     );
   }
 
-  if (status === "initializing" && !isRestoring) {
-    const steps = [
-      { key: "creating", label: "Creating sandbox instance" },
-      { key: "installing", label: "Installing dependencies" },
-      { key: "starting", label: "Starting dev server" },
-    ];
-
-    const currentStepIndex = steps.findIndex((s) => s.key === progressStep);
-
+  // Error state
+  if (viewState === "error") {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">
-                Starting Sandbox
-              </h2>
-              <p className="text-white/60">
-                Setting up your development environment...
-              </p>
-              <div className="mt-6 space-y-2 text-left max-w-xs mx-auto">
-                {steps.map((step, index) => {
-                  const isComplete = index < currentStepIndex;
-                  const isCurrent = index === currentStepIndex;
-
-                  return (
-                    <div
-                      key={step.key}
-                      className={`flex items-center gap-2 text-sm transition-all duration-300 ${
-                        isComplete
-                          ? "text-white/60"
-                          : isCurrent
-                            ? "text-white/80"
-                            : "text-white/40"
-                      }`}
-                    >
-                      {isComplete ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : isCurrent ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                      ) : (
-                        <div className="h-4 w-4" />
-                      )}
-                      {step.label}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </BrandCard>
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/20 mb-4">
-                <AlertCircle className="h-6 w-6 text-red-500" />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">
-                Failed to Start Sandbox
-              </h2>
-              <p className="text-white/60 mb-4">
-                {errorMessage ||
-                  "There was an error starting the development environment."}
-              </p>
-              <Button onClick={startSession} variant="outline">
-                Try Again
-              </Button>
-            </div>
-          </div>
-        </BrandCard>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+        <SessionLoader
+          mode="error"
+          errorMessage={errorMessage}
+          backLink={backLink}
+          onRetry={startSession}
+          onBack={() => router.push("/dashboard/apps")}
+        />
       </div>
     );
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-300">
+    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-200">
       {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
       <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -3768,145 +3422,6 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       )}
 
-      {/* Full overlay only for timeout/manual restore - not for auto-recovery */}
-      {(status === "timeout" || isRestoring) && (
-        <div className="absolute inset-0 top-[49px] xl:top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-          <BrandCard className="max-w-md w-full">
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10 text-center space-y-3 xl:space-y-4 p-4 xl:p-6">
-              <div
-                className={`w-12 h-12 xl:w-16 xl:h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
-              >
-                {isRestoring ? (
-                  <Loader2 className="h-6 w-6 xl:h-8 xl:w-8 text-green-400 animate-spin" />
-                ) : (
-                  <Timer className="h-6 w-6 xl:h-8 xl:w-8 text-red-400" />
-                )}
-              </div>
-              <h2 className="text-lg xl:text-xl font-semibold text-white">
-                {isRestoring ? "Restoring Session" : "Session Expired"}
-              </h2>
-              <p className="text-xs xl:text-sm text-white/60">
-                {isRestoring
-                  ? "Setting up your development environment and restoring your files..."
-                  : "Your sandbox session has timed out after 30 minutes of inactivity."}
-              </p>
-
-              {isRestoring ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Restoring your code...
-                    </p>
-                    {snapshotInfo?.githubRepo && (
-                      <p className="text-xs text-white/50 mt-1">
-                        From{" "}
-                        <span className="font-mono">
-                          {snapshotInfo.githubRepo.split("/").pop()}
-                        </span>
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    disabled
-                    className="w-full bg-green-600 text-white cursor-wait"
-                  >
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {restoreProgress
-                      ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
-                      : progressStep === "creating"
-                        ? "Creating sandbox..."
-                        : progressStep === "installing"
-                          ? "Installing dependencies..."
-                          : progressStep === "starting"
-                            ? "Starting dev server..."
-                            : progressStep === "restoring"
-                              ? "Restoring files..."
-                              : "Preparing..."}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/dashboard/apps")}
-                    disabled
-                    className="w-full opacity-50"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : snapshotInfo?.canRestore ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Your code is saved to GitHub
-                    </p>
-                    <p className="text-xs text-white/50 mt-1">
-                      <span className="font-mono">
-                        {snapshotInfo.githubRepo?.split("/").pop()}
-                      </span>
-                      {snapshotInfo.lastBackup && (
-                        <>
-                          {" "}
-                          · Last updated{" "}
-                          {new Date(
-                            snapshotInfo.lastBackup,
-                          ).toLocaleDateString()}
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={restoreSession}
-                    disabled={isRestoring}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore & Continue
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/dashboard/apps")}
-                    disabled={isRestoring}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                    <p className="text-xs text-white/50">
-                      {snapshotInfo === null
-                        ? "Checking for saved code..."
-                        : "No saved code found. Start fresh."}
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={startSession}
-                    className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Start New Session
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/dashboard/apps")}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              )}
-            </div>
-          </BrandCard>
-        </div>
-      )}
-
       <div className="flex-1 flex overflow-hidden">
         {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
@@ -4027,6 +3542,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   className="h-7 w-7"
                   onClick={() => {
                     if (iframeRef.current && session) {
+                      setIframeLoaded(false);
                       iframeRef.current.src = session.sandboxUrl;
                     }
                   }}
@@ -4114,6 +3630,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 className="h-7 w-7 ml-auto"
                 onClick={() => {
                   if (iframeRef.current && session) {
+                    setIframeLoaded(false);
                     iframeRef.current.src = session.sandboxUrl;
                   }
                 }}
@@ -4124,9 +3641,25 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-white/5 overflow-hidden">
-            {previewTab === "preview" ? (
-              session?.sandboxUrl ? (
+          <div className="flex-1 bg-white/5 overflow-hidden relative">
+            {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
+            {session?.sandboxUrl && (
+              <div 
+                className={`absolute inset-0 transition-opacity duration-300 ${
+                  previewTab === "preview" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                }`}
+              >
+                {/* Loading overlay - shown while iframe loads */}
+                <div 
+                  className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${
+                    iframeLoaded && previewTab === "preview" ? "opacity-0 pointer-events-none" : "opacity-100"
+                  }`}
+                >
+                  <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
+                    <p className="text-white/60">Loading preview...</p>
+                  </div>
+                </div>
                 <iframe
                   ref={iframeRef}
                   src={session.sandboxUrl}
@@ -4136,37 +3669,47 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onError={handleIframeError}
                   onLoad={handleIframeLoad}
                 />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
-                    <p className="text-white/60">Loading preview...</p>
-                  </div>
+              </div>
+            )}
+            
+            {/* Preview loading state when no session */}
+            {!session?.sandboxUrl && previewTab === "preview" && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
+                  <p className="text-white/60">Loading preview...</p>
                 </div>
-              )
-            ) : previewTab === "files" ? (
+              </div>
+            )}
+            
+            {/* Files tab */}
+            {previewTab === "files" && (
               session?.id ? (
                 <SandboxFileExplorer
                   sessionId={session.id}
-                  className="h-full"
+                  className="h-full animate-in fade-in duration-200"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full animate-in fade-in duration-200">
                   <div className="text-center text-white/30">
                     <FolderCode className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>Session not ready</p>
                   </div>
                 </div>
               )
-            ) : previewTab === "history" ? (
+            )}
+            
+            {/* History tab */}
+            {previewTab === "history" && (
               session?.id ? (
                 <HistoryTab
                   sessionId={session.id}
-                  className="h-full"
+                  className="h-full animate-in fade-in duration-200"
                   currentCommitSha={gitStatus?.currentCommitSha}
                   onRollbackComplete={() => {
                     // Refresh the iframe after rollback
                     if (iframeRef.current && session?.sandboxUrl) {
+                      setIframeLoaded(false);
                       iframeRef.current.src = session.sandboxUrl;
                     }
                     // Refresh git status
@@ -4177,15 +3720,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                   }}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full animate-in fade-in duration-200">
                   <div className="text-center text-white/30">
                     <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>Session not ready</p>
                   </div>
                 </div>
               )
-            ) : (
-              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
+            )}
+            
+            {/* Console tab */}
+            {previewTab === "console" && (
+              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 animate-in fade-in duration-200">
                 {consoleLogs.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-white/30">
                     <div className="text-center">

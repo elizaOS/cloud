@@ -232,14 +232,17 @@ export function ElizaPageClient({
   // Show loading state while initializing anonymous session
   if (!isAuthenticated && isLoadingSession) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-white/60">Loading...</div>
+      <div className="flex h-full items-center justify-center animate-in fade-in duration-300">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-white/40 animate-pulse" />
+          <div className="text-white/60">Loading...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden animate-in fade-in duration-300">
       {/* Chat Interface */}
       <div className="flex flex-1 overflow-hidden">
         <ElizaChatInterface expectedCharacterId={initialCharacterId} />
