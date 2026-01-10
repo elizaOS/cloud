@@ -20,7 +20,7 @@ import type {
   SourceContext,
   PreviewTab,
 } from "@/lib/app-builder/types";
-import { ChatInput, HistoryTab, SessionLoader } from "@/components/app-builder";
+import { ChatInput, HistoryTab, SessionLoader, CharacterPicker } from "@/components/app-builder";
 
 async function fetchWithRetry(
   url: string,
@@ -94,6 +94,7 @@ import {
   LineChart,
   X,
   MoreVertical,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -370,9 +371,20 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = features
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
+  // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = characters
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
+  // Character selection for the app
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([]);
+  const [availableCharacters, setAvailableCharacters] = useState<Array<{
+    id: string;
+    name: string;
+    username?: string | null;
+    avatar_url?: string | null;
+    bio?: string | string[];
+    is_public?: boolean;
+  }>>([]);
+  const [loadingCharacters, setLoadingCharacters] = useState(false);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -444,6 +456,47 @@ export default function AppCreatorPage() {
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
+
+  // ============================================================================
+  // FETCH USER'S CHARACTERS FOR APP CHARACTER SELECTION
+  // ============================================================================
+  useEffect(() => {
+    // Only fetch when we reach the characters step (step 4) or when in building mode
+    if (setupStep === 4 || step === "building") {
+      const fetchCharacters = async () => {
+        if (availableCharacters.length > 0) return; // Already fetched
+        setLoadingCharacters(true);
+        try {
+          const response = await fetchWithRetry("/api/my-agents/characters?limit=100");
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.characters && Array.isArray(data.data.characters)) {
+              setAvailableCharacters(data.data.characters.map((char: {
+                id: string;
+                name: string;
+                username?: string | null;
+                avatar_url?: string | null;
+                bio?: string | string[];
+                is_public?: boolean;
+              }) => ({
+                id: char.id,
+                name: char.name,
+                username: char.username,
+                avatar_url: char.avatar_url,
+                bio: char.bio,
+                is_public: char.is_public,
+              })));
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch characters:", error);
+        } finally {
+          setLoadingCharacters(false);
+        }
+      };
+      fetchCharacters();
+    }
+  }, [setupStep, step, availableCharacters.length]);
 
   // ============================================================================
   // SIMPLE INITIALIZATION FLOW
@@ -1358,6 +1411,7 @@ export default function AppCreatorPage() {
           templateType,
           includeMonetization,
           includeAnalytics,
+          linkedCharacterIds: selectedCharacterIds.length > 0 ? selectedCharacterIds : undefined,
           sourceContext: sourceContext
             ? {
                 type: sourceContext.type,
@@ -1664,6 +1718,7 @@ Some ideas:
     templateType,
     includeMonetization,
     includeAnalytics,
+    selectedCharacterIds,
     sourceContext,
     addLog,
     router,
@@ -2254,7 +2309,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
             {/* Mobile step indicator */}
             <div className="flex md:hidden items-center gap-1">
-              {[1, 2, 3].map((num) => (
+              {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -2274,6 +2329,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
                 { num: 3, label: "Features" },
+                { num: 4, label: "Characters" },
               ].map((s, i) => (
                 <div key={s.num} className="flex items-center">
                   <button
@@ -2281,9 +2337,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                       if (
                         s.num === 1 ||
                         (s.num === 2 && templateType) ||
-                        (s.num === 3 && appName.trim())
+                        (s.num === 3 && appName.trim()) ||
+                        (s.num === 4 && appName.trim())
                       ) {
-                        setSetupStep(s.num as 1 | 2 | 3);
+                        setSetupStep(s.num as 1 | 2 | 3 | 4);
                       }
                     }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
@@ -2315,7 +2372,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {s.label}
                     </span>
                   </button>
-                  {i < 2 && (
+                  {i < 3 && (
                     <div
                       className={`w-8 h-px mx-1 transition-colors duration-300 ${
                         setupStep > s.num ? "bg-white/30" : "bg-white/10"
@@ -2844,32 +2901,115 @@ ANTHROPIC_API_KEY=your_key_here`}
                     Back
                   </button>
                   <button
-                    onClick={startSession}
-                    disabled={isLoading}
-                    className="group relative flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
+                    onClick={() => setSetupStep(4)}
+                    className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
                   >
-                    {/* Animated gradient background */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
-                    {/* Glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
-                    <span className="relative flex items-center gap-2">
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="hidden sm:inline">Launching...</span>
-                          <span className="sm:hidden">...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                          <span className="hidden sm:inline">
-                            Start Building
-                          </span>
-                          <span className="sm:hidden">Start</span>
-                        </>
-                      )}
-                    </span>
+                    Continue
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* STEP 4: Character Selection */}
+          <div
+            className={`transition-all duration-500 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
+            {setupStep === 4 && (
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-white">
+                      Add Characters to Your App
+                    </h2>
+                    <p className="text-white/50 text-xs md:text-sm">
+                      Select AI agents that users can chat with (optional, max 4)
+                    </p>
+                  </div>
+                  {/* App summary */}
+                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
+                    {selectedTemplate && (
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
+                        style={{ color: selectedTemplate.color }}
+                      />
+                    )}
+                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">
+                      {appName || "Your App"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Character Picker */}
+                <div className="p-4 md:p-5 rounded-xl bg-white/[0.02] border border-white/10">
+                  <CharacterPicker
+                    characters={availableCharacters}
+                    selectedIds={selectedCharacterIds}
+                    onSelectionChange={setSelectedCharacterIds}
+                    maxSelection={4}
+                    loading={loadingCharacters}
+                  />
+                </div>
+
+                {/* Skip note */}
+                {availableCharacters.length === 0 && !loadingCharacters && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-xs text-amber-300/80">
+                      You don&apos;t have any agents yet. You can skip this step and add characters later from the app builder.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 md:pt-3">
+                  <button
+                    onClick={() => setSetupStep(3)}
+                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    Back
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {selectedCharacterIds.length === 0 && availableCharacters.length > 0 && (
+                      <button
+                        onClick={startSession}
+                        disabled={isLoading}
+                        className="text-[11px] md:text-xs text-white/50 hover:text-white/70 transition-colors"
+                      >
+                        Skip for now
+                      </button>
+                    )}
+                    <button
+                      onClick={startSession}
+                      disabled={isLoading}
+                      className="group relative flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
+                    >
+                      {/* Animated gradient background */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
+                      {/* Glow effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+                      <span className="relative flex items-center gap-2">
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="hidden sm:inline">Launching...</span>
+                            <span className="sm:hidden">...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            <span className="hidden sm:inline">
+                              {selectedCharacterIds.length > 0 
+                                ? `Start with ${selectedCharacterIds.length} Character${selectedCharacterIds.length > 1 ? 's' : ''}`
+                                : "Start Building"
+                              }
+                            </span>
+                            <span className="sm:hidden">Start</span>
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Summary footer */}
@@ -3521,6 +3661,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setPreviewTab("characters")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "characters"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Characters
+                {selectedCharacterIds.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
+                    {selectedCharacterIds.length}
+                  </span>
+                )}
+              </button>
             </div>
             {/* Mobile/Tablet action buttons */}
             <div className="flex items-center gap-1 ml-auto flex-shrink-0">
@@ -3608,6 +3764,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {commitHistory.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px]">
                     {commitHistory.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setPreviewTab("characters")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "characters"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Characters
+                {selectedCharacterIds.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px]">
+                    {selectedCharacterIds.length}
                   </span>
                 )}
               </button>
@@ -3727,6 +3899,35 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
               )
+            )}
+
+            {/* Characters tab */}
+            {previewTab === "characters" && (
+              <div className="h-full p-4 overflow-auto animate-in fade-in duration-200">
+                <CharacterPicker
+                  characters={availableCharacters}
+                  selectedIds={selectedCharacterIds}
+                  onSelectionChange={async (ids) => {
+                    setSelectedCharacterIds(ids);
+                    // Save to app if we have an app ID
+                    if (appData?.id) {
+                      try {
+                        await fetchWithRetry(`/api/v1/apps/${appData.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ linked_character_ids: ids }),
+                        });
+                        toast.success(ids.length > 0 ? "Characters updated" : "Characters removed");
+                      } catch (error) {
+                        console.error("Failed to update characters:", error);
+                        toast.error("Failed to update characters");
+                      }
+                    }
+                  }}
+                  maxSelection={4}
+                  loading={loadingCharacters}
+                />
+              </div>
             )}
             
             {/* Console tab */}
