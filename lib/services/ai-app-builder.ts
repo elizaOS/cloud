@@ -47,6 +47,7 @@ export interface BuilderSessionConfig {
     | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  linkedCharacterIds?: string[];
   onProgress?: (progress: SandboxProgress) => void;
   onSandboxReady?: (session: BuilderSession) => void;
   onToolUse?: (tool: string, input: unknown, result: string) => void;
@@ -107,6 +108,7 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      linkedCharacterIds,
       onProgress,
       onSandboxReady,
       onToolUse,
@@ -156,6 +158,17 @@ export class AIAppBuilderService {
       if (result.errors.length > 0) {
         logger.warn("App creation had warnings", { warnings: result.errors });
       }
+
+      // Update app with linked character IDs if provided
+      if (linkedCharacterIds && linkedCharacterIds.length > 0) {
+        await appsService.update(appId, {
+          linked_character_ids: linkedCharacterIds,
+        });
+        logger.info("Linked characters to app", {
+          appId,
+          characterCount: linkedCharacterIds.length,
+        });
+      }
     } else if (appId) {
       appApiKey = await appsService.regenerateApiKey(appId);
       // Fetch existing app to get GitHub repo
@@ -165,6 +178,17 @@ export class AIAppBuilderService {
         appId,
         githubRepo,
       });
+
+      // Update linked character IDs if provided for existing app
+      if (linkedCharacterIds && linkedCharacterIds.length > 0) {
+        await appsService.update(appId, {
+          linked_character_ids: linkedCharacterIds,
+        });
+        logger.info("Updated linked characters for existing app", {
+          appId,
+          characterCount: linkedCharacterIds.length,
+        });
+      }
     }
 
     // Determine template URL for sandbox creation

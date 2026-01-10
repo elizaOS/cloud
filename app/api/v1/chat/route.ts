@@ -321,7 +321,6 @@ async function handlePOST(req: NextRequest) {
             totalCost,
             inputCost,
             outputCost,
-            newBalance: deductionResult.newBalance,
           });
         } catch (error) {
           logger.error(

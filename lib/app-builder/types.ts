@@ -66,6 +66,7 @@ export interface AppData {
   description: string | null;
   monetization_enabled?: boolean;
   github_repo?: string | null;
+  linked_character_ids?: string[];
 }
 
 export interface GitStatusInfo {
@@ -114,7 +115,7 @@ export interface RestoreProgress {
   filePath: string;
 }
 
-export type PreviewTab = "preview" | "console" | "files" | "history";
+export type PreviewTab = "preview" | "console" | "files" | "history" | "characters";
 
 export interface SourceContextInfo {
   icon: LucideIcon;
