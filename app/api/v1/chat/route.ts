@@ -5,7 +5,6 @@ import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { conversationsService } from "@/lib/services/conversations";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
-import { organizationsService } from "@/lib/services/organizations";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
@@ -13,11 +12,7 @@ import {
   InsufficientCreditsError,
   type CreditReservation,
 } from "@/lib/services/credits";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateTokens,
-} from "@/lib/pricing";
+import { calculateCost, estimateTokens } from "@/lib/pricing";
 import { resolveModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -87,7 +82,6 @@ async function handlePOST(req: NextRequest) {
   try {
     let user: UserWithOrganization;
     let apiKey: ApiKey | undefined = undefined;
-    let authMethod: "session" | "api_key" | "anonymous";
     let isAnonymous = false;
     let anonymousSession: AnonymousSession | null = null;
 
@@ -96,8 +90,7 @@ async function handlePOST(req: NextRequest) {
       const authResult = await requireAuthOrApiKey(req);
       user = authResult.user;
       apiKey = authResult.apiKey;
-      authMethod = authResult.authMethod;
-    } catch (error) {
+    } catch {
       // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {
@@ -107,7 +100,6 @@ async function handlePOST(req: NextRequest) {
       user = anonData.user;
       anonymousSession = anonData.session;
       isAnonymous = true;
-      authMethod = "anonymous";
 
       logger.info("chat-api", "Anonymous user request", {
         userId: user.id,
