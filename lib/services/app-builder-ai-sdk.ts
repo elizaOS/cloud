@@ -214,15 +214,16 @@ ${tailwindWarning}
 ---
 USER REQUEST: ${prompt}
 
-CRITICAL RULES:
-1. NEVER re-write a file you've already written (unless fixing an error)
-2. Write files ONCE and move on to the next file
-3. Do NOT import files that don't exist yet
+GUIDELINES:
+1. You CAN modify any file at any time - including ones you've already written
+2. Do NOT import files that don't exist yet - install packages first if needed
+3. When adding features, update the necessary files (page.tsx, components, etc.)
 
 WRITE FILES PROGRESSIVELY - users see live updates!
 - Write layout.tsx FIRST with unique metadata
-- Write page.tsx EARLY, then iterate
+- Write page.tsx EARLY, then iterate on it as needed
 - Write components ONE BY ONE
+- Feel free to update existing files to add new features
 
 BUILD CHECK: Call check_build ONLY ONCE at the end!
 - Do NOT check after every file - HMR auto-refreshes

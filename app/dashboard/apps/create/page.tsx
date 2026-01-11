@@ -24,7 +24,7 @@ import {
   ChatInput,
   HistoryTab,
   SessionLoader,
-  CharacterPicker,
+  AgentPicker,
 } from "@/components/app-builder";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
@@ -138,50 +138,59 @@ const ChatMessage = memo(function ChatMessage({
 }: ChatMessageProps) {
   const isProcessing = !!msg._thinkingId;
   const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
+    hour12: true,
+    hour: "numeric",
     minute: "2-digit",
-  });
+  }).toLowerCase();
 
   return (
     <div
-      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message animate-scale-fade`}
     >
       <div
-        className={`${
+        className={`relative ${
           msg.role === "user"
-            ? "max-w-[90%] xl:max-w-[85%] py-2 xl:py-2.5 px-3 xl:px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
+            ? "max-w-[90%] xl:max-w-[85%] py-3 xl:py-3.5 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/15 to-[#FF5800]/5 border border-[#FF5800]/25 rounded-2xl rounded-tr-sm shadow-lg shadow-[#FF5800]/5"
             : isProcessing
-              ? "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
-              : "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
+              ? "max-w-[95%] xl:max-w-[90%] py-3 xl:py-4 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/[0.08] via-amber-500/[0.04] to-transparent border border-[#FF5800]/20 rounded-2xl rounded-tl-sm shadow-lg shadow-[#FF5800]/5"
+              : "max-w-[95%] xl:max-w-[90%] py-3 xl:py-4 px-4 xl:px-5 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] rounded-2xl rounded-tl-sm"
         }`}
       >
-        <div className="flex items-center justify-between mb-1 xl:mb-1.5">
-          <div className="flex items-center gap-1.5 xl:gap-2">
+        {/* Subtle glow for processing messages */}
+        {isProcessing && (
+          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10 animate-pulse" />
+        )}
+        
+        <div className="flex items-center justify-between mb-2 xl:mb-2.5">
+          <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
-              <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-violet-400" />
+              <div className="relative">
+                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-[#FF5800]" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-30" />
+              </div>
             )}
             <span
-              className={`text-[10px] xl:text-[11px] ${
+              className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
                 msg.role === "user"
-                  ? "text-[#FF5800]/70"
+                  ? "text-[#FF5800]/80"
                   : isProcessing
-                    ? "text-violet-300/70"
-                    : "text-white/35"
+                    ? "text-[#FF5800]/70"
+                    : "text-white/40"
               }`}
+              style={{ fontFamily: 'var(--font-sf-pro)' }}
             >
               {msg.role === "user"
                 ? "You"
                 : isProcessing
                   ? "Building"
-                  : "Assistant"}
+                  : "Eliza"}
             </span>
           </div>
-          <span className="text-[9px] xl:text-[10px] text-white/20 font-mono opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity">
+          <span className="text-[9px] xl:text-[10px] text-white/35 font-medium opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity duration-300">
             {msgTime}
           </span>
         </div>
-        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto">
+        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -193,35 +202,36 @@ const ChatMessage = memo(function ChatMessage({
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div className="mt-3 xl:mt-4 pt-2.5 xl:pt-3 border-t border-white/[0.05]">
-              <p className="text-[9px] xl:text-[10px] text-white/35 mb-1.5 xl:mb-2 uppercase tracking-wider">
-                Suggestions
+            <div className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]">
+              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
+                Try asking
               </p>
-              <div className="flex flex-wrap gap-1 xl:gap-1.5">
+              <div className="flex flex-wrap gap-1.5 xl:gap-2">
                 {session.examplePrompts.map((prompt, idx) => (
                   <button
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
+                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation"
                   >
-                    {prompt}
+                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">{prompt}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div className="mt-2.5 xl:mt-3 pt-2 xl:pt-2.5 border-t border-white/[0.04]">
-            <p className="text-[9px] xl:text-[10px] text-white/30 mb-1 xl:mb-1.5 uppercase tracking-wider">
-              Changed
+          <div className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]">
+            <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
+              Modified
             </p>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {msg.filesAffected.map((file) => (
                 <span
                   key={file}
-                  className="px-1.5 xl:px-2 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded truncate max-w-full"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full"
                 >
+                  <FileCode className="h-2 w-2 flex-shrink-0 text-[#FF5800]/70" />
                   {file}
                 </span>
               ))}
@@ -343,6 +353,7 @@ export default function AppCreatorPage() {
   const searchParams = useSearchParams();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const consoleLogsRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const initializationRef = useRef(false);
   const prevAppIdRef = useRef<string | null>(null);
@@ -385,14 +396,14 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = characters
+  // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = agents
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
-  // Character selection for the app
-  const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>(
+  // Agent selection for the app
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(
     [],
   );
-  const [availableCharacters, setAvailableCharacters] = useState<
+  const [availableAgents, setAvailableAgents] = useState<
     Array<{
       id: string;
       name: string;
@@ -402,7 +413,7 @@ export default function AppCreatorPage() {
       is_public?: boolean;
     }>
   >([]);
-  const [loadingCharacters, setLoadingCharacters] = useState(false);
+  const [loadingAgents, setLoadingAgents] = useState(false);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -476,14 +487,14 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   // ============================================================================
-  // FETCH USER'S CHARACTERS FOR APP CHARACTER SELECTION
+  // FETCH USER'S AGENTS FOR APP AGENT SELECTION
   // ============================================================================
   useEffect(() => {
-    // Only fetch when we reach the characters step (step 4) or when in building mode
+    // Only fetch when we reach the agents step (step 4) or when in building mode
     if (setupStep === 4 || step === "building") {
-      const fetchCharacters = async () => {
-        if (availableCharacters.length > 0) return; // Already fetched
-        setLoadingCharacters(true);
+      const fetchAgents = async () => {
+        if (availableAgents.length > 0) return; // Already fetched
+        setLoadingAgents(true);
         try {
           const response = await fetchWithRetry(
             "/api/my-agents/characters?limit=100",
@@ -495,9 +506,9 @@ export default function AppCreatorPage() {
               data.data?.characters &&
               Array.isArray(data.data.characters)
             ) {
-              setAvailableCharacters(
+              setAvailableAgents(
                 data.data.characters.map(
-                  (char: {
+                  (agent: {
                     id: string;
                     name: string;
                     username?: string | null;
@@ -505,26 +516,26 @@ export default function AppCreatorPage() {
                     bio?: string | string[];
                     is_public?: boolean;
                   }) => ({
-                    id: char.id,
-                    name: char.name,
-                    username: char.username,
-                    avatar_url: char.avatar_url,
-                    bio: char.bio,
-                    is_public: char.is_public,
+                    id: agent.id,
+                    name: agent.name,
+                    username: agent.username,
+                    avatar_url: agent.avatar_url,
+                    bio: agent.bio,
+                    is_public: agent.is_public,
                   }),
                 ),
               );
             }
           }
         } catch (error) {
-          console.error("Failed to fetch characters:", error);
+          console.error("Failed to fetch agents:", error);
         } finally {
-          setLoadingCharacters(false);
+          setLoadingAgents(false);
         }
       };
-      fetchCharacters();
+      fetchAgents();
     }
-  }, [setupStep, step, availableCharacters.length]);
+  }, [setupStep, step, availableAgents.length]);
 
   // ============================================================================
   // SIMPLE INITIALIZATION FLOW
@@ -725,12 +736,54 @@ export default function AppCreatorPage() {
     }
   }, [messages, messagesStorageKey]);
 
+  // Auto-scroll chat messages to bottom when messages change or load
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
+    if (messagesContainerRef.current && messages.length > 0) {
+      // Use requestAnimationFrame + setTimeout to ensure DOM has fully rendered
+      // This handles both new messages and restored messages on page refresh
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop =
+              messagesContainerRef.current.scrollHeight;
+          }
+        }, 50);
+      });
     }
   }, [messages, isLoading]);
+
+  // Additional scroll on initialization complete (handles page refresh)
+  useEffect(() => {
+    if (!isInitializing && messages.length > 0 && messagesContainerRef.current) {
+      // Delay scroll to ensure layout is complete after initialization
+      const timeoutId = setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
+        }
+      }, 150);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isInitializing, messages.length]);
+
+  // Auto-scroll console logs when new logs arrive
+  useEffect(() => {
+    if (consoleLogsRef.current && consoleLogs.length > 0) {
+      consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
+    }
+  }, [consoleLogs]);
+
+  // Auto-scroll to bottom when switching to console tab
+  useEffect(() => {
+    if (previewTab === "console" && consoleLogsRef.current && consoleLogs.length > 0) {
+      // Use setTimeout to ensure DOM has rendered
+      setTimeout(() => {
+        if (consoleLogsRef.current) {
+          consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
+        }
+      }, 0);
+    }
+  }, [previewTab, consoleLogs.length]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -1463,8 +1516,8 @@ export default function AppCreatorPage() {
           templateType,
           includeMonetization,
           includeAnalytics,
-          linkedCharacterIds:
-            selectedCharacterIds.length > 0 ? selectedCharacterIds : undefined,
+          linkedAgentIds:
+            selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
           sourceContext: sourceContext
             ? {
                 type: sourceContext.type,
@@ -1775,7 +1828,7 @@ Some ideas:
     templateType,
     includeMonetization,
     includeAnalytics,
-    selectedCharacterIds,
+    selectedAgentIds,
     sourceContext,
     addLog,
     router,
@@ -2421,63 +2474,87 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (viewState === "setup") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] animate-in fade-in duration-200">
-        {/* Ambient background effects */}
+      <div className="min-h-[calc(100vh-4rem)] bg-[#050507] animate-in fade-in duration-300">
+        {/* Premium ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          {/* Primary morphing orb */}
           <div
-            className="absolute top-1/3 -left-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-15"
+            className="absolute top-1/4 -left-20 w-64 md:w-96 h-64 md:h-96 rounded-full blur-[120px] opacity-20 animate-liquid-orb"
             style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
           />
+          {/* Secondary orb */}
           <div
-            className="absolute bottom-1/3 -right-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-10"
-            style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
+            className="absolute bottom-1/4 -right-20 w-56 md:w-80 h-56 md:h-80 rounded-full blur-[100px] opacity-15 animate-liquid-orb"
+            style={{ 
+              backgroundColor: selectedTemplate?.color || "#8B5CF6",
+              animationDelay: "-3s"
+            }}
+          />
+          {/* Accent glow */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[200px] opacity-[0.07]"
+            style={{ backgroundColor: "#FF5800" }}
+          />
+          {/* Subtle grid overlay */}
+          <div 
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+              backgroundSize: '60px 60px'
+            }}
           />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-5">
-          {/* Header - compact */}
-          <div className="flex items-center justify-between mb-3 md:mb-5">
-            <div className="flex items-center gap-2 md:gap-3">
+        <div className="relative max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6">
+          {/* Header - refined */}
+          <div className="flex items-center justify-between mb-4 md:mb-6 animate-slide-in-left">
+            <div className="flex items-center gap-3 md:gap-4">
               <Link
                 href={backLink}
-                className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
+                className="group p-2 md:p-2.5 hover:bg-white/8 rounded-xl transition-all duration-300 border border-white/[0.06] hover:border-white/15 hover:scale-105"
               >
-                <ArrowLeft className="h-4 w-4 text-white/60" />
+                <ArrowLeft className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
               </Link>
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full blur-sm opacity-50" />
-                  <Sparkles className="relative h-4 w-4 md:h-5 md:w-5 text-white" />
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+                  <div className="relative p-2 bg-gradient-to-br from-[#FF5800]/20 to-amber-500/10 rounded-xl border border-[#FF5800]/20">
+                    <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-[#FF5800]" />
+                  </div>
                 </div>
-                <h1 className="text-base md:text-xl font-semibold tracking-tight text-white">
-                  App Creator
-                </h1>
+                <div>
+                  <h1 className="text-lg md:text-xl font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+                    App Creator
+                  </h1>
+                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">Build something amazing</p>
+                </div>
               </div>
             </div>
 
-            {/* Mobile step indicator */}
-            <div className="flex md:hidden items-center gap-1">
+            {/* Mobile step indicator - Premium pills */}
+            <div className="flex md:hidden items-center gap-1.5 p-1 bg-white/[0.03] rounded-full border border-white/[0.06]">
               {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                  className={`rounded-full transition-all duration-500 ease-out ${
                     setupStep === num
-                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6"
+                      ? "bg-gradient-to-r from-[#FF5800] to-amber-500 w-8 h-2 shadow-lg shadow-[#FF5800]/30"
                       : setupStep > num
-                        ? "bg-white/40 w-3"
-                        : "bg-white/10 w-3"
+                        ? "bg-[#FF5800]/60 w-2 h-2"
+                        : "bg-white/15 w-2 h-2"
                   }`}
                 />
               ))}
             </div>
 
-            {/* Desktop step indicator */}
-            <div className="hidden md:flex items-center gap-2">
+            {/* Desktop step indicator - Premium tabs */}
+            <div className="hidden md:flex items-center gap-1 p-1.5 bg-white/[0.02] rounded-2xl border border-white/[0.06] backdrop-blur-sm">
               {[
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
                 { num: 3, label: "Features" },
-                { num: 4, label: "Characters" },
+                { num: 4, label: "Agents" },
               ].map((s, i) => (
                 <div key={s.num} className="flex items-center">
                   <button
@@ -2491,39 +2568,45 @@ ANTHROPIC_API_KEY=your_key_here`}
                         setSetupStep(s.num as 1 | 2 | 3 | 4);
                       }
                     }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
+                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
                       setupStep === s.num
-                        ? "bg-white/10 border border-white/20"
+                        ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 border border-[#FF5800]/30 shadow-lg shadow-[#FF5800]/10"
                         : setupStep > s.num
-                          ? "text-white/60 hover:text-white/80"
-                          : "text-white/30"
+                          ? "text-white/60 hover:text-white/80 hover:bg-white/[0.04]"
+                          : "text-white/30 cursor-not-allowed"
                     }`}
+                    disabled={s.num > 1 && !templateType && s.num !== setupStep}
                   >
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
+                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-semibold transition-all duration-300 ${
                         setupStep === s.num
-                          ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
+                          ? "bg-gradient-to-br from-[#FF5800] to-amber-500 text-white shadow-md shadow-[#FF5800]/30"
                           : setupStep > s.num
-                            ? "bg-white/20 text-white"
-                            : "bg-white/5 text-white/40"
+                            ? "bg-[#FF5800]/20 text-[#FF5800]"
+                            : "bg-white/[0.06] text-white/40"
                       }`}
                     >
                       {setupStep > s.num ? (
-                        <Check className="h-3 w-3" />
+                        <Check className="h-3.5 w-3.5" />
                       ) : (
                         s.num
                       )}
                     </span>
                     <span
-                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
+                      className={`text-sm font-medium transition-colors ${
+                        setupStep === s.num ? "text-white" : ""
+                      }`}
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
                     >
                       {s.label}
                     </span>
                   </button>
                   {i < 3 && (
                     <div
-                      className={`w-8 h-px mx-1 transition-colors duration-300 ${
-                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
+                      className={`w-6 h-[2px] mx-0.5 rounded-full transition-all duration-500 ${
+                        setupStep > s.num 
+                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50" 
+                          : "bg-white/[0.06]"
                       }`}
                     />
                   )}
@@ -2576,38 +2659,41 @@ ANTHROPIC_API_KEY=your_key_here`}
                 );
 
                 return (
-                  <div className="space-y-3 md:space-y-5">
+                  <div className="space-y-4 md:space-y-6">
                     {/* Header row with title and navigation */}
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 animate-stagger-fade stagger-1">
                       <div>
-                        <h2 className="text-xl md:text-2xl font-bold text-white">
+                        <h2 
+                          className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                          style={{ fontFamily: 'var(--font-sf-pro)' }}
+                        >
                           What are you building?
                         </h2>
-                        <p className="text-white/50 text-xs md:text-sm">
-                          Choose a template to kickstart your project
+                        <p className="text-white/40 text-sm md:text-base mt-1">
+                          Choose a foundation for your next masterpiece
                         </p>
                       </div>
 
-                      {/* Carousel navigation */}
-                      <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3">
+                      {/* Carousel navigation - Premium */}
+                      <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4">
                         <button
                           onClick={() =>
                             setTemplatePage((p) => Math.max(0, p - 1))
                           }
                           disabled={templatePage === 0}
-                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
                         >
-                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
                         </button>
-                        <div className="flex items-center gap-1.5 md:gap-2">
+                        <div className="flex items-center gap-2">
                           {Array.from({ length: totalPages }).map((_, i) => (
                             <button
                               key={i}
                               onClick={() => setTemplatePage(i)}
-                              className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
+                              className={`rounded-full transition-all duration-500 ease-out ${
                                 i === templatePage
-                                  ? "bg-white/70 w-5 md:w-6"
-                                  : "bg-white/20 hover:bg-white/40 w-1.5 md:w-2"
+                                  ? "bg-gradient-to-r from-[#FF5800] to-amber-500 w-8 h-2 shadow-lg shadow-[#FF5800]/30"
+                                  : "bg-white/20 hover:bg-white/40 w-2 h-2"
                               }`}
                             />
                           ))}
@@ -2619,16 +2705,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                             )
                           }
                           disabled={templatePage >= totalPages - 1}
-                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
                         >
-                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Template cards - larger, more detailed */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
-                      {visibleTemplates.map((template) => {
+                    {/* Template cards - Premium glass cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                      {visibleTemplates.map((template, idx) => {
                         const Icon = template.icon;
                         const isSelected = templateType === template.value;
                         const isDisabled = template.comingSoon;
@@ -2642,101 +2728,124 @@ ANTHROPIC_API_KEY=your_key_here`}
                               }
                             }}
                             disabled={isDisabled}
-                            className={`group relative p-3 md:p-5 rounded-xl md:rounded-2xl text-left transition-all duration-300 border touch-manipulation ${
+                            className={`group relative p-4 md:p-6 rounded-2xl md:rounded-3xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade ${
                               isSelected
-                                ? "bg-white/10 border-white/30 scale-[1.02]"
+                                ? "bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/20 scale-[1.02] shadow-2xl"
                                 : isDisabled
-                                  ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
-                                  : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20 active:scale-[0.98]"
+                                  ? "bg-white/[0.01] border-white/[0.04] opacity-50 cursor-not-allowed"
+                                  : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15 hover:shadow-xl hover:shadow-black/30 active:scale-[0.98]"
                             }`}
+                            style={{ animationDelay: `${idx * 0.08}s` }}
                           >
-                            {/* Glow effect on selected */}
+                            {/* Premium glow effect on selected */}
                             {isSelected && (
-                              <div
-                                className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-20 -z-10"
-                                style={{ backgroundColor: template.color }}
-                              />
+                              <>
+                                <div
+                                  className="absolute inset-0 rounded-2xl md:rounded-3xl blur-2xl opacity-25 -z-10 animate-glow-pulse"
+                                  style={{ backgroundColor: template.color }}
+                                />
+                                <div
+                                  className="absolute inset-[1px] rounded-2xl md:rounded-3xl opacity-10 -z-10"
+                                  style={{ 
+                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`
+                                  }}
+                                />
+                              </>
                             )}
 
-                            {/* Coming soon badge */}
+                            {/* Coming soon badge - Premium */}
                             {isDisabled && (
-                              <div className="absolute top-2 right-2 md:top-3 md:right-3 px-1.5 md:px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
-                                <span className="text-[8px] md:text-[10px] font-medium text-amber-400">
+                              <div className="absolute top-3 right-3 md:top-4 md:right-4 px-2.5 py-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full backdrop-blur-sm">
+                                <span className="text-[9px] md:text-[10px] font-semibold text-amber-400 tracking-wide uppercase">
                                   Soon
                                 </span>
                               </div>
                             )}
 
-                            {/* Selection indicator */}
+                            {/* Selection indicator - Premium checkbox */}
                             {!isDisabled && (
                               <div
-                                className={`absolute top-2.5 right-2.5 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                                className={`absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-lg transition-all duration-300 flex items-center justify-center ${
                                   isSelected
-                                    ? "border-white bg-white"
-                                    : "border-white/20 group-hover:border-white/40"
+                                    ? "bg-gradient-to-br from-[#FF5800] to-amber-500 shadow-lg shadow-[#FF5800]/30"
+                                    : "border-2 border-white/15 group-hover:border-white/30 bg-white/[0.02]"
                                 }`}
                               >
                                 {isSelected && (
-                                  <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-black" />
+                                  <Check className="h-3 w-3 md:h-3.5 md:w-3.5 text-white" strokeWidth={3} />
                                 )}
                               </div>
                             )}
 
-                            {/* Icon */}
-                            <div
-                              className={`inline-flex p-2 md:p-3 rounded-lg md:rounded-xl mb-2 md:mb-3 transition-all duration-300 ${
-                                isSelected
-                                  ? "scale-110"
-                                  : "group-hover:scale-105"
-                              }`}
-                              style={{
-                                backgroundColor: `${template.color}20`,
-                                boxShadow: isSelected
-                                  ? `0 0 20px ${template.color}40`
-                                  : undefined,
-                              }}
-                            >
-                              <Icon
-                                className="h-4 w-4 md:h-6 md:w-6 transition-colors duration-300"
-                                style={{ color: template.color }}
-                              />
+                            {/* Icon - Premium with glow */}
+                            <div className="relative mb-3 md:mb-4">
+                              <div
+                                className={`inline-flex p-2.5 md:p-3.5 rounded-xl md:rounded-2xl transition-all duration-500 ${
+                                  isSelected
+                                    ? "scale-110"
+                                    : "group-hover:scale-105 group-hover:rotate-2"
+                                }`}
+                                style={{
+                                  backgroundColor: `${template.color}15`,
+                                  boxShadow: isSelected
+                                    ? `0 0 30px ${template.color}40, inset 0 0 20px ${template.color}10`
+                                    : `inset 0 0 20px ${template.color}05`,
+                                }}
+                              >
+                                <Icon
+                                  className="h-5 w-5 md:h-7 md:w-7 transition-all duration-300"
+                                  style={{ color: template.color }}
+                                />
+                              </div>
+                              {isSelected && (
+                                <div
+                                  className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-40"
+                                  style={{ backgroundColor: template.color }}
+                                />
+                              )}
                             </div>
 
                             {/* Content */}
-                            <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 pr-6">
+                            <h3 
+                              className="text-sm md:text-lg font-bold text-white mb-1 md:mb-1.5 pr-8 tracking-tight"
+                              style={{ fontFamily: 'var(--font-sf-pro)' }}
+                            >
                               {template.label}
                             </h3>
-                            <p className="text-xs md:text-sm text-white/50 mb-2 md:mb-3 line-clamp-2">
+                            <p className="text-xs md:text-sm text-white/45 mb-3 md:mb-4 line-clamp-2 leading-relaxed">
                               {template.description}
                             </p>
 
-                            {/* Features - hidden on mobile to save space */}
-                            <div className="hidden md:flex flex-wrap gap-1.5">
+                            {/* Features - Premium pills */}
+                            <div className="hidden md:flex flex-wrap gap-2">
                               {template.features.map((feature) => (
                                 <span
                                   key={feature}
-                                  className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                                  className="px-2.5 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/50 transition-colors group-hover:text-white/70 group-hover:border-white/15"
                                 >
                                   {feature}
                                 </span>
                               ))}
                             </div>
 
-                            {/* Tech stack on hover/selected - desktop only */}
+                            {/* Tech stack on hover/selected - Premium reveal */}
                             <div
-                              className={`hidden md:block mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
+                              className={`hidden md:block mt-4 pt-4 border-t border-white/[0.06] transition-all duration-500 ${
                                 isSelected
-                                  ? "opacity-100"
-                                  : "opacity-0 group-hover:opacity-100"
+                                  ? "opacity-100 translate-y-0"
+                                  : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
                               }`}
                             >
-                              <div className="flex gap-2">
-                                {template.techStack.map((tech) => (
+                              <div className="flex items-center gap-3">
+                                {template.techStack.map((tech, i) => (
                                   <span
                                     key={tech}
-                                    className="text-[10px] text-white/40"
+                                    className="text-[10px] text-white/35 font-medium"
                                   >
                                     {tech}
+                                    {i < template.techStack.length - 1 && (
+                                      <span className="ml-3 text-white/15">•</span>
+                                    )}
                                   </span>
                                 ))}
                               </div>
@@ -2746,20 +2855,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                       })}
                     </div>
 
-                    {/* Continue button row */}
-                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
-                      <p className="text-xs md:text-sm text-white/40 text-center md:text-left">
+                    {/* Continue button row - Premium */}
+                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-4 pt-4 animate-stagger-fade stagger-5">
+                      <div className="text-center md:text-left">
                         {selectedTemplate ? (
-                          <>
-                            Selected:{" "}
-                            <span className="text-white/60 font-medium">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+                            <selectedTemplate.icon 
+                              className="h-3.5 w-3.5" 
+                              style={{ color: selectedTemplate.color }}
+                            />
+                            <span className="text-xs text-white/50">Selected:</span>
+                            <span className="text-xs text-white/80 font-medium">
                               {selectedTemplate.label}
                             </span>
-                          </>
+                          </div>
                         ) : (
-                          "Select a template to continue"
+                          <p className="text-sm text-white/35">Select a template to continue</p>
                         )}
-                      </p>
+                      </div>
                       <button
                         onClick={() => setSetupStep(2)}
                         disabled={
@@ -2767,10 +2880,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                           TEMPLATE_OPTIONS.find((t) => t.value === templateType)
                             ?.comingSoon
                         }
-                        className="group flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white text-sm md:text-base font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
+                        className="btn-premium group relative flex items-center justify-center gap-2.5 px-8 md:px-10 py-3 md:py-3.5 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm md:text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
+                        style={{ fontFamily: 'var(--font-sf-pro)' }}
                       >
-                        Continue
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                        <span className="relative z-10 flex items-center gap-2">
+                          Continue
+                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </span>
+                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl -z-10" />
                       </button>
                     </div>
                   </div>
@@ -2778,53 +2895,61 @@ ANTHROPIC_API_KEY=your_key_here`}
               })()}
           </div>
 
-          {/* STEP 2: App Details */}
+          {/* STEP 2: App Details - Premium */}
           <div
             className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 2 && (
-              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
+              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white">
-                      Tell us about your app
+                    <h2 
+                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    >
+                      Name your creation
                     </h2>
-                    <p className="text-white/50 text-xs md:text-sm">
-                      Give your creation a name and description
+                    <p className="text-white/40 text-sm md:text-base mt-1">
+                      Give it a memorable identity
                     </p>
                   </div>
-                  {/* Selected template preview */}
+                  {/* Selected template preview - Premium pill */}
                   {selectedTemplate && (
-                    <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
-                      <selectedTemplate.icon
-                        className="h-3.5 w-3.5 md:h-4 md:w-4"
-                        style={{ color: selectedTemplate.color }}
-                      />
-                      <span className="text-[11px] md:text-xs text-white/60">
+                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
+                      <div 
+                        className="p-1.5 rounded-lg"
+                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                      >
+                        <selectedTemplate.icon
+                          className="h-3.5 w-3.5"
+                          style={{ color: selectedTemplate.color }}
+                        />
+                      </div>
+                      <span className="text-xs text-white/60 font-medium">
                         {selectedTemplate.label}
                       </span>
                       <button
                         onClick={() => setSetupStep(1)}
-                        className="text-[10px] text-white/40 hover:text-white/60 underline"
+                        className="text-[10px] text-[#FF5800]/70 hover:text-[#FF5800] transition-colors font-medium"
                       >
-                        change
+                        Change
                       </button>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-3 md:space-y-4 p-3 md:p-5 rounded-xl bg-white/[0.02] border border-white/10">
-                  {/* App Name */}
-                  <div className="space-y-1.5">
+                <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
+                  {/* App Name - Premium input */}
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/70 text-xs">App Name</Label>
+                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">App Name</Label>
                       <span
-                        className={`text-[10px] transition-colors ${
+                        className={`text-[10px] font-mono transition-colors ${
                           appName.length > 100
                             ? "text-red-400"
                             : appName.length > 80
-                              ? "text-yellow-400"
-                              : "text-white/30"
+                              ? "text-amber-400"
+                              : "text-white/25"
                         }`}
                       >
                         {appName.length}/100
@@ -2834,37 +2959,38 @@ ANTHROPIC_API_KEY=your_key_here`}
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className="h-10 bg-black/40 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 rounded-lg"
+                      className="h-12 bg-black/30 border-white/[0.08] text-white text-base placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl transition-all duration-300"
                       maxLength={100}
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
                     />
                   </div>
 
-                  {/* Description */}
-                  <div className="space-y-1.5">
+                  {/* Description - Premium textarea */}
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/70 text-xs">
+                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
                         Description
                       </Label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <button
                           onClick={generateAIDescription}
                           disabled={isGeneratingDescription || !appName.trim()}
-                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-500/30 rounded text-violet-300 hover:text-violet-200 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          className="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#FF5800]/15 to-amber-500/10 border border-[#FF5800]/25 rounded-lg text-[#FF5800] hover:text-amber-400 transition-all hover:scale-105 hover:border-[#FF5800]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                           {isGeneratingDescription ? (
-                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Wand2 className="h-2.5 w-2.5" />
+                            <Wand2 className="h-3 w-3 group-hover:rotate-12 transition-transform" />
                           )}
-                          AI Assist
+                          <span className="tracking-wide">AI ASSIST</span>
                         </button>
                         <span
-                          className={`text-[10px] transition-colors ${
+                          className={`text-[10px] font-mono transition-colors ${
                             appDescription.length > 500
                               ? "text-red-400"
                               : appDescription.length > 400
-                                ? "text-yellow-400"
-                                : "text-white/30"
+                                ? "text-amber-400"
+                                : "text-white/25"
                           }`}
                         >
                           {appDescription.length}/500
@@ -2875,23 +3001,23 @@ ANTHROPIC_API_KEY=your_key_here`}
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
                       placeholder="Describe what your app should do... or let AI help you write it"
-                      className="min-h-[100px] bg-black/40 border-white/10 text-white text-sm placeholder:text-white/20 focus:border-white/30 rounded-lg resize-none"
+                      className="min-h-[120px] bg-black/30 border-white/[0.08] text-white text-sm placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl resize-none transition-all duration-300 leading-relaxed"
                     />
                     {appDescription.length > 500 && (
-                      <p className="text-xs text-red-400 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                        <AlertCircle className="h-3.5 w-3.5" />
                         Description exceeds 500 character limit
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 md:pt-3">
+                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-3">
                   <button
                     onClick={() => setSetupStep(1)}
-                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
                   >
-                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <button
@@ -2901,259 +3027,307 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appName.length > 100 ||
                       appDescription.length > 500
                     }
-                    className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
+                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
+                    style={{ fontFamily: 'var(--font-sf-pro)' }}
                   >
-                    Continue
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                    <span className="relative z-10 flex items-center gap-2">
+                      Continue
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                    </span>
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 3: Features */}
+          {/* STEP 3: Features - Premium */}
           <div
             className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
+              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white">
-                      Supercharge your app
+                    <h2 
+                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    >
+                      Power-ups
                     </h2>
-                    <p className="text-white/50 text-xs md:text-sm">
-                      Add powerful features to your project
+                    <p className="text-white/40 text-sm md:text-base mt-1">
+                      Supercharge with built-in integrations
                     </p>
                   </div>
-                  {/* App summary */}
-                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
+                  {/* App summary - Premium */}
+                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <selectedTemplate.icon
-                        className="h-3.5 w-3.5 md:h-4 md:w-4"
-                        style={{ color: selectedTemplate.color }}
-                      />
+                      <div 
+                        className="p-1.5 rounded-lg"
+                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                      >
+                        <selectedTemplate.icon
+                          className="h-3.5 w-3.5"
+                          style={{ color: selectedTemplate.color }}
+                        />
+                      </div>
                     )}
-                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">
+                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
                       {appName || "Your App"}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 md:gap-3">
-                  {/* Monetization */}
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                  {/* Monetization - Premium toggle card */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
+                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-2 ${
                       includeMonetization
-                        ? "bg-emerald-500/10 border-emerald-500/30"
-                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
+                        ? "bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
+                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                    {includeMonetization && (
+                      <div className="absolute inset-0 rounded-2xl bg-emerald-500/5 blur-xl -z-10" />
+                    )}
+                    <div className="flex items-center justify-between mb-3">
                       <div
-                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
+                        className={`p-2.5 rounded-xl transition-all duration-300 ${
                           includeMonetization
-                            ? "bg-emerald-500/20"
-                            : "bg-white/5"
+                            ? "bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
+                            : "bg-white/[0.04]"
                         }`}
                       >
                         <DollarSign
-                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                          className={`h-5 w-5 transition-colors ${
                             includeMonetization
                               ? "text-emerald-400"
                               : "text-white/40"
                           }`}
                         />
                       </div>
+                      {/* Premium toggle switch */}
                       <div
-                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
                           includeMonetization
-                            ? "bg-emerald-500 justify-end"
-                            : "bg-white/10 justify-start"
+                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30"
+                            : "bg-white/10"
                         }`}
                       >
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
+                        <div 
+                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                            includeMonetization ? "translate-x-4" : "translate-x-0"
+                          }`} 
+                        />
                       </div>
                     </div>
-                    <h3 className="text-xs md:text-sm font-medium text-white">
+                    <h3 
+                      className="text-sm md:text-base font-semibold text-white"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    >
                       Monetization
                     </h3>
-                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
-                      Payments & subscriptions
+                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                      Accept payments & subscriptions
                     </p>
-                    <div className="hidden md:flex gap-1 mt-2">
-                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                    <div className="hidden md:flex gap-1.5 mt-3">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
                         Stripe
                       </span>
-                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
                         Billing
                       </span>
                     </div>
                   </button>
 
-                  {/* Analytics */}
+                  {/* Analytics - Premium toggle card */}
                   <button
                     onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
+                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-3 ${
                       includeAnalytics
-                        ? "bg-blue-500/10 border-blue-500/30"
-                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
+                        ? "bg-gradient-to-br from-blue-500/15 to-blue-500/5 border-blue-500/30 shadow-lg shadow-blue-500/10"
+                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                    {includeAnalytics && (
+                      <div className="absolute inset-0 rounded-2xl bg-blue-500/5 blur-xl -z-10" />
+                    )}
+                    <div className="flex items-center justify-between mb-3">
                       <div
-                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
-                          includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
+                        className={`p-2.5 rounded-xl transition-all duration-300 ${
+                          includeAnalytics 
+                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20" 
+                            : "bg-white/[0.04]"
                         }`}
                       >
                         <LineChart
-                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                          className={`h-5 w-5 transition-colors ${
                             includeAnalytics ? "text-blue-400" : "text-white/40"
                           }`}
                         />
                       </div>
+                      {/* Premium toggle switch */}
                       <div
-                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
                           includeAnalytics
-                            ? "bg-blue-500 justify-end"
-                            : "bg-white/10 justify-start"
+                            ? "bg-gradient-to-r from-blue-500 to-blue-400 shadow-lg shadow-blue-500/30"
+                            : "bg-white/10"
                         }`}
                       >
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
+                        <div 
+                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                            includeAnalytics ? "translate-x-4" : "translate-x-0"
+                          }`} 
+                        />
                       </div>
                     </div>
-                    <h3 className="text-xs md:text-sm font-medium text-white">
+                    <h3 
+                      className="text-sm md:text-base font-semibold text-white"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    >
                       Analytics
                     </h3>
-                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
-                      Track users & events
+                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                      Track users & events in real-time
                     </p>
-                    <div className="hidden md:flex gap-1 mt-2">
-                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                    <div className="hidden md:flex gap-1.5 mt-3">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
                         Real-time
                       </span>
-                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
                         Events
                       </span>
                     </div>
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 md:pt-3">
+                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
                   >
-                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <button
                     onClick={() => setSetupStep(4)}
-                    className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
+                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold touch-manipulation"
+                    style={{ fontFamily: 'var(--font-sf-pro)' }}
                   >
-                    Continue
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                    <span className="relative z-10 flex items-center gap-2">
+                      Continue
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                    </span>
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 4: Character Selection */}
+          {/* STEP 4: Agent Selection - Premium */}
           <div
             className={`transition-all duration-500 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 4 && (
-              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
+              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-white">
-                      Add Characters to Your App
+                    <h2 
+                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    >
+                      Add AI Agents
                     </h2>
-                    <p className="text-white/50 text-xs md:text-sm">
-                      Select AI agents that users can chat with (optional, max
-                      4)
+                    <p className="text-white/40 text-sm md:text-base mt-1">
+                      Choose agents to power your app (optional)
                     </p>
                   </div>
-                  {/* App summary */}
-                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
+                  {/* App summary - Premium */}
+                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <selectedTemplate.icon
-                        className="h-3.5 w-3.5 md:h-4 md:w-4"
-                        style={{ color: selectedTemplate.color }}
-                      />
+                      <div 
+                        className="p-1.5 rounded-lg"
+                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                      >
+                        <selectedTemplate.icon
+                          className="h-3.5 w-3.5"
+                          style={{ color: selectedTemplate.color }}
+                        />
+                      </div>
                     )}
-                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">
+                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
                       {appName || "Your App"}
                     </span>
                   </div>
                 </div>
 
-                {/* Character Picker */}
-                <div className="p-4 md:p-5 rounded-xl bg-white/[0.02] border border-white/10">
-                  <CharacterPicker
-                    characters={availableCharacters}
-                    selectedIds={selectedCharacterIds}
-                    onSelectionChange={setSelectedCharacterIds}
+                {/* Agent Picker - Premium container */}
+                <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
+                  <AgentPicker
+                    agents={availableAgents}
+                    selectedIds={selectedAgentIds}
+                    onSelectionChange={setSelectedAgentIds}
                     maxSelection={4}
-                    loading={loadingCharacters}
+                    loading={loadingAgents}
                   />
                 </div>
 
-                {/* Skip note */}
-                {availableCharacters.length === 0 && !loadingCharacters && (
-                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <p className="text-xs text-amber-300/80">
-                      You don&apos;t have any agents yet. You can skip this step
-                      and add characters later from the app builder.
+                {/* Skip note - Premium */}
+                {availableAgents.length === 0 && !loadingAgents && (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 animate-stagger-fade stagger-3">
+                    <p className="text-sm text-amber-300/80 leading-relaxed">
+                      <span className="font-semibold">No agents yet?</span> No worries — you can skip this step and add agents later from the app builder.
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-2 md:pt-3">
+                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
                   <button
                     onClick={() => setSetupStep(3)}
-                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
                   >
-                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
-                  <div className="flex items-center gap-2">
-                    {selectedCharacterIds.length === 0 &&
-                      availableCharacters.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    {selectedAgentIds.length === 0 &&
+                      availableAgents.length > 0 && (
                         <button
                           onClick={startSession}
                           disabled={isLoading}
-                          className="text-[11px] md:text-xs text-white/50 hover:text-white/70 transition-colors"
+                          className="text-xs text-white/40 hover:text-white/70 transition-colors font-medium"
                         >
                           Skip for now
                         </button>
                       )}
+                    {/* Premium Launch Button */}
                     <button
                       onClick={startSession}
                       disabled={isLoading}
-                      className="group relative flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
+                      className="group relative flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-xl text-white text-sm font-semibold transition-all duration-500 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
+                      style={{ fontFamily: 'var(--font-sf-pro)' }}
                     >
                       {/* Animated gradient background */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
-                      {/* Glow effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
-                      <span className="relative flex items-center gap-2">
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]" />
+                      {/* Inner border glow */}
+                      <div className="absolute inset-[1px] rounded-[10px] bg-gradient-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      {/* Outer glow effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] to-amber-500 blur-xl opacity-50 group-hover:opacity-70 transition-opacity -z-10" />
+                      <span className="relative flex items-center gap-2.5">
                         {isLoading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="hidden sm:inline">
-                              Launching...
+                            <span className="hidden sm:inline tracking-wide">
+                              Launching Sandbox...
                             </span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
-                            <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            <span className="hidden sm:inline">
-                              {selectedCharacterIds.length > 0
-                                ? `Start with ${selectedCharacterIds.length} Character${selectedCharacterIds.length > 1 ? "s" : ""}`
+                            <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
+                            <span className="hidden sm:inline tracking-wide">
+                              {selectedAgentIds.length > 0
+                                ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
                                 : "Start Building"}
                             </span>
                             <span className="sm:hidden">Start</span>
@@ -3164,10 +3338,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                {/* Summary footer */}
-                <p className="text-center text-[9px] md:text-[10px] text-white/25 pt-2 md:pt-3">
-                  Live sandbox • Hot reload • AI assistance • GitHub integration
-                </p>
+                {/* Summary footer - Premium */}
+                <div className="flex items-center justify-center gap-4 pt-4 md:pt-6 animate-stagger-fade stagger-5">
+                  {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map((feature, i) => (
+                    <div key={feature} className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-[#FF5800]/50" />
+                      <span className="text-[10px] md:text-xs text-white/25 font-medium">{feature}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -3218,9 +3397,9 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-200">
+    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#050507] z-10 animate-in fade-in duration-300">
       {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
-      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
+      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-3 py-2.5 border-b border-white/[0.06] bg-black/60 backdrop-blur-xl">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Link
             href={backLink}
@@ -3228,25 +3407,29 @@ ANTHROPIC_API_KEY=your_key_here`}
           >
             <ArrowLeft className="h-4 w-4 text-white/60" />
           </Link>
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-6 h-6 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded flex-shrink-0">
+              <span className="text-white font-bold text-[10px]" style={{ fontFamily: "var(--font-sf-pro)" }}>
+                {(appData?.name || appName || "A").charAt(0).toUpperCase()}
+              </span>
+            </div>
             <span
-              className="text-xs text-white truncate"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
+              className="text-xs text-white font-medium truncate"
+              style={{ fontFamily: "var(--font-sf-pro)" }}
             >
               {appData?.name || appName}
             </span>
           </div>
         </div>
 
-        {/* Mobile Panel Toggle */}
-        <div className="flex items-center gap-1 mx-2">
+        {/* Mobile Panel Toggle - Premium */}
+        <div className="flex items-center gap-1.5 mx-2 p-1 bg-white/[0.02] rounded-xl border border-white/[0.04]">
           <button
             onClick={() => setMobilePanel("chat")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
               mobilePanel === "chat"
-                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+                ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 text-white border border-[#FF5800]/25"
+                : "text-white/45 hover:text-white/70"
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
@@ -3254,10 +3437,10 @@ ANTHROPIC_API_KEY=your_key_here`}
           </button>
           <button
             onClick={() => setMobilePanel("preview")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
               mobilePanel === "preview"
-                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+                ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 text-white border border-[#FF5800]/25"
+                : "text-white/45 hover:text-white/70"
             }`}
           >
             <Monitor className="h-3.5 w-3.5" />
@@ -3453,31 +3636,38 @@ ANTHROPIC_API_KEY=your_key_here`}
       </div>
 
       {/* DESKTOP TOOLBAR - visible from xl (1280px) and up */}
-      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
-        <div className="flex items-center gap-4">
+      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-black/60 backdrop-blur-xl">
+        <div className="flex items-center gap-5">
           <Link
             href={backLink}
-            className="p-2 hover:bg-white/10 transition-colors"
+            className="group p-2.5 hover:bg-white/[0.06] rounded-xl transition-all duration-300 border border-transparent hover:border-white/10"
           >
-            <ArrowLeft className="h-4 w-4 text-white/60" />
+            <ArrowLeft className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
           </Link>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-cyan-400" />
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#FF5800] blur-md opacity-40" />
+              <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded-md border border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/20">
+                <span className="text-white font-bold text-sm" style={{ fontFamily: "var(--font-sf-pro)" }}>
+                  {(appData?.name || appName || "A").charAt(0).toUpperCase()}
+                </span>
+              </div>
+            </div>
             <span
-              className="text-sm text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
+              className="text-sm text-white font-semibold tracking-tight"
+              style={{ fontFamily: "var(--font-sf-pro)" }}
             >
               {appData?.name || appName}
             </span>
             {isEditMode && (
-              <span className="px-2 py-0.5 text-xs bg-[#FF5800]/20 text-[#FF5800] rounded">
-                Editing
+              <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-white/10 text-white/70 rounded border border-white/10">
+                Editor
               </span>
             )}
           </div>
           {sourceContext && (
             <div
-              className="px-2 py-1 text-xs border"
+              className="px-2 py-1 text-xs border rounded"
               style={{
                 backgroundColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}15`,
                 borderColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}40`,
@@ -3488,30 +3678,6 @@ ANTHROPIC_API_KEY=your_key_here`}
               {sourceContext.type}: {sourceContext.name}
             </div>
           )}
-          {/* GitHub repo indicator */}
-          {appData?.github_repo ? (
-            <a
-              href={`https://github.com/${appData.github_repo}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors rounded"
-              title="View on GitHub"
-            >
-              <GitBranch className="h-3 w-3" />
-              <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
-                {appData.github_repo.split("/").pop()}
-              </span>
-              <Cloud className="h-3 w-3" />
-            </a>
-          ) : status === "ready" || status === "recovering" ? (
-            <div
-              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded"
-              title="GitHub not configured"
-            >
-              <CloudOff className="h-3 w-3" />
-              <span>No GitHub</span>
-            </div>
-          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {timeRemaining && (
@@ -3569,86 +3735,40 @@ ANTHROPIC_API_KEY=your_key_here`}
               <span className="ml-1">15m</span>
             </Button>
           )}
-          {/* GitHub Save Button */}
-          {(status === "ready" || status === "recovering") &&
-            appData?.github_repo && (
-              <>
-                <div className="w-px h-4 bg-white/10" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={saveToGitHub}
-                  disabled={
-                    isSaving ||
-                    !gitStatus?.hasChanges ||
-                    status === "recovering"
-                  }
-                  className={`h-7 text-xs ${
-                    gitStatus?.hasChanges && status !== "recovering"
-                      ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                      : "text-white/40 hover:bg-white/5"
-                  }`}
-                  title={
-                    status === "recovering"
-                      ? "Reconnecting..."
-                      : gitStatus?.hasChanges
-                        ? "Save changes to GitHub"
-                        : "No unsaved changes"
-                  }
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Save className="h-3 w-3" />
-                  )}
-                  <span className="ml-1">
-                    {isSaving
-                      ? "Saving..."
-                      : gitStatus?.hasChanges
-                        ? "Save"
-                        : "Saved"}
-                  </span>
-                </Button>
-                {/* Deploy to Production Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={deployToProduction}
-                  disabled={isDeploying || status === "recovering"}
-                  className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                  title={
-                    status === "recovering"
-                      ? "Reconnecting..."
-                      : productionUrl
-                        ? `Deploy to ${productionUrl}`
-                        : "Deploy to production"
-                  }
-                >
-                  {isDeploying ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Rocket className="h-3 w-3" />
-                  )}
-                  <span className="ml-1">
-                    {isDeploying ? "Deploying..." : "Deploy"}
-                  </span>
-                </Button>
-                {/* Production URL Link */}
-                {productionUrl && (
-                  <a
-                    href={productionUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
-                    title={`View live at ${productionUrl}`}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    <span>Live</span>
-                  </a>
+          {/* Deploy Button - Simple, clean */}
+          {(status === "ready" || status === "recovering") && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={deployToProduction}
+                disabled={isDeploying || status === "recovering"}
+                className="h-7 text-xs bg-[#FF5800]/10 text-[#FF5800] hover:bg-[#FF5800]/20 border border-[#FF5800]/20"
+              >
+                {isDeploying ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Rocket className="h-3 w-3" />
                 )}
-                <div className="w-px h-4 bg-white/10" />
-              </>
-            )}
+                <span className="ml-1.5">
+                  {isDeploying ? "Deploying..." : "Deploy"}
+                </span>
+              </Button>
+              {productionUrl && (
+                <a
+                  href={productionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-7 px-2.5 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-md flex items-center gap-1.5 border border-emerald-500/20"
+                  title={`View live at ${productionUrl}`}
+                >
+                  <Globe className="h-3 w-3" />
+                  <span>Live</span>
+                </a>
+              )}
+              <div className="w-px h-4 bg-white/10" />
+            </>
+          )}
           {session?.sandboxUrl && (
             <>
               <button
@@ -3699,15 +3819,18 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       </div>
 
-      {/* Auto-recovery indicator - non-blocking banner */}
+      {/* Auto-recovery indicator - Premium banner */}
       {status === "recovering" && !isRestoring && (
-        <div className="absolute top-[49px] xl:top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-cyan-500/20 via-violet-500/20 to-cyan-500/20 border-b border-cyan-500/30">
-          <div className="flex items-center justify-center gap-2 xl:gap-3 px-3 xl:px-4 py-1.5 xl:py-2">
-            <Loader2 className="h-3.5 w-3.5 xl:h-4 xl:w-4 animate-spin text-cyan-400 flex-shrink-0" />
-            <span className="text-xs xl:text-sm text-white/80">
-              Reconnecting...
+        <div className="absolute top-[49px] xl:top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-[#FF5800]/20 via-amber-500/15 to-[#FF5800]/20 border-b border-[#FF5800]/30 backdrop-blur-sm">
+          <div className="flex items-center justify-center gap-3 xl:gap-4 px-4 xl:px-5 py-2 xl:py-2.5">
+            <div className="relative">
+              <Loader2 className="h-4 w-4 xl:h-4.5 xl:w-4.5 animate-spin text-[#FF5800] flex-shrink-0" />
+              <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
+            </div>
+            <span className="text-xs xl:text-sm text-white/90 font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+              Reconnecting to sandbox...
             </span>
-            <span className="text-[10px] xl:text-xs text-white/50 hidden sm:inline">
+            <span className="text-[10px] xl:text-xs text-white/40 hidden sm:inline">
               This happens automatically
             </span>
           </div>
@@ -3717,7 +3840,7 @@ ANTHROPIC_API_KEY=your_key_here`}
       <div className="flex-1 flex overflow-hidden">
         {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
-          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
+          className={`flex flex-col border-r border-white/[0.04] bg-gradient-to-b from-[#0a0a0b] to-[#080809] transition-all overflow-hidden ${
             isFullscreen
               ? "w-0 hidden"
               : mobilePanel === "chat"
@@ -3727,7 +3850,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30"
+            className="flex-1 overflow-y-auto p-4 xl:p-6 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -3808,24 +3931,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <History className="h-3.5 w-3.5" />
                 History
                 {commitHistory.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px] min-w-[18px] text-center">
+                  <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] min-w-[18px] text-center tabular-nums">
                     {commitHistory.length > 99 ? "99+" : commitHistory.length}
                   </span>
                 )}
               </button>
               <button
-                onClick={() => setPreviewTab("characters")}
+                onClick={() => setPreviewTab("agents")}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "characters"
+                  previewTab === "agents"
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <Users className="h-3.5 w-3.5" />
-                Characters
-                {selectedCharacterIds.length > 0 && (
+                Agents
+                {selectedAgentIds.length > 0 && (
                   <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
-                    {selectedCharacterIds.length}
+                    {selectedAgentIds.length}
                   </span>
                 )}
               </button>
@@ -3862,15 +3985,15 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
           </div>
 
-          {/* Desktop Preview Tabs */}
-          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
-            <div className="flex bg-white/5 rounded-md p-0.5">
+          {/* Desktop Preview Tabs - Clean & Minimal */}
+          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] bg-black/30">
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                   previewTab === "preview"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
+                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
+                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
                 }`}
               >
                 <Monitor className="h-3.5 w-3.5" />
@@ -3878,26 +4001,26 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("console")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                   previewTab === "console"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
+                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
+                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
                 }`}
               >
                 <Terminal className="h-3.5 w-3.5" />
                 Console
                 {consoleLogs.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
-                    {consoleLogs.length}
+                  <span className="ml-1 px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-semibold tabular-nums rounded">
+                    {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => setPreviewTab("files")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                   previewTab === "files"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
+                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
+                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
                 }`}
               >
                 <FolderCode className="h-3.5 w-3.5" />
@@ -3905,33 +4028,33 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("history")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                   previewTab === "history"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
+                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
+                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
                 }`}
               >
                 <History className="h-3.5 w-3.5" />
                 History
                 {commitHistory.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px]">
+                  <span className="ml-1 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold tabular-nums rounded">
                     {commitHistory.length}
                   </span>
                 )}
               </button>
               <button
-                onClick={() => setPreviewTab("characters")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "characters"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
+                onClick={() => setPreviewTab("agents")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                  previewTab === "agents"
+                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
+                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
                 }`}
               >
                 <Users className="h-3.5 w-3.5" />
-                Characters
-                {selectedCharacterIds.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px]">
-                    {selectedCharacterIds.length}
+                Agents
+                {selectedAgentIds.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 text-[10px] font-semibold tabular-nums rounded">
+                    {selectedAgentIds.length}
                   </span>
                 )}
               </button>
@@ -3965,7 +4088,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-white/5 overflow-hidden relative">
+          <div className="flex-1 bg-gradient-to-br from-white/[0.03] to-transparent overflow-hidden relative">
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
               <div
@@ -3975,17 +4098,21 @@ ANTHROPIC_API_KEY=your_key_here`}
                     : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
-                {/* Loading overlay - shown while iframe loads */}
+                {/* Loading overlay - Premium */}
                 <div
-                  className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${
+                  className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0b] to-[#080809] flex items-center justify-center transition-opacity duration-500 ${
                     iframeLoaded && previewTab === "preview"
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
                   }`}
                 >
                   <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
-                    <p className="text-white/60">Loading preview...</p>
+                    <div className="relative inline-block mb-5">
+                      <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
+                      <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                    </div>
+                    <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Loading preview...</p>
+                    <p className="text-white/25 text-xs mt-1">Your app is starting up</p>
                   </div>
                 </div>
                 <iframe
@@ -4000,12 +4127,16 @@ ANTHROPIC_API_KEY=your_key_here`}
               </div>
             )}
 
-            {/* Preview loading state when no session */}
+            {/* Preview loading state when no session - Premium */}
             {!session?.sandboxUrl && previewTab === "preview" && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="absolute inset-0 flex items-center justify-center z-10 bg-gradient-to-br from-[#0a0a0b] to-[#080809]">
                 <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
-                  <p className="text-white/60">Loading preview...</p>
+                  <div className="relative inline-block mb-5">
+                    <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
+                    <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                  </div>
+                  <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Starting sandbox...</p>
+                  <p className="text-white/25 text-xs mt-1">This usually takes 10-20 seconds</p>
                 </div>
               </div>
             )}
@@ -4055,14 +4186,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
               ))}
 
-            {/* Characters tab */}
-            {previewTab === "characters" && (
+            {/* Agents tab */}
+            {previewTab === "agents" && (
               <div className="h-full p-4 overflow-auto animate-in fade-in duration-200">
-                <CharacterPicker
-                  characters={availableCharacters}
-                  selectedIds={selectedCharacterIds}
+                <AgentPicker
+                  agents={availableAgents}
+                  selectedIds={selectedAgentIds}
                   onSelectionChange={async (ids) => {
-                    setSelectedCharacterIds(ids);
+                    setSelectedAgentIds(ids);
                     // Save to app if we have an app ID
                     if (appData?.id) {
                       try {
@@ -4073,33 +4204,40 @@ ANTHROPIC_API_KEY=your_key_here`}
                         });
                         toast.success(
                           ids.length > 0
-                            ? "Characters updated"
-                            : "Characters removed",
+                            ? "Agents updated"
+                            : "Agents removed",
                         );
                       } catch (error) {
-                        console.error("Failed to update characters:", error);
-                        toast.error("Failed to update characters");
+                        console.error("Failed to update agents:", error);
+                        toast.error("Failed to update agents");
                       }
                     }
                   }}
                   maxSelection={4}
-                  loading={loadingCharacters}
+                  loading={loadingAgents}
                 />
               </div>
             )}
 
-            {/* Console tab */}
+            {/* Console tab - Premium */}
             {previewTab === "console" && (
-              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 animate-in fade-in duration-200">
+              <div
+                ref={consoleLogsRef}
+                className="h-full bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25 animate-in fade-in duration-200"
+              >
                 {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/30">
+                  <div className="flex items-center justify-center h-full text-white/25">
                     <div className="text-center">
-                      <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No console logs yet</p>
+                      <div className="relative inline-block mb-4">
+                        <Terminal className="h-10 w-10 mx-auto opacity-40" />
+                        <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                      </div>
+                      <p className="text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Console is empty</p>
+                      <p className="text-xs text-white/15 mt-1">Logs will appear here during builds</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 space-y-0.5">
+                  <div className="p-4 space-y-1">
                     {consoleLogs.map((log, i) => {
                       let colorClass = "text-white/60";
                       let bgClass = "";

@@ -66,7 +66,7 @@ export interface AppData {
   description: string | null;
   monetization_enabled?: boolean;
   github_repo?: string | null;
-  linked_character_ids?: string[];
+  linked_agent_ids?: string[];
 }
 
 export interface GitStatusInfo {
@@ -120,7 +120,7 @@ export type PreviewTab =
   | "console"
   | "files"
   | "history"
-  | "characters";
+  | "agents";
 
 export interface SourceContextInfo {
   icon: LucideIcon;

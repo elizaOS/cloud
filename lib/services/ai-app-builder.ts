@@ -48,7 +48,7 @@ export interface BuilderSessionConfig {
     | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
-  linkedCharacterIds?: string[];
+  linkedAgentIds?: string[];
   onProgress?: (progress: SandboxProgress) => void;
   onSandboxReady?: (session: BuilderSession) => void;
   onToolUse?: (tool: string, input: unknown, result: string) => void;
@@ -109,7 +109,7 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
-      linkedCharacterIds,
+      linkedAgentIds,
       onProgress,
       onSandboxReady,
       onToolUse,
@@ -160,14 +160,14 @@ export class AIAppBuilderService {
         logger.warn("App creation had warnings", { warnings: result.errors });
       }
 
-      // Update app with linked character IDs if provided
-      if (linkedCharacterIds && linkedCharacterIds.length > 0) {
+      // Update app with linked agent IDs if provided
+      if (linkedAgentIds && linkedAgentIds.length > 0) {
         await appsService.update(appId, {
-          linked_character_ids: linkedCharacterIds,
+          linked_character_ids: linkedAgentIds,
         });
-        logger.info("Linked characters to app", {
+        logger.info("Linked agents to app", {
           appId,
-          characterCount: linkedCharacterIds.length,
+          agentCount: linkedAgentIds.length,
         });
       }
     } else if (appId) {
@@ -180,14 +180,14 @@ export class AIAppBuilderService {
         githubRepo,
       });
 
-      // Update linked character IDs if provided for existing app
-      if (linkedCharacterIds && linkedCharacterIds.length > 0) {
+      // Update linked agent IDs if provided for existing app
+      if (linkedAgentIds && linkedAgentIds.length > 0) {
         await appsService.update(appId, {
-          linked_character_ids: linkedCharacterIds,
+          linked_character_ids: linkedAgentIds,
         });
-        logger.info("Updated linked characters for existing app", {
+        logger.info("Updated linked agents for existing app", {
           appId,
-          characterCount: linkedCharacterIds.length,
+          agentCount: linkedAgentIds.length,
         });
       }
     }
