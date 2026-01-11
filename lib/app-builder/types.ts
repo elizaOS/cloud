@@ -66,7 +66,7 @@ export interface AppData {
   description: string | null;
   monetization_enabled?: boolean;
   github_repo?: string | null;
-  linked_character_ids?: string[];
+  linked_agent_ids?: string[];
 }
 
 export interface GitStatusInfo {
@@ -115,7 +115,12 @@ export interface RestoreProgress {
   filePath: string;
 }
 
-export type PreviewTab = "preview" | "console" | "files" | "history" | "characters";
+export type PreviewTab =
+  | "preview"
+  | "console"
+  | "files"
+  | "history"
+  | "agents";
 
 export interface SourceContextInfo {
   icon: LucideIcon;
@@ -125,3 +130,47 @@ export interface SourceContextInfo {
 
 /** Maximum number of console logs to retain */
 export const MAX_CONSOLE_LOGS = 500;
+
+/**
+ * Available AI models for the App Builder.
+ * These are accessible through the AI Gateway.
+ */
+export interface AppBuilderModel {
+  id: string;
+  name: string;
+  description: string;
+  provider: string;
+}
+
+/**
+ * Default models available for App Builder.
+ * Matches the models available in chat for consistency.
+ */
+export const APP_BUILDER_MODELS: AppBuilderModel[] = [
+  {
+    id: "anthropic/claude-sonnet-4.5",
+    name: "Claude Sonnet 4.5",
+    description: "Best for complex coding tasks with excellent reasoning",
+    provider: "Anthropic",
+  },
+  {
+    id: "openai/gpt-5.2",
+    name: "GPT-5.2",
+    description: "OpenAI's most capable multimodal model",
+    provider: "OpenAI",
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    description: "Fast and capable for most coding tasks",
+    provider: "Anthropic",
+  },
+  {
+    id: "google/gemini-3-flash",
+    name: "Gemini 3 Flash",
+    description: "Google's fast multimodal model",
+    provider: "Google",
+  },
+];
+
+export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-sonnet-4.5";
