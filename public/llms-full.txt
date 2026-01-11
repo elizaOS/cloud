@@ -22,10 +22,7 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
     </div>
     <h1 className="docs-hero-title">
       <span className="docs-hero-title-line">
-        <strong>Build</strong> Agents,
-      </span>
-      <span className="docs-hero-title-line">
-        <strong>Make</strong> Magic
+        <strong>Build</strong> Agents
       </span>
     </h1>
     <p className="docs-hero-description">
@@ -6376,9 +6373,9 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
-## December 2024
+## January 2026
 
-### Dec 10, 2024
+### Jan 8, 2026
 
 <div className="status-badge status-new">New</div>
 
@@ -6397,9 +6394,9 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
-## November 2024
+## December 2025
 
-### Nov 28, 2024
+### Dec 28, 2025
 
 **MCP Integration**
 
@@ -6408,7 +6405,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Custom MCP server hosting
 - Tool invocation in agents
 
-### Nov 15, 2024
+### Dec 15, 2025
 
 **Video Generation**
 
@@ -6417,7 +6414,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Image-to-video generation
 - Gallery management for videos
 
-### Nov 5, 2024
+### Dec 5, 2025
 
 **Knowledge Base Improvements**
 
@@ -6428,9 +6425,9 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
-## October 2024
+## November 2025
 
-### Oct 25, 2024
+### Nov 25, 2025
 
 **Voice Cloning**
 
@@ -6439,7 +6436,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Multi-language TTS
 - Speech-to-text support
 
-### Oct 15, 2024
+### Nov 15, 2025
 
 **Container Deployment**
 
@@ -6448,7 +6445,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Health monitoring
 - Log streaming
 
-### Oct 5, 2024
+### Nov 5, 2025
 
 **Apps & API Keys**
 
@@ -6459,9 +6456,9 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
-## September 2024
+## October 2025
 
-### Sep 20, 2024
+### Oct 20, 2025
 
 **A2A Protocol**
 
@@ -6470,7 +6467,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Task delegation
 - Streaming tasks
 
-### Sep 10, 2024
+### Oct 10, 2025
 
 **Image Generation**
 
@@ -6479,7 +6476,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 - Multiple aspect ratios
 - Batch generation
 
-### Sep 1, 2024
+### Oct 1, 2025
 
 **Initial Release**
 

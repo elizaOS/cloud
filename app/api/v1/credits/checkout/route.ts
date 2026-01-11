@@ -172,7 +172,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : "Failed to create checkout session";
+      error instanceof Error
+        ? error.message
+        : "Failed to create checkout session";
 
     // Return 401 for authentication errors
     const isAuthError =

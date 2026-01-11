@@ -10,3 +10,4 @@ export { useAppBuilderSTT } from "./use-app-builder-stt";
 export { SessionLoader } from "./session-loader";
 export { CharacterPicker, CompactCharacterPicker } from "./character-picker";
 export type { Character } from "./character-picker";
+export { ModelSelector } from "./model-selector";

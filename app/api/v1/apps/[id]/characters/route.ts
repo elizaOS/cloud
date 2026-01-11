@@ -20,10 +20,10 @@ export async function GET(
   try {
     // Allow both authenticated users and API key access
     let organizationId: string;
-    
+
     try {
       const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
-      
+
       // If using API key, verify it belongs to this app
       if (apiKey) {
         const { id } = await params;
@@ -66,7 +66,7 @@ export async function GET(
 
     // Get the linked character IDs
     const linkedCharacterIds = (app.linked_character_ids as string[]) || [];
-    
+
     if (linkedCharacterIds.length === 0) {
       return NextResponse.json({
         success: true,
@@ -79,7 +79,7 @@ export async function GET(
       linkedCharacterIds.map(async (characterId) => {
         const character = await charactersService.getById(characterId);
         if (!character) return null;
-        
+
         return {
           id: character.id,
           name: character.name,
@@ -88,7 +88,7 @@ export async function GET(
           bio: character.bio,
           is_public: character.is_public,
         };
-      })
+      }),
     );
 
     // Filter out any null characters (deleted)
@@ -108,7 +108,8 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get characters",
+        error:
+          error instanceof Error ? error.message : "Failed to get characters",
       },
       { status: 500 },
     );
@@ -177,7 +178,10 @@ export async function PUT(
       // Only allow linking characters owned by the user or public characters
       if (character.user_id !== user.id && !character.is_public) {
         return NextResponse.json(
-          { success: false, error: `Not authorized to link character: ${characterId}` },
+          {
+            success: false,
+            error: `Not authorized to link character: ${characterId}`,
+          },
           { status: 403 },
         );
       }
@@ -203,7 +207,10 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to update characters",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update characters",
       },
       { status: 500 },
     );

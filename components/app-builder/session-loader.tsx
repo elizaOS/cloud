@@ -2,7 +2,7 @@
 
 /**
  * SessionLoader - Unified loading component for app builder sessions
- * 
+ *
  * Clean, minimal loading experience with smooth transitions between states.
  * All modes share the same visual language for a cohesive feel.
  */
@@ -21,22 +21,41 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { ProgressStep, SnapshotInfo, AppSnapshotInfo } from "@/lib/app-builder/types";
+import type {
+  ProgressStep,
+  SnapshotInfo,
+  AppSnapshotInfo,
+} from "@/lib/app-builder/types";
 import { Button } from "@/components/ui/button";
 
 // Phase definitions for the loading sequence
 const PHASES = [
-  { key: "creating", label: "Initializing sandbox", icon: Sparkles, color: "text-orange-400" },
-  { key: "installing", label: "Installing packages", icon: GitBranch, color: "text-cyan-400" },
-  { key: "starting", label: "Starting dev server", icon: Rocket, color: "text-violet-400" },
+  {
+    key: "creating",
+    label: "Initializing sandbox",
+    icon: Sparkles,
+    color: "text-orange-400",
+  },
+  {
+    key: "installing",
+    label: "Installing packages",
+    icon: GitBranch,
+    color: "text-cyan-400",
+  },
+  {
+    key: "starting",
+    label: "Starting dev server",
+    icon: Rocket,
+    color: "text-violet-400",
+  },
 ] as const;
 
-type LoaderMode = 
-  | "initializing"     // Initial page load
-  | "starting"         // Starting new sandbox
-  | "restoring"        // Restoring from GitHub
-  | "expired"          // Session timed out
-  | "error";           // Error state
+type LoaderMode =
+  | "initializing" // Initial page load
+  | "starting" // Starting new sandbox
+  | "restoring" // Restoring from GitHub
+  | "expired" // Session timed out
+  | "error"; // Error state
 
 interface SessionLoaderProps {
   mode: LoaderMode;
@@ -59,14 +78,15 @@ interface SessionLoaderProps {
 // Unified spinner with colorful gradient
 function LoadingSpinner({ size = "lg" }: { size?: "sm" | "lg" }) {
   const sizeClasses = size === "lg" ? "w-16 h-16" : "w-8 h-8";
-  
+
   return (
     <div className={cn("relative", sizeClasses)}>
       {/* Outer gradient ring */}
-      <div 
+      <div
         className="absolute inset-0 rounded-full animate-spin"
         style={{
-          background: "conic-gradient(from 0deg, #FF5800, #06B6D4, #8B5CF6, #FF5800)",
+          background:
+            "conic-gradient(from 0deg, #FF5800, #06B6D4, #8B5CF6, #FF5800)",
           animationDuration: "2s",
         }}
       />
@@ -79,14 +99,14 @@ function LoadingSpinner({ size = "lg" }: { size?: "sm" | "lg" }) {
 }
 
 // Progress step indicator
-function StepIndicator({ 
-  step, 
-  isActive, 
+function StepIndicator({
+  step,
+  isActive,
   isComplete,
   icon: Icon,
   label,
   color,
-}: { 
+}: {
   step: number;
   isActive: boolean;
   isComplete: boolean;
@@ -95,41 +115,58 @@ function StepIndicator({
   color: string;
 }) {
   return (
-    <div className={cn(
-      "flex items-center gap-4 transition-all duration-500",
-      isActive && "scale-105",
-      !isActive && !isComplete && "opacity-40"
-    )}>
-      <div className={cn(
-        "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
-        isComplete && "bg-emerald-500/20 border border-emerald-500/30",
-        isActive && "bg-white/10 border border-white/20",
-        !isActive && !isComplete && "bg-white/5 border border-white/10"
-      )}>
+    <div
+      className={cn(
+        "flex items-center gap-4 transition-all duration-500",
+        isActive && "scale-105",
+        !isActive && !isComplete && "opacity-40",
+      )}
+    >
+      <div
+        className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
+          isComplete && "bg-emerald-500/20 border border-emerald-500/30",
+          isActive && "bg-white/10 border border-white/20",
+          !isActive && !isComplete && "bg-white/5 border border-white/10",
+        )}
+      >
         {isComplete ? (
           <Check className="w-5 h-5 text-emerald-400" />
         ) : (
-          <Icon className={cn(
-            "w-5 h-5 transition-colors duration-500",
-            isActive ? color : "text-white/40"
-          )} />
+          <Icon
+            className={cn(
+              "w-5 h-5 transition-colors duration-500",
+              isActive ? color : "text-white/40",
+            )}
+          />
         )}
       </div>
       <div className="flex-1">
-        <p className={cn(
-          "text-sm font-medium transition-colors duration-500",
-          isComplete && "text-emerald-400",
-          isActive && "text-white",
-          !isActive && !isComplete && "text-white/40"
-        )}>
+        <p
+          className={cn(
+            "text-sm font-medium transition-colors duration-500",
+            isComplete && "text-emerald-400",
+            isActive && "text-white",
+            !isActive && !isComplete && "text-white/40",
+          )}
+        >
           {label}
         </p>
       </div>
       {isActive && (
         <div className="flex gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" style={{ animationDelay: "0ms" }} />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" style={{ animationDelay: "150ms" }} />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" style={{ animationDelay: "300ms" }} />
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+            style={{ animationDelay: "0ms" }}
+          />
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+            style={{ animationDelay: "150ms" }}
+          />
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+            style={{ animationDelay: "300ms" }}
+          />
         </div>
       )}
     </div>
@@ -153,21 +190,25 @@ export function SessionLoader({
   appGithubRepo,
 }: SessionLoaderProps) {
   const [dots, setDots] = useState("");
-  
+
   // Animate dots for loading text
   useEffect(() => {
     if (mode === "expired" || mode === "error") return;
     const interval = setInterval(() => {
-      setDots(d => d.length >= 3 ? "" : d + ".");
+      setDots((d) => (d.length >= 3 ? "" : d + "."));
     }, 400);
     return () => clearInterval(interval);
   }, [mode]);
 
   const currentStepIndex = PHASES.findIndex((p) => p.key === progressStep);
   // Include appGithubRepo as a fallback source for restore capability
-  const githubRepo = snapshotInfo?.githubRepo || appSnapshotInfo?.githubRepo || appGithubRepo;
-  const canRestore = snapshotInfo?.canRestore || !!appSnapshotInfo?.githubRepo || !!appGithubRepo;
-  
+  const githubRepo =
+    snapshotInfo?.githubRepo || appSnapshotInfo?.githubRepo || appGithubRepo;
+  const canRestore =
+    snapshotInfo?.canRestore ||
+    !!appSnapshotInfo?.githubRepo ||
+    !!appGithubRepo;
+
   // Unified title logic - feels like one continuous experience
   const title = useMemo(() => {
     if (mode === "error") return "Something went wrong";
@@ -175,10 +216,11 @@ export function SessionLoader({
     if (appName) return appName;
     return "Loading";
   }, [mode, appName]);
-  
+
   // Subtitle changes based on actual progress
   const subtitle = useMemo(() => {
-    if (mode === "error") return errorMessage || "Failed to start the development environment";
+    if (mode === "error")
+      return errorMessage || "Failed to start the development environment";
     if (mode === "expired") return "Your sandbox session has timed out";
     if (mode === "initializing") return "Connecting to your workspace";
     if (mode === "restoring" && restoreProgress) {
@@ -194,12 +236,14 @@ export function SessionLoader({
   // Show progress steps ONLY for starting mode (new sandbox creation)
   // Restoring mode has its own restore progress bar, not the 3-step setup indicator
   const showProgress = mode === "starting";
-  
+
   // Icon and color based on mode
   const modeIcon = useMemo(() => {
-    if (mode === "error") return <AlertCircle className="w-6 h-6 text-red-400" />;
+    if (mode === "error")
+      return <AlertCircle className="w-6 h-6 text-red-400" />;
     if (mode === "expired") return <Timer className="w-6 h-6 text-amber-400" />;
-    if (mode === "restoring") return <Cloud className="w-6 h-6 text-emerald-400" />;
+    if (mode === "restoring")
+      return <Cloud className="w-6 h-6 text-emerald-400" />;
     return null;
   }, [mode]);
 
@@ -207,7 +251,7 @@ export function SessionLoader({
     <div className="w-full max-w-lg mx-auto px-6">
       {/* Back link - top left */}
       <div className="mb-8">
-        <Link 
+        <Link
           href={backLink}
           className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
         >
@@ -221,11 +265,14 @@ export function SessionLoader({
         {/* Spinner or mode icon */}
         <div className="flex justify-center">
           {mode === "error" || mode === "expired" ? (
-            <div className={cn(
-              "w-16 h-16 rounded-2xl flex items-center justify-center",
-              mode === "error" && "bg-red-500/10 border border-red-500/20",
-              mode === "expired" && "bg-amber-500/10 border border-amber-500/20"
-            )}>
+            <div
+              className={cn(
+                "w-16 h-16 rounded-2xl flex items-center justify-center",
+                mode === "error" && "bg-red-500/10 border border-red-500/20",
+                mode === "expired" &&
+                  "bg-amber-500/10 border border-amber-500/20",
+              )}
+            >
               {modeIcon}
             </div>
           ) : (
@@ -281,7 +328,9 @@ export function SessionLoader({
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 rounded-full transition-all duration-300"
-                style={{ width: `${(restoreProgress.current / restoreProgress.total) * 100}%` }}
+                style={{
+                  width: `${(restoreProgress.current / restoreProgress.total) * 100}%`,
+                }}
               />
             </div>
             <p className="text-xs text-white/40 font-mono truncate">
@@ -317,14 +366,16 @@ export function SessionLoader({
               <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-left">
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">Code saved</span>
+                  <span className="text-sm font-medium text-emerald-400">
+                    Code saved
+                  </span>
                 </div>
                 <p className="text-xs text-white/50 font-mono">
                   {githubRepo.split("/").pop()}
                 </p>
               </div>
             )}
-            
+
             {canRestore ? (
               <Button
                 onClick={onRestore}
@@ -347,7 +398,7 @@ export function SessionLoader({
                 Start New Session
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               onClick={onBack}

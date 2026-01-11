@@ -1,10 +1,11 @@
 /**
  * Knowledge Context Builder for AI App Builder
  *
- * Aggregates context for Claude to build Eliza Cloud apps.
+ * Aggregates context for AI models to build Eliza Cloud apps.
  * Documents the ACTUAL files in cloud-apps-template.
  *
  * Supports tiered context loading to optimize token usage.
+ * Works with any AI model via AI SDK and AI Gateway.
  */
 
 import { buildApiContext } from "@/lib/fragments/api-context";

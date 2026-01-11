@@ -22,6 +22,7 @@ import type {
   PreviewTab,
   MAX_CONSOLE_LOGS,
 } from "./types";
+import { DEFAULT_APP_BUILDER_MODEL } from "./types";
 
 // ============================================
 // CHAT INPUT SLICE - Isolated for fast typing
@@ -339,6 +340,21 @@ export const useSandboxHealth = create<SandboxHealthSlice>()((set) => ({
 }));
 
 // ============================================
+// MODEL SELECTION SLICE - AI Model selection
+// ============================================
+interface ModelSelectionSlice {
+  selectedModel: string;
+  setSelectedModel: (model: string) => void;
+  resetModel: () => void;
+}
+
+export const useModelSelection = create<ModelSelectionSlice>()((set) => ({
+  selectedModel: DEFAULT_APP_BUILDER_MODEL,
+  setSelectedModel: (selectedModel) => set({ selectedModel }),
+  resetModel: () => set({ selectedModel: DEFAULT_APP_BUILDER_MODEL }),
+}));
+
+// ============================================
 // COMBINED RESET ACTION
 // ============================================
 export function resetAllStores() {
@@ -349,4 +365,5 @@ export function resetAllStores() {
   useApp.getState().resetApp();
   useGit.getState().resetGit();
   useSandboxHealth.getState().setSandboxHealthy(true);
+  useModelSelection.getState().resetModel();
 }

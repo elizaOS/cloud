@@ -47,7 +47,8 @@ export function CharacterPicker({
       (char) =>
         char.name.toLowerCase().includes(query) ||
         char.username?.toLowerCase().includes(query) ||
-        (typeof char.bio === "string" && char.bio.toLowerCase().includes(query))
+        (typeof char.bio === "string" &&
+          char.bio.toLowerCase().includes(query)),
     );
   }, [characters, searchQuery]);
 
@@ -127,7 +128,7 @@ export function CharacterPicker({
                     ? "from-cyan-500/20 to-cyan-500/10 border-cyan-500/30"
                     : index === 2
                       ? "from-amber-500/20 to-amber-500/10 border-amber-500/30"
-                      : "from-pink-500/20 to-pink-500/10 border-pink-500/30"
+                      : "from-pink-500/20 to-pink-500/10 border-pink-500/30",
               )}
             >
               {char.avatar_url ? (
@@ -143,7 +144,9 @@ export function CharacterPicker({
                   <Bot className="h-3 w-3 text-white/60" />
                 </div>
               )}
-              <span className="text-xs font-medium text-white">{char.name}</span>
+              <span className="text-xs font-medium text-white">
+                {char.name}
+              </span>
               <button
                 onClick={() => removeCharacter(char.id)}
                 className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
@@ -175,7 +178,9 @@ export function CharacterPicker({
                 <Bot className="h-6 w-6 text-white/30" />
               </div>
               <p className="text-sm text-white/50">
-                {searchQuery ? "No characters match your search" : "No characters available"}
+                {searchQuery
+                  ? "No characters match your search"
+                  : "No characters available"}
               </p>
               <p className="text-xs text-white/30 mt-1">
                 Create agents in the Build tab first
@@ -184,7 +189,8 @@ export function CharacterPicker({
           ) : (
             filteredCharacters.map((character) => {
               const isSelected = selectedIds.includes(character.id);
-              const isDisabled = !isSelected && selectedIds.length >= maxSelection;
+              const isDisabled =
+                !isSelected && selectedIds.length >= maxSelection;
 
               return (
                 <button
@@ -198,7 +204,7 @@ export function CharacterPicker({
                       ? "bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border-violet-500/30 ring-1 ring-violet-500/20"
                       : isDisabled
                         ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
-                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20"
+                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20",
                   )}
                 >
                   {/* Avatar */}
@@ -246,7 +252,7 @@ export function CharacterPicker({
                       "flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300",
                       isSelected
                         ? "bg-violet-500 border-violet-500"
-                        : "border-white/20 group-hover:border-white/40"
+                        : "border-white/20 group-hover:border-white/40",
                     )}
                   >
                     {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
@@ -326,24 +332,25 @@ export function CompactCharacterPicker({
         ))}
 
         {/* Add button */}
-        {selectedIds.length < maxSelection && availableCharacters.length > 0 && (
-          <select
-            onChange={(e) => {
-              if (e.target.value) {
-                addCharacter(e.target.value);
-                e.target.value = "";
-              }
-            }}
-            className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
-          >
-            <option value="">+ Add character</option>
-            {availableCharacters.map((char) => (
-              <option key={char.id} value={char.id}>
-                {char.name}
-              </option>
-            ))}
-          </select>
-        )}
+        {selectedIds.length < maxSelection &&
+          availableCharacters.length > 0 && (
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  addCharacter(e.target.value);
+                  e.target.value = "";
+                }
+              }}
+              className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
+            >
+              <option value="">+ Add character</option>
+              {availableCharacters.map((char) => (
+                <option key={char.id} value={char.id}>
+                  {char.name}
+                </option>
+              ))}
+            </select>
+          )}
       </div>
 
       {selectedIds.length === 0 && (

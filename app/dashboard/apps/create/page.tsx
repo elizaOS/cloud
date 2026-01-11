@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useChatInput } from "@/lib/app-builder/store";
+import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
 import type {
@@ -20,7 +20,12 @@ import type {
   SourceContext,
   PreviewTab,
 } from "@/lib/app-builder/types";
-import { ChatInput, HistoryTab, SessionLoader, CharacterPicker } from "@/components/app-builder";
+import {
+  ChatInput,
+  HistoryTab,
+  SessionLoader,
+  CharacterPicker,
+} from "@/components/app-builder";
 
 async function fetchWithRetry(
   url: string,
@@ -346,7 +351,7 @@ export default function AppCreatorPage() {
       tool: string;
       detail: string;
       timestamp: string;
-      status: "active" | "done";
+      status: "pending" | "active" | "done";
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
@@ -375,15 +380,19 @@ export default function AppCreatorPage() {
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   // Character selection for the app
-  const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([]);
-  const [availableCharacters, setAvailableCharacters] = useState<Array<{
-    id: string;
-    name: string;
-    username?: string | null;
-    avatar_url?: string | null;
-    bio?: string | string[];
-    is_public?: boolean;
-  }>>([]);
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>(
+    [],
+  );
+  const [availableCharacters, setAvailableCharacters] = useState<
+    Array<{
+      id: string;
+      name: string;
+      username?: string | null;
+      avatar_url?: string | null;
+      bio?: string | string[];
+      is_public?: boolean;
+    }>
+  >([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
@@ -467,25 +476,35 @@ export default function AppCreatorPage() {
         if (availableCharacters.length > 0) return; // Already fetched
         setLoadingCharacters(true);
         try {
-          const response = await fetchWithRetry("/api/my-agents/characters?limit=100");
+          const response = await fetchWithRetry(
+            "/api/my-agents/characters?limit=100",
+          );
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data?.characters && Array.isArray(data.data.characters)) {
-              setAvailableCharacters(data.data.characters.map((char: {
-                id: string;
-                name: string;
-                username?: string | null;
-                avatar_url?: string | null;
-                bio?: string | string[];
-                is_public?: boolean;
-              }) => ({
-                id: char.id,
-                name: char.name,
-                username: char.username,
-                avatar_url: char.avatar_url,
-                bio: char.bio,
-                is_public: char.is_public,
-              })));
+            if (
+              data.success &&
+              data.data?.characters &&
+              Array.isArray(data.data.characters)
+            ) {
+              setAvailableCharacters(
+                data.data.characters.map(
+                  (char: {
+                    id: string;
+                    name: string;
+                    username?: string | null;
+                    avatar_url?: string | null;
+                    bio?: string | string[];
+                    is_public?: boolean;
+                  }) => ({
+                    id: char.id,
+                    name: char.name,
+                    username: char.username,
+                    avatar_url: char.avatar_url,
+                    bio: char.bio,
+                    is_public: char.is_public,
+                  }),
+                ),
+              );
             }
           }
         } catch (error) {
@@ -504,7 +523,7 @@ export default function AppCreatorPage() {
   // 2. Edit app (appId) → load app data, then start/connect to session
   // 3. Session in URL → try to connect, if expired/gone → start fresh
   // ============================================================================
-  
+
   useEffect(() => {
     // Track URL changes
     const appChanged = prevAppIdRef.current !== appIdFromUrl;
@@ -537,13 +556,18 @@ export default function AppCreatorPage() {
       try {
         // CASE 1: Have a specific session ID - try to connect to it
         if (sessionIdFromUrl && appIdFromUrl) {
-          const connected = await connectToSession(sessionIdFromUrl, appIdFromUrl);
+          const connected = await connectToSession(
+            sessionIdFromUrl,
+            appIdFromUrl,
+          );
           if (connected) {
             setIsInitializing(false);
             return;
           }
           // Session is gone/expired - remove from URL and start fresh
-          router.replace(`/dashboard/apps/create?appId=${appIdFromUrl}`, { scroll: false });
+          router.replace(`/dashboard/apps/create?appId=${appIdFromUrl}`, {
+            scroll: false,
+          });
           initializationRef.current = false;
           return;
         }
@@ -558,12 +582,17 @@ export default function AppCreatorPage() {
         console.error("[AppBuilder] Initialization failed:", error);
         setIsInitializing(false);
         setStatus("error");
-        setErrorMessage(error instanceof Error ? error.message : "Initialization failed");
+        setErrorMessage(
+          error instanceof Error ? error.message : "Initialization failed",
+        );
       }
     };
 
     // Connect to existing session - returns true if successful
-    const connectToSession = async (sessionId: string, appId: string): Promise<boolean> => {
+    const connectToSession = async (
+      sessionId: string,
+      appId: string,
+    ): Promise<boolean> => {
       // Fetch session and app data together
       const [sessionRes, appRes] = await Promise.all([
         fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`),
@@ -609,7 +638,9 @@ export default function AppCreatorPage() {
       if (storedMsgs) {
         try {
           setMessages(JSON.parse(storedMsgs));
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       // Verify sandbox is actually reachable
@@ -617,7 +648,11 @@ export default function AppCreatorPage() {
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 5000);
-          await fetch(sess.sandboxUrl, { method: "HEAD", mode: "no-cors", signal: controller.signal });
+          await fetch(sess.sandboxUrl, {
+            method: "HEAD",
+            mode: "no-cors",
+            signal: controller.signal,
+          });
           clearTimeout(timeout);
           setStatus("ready");
           setSandboxHealthy(true);
@@ -653,7 +688,9 @@ export default function AppCreatorPage() {
       }
 
       // Check for existing active session
-      const sessionRes = await fetchWithRetry(`/api/v1/app-builder?appId=${appId}&limit=1`);
+      const sessionRes = await fetchWithRetry(
+        `/api/v1/app-builder?appId=${appId}&limit=1`,
+      );
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
         if (sessionData.success && sessionData.sessions?.length > 0) {
@@ -666,7 +703,7 @@ export default function AppCreatorPage() {
           return;
         }
       }
-      
+
       // No active session - will auto-start via effect
     };
 
@@ -1110,7 +1147,7 @@ export default function AppCreatorPage() {
                   description:
                     "Your work has been restored. You can continue building.",
                 });
-                
+
                 // Refresh git status after session restore
                 checkGitStatus();
               } else if (eventType === "error") {
@@ -1217,7 +1254,7 @@ export default function AppCreatorPage() {
                   description: "You can continue building.",
                 });
                 addLog("Auto-recovery complete", "success");
-                
+
                 // Refresh git status after sandbox recovery
                 checkGitStatus();
               } else if (eventType === "error") {
@@ -1417,7 +1454,8 @@ export default function AppCreatorPage() {
           templateType,
           includeMonetization,
           includeAnalytics,
-          linkedCharacterIds: selectedCharacterIds.length > 0 ? selectedCharacterIds : undefined,
+          linkedCharacterIds:
+            selectedCharacterIds.length > 0 ? selectedCharacterIds : undefined,
           sourceContext: sourceContext
             ? {
                 type: sourceContext.type,
@@ -1565,7 +1603,7 @@ Some ideas:
               } else if (eventType === "thinking") {
                 // Stream actual reasoning text to show chain of thought
                 const reasoningText = data.text || "Planning changes...";
-                addLog(`💭 ${reasoningText.substring(0, 80)}...`, "info");
+                // Note: Not logging individual chunks - shown in UI only
 
                 // Update the thinking message with the reasoning
                 if (initialThinkingIdRef.current) {
@@ -1692,7 +1730,7 @@ Some ideas:
 
                 setIsLoading(false);
                 addLog("Build complete", "success");
-                
+
                 // Refresh git status after initial scaffolding completes
                 // (auto-commit may have already pushed changes to GitHub)
                 checkGitStatus();
@@ -1738,7 +1776,7 @@ Some ideas:
   // Auto-start session when in edit mode with no session
   // Skip the old "AI App Builder" intermediate screen - just start automatically
   const autoStartTriggeredRef = useRef(false);
-  
+
   useEffect(() => {
     // Only auto-start if:
     // - We're in edit mode (have appId)
@@ -1747,28 +1785,37 @@ Some ideas:
     // - Not currently loading/restoring
     // - Haven't already triggered auto-start
     if (
-      isEditMode && 
-      appData && 
-      !session && 
-      status === "idle" && 
-      !isLoading && 
-      !isRestoring && 
+      isEditMode &&
+      appData &&
+      !session &&
+      status === "idle" &&
+      !isLoading &&
+      !isRestoring &&
       !autoStartTriggeredRef.current
     ) {
       autoStartTriggeredRef.current = true;
       startSession();
     }
-    
+
     // Reset flag if we get a session or leave edit mode
     if (session || !isEditMode) {
       autoStartTriggeredRef.current = false;
     }
-  }, [isEditMode, appData, session, status, isLoading, isRestoring, startSession]);
+  }, [
+    isEditMode,
+    appData,
+    session,
+    status,
+    isLoading,
+    isRestoring,
+    startSession,
+  ]);
 
   const sendPrompt = useCallback(
     async (promptText?: string) => {
-      // Get input from Zustand store for isolation
+      // Get input and model from Zustand store for isolation
       const currentInput = useChatInput.getState().input;
+      const selectedModel = useModelSelection.getState().selectedModel;
       const text = promptText || currentInput.trim();
       if (!text || !session || isLoading) return;
 
@@ -1794,7 +1841,7 @@ Some ideas:
         tool: string;
         detail: string;
         timestamp: string;
-        status: "active" | "done";
+        status: "pending" | "active" | "done";
       }[] = [];
 
       // getTimeString is imported from @/lib/app-builder
@@ -1803,14 +1850,16 @@ Some ideas:
       let currentReasoning = "";
 
       const buildLocalProgressContent = (currentStatus?: string) => {
-        let content = "**Processing your request**\n\n";
+        let content = "";
 
-        // Show current chain-of-thought reasoning
+        // Show current chain-of-thought reasoning (full accumulated text)
         if (currentReasoning) {
-          content += `💭 *${currentReasoning.substring(0, 200)}${currentReasoning.length > 200 ? "..." : ""}*\n\n`;
+          // Show the full reasoning text as markdown (it may contain formatting)
+          content += currentReasoning + "\n\n";
         }
 
         if (actionsLog.length > 0) {
+          content += "---\n\n";
           actionsLog.forEach((action) => {
             const isActive = action.status === "active";
             const statusMarker = isActive ? "⏳" : "✓";
@@ -1819,11 +1868,12 @@ Some ideas:
           });
         }
 
-        if (currentStatus) {
-          content += `---\n\n*${currentStatus}*`;
+        if (currentStatus && !currentReasoning) {
+          // Only show status if we don't have reasoning text yet
+          content += `*${currentStatus}*`;
         }
 
-        return content;
+        return content || "**Processing your request**\n\n*Analyzing...*";
       };
 
       const updateThinking = (currentStatus?: string) => {
@@ -1859,7 +1909,7 @@ Some ideas:
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: text }),
+            body: JSON.stringify({ prompt: text, model: selectedModel }),
           },
         );
 
@@ -1901,14 +1951,17 @@ Some ideas:
                   continue;
                 } else if (eventType === "thinking") {
                   // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
-                  const reasoningText = data.text || "Planning changes...";
-                  currentReasoning = reasoningText;
-                  updateThinking("Analyzing...");
-                  addLog(
-                    `💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`,
-                    "info",
-                  );
-                } else if (eventType === "tool_use") {
+                  // ACCUMULATE text chunks instead of replacing (fixes janky single-line display)
+                  const reasoningText = data.text || "";
+                  if (reasoningText) {
+                    currentReasoning = (
+                      currentReasoning + reasoningText
+                    ).trim();
+                    updateThinking(); // Update without status to show accumulated reasoning
+                  }
+                  // Note: Not logging individual chunks - shown in UI only
+                } else if (eventType === "tool_start") {
+                  // Instant feedback when tool begins (before execution)
                   const toolName = data.tool;
                   const {
                     display: toolDisplay,
@@ -1916,16 +1969,42 @@ Some ideas:
                     statusMessage,
                   } = formatToolDisplay(toolName, data.input);
 
-                  if (actionsLog.length > 0) {
-                    actionsLog[actionsLog.length - 1].status = "done";
-                  }
+                  // Add as pending action
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
-                    status: "active",
+                    status: "pending",
                   });
-                  updateThinking(statusMessage);
+                  updateThinking(`⏳ ${statusMessage}`);
+                } else if (eventType === "tool_use") {
+                  // Tool completed - update status
+                  const toolName = data.tool;
+                  const {
+                    display: toolDisplay,
+                    detail,
+                    statusMessage,
+                  } = formatToolDisplay(toolName, data.input);
+
+                  // Find and update the pending action, or add new one if not found
+                  const pendingIdx = actionsLog.findIndex(
+                    (a) => a.status === "pending" && a.tool === toolDisplay,
+                  );
+                  if (pendingIdx >= 0) {
+                    actionsLog[pendingIdx].status = "done";
+                  } else {
+                    // Fallback: mark previous as done, add this one
+                    if (actionsLog.length > 0) {
+                      actionsLog[actionsLog.length - 1].status = "done";
+                    }
+                    actionsLog.push({
+                      tool: toolDisplay,
+                      detail,
+                      timestamp: getTimeString(),
+                      status: "done",
+                    });
+                  }
+                  updateThinking(`✓ ${statusMessage}`);
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
@@ -1996,7 +2075,7 @@ Some ideas:
         }
 
         setStatus("ready");
-        
+
         // Refresh git status after prompt completes
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
@@ -2092,24 +2171,24 @@ Some ideas:
   const viewState = useMemo(() => {
     // Fetching data on page load
     if (isInitializing) return "initializing";
-    
+
     // Manual restore in progress
     if (isRestoring) return "restoring";
-    
+
     // Sandbox starting - check BEFORE setup so clicking "create" immediately shows starting
     if (status === "initializing") return "starting";
-    
+
     // Error states
     if (status === "error") return "error";
     if (status === "not_configured") return "not_configured";
-    
+
     // Edit mode waiting for data or session
     if (isEditMode && !appData) return "initializing";
     if (isEditMode && !session && status === "idle") return "starting";
-    
+
     // New app setup wizard - only show if not already starting
     if (step === "setup" && !isEditMode && status === "idle") return "setup";
-    
+
     // Everything else = building UI
     return "building";
   }, [isInitializing, isRestoring, status, step, isEditMode, appData, session]);
@@ -2939,7 +3018,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Add Characters to Your App
                     </h2>
                     <p className="text-white/50 text-xs md:text-sm">
-                      Select AI agents that users can chat with (optional, max 4)
+                      Select AI agents that users can chat with (optional, max
+                      4)
                     </p>
                   </div>
                   {/* App summary */}
@@ -2971,7 +3051,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {availableCharacters.length === 0 && !loadingCharacters && (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <p className="text-xs text-amber-300/80">
-                      You don&apos;t have any agents yet. You can skip this step and add characters later from the app builder.
+                      You don&apos;t have any agents yet. You can skip this step
+                      and add characters later from the app builder.
                     </p>
                   </div>
                 )}
@@ -2985,15 +3066,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                     Back
                   </button>
                   <div className="flex items-center gap-2">
-                    {selectedCharacterIds.length === 0 && availableCharacters.length > 0 && (
-                      <button
-                        onClick={startSession}
-                        disabled={isLoading}
-                        className="text-[11px] md:text-xs text-white/50 hover:text-white/70 transition-colors"
-                      >
-                        Skip for now
-                      </button>
-                    )}
+                    {selectedCharacterIds.length === 0 &&
+                      availableCharacters.length > 0 && (
+                        <button
+                          onClick={startSession}
+                          disabled={isLoading}
+                          className="text-[11px] md:text-xs text-white/50 hover:text-white/70 transition-colors"
+                        >
+                          Skip for now
+                        </button>
+                      )}
                     <button
                       onClick={startSession}
                       disabled={isLoading}
@@ -3007,17 +3089,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                         {isLoading ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="hidden sm:inline">Launching...</span>
+                            <span className="hidden sm:inline">
+                              Launching...
+                            </span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
                             <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                             <span className="hidden sm:inline">
-                              {selectedCharacterIds.length > 0 
-                                ? `Start with ${selectedCharacterIds.length} Character${selectedCharacterIds.length > 1 ? 's' : ''}`
-                                : "Start Building"
-                              }
+                              {selectedCharacterIds.length > 0
+                                ? `Start with ${selectedCharacterIds.length} Character${selectedCharacterIds.length > 1 ? "s" : ""}`
+                                : "Start Building"}
                             </span>
                             <span className="sm:hidden">Start</span>
                           </>
@@ -3831,15 +3914,19 @@ ANTHROPIC_API_KEY=your_key_here`}
           <div className="flex-1 bg-white/5 overflow-hidden relative">
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
-              <div 
+              <div
                 className={`absolute inset-0 transition-opacity duration-300 ${
-                  previewTab === "preview" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                  previewTab === "preview"
+                    ? "opacity-100 z-10"
+                    : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
                 {/* Loading overlay - shown while iframe loads */}
-                <div 
+                <div
                   className={`absolute inset-0 bg-white/5 flex items-center justify-center transition-opacity duration-300 ${
-                    iframeLoaded && previewTab === "preview" ? "opacity-0 pointer-events-none" : "opacity-100"
+                    iframeLoaded && previewTab === "preview"
+                      ? "opacity-0 pointer-events-none"
+                      : "opacity-100"
                   }`}
                 >
                   <div className="text-center">
@@ -3858,7 +3945,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 />
               </div>
             )}
-            
+
             {/* Preview loading state when no session */}
             {!session?.sandboxUrl && previewTab === "preview" && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -3868,10 +3955,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
               </div>
             )}
-            
+
             {/* Files tab */}
-            {previewTab === "files" && (
-              session?.id ? (
+            {previewTab === "files" &&
+              (session?.id ? (
                 <SandboxFileExplorer
                   sessionId={session.id}
                   className="h-full animate-in fade-in duration-200"
@@ -3883,12 +3970,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <p>Session not ready</p>
                   </div>
                 </div>
-              )
-            )}
-            
+              ))}
+
             {/* History tab */}
-            {previewTab === "history" && (
-              session?.id ? (
+            {previewTab === "history" &&
+              (session?.id ? (
                 <HistoryTab
                   sessionId={session.id}
                   className="h-full animate-in fade-in duration-200"
@@ -3913,8 +3999,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <p>Session not ready</p>
                   </div>
                 </div>
-              )
-            )}
+              ))}
 
             {/* Characters tab */}
             {previewTab === "characters" && (
@@ -3932,7 +4017,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ linked_character_ids: ids }),
                         });
-                        toast.success(ids.length > 0 ? "Characters updated" : "Characters removed");
+                        toast.success(
+                          ids.length > 0
+                            ? "Characters updated"
+                            : "Characters removed",
+                        );
                       } catch (error) {
                         console.error("Failed to update characters:", error);
                         toast.error("Failed to update characters");
@@ -3944,7 +4033,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 />
               </div>
             )}
-            
+
             {/* Console tab */}
             {previewTab === "console" && (
               <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30 animate-in fade-in duration-200">

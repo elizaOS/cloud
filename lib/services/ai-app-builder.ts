@@ -1,4 +1,5 @@
 import { sandboxService, type SandboxProgress } from "./sandbox";
+import { appBuilderAISDK } from "./app-builder-ai-sdk";
 import {
   buildFullAppPrompt,
   getExamplePrompts,
@@ -454,15 +455,24 @@ export class AIAppBuilderService {
       ),
     });
 
+    // Get sandbox instance for AI execution
+    const sandbox = sandboxService.getSandboxInstance(session.sandbox_id);
+    if (!sandbox) {
+      throw new Error(`Sandbox instance not found for ${session.sandbox_id}`);
+    }
+
     const startTime = Date.now();
-    const result = await sandboxService.executeClaudeCode(
-      session.sandbox_id,
+    const result = await appBuilderAISDK.execute(
       prompt,
       {
+        sandbox,
+        sandboxId: session.sandbox_id,
         systemPrompt: systemPromptRecord?.content,
-        onToolUse: options.onToolUse,
-        onThinking: options.onThinking,
         abortSignal: options.abortSignal,
+      },
+      {
+        onToolResult: options.onToolUse,
+        onThinking: options.onThinking,
       },
     );
     const durationMs = Date.now() - startTime;
