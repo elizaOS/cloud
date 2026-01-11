@@ -86,6 +86,9 @@ export default function DashboardLayout({
     pathname?.startsWith("/dashboard/chat") ||
     pathname?.startsWith("/dashboard/build");
 
+  // Pages that need full width without padding
+  const isFullWidthPage = pathname?.startsWith("/dashboard/apps/create");
+
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
     return (
@@ -114,7 +117,7 @@ export default function DashboardLayout({
 
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <div className="px-2 py-3 md:px-6 md:py-6">{children}</div>
+              <div className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}>{children}</div>
             </main>
           </div>
         </div>

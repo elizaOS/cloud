@@ -244,6 +244,9 @@ export const getCurrentUser = cache(
 /**
  * Track session activity in background (non-blocking, debounced)
  * Uses Redis to debounce writes - only writes to DB every 60 seconds per session
+ *
+ * Note: We store a hashed version of the token for security and to handle JWT refreshes.
+ * The hash is deterministic, so the same JWT will produce the same hash.
  */
 async function trackSessionActivity(
   userId: string,
@@ -265,6 +268,7 @@ async function trackSessionActivity(
     await redisCache.set(debounceKey, true, 60);
 
     // Now do the actual DB upsert
+    // The service will hash the token internally for secure storage
     await userSessionsService.getOrCreateSession({
       user_id: userId,
       organization_id: organizationId,
@@ -272,10 +276,20 @@ async function trackSessionActivity(
     });
   } catch (error) {
     // Don't let session tracking failures affect the main request
-    logger.warn(
-      "[AUTH] Session tracking failed:",
-      error instanceof Error ? error.message : error,
-    );
+    // Log detailed error info for debugging, including PostgreSQL error codes
+    const errorDetails = error instanceof Error
+      ? {
+          message: error.message,
+          name: error.name,
+          // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
+          code: (error as Error & { code?: string }).code,
+          // Additional context from Drizzle/PostgreSQL
+          detail: (error as Error & { detail?: string }).detail,
+          constraint: (error as Error & { constraint?: string }).constraint,
+          cause: error.cause,
+        }
+      : error;
+    logger.warn("[AUTH] Session tracking failed:", errorDetails);
   }
 }
 

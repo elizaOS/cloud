@@ -75,6 +75,14 @@ export function useThrottledStreamingUpdate() {
   }, []);
 
   /**
+   * Get the current accumulated text for a message (synchronous read).
+   * Useful when you need to read the current state without triggering an update.
+   */
+  const getText = useCallback((messageId: string): string => {
+    return textMapRef.current.get(messageId) || "";
+  }, []);
+
+  /**
    * Clear all accumulated text (call on error or reset).
    */
   const clearAll = useCallback(() => {
@@ -138,6 +146,7 @@ export function useThrottledStreamingUpdate() {
   return {
     accumulateChunk,
     clearAll,
+    getText,
     scheduleUpdate,
   };
 }

@@ -26,6 +26,7 @@ import {
   SessionLoader,
   CharacterPicker,
 } from "@/components/app-builder";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 async function fetchWithRetry(
   url: string,
@@ -355,6 +356,14 @@ export default function AppCreatorPage() {
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
+
+  // Throttled streaming for smooth thinking text updates (~30fps instead of every chunk)
+  const {
+    accumulateChunk: accumulateThinkingChunk,
+    scheduleUpdate: scheduleThinkingUpdate,
+    clearAll: clearThinkingBuffer,
+    getText: getThinkingText,
+  } = useThrottledStreamingUpdate();
 
   const appIdFromUrl = searchParams.get("appId");
   const sessionIdFromUrl = searchParams.get("sessionId");
@@ -1837,6 +1846,7 @@ Some ideas:
       useChatInput.getState().clearInput();
 
       const thinkingId = Date.now();
+      const thinkingStreamId = `thinking-${thinkingId}`; // Unique ID for throttled accumulation
       const actionsLog: {
         tool: string;
         detail: string;
@@ -1846,16 +1856,22 @@ Some ideas:
 
       // getTimeString is imported from @/lib/app-builder
 
-      // Track current reasoning text for display
+      // Track current reasoning text for display (used by buildLocalProgressContent)
       let currentReasoning = "";
 
-      const buildLocalProgressContent = (currentStatus?: string) => {
+      // Clear any previous thinking buffer
+      clearThinkingBuffer();
+
+      const buildLocalProgressContent = (
+        reasoningText: string,
+        currentStatus?: string,
+      ) => {
         let content = "";
 
         // Show current chain-of-thought reasoning (full accumulated text)
-        if (currentReasoning) {
+        if (reasoningText) {
           // Show the full reasoning text as markdown (it may contain formatting)
-          content += currentReasoning + "\n\n";
+          content += reasoningText + "\n\n";
         }
 
         if (actionsLog.length > 0) {
@@ -1868,7 +1884,7 @@ Some ideas:
           });
         }
 
-        if (currentStatus && !currentReasoning) {
+        if (currentStatus && !reasoningText) {
           // Only show status if we don't have reasoning text yet
           content += `*${currentStatus}*`;
         }
@@ -1876,8 +1892,32 @@ Some ideas:
         return content || "**Processing your request**\n\n*Analyzing...*";
       };
 
+      // Update UI with current reasoning and status (called directly for non-thinking events)
+      // Reads from throttled buffer to ensure we always have the latest accumulated text
       const updateThinking = (currentStatus?: string) => {
-        const content = buildLocalProgressContent(currentStatus);
+        // Get latest accumulated text from throttled buffer (may be ahead of currentReasoning)
+        const latestReasoning = getThinkingText(thinkingStreamId) || currentReasoning;
+        currentReasoning = latestReasoning; // Keep local in sync
+        const content = buildLocalProgressContent(latestReasoning, currentStatus);
+        setMessages((prev) => {
+          const updated = [...prev];
+          const thinkingIdx = updated.findIndex(
+            (m) => m._thinkingId === thinkingId,
+          );
+          if (thinkingIdx >= 0) {
+            updated[thinkingIdx] = {
+              ...updated[thinkingIdx],
+              content,
+            };
+          }
+          return updated;
+        });
+      };
+
+      // Throttled update for thinking text (~30fps for smooth appearance)
+      const updateThinkingThrottled = (accumulatedText: string) => {
+        currentReasoning = accumulatedText; // Keep local variable in sync
+        const content = buildLocalProgressContent(accumulatedText);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -1951,13 +1991,16 @@ Some ideas:
                   continue;
                 } else if (eventType === "thinking") {
                   // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
-                  // ACCUMULATE text chunks instead of replacing (fixes janky single-line display)
+                  // Uses throttled updates (~30fps) to prevent UI flickering from rapid chunks
                   const reasoningText = data.text || "";
                   if (reasoningText) {
-                    currentReasoning = (
-                      currentReasoning + reasoningText
-                    ).trim();
-                    updateThinking(); // Update without status to show accumulated reasoning
+                    // Accumulate chunk without triggering re-render
+                    accumulateThinkingChunk(thinkingStreamId, reasoningText);
+                    // Schedule throttled UI update (~30fps for smooth text appearance)
+                    scheduleThinkingUpdate(
+                      thinkingStreamId,
+                      updateThinkingThrottled,
+                    );
                   }
                   // Note: Not logging individual chunks - shown in UI only
                 } else if (eventType === "tool_start") {
@@ -2118,9 +2161,20 @@ Some ideas:
         });
       } finally {
         setIsLoading(false);
+        // Always clean up throttled streaming buffer
+        clearThinkingBuffer();
       }
     },
-    [session, isLoading, addLog, checkGitStatus],
+    [
+      session,
+      isLoading,
+      addLog,
+      checkGitStatus,
+      clearThinkingBuffer,
+      accumulateThinkingChunk,
+      scheduleThinkingUpdate,
+      getThinkingText,
+    ],
   );
 
   const stopSession = useCallback(async () => {
@@ -2367,7 +2421,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (viewState === "setup") {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] animate-in fade-in duration-200">
+      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] animate-in fade-in duration-200">
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div
