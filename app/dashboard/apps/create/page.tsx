@@ -367,6 +367,7 @@ export default function AppCreatorPage() {
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
+  const initialThinkingStreamIdRef = useRef<string | null>(null);
 
   // Throttled streaming for smooth thinking text updates (~30fps instead of every chunk)
   const {
@@ -1622,6 +1623,10 @@ export default function AppCreatorPage() {
                 if (data.hasInitialPrompt) {
                   const thinkingId = Date.now();
                   initialThinkingIdRef.current = thinkingId;
+                  // Create stream ID for throttled accumulation and clear any previous buffer
+                  const streamId = `initial-thinking-${thinkingId}`;
+                  initialThinkingStreamIdRef.current = streamId;
+                  clearThinkingBuffer();
 
                   setMessages([
                     {
@@ -1664,23 +1669,31 @@ Some ideas:
                 }
               } else if (eventType === "thinking") {
                 // Stream actual reasoning text to show chain of thought
-                const reasoningText = data.text || "Planning changes...";
+                const reasoningText = data.text || "";
                 // Note: Not logging individual chunks - shown in UI only
 
-                // Update the thinking message with the reasoning
-                if (initialThinkingIdRef.current) {
+                // Update the thinking message with accumulated reasoning using throttled updates
+                if (initialThinkingIdRef.current && initialThinkingStreamIdRef.current && reasoningText) {
                   const thinkingId = initialThinkingIdRef.current;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      (m as Message & { _thinkingId?: number })._thinkingId ===
-                      thinkingId
-                        ? {
-                            ...m,
-                            content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*`,
-                          }
-                        : m,
-                    ),
-                  );
+                  const streamId = initialThinkingStreamIdRef.current;
+                  
+                  // Accumulate chunk in buffer
+                  accumulateThinkingChunk(streamId, reasoningText);
+                  
+                  // Schedule throttled UI update
+                  scheduleThinkingUpdate(streamId, (accumulatedText) => {
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        (m as Message & { _thinkingId?: number })._thinkingId ===
+                        thinkingId
+                          ? {
+                              ...m,
+                              content: `**Setting up ${appName}**\n\n💭 ${accumulatedText}\n\n---\n\n*Thinking...*`,
+                            }
+                          : m,
+                      ),
+                    );
+                  });
                 }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
@@ -1713,14 +1726,24 @@ Some ideas:
 
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
+                  const streamId = initialThinkingStreamIdRef.current;
+                  const accumulatedThinking = streamId ? getThinkingText(streamId) : "";
+                  
                   let progressContent = `**Setting up ${appName}**\n\n`;
+                  
+                  // Include accumulated thinking text if available
+                  if (accumulatedThinking) {
+                    progressContent += `💭 ${accumulatedThinking}\n\n`;
+                  }
+                  
+                  progressContent += `---\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
                     progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
-                  progressContent += `---\n\n*Working...*`;
+                  progressContent += `*Working...*`;
 
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -1741,6 +1764,8 @@ Some ideas:
                 ) {
                   const thinkingId = initialThinkingIdRef.current;
                   initialThinkingIdRef.current = null;
+                  initialThinkingStreamIdRef.current = null;
+                  clearThinkingBuffer();
 
                   sessionActionsLogRef.current.forEach((action) => {
                     action.status = "done";
@@ -1833,6 +1858,10 @@ Some ideas:
     addLog,
     router,
     checkGitStatus,
+    accumulateThinkingChunk,
+    clearThinkingBuffer,
+    getThinkingText,
+    scheduleThinkingUpdate,
   ]);
 
   // Auto-start session when in edit mode with no session
