@@ -157,7 +157,7 @@ export function ElizaChatInterface({
   } = useChatStore();
 
   // Check authentication status for features that require it
-  const { authenticated } = usePrivy();
+  const { authenticated, login } = usePrivy();
   const router = useRouter();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -663,7 +663,7 @@ export function ElizaChatInterface({
       const signupPromptMessage: Message = {
         id: `signup-prompt-${Date.now()}`,
         content: {
-          text: `I'd love to continue our conversation!\n\nYou've used all your free messages. **Sign up for free** to keep chatting with me and unlock unlimited conversations.`,
+          text: `I'd love to continue our conversation!\n\nYou've used all your free messages. {{SIGNUP_LINK}} to keep chatting with me and unlock unlimited conversations.`,
         },
         isAgent: true,
         createdAt: Date.now(),
@@ -1417,6 +1417,7 @@ export function ElizaChatInterface({
                       }}
                       onImageLoad={scrollToBottom}
                       onTextReveal={() => scrollToBottom(true)}
+                      onSignupClick={login}
                     />
                   );
                 })}

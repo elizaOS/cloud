@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { memo, useEffect, useState, useRef } from "react";
+import React, { memo, useEffect, useState, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, Copy, Check, Volume2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -347,51 +347,138 @@ interface MemoizedChatMessageProps {
   reasoningPhase?: "planning" | "actions" | "response" | null;
   /** Callback when typewriter animation reveals more text (for scrolling) */
   onTextReveal?: () => void;
+  /** Callback when user clicks signup action link (for anonymous users) */
+  onSignupClick?: () => void;
 }
 
-// Markdown components configuration
-const markdownComponents = {
-  code: ({
-    className,
-    children,
-    ...props
-  }: React.ComponentPropsWithoutRef<"code"> & { className?: string }) => {
-    const isInline = !className;
-    return isInline ? (
-      <code
-        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-        {...props}
-      >
-        {children}
-      </code>
-    ) : (
-      <code className={className} {...props}>
-        {children}
-      </code>
-    );
-  },
-  pre: ({ children }: { children?: React.ReactNode }) => (
-    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
-      {children}
-    </pre>
-  ),
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
+/**
+ * Renders text content with {{SIGNUP_LINK}} placeholder replaced by a clickable button.
+ * This is more reliable than trying to intercept markdown links.
+ */
+function SignupLinkButton({ onClick }: { onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onClick) {
+          onClick();
+        } else {
+          window.location.href = "/login";
+        }
+      }}
+      className="text-[#FF5800] hover:text-[#FF5800]/80 underline font-medium cursor-pointer bg-transparent border-none p-0 inline"
     >
-      {children}
-    </a>
-  ),
-  ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="list-disc list-inside">{children}</ul>
-  ),
-  ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="list-decimal list-inside">{children}</ol>
-  ),
-};
+      Sign up for free
+    </button>
+  );
+}
+
+/**
+ * Renders message content, handling {{SIGNUP_LINK}} placeholder specially.
+ * Returns an array of React elements with the placeholder replaced by a button.
+ */
+function renderContentWithSignupLink(
+  content: string,
+  onSignupClick?: () => void,
+): React.ReactNode[] {
+  const SIGNUP_PLACEHOLDER = "{{SIGNUP_LINK}}";
+
+  if (!content.includes(SIGNUP_PLACEHOLDER)) {
+    return [content];
+  }
+
+  const parts = content.split(SIGNUP_PLACEHOLDER);
+  const result: React.ReactNode[] = [];
+
+  parts.forEach((part, index) => {
+    if (index > 0) {
+      result.push(<SignupLinkButton key={`signup-${index}`} onClick={onSignupClick} />);
+    }
+    if (part) {
+      result.push(part);
+    }
+  });
+
+  return result;
+}
+
+function createMarkdownComponents(onSignupClick?: () => void) {
+  return {
+    code: ({
+      className,
+      children,
+      ...props
+    }: React.ComponentPropsWithoutRef<"code"> & { className?: string }) => {
+      const isInline = !className;
+      return isInline ? (
+        <code
+          className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+          {...props}
+        >
+          {children}
+        </code>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
+    pre: ({ children }: { children?: React.ReactNode }) => (
+      <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
+        {children}
+      </pre>
+    ),
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+      // Handle special action links (e.g., action:signup for triggering auth)
+      // Use includes() for more robust matching in case href gets modified/encoded
+      const isSignupAction = href && (
+        href === "action:signup" ||
+        href.includes("action:signup") ||
+        href.endsWith("action:signup")
+      );
+
+      if (isSignupAction) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onSignupClick) {
+                onSignupClick();
+              } else {
+                // Fallback: redirect to login page if callback not available
+                window.location.href = "/login";
+              }
+            }}
+            className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all font-medium cursor-pointer bg-transparent border-none p-0 inline"
+          >
+            {children}
+          </button>
+        );
+      }
+      // Regular external links
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
+        >
+          {children}
+        </a>
+      );
+    },
+    ul: ({ children }: { children?: React.ReactNode }) => (
+      <ul className="list-disc list-inside">{children}</ul>
+    ),
+    ol: ({ children }: { children?: React.ReactNode }) => (
+      <ol className="list-decimal list-inside">{children}</ol>
+    ),
+  };
+}
 
 function ChatMessageComponent(props: MemoizedChatMessageProps) {
   const {
@@ -410,10 +497,16 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
     reasoningText,
     reasoningPhase,
     onTextReveal,
+    onSignupClick,
   } = props;
   const isThinking = message.id.startsWith("thinking-");
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
+  // Memoize markdown components with signup handler to avoid recreation on every render
+  const markdownComponents = useMemo(
+    () => createMarkdownComponents(onSignupClick),
+    [onSignupClick],
+  );
 
   // Detect streaming from message id if not explicitly passed
   const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
@@ -665,29 +758,39 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                   <div
                     className={`streaming-text-wrapper text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words ${isStreamingMessage ? "streaming-text-content" : "message-text-complete"}`}
                   >
-                    {plugins && ReactMarkdown ? (
-                      <ReactMarkdown
-                        remarkPlugins={[plugins.remarkGfm]}
-                        rehypePlugins={[plugins.rehypeHighlight]}
-                        components={markdownComponents}
-                      >
-                        {normalizeMarkdownLists(
-                          isStreamingMessage
-                            ? displayText
-                            : message.content.text,
-                        )}
-                      </ReactMarkdown>
-                    ) : (
+                    {(() => {
+                      const textContent = isStreamingMessage ? displayText : message.content.text;
+                      const hasSignupPlaceholder = textContent.includes("{{SIGNUP_LINK}}");
+
+                      // Handle signup link placeholder specially - render as plain text with button
+                      if (hasSignupPlaceholder) {
+                        return (
+                          <div className="whitespace-pre-wrap">
+                            {renderContentWithSignupLink(textContent, onSignupClick)}
+                          </div>
+                        );
+                      }
+
+                      // Normal markdown rendering
+                      if (plugins && ReactMarkdown) {
+                        return (
+                          <ReactMarkdown
+                            remarkPlugins={[plugins.remarkGfm]}
+                            rehypePlugins={[plugins.rehypeHighlight]}
+                            components={markdownComponents}
+                          >
+                            {normalizeMarkdownLists(textContent)}
+                          </ReactMarkdown>
+                        );
+                      }
+
                       // Plain text fallback - shown immediately while markdown loads
-                      // Uses same styling to prevent layout shift
-                      <div className="whitespace-pre-wrap">
-                        {normalizeMarkdownLists(
-                          isStreamingMessage
-                            ? displayText
-                            : message.content.text,
-                        )}
-                      </div>
-                    )}
+                      return (
+                        <div className="whitespace-pre-wrap">
+                          {normalizeMarkdownLists(textContent)}
+                        </div>
+                      );
+                    })()}
                     {/* Elegant blinking cursor for streaming messages */}
                     {isStreamingMessage && (
                       <span
@@ -827,7 +930,8 @@ export const MemoizedChatMessage = memo(
       prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
       prevProps.isStreaming === nextProps.isStreaming &&
       prevProps.reasoningText === nextProps.reasoningText &&
-      prevProps.reasoningPhase === nextProps.reasoningPhase
+      prevProps.reasoningPhase === nextProps.reasoningPhase &&
+      prevProps.onSignupClick === nextProps.onSignupClick
     );
   },
 );
