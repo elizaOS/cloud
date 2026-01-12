@@ -278,14 +278,14 @@ elizaOS Cloud provides demo MCP servers for testing:
 
 | Server  | URL                      | Description              |
 | ------- | ------------------------ | ------------------------ |
-| Weather | `/api/mcp/demos/weather` | Weather data demo        |
-| Time    | `/api/mcp/demos/time`    | Time and timezone demo   |
-| Crypto  | `/api/mcp/demos/crypto`  | Cryptocurrency data demo |
+| Weather | `/api/mcps/weather` | Weather data demo        |
+| Time    | `/api/mcps/time`    | Time and timezone demo   |
+| Crypto  | `/api/mcps/crypto`  | Cryptocurrency data demo |
 
 ### Test Demo Server
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/mcp/demos/weather" \
+curl -X POST "https://elizacloud.ai/api/mcps/weather" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

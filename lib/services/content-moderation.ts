@@ -146,32 +146,96 @@ function containsMinimalBadWords(text: string): boolean {
 /**
  * Call OpenAI's free moderation endpoint
  */
-async function callOpenAIModeration(
-  text: string,
-): Promise<AsyncModerationResult> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+let hasLoggedModerationUnavailable = false;
 
-  if (!apiKey) {
-    throw new Error(
-      "OPENAI_API_KEY or AI_GATEWAY_API_KEY required for content moderation",
-    );
+type ModerationBackend = "openai" | "vercel-gateway";
+
+function getModerationBackend(): {
+  backend: ModerationBackend;
+  apiKey: string;
+  url: string;
+} | null {
+  // Allow explicit disable (useful for self-hosted/dev or gateways without /moderations enabled)
+  if (process.env.CONTENT_MODERATION_ENABLED === "false") {
+    return null;
   }
 
-  const response = await fetch("https://api.openai.com/v1/moderations", {
+  // Prefer Vercel AI Gateway if configured (it is OpenAI-compatible and supports /v1/moderations)
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
+  if (gatewayKey) {
+    return {
+      backend: "vercel-gateway",
+      apiKey: gatewayKey,
+      url: "https://ai-gateway.vercel.sh/v1/moderations",
+    };
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    return {
+      backend: "openai",
+      apiKey: openaiKey,
+      url: "https://api.openai.com/v1/moderations",
+    };
+  }
+
+  return null;
+}
+
+function emptyModerationResult(): AsyncModerationResult {
+  return { flagged: false, flaggedCategories: [], scores: {} };
+}
+
+async function callModeration(text: string): Promise<AsyncModerationResult> {
+  const backend = getModerationBackend();
+  if (!backend) {
+    if (!hasLoggedModerationUnavailable) {
+      hasLoggedModerationUnavailable = true;
+      logger.warn(
+        "[ContentModeration] Moderation is disabled or not configured; skipping async moderation checks",
+        {
+          CONTENT_MODERATION_ENABLED: process.env.CONTENT_MODERATION_ENABLED,
+          hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+          hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
+        },
+      );
+    }
+    return emptyModerationResult();
+  }
+
+  const response = await fetch(backend.url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${backend.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      // OpenAI-compatible moderation request
       model: "omni-moderation-latest",
       input: text,
     }),
   });
 
   if (!response.ok) {
+    // Moderation is explicitly non-blocking in this app. If the backend is not permitted
+    // (common with gateways / provider accounts), avoid noisy per-request errors.
+    if ([401, 403, 404].includes(response.status)) {
+      if (!hasLoggedModerationUnavailable) {
+        hasLoggedModerationUnavailable = true;
+        logger.warn(
+          "[ContentModeration] Moderation endpoint unavailable; skipping moderation checks",
+          {
+            backend: backend.backend,
+            status: response.status,
+            statusText: response.statusText,
+          },
+        );
+      }
+      return emptyModerationResult();
+    }
+
     throw new Error(
-      `OpenAI moderation API failed: ${response.status} ${response.statusText}`,
+      `Moderation API failed (${backend.backend}): ${response.status} ${response.statusText}`,
     );
   }
 
@@ -179,7 +243,7 @@ async function callOpenAIModeration(
   const result = data.results[0];
 
   if (!result) {
-    throw new Error("OpenAI moderation API returned no results");
+    throw new Error("Moderation API returned no results");
   }
 
   // Check only the categories we care about
@@ -246,7 +310,7 @@ class ContentModerationService {
       action?: "refused" | "warned" | "flagged_for_ban";
     }
   > {
-    const result = await callOpenAIModeration(text);
+    const result = await callModeration(text);
 
     if (!result.flagged) {
       return result;

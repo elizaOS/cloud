@@ -1583,6 +1583,10 @@ Add all variables from `.env.local` in Vercel dashboard:
 - `ECS_CLUSTER_NAME`, `AWS_VPC_ID`, `AWS_SUBNET_IDS`, `AWS_SECURITY_GROUP_IDS` (for containers)
 - `CRON_SECRET` (required for production)
 
+Optional moderation config:
+
+- `CONTENT_MODERATION_ENABLED=false` - disables async content moderation checks (the app will still stream responses).
+
 **4. Update Privy Redirect URI**:
 
 - Add production callback URL to Privy dashboard
