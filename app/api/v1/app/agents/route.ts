@@ -4,7 +4,6 @@ import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { dbRead } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
