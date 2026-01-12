@@ -48,29 +48,6 @@ export class AnonymousSessionsRepository {
     return session || null;
   }
 
-  /**
-   * Gets all active sessions by IP address (for abuse detection).
-   */
-  async getByIpAddress(ipAddress: string): Promise<AnonymousSession[]> {
-    return await dbRead
-      .select()
-      .from(anonymousSessions)
-      .where(
-        and(
-          eq(anonymousSessions.ip_address, ipAddress),
-          eq(anonymousSessions.is_active, true),
-        ),
-      );
-  }
-
-  /**
-   * Counts active sessions by IP address (for abuse detection).
-   */
-  async countActiveSessionsByIp(ipAddress: string): Promise<number> {
-    const sessions = await this.getByIpAddress(ipAddress);
-    return sessions.length;
-  }
-
   // ============================================================================
   // WRITE OPERATIONS (use NA primary)
   // ============================================================================

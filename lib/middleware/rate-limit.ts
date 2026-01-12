@@ -74,15 +74,47 @@ setInterval(() => {
 /**
  * Generate rate limit key from request
  */
-function getDefaultKey(request: NextRequest): string {
-  // Try to get user ID from auth header or IP address
-  const apiKey = request.headers.get("authorization")?.replace("Bearer ", "");
+function getIpKey(request: NextRequest): string {
   const ip =
-    request.headers.get("x-forwarded-for") ||
     request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown";
+  return `ip:${ip}`;
+}
 
-  return apiKey || `ip:${ip}`;
+function getDefaultKey(request: NextRequest): string {
+  // Prefer stable, non-IP identifiers.
+  //
+  // - API key (server-to-server)
+  // - authenticated user id (set by middleware on protected routes)
+  // - anonymous session token (cookie or header)
+  //
+  // NOTE: We intentionally do NOT fall back to IP-based keys.
+  const apiKey =
+    request.headers.get("x-api-key") ||
+    request.headers.get("X-API-Key") ||
+    (() => {
+      const auth = request.headers.get("authorization");
+      if (!auth?.startsWith("Bearer ")) return null;
+      const token = auth.slice(7);
+      // Only treat "eliza_*" bearer tokens as API keys (matches proxy middleware behavior).
+      return token.startsWith("eliza_") ? token : null;
+    })();
+
+  if (apiKey) return `apikey:${apiKey}`;
+
+  const privyUserId = request.headers.get("x-privy-user-id");
+  if (privyUserId) return `user:${privyUserId}`;
+
+  const anonSession =
+    request.headers.get("x-anonymous-session") ||
+    request.headers.get("X-Anonymous-Session") ||
+    request.cookies.get("eliza-anon-session")?.value ||
+    null;
+  if (anonSession) return `anon:${anonSession}`;
+
+  // If we truly can't identify the caller, use a shared bucket (still not IP-based).
+  return "public";
 }
 
 /**
@@ -303,6 +335,7 @@ export const RateLimitPresets = {
   AGGRESSIVE: {
     windowMs: 60000, // 1 minute
     maxRequests: isDevelopment ? 10000 : 100, // Dev: virtually unlimited, Prod: 100/min
+    keyGenerator: getIpKey,
   },
 } as const;
 
