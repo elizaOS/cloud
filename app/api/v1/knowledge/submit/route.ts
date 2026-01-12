@@ -10,6 +10,7 @@ import {
   isValidFilename,
 } from "@/lib/constants/knowledge";
 import { logger } from "@/lib/utils/logger";
+import { extractUserIdFromBlobPath, trackOrphanedBlobBatch, type OrphanedBlobInfo } from "@/lib/utils/knowledge";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -34,25 +35,6 @@ const RequestSchema = z.object({
 });
 
 type FileToProcess = z.infer<typeof FileSchema>;
-
-/**
- * Extracts the user ID from a pre-upload blob URL path.
- * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
- * Returns null if the path doesn't match the expected format.
- */
-function extractUserIdFromBlobPath(url: string): string | null {
-  try {
-    const parsedUrl = new URL(url);
-    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
-    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
-      return pathParts[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Fetches a blob URL with timeout protection.
@@ -203,8 +185,14 @@ async function handlePOST(req: NextRequest) {
   }
 
   const results: ProcessResult[] = [];
+  // Track cumulative downloaded bytes to prevent memory exhaustion
+  let totalDownloadedBytes = 0;
 
-  // Process files synchronously
+  // Process files sequentially to:
+  // 1. Manage memory - prevents multiple large files (5MB each) in memory simultaneously
+  // 2. Avoid rate limits on the knowledge service's embedding API
+  // 3. Ensure clean error tracking per file without parallel operation interference
+  // Parallel processing is intentionally avoided here despite potential performance gains.
   for (const file of files) {
     try {
       const response = await fetchWithTimeout(
@@ -218,13 +206,19 @@ async function handlePOST(req: NextRequest) {
       }
 
       // Validate content-length to prevent malicious oversized responses
-      // Use 5% tolerance to account for CDN behavior and encoding differences
+      // Use 1% tolerance to account for minor CDN header differences while preventing DoS
       const contentLength = response.headers.get("content-length");
       if (contentLength) {
         const actualSize = parseInt(contentLength, 10);
-        if (actualSize > file.size * 1.05) {
+        if (actualSize > file.size * 1.01) {
           throw new Error(
             `Blob size mismatch: expected ${file.size} bytes, got ${actualSize}`,
+          );
+        }
+        // Check if downloading this file would exceed batch limit
+        if (totalDownloadedBytes + actualSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+          throw new Error(
+            `Cumulative download size would exceed ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
           );
         }
       }
@@ -236,6 +230,14 @@ async function handlePOST(req: NextRequest) {
       if (buffer.length > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
         throw new Error(
           `Downloaded file exceeds max size: ${buffer.length} > ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE}`,
+        );
+      }
+
+      // Validate cumulative size after download to catch cases where content-length was missing
+      totalDownloadedBytes += buffer.length;
+      if (totalDownloadedBytes > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+        throw new Error(
+          `Cumulative download size (${totalDownloadedBytes} bytes) exceeds ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
         );
       }
       const base64Content = buffer.toString("base64");
@@ -295,15 +297,36 @@ async function handlePOST(req: NextRequest) {
 
     // Cleanup successfully processed blobs to prevent storage bloat
     const successfulResults = results.filter((r) => r.status === "success");
-    const cleanupPromises = successfulResults.map((r) =>
-      deleteBlob(r.blobUrl).catch((err) => {
-        logger.warn(`[KnowledgeSubmit] Failed to delete blob ${r.blobUrl}:`, err);
-      })
+    const cleanupResults = await Promise.allSettled(
+      successfulResults.map((r) => deleteBlob(r.blobUrl))
     );
-    await Promise.allSettled(cleanupPromises);
 
+    // Track any blobs that failed to delete as orphaned
+    const orphanedBlobs: OrphanedBlobInfo[] = [];
+    cleanupResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        orphanedBlobs.push({
+          blobUrl: successfulResults[index].blobUrl,
+          userId: user.id,
+          reason: "cleanup_failed",
+          originalError: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          timestamp: Date.now(),
+        });
+      }
+    });
+
+    if (orphanedBlobs.length > 0) {
+      trackOrphanedBlobBatch(orphanedBlobs, {
+        operation: "submit-post-processing-cleanup",
+        userId: user.id,
+      });
+    }
+
+    const cleanedCount = cleanupResults.filter(r => r.status === "fulfilled").length;
     logger.info("[KnowledgeSubmit] Cleaned up blobs", {
-      count: successfulResults.length,
+      cleaned: cleanedCount,
+      orphaned: orphanedBlobs.length,
+      total: successfulResults.length,
     });
   }
 

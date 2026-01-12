@@ -37,8 +37,10 @@ interface PendingKnowledgeProcessorProps {
 }
 
 const PENDING_KEY_PREFIX = "pendingKnowledge_";
-const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age for pending files
-const CLAIM_TIMEOUT_MS = 30 * 1000; // 30 seconds - if claim is older, consider it stale
+/** Maximum age for pending files before they expire (30 minutes) */
+const MAX_AGE_MS = 30 * 60 * 1000;
+/** Claim timeout for cross-tab deduplication (30 seconds) */
+const CLAIM_TIMEOUT_MS = 30 * 1000;
 
 // Generate a unique ID for this tab to prevent cross-tab duplicate processing
 const generateTabId = () =>
@@ -46,7 +48,24 @@ const generateTabId = () =>
 
 /**
  * Component that processes pending knowledge files after character creation.
- * Shows a banner while processing and allows user to chat meanwhile.
+ * Shows toast notifications while processing and allows user to chat meanwhile.
+ *
+ * ## Cross-Tab Deduplication
+ *
+ * This component implements best-effort cross-tab deduplication using sessionStorage.
+ * Due to sessionStorage limitations, there is a potential race condition:
+ *
+ * **KNOWN LIMITATION**: The check-then-act pattern (read claim → check claim age → write claim)
+ * is not atomic. Multiple tabs can pass the claim check simultaneously before any writes
+ * to sessionStorage, potentially causing duplicate processing in rare edge cases.
+ *
+ * This is acceptable because:
+ * 1. The server-side knowledge service is idempotent - duplicate processing is wasteful but safe
+ * 2. SessionStorage does not support atomic operations (no compare-and-swap)
+ * 3. The window for this race is very small (milliseconds)
+ * 4. True atomic locking would require server-side coordination (overkill for this use case)
+ *
+ * If stronger guarantees are needed, consider using BroadcastChannel API or server-side locking.
  */
 export function PendingKnowledgeProcessor({
   characterId,
@@ -71,6 +90,8 @@ export function PendingKnowledgeProcessor({
   const currentCharacterIdRef = useRef<string | null>(characterId);
   // Unique ID for this tab to prevent cross-tab duplicate processing
   const tabIdRef = useRef<string>(generateTabId());
+  // AbortController for cancelling in-flight requests on unmount
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -93,11 +114,28 @@ export function PendingKnowledgeProcessor({
     }
   }, [characterId]);
 
+  // Cleanup AbortController on unmount to prevent memory leaks and stale state updates
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
+
   const processFiles = useCallback(
     async (pending: PendingKnowledge) => {
       // Prevent duplicate processing for the same character
       if (processingCharacterIdRef.current === pending.characterId) return;
       processingCharacterIdRef.current = pending.characterId;
+
+      // Abort any previous in-flight request and create new controller
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
 
       const storageKey = `${PENDING_KEY_PREFIX}${pending.characterId}`;
       // Capture the characterId we're processing to check against current prop later
@@ -105,7 +143,8 @@ export function PendingKnowledgeProcessor({
 
       // Helper to check if we should update state (prevents race condition when user switches characters)
       const shouldUpdateState = () =>
-        currentCharacterIdRef.current === processingForCharacterId;
+        currentCharacterIdRef.current === processingForCharacterId &&
+        !abortController.signal.aborted;
 
       setState({
         status: "processing",
@@ -120,6 +159,7 @@ export function PendingKnowledgeProcessor({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
+          signal: abortController.signal,
           body: JSON.stringify({
             characterId: pending.characterId,
             files: pending.files,
@@ -216,6 +256,11 @@ export function PendingKnowledgeProcessor({
           }
         }
       } catch (error) {
+        // Silently ignore aborted requests (component unmounted or character changed)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
         // Keep sessionStorage on network error so user can retry
         // Only update UI if user hasn't switched to a different character
         if (shouldUpdateState()) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+import { extractUserIdFromBlobPath, trackOrphanedBlobBatch, type OrphanedBlobInfo } from "@/lib/utils/knowledge";
 import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
@@ -13,24 +14,7 @@ import {
 } from "@/lib/constants/knowledge";
 import { fileTypeFromBuffer } from "file-type";
 
-/**
- * Extracts the user ID from a pre-upload blob URL path.
- * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
- * Returns null if the path doesn't match the expected format.
- */
-function extractUserIdFromBlobPath(url: string): string | null {
-  try {
-    const parsedUrl = new URL(url);
-    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
-    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
-      return pathParts[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+const MAX_FILENAME_LENGTH = 255;
 
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf(".");
@@ -89,6 +73,17 @@ async function handlePOST(req: NextRequest) {
 
   // Validate files before upload
   for (const file of files) {
+    // Validate filename length
+    if (file.name.length > MAX_FILENAME_LENGTH) {
+      return NextResponse.json(
+        {
+          error: "Filename too long",
+          details: `${file.name.substring(0, 50)}... exceeds ${MAX_FILENAME_LENGTH} character limit`,
+        },
+        { status: 400 },
+      );
+    }
+
     // Reject filenames with path-unsafe characters to prevent path traversal
     if (!isValidFilename(file.name)) {
       return NextResponse.json(
@@ -182,6 +177,14 @@ async function handlePOST(req: NextRequest) {
           );
 
           if (isTextExtension) {
+            // SECURITY: Log content mismatch before rejection for audit purposes
+            logger.warn("[PreUpload] Content mismatch detected - rejecting file", {
+              filename: file.name,
+              declaredExtension: ext,
+              detectedMimeType: detectedType.mime,
+              userId: user.id,
+              reason: "binary_file_with_text_extension",
+            });
             // Expected text file but detected as binary - reject
             throw new Error(
               `Content mismatch: ${file.name} appears to be a binary file (${detectedType.mime}) but has a text extension`,
@@ -252,24 +255,35 @@ async function handlePOST(req: NextRequest) {
       results.map((uploaded) => deleteBlob(uploaded.blobUrl)),
     );
 
-    const orphanedBlobs: string[] = [];
+    const orphanedBlobs: OrphanedBlobInfo[] = [];
     cleanupResults.forEach((result, index) => {
       if (result.status === "fulfilled") {
         logger.info("[PreUpload] Cleaned up blob", { blobUrl: results[index].blobUrl });
       } else {
-        orphanedBlobs.push(results[index].blobUrl);
-        logger.warn("[PreUpload] Failed to cleanup blob - orphaned", {
+        // Track orphaned blob for later cleanup
+        orphanedBlobs.push({
           blobUrl: results[index].blobUrl,
-          error: result.reason,
+          userId: user.id,
+          reason: "partial_upload_failure",
+          originalError: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          timestamp: Date.now(),
         });
       }
     });
+
+    // Track orphaned blobs for monitoring and future cleanup
+    if (orphanedBlobs.length > 0) {
+      trackOrphanedBlobBatch(orphanedBlobs, {
+        operation: "pre-upload-rollback",
+        userId: user.id,
+      });
+    }
 
     return NextResponse.json(
       {
         error: "Some files failed to upload - batch rolled back",
         details: errors,
-        orphanedBlobs: orphanedBlobs.length > 0 ? orphanedBlobs : undefined,
+        orphanedBlobs: orphanedBlobs.length > 0 ? orphanedBlobs.map(b => b.blobUrl) : undefined,
       },
       { status: 400 },
     );
