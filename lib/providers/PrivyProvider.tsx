@@ -7,6 +7,7 @@ import {
   type PrivyClientConfig,
 } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+import { toast } from "sonner";
 
 // Define configuration outside component to prevent recreating on every render
 const loginMethods: ("wallet" | "email" | "google" | "discord" | "github")[] = [
@@ -48,6 +49,40 @@ const getSolanaConnectors = (): SolanaConnectors => {
 function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
   const migrationAttempted = useRef(false);
+  const userSyncAttempted = useRef(false);
+
+  // Ensure user is synced to database immediately after Privy authentication
+  // This prevents "please try reconnecting" errors for new wallet users
+  useEffect(() => {
+    if (ready && authenticated && user && !userSyncAttempted.current) {
+      userSyncAttempted.current = true;
+
+      const syncUser = async () => {
+        try {
+          const accessToken = await getAccessToken();
+          const response = await fetch("/api/auth/sync-user", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+            },
+            body: JSON.stringify({
+              privyUserId: user.id,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error("[Privy] Failed to sync user after login");
+          }
+        } catch (error) {
+          console.error("[Privy] Error syncing user after login:", error);
+        }
+      };
+
+      syncUser();
+    }
+  }, [ready, authenticated, user, getAccessToken]);
 
   useEffect(() => {
     // Call migration endpoint after successful authentication
