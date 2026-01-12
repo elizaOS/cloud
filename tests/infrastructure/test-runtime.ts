@@ -3,11 +3,17 @@
  *
  * Thin wrapper around the production RuntimeFactory.
  * We test the actual production code, not a mock.
+ * 
+ * CRITICAL: Anonymous sessions are BLOCKED in tests by default.
+ * All tests must use properly created test users with valid API keys.
  */
 
 import { stringToUuid, type UUID } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import type { DebugTrace, DebugRenderView } from "../../lib/debug";
+
+// Import server check - this must complete before tests run
+import { serverCheck } from "../setup";
 
 // Re-export the production RuntimeFactory directly
 export { runtimeFactory, invalidateRuntime, isRuntimeCached, getRuntimeCacheStats } from "../../lib/eliza/runtime-factory";
@@ -76,12 +82,70 @@ export interface CreateTestRuntimeOptions {
 }
 
 /**
+ * Validate test data is complete and not anonymous
+ * Throws if data is missing or represents an anonymous user
+ */
+function validateTestData(testData: TestDataSet): void {
+  if (!testData) {
+    throw new Error(
+      "[TestRuntime] Test data is required. Create test data with createTestDataSet() first."
+    );
+  }
+  
+  if (!testData.user) {
+    throw new Error(
+      "[TestRuntime] Test user is required. Test data must include a valid user."
+    );
+  }
+  
+  if (!testData.apiKey?.key) {
+    throw new Error(
+      "[TestRuntime] Test API key is required. Test data must include a valid API key."
+    );
+  }
+  
+  if (!testData.organization?.id) {
+    throw new Error(
+      "[TestRuntime] Test organization is required. Test data must include a valid organization."
+    );
+  }
+  
+  // Block anonymous users in tests (unless explicitly testing anonymous flow)
+  if (testData.user.isAnonymous && process.env.TEST_BLOCK_ANONYMOUS !== "false") {
+    throw new Error(
+      "[TestRuntime] Anonymous users are BLOCKED in tests.\n" +
+      "Tests must use properly created test users with valid API keys.\n" +
+      "If you need to test anonymous flow, set TEST_BLOCK_ANONYMOUS=false"
+    );
+  }
+  
+  // Validate API key format
+  if (!testData.apiKey.key.startsWith("ek_test_")) {
+    throw new Error(
+      `[TestRuntime] Invalid test API key format: ${testData.apiKey.keyPrefix}...\n` +
+      "Test API keys must start with 'ek_test_' to ensure they are test keys."
+    );
+  }
+}
+
+/**
  * Create a test runtime using the production RuntimeFactory
  * This is the main entry point for runtime tests
+ * 
+ * BLOCKS if:
+ * - Local server is not running
+ * - Test data is missing or invalid
+ * - User is anonymous (unless explicitly testing anonymous flow)
  */
 export async function createTestRuntime(
   options: CreateTestRuntimeOptions
 ): Promise<TestRuntimeResult> {
+  // Ensure local server is running before proceeding
+  await serverCheck;
+  
+  // Validate test data
+  validateTestData(options.testData);
+  
   const { runtimeFactory } = await import("../../lib/eliza/runtime-factory");
 
   const userContext = buildUserContext(options.testData, {
@@ -120,6 +184,8 @@ export async function createTestRuntime(
 /**
  * Build a UserContext from test data
  * This creates the exact interface that RuntimeFactory expects
+ * 
+ * ALWAYS sets isAnonymous: false - anonymous is blocked in tests
  */
 export function buildUserContext(
   testData: TestDataSet,
@@ -132,7 +198,14 @@ export function buildUserContext(
     appPromptConfig?: Record<string, unknown>;
   } = {}
 ): UserContext {
-  // Import AgentMode dynamically to avoid circular deps
+  // Validate we're not creating anonymous context
+  if (testData.user.isAnonymous && process.env.TEST_BLOCK_ANONYMOUS !== "false") {
+    throw new Error(
+      "[TestRuntime] Cannot build UserContext for anonymous user.\n" +
+      "Tests must use authenticated users. Set TEST_BLOCK_ANONYMOUS=false to override."
+    );
+  }
+  
   const mode = options.agentMode || ("ASSISTANT" as AgentMode);
 
   return {
@@ -141,7 +214,7 @@ export function buildUserContext(
     organizationId: testData.organization.id,
     agentMode: mode,
     apiKey: testData.apiKey.key,
-    isAnonymous: false,
+    isAnonymous: false, // ALWAYS false in tests
     characterId: options.characterId,
     webSearchEnabled: options.webSearchEnabled ?? true,
     modelPreferences: options.modelPreferences,
@@ -340,13 +413,15 @@ export async function sendTestMessage(
   let error: string | undefined;
 
   try {
+    const { AgentMode: AgentModeEnum } = await import("../../lib/eliza/agent-mode-types");
+    
     // Process message through handler - this emits MESSAGE_RECEIVED event
     // which triggers plugin-assistant's handleMessage()
     const result = await Promise.race([
       handler.process({
         roomId: userContext.roomId as string,
         text,
-        agentModeConfig: { mode: "assistant" },
+        agentModeConfig: { mode: AgentModeEnum.ASSISTANT },
         onStreamChunk: onStreamChunk ? async (chunk) => { await onStreamChunk(chunk); } : undefined,
         onReasoningChunk: onReasoningChunk ? async (chunk, phase) => { await onReasoningChunk(chunk, phase); } : undefined,
       }),
