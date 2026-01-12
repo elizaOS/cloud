@@ -594,10 +594,31 @@ function AgentCard({ agent }: { agent: Agent }) {
 
           {/* Content Section */}
           <div className="p-4 space-y-2">
-            {/* Name */}
-            <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-              {agent.name}
-            </h3>
+            {/* Name with visibility icon */}
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+                {agent.name}
+              </h3>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex-shrink-0 cursor-help">
+                    {isPublic ? (
+                      <Globe className="h-4 w-4 text-green-500" strokeWidth={2.5} />
+                    ) : (
+                      <Lock className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className="max-w-[220px] text-xs bg-zinc-900 text-white/80 border border-white/10"
+                >
+                  {isPublic
+                    ? "Public agents can be seen and interacted with by anyone."
+                    : "Only you have access to private agents."}
+                </TooltipContent>
+              </Tooltip>
+            </div>
 
             {/* Bio */}
             <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">

@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import pg from "pg";
 import * as fs from "node:fs";
@@ -6,6 +6,32 @@ import * as path from "node:path";
 
 const execAsync = promisify(exec);
 const { Client } = pg;
+
+/**
+ * Run a command using spawn with inherited stdio.
+ * This allows interactive prompts and shows output in real-time.
+ */
+function runCommand(command: string, args: string[], env?: NodeJS.ProcessEnv): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, {
+      stdio: "inherit",
+      shell: true,
+      env: { ...process.env, ...env },
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Command "${command} ${args.join(" ")}" exited with code ${code}`));
+      }
+    });
+
+    proc.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
 
 const LOCAL_DATABASE_URL =
   "postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev";
@@ -113,12 +139,11 @@ async function checkPgVector() {
 async function runMigrations() {
   log("Running database migrations...");
   try {
-    const oldEnv = process.env.DATABASE_URL;
-    process.env.DATABASE_URL = LOCAL_DATABASE_URL;
-
-    await execAsync("bun run db:push");
-
-    process.env.DATABASE_URL = oldEnv;
+    // Use --force flag for local dev setup to auto-approve schema changes
+    // This prevents interactive prompts that would hang execAsync
+    await runCommand("bunx", ["drizzle-kit", "push", "--force"], {
+      DATABASE_URL: LOCAL_DATABASE_URL,
+    });
 
     log("✓ Database migrations completed");
     return true;
@@ -176,12 +201,9 @@ async function checkTables() {
 async function seedData() {
   log("Seeding development data...");
   try {
-    const oldEnv = process.env.DATABASE_URL;
-    process.env.DATABASE_URL = LOCAL_DATABASE_URL;
-
-    await execAsync("bun run db:local:seed");
-
-    process.env.DATABASE_URL = oldEnv;
+    await runCommand("bun", ["run", "db:local:seed"], {
+      DATABASE_URL: LOCAL_DATABASE_URL,
+    });
 
     log("✓ Development data seeded");
     return true;

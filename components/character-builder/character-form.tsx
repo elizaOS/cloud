@@ -181,12 +181,38 @@ export function CharacterForm({
         <div className="space-y-6 mt-0">
           <div className="grid grid-cols-2 gap-6">
             <div className="flex flex-col space-y-2">
-              <label
-                htmlFor="name"
-                className="text-sm font-medium text-white/70"
-              >
-                Name *
-              </label>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="name"
+                  className="text-sm font-medium text-white/70"
+                >
+                  Name *
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex-shrink-0 cursor-help">
+                      {isPublic ? (
+                        <Globe className="h-4 w-4 text-green-500" strokeWidth={2.5} />
+                      ) : (
+                        <Lock className="h-4 w-4 text-white/60" strokeWidth={2.5} />
+                      )}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-[220px] bg-zinc-900 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      {isPublic ? "Public" : "Private"}
+                    </p>
+                    <p className="text-white/60 text-xs">
+                      {isPublic
+                        ? "Public agents can be seen and interacted with by anyone."
+                        : "Only you have access to private agents."}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Input
                 id="name"
                 value={character.name || ""}
@@ -299,9 +325,9 @@ export function CharacterForm({
             >
               <div className="flex items-center gap-3">
                 {isPublic ? (
-                  <Globe className="h-5 w-5 text-green-500" />
+                  <Globe className="h-5 w-5 text-green-500" strokeWidth={2.5} />
                 ) : (
-                  <Lock className="h-5 w-5 text-white/60" />
+                  <Lock className="h-5 w-5 text-white/60" strokeWidth={2.5} />
                 )}
                 <div>
                   <p className="text-sm font-medium text-white">

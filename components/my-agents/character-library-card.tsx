@@ -37,6 +37,11 @@ import {
   Lock,
   Globe,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
@@ -79,21 +84,28 @@ function OwnershipBadge({ character }: { character: AgentWithOwnership }) {
   const isPublic = character.is_public ?? character.isPublic;
 
   if (character.isOwned) {
-    // Owned agent - show lock or globe based on visibility
+    // Owned agent - show lock or globe based on visibility with tooltip
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-white/70">
-        {isPublic ? (
-          <>
-            <Globe className="h-3 w-3" />
-            <span className="sr-only">Public</span>
-          </>
-        ) : (
-          <>
-            <Lock className="h-3 w-3" />
-            <span className="sr-only">Private</span>
-          </>
-        )}
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 text-xs cursor-help flex-shrink-0">
+            {isPublic ? (
+              <Globe className="h-4 w-4 text-green-500" strokeWidth={2.5} />
+            ) : (
+              <Lock className="h-4 w-4 text-white/70" strokeWidth={2.5} />
+            )}
+            <span className="sr-only">{isPublic ? "Public" : "Private"}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          side="right"
+          className="max-w-[220px] text-xs bg-zinc-900 text-white/80 border border-white/10"
+        >
+          {isPublic
+            ? "Public agents can be seen and interacted with by anyone."
+            : "Only you have access to private agents."}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -500,11 +512,6 @@ export function CharacterLibraryCard({
                 <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 to-transparent" />
               </div>
 
-              {/* Ownership badge in top left */}
-              <div className="absolute top-2 left-2">
-                <OwnershipBadge character={character} />
-              </div>
-
               {/* Remove button for saved agents (shown on hover) */}
               {!character.isOwned && isHovered && (
                 <button
@@ -532,9 +539,12 @@ export function CharacterLibraryCard({
 
               {/* Content Section */}
               <div className="p-4 space-y-2">
-                <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-                  {character.name || "Unnamed Character"}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+                    {character.name || "Unnamed Character"}
+                  </h3>
+                  <OwnershipBadge character={character} />
+                </div>
                 <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
                   {bio || "No description yet"}
                 </p>
