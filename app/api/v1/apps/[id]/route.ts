@@ -5,14 +5,28 @@ import { appCleanupService } from "@/lib/services/app-cleanup";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+// Helper to allow empty strings (transform to null to clear) and omitted fields (undefined)
+// - Omitted field → undefined (Drizzle skips, keeps old value)
+// - Empty string "" → null (Drizzle sets NULL, clears the value)
+// - Valid URL → the URL string
+const optionalUrl = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().url().nullish(),
+);
+
+const optionalEmail = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().email().nullish(),
+);
+
 const UpdateAppSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  app_url: z.string().url().optional(),
-  website_url: z.string().url().optional(),
-  contact_email: z.string().email().optional(),
+  app_url: optionalUrl,
+  website_url: optionalUrl,
+  contact_email: optionalEmail,
   allowed_origins: z.array(z.string()).optional(),
-  logo_url: z.string().url().optional(),
+  logo_url: optionalUrl,
   is_active: z.boolean().optional(),
   linked_character_ids: z.array(z.string().uuid()).max(4).optional(),
 });
