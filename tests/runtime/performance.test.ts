@@ -19,6 +19,9 @@ import {
 } from "../infrastructure";
 import { Timer, TimingCollector, HRTimer } from "../infrastructure/timing";
 import { simpleTestCharacter, miraCharacter } from "../fixtures/mcp-test-character";
+import { AgentMode } from "../infrastructure";
+import { v4 as uuidv4 } from "uuid";
+import type { UUID } from "@elizaos/core";
 
 // Test state
 let connectionString: string;
@@ -79,7 +82,7 @@ describe("Runtime Creation Performance", () => {
       const timer = new HRTimer(`chatRuntime-${i}`);
       const runtime = await createTestRuntime({
         testData,
-        agentMode: "CHAT" as any,
+        agentMode: AgentMode.CHAT,
         webSearchEnabled: false,
       });
       const result = timer.stop();
@@ -115,7 +118,7 @@ describe("Runtime Creation Performance", () => {
       const timer = new HRTimer(`assistantRuntime-${i}`);
       const runtime = await createTestRuntime({
         testData,
-        agentMode: "ASSISTANT" as any,
+        agentMode: AgentMode.ASSISTANT,
         webSearchEnabled: false,
       });
       const result = timer.stop();
@@ -150,7 +153,7 @@ describe("Database Query Performance", () => {
     await setupEnvironment();
     testRuntime = await createTestRuntime({
       testData,
-      agentMode: "CHAT" as any,
+      agentMode: AgentMode.CHAT,
       webSearchEnabled: false,
     });
     testUser = await createTestUser(testRuntime.runtime, "PerfTestUser");
@@ -171,7 +174,7 @@ describe("Database Query Performance", () => {
       const timer = new HRTimer(`entityCreate-${i}`);
       try {
         await testRuntime.runtime.createEntity({
-          id: `perf-entity-${i}-${Date.now()}` as `${string}-${string}-${string}-${string}-${string}`,
+          id: uuidv4() as UUID,
           agentId: testRuntime.agentId,
           names: [`PerfEntity${i}`],
           metadata: { type: "test", index: i },
@@ -198,7 +201,7 @@ describe("Database Query Performance", () => {
       const timer = new HRTimer(`memoryCreate-${i}`);
       await testRuntime.runtime.createMemory(
         {
-          id: `perf-memory-${i}-${Date.now()}` as `${string}-${string}-${string}-${string}-${string}`,
+          id: uuidv4() as UUID,
           entityId: testUser.entityId,
           agentId: testRuntime.agentId,
           roomId: testUser.roomId,
@@ -223,7 +226,7 @@ describe("Database Query Performance", () => {
     for (let i = 0; i < 10; i++) {
       await testRuntime.runtime.createMemory(
         {
-          id: `perf-retrieve-${i}-${Date.now()}` as `${string}-${string}-${string}-${string}-${string}`,
+          id: uuidv4() as UUID,
           entityId: testUser.entityId,
           agentId: testRuntime.agentId,
           roomId: testUser.roomId,
@@ -241,6 +244,7 @@ describe("Database Query Performance", () => {
       const timer = new HRTimer(`memoryRetrieve-${i}`);
       await testRuntime.runtime.getMemories({
         roomId: testUser.roomId,
+        tableName: "messages",
         count: 10,
       });
       const result = timer.stop();
@@ -272,7 +276,7 @@ describe("Runtime Caching Performance", () => {
     const coldTimer = new HRTimer("coldStart");
     const runtime1 = await createTestRuntime({
       testData,
-      agentMode: "CHAT" as any,
+      agentMode: AgentMode.CHAT,
       webSearchEnabled: false,
     });
     const coldResult = coldTimer.stop();
@@ -282,7 +286,7 @@ describe("Runtime Caching Performance", () => {
     const warmTimer = new HRTimer("warmStart");
     const runtime2 = await createTestRuntime({
       testData,
-      agentMode: "CHAT" as any,
+      agentMode: AgentMode.CHAT,
       webSearchEnabled: false,
     });
     const warmResult = warmTimer.stop();

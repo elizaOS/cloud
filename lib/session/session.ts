@@ -278,17 +278,7 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
     Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
   );
   const clientInfo = await getClientInfo();
-
-  if (clientInfo.ipAddress && process.env.NODE_ENV === "production") {
-    const isAbuse = await anonymousSessionsService.checkIpAbuse(
-      clientInfo.ipAddress,
-    );
-    if (isAbuse) {
-      throw new Error(
-        "Too many anonymous sessions from this IP. Please sign up.",
-      );
-    }
-  }
+  // NOTE: IP-based anonymous-session abuse checks intentionally removed.
 
   const [newUser] = await db
     .insert(users)

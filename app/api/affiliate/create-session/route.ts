@@ -4,7 +4,6 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { cookies } from "next/headers";
 
 // Cookie name - must match auth-anonymous.ts
@@ -73,26 +72,7 @@ export async function POST(request: NextRequest) {
     const ipAddress =
       realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
     const userAgent = request.headers.get("user-agent") || undefined;
-
-    // Check for IP-based abuse (max 5 sessions per IP in production)
-    if (process.env.NODE_ENV === "production" && ipAddress) {
-      const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
-      if (isAbuse) {
-        logger.warn("[Create Session] IP abuse detected", {
-          ipAddress: ipAddress.slice(0, 8) + "...",
-          characterId,
-        });
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "Too many sessions from this IP. Please sign up for continued access.",
-            code: "RATE_LIMIT_EXCEEDED",
-          },
-          { status: 429 },
-        );
-      }
-    }
+    // NOTE: IP-based anonymous-session abuse checks intentionally removed.
 
     // Use shared creator function (handles transaction internally)
     const { newUser, newSession } = await createAnonymousUserAndSession({

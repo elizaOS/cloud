@@ -147,23 +147,8 @@ export async function getOrCreateAnonymousUser(): Promise<{
   );
   const ipAddress = await getClientIp();
   const userAgent = await getUserAgent();
-
-  if (process.env.NODE_ENV === "production") {
-    if (!ipAddress) {
-      logger.warn(
-        "[auth-anonymous] Missing IP address in production - abuse detection bypassed",
-      );
-    } else {
-      const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
-      if (isAbuse) {
-        const error = new Error(
-          "Too many anonymous sessions from this IP address. Please sign up for continued access.",
-        );
-        error.name = "RateLimitError";
-        throw error;
-      }
-    }
-  }
+  // NOTE: IP-based anonymous-session abuse checks intentionally removed.
+  // We still record IP/user-agent for analytics/auditing, but do not block by IP.
 
   const { newUser, newSession } = await createAnonymousUserAndSession({
     sessionToken: newSessionToken,
