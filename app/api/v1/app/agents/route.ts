@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 const DEFAULT_AGENT_BIO = "A helpful AI assistant";
@@ -25,7 +26,7 @@ const CreateAgentSchema = z.object({
  * @param request - Request body with name and optional bio.
  * @returns The created agent with its ID.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
     const body = await request.json();
@@ -84,3 +85,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
