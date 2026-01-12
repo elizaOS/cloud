@@ -7,8 +7,20 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { userCharactersRepository } from "@/db/repositories/characters";
+import {
+  KNOWLEDGE_CONSTANTS,
+  ALLOWED_EXTENSIONS,
+  ALLOWED_CONTENT_TYPES,
+  isValidFilename,
+} from "@/lib/constants/knowledge";
 
 export const maxDuration = 300; // 5 minutes for large file processing
+
+function getFileExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf(".");
+  return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : "";
+}
 
 interface UploadResult {
   id: string;
@@ -93,6 +105,101 @@ async function handlePOST(req: NextRequest) {
     const files = formData.getAll("files") as File[];
     const characterId = formData.get("characterId") as string | null;
 
+    // Validate files are provided first (before expensive operations)
+    if (!files || files.length === 0) {
+      return NextResponse.json(
+        {
+          error: "No files provided",
+          details: "Please upload at least one file",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate file count
+    if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
+      return NextResponse.json(
+        {
+          error: "Too many files",
+          details: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate total batch size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Batch too large",
+          details: `Total upload size must be under ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate individual files (size, type, filename)
+    for (const file of files) {
+      // Validate filename
+      if (!isValidFilename(file.name)) {
+        return NextResponse.json(
+          {
+            error: "Invalid filename",
+            details: `${file.name} contains invalid characters. Filenames cannot contain / \\ : * ? " < > | or ..`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate file size
+      if (file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
+        return NextResponse.json(
+          {
+            error: "File too large",
+            details: `${file.name} exceeds maximum file size of ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate file extension
+      const ext = getFileExtension(file.name);
+      if (!ext || !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
+        return NextResponse.json(
+          {
+            error: "Unsupported file type",
+            details: `${file.name}: Extension ${ext || "(none)"} is not supported. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate content type (allow octet-stream for text files like md, txt)
+      const contentType = file.type || "application/octet-stream";
+      if (!ALLOWED_CONTENT_TYPES.includes(contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
+        return NextResponse.json(
+          {
+            error: "Unsupported content type",
+            details: `${file.name}: Content type ${contentType} is not supported`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // CRITICAL: Verify character ownership if characterId is provided
+    // This prevents users from uploading knowledge to characters they don't own
+    if (characterId) {
+      const character = await userCharactersRepository.findById(characterId);
+      if (!character || character.organization_id !== user.organization_id) {
+        return NextResponse.json(
+          { error: "Character not found or unauthorized" },
+          { status: 403 },
+        );
+      }
+    }
+
     // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
       user,
@@ -115,16 +222,6 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json(
         { error: "Knowledge service not available" },
         { status: 503 },
-      );
-    }
-
-    if (!files || files.length === 0) {
-      return NextResponse.json(
-        {
-          error: "No files provided",
-          details: "Please upload at least one file",
-        },
-        { status: 400 },
       );
     }
 

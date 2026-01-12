@@ -52,7 +52,9 @@ export function PendingKnowledgeProcessor({
   characterId,
   onProcessingComplete,
 }: PendingKnowledgeProcessorProps) {
-  const [state, setState] = useState<ProcessingState>({
+  // State is used internally for tracking but not rendered (component returns null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_state, setState] = useState<ProcessingState>({
     status: "idle",
     totalFiles: 0,
     processedFiles: 0,
@@ -262,7 +264,23 @@ export function PendingKnowledgeProcessor({
 
     // Check if pending data is too old (prevent processing stale data)
     if (Date.now() - pending.createdAt > MAX_AGE_MS) {
+      // Clean up expired data and orphaned blobs
       try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+
+      // Clean up orphaned blobs in background (fire and forget)
+      // This prevents storage bloat from expired pending files
+      if (pending.files && pending.files.length > 0) {
+        pending.files.forEach((file) => {
+          fetch("/api/v1/knowledge/pre-upload", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ blobUrl: file.blobUrl }),
+          }).catch(() => {
+            // Ignore cleanup errors - best effort cleanup
+          });
+        });
+      }
       return;
     }
 

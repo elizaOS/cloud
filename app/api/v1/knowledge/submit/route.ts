@@ -36,6 +36,25 @@ const RequestSchema = z.object({
 type FileToProcess = z.infer<typeof FileSchema>;
 
 /**
+ * Extracts the user ID from a pre-upload blob URL path.
+ * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+ * Returns null if the path doesn't match the expected format.
+ */
+function extractUserIdFromBlobPath(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
+      return pathParts[1];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetches a blob URL with timeout protection.
  * Prevents hanging requests from consuming the entire request timeout.
  */
@@ -121,6 +140,16 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json(
         { error: `Invalid or untrusted blobUrl for file: ${file.filename}` },
         { status: 400 },
+      );
+    }
+
+    // SECURITY: Verify blob ownership - user can only submit files they uploaded
+    // This prevents users from referencing blob URLs uploaded by other users
+    const blobOwnerId = extractUserIdFromBlobPath(file.blobUrl);
+    if (!blobOwnerId || blobOwnerId !== user.id) {
+      return NextResponse.json(
+        { error: `Unauthorized blob URL for file: ${file.filename}` },
+        { status: 403 },
       );
     }
 

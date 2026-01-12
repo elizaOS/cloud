@@ -250,8 +250,10 @@ export function CharacterBuildMode({
                 }
               }
 
-              // Clear all pre-uploaded files from component state since they're now in sessionStorage
-              setPreUploadedFiles([]);
+              // Clear only the processed files from state, preserving any files added during the API call
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !processedFileIds.has(f.id)),
+              );
               if (sessionStorageSucceeded) {
                 toast.warning("Character updated with partial file failures", {
                   description: `${successCount} file(s) processed, ${failedCount} failed. Failed files will be retried automatically.`,
@@ -298,7 +300,10 @@ export function CharacterBuildMode({
               // sessionStorage may fail in private browsing
             }
 
-            setPreUploadedFiles([]);
+            // Clear only the processed files from state, preserving any files added during the API call
+            setPreUploadedFiles((prev) =>
+              prev.filter((f) => !processedFileIds.has(f.id)),
+            );
             if (sessionStorageSucceeded) {
               toast.warning("Character updated, but file processing failed", {
                 description: errorData.error || "Files will be retried automatically.",
