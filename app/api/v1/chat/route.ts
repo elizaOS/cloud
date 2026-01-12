@@ -5,7 +5,6 @@ import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { conversationsService } from "@/lib/services/conversations";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
-import { organizationsService } from "@/lib/services/organizations";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
@@ -13,11 +12,7 @@ import {
   InsufficientCreditsError,
   type CreditReservation,
 } from "@/lib/services/credits";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateTokens,
-} from "@/lib/pricing";
+import { calculateCost, estimateTokens } from "@/lib/pricing";
 import { resolveModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -27,6 +22,75 @@ import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
+
+const VALID_MESSAGE_ROLES = ["user", "assistant", "system", "tool"] as const;
+type ValidRole = (typeof VALID_MESSAGE_ROLES)[number];
+
+function isValidRole(role: string): role is ValidRole {
+  return VALID_MESSAGE_ROLES.includes(role as ValidRole);
+}
+
+/**
+ * Normalize messages to UIMessage format.
+ * Accepts both UIMessage format (with parts) and OpenAI format (with content).
+ * @throws Error if a message has an invalid role.
+ */
+function normalizeMessages(
+  messages: Array<{
+    role: string;
+    content?: string | string[];
+    parts?: Array<{ type: string; text?: string }>;
+  }>,
+): UIMessage[] {
+  return messages.map((msg, index) => {
+    // Validate role
+    if (!isValidRole(msg.role)) {
+      throw new Error(
+        `Invalid message role "${msg.role}" at index ${index}. Valid roles: ${VALID_MESSAGE_ROLES.join(", ")}`,
+      );
+    }
+
+    // If message already has parts array, use it
+    if (msg.parts && Array.isArray(msg.parts)) {
+      return msg as UIMessage;
+    }
+
+    // Convert content string to parts format
+    let content = "";
+    if (typeof msg.content === "string") {
+      content = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      content = msg.content.join("");
+    }
+
+    return {
+      role: msg.role,
+      parts: [{ type: "text" as const, text: content }],
+    } as UIMessage;
+  });
+}
+
+/**
+ * Extract text content from message parts.
+ */
+function extractTextFromParts(
+  parts: Array<{ type: string; text?: string }>,
+): string {
+  return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+}
+
+/**
+ * Extract text content from a message (handles both formats).
+ */
+function getMessageText(msg: UIMessage | { content?: string }): string {
+  if ("parts" in msg && Array.isArray(msg.parts)) {
+    return extractTextFromParts(msg.parts);
+  }
+  if ("content" in msg && typeof msg.content === "string") {
+    return msg.content;
+  }
+  return "";
+}
 
 /**
  * POST /api/v1/chat
@@ -40,7 +104,6 @@ async function handlePOST(req: NextRequest) {
   try {
     let user: UserWithOrganization;
     let apiKey: ApiKey | undefined = undefined;
-    let authMethod: "session" | "api_key" | "anonymous";
     let isAnonymous = false;
     let anonymousSession: AnonymousSession | null = null;
 
@@ -49,8 +112,7 @@ async function handlePOST(req: NextRequest) {
       const authResult = await requireAuthOrApiKey(req);
       user = authResult.user;
       apiKey = authResult.apiKey;
-      authMethod = authResult.authMethod;
-    } catch (error) {
+    } catch {
       // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {
@@ -60,7 +122,6 @@ async function handlePOST(req: NextRequest) {
       user = anonData.user;
       anonymousSession = anonData.session;
       isAnonymous = true;
-      authMethod = "anonymous";
 
       logger.info("chat-api", "Anonymous user request", {
         userId: user.id,
@@ -71,21 +132,53 @@ async function handlePOST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      messages,
+      messages: rawMessages,
       id,
       tier,
-    }: { messages: UIMessage[]; id?: string; tier?: string } = body;
+    }: {
+      messages: Array<{
+        role: string;
+        content?: string;
+        parts?: Array<{ type: string; text?: string }>;
+        metadata?: unknown;
+      }>;
+      id?: string;
+      tier?: string;
+    } = body;
+
+    // Validate messages array is not empty
+    if (!rawMessages || rawMessages.length === 0) {
+      return NextResponse.json(
+        { error: "Messages array cannot be empty" },
+        { status: 400 },
+      );
+    }
+
+    // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
+    let messages: UIMessage[];
+    try {
+      messages = normalizeMessages(rawMessages);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Invalid message role")) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
 
     const modelConfig = resolveModel(tier || id);
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
+    const lastRawMessage = rawMessages[rawMessages.length - 1];
     interface MessageMetadata {
       conversationId?: string;
     }
     const metadata =
-      lastMessage?.metadata && typeof lastMessage.metadata === "object"
-        ? (lastMessage.metadata as MessageMetadata)
+      lastRawMessage?.metadata && typeof lastRawMessage.metadata === "object"
+        ? (lastRawMessage.metadata as MessageMetadata)
         : null;
     const conversationId = metadata?.conversationId;
 
@@ -104,10 +197,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastMessageText =
-      lastMessage?.parts
-        ?.map((p) => (p.type === "text" ? p.text : ""))
-        .join("") || "";
+    const lastMessageText = getMessageText(lastMessage);
 
     if (lastMessageText) {
       contentModerationService.moderateInBackground(
@@ -169,9 +259,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!isAnonymous && user.organization_id) {
       const messageText = messages
-        .map((m) =>
-          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
-        )
+        .map((m) => extractTextFromParts(m.parts))
         .join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
 
@@ -254,9 +342,7 @@ async function handlePOST(req: NextRequest) {
             // Add user message
             await conversationsService.addMessageWithSequence(conversationId, {
               role: "user",
-              content: userMessage.parts
-                .map((p) => (p.type === "text" ? p.text : ""))
-                .join(""),
+              content: extractTextFromParts(userMessage.parts),
               model: selectedModel,
               tokens: usage.inputTokens,
               cost: String(inputCost),
@@ -272,49 +358,52 @@ async function handlePOST(req: NextRequest) {
             });
           }
 
-          // Create usage record (with NULL organization_id for anonymous users)
-          const usageRecord = await usageService.create({
-            organization_id: user.organization_id || null,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "chat",
-            model: selectedModel,
-            provider: provider,
-            input_tokens: usage.inputTokens,
-            output_tokens: usage.outputTokens,
-            input_cost: String(inputCost),
-            output_cost: String(outputCost),
-            is_successful: true,
-          });
-
-          if (apiKey || isAnonymous) {
-            const userPrompt =
-              messages[messages.length - 1]?.parts
-                .map((p) => (p.type === "text" ? p.text : ""))
-                .join("") || "";
-            await generationsService.create({
-              organization_id: user.organization_id || null,
+          // Create usage/generation records only for authenticated users with org
+          // Anonymous users are tracked via anonymousSessionsService
+          if (user.organization_id) {
+            const usageRecord = await usageService.create({
+              organization_id: user.organization_id,
               user_id: user.id,
               api_key_id: apiKey?.id || null,
               type: "chat",
               model: selectedModel,
               provider: provider,
-              prompt: userPrompt,
-              status: "completed",
-              content: text,
-              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: String(isAnonymous ? 0 : totalCost),
-              credits: String(isAnonymous ? 0 : totalCost),
-              usage_record_id: usageRecord.id,
-              completed_at: new Date(),
-              result: {
-                text: text,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-                totalTokens:
-                  (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              },
+              input_tokens: usage.inputTokens,
+              output_tokens: usage.outputTokens,
+              input_cost: String(inputCost),
+              output_cost: String(outputCost),
+              is_successful: true,
             });
+
+            if (apiKey) {
+              const lastMessageParts = messages[messages.length - 1]?.parts;
+              const userPrompt = lastMessageParts
+                ? extractTextFromParts(lastMessageParts)
+                : "";
+              await generationsService.create({
+                organization_id: user.organization_id,
+                user_id: user.id,
+                api_key_id: apiKey.id,
+                type: "chat",
+                model: selectedModel,
+                provider: provider,
+                prompt: userPrompt,
+                status: "completed",
+                content: text,
+                tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                cost: String(totalCost),
+                credits: String(totalCost),
+                usage_record_id: usageRecord.id,
+                completed_at: new Date(),
+                result: {
+                  text: text,
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  totalTokens:
+                    (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                },
+              });
+            }
           }
 
           logger.info("chat-api", "Cost charged", {
@@ -329,7 +418,7 @@ async function handlePOST(req: NextRequest) {
             { error: error instanceof Error ? error.message : "Unknown error" },
           );
 
-          if (usage) {
+          if (usage && user.organization_id) {
             try {
               const errorUsageRecord = await usageService.create({
                 organization_id: user.organization_id,
@@ -348,10 +437,10 @@ async function handlePOST(req: NextRequest) {
               });
 
               if (apiKey) {
-                const userPrompt =
-                  messages[messages.length - 1]?.parts
-                    .map((p) => (p.type === "text" ? p.text : ""))
-                    .join("") || "";
+                const lastMessageParts = messages[messages.length - 1]?.parts;
+                const userPrompt = lastMessageParts
+                  ? extractTextFromParts(lastMessageParts)
+                  : "";
                 await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
