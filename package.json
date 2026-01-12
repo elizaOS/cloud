@@ -39,7 +39,9 @@
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "admin:promote": "bun run scripts/promote-admin.ts",
     "admin:list": "bun run scripts/promote-admin.ts --list",
-    "admin:revoke": "bun run scripts/promote-admin.ts --revoke"
+    "admin:revoke": "bun run scripts/promote-admin.ts --revoke",
+    "test:runtime": "bun test tests/runtime --timeout 120000",
+    "test:mcp": "bun test tests/runtime/mcp-loading.test.ts --timeout 120000"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.10",
@@ -52,13 +54,13 @@
     "@coinbase/x402": "^2.1.0",
     "@discordjs/rest": "^2.6.0",
     "@elevenlabs/elevenlabs-js": "^2.30.0",
-    "@elizaos/core": "^1.7.0",
+    "@elizaos/core": "1.7.1-alpha.16",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
-    "@elizaos/plugin-elizacloud": "^1.7.4",
+    "@elizaos/plugin-elizacloud": "^1.0.0",
     "@elizaos/plugin-knowledge": "^1.6.1",
     "@elizaos/plugin-mcp": "^1.7.0",
     "@elizaos/plugin-memory": "1.1.2",
-    "@elizaos/plugin-sql": "^1.7.0",
+    "@elizaos/plugin-sql": "1.7.1-alpha.16",
     "@elizaos/plugin-web-search": "^1.0.1",
     "@fal-ai/client": "^1.8.3",
     "@fal-ai/server-proxy": "^1.1.2",
@@ -191,7 +193,7 @@
     "webpack-bundle-analyzer": "^5.1.1"
   },
   "resolutions": {
-    "@elizaos/core": "1.7.0",
+    "@elizaos/core": "1.7.1-alpha.16",
     "@walletconnect/core": "2.22.4",
     "@walletconnect/logger": "3.0.0",
     "@walletconnect/sign-client": "2.22.4",

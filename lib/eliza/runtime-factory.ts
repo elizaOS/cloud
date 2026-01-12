@@ -599,10 +599,18 @@ export class RuntimeFactory {
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
+    // Get embedding dimension from known model dimensions (skips 500ms API call)
+    const embeddingModel =
+      (charSettings.OPENAI_EMBEDDING_MODEL as string) ||
+      (charSettings.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
+    const embeddingDimension = getStaticEmbeddingDimension(embeddingModel);
+
     return {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
+      // Pass embedding dimension to runtime so it skips the embedding API call
+      EMBEDDING_DIMENSION: String(embeddingDimension),
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
