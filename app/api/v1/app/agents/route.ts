@@ -67,14 +67,16 @@ function getMaxAgentsForOrg(
  * Enforces organization agent quotas and user permissions.
  *
  * @param request - Request body with name and optional bio.
- * @returns The created agent with its ID.
+ * @returns The created agent with its ID. Response includes:
+ *  - success: true
+ *  - agent: { id, name, username, bio, created_at }
+ *  - quota information logged (agentCount, maxAgents) for monitoring
  */
 async function handleCreateAgent(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 
     // Check user role - only members, admins, and owners can create agents
-    // Viewer role (if it exists) would be denied
     if (user.role === "viewer") {
       return NextResponse.json(
         {
@@ -123,6 +125,8 @@ async function handleCreateAgent(request: NextRequest) {
     }
 
     // Count existing agents for this organization
+    // Note: This query runs on each creation. If agent creation becomes a bottleneck,
+    // consider caching this count in Redis with invalidation on create/delete.
     const [{ count }] = await dbRead
       .select({ count: sql<number>`count(*)::int` })
       .from(userCharacters)
