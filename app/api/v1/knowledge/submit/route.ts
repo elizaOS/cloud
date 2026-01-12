@@ -218,11 +218,11 @@ async function handlePOST(req: NextRequest) {
       }
 
       // Validate content-length to prevent malicious oversized responses
-      // Use strict 1% tolerance since Vercel Blob preserves exact sizes
+      // Use 5% tolerance to account for CDN behavior and encoding differences
       const contentLength = response.headers.get("content-length");
       if (contentLength) {
         const actualSize = parseInt(contentLength, 10);
-        if (actualSize > file.size * 1.01) {
+        if (actualSize > file.size * 1.05) {
           throw new Error(
             `Blob size mismatch: expected ${file.size} bytes, got ${actualSize}`,
           );
