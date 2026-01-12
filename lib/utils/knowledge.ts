@@ -1,0 +1,116 @@
+/**
+ * Shared utilities for knowledge file processing.
+ * Used across pre-upload, submit, and processing services.
+ */
+
+import { logger } from "@/lib/utils/logger";
+
+/**
+ * UUID v4 regex pattern for validation.
+ * Matches standard UUID format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Structured log marker for orphaned blobs.
+ * This constant allows easy searching/filtering in log aggregation systems.
+ */
+const ORPHANED_BLOB_LOG_MARKER = "[ORPHANED_BLOB]";
+
+export interface OrphanedBlobInfo {
+  blobUrl: string;
+  userId?: string;
+  reason: "cleanup_failed" | "partial_upload_failure" | "expired_pending" | "unknown";
+  originalError?: string;
+  timestamp: number;
+}
+
+/**
+ * Tracks an orphaned blob for later cleanup.
+ *
+ * This function logs orphaned blobs in a structured format that can be:
+ * 1. Monitored via log aggregation (search for "[ORPHANED_BLOB]")
+ * 2. Parsed by a future cleanup cron job
+ * 3. Used to set up alerts for high orphan rates
+ *
+ * Future improvement: Store in database table for reliable cleanup scheduling.
+ *
+ * @param info - Information about the orphaned blob.
+ */
+export function trackOrphanedBlob(info: OrphanedBlobInfo): void {
+  // Log at error level to ensure it's always captured, even without verbose logging
+  logger.error(ORPHANED_BLOB_LOG_MARKER, {
+    type: "orphaned_blob",
+    blobUrl: info.blobUrl,
+    userId: info.userId,
+    reason: info.reason,
+    originalError: info.originalError,
+    timestamp: info.timestamp,
+    isoTimestamp: new Date(info.timestamp).toISOString(),
+  });
+}
+
+/**
+ * Tracks multiple orphaned blobs from a batch operation.
+ *
+ * @param blobs - Array of orphaned blob information.
+ * @param batchContext - Optional context about the batch operation.
+ */
+export function trackOrphanedBlobBatch(
+  blobs: OrphanedBlobInfo[],
+  batchContext?: { operation: string; userId?: string },
+): void {
+  if (blobs.length === 0) return;
+
+  // Log summary at error level for monitoring
+  logger.error(`${ORPHANED_BLOB_LOG_MARKER}_BATCH`, {
+    type: "orphaned_blob_batch",
+    count: blobs.length,
+    operation: batchContext?.operation,
+    userId: batchContext?.userId,
+    blobUrls: blobs.map((b) => b.blobUrl),
+    timestamp: Date.now(),
+  });
+
+  // Also log individual entries for detailed tracking
+  for (const blob of blobs) {
+    trackOrphanedBlob(blob);
+  }
+}
+
+/**
+ * Validates that a string is a valid UUID format.
+ * @param str - The string to validate.
+ * @returns True if the string is a valid UUID.
+ */
+export function isValidUUID(str: string): boolean {
+  return UUID_REGEX.test(str);
+}
+
+/**
+ * Extracts the user ID from a pre-upload blob URL path.
+ * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+ *
+ * SECURITY: Validates that the extracted userId is a valid UUID format to prevent
+ * path traversal attacks (e.g., "../../../etc/passwd").
+ *
+ * @param url - The blob URL to extract the user ID from.
+ * @returns The user ID if valid, null otherwise.
+ */
+export function extractUserIdFromBlobPath(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
+      const userId = pathParts[1];
+      // SECURITY: Validate userId is a proper UUID to prevent path traversal
+      if (isValidUUID(userId)) {
+        return userId;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

@@ -7,8 +7,20 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { userCharactersRepository } from "@/db/repositories/characters";
+import {
+  KNOWLEDGE_CONSTANTS,
+  ALLOWED_EXTENSIONS,
+  ALLOWED_CONTENT_TYPES,
+  isValidFilename,
+} from "@/lib/constants/knowledge";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutes for large file processing
+
+function getFileExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf(".");
+  return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : "";
+}
 
 interface UploadResult {
   id: string;
@@ -29,14 +41,164 @@ interface UploadResult {
  * @param req - Form data with files array and optional characterId.
  * @returns Upload results for each file including fragment counts.
  */
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB - Next.js default limit
+
 async function handlePOST(req: NextRequest) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
 
-    const formData = await req.formData();
+    // Parse form data with proper error handling
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const lowerMessage = errorMessage.toLowerCase();
+      
+      // Check for specific body size limit errors (413 Payload Too Large)
+      const isSizeLimitError =
+        lowerMessage.includes("request entity too large") ||
+        lowerMessage.includes("body exceeded") ||
+        lowerMessage.includes("payload too large") ||
+        lowerMessage.includes("body limit") ||
+        lowerMessage.includes("file too large") ||
+        lowerMessage.includes("size limit");
+
+      if (isSizeLimitError) {
+        logger.warn("[KnowledgeUpload] Request body too large", {
+          error: errorMessage,
+        });
+        return NextResponse.json(
+          {
+            error: "Upload too large",
+            details: `Total upload size must be under ${MAX_BODY_SIZE / (1024 * 1024)}MB. Please upload smaller files or fewer files at once.`,
+          },
+          { status: 413 },
+        );
+      }
+
+      // Check for malformed request errors (400 Bad Request)
+      const isMalformedRequest =
+        lowerMessage.includes("boundary") ||
+        lowerMessage.includes("unexpected end") ||
+        lowerMessage.includes("malformed") ||
+        lowerMessage.includes("invalid multipart") ||
+        lowerMessage.includes("missing content-type");
+
+      if (isMalformedRequest) {
+        logger.warn("[KnowledgeUpload] Malformed form data request", {
+          error: errorMessage,
+        });
+        return NextResponse.json(
+          {
+            error: "Malformed request",
+            details: "The upload request was malformed. Please ensure the request uses valid multipart/form-data encoding.",
+          },
+          { status: 400 },
+        );
+      }
+
+      throw error;
+    }
+
     const files = formData.getAll("files") as File[];
     const characterId = formData.get("characterId") as string | null;
+
+    // Validate files are provided first (before expensive operations)
+    if (!files || files.length === 0) {
+      return NextResponse.json(
+        {
+          error: "No files provided",
+          details: "Please upload at least one file",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate file count
+    if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
+      return NextResponse.json(
+        {
+          error: "Too many files",
+          details: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate total batch size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Batch too large",
+          details: `Total upload size must be under ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate individual files (size, type, filename)
+    for (const file of files) {
+      // Validate filename
+      if (!isValidFilename(file.name)) {
+        return NextResponse.json(
+          {
+            error: "Invalid filename",
+            details: `${file.name} contains invalid characters. Filenames cannot contain / \\ : * ? " < > | or ..`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate file size
+      if (file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
+        return NextResponse.json(
+          {
+            error: "File too large",
+            details: `${file.name} exceeds maximum file size of ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate file extension
+      const ext = getFileExtension(file.name);
+      if (!ext || !ALLOWED_EXTENSIONS.includes(ext as (typeof ALLOWED_EXTENSIONS)[number])) {
+        return NextResponse.json(
+          {
+            error: "Unsupported file type",
+            details: `${file.name}: Extension ${ext || "(none)"} is not supported. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Validate content type (allow octet-stream for text files like md, txt)
+      const contentType = file.type || "application/octet-stream";
+      if (!ALLOWED_CONTENT_TYPES.includes(contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
+        return NextResponse.json(
+          {
+            error: "Unsupported content type",
+            details: `${file.name}: Content type ${contentType} is not supported`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // CRITICAL: Verify character ownership if characterId is provided
+    // This prevents users from uploading knowledge to characters they don't own
+    if (characterId) {
+      const character = await userCharactersRepository.findById(characterId);
+      if (!character || character.organization_id !== user.organization_id) {
+        return NextResponse.json(
+          { error: "Character not found or unauthorized" },
+          { status: 403 },
+        );
+      }
+    }
 
     // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({
@@ -60,16 +222,6 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json(
         { error: "Knowledge service not available" },
         { status: 503 },
-      );
-    }
-
-    if (!files || files.length === 0) {
-      return NextResponse.json(
-        {
-          error: "No files provided",
-          details: "Please upload at least one file",
-        },
-        { status: 400 },
       );
     }
 
@@ -99,8 +251,8 @@ async function handlePOST(req: NextRequest) {
               uploadedAt: Date.now(),
               organizationId: user.organization_id,
               fileSize: file.size,
-              fileName: file.name,
-              filename: file.name, // Add both for compatibility
+              filename: file.name,
+              fileName: file.name, // camelCase for getDocumentName() compatibility
             },
           });
 
