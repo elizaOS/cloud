@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { dbRead } from "@/db/client";
@@ -72,7 +73,7 @@ function getMaxAgentsForOrg(
  *  - agent: { id, name, username, bio, created_at }
  *  - quota information logged (agentCount, maxAgents) for monitoring
  */
-async function handleCreateAgent(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 
@@ -201,6 +202,4 @@ async function handleCreateAgent(request: NextRequest) {
   }
 }
 
-// Export rate-limited handler for POST
-// Uses STRICT preset: 10 requests per minute in production
-export const POST = withRateLimit(handleCreateAgent, RateLimitPresets.STRICT);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
