@@ -8411,16 +8411,12 @@ print(f'Document uploaded: {result["id"]}')
 
 | Format   | Extension | Max Size |
 | -------- | --------- | -------- |
-| PDF      | `.pdf`    | 5MB      |
-| Text     | `.txt`    | 5MB      |
-| Markdown | `.md`     | 5MB      |
-| Word     | `.docx`   | 5MB      |
-| JSON     | `.json`   | 5MB      |
-| XML      | `.xml`    | 5MB      |
-| YAML     | `.yaml`   | 5MB      |
-| CSV      | `.csv`    | 5MB      |
-
-**Note:** Maximum 5MB per file and 5MB total per batch upload.
+| PDF      | `.pdf`    | 50MB     |
+| Text     | `.txt`    | 10MB     |
+| Markdown | `.md`     | 10MB     |
+| Word     | `.docx`   | 25MB     |
+| HTML     | `.html`   | 10MB     |
+| CSV      | `.csv`    | 25MB     |
 
 ## Upload Documents
 
