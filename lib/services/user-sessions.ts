@@ -4,6 +4,39 @@
 
 import { userSessionsRepository } from "@/db/repositories";
 import type { UserSession, NewUserSession } from "@/db/schemas/user-sessions";
+import crypto from "crypto";
+
+/**
+ * Hash a token for secure storage and lookup.
+ * We never store raw JWT tokens in the database for security reasons.
+ *
+ * @param token - The raw token (e.g., JWT) to hash
+ * @returns A 32-character SHA-256 hash
+ */
+function hashSessionToken(token: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex")
+    .substring(0, 32);
+}
+
+/**
+ * Check if a token is already hashed (32 hex characters).
+ * This allows the service to accept both raw tokens and pre-hashed tokens.
+ */
+function isAlreadyHashed(token: string): boolean {
+  return /^[a-f0-9]{32}$/.test(token);
+}
+
+/**
+ * Normalize a token to its hashed form.
+ * If the token is already hashed, return as-is.
+ * Otherwise, hash it.
+ */
+function normalizeToken(token: string): string {
+  return isAlreadyHashed(token) ? token : hashSessionToken(token);
+}
 
 /**
  * Parameters for creating a user session.
@@ -29,6 +62,10 @@ export interface TrackUsageParams {
 
 /**
  * Service for user session management and usage tracking.
+ *
+ * IMPORTANT: All session_token values are stored as SHA-256 hashes.
+ * Raw JWT tokens should never be stored in the database.
+ * This service automatically hashes incoming tokens before storage/lookup.
  */
 class UserSessionsService {
   async getById(id: string): Promise<UserSession | undefined> {
@@ -38,7 +75,8 @@ class UserSessionsService {
   async getActiveByToken(
     sessionToken: string,
   ): Promise<UserSession | undefined> {
-    return await userSessionsRepository.findActiveByToken(sessionToken);
+    const hashedToken = normalizeToken(sessionToken);
+    return await userSessionsRepository.findActiveByToken(hashedToken);
   }
 
   async listActiveByUser(userId: string): Promise<UserSession[]> {
@@ -56,10 +94,11 @@ class UserSessionsService {
   }
 
   async create(params: CreateSessionParams): Promise<UserSession> {
+    const hashedToken = normalizeToken(params.session_token);
     const sessionData: NewUserSession = {
       user_id: params.user_id,
       organization_id: params.organization_id,
-      session_token: params.session_token,
+      session_token: hashedToken,
       ip_address: params.ip_address,
       user_agent: params.user_agent,
       device_info: params.device_info || {},
@@ -76,8 +115,9 @@ class UserSessionsService {
   async trackUsage(params: TrackUsageParams): Promise<UserSession | undefined> {
     const { session_token, credits_used, requests_made, tokens_consumed } =
       params;
+    const hashedToken = normalizeToken(session_token);
 
-    return await userSessionsRepository.incrementMetrics(session_token, {
+    return await userSessionsRepository.incrementMetrics(hashedToken, {
       credits_used,
       requests_made,
       tokens_consumed,
@@ -85,7 +125,8 @@ class UserSessionsService {
   }
 
   async endSession(sessionToken: string): Promise<UserSession | undefined> {
-    return await userSessionsRepository.endSession(sessionToken);
+    const hashedToken = normalizeToken(sessionToken);
+    return await userSessionsRepository.endSession(hashedToken);
   }
 
   async endAllUserSessions(userId: string): Promise<number> {
@@ -112,11 +153,14 @@ class UserSessionsService {
     user_agent?: string;
     device_info?: Record<string, unknown>;
   }): Promise<UserSession> {
+    // Hash the token for secure storage
+    const hashedToken = normalizeToken(params.session_token);
+
     // Use atomic get-or-create at database level to prevent race conditions
     const sessionData: NewUserSession = {
       user_id: params.user_id,
       organization_id: params.organization_id,
-      session_token: params.session_token,
+      session_token: hashedToken,
       ip_address: params.ip_address,
       user_agent: params.user_agent,
       device_info: params.device_info || {},

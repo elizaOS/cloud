@@ -1,4 +1,5 @@
 import { sandboxService, type SandboxProgress } from "./sandbox";
+import { appBuilderAISDK } from "./app-builder-ai-sdk";
 import {
   buildFullAppPrompt,
   getExamplePrompts,
@@ -47,6 +48,7 @@ export interface BuilderSessionConfig {
     | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  linkedAgentIds?: string[];
   onProgress?: (progress: SandboxProgress) => void;
   onSandboxReady?: (session: BuilderSession) => void;
   onToolUse?: (tool: string, input: unknown, result: string) => void;
@@ -107,6 +109,7 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      linkedAgentIds,
       onProgress,
       onSandboxReady,
       onToolUse,
@@ -156,6 +159,17 @@ export class AIAppBuilderService {
       if (result.errors.length > 0) {
         logger.warn("App creation had warnings", { warnings: result.errors });
       }
+
+      // Update app with linked agent IDs if provided
+      if (linkedAgentIds && linkedAgentIds.length > 0) {
+        await appsService.update(appId, {
+          linked_character_ids: linkedAgentIds,
+        });
+        logger.info("Linked agents to app", {
+          appId,
+          agentCount: linkedAgentIds.length,
+        });
+      }
     } else if (appId) {
       appApiKey = await appsService.regenerateApiKey(appId);
       // Fetch existing app to get GitHub repo
@@ -165,6 +179,17 @@ export class AIAppBuilderService {
         appId,
         githubRepo,
       });
+
+      // Update linked agent IDs if provided for existing app
+      if (linkedAgentIds && linkedAgentIds.length > 0) {
+        await appsService.update(appId, {
+          linked_character_ids: linkedAgentIds,
+        });
+        logger.info("Updated linked agents for existing app", {
+          appId,
+          agentCount: linkedAgentIds.length,
+        });
+      }
     }
 
     // Determine template URL for sandbox creation
@@ -430,15 +455,24 @@ export class AIAppBuilderService {
       ),
     });
 
+    // Get sandbox instance for AI execution
+    const sandbox = sandboxService.getSandboxInstance(session.sandbox_id);
+    if (!sandbox) {
+      throw new Error(`Sandbox instance not found for ${session.sandbox_id}`);
+    }
+
     const startTime = Date.now();
-    const result = await sandboxService.executeClaudeCode(
-      session.sandbox_id,
+    const result = await appBuilderAISDK.execute(
       prompt,
       {
+        sandbox,
+        sandboxId: session.sandbox_id,
         systemPrompt: systemPromptRecord?.content,
-        onToolUse: options.onToolUse,
-        onThinking: options.onThinking,
         abortSignal: options.abortSignal,
+      },
+      {
+        onToolResult: options.onToolUse,
+        onThinking: options.onThinking,
       },
     );
     const durationMs = Date.now() - startTime;

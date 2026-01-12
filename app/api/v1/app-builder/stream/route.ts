@@ -34,6 +34,7 @@ const CreateSessionSchema = z.object({
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
+  linkedAgentIds: z.array(z.string().uuid()).max(4).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
           templateType: data.templateType,
           includeMonetization: data.includeMonetization,
           includeAnalytics: data.includeAnalytics,
+          linkedAgentIds: data.linkedAgentIds,
           onProgress: async (progress: SandboxProgress) => {
             if (!streamWriter.isConnected()) return;
             await streamWriter.sendEvent("progress", progress);

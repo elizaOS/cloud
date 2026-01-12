@@ -56,6 +56,49 @@ interface AppOverviewProps {
   showApiKey?: string;
 }
 
+type DeploymentStatus = "deployed" | "deploying" | "building" | "failed" | "draft";
+
+function DeploymentStatusBadge({ status }: { status: DeploymentStatus }): JSX.Element {
+  switch (status) {
+    case "deployed":
+      return (
+        <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Deployed
+        </Badge>
+      );
+    case "deploying":
+      return (
+        <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+          <Rocket className="h-3 w-3 mr-1 animate-pulse" />
+          Deploying
+        </Badge>
+      );
+    case "building":
+      return (
+        <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+          <Hammer className="h-3 w-3 mr-1 animate-pulse" />
+          Building
+        </Badge>
+      );
+    case "failed":
+      return (
+        <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
+          <XCircle className="h-3 w-3 mr-1" />
+          Failed
+        </Badge>
+      );
+    case "draft":
+    default:
+      return (
+        <Badge className="bg-white/10 text-white/60 border-white/20">
+          <FileEdit className="h-3 w-3 mr-1" />
+          Draft
+        </Badge>
+      );
+  }
+}
+
 export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   const router = useRouter();
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
@@ -75,61 +118,69 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   };
 
   useEffect(() => {
-    if (showApiKey) {
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setDisplayApiKey(showApiKey);
-        setShowKey(true);
-      }, 0);
-      const timer = setTimeout(() => {
-        setDisplayApiKey("");
-        setShowKey(false);
-      }, 60000);
-      return () => clearTimeout(timer);
-    }
+    if (!showApiKey) return;
+
+    setDisplayApiKey(showApiKey);
+    setShowKey(true);
+
+    const timer = setTimeout(() => {
+      setDisplayApiKey("");
+      setShowKey(false);
+    }, 60000);
+
+    return () => clearTimeout(timer);
   }, [showApiKey]);
 
   // Fetch monetization status
   useEffect(() => {
-    const fetchMonetization = async () => {
-      const response = await fetch(`/api/v1/apps/${app.id}/monetization`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    async function fetchMonetization(): Promise<void> {
+      try {
+        const response = await fetch(`/api/v1/apps/${app.id}/monetization`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.success && data.monetization) {
+          setMonetizationEnabled(data.monetization.monetizationEnabled);
+          setTotalEarnings(data.monetization.totalCreatorEarnings);
+        }
+      } catch {
+        // Silently fail - monetization status is not critical
       }
-      const data = await response.json();
-      if (data.success && data.monetization) {
-        setMonetizationEnabled(data.monetization.monetizationEnabled);
-        setTotalEarnings(data.monetization.totalCreatorEarnings);
-      }
-    };
+    }
     fetchMonetization();
   }, [app.id]);
 
-  const handleRegenerateApiKey = async () => {
+  async function handleRegenerateApiKey(): Promise<void> {
     setIsRegenerating(true);
-    const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
-      method: "POST",
-    });
+    try {
+      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
+        method: "POST",
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to regenerate API key");
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || "Failed to regenerate API key");
+        return;
+      }
+
+      const data = await response.json();
+      setDisplayApiKey(data.apiKey);
+      setShowKey(true);
+      toast.success("API key regenerated");
+      router.refresh();
+    } catch {
+      toast.error("Failed to regenerate API key");
+    } finally {
+      setIsRegenerating(false);
     }
-
-    const data = await response.json();
-    setDisplayApiKey(data.apiKey);
-    setShowKey(true);
-    toast.success("API key regenerated");
-    router.refresh();
-    setIsRegenerating(false);
-  };
+  }
 
   const allowedOrigins: string[] = Array.isArray(app.allowed_origins)
     ? app.allowed_origins.filter(
         (origin): origin is string => typeof origin === "string",
       )
     : [];
-  const maskedApiKey = "elizakey_" + "•".repeat(32);
+  const maskedApiKey = "eliza_" + "•".repeat(32);
 
   return (
     <div className="space-y-6">
@@ -177,47 +228,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
               <div>
                 <p className="text-sm text-white/60">Deployment Status</p>
                 <div className="mt-1">
-                  {(() => {
-                    const status = app.deployment_status || "draft";
-                    switch (status) {
-                      case "deployed":
-                        return (
-                          <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Deployed
-                          </Badge>
-                        );
-                      case "deploying":
-                        return (
-                          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-                            <Rocket className="h-3 w-3 mr-1 animate-pulse" />
-                            Deploying
-                          </Badge>
-                        );
-                      case "building":
-                        return (
-                          <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
-                            <Hammer className="h-3 w-3 mr-1 animate-pulse" />
-                            Building
-                          </Badge>
-                        );
-                      case "failed":
-                        return (
-                          <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Failed
-                          </Badge>
-                        );
-                      case "draft":
-                      default:
-                        return (
-                          <Badge className="bg-white/10 text-white/60 border-white/20">
-                            <FileEdit className="h-3 w-3 mr-1" />
-                            Draft
-                          </Badge>
-                        );
-                    }
-                  })()}
+                  <DeploymentStatusBadge
+                    status={(app.deployment_status || "draft") as DeploymentStatus}
+                  />
                 </div>
               </div>
 
