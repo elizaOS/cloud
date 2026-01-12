@@ -135,7 +135,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/workflows",
         icon: Workflow,
         freeAllowed: false,
-        comingSoon: true,
+        isNew: true,
       },
     ],
   },

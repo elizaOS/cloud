@@ -1,0 +1,126 @@
+"use server";
+
+import { requireAuthWithOrg } from "@/lib/auth";
+import { workflowsRepository } from "@/db/repositories";
+import type {
+  NewWorkflow,
+  WorkflowStatus,
+  WorkflowNode,
+  WorkflowEdge,
+  WorkflowTriggerConfig,
+} from "@/db/schemas";
+import { revalidatePath } from "next/cache";
+
+/**
+ * Creates a new workflow for the authenticated user's organization.
+ */
+export async function createWorkflow(data: {
+  name: string;
+  description?: string;
+  trigger_config?: WorkflowTriggerConfig;
+  nodes?: WorkflowNode[];
+  edges?: WorkflowEdge[];
+}) {
+  const user = await requireAuthWithOrg();
+
+  const newWorkflow: NewWorkflow = {
+    name: data.name,
+    description: data.description ?? null,
+    organization_id: user.organization_id,
+    created_by_user_id: user.id,
+    status: "draft",
+    trigger_config: data.trigger_config ?? { type: "manual" },
+    nodes: data.nodes ?? [],
+    edges: data.edges ?? [],
+  };
+
+  const workflow = await workflowsRepository.create(newWorkflow);
+
+  revalidatePath("/dashboard/workflows");
+  return workflow;
+}
+
+/**
+ * Updates an existing workflow owned by the authenticated user's organization.
+ */
+export async function updateWorkflow(
+  workflowId: string,
+  data: {
+    name?: string;
+    description?: string;
+    status?: WorkflowStatus;
+    trigger_config?: WorkflowTriggerConfig;
+    nodes?: WorkflowNode[];
+    edges?: WorkflowEdge[];
+  },
+) {
+  const user = await requireAuthWithOrg();
+
+  const workflow = await workflowsRepository.updateByOrganization(
+    workflowId,
+    user.organization_id,
+    data,
+  );
+
+  if (!workflow) {
+    throw new Error("Workflow not found or access denied");
+  }
+
+  revalidatePath("/dashboard/workflows");
+  return workflow;
+}
+
+/**
+ * Deletes a workflow owned by the authenticated user's organization.
+ */
+export async function deleteWorkflow(workflowId: string) {
+  const user = await requireAuthWithOrg();
+
+  const success = await workflowsRepository.deleteByOrganization(
+    workflowId,
+    user.organization_id,
+  );
+
+  if (!success) {
+    throw new Error("Workflow not found or access denied");
+  }
+
+  revalidatePath("/dashboard/workflows");
+  return { success: true };
+}
+
+/**
+ * Lists all workflows for the authenticated user's organization.
+ */
+export async function listWorkflows(options?: {
+  status?: WorkflowStatus;
+  limit?: number;
+  offset?: number;
+}) {
+  const user = await requireAuthWithOrg();
+
+  const workflows = await workflowsRepository.listByOrganization(
+    user.organization_id,
+    options,
+  );
+
+  return workflows;
+}
+
+/**
+ * Gets a specific workflow by ID.
+ */
+export async function getWorkflow(workflowId: string) {
+  const user = await requireAuthWithOrg();
+
+  const workflow = await workflowsRepository.findByIdAndOrganization(
+    workflowId,
+    user.organization_id,
+  );
+
+  if (!workflow) {
+    throw new Error("Workflow not found");
+  }
+
+  return workflow;
+}

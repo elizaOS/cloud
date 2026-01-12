@@ -15,6 +15,7 @@ import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
 import { tokenRedemptions, redemptionLimits } from "./token-redemptions";
 import { cryptoPayments } from "./crypto-payments";
+import { workflows } from "./workflows";
 
 /**
  * Organizations table relations.
@@ -240,6 +241,20 @@ export const cryptoPaymentsRelations = relations(cryptoPayments, ({ one }) => ({
   }),
   user: one(users, {
     fields: [cryptoPayments.user_id],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Workflows table relations.
+ */
+export const workflowsRelations = relations(workflows, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [workflows.organization_id],
+    references: [organizations.id],
+  }),
+  createdBy: one(users, {
+    fields: [workflows.created_by_user_id],
     references: [users.id],
   }),
 }));

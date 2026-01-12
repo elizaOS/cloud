@@ -1,0 +1,179 @@
+import { dbRead, dbWrite } from "../helpers";
+import {
+  workflows,
+  type Workflow,
+  type NewWorkflow,
+  type WorkflowStatus,
+} from "../schemas";
+import { eq, and, desc } from "drizzle-orm";
+
+export type { Workflow, NewWorkflow };
+
+/**
+ * Repository for workflow database operations.
+ *
+ * Handles CRUD operations for workflows.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
+ */
+export class WorkflowsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
+  /**
+   * Finds a workflow by ID.
+   */
+  async findById(id: string): Promise<Workflow | undefined> {
+    return await dbRead.query.workflows.findFirst({
+      where: eq(workflows.id, id),
+    });
+  }
+
+  /**
+   * Finds a workflow by ID with organization verification.
+   */
+  async findByIdAndOrganization(
+    id: string,
+    organizationId: string,
+  ): Promise<Workflow | undefined> {
+    return await dbRead.query.workflows.findFirst({
+      where: and(
+        eq(workflows.id, id),
+        eq(workflows.organization_id, organizationId),
+      ),
+    });
+  }
+
+  /**
+   * Lists all workflows for an organization, ordered by creation date.
+   */
+  async listByOrganization(
+    organizationId: string,
+    options?: {
+      status?: WorkflowStatus;
+      limit?: number;
+      offset?: number;
+    },
+  ): Promise<Workflow[]> {
+    const conditions = [eq(workflows.organization_id, organizationId)];
+
+    if (options?.status) {
+      conditions.push(eq(workflows.status, options.status));
+    }
+
+    return await dbRead.query.workflows.findMany({
+      where: and(...conditions),
+      orderBy: [desc(workflows.created_at)],
+      limit: options?.limit,
+      offset: options?.offset,
+    });
+  }
+
+  /**
+   * Counts workflows for an organization.
+   */
+  async countByOrganization(
+    organizationId: string,
+    status?: WorkflowStatus,
+  ): Promise<number> {
+    const conditions = [eq(workflows.organization_id, organizationId)];
+
+    if (status) {
+      conditions.push(eq(workflows.status, status));
+    }
+
+    const result = await dbRead.query.workflows.findMany({
+      where: and(...conditions),
+      columns: { id: true },
+    });
+
+    return result.length;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new workflow.
+   */
+  async create(data: NewWorkflow): Promise<Workflow> {
+    const [workflow] = await dbWrite.insert(workflows).values(data).returning();
+    return workflow;
+  }
+
+  /**
+   * Updates an existing workflow.
+   */
+  async update(
+    id: string,
+    data: Partial<NewWorkflow>,
+  ): Promise<Workflow | undefined> {
+    const [updated] = await dbWrite
+      .update(workflows)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(eq(workflows.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Updates a workflow with organization verification.
+   */
+  async updateByOrganization(
+    id: string,
+    organizationId: string,
+    data: Partial<NewWorkflow>,
+  ): Promise<Workflow | undefined> {
+    const [updated] = await dbWrite
+      .update(workflows)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(workflows.id, id),
+          eq(workflows.organization_id, organizationId),
+        ),
+      )
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Deletes a workflow by ID.
+   */
+  async delete(id: string): Promise<void> {
+    await dbWrite.delete(workflows).where(eq(workflows.id, id));
+  }
+
+  /**
+   * Deletes a workflow with organization verification.
+   */
+  async deleteByOrganization(
+    id: string,
+    organizationId: string,
+  ): Promise<boolean> {
+    const result = await dbWrite
+      .delete(workflows)
+      .where(
+        and(
+          eq(workflows.id, id),
+          eq(workflows.organization_id, organizationId),
+        ),
+      )
+      .returning({ id: workflows.id });
+    return result.length > 0;
+  }
+}
+
+/**
+ * Singleton instance of WorkflowsRepository.
+ */
+export const workflowsRepository = new WorkflowsRepository();
