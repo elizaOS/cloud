@@ -2,15 +2,13 @@
  * MCP Plugin Loading Tests
  *
  * Tests the full production flow for loading a character with MCP plugin.
+ * Uses local database (same as running server).
  */
 
-// All imports at the top
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
-  startPostgres,
-  stopPostgres,
-  runCloudMigrations,
-  runAgentMigrations,
+  getConnectionString,
+  verifyConnection,
   createTestDataSet,
   cleanupTestData,
   createTestRuntime,
@@ -34,35 +32,29 @@ let testRuntimeResult: TestRuntimeResult;
 let testUserContext: TestUserContext;
 const timings: Record<string, number> = {};
 
-// Setup function
+// Setup function - uses local database (same as running server)
 async function setupTestEnvironment(): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("🚀 SETTING UP TEST ENVIRONMENT");
+  console.log("🚀 SETTING UP TEST ENVIRONMENT (Local DB)");
   console.log("=".repeat(60));
 
-  // Step 1: Start PostgreSQL container
-  console.log("\n📦 Step 1: Starting PostgreSQL container...");
-  connectionString = await startPostgres();
-  process.env.DATABASE_URL = connectionString;
-  process.env.POSTGRES_URL = connectionString;
-  console.log(`✅ PostgreSQL running: ${connectionString}`);
+  // Step 1: Verify database connection
+  console.log("\n📦 Step 1: Verifying database connection...");
+  const connected = await verifyConnection();
+  if (!connected) {
+    throw new Error(
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+    );
+  }
+  connectionString = getConnectionString();
+  console.log(`✅ Database connected`);
 
-  // Step 2: Run cloud migrations
-  console.log("\n📊 Step 2: Running cloud database migrations...");
-  await runCloudMigrations(connectionString);
-  console.log("✅ Cloud migrations complete");
-
-  // Step 3: Run ElizaOS agent migrations
-  console.log("\n🤖 Step 3: Running ElizaOS agent migrations...");
-  await runAgentMigrations(connectionString);
-  console.log("✅ Agent migrations complete");
-
-  // Step 4: Create test data
-  console.log("\n👤 Step 4: Creating test data...");
+  // Step 2: Create test data
+  console.log("\n👤 Step 2: Creating test data...");
   testData = await createTestDataSet(connectionString, {
-    organizationName: "Test Organization",
-    userName: "Test User",
-    userEmail: "test@eliza.test",
+    organizationName: "MCP Test Organization",
+    userName: "MCP Test User",
+    userEmail: `mcp-test-${Date.now()}@eliza.test`,
     creditBalance: 1000.0,
     includeCharacter: true,
     characterName: "Mira",
@@ -73,6 +65,8 @@ async function setupTestEnvironment(): Promise<void> {
 
   console.log("\n" + "=".repeat(60));
   console.log("✅ ENVIRONMENT READY");
+  console.log(`   API Key: ${testData.apiKey.keyPrefix}...`);
+  console.log(`   Credits: $${testData.organization.creditBalance}`);
   console.log("=".repeat(60) + "\n");
 }
 
@@ -85,16 +79,11 @@ async function cleanupTestEnvironment(): Promise<void> {
   if (testData && connectionString) {
     await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
   }
-  await stopPostgres().catch(() => {});
-  delete process.env.DATABASE_URL;
-  delete process.env.POSTGRES_URL;
   logTimings("MCP Loading Tests", timings);
   console.log("✅ Cleanup complete\n");
 }
 
 describe("MCP Plugin Loading - Production Flow", () => {
-  // Use setup/cleanup functions in hooks
-  // Note: Bun test doesn't support timeout as second arg to beforeAll
   beforeAll(setupTestEnvironment);
   afterAll(cleanupTestEnvironment);
 
@@ -104,7 +93,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
     testRuntimeResult = await createTestRuntime({
       testData,
       characterId: testData.character?.id,
-      agentMode: "ASSISTANT",
+      agentMode: "ASSISTANT" as any,
       webSearchEnabled: false,
     });
 
@@ -176,8 +165,8 @@ describe("MCP Plugin Loading - Production Flow", () => {
       testRuntimeResult.runtime,
       testUserContext,
       "Hello! What can you help me with?",
+      testData,
       {
-        useMultiStep: false,
         timeoutMs: 60000,
       }
     );

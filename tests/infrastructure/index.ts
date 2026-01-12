@@ -2,17 +2,12 @@
  * Test Infrastructure Exports
  */
 
-// Docker PostgreSQL management
+// Local database connection (uses same DB as running server)
 export {
-  startPostgres,
-  stopPostgres,
   getConnectionString,
-  isRunning,
-  getContainerInfo,
-  cleanupStaleContainers,
-  runCloudMigrations,
-  runAgentMigrations,
-} from "./docker-postgres";
+  verifyConnection,
+  getDatabaseInfo,
+} from "./local-database";
 
 // Test data factory
 export {

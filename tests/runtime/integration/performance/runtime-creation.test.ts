@@ -1,74 +1,78 @@
 /**
- * Performance Tests
+ * Performance - Runtime Creation Integration Tests
  *
  * Measures runtime performance for serverless optimization.
- * Uses local database (same as running server).
+ * This is a self-contained test file with its own setup/teardown.
+ *
+ * Run with: bun test tests/runtime/integration/performance/runtime-creation.test.ts
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import {
+  // Local database
   getConnectionString,
   verifyConnection,
+  // Test data
   createTestDataSet,
   cleanupTestData,
+  type TestDataSet,
+  // Test runtime
   createTestRuntime,
   createTestUser,
   type TestRuntimeResult,
   type TestUserContext,
-  type TestDataSet,
-} from "../infrastructure";
-import { Timer, TimingCollector, HRTimer } from "../infrastructure/timing";
-import { simpleTestCharacter, miraCharacter } from "../fixtures/mcp-test-character";
+} from "../../../infrastructure";
+import { Timer, TimingCollector, HRTimer } from "../../../infrastructure/timing";
+import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
-// Test state
-let connectionString: string;
-let testData: TestDataSet;
-
-// Setup function - uses local database
-async function setupEnvironment(): Promise<void> {
-  console.log("\n" + "=".repeat(60));
-  console.log("🚀 SETTING UP PERFORMANCE TEST ENVIRONMENT (Local DB)");
-  console.log("=".repeat(60));
-
-  const connected = await verifyConnection();
-  if (!connected) {
-    throw new Error(
-      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
-    );
-  }
-  connectionString = getConnectionString();
-  console.log(`✅ Database connected`);
-
-  testData = await createTestDataSet(connectionString, {
-    organizationName: "Performance Test Org",
-    userName: "Performance Test User",
-    userEmail: `perf-test-${Date.now()}@eliza.test`,
-    creditBalance: 1000.0,
-  });
-  console.log("✅ Test data created");
-  console.log("=".repeat(60) + "\n");
-}
-
-// Cleanup function
-async function cleanupEnvironment(): Promise<void> {
-  console.log("\n🧹 Cleaning up...");
-  if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
-  }
-}
+// ============================================================================
+// Runtime Creation Performance Tests
+// ============================================================================
 
 describe("Runtime Creation Performance", () => {
+  // Local test state (isolated to this describe block)
+  let connectionString: string;
+  let testData: TestDataSet;
   const runtimes: TestRuntimeResult[] = [];
   const collector = new TimingCollector();
 
-  beforeAll(setupEnvironment, 60000);
+  beforeAll(async () => {
+    console.log("\n" + "=".repeat(60));
+    console.log("SETTING UP RUNTIME CREATION PERFORMANCE TEST ENVIRONMENT");
+    console.log("=".repeat(60));
+
+    // Verify database connection
+    const connected = await verifyConnection();
+    if (!connected) {
+      throw new Error(
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      );
+    }
+    connectionString = getConnectionString();
+    console.log("Database connected");
+
+    // Create test data with unique identifiers
+    testData = await createTestDataSet(connectionString, {
+      organizationName: "Runtime Perf Test Org",
+      userName: "Runtime Perf Test User",
+      userEmail: `runtime-perf-test-${Date.now()}@eliza.test`,
+      creditBalance: 1000.0,
+    });
+    console.log("Test data created");
+    console.log("=".repeat(60) + "\n");
+  }, 60000);
 
   afterAll(async () => {
+    console.log("\nCleaning up runtime creation performance test...");
     collector.printSummary();
     for (const rt of runtimes) {
       await rt.cleanup();
     }
-    await cleanupEnvironment();
+    if (testData && connectionString) {
+      await cleanupTestData(connectionString, testData.organization.id).catch(
+        (err) => console.warn(`Data cleanup warning: ${err}`)
+      );
+    }
   });
 
   test("should measure CHAT mode runtime creation", async () => {
@@ -93,7 +97,7 @@ describe("Runtime Creation Performance", () => {
     const min = Math.min(...times);
     const max = Math.max(...times);
 
-    console.log("\n📊 CHAT Runtime Creation:");
+    console.log("\nCHAT Runtime Creation:");
     console.log(`   Runs: ${runs}`);
     console.log(`   Average: ${avg.toFixed(1)}ms`);
     console.log(`   Min: ${min.toFixed(1)}ms`);
@@ -101,7 +105,7 @@ describe("Runtime Creation Performance", () => {
 
     // Target: <3000ms for CHAT runtime
     if (avg > 3000) {
-      console.warn(`⚠️ CHAT runtime avg (${avg.toFixed(0)}ms) exceeds 3s target`);
+      console.warn(`CHAT runtime avg (${avg.toFixed(0)}ms) exceeds 3s target`);
     }
 
     expect(avg).toBeGreaterThan(0);
@@ -127,7 +131,7 @@ describe("Runtime Creation Performance", () => {
     const min = Math.min(...times);
     const max = Math.max(...times);
 
-    console.log("\n📊 ASSISTANT Runtime Creation:");
+    console.log("\nASSISTANT Runtime Creation:");
     console.log(`   Runs: ${runs}`);
     console.log(`   Average: ${avg.toFixed(1)}ms`);
     console.log(`   Min: ${min.toFixed(1)}ms`);
@@ -135,32 +139,67 @@ describe("Runtime Creation Performance", () => {
 
     // Target: <5000ms for ASSISTANT runtime (includes MCP init)
     if (avg > 5000) {
-      console.warn(`⚠️ ASSISTANT runtime avg (${avg.toFixed(0)}ms) exceeds 5s target`);
+      console.warn(`ASSISTANT runtime avg (${avg.toFixed(0)}ms) exceeds 5s target`);
     }
 
     expect(avg).toBeGreaterThan(0);
   }, 180000);
 });
 
+// ============================================================================
+// Database Query Performance Tests
+// ============================================================================
+
 describe("Database Query Performance", () => {
+  // Local test state (isolated to this describe block)
+  let connectionString: string;
+  let testData: TestDataSet;
   let testRuntime: TestRuntimeResult;
   let testUser: TestUserContext;
 
   beforeAll(async () => {
-    await setupEnvironment();
+    console.log("\n" + "=".repeat(60));
+    console.log("SETTING UP DATABASE QUERY PERFORMANCE TEST ENVIRONMENT");
+    console.log("=".repeat(60));
+
+    // Verify database connection
+    const connected = await verifyConnection();
+    if (!connected) {
+      throw new Error(
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      );
+    }
+    connectionString = getConnectionString();
+    console.log("Database connected");
+
+    // Create test data with unique identifiers
+    testData = await createTestDataSet(connectionString, {
+      organizationName: "DB Query Perf Test Org",
+      userName: "DB Query Perf Test User",
+      userEmail: `db-query-perf-test-${Date.now()}@eliza.test`,
+      creditBalance: 1000.0,
+    });
+    console.log("Test data created");
+
     testRuntime = await createTestRuntime({
       testData,
       agentMode: "CHAT" as any,
       webSearchEnabled: false,
     });
-    testUser = await createTestUser(testRuntime.runtime, "PerfTestUser");
+    testUser = await createTestUser(testRuntime.runtime, "DBPerfTestUser");
+    console.log("=".repeat(60) + "\n");
   }, 120000);
 
   afterAll(async () => {
+    console.log("\nCleaning up database query performance test...");
     if (testRuntime) {
       await testRuntime.cleanup();
     }
-    await cleanupEnvironment();
+    if (testData && connectionString) {
+      await cleanupTestData(connectionString, testData.organization.id).catch(
+        (err) => console.warn(`Data cleanup warning: ${err}`)
+      );
+    }
   });
 
   test("should measure entity creation time", async () => {
@@ -184,7 +223,7 @@ describe("Database Query Performance", () => {
     }
 
     const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    console.log(`\n📊 Entity Creation: avg ${avg.toFixed(1)}ms (${runs} runs)`);
+    console.log(`\nEntity Creation: avg ${avg.toFixed(1)}ms (${runs} runs)`);
 
     expect(avg).toBeGreaterThan(0);
     expect(avg).toBeLessThan(500); // Entity creation should be fast
@@ -212,7 +251,7 @@ describe("Database Query Performance", () => {
     }
 
     const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    console.log(`\n📊 Memory Creation: avg ${avg.toFixed(1)}ms (${runs} runs)`);
+    console.log(`\nMemory Creation: avg ${avg.toFixed(1)}ms (${runs} runs)`);
 
     expect(avg).toBeGreaterThan(0);
     expect(avg).toBeLessThan(500);
@@ -248,23 +287,59 @@ describe("Database Query Performance", () => {
     }
 
     const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    console.log(`\n📊 Memory Retrieval (10 items): avg ${avg.toFixed(1)}ms (${runs} runs)`);
+    console.log(`\nMemory Retrieval (10 items): avg ${avg.toFixed(1)}ms (${runs} runs)`);
 
     expect(avg).toBeGreaterThan(0);
     expect(avg).toBeLessThan(200); // Retrieval should be very fast
   });
 });
 
+// ============================================================================
+// Runtime Caching Performance Tests
+// ============================================================================
+
 describe("Runtime Caching Performance", () => {
+  // Local test state (isolated to this describe block)
+  let connectionString: string;
+  let testData: TestDataSet;
   const runtimes: TestRuntimeResult[] = [];
 
-  beforeAll(setupEnvironment, 60000);
+  beforeAll(async () => {
+    console.log("\n" + "=".repeat(60));
+    console.log("SETTING UP RUNTIME CACHING PERFORMANCE TEST ENVIRONMENT");
+    console.log("=".repeat(60));
+
+    // Verify database connection
+    const connected = await verifyConnection();
+    if (!connected) {
+      throw new Error(
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      );
+    }
+    connectionString = getConnectionString();
+    console.log("Database connected");
+
+    // Create test data with unique identifiers
+    testData = await createTestDataSet(connectionString, {
+      organizationName: "Caching Perf Test Org",
+      userName: "Caching Perf Test User",
+      userEmail: `caching-perf-test-${Date.now()}@eliza.test`,
+      creditBalance: 1000.0,
+    });
+    console.log("Test data created");
+    console.log("=".repeat(60) + "\n");
+  }, 60000);
 
   afterAll(async () => {
+    console.log("\nCleaning up runtime caching performance test...");
     for (const rt of runtimes) {
       await rt.cleanup();
     }
-    await cleanupEnvironment();
+    if (testData && connectionString) {
+      await cleanupTestData(connectionString, testData.organization.id).catch(
+        (err) => console.warn(`Data cleanup warning: ${err}`)
+      );
+    }
   });
 
   test("should measure cache hit vs cache miss performance", async () => {
@@ -288,7 +363,7 @@ describe("Runtime Caching Performance", () => {
     const warmResult = warmTimer.stop();
     runtimes.push(runtime2);
 
-    console.log("\n📊 Cache Performance:");
+    console.log("\nCache Performance:");
     console.log(`   Cold start (cache miss): ${coldResult.durationMs.toFixed(1)}ms`);
     console.log(`   Warm start (cache hit): ${warmResult.durationMs.toFixed(1)}ms`);
 

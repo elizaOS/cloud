@@ -6,16 +6,15 @@
  * - ASSISTANT: Full capabilities with MCP, web search
  * - BUILD: Character building mode
  *
- * These tests run the EXACT production code path.
+ * These tests run the EXACT production code path against the local database.
+ * Make sure your local server is running before running these tests.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
-  // Docker & migrations
-  startPostgres,
-  stopPostgres,
-  runCloudMigrations,
-  runAgentMigrations,
+  // Local database
+  getConnectionString,
+  verifyConnection,
   // Test data
   createTestDataSet,
   cleanupTestData,
@@ -49,27 +48,27 @@ let connectionString: string;
 let testData: TestDataSet;
 const allTimings: Record<string, number> = {};
 
-// Setup function
+// Setup function - uses local database (same as running server)
 async function setupEnvironment(): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("🚀 SETTING UP TEST ENVIRONMENT");
+  console.log("🚀 SETTING UP TEST ENVIRONMENT (Local DB)");
   console.log("=".repeat(60));
 
-  connectionString = await startPostgres();
-  process.env.DATABASE_URL = connectionString;
-  process.env.POSTGRES_URL = connectionString;
-  console.log(`✅ PostgreSQL: ${connectionString}`);
+  // Verify database connection
+  const connected = await verifyConnection();
+  if (!connected) {
+    throw new Error(
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+    );
+  }
+  connectionString = getConnectionString();
+  console.log(`✅ Database connected`);
 
-  await runCloudMigrations(connectionString);
-  console.log("✅ Cloud migrations");
-
-  await runAgentMigrations(connectionString);
-  console.log("✅ Agent migrations");
-
+  // Create test data
   testData = await createTestDataSet(connectionString, {
     organizationName: "RuntimeFactory Test Org",
     userName: "RuntimeFactory Test User",
-    userEmail: "runtime-test@eliza.test",
+    userEmail: `runtime-test-${Date.now()}@eliza.test`,
     creditBalance: 1000.0,
     includeCharacter: true,
     characterName: "Mira",
@@ -77,6 +76,8 @@ async function setupEnvironment(): Promise<void> {
     characterSettings: mcpTestCharacter.settings as Record<string, unknown>,
   });
   console.log("✅ Test data created");
+  console.log(`   API Key: ${testData.apiKey.keyPrefix}...`);
+  console.log(`   Credits: $${testData.organization.creditBalance}`);
   console.log("=".repeat(60) + "\n");
 }
 
@@ -84,11 +85,10 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      (err) => console.warn(`Cleanup warning: ${err}`)
+    );
   }
-  await stopPostgres().catch(() => {});
-  delete process.env.DATABASE_URL;
-  delete process.env.POSTGRES_URL;
   logTimings("All RuntimeFactory Tests", allTimings);
 }
 
@@ -117,19 +117,41 @@ describe("RuntimeFactory - CHAT Mode", () => {
 
     expect(runtime).toBeDefined();
     expect(runtime.agentId).toBeDefined();
-    console.log(`\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`);
+    console.log(
+      `\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`
+    );
   }, 60000);
 
   it("should process message in CHAT mode", async () => {
     testUser = await createTestUser(runtime, "ChatTestUser");
 
     startTimer("chat_message");
-    const result = await sendTestMessage(runtime, testUser, "Hello! How are you?", {
-      useMultiStep: false,
-      timeoutMs: 60000,
-    });
+    const result = await sendTestMessage(
+      runtime,
+      testUser,
+      "Hello! How are you?",
+      testData,
+      {
+        timeoutMs: 60000,
+      }
+    );
     allTimings.chatMessage = endTimer("chat_message");
 
+    console.log(
+      `\n📝 CHAT result:`,
+      JSON.stringify(
+        {
+          didRespond: result.didRespond,
+          error: result.error,
+          hasResponse: !!result.response,
+        },
+        null,
+        2
+      )
+    );
+    if (result.error) {
+      console.error(`❌ Error: ${result.error}`);
+    }
     expect(result.didRespond).toBe(true);
     expect(result.response).toBeDefined();
     console.log(`\n✅ CHAT message in ${allTimings.chatMessage}ms`);
@@ -168,7 +190,9 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
 
     expect(runtime).toBeDefined();
     expect(runtime.character?.name).toBe("Mira");
-    console.log(`\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`);
+    console.log(
+      `\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`
+    );
   }, 60000);
 
   it("should have MCP service initialized", async () => {
@@ -194,7 +218,8 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
       runtime,
       testUser,
       "What's the current price of Bitcoin?",
-      { useMultiStep: true, maxIterations: 3, timeoutMs: 120000 }
+      testData,
+      { timeoutMs: 120000 }
     );
     allTimings.assistantMessage = endTimer("assistant_message");
 
@@ -232,7 +257,9 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
     allTimings.webSearchRuntimeCreate = endTimer("websearch_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(`\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`);
+    console.log(
+      `\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`
+    );
   }, 60000);
 
   it("should process message with web search", async () => {
@@ -243,7 +270,8 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
       runtime,
       testUser,
       "What is the latest news about AI?",
-      { useMultiStep: true, maxIterations: 3, timeoutMs: 120000 }
+      testData,
+      { timeoutMs: 120000 }
     );
     allTimings.webSearchMessage = endTimer("websearch_message");
 
@@ -281,7 +309,9 @@ describe("RuntimeFactory - BUILD Mode", () => {
     allTimings.buildRuntimeCreate = endTimer("build_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(`\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`);
+    console.log(
+      `\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`
+    );
   }, 60000);
 
   it("should process BUILD mode message", async () => {
@@ -292,7 +322,8 @@ describe("RuntimeFactory - BUILD Mode", () => {
       runtime,
       testUser,
       "Make this character more friendly and add knowledge about cooking.",
-      { useMultiStep: true, maxIterations: 3, timeoutMs: 120000 }
+      testData,
+      { timeoutMs: 120000 }
     );
     allTimings.buildMessage = endTimer("build_message");
 
@@ -342,7 +373,9 @@ describe("RuntimeFactory - Caching Behavior", () => {
 
     expect(runtime2).toBeDefined();
     console.log(`\n✅ Warm start: ${allTimings.cacheWarm}ms`);
-    console.log(`   Speedup: ${((allTimings.cacheCold - allTimings.cacheWarm) / allTimings.cacheCold * 100).toFixed(1)}%`);
+    console.log(
+      `   Speedup: ${(((allTimings.cacheCold - allTimings.cacheWarm) / allTimings.cacheCold) * 100).toFixed(1)}%`
+    );
 
     // Cleanup
     await invalidateRuntime(runtime2.agentId as string);
@@ -352,7 +385,9 @@ describe("RuntimeFactory - Caching Behavior", () => {
     const stats = getRuntimeCacheStats();
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
-    console.log(`\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
+    console.log(
+      `\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`
+    );
   });
 });
 

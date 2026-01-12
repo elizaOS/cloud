@@ -2,7 +2,7 @@
  * MCP Assistant Trending Tokens Test
  *
  * Tests the MCP assistant with "can you get trending tokens" query.
- * This runs through the full runtime without needing the Next.js server.
+ * Uses local database (same as running server).
  *
  * Run with: bun test tests/runtime/mcp-assistant-trending.test.ts
  *
@@ -12,10 +12,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
-  startPostgres,
-  stopPostgres,
-  runCloudMigrations,
-  runAgentMigrations,
+  getConnectionString,
+  verifyConnection,
   createTestDataSet,
   cleanupTestData,
   createTestRuntime,
@@ -45,10 +43,10 @@ let testRuntimeResult: TestRuntimeResult;
 let testUserContext: TestUserContext;
 const timings: Record<string, number> = {};
 
-// Setup function
+// Setup function - uses local database (same as running server)
 async function setupTestEnvironment(): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("🚀 SETTING UP TEST ENVIRONMENT");
+  console.log("🚀 SETTING UP TEST ENVIRONMENT (Local DB)");
   console.log("=".repeat(60));
 
   // Check debug tracing
@@ -58,29 +56,23 @@ async function setupTestEnvironment(): Promise<void> {
     console.log("   Set DEBUG_TRACING=true in .env to enable debug output");
   }
 
-  // Step 1: Start PostgreSQL container
-  console.log("\n📦 Step 1: Starting PostgreSQL container...");
-  connectionString = await startPostgres();
-  process.env.DATABASE_URL = connectionString;
-  process.env.POSTGRES_URL = connectionString;
-  console.log(`✅ PostgreSQL running: ${connectionString}`);
+  // Step 1: Verify database connection
+  console.log("\n📦 Step 1: Verifying database connection...");
+  const connected = await verifyConnection();
+  if (!connected) {
+    throw new Error(
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+    );
+  }
+  connectionString = getConnectionString();
+  console.log(`✅ Database connected`);
 
-  // Step 2: Run cloud migrations
-  console.log("\n📊 Step 2: Running cloud database migrations...");
-  await runCloudMigrations(connectionString);
-  console.log("✅ Cloud migrations complete");
-
-  // Step 3: Run ElizaOS agent migrations
-  console.log("\n🤖 Step 3: Running ElizaOS agent migrations...");
-  await runAgentMigrations(connectionString);
-  console.log("✅ Agent migrations complete");
-
-  // Step 4: Create test data
-  console.log("\n👤 Step 4: Creating test data...");
+  // Step 2: Create test data
+  console.log("\n👤 Step 2: Creating test data...");
   testData = await createTestDataSet(connectionString, {
-    organizationName: "Test Organization",
-    userName: "Test User",
-    userEmail: "test@eliza.test",
+    organizationName: "Trending Test Organization",
+    userName: "Trending Test User",
+    userEmail: `trending-test-${Date.now()}@eliza.test`,
     creditBalance: 1000.0,
     includeCharacter: true,
     characterName: "Mira",
@@ -91,6 +83,8 @@ async function setupTestEnvironment(): Promise<void> {
 
   console.log("\n" + "=".repeat(60));
   console.log("✅ ENVIRONMENT READY");
+  console.log(`   API Key: ${testData.apiKey.keyPrefix}...`);
+  console.log(`   Credits: $${testData.organization.creditBalance}`);
   console.log("=".repeat(60) + "\n");
 }
 
@@ -103,9 +97,6 @@ async function cleanupTestEnvironment(): Promise<void> {
   if (testData && connectionString) {
     await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
   }
-  await stopPostgres().catch(() => {});
-  delete process.env.DATABASE_URL;
-  delete process.env.POSTGRES_URL;
   logTimings("MCP Assistant Trending Tests", timings);
   console.log("✅ Cleanup complete\n");
 }
@@ -122,7 +113,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
     testRuntimeResult = await createTestRuntime({
       testData,
       characterId: testData.character?.id,
-      agentMode: "ASSISTANT",
+      agentMode: "ASSISTANT" as any,
       webSearchEnabled: false,
     });
 
