@@ -384,20 +384,20 @@ function renderContentWithSignupLink(
   onSignupClick?: () => void,
 ): React.ReactNode[] {
   const SIGNUP_PLACEHOLDER = "{{SIGNUP_LINK}}";
-
-  if (!content.includes(SIGNUP_PLACEHOLDER)) {
-    return [content];
-  }
-
   const parts = content.split(SIGNUP_PLACEHOLDER);
   const result: React.ReactNode[] = [];
 
   parts.forEach((part, index) => {
     if (index > 0) {
-      result.push(<SignupLinkButton key={`signup-${index}`} onClick={onSignupClick} />);
+      result.push(
+        <SignupLinkButton key={`signup-${index}`} onClick={onSignupClick} />
+      );
     }
     if (part) {
-      result.push(part);
+      // Wrap string fragments in React.Fragment with key for proper reconciliation
+      result.push(
+        <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
+      );
     }
   });
 
