@@ -117,6 +117,8 @@ class RuntimeCache {
     const now = Date.now();
     if (this.isStale(entry, now)) {
       await this.evictEntry(agentId, entry, "stale");
+      // Remove adapter reference for stale entries (consistent with getWithHealthCheck)
+      dbAdapterPool.removeAdapter(entry.agentId as string);
       return null;
     }
 
