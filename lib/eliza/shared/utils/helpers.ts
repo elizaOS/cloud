@@ -611,6 +611,7 @@ export async function generateResponseWithRetry(
 ): Promise<{ text: string; thought: string }> {
   let lastRawResponse = "";
   let lastError: Error | null = null;
+  let lastIssue = ""; // Track the last issue for better error reporting
   const { onStreamChunk, onReasoningChunk, messageId } = options || {};
 
   // Helper to check if error is retryable
@@ -693,8 +694,9 @@ export async function generateResponseWithRetry(
         !response ||
         (typeof response === "string" && response.trim() === "")
       ) {
+        lastIssue = "Empty response from model";
         logger.warn(
-          `[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`,
+          `[generateResponseWithRetry] Attempt ${i + 1}: ${lastIssue}`,
         );
         continue;
       }
@@ -707,8 +709,9 @@ export async function generateResponseWithRetry(
         return { text: parsed.text, thought: parsed.thought || "" };
       }
 
+      lastIssue = `Failed to parse XML response`;
       logger.warn(
-        `[generateResponseWithRetry] Attempt ${i + 1}: Failed to parse XML, raw: "${lastRawResponse.substring(0, 100)}..."`,
+        `[generateResponseWithRetry] Attempt ${i + 1}: ${lastIssue}, raw: "${lastRawResponse.substring(0, 100)}..."`,
       );
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
@@ -746,8 +749,9 @@ export async function generateResponseWithRetry(
     }
   }
 
+  const errorDetail = lastError?.message || lastIssue || "Unknown error";
   logger.error(
-    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`,
+    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last issue: ${errorDetail}`,
   );
   return { text: "", thought: "" };
 }

@@ -66,10 +66,12 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
   // Fire-and-forget: Don't block the message response
   // The title will be generated in the background
   generateTitleInBackground(runtime, message, roomId).catch((error) => {
-    logger.error(
-      "[RoomTitle] Background title generation failed:",
-      error instanceof Error ? error.message : String(error),
-    );
+    // Errors are already handled inside generateTitleInBackground
+    // This catch is just a safety net for unexpected errors
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes("Insufficient") && !msg.includes("quota") && !msg.includes("connection")) {
+      logger.debug("[RoomTitle] Background title generation error:", msg.substring(0, 100));
+    }
   });
 }
 
@@ -218,10 +220,32 @@ async function generateTitleInBackground(
       // Ignore cache errors - not critical
     });
   } catch (error) {
-    logger.error(
-      "[RoomTitle] Error generating room title:",
-      error instanceof Error ? error.message : String(error),
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Non-critical errors should be logged at debug level
+    // Room title generation is optional - failures shouldn't spam logs
+    if (
+      errorMessage.includes("Insufficient balance") ||
+      errorMessage.includes("insufficient_quota") ||
+      errorMessage.includes("402") ||
+      errorMessage.includes("rate limit") ||
+      errorMessage.includes("429")
+    ) {
+      logger.debug(
+        "[RoomTitle] Skipping title generation due to quota/rate limit:",
+        errorMessage.substring(0, 100),
+      );
+    } else if (isConnectionError(error)) {
+      logger.debug(
+        "[RoomTitle] Skipping title generation due to connection issue:",
+        errorMessage.substring(0, 100),
+      );
+    } else {
+      logger.warn(
+        "[RoomTitle] Error generating room title:",
+        errorMessage,
+      );
+    }
   }
 }
 
