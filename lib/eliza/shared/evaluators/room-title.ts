@@ -222,15 +222,17 @@ async function generateTitleInBackground(
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessageLower = errorMessage.toLowerCase();
 
     // Non-critical errors should be logged at debug level
     // Room title generation is optional - failures shouldn't spam logs
     if (
-      errorMessage.includes("Insufficient balance") ||
-      errorMessage.includes("insufficient_quota") ||
-      errorMessage.includes("402") ||
-      errorMessage.includes("rate limit") ||
-      errorMessage.includes("429")
+      errorMessageLower.includes("insufficient balance") ||
+      errorMessageLower.includes("insufficient_quota") ||
+      errorMessageLower.includes("insufficient credits") ||
+      errorMessageLower.includes("402") ||
+      errorMessageLower.includes("rate limit") ||
+      errorMessageLower.includes("429")
     ) {
       logger.debug(
         "[RoomTitle] Skipping title generation due to quota/rate limit:",
