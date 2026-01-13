@@ -172,9 +172,9 @@ export async function POST(
           }
         })
         .catch((error) => {
-          logger.error("[Stream] Background moderation failed", {
-            error: error instanceof Error ? error.message : String(error),
-          });
+          // Non-critical - moderation failures should not spam logs
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          logger.debug("[Stream] Background moderation skipped:", errorMsg.substring(0, 100));
         });
     }
 
@@ -612,7 +612,8 @@ export async function POST(
         if (
           errorMessage.includes("insufficient balance") ||
           errorMessage.includes("Insufficient balance") ||
-          errorMessage.includes("insufficient_quota")
+          errorMessage.includes("insufficient_quota") ||
+          errorMessage.includes("402")
         ) {
           userMessage = "Insufficient credits. Please add credits to continue.";
           errorType = "insufficient_credits";
@@ -622,11 +623,17 @@ export async function POST(
         } else if (
           errorMessage.includes("server conn crashed") ||
           errorMessage.includes("08P01") ||
-          errorMessage.includes("connection")
+          errorMessage.includes("connection") ||
+          errorMessage.includes("terminated unexpectedly") ||
+          errorMessage.includes("rollback") ||
+          errorMessage.includes("ECONNRESET") ||
+          errorMessage.includes("socket") ||
+          errorMessage.includes("end on the pool")
         ) {
           userMessage = "A temporary connection issue occurred. Please try again.";
           errorType = "connection_error";
-          logger.error("[Stream Messages] Database connection error:", errorMessage);
+          // Use warn level since connection errors are often transient and recoverable
+          logger.warn("[Stream Messages] Database connection error:", errorMessage.substring(0, 150));
         } else if (
           errorName === "AI_NoOutputGeneratedError" ||
           errorMessage.includes("No output generated")
@@ -634,6 +641,13 @@ export async function POST(
           userMessage = "The AI was unable to generate a response. Please try again.";
           errorType = "no_output";
           logger.warn("[Stream Messages] No output generated");
+        } else if (
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("429")
+        ) {
+          userMessage = "The service is temporarily busy. Please try again in a moment.";
+          errorType = "rate_limit";
+          logger.warn("[Stream Messages] Rate limit hit");
         } else {
           logger.error("[Stream Messages] Error:", error);
         }

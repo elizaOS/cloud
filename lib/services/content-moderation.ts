@@ -421,12 +421,10 @@ class ContentModerationService {
         }
       })
       .catch((error) => {
-        // Log error but don't propagate - moderation failures should not block users
-        logger.error("[ContentModeration] Background moderation failed", {
-          error: error instanceof Error ? error.message : String(error),
-          userId,
-          roomId,
-        });
+        // Log at debug level - moderation failures are non-critical and should not spam logs
+        // This is intentional: moderation should not block user experience
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.debug("[ContentModeration] Background moderation skipped:", errorMsg.substring(0, 100));
       });
   }
 
@@ -526,12 +524,9 @@ class ContentModerationService {
         }
       })
       .catch((error) => {
-        logger.error(
-          "[ContentModeration] Background moderation failed after response",
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        // Non-critical - moderation after response is just for tracking
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.debug("[ContentModeration] Post-response moderation skipped:", errorMsg.substring(0, 100));
       });
 
     return firstResult.result;
@@ -617,13 +612,11 @@ class ContentModerationService {
           );
         }
 
-        // If moderation errored, log but don't block
+        // If moderation errored, log at debug level (non-critical) and allow stream
         if (moderationError) {
-          logger.error(
-            "[ContentModeration] Moderation check failed, allowing stream",
-            {
-              error: moderationError.message,
-            },
+          logger.debug(
+            "[ContentModeration] Moderation check skipped, allowing stream:",
+            moderationError.message.substring(0, 100),
           );
         }
 
