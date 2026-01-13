@@ -202,7 +202,7 @@ export class AutoTopUpService {
     // Create and confirm PaymentIntent with saved payment method
     logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
 
-    const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / 60000)}`;
+    const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / 900000)}`;
 
     const paymentIntent = await requireStripe().paymentIntents.create(
       {
