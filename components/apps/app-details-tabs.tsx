@@ -1,20 +1,6 @@
-/**
- * App details tabs component organizing app management views.
- * Provides tabs for overview, AI builder, analytics, earnings, users, monetization, and settings.
- * Syncs active tab with URL search parameters.
- *
- * Note: The "Build" tab redirects to the unified App Creator page at /dashboard/apps/create
- * for the full-featured AI builder experience with GitHub integration, deploys, etc.
- *
- * @param props - App details tabs configuration
- * @param props.app - App data
- * @param props.showApiKey - Optional API key to display in overview
- */
-
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Grid3x3,
   Settings,
@@ -36,19 +22,48 @@ import { AppEarningsDashboard } from "./app-earnings-dashboard";
 import { AppDomains } from "./app-domains";
 import { AppPromote } from "./app-promote";
 import type { App } from "@/db/schemas";
+import { cn } from "@/lib/utils";
 
 interface AppDetailsTabsProps {
   app: App;
   showApiKey?: string;
 }
 
+type TabValue =
+  | "overview"
+  | "build"
+  | "domains"
+  | "promote"
+  | "analytics"
+  | "earnings"
+  | "monetization"
+  | "users"
+  | "settings";
+
+const tabs: {
+  value: TabValue;
+  label: string;
+  icon: typeof Grid3x3;
+  external?: boolean;
+}[] = [
+  { value: "overview", label: "Overview", icon: Grid3x3 },
+  { value: "build", label: "Build", icon: Sparkles, external: true },
+  { value: "domains", label: "Domains", icon: Globe },
+  { value: "promote", label: "Promote", icon: Megaphone },
+  { value: "analytics", label: "Analytics", icon: BarChart3 },
+  { value: "earnings", label: "Earnings", icon: TrendingUp },
+  { value: "monetization", label: "Monetize", icon: DollarSign },
+  { value: "users", label: "Users", icon: Users },
+  { value: "settings", label: "Settings", icon: Settings },
+];
+
 export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get("tab") || "overview";
+  const activeTab = (searchParams.get("tab") || "overview") as TabValue;
 
-  const handleTabChange = (value: string) => {
-    // Redirect "build" tab to the unified App Creator page for the full experience
+  const handleTabChange = (value: TabValue) => {
+    // Redirect "build" tab to the unified App Creator page
     if (value === "build") {
       router.push(`/dashboard/apps/create?appId=${app.id}`);
       return;
@@ -62,80 +77,45 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   };
 
   return (
-    <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full max-w-5xl grid-cols-9 bg-white/5">
-        <TabsTrigger value="overview" className="flex items-center gap-2">
-          <Grid3x3 className="h-4 w-4" />
-          <span className="hidden sm:inline">Overview</span>
-        </TabsTrigger>
-        <TabsTrigger value="build" className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Build</span>
-          <ExternalLink className="h-3 w-3 opacity-50 hidden sm:inline" />
-        </TabsTrigger>
-        <TabsTrigger value="domains" className="flex items-center gap-2">
-          <Globe className="h-4 w-4" />
-          <span className="hidden sm:inline">Domains</span>
-        </TabsTrigger>
-        <TabsTrigger value="promote" className="flex items-center gap-2">
-          <Megaphone className="h-4 w-4" />
-          <span className="hidden sm:inline">Promote</span>
-        </TabsTrigger>
-        <TabsTrigger value="analytics" className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4" />
-          <span className="hidden sm:inline">Analytics</span>
-        </TabsTrigger>
-        <TabsTrigger value="earnings" className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          <span className="hidden sm:inline">Earnings</span>
-        </TabsTrigger>
-        <TabsTrigger value="monetization" className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4" />
-          <span className="hidden sm:inline">Monetize</span>
-        </TabsTrigger>
-        <TabsTrigger value="users" className="flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">Users</span>
-        </TabsTrigger>
-        <TabsTrigger value="settings" className="flex items-center gap-2">
-          <Settings className="h-4 w-4" />
-          <span className="hidden sm:inline">Settings</span>
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-3 sm:space-y-6">
+      {/* Tabs */}
+      <div className="grid grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-1 p-1 bg-neutral-900 rounded-lg">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => handleTabChange(tab.value)}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-2 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
+                activeTab === tab.value
+                  ? "bg-white/10 text-white"
+                  : "text-neutral-400 hover:text-white"
+              )}
+            >
+              <Icon className="h-4 w-4 hidden sm:block" />
+              <span>{tab.label}</span>
+              {tab.external && <ExternalLink className="h-3 w-3 opacity-50" />}
+            </button>
+          );
+        })}
+      </div>
 
-      <TabsContent value="overview">
-        <AppOverview app={app} showApiKey={showApiKey} />
-      </TabsContent>
-
-      {/* Build tab redirects to /dashboard/apps/create?appId={id} for the unified App Creator */}
-
-      <TabsContent value="domains">
-        <AppDomains appId={app.id} />
-      </TabsContent>
-
-      <TabsContent value="promote">
-        <AppPromote app={app} />
-      </TabsContent>
-
-      <TabsContent value="analytics">
-        <AppAnalytics appId={app.id} />
-      </TabsContent>
-
-      <TabsContent value="earnings">
-        <AppEarningsDashboard appId={app.id} />
-      </TabsContent>
-
-      <TabsContent value="monetization">
-        <AppMonetizationSettings appId={app.id} />
-      </TabsContent>
-
-      <TabsContent value="users">
-        <AppUsers appId={app.id} />
-      </TabsContent>
-
-      <TabsContent value="settings">
-        <AppSettings app={app} />
-      </TabsContent>
-    </Tabs>
+      {/* Tab Content */}
+      <div className="min-w-0">
+        {activeTab === "overview" && (
+          <AppOverview app={app} showApiKey={showApiKey} />
+        )}
+        {activeTab === "domains" && <AppDomains appId={app.id} />}
+        {activeTab === "promote" && <AppPromote app={app} />}
+        {activeTab === "analytics" && <AppAnalytics appId={app.id} />}
+        {activeTab === "earnings" && <AppEarningsDashboard appId={app.id} />}
+        {activeTab === "monetization" && (
+          <AppMonetizationSettings appId={app.id} />
+        )}
+        {activeTab === "users" && <AppUsers appId={app.id} />}
+        {activeTab === "settings" && <AppSettings app={app} />}
+      </div>
+    </div>
   );
 }

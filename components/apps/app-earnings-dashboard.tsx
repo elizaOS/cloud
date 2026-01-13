@@ -1,16 +1,7 @@
-/**
- * App earnings dashboard component displaying earnings statistics and charts.
- * Shows lifetime earnings, breakdowns by period, and withdrawal information.
- *
- * @param props - App earnings dashboard configuration
- * @param props.appId - App ID to fetch earnings for
- */
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,9 +79,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<
-    boolean | null
-  >(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -107,13 +96,8 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     setIsLoading(true);
     setError(null);
 
-    const url = new URL(
-      `/api/v1/apps/${appId}/earnings`,
-      window.location.origin,
-    );
+    const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
     url.searchParams.set("days", period);
-
-    // Pass testData param to API if present in the page URL
     if (testDataParam) {
       url.searchParams.set("testData", "true");
     }
@@ -154,23 +138,14 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   if (error) {
     return (
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10 text-center py-12">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            Error loading earnings
-          </h3>
-          <p className="text-white/60 mb-4">{error}</p>
-          <Button
-            onClick={fetchEarnings}
-            variant="outline"
-            className="bg-white/5"
-          >
-            Try Again
-          </Button>
-        </div>
-      </BrandCard>
+      <div className="bg-neutral-900 rounded-xl p-6 text-center">
+        <AlertCircle className="h-10 w-10 mx-auto mb-3 text-red-400" />
+        <h3 className="text-sm font-medium text-white mb-1">Error loading earnings</h3>
+        <p className="text-xs text-neutral-500 mb-4">{error}</p>
+        <Button onClick={fetchEarnings} variant="outline" size="sm" className="border-white/10">
+          Try Again
+        </Button>
+      </div>
     );
   }
 
@@ -183,63 +158,38 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
       case "withdrawal":
         return <ArrowUpRight className="h-4 w-4 text-red-400" />;
       default:
-        return <DollarSign className="h-4 w-4 text-gray-400" />;
+        return <DollarSign className="h-4 w-4 text-neutral-400" />;
     }
   };
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "inference_markup":
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-purple-500/20 text-purple-400"
-          >
-            Inference
-          </Badge>
-        );
+        return <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[10px]">Inference</Badge>;
       case "purchase_share":
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-yellow-500/20 text-yellow-400"
-          >
-            Purchase
-          </Badge>
-        );
+        return <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30 text-[10px]">Purchase</Badge>;
       case "withdrawal":
-        return (
-          <Badge variant="secondary" className="bg-red-500/20 text-red-400">
-            Withdrawal
-          </Badge>
-        );
+        return <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-[10px]">Withdrawal</Badge>;
       default:
-        return (
-          <Badge variant="secondary" className="bg-gray-500/20 text-gray-400">
-            {type}
-          </Badge>
-        );
+        return <Badge className="bg-neutral-500/10 text-neutral-400 border-neutral-500/30 text-[10px]">{type}</Badge>;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {isTestData && (
-        <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-          <FlaskConical className="h-5 w-5 text-amber-500" />
-          <p className="text-sm text-amber-400">Test Data Mode</p>
+        <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <FlaskConical className="h-4 w-4 text-amber-400" />
+          <p className="text-xs text-amber-400">Test Data Mode</p>
         </div>
       )}
 
       <div className="flex justify-end">
-        <Select
-          value={period}
-          onValueChange={(v) => setPeriod(v as typeof period)}
-        >
-          <SelectTrigger className="w-[180px]">
+        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+          <SelectTrigger className="w-[150px] h-9 bg-neutral-900 border-white/10 rounded-lg">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-neutral-800 border-white/10 rounded-lg">
             <SelectItem value="7">Last 7 days</SelectItem>
             <SelectItem value="30">Last 30 days</SelectItem>
             <SelectItem value="90">Last 90 days</SelectItem>
@@ -248,287 +198,161 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
       </div>
 
       {!summary && !isLoading && (
-        <BrandCard>
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 text-center py-12">
-            <TrendingUp className="h-16 w-16 mx-auto mb-4 text-white/20" />
-            <h3 className="text-lg font-semibold text-white mb-2">
-              No earnings yet
-            </h3>
-            {monetizationEnabled ? (
-              <p className="text-white/60">
-                Earnings will appear here once users start using your app
-              </p>
-            ) : (
-              <>
-                <p className="text-white/60 mb-4">
-                  Enable monetization to start earning from your app
-                </p>
-                <Button
-                  onClick={() => {
-                    router.push(`/dashboard/apps/${appId}?tab=monetization`);
-                  }}
-                  className="bg-gradient-to-r from-[#FF5800] to-purple-600"
-                >
-                  Enable Monetization
-                </Button>
-              </>
-            )}
-          </div>
-        </BrandCard>
+        <div className="bg-neutral-900 rounded-xl p-8 text-center">
+          <TrendingUp className="h-12 w-12 mx-auto mb-3 text-neutral-600" />
+          <h3 className="text-sm font-medium text-white mb-1">No earnings yet</h3>
+          {monetizationEnabled ? (
+            <p className="text-xs text-neutral-500">Earnings will appear here once users start using your app</p>
+          ) : (
+            <>
+              <p className="text-xs text-neutral-500 mb-4">Enable monetization to start earning from your app</p>
+              <Button
+                onClick={() => router.push(`/dashboard/apps/${appId}?tab=monetization`)}
+                size="sm"
+                className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+              >
+                Enable Monetization
+              </Button>
+            </>
+          )}
+        </div>
       )}
 
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Lifetime Earnings</p>
-                  <p className="text-2xl font-bold text-white mt-1">
-                    ${summary.totalLifetimeEarnings.toFixed(2)}
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
-              </div>
-            </div>
-          </BrandCard>
-
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-400 mt-1">
-                    ${summary.pendingBalance.toFixed(2)}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-500" />
-              </div>
-            </div>
-          </BrandCard>
-
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Withdrawable</p>
-                  <p className="text-2xl font-bold text-green-400 mt-1">
-                    ${summary.withdrawableBalance.toFixed(2)}
-                  </p>
-                </div>
-                <Wallet className="h-8 w-8 text-green-500" />
-              </div>
-            </div>
-          </BrandCard>
-
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Withdrawn</p>
-                  <p className="text-2xl font-bold text-white/60 mt-1">
-                    ${summary.totalWithdrawn.toFixed(2)}
-                  </p>
-                </div>
-                <ArrowUpRight className="h-8 w-8 text-white/40" />
-              </div>
-            </div>
-          </BrandCard>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Lifetime Earnings" value={`$${summary.totalLifetimeEarnings.toFixed(2)}`} icon={<TrendingUp className="h-5 w-5 text-green-400" />} />
+          <StatCard label="Pending" value={`$${summary.pendingBalance.toFixed(2)}`} valueColor="text-yellow-400" icon={<Clock className="h-5 w-5 text-yellow-400" />} />
+          <StatCard label="Withdrawable" value={`$${summary.withdrawableBalance.toFixed(2)}`} valueColor="text-green-400" icon={<Wallet className="h-5 w-5 text-green-400" />} />
+          <StatCard label="Withdrawn" value={`$${summary.totalWithdrawn.toFixed(2)}`} valueColor="text-neutral-400" icon={<ArrowUpRight className="h-5 w-5 text-neutral-400" />} />
         </div>
       )}
 
       {breakdown && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Today", data: breakdown.today },
             { label: "This Week", data: breakdown.thisWeek },
             { label: "This Month", data: breakdown.thisMonth },
             { label: "All Time", data: breakdown.allTime },
           ].map(({ label, data }) => (
-            <BrandCard key={label}>
-              <CornerBrackets size="sm" className="opacity-20" />
-              <div className="relative z-10">
-                <p className="text-sm text-white/60 mb-2">{label}</p>
-                <p className="text-xl font-bold text-white">
-                  ${data.total.toFixed(2)}
-                </p>
-                <div className="mt-2 flex gap-2 text-xs">
-                  <span className="text-purple-400">
-                    <Zap className="h-3 w-3 inline mr-1" />$
-                    {data.inferenceEarnings.toFixed(2)}
-                  </span>
-                  <span className="text-yellow-400">
-                    <Coins className="h-3 w-3 inline mr-1" />$
-                    {data.purchaseEarnings.toFixed(2)}
-                  </span>
-                </div>
+            <div key={label} className="bg-neutral-900 rounded-xl p-3">
+              <p className="text-[10px] text-neutral-500 mb-1">{label}</p>
+              <p className="text-lg font-semibold text-white">${data.total.toFixed(2)}</p>
+              <div className="mt-1.5 flex gap-2 text-[10px]">
+                <span className="text-purple-400 flex items-center gap-0.5">
+                  <Zap className="h-2.5 w-2.5" />${data.inferenceEarnings.toFixed(2)}
+                </span>
+                <span className="text-yellow-400 flex items-center gap-0.5">
+                  <Coins className="h-2.5 w-2.5" />${data.purchaseEarnings.toFixed(2)}
+                </span>
               </div>
-            </BrandCard>
+            </div>
           ))}
         </div>
       )}
 
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Earnings Over Time
-          </h3>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.1)"
-                />
-                <XAxis
-                  dataKey="date"
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: "12px" }}
-                />
-                <YAxis
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: "12px" }}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.9)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                    color: "white",
-                  }}
-                  formatter={(value: number) => `$${value.toFixed(4)}`}
-                />
-                <Legend />
-                <Bar
-                  dataKey="inferenceEarnings"
-                  fill="#a855f7"
-                  name="Inference Markup"
-                  stackId="a"
-                />
-                <Bar
-                  dataKey="purchaseEarnings"
-                  fill="#eab308"
-                  name="Purchase Share"
-                  stackId="a"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="text-center text-white/60 py-12">
-              <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p>No earnings data yet</p>
-            </div>
-          )}
-        </div>
-      </BrandCard>
-
-      {summary &&
-        (summary.totalInferenceEarnings > 0 ||
-          summary.totalPurchaseEarnings > 0) && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <BrandCard>
-              <CornerBrackets className="opacity-20" />
-              <div className="relative z-10">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-purple-500" />
-                  Inference Earnings
-                </h3>
-                <div className="text-3xl font-bold text-purple-400">
-                  ${summary.totalInferenceEarnings.toFixed(2)}
-                </div>
-                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-purple-500"
-                    style={{
-                      width: `${(summary.totalInferenceEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </BrandCard>
-
-            <BrandCard>
-              <CornerBrackets className="opacity-20" />
-              <div className="relative z-10">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-yellow-500" />
-                  Purchase Earnings
-                </h3>
-                <div className="text-3xl font-bold text-yellow-400">
-                  ${summary.totalPurchaseEarnings.toFixed(2)}
-                </div>
-                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-500"
-                    style={{
-                      width: `${(summary.totalPurchaseEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </BrandCard>
+      <div className="bg-neutral-900 rounded-xl p-4">
+        <h3 className="text-sm font-medium text-white mb-4">Earnings Over Time</h3>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
+              <YAxis stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} tickFormatter={(value) => `$${value.toFixed(2)}`} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#171717",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  color: "white",
+                  fontSize: "12px",
+                }}
+                formatter={(value: number) => `$${value.toFixed(4)}`}
+              />
+              <Legend />
+              <Bar dataKey="inferenceEarnings" fill="#a855f7" name="Inference Markup" stackId="a" />
+              <Bar dataKey="purchaseEarnings" fill="#eab308" name="Purchase Share" stackId="a" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="text-center text-neutral-500 py-12">
+            <DollarSign className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="text-sm">No earnings data yet</p>
           </div>
         )}
+      </div>
 
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Recent Transactions
-          </h3>
+      {summary && (summary.totalInferenceEarnings > 0 || summary.totalPurchaseEarnings > 0) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="bg-neutral-900 rounded-xl p-4">
+            <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-purple-400" />
+              Inference Earnings
+            </h3>
+            <div className="text-2xl font-bold text-purple-400">${summary.totalInferenceEarnings.toFixed(2)}</div>
+            <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-purple-500" style={{ width: `${(summary.totalInferenceEarnings / summary.totalLifetimeEarnings) * 100 || 0}%` }} />
+            </div>
+          </div>
 
-          {transactions.length > 0 ? (
-            <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    {getTypeIcon(tx.type)}
-                    <div>
-                      <p className="text-sm text-white">{tx.description}</p>
-                      <p className="text-xs text-white/40">
-                        {formatDistanceToNow(new Date(tx.created_at), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getTypeBadge(tx.type)}
-                    <span
-                      className={`font-mono font-semibold ${
-                        Number(tx.amount) >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {Number(tx.amount) >= 0 ? "+" : ""}$
-                      {Math.abs(Number(tx.amount)).toFixed(4)}
-                    </span>
+          <div className="bg-neutral-900 rounded-xl p-4">
+            <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+              <Coins className="h-4 w-4 text-yellow-400" />
+              Purchase Earnings
+            </h3>
+            <div className="text-2xl font-bold text-yellow-400">${summary.totalPurchaseEarnings.toFixed(2)}</div>
+            <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-yellow-500" style={{ width: `${(summary.totalPurchaseEarnings / summary.totalLifetimeEarnings) * 100 || 0}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-neutral-900 rounded-xl p-4">
+        <h3 className="text-sm font-medium text-white mb-4">Recent Transactions</h3>
+
+        {transactions.length > 0 ? (
+          <div className="space-y-2">
+            {transactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-white/5">
+                <div className="flex items-center gap-3">
+                  {getTypeIcon(tx.type)}
+                  <div>
+                    <p className="text-xs text-white">{tx.description}</p>
+                    <p className="text-[10px] text-neutral-500">{formatDistanceToNow(new Date(tx.created_at), { addSuffix: true })}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-white/60 py-12">
-              <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p className="text-sm mb-2">No transactions yet</p>
-              <p className="text-xs text-white/40">
-                Transactions will appear here once you start earning
-              </p>
-            </div>
-          )}
+                <div className="flex items-center gap-2">
+                  {getTypeBadge(tx.type)}
+                  <span className={`font-mono text-xs font-medium ${Number(tx.amount) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {Number(tx.amount) >= 0 ? "+" : ""}${Math.abs(Number(tx.amount)).toFixed(4)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-neutral-500 py-8">
+            <DollarSign className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="text-xs mb-1">No transactions yet</p>
+            <p className="text-[10px] text-neutral-600">Transactions will appear here once you start earning</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, valueColor = "text-white", icon }: { label: string; value: string; valueColor?: string; icon: React.ReactNode }) {
+  return (
+    <div className="bg-neutral-900 rounded-xl p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-neutral-500">{label}</p>
+          <p className={`text-xl font-semibold mt-1 ${valueColor}`}>{value}</p>
         </div>
-      </BrandCard>
+        {icon}
+      </div>
     </div>
   );
 }

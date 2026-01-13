@@ -86,12 +86,12 @@ export class AppsRepository {
   }
 
   /**
-   * Lists all apps for an organization, ordered by creation date.
+   * Lists all apps for an organization, ordered by updated date.
    */
   async listByOrganization(organizationId: string): Promise<App[]> {
     return await dbRead.query.apps.findMany({
       where: eq(apps.organization_id, organizationId),
-      orderBy: [desc(apps.created_at)],
+      orderBy: [desc(apps.updated_at)],
     });
   }
 
@@ -114,7 +114,7 @@ export class AppsRepository {
 
     return await dbRead.query.apps.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: [desc(apps.created_at)],
+      orderBy: [desc(apps.updated_at)],
     });
   }
 

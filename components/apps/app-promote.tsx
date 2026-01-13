@@ -1,14 +1,6 @@
 "use client";
 
-/**
- * App Promote Tab
- *
- * Displays promotion options, history, and promotional asset management
- * for an app.
- */
-
 import { useState, useEffect } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,9 +37,7 @@ interface AdAccount {
 
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
-  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
-    null,
-  );
+  const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(null);
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
@@ -56,14 +46,12 @@ export function AppPromote({ app }: AppPromoteProps) {
     const fetchData = async () => {
       setIsLoading(true);
 
-      // Fetch promotion suggestions
       const suggestionsRes = await fetch(`/api/v1/apps/${app.id}/promote`);
       if (suggestionsRes.ok) {
         const data = await suggestionsRes.json();
         setSuggestions(data);
       }
 
-      // Fetch ad accounts
       const accountsRes = await fetch("/api/v1/advertising/accounts");
       if (accountsRes.ok) {
         const data = await accountsRes.json();
@@ -89,7 +77,6 @@ export function AppPromote({ app }: AppPromoteProps) {
     });
 
     if (response.ok) {
-      // Refresh the page to show new assets
       window.location.reload();
     }
 
@@ -99,85 +86,82 @@ export function AppPromote({ app }: AppPromoteProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-white/60" />
+        <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Megaphone className="h-5 w-5 text-[#FF5800]" />
+          <h3 className="text-sm font-medium text-white flex items-center gap-2">
+            <Megaphone className="h-4 w-4 text-[#FF5800]" />
             Promote {app.name}
-          </h2>
-          <p className="text-white/60 text-sm mt-1">
+          </h3>
+          <p className="text-xs text-neutral-500 mt-1">
             Reach more users through social media, SEO, and advertising
           </p>
         </div>
         <Button
           onClick={() => setShowPromoteDialog(true)}
-          className="bg-[#FF5800] hover:bg-[#FF5800]/90"
+          size="sm"
+          className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white rounded-lg"
         >
-          <Megaphone className="h-4 w-4 mr-2" />
+          <Megaphone className="h-4 w-4 mr-1.5" />
           Launch Promotion
         </Button>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <BrandCard className="p-4">
-          <CornerBrackets size="sm" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-neutral-900 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/20">
+            <div className="p-2 rounded-lg bg-blue-500/10">
               <Share2 className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <div className="text-white/60 text-xs">Social Posts</div>
-              <div className="text-xl font-semibold text-white">0</div>
+              <p className="text-xs text-neutral-500">Social Posts</p>
+              <p className="text-xl font-semibold text-white">0</p>
             </div>
           </div>
-        </BrandCard>
+        </div>
 
-        <BrandCard className="p-4">
-          <CornerBrackets size="sm" />
+        <div className="bg-neutral-900 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/20">
+            <div className="p-2 rounded-lg bg-green-500/10">
               <Search className="h-5 w-5 text-green-400" />
             </div>
             <div>
-              <div className="text-white/60 text-xs">SEO Score</div>
-              <div className="text-xl font-semibold text-white">--</div>
+              <p className="text-xs text-neutral-500">SEO Score</p>
+              <p className="text-xl font-semibold text-white">--</p>
             </div>
           </div>
-        </BrandCard>
+        </div>
 
-        <BrandCard className="p-4">
-          <CornerBrackets size="sm" />
+        <div className="bg-neutral-900 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-purple-500/20">
+            <div className="p-2 rounded-lg bg-purple-500/10">
               <TrendingUp className="h-5 w-5 text-purple-400" />
             </div>
             <div>
-              <div className="text-white/60 text-xs">Ad Campaigns</div>
-              <div className="text-xl font-semibold text-white">0</div>
+              <p className="text-xs text-neutral-500">Ad Campaigns</p>
+              <p className="text-xl font-semibold text-white">0</p>
             </div>
           </div>
-        </BrandCard>
+        </div>
       </div>
 
       {/* Promotional Assets */}
-      <BrandCard className="p-6">
-        <CornerBrackets />
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-neutral-900 rounded-xl p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <ImageIcon className="h-5 w-5" />
+            <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-purple-400" />
               Promotional Assets
             </h3>
-            <p className="text-white/60 text-sm">
+            <p className="text-xs text-neutral-500 mt-1">
               AI-generated images and copy for your campaigns
             </p>
           </div>
@@ -186,96 +170,88 @@ export function AppPromote({ app }: AppPromoteProps) {
             size="sm"
             onClick={handleGenerateAssets}
             disabled={isGeneratingAssets}
+            className="border-white/10 hover:bg-white/10 rounded-lg"
           >
             {isGeneratingAssets ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                 Generating...
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="h-4 w-4 mr-1.5" />
                 Generate Assets
               </>
             )}
           </Button>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
-          {/* Placeholder for generated assets */}
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <ImageIcon className="h-8 w-8 mb-2" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-neutral-500 hover:border-white/20 transition-colors cursor-pointer">
+            <ImageIcon className="h-6 w-6 mb-1.5" />
             <span className="text-xs">Social Card</span>
           </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <ImageIcon className="h-8 w-8 mb-2" />
+          <div className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-neutral-500 hover:border-white/20 transition-colors cursor-pointer">
+            <ImageIcon className="h-6 w-6 mb-1.5" />
             <span className="text-xs">Banner</span>
           </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <Video className="h-8 w-8 mb-2" />
+          <div className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-neutral-500 hover:border-white/20 transition-colors cursor-pointer">
+            <Video className="h-6 w-6 mb-1.5" />
             <span className="text-xs">Video</span>
           </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <Plus className="h-8 w-8 mb-2" />
+          <div className="aspect-square rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-neutral-500 hover:border-white/20 transition-colors cursor-pointer">
+            <Plus className="h-6 w-6 mb-1.5" />
             <span className="text-xs">Upload</span>
           </div>
         </div>
-      </BrandCard>
+      </div>
 
       {/* Suggestions */}
       {suggestions && (
-        <BrandCard className="p-6">
-          <CornerBrackets />
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Promotion Tips
-          </h3>
-          <div className="space-y-3">
+        <div className="bg-neutral-900 rounded-xl p-4 space-y-4">
+          <h3 className="text-sm font-medium text-white">Promotion Tips</h3>
+          <div className="space-y-2">
             {suggestions.tips.map((tip, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-[#FF5800] text-xs font-semibold">
+              <div key={index} className="flex items-start gap-2">
+                <div className="w-5 h-5 rounded-full bg-[#FF5800]/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-[#FF5800] text-[10px] font-semibold">
                     {index + 1}
                   </span>
                 </div>
-                <p className="text-white/80 text-sm">{tip}</p>
+                <p className="text-xs text-neutral-300">{tip}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white/60">Estimated budget range:</span>
-              <span className="text-white font-semibold">
-                ${suggestions.estimatedBudget.min} - $
-                {suggestions.estimatedBudget.max}
+          <div className="pt-3 border-t border-white/10">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-neutral-500">Estimated budget range:</span>
+              <span className="text-white font-medium">
+                ${suggestions.estimatedBudget.min} - ${suggestions.estimatedBudget.max}
               </span>
             </div>
           </div>
-        </BrandCard>
+        </div>
       )}
 
       {/* Connected Ad Accounts */}
-      <BrandCard className="p-6">
-        <CornerBrackets />
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">
-            Connected Ad Accounts
-          </h3>
-          <Button variant="outline" size="sm" asChild>
+      <div className="bg-neutral-900 rounded-xl p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-white">Connected Ad Accounts</h3>
+          <Button variant="outline" size="sm" asChild className="border-white/10 hover:bg-white/10 rounded-lg">
             <a href="/dashboard/settings?tab=connections">
-              <Plus className="h-4 w-4 mr-2" />
-              Connect Account
+              <Plus className="h-4 w-4 mr-1.5" />
+              Connect
             </a>
           </Button>
         </div>
 
         {adAccounts.length === 0 ? (
-          <div className="text-center py-8 text-white/60">
-            <Megaphone className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p>No ad accounts connected</p>
-            <p className="text-sm">
-              Connect a Meta, Google, or TikTok ads account to run paid
-              campaigns
+          <div className="text-center py-6 text-neutral-500">
+            <Megaphone className="h-10 w-10 mx-auto mb-2 opacity-40" />
+            <p className="text-xs">No ad accounts connected</p>
+            <p className="text-xs text-neutral-600">
+              Connect a Meta, Google, or TikTok ads account
             </p>
           </div>
         ) : (
@@ -283,22 +259,22 @@ export function AppPromote({ app }: AppPromoteProps) {
             {adAccounts.map((account) => (
               <div
                 key={account.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-white/5"
+                className="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-white/5"
               >
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="capitalize">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize text-xs border-white/20">
                     {account.platform}
                   </Badge>
-                  <span className="text-white">{account.accountName}</span>
+                  <span className="text-sm text-white">{account.accountName}</span>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg">
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>
             ))}
           </div>
         )}
-      </BrandCard>
+      </div>
 
       {/* Promote Dialog */}
       <PromoteAppDialog

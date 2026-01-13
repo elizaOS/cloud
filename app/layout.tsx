@@ -7,6 +7,23 @@ import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import localFont from "next/font/local";
+import { DM_Mono, Inter } from "next/font/google";
+
+// DM Mono for landing page
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-dm-mono",
+  display: "swap",
+});
+
+// Inter for hero headings
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 // Performance optimization: Load only essential font weights (reduced from 7 to 4)
 // This reduces initial font bundle size by ~40%
@@ -132,7 +149,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
+        className={`${sfPro.variable} ${dmMono.variable} ${inter.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
       >
         <PrivyProvider>
           <CreditsProvider>

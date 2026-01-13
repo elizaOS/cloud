@@ -25,7 +25,7 @@ import { ChatInput, HistoryTab } from "@/components/app-builder";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1,
+  maxRetries = 1
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -102,7 +102,6 @@ import {
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -383,26 +382,26 @@ export default function AppCreatorPage() {
   }, [searchParams]);
 
   const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl,
+    isEditMode || !!sessionIdFromUrl
   );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup",
+    isEditMode ? "building" : "setup"
   );
   // Setup wizard steps: 1 = template, 2 = details, 3 = features
   const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : "",
+    sourceContext ? `${sourceContext.name} App` : ""
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : "",
+      : ""
   );
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank",
+      : "blank"
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -445,6 +444,8 @@ export default function AppCreatorPage() {
     githubRepo: string;
     lastBackup: string | null;
   } | null>(null);
+  // Track if we've completed checking for existing sessions - prevents "Start Building" flash
+  const [hasCheckedForSession, setHasCheckedForSession] = useState(false);
 
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
@@ -480,6 +481,7 @@ export default function AppCreatorPage() {
       setMessages([]);
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
+      setHasCheckedForSession(false);
 
       if (appChanged) {
         setAppData(null);
@@ -514,7 +516,7 @@ export default function AppCreatorPage() {
     const tryRestoreSession = async (sessionId: string): Promise<boolean> => {
       try {
         const response = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${sessionId}`,
+          `/api/v1/app-builder/sessions/${sessionId}`
         );
         if (!response.ok) return false;
 
@@ -552,7 +554,7 @@ export default function AppCreatorPage() {
             } catch (parseError) {
               console.warn(
                 "[AppBuilder] Failed to parse stored messages:",
-                parseError,
+                parseError
               );
             }
           }
@@ -561,7 +563,7 @@ export default function AppCreatorPage() {
         // Load app data if we have appId
         if (appIdFromUrl) {
           const appResponse = await fetchWithRetry(
-            `/api/v1/apps/${appIdFromUrl}`,
+            `/api/v1/apps/${appIdFromUrl}`
           );
           if (appResponse.ok) {
             const appData = await appResponse.json();
@@ -594,7 +596,7 @@ export default function AppCreatorPage() {
             // health check useEffect handle auto-recovery
             console.warn(
               "[AppBuilder] Sandbox health check failed, initiating recovery:",
-              healthCheckError,
+              healthCheckError
             );
             setStatus("recovering");
             setSandboxHealthy(false);
@@ -605,6 +607,9 @@ export default function AppCreatorPage() {
           // If session is expired/stopped, show standalone timeout card to avoid layout flash
           if (sessionStatus === "timeout" || sessionStatus === "stopped") {
             setShowStandaloneTimeout(true);
+            // Set isInitializing false HERE to batch with showStandaloneTimeout
+            // This prevents the "Start Building" screen from flashing
+            setIsInitializing(false);
           }
         }
 
@@ -644,10 +649,10 @@ export default function AppCreatorPage() {
         // Run session and snapshot checks in parallel for faster loading
         const [sessionResponse, snapshotResponse] = await Promise.all([
           fetchWithRetry(
-            `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
+            `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`
           ),
           fetchWithRetry(
-            `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
+            `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`
           ),
         ]);
 
@@ -658,7 +663,7 @@ export default function AppCreatorPage() {
             // Redirect to existing session
             router.replace(
               `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-              { scroll: false },
+              { scroll: false }
             );
             initializationRef.current = false;
             return;
@@ -672,6 +677,10 @@ export default function AppCreatorPage() {
             setAppSnapshotInfo(snapshotData.snapshotInfo);
           }
         }
+
+        // No existing session found - mark check as complete
+        // This allows "Start Building" screen to show (if no snapshot either)
+        setHasCheckedForSession(true);
       } catch (loadError) {
         console.error("[AppBuilder] Failed to load app data:", loadError);
         toast.error("Failed to load app");
@@ -784,7 +793,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -812,7 +821,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`
       );
       if (response.ok) {
         const data = await response.json();
@@ -835,7 +844,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`,
+        `/api/v1/app-builder/sessions/${session.id}/commit`
       );
       if (response.ok) {
         const data = await response.json();
@@ -860,7 +869,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`,
+        `/api/v1/app-builder/sessions/${session.id}/history`
       );
       if (response.ok) {
         const data = await response.json();
@@ -887,7 +896,7 @@ export default function AppCreatorPage() {
           body: JSON.stringify({
             message: `Manual save at ${new Date().toLocaleString()}`,
           }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -904,7 +913,7 @@ export default function AppCreatorPage() {
           });
           addLog(
             `Saved to GitHub: ${data.commitSha.substring(0, 7)} (${data.filesCommitted} files)`,
-            "success",
+            "success"
           );
         } else {
           toast.info("No changes to save", {
@@ -923,7 +932,7 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
+        "error"
       );
     } finally {
       setIsSaving(false);
@@ -948,7 +957,7 @@ export default function AppCreatorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ target: "production" }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -981,7 +990,7 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
+        "error"
       );
     } finally {
       setIsDeploying(false);
@@ -995,7 +1004,7 @@ export default function AppCreatorPage() {
     const fetchDeploymentInfo = async () => {
       try {
         const response = await fetchWithRetry(
-          `/api/v1/apps/${appData.id}/deploy`,
+          `/api/v1/apps/${appData.id}/deploy`
         );
         if (response.ok) {
           const data = await response.json();
@@ -1007,7 +1016,7 @@ export default function AppCreatorPage() {
         // Not critical but log for debugging
         console.warn(
           "[AppBuilder] Deployment info fetch failed:",
-          deployInfoError,
+          deployInfoError
         );
       }
     };
@@ -1050,7 +1059,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" },
+        { method: "POST" }
       );
 
       if (!response.ok) {
@@ -1095,7 +1104,7 @@ export default function AppCreatorPage() {
                 });
                 addLog(
                   `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info",
+                  "info"
                 );
               } else if (eventType === "complete") {
                 setSession({
@@ -1177,7 +1186,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" },
+        { method: "POST" }
       );
 
       if (!response.ok) {
@@ -1294,7 +1303,7 @@ export default function AppCreatorPage() {
           setSandboxHealthy(false);
           addLog(
             `Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`,
-            "warning",
+            "warning"
           );
           autoRecoverSession();
         }
@@ -1352,7 +1361,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -1370,7 +1379,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`,
+                (log: string) => `[${timestamp}] ${log}`
               );
               return [...prev, ...formatted];
             });
@@ -1520,7 +1529,7 @@ export default function AppCreatorPage() {
 
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success",
+                  "success"
                 );
 
                 if (data.hasInitialPrompt) {
@@ -1582,15 +1591,15 @@ Some ideas:
                             ...m,
                             content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*`,
                           }
-                        : m,
-                    ),
+                        : m
+                    )
                   );
                 }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
                 const { display: toolDisplay, detail } = formatToolDisplay(
                   toolName,
-                  data.input,
+                  data.input
                 );
 
                 if (sessionActionsLogRef.current.length > 0) {
@@ -1612,7 +1621,7 @@ Some ideas:
                 });
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                  "info",
+                  "info"
                 );
 
                 if (initialThinkingIdRef.current) {
@@ -1631,8 +1640,8 @@ Some ideas:
                       (m as Message & { _thinkingId?: number })._thinkingId ===
                       thinkingId
                         ? { ...m, content: progressContent }
-                        : m,
-                    ),
+                        : m
+                    )
                   );
                 }
               } else if (eventType === "complete") {
@@ -1682,7 +1691,7 @@ Some ideas:
                         };
                       }
                       return m;
-                    }),
+                    })
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
@@ -1745,7 +1754,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info",
+        "info"
       );
 
       const userMessage: Message = {
@@ -1799,7 +1808,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -1828,7 +1837,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text }),
-          },
+          }
         );
 
         if (!response.ok) {
@@ -1874,7 +1883,7 @@ Some ideas:
                   updateThinking("Analyzing...");
                   addLog(
                     `💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`,
-                    "info",
+                    "info"
                   );
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
@@ -1897,7 +1906,7 @@ Some ideas:
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info",
+                    "info"
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -1994,7 +2003,7 @@ Some ideas:
         setStatus("ready");
         addLog(
           `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error",
+          "error"
         );
         toast.error("Failed to process prompt", {
           description:
@@ -2004,7 +2013,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [session, isLoading, addLog],
+    [session, isLoading, addLog]
   );
 
   const stopSession = useCallback(async () => {
@@ -2047,23 +2056,20 @@ Some ideas:
 
   if (isInitializing) {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">
-                {sessionIdFromUrl ? "Restoring Session" : "Loading"}
-              </h2>
-              <p className="text-white/60">
-                {sessionIdFromUrl
-                  ? "Loading your sandbox environment..."
-                  : "Preparing app builder..."}
-              </p>
-            </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-200">
+        <div className="max-w-md mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-[#FF5800]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-7 w-7 animate-spin text-[#FF5800]" />
           </div>
-        </BrandCard>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            {sessionIdFromUrl ? "Restoring Session" : "Loading"}
+          </h2>
+          <p className="text-sm text-neutral-400">
+            {sessionIdFromUrl
+              ? "Loading your sandbox environment..."
+              : "Preparing app builder..."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -2075,126 +2081,110 @@ Some ideas:
     !isRestoring
   ) {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
-                <Timer className="h-8 w-8 text-amber-400" />
-              </div>
-              <h2 className="text-xl font-bold text-white">Session Expired</h2>
-              <p className="text-white/60">
-                Your sandbox session has timed out. Your code is safely saved
-                and can be restored.
-              </p>
-
-              {snapshotInfo?.canRestore ? (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Your code is saved to GitHub
-                    </p>
-                    {snapshotInfo.githubRepo && (
-                      <p className="text-xs text-white/50 mt-1">
-                        <span className="font-mono">
-                          {snapshotInfo.githubRepo.split("/").pop()}
-                        </span>
-                        {snapshotInfo.lastBackup && (
-                          <>
-                            {" "}
-                            · Last updated{" "}
-                            {new Date(
-                              snapshotInfo.lastBackup,
-                            ).toLocaleDateString()}
-                          </>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={restoreSession}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore & Continue
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : appSnapshotInfo?.githubRepo ? (
-                <div className="space-y-3 pt-2">
-                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <p className="text-sm text-green-400 font-medium">
-                      Your code is saved to GitHub
-                    </p>
-                    <p className="text-xs text-white/50 mt-1">
-                      <span className="font-mono">
-                        {appSnapshotInfo.githubRepo.split("/").pop()}
-                      </span>
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={restoreSession}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore & Continue
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <p className="text-xs text-white/40">
-                    Start a new session to continue building.
-                  </p>
-                  <Button
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      startSession();
-                    }}
-                    className="w-full"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Start New Session
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowStandaloneTimeout(false);
-                      router.push("/dashboard/apps");
-                    }}
-                    className="w-full"
-                  >
-                    Return to Apps
-                  </Button>
-                </div>
-              )}
-            </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-300">
+        <div className="max-w-md mx-auto text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+            <Timer className="h-7 w-7 text-amber-400" />
           </div>
-        </BrandCard>
+          <h2 className="text-xl font-semibold text-white">Session Expired</h2>
+          <p className="text-sm text-neutral-400">
+            Your sandbox session has timed out. Your code is safely saved and
+            can be restored.
+          </p>
+
+          {snapshotInfo?.canRestore ? (
+            <div className="space-y-3 pt-2">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-sm text-green-400 font-medium">
+                  Your code is saved to GitHub
+                </p>
+                {snapshotInfo.githubRepo && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    <span className="font-mono">
+                      {snapshotInfo.githubRepo.split("/").pop()}
+                    </span>
+                    {snapshotInfo.lastBackup && (
+                      <>
+                        {" "}
+                        · Last updated{" "}
+                        {new Date(snapshotInfo.lastBackup).toLocaleDateString()}
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={restoreSession}
+                className="w-full h-10 rounded-lg bg-green-600 hover:bg-green-500 text-white"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Restore & Continue
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => router.push(backLink)}
+                className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
+              >
+                Return to App
+              </Button>
+            </div>
+          ) : appSnapshotInfo?.githubRepo ? (
+            <div className="space-y-3 pt-2">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-sm text-green-400 font-medium">
+                  Your code is saved to GitHub
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  <span className="font-mono">
+                    {appSnapshotInfo.githubRepo.split("/").pop()}
+                  </span>
+                </p>
+              </div>
+
+              <Button
+                onClick={restoreSession}
+                className="w-full h-10 rounded-lg bg-green-600 hover:bg-green-500 text-white"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Restore & Continue
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => router.push(backLink)}
+                className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
+              >
+                Return to App
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-neutral-500">
+                Start a new session to continue building.
+              </p>
+              <Button
+                onClick={() => {
+                  setShowStandaloneTimeout(false);
+                  startSession();
+                }}
+                className="w-full h-10 rounded-lg bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Start New Session
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => router.push(backLink)}
+                className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
+              >
+                Return to App
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -2202,143 +2192,129 @@ Some ideas:
   // If restoring from standalone timeout, show the unified restore progress card
   if (showStandaloneTimeout && isRestoring) {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto" />
-              <h2 className="text-xl font-bold text-white">
-                Restoring Session
-              </h2>
-              <p className="text-white/60">
-                Setting up your development environment and restoring your
-                files...
-              </p>
-
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <p className="text-sm text-green-400 font-medium">
-                  {restoreProgress
-                    ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
-                    : progressStep === "creating"
-                      ? "Creating sandbox..."
-                      : progressStep === "installing"
-                        ? "Installing dependencies..."
-                        : progressStep === "starting"
-                          ? "Starting dev server..."
-                          : progressStep === "restoring"
-                            ? "Restoring files..."
-                            : "Preparing..."}
-                </p>
-                {snapshotInfo?.githubRepo && (
-                  <p className="text-xs text-white/50 mt-1">
-                    From{" "}
-                    <span className="font-mono">
-                      {snapshotInfo.githubRepo.split("/").pop()}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-300">
+        <div className="max-w-md mx-auto text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+            <Loader2 className="h-7 w-7 animate-spin text-green-400" />
           </div>
-        </BrandCard>
+          <h2 className="text-xl font-semibold text-white">
+            Restoring Session
+          </h2>
+          <p className="text-sm text-neutral-400">
+            Setting up your development environment and restoring your files...
+          </p>
+
+          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-sm text-green-400 font-medium">
+              {restoreProgress
+                ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
+                : progressStep === "creating"
+                  ? "Creating sandbox..."
+                  : progressStep === "installing"
+                    ? "Installing dependencies..."
+                    : progressStep === "starting"
+                      ? "Starting dev server..."
+                      : progressStep === "restoring"
+                        ? "Restoring files..."
+                        : "Preparing..."}
+            </p>
+            {snapshotInfo?.githubRepo && (
+              <p className="text-xs text-neutral-500 mt-1">
+                From{" "}
+                <span className="font-mono">
+                  {snapshotInfo.githubRepo.split("/").pop()}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (status === "not_configured") {
     return (
-      <div className="max-w-4xl mx-auto py-10">
-        <BrandCard className="relative shadow-lg shadow-black/50">
-          <CornerBrackets size="sm" className="opacity-50" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-yellow-500/20 mb-6">
-                <Settings className="h-8 w-8 text-yellow-500" />
-              </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center">
+        <div className="max-w-lg mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-6">
+            <Settings className="h-7 w-7 text-yellow-500" />
+          </div>
 
-              <h2 className="text-2xl font-bold text-white mb-3">
-                Sandbox Not Configured
-              </h2>
-              <p className="text-white/60 mb-6">
-                The AI App Builder requires sandbox credentials to create
-                development environments.
-              </p>
+          <h2 className="text-xl font-semibold text-white mb-3">
+            Sandbox Not Configured
+          </h2>
+          <p className="text-sm text-neutral-400 mb-6">
+            The AI App Builder requires sandbox credentials to create
+            development environments.
+          </p>
 
-              <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-left mb-6">
-                <h3 className="font-semibold text-white mb-3">
-                  Setup Instructions:
-                </h3>
-                <ol className="space-y-3 text-sm text-white/70">
-                  <li className="flex gap-2">
-                    <span className="text-[#FF5800] font-mono">1.</span>
-                    <span>
-                      Get a Vercel Access Token from{" "}
-                      <a
-                        href="https://vercel.com/account/tokens"
-                        target="_blank"
-                        rel="noopener"
-                        className="text-[#FF5800] hover:underline"
-                      >
-                        vercel.com/account/tokens
-                      </a>
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-[#FF5800] font-mono">2.</span>
-                    <span>Find your Team ID in Vercel Dashboard Settings</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-[#FF5800] font-mono">3.</span>
-                    <span>
-                      Find your Project ID in Project Settings General
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-[#FF5800] font-mono">4.</span>
-                    <span>
-                      Add to your{" "}
-                      <code className="bg-white/10 px-1.5 py-0.5 rounded">
-                        .env.local
-                      </code>
-                      :
-                    </span>
-                  </li>
-                </ol>
+          <div className="bg-black/30 border border-white/10 rounded-lg p-6 text-left mb-6">
+            <h3 className="font-medium text-white mb-3">Setup Instructions:</h3>
+            <ol className="space-y-3 text-sm text-neutral-400">
+              <li className="flex gap-2">
+                <span className="text-[#FF5800] font-mono">1.</span>
+                <span>
+                  Get a Vercel Access Token from{" "}
+                  <a
+                    href="https://vercel.com/account/tokens"
+                    target="_blank"
+                    rel="noopener"
+                    className="text-[#FF5800] hover:underline"
+                  >
+                    vercel.com/account/tokens
+                  </a>
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#FF5800] font-mono">2.</span>
+                <span>Find your Team ID in Vercel Dashboard Settings</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#FF5800] font-mono">3.</span>
+                <span>Find your Project ID in Project Settings General</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-[#FF5800] font-mono">4.</span>
+                <span>
+                  Add to your{" "}
+                  <code className="bg-white/10 px-1.5 py-0.5 rounded text-white">
+                    .env.local
+                  </code>
+                  :
+                </span>
+              </li>
+            </ol>
 
-                <pre className="mt-4 p-4 bg-black/30 rounded text-xs text-white/80 overflow-x-auto">
-                  {`VERCEL_TOKEN=your_token_here
+            <pre className="mt-4 p-4 bg-black/50 rounded text-xs text-neutral-300 overflow-x-auto">
+              {`VERCEL_TOKEN=your_token_here
 VERCEL_TEAM_ID=team_xxx
 VERCEL_PROJECT_ID=prj_xxx
 ANTHROPIC_API_KEY=your_key_here`}
-                </pre>
-              </div>
-
-              <div className="flex justify-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    window.open(
-                      "https://vercel.com/docs/vercel-sandbox",
-                      "_blank",
-                    )
-                  }
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Documentation
-                </Button>
-                <Button
-                  onClick={() => {
-                    setStatus("idle");
-                    setErrorMessage(null);
-                  }}
-                >
-                  Try Again
-                </Button>
-              </div>
-            </div>
+            </pre>
           </div>
-        </BrandCard>
+
+          <div className="flex justify-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.open("https://vercel.com/docs/vercel-sandbox", "_blank")
+              }
+              className="h-10 rounded-lg border-white/10 hover:bg-white/10"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View Documentation
+            </Button>
+            <Button
+              onClick={() => {
+                setStatus("idle");
+                setErrorMessage(null);
+              }}
+              className="h-10 rounded-lg bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -2352,7 +2328,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
     setIsGeneratingDescription(true);
     const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
-      (t) => t.value === templateType,
+      (t) => t.value === templateType
     );
 
     try {
@@ -2388,7 +2364,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
       };
       setAppDescription(
-        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
+        fallbackDescriptions[templateType] || fallbackDescriptions.blank
       );
       toast.success("Description generated!");
     } finally {
@@ -2398,7 +2374,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   // Get the selected template data
   const selectedTemplate = TEMPLATE_OPTIONS.find(
-    (t) => t.value === templateType,
+    (t) => t.value === templateType
   );
 
   if (step === "setup" && !isEditMode && status !== "initializing") {
@@ -2548,11 +2524,11 @@ ANTHROPIC_API_KEY=your_key_here`}
             {setupStep === 1 &&
               (() => {
                 const totalPages = Math.ceil(
-                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE,
+                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE
                 );
                 const visibleTemplates = TEMPLATE_OPTIONS.slice(
                   templatePage * TEMPLATES_PER_PAGE,
-                  (templatePage + 1) * TEMPLATES_PER_PAGE,
+                  (templatePage + 1) * TEMPLATES_PER_PAGE
                 );
 
                 return (
@@ -2595,7 +2571,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <button
                           onClick={() =>
                             setTemplatePage((p) =>
-                              Math.min(totalPages - 1, p + 1),
+                              Math.min(totalPages - 1, p + 1)
                             )
                           }
                           disabled={templatePage >= totalPages - 1}
@@ -3081,108 +3057,93 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  if (status === "idle" && isEditMode && !session) {
+  // Only show "Start Building" screen when truly idle - not during any loading/restore/timeout flow
+  // hasCheckedForSession ensures we've verified no existing session before showing this
+  if (
+    status === "idle" &&
+    isEditMode &&
+    !session &&
+    !isRestoring &&
+    !showStandaloneTimeout &&
+    !isInitializing &&
+    !isLoading &&
+    hasCheckedForSession
+  ) {
     return (
-      <div className="max-w-4xl mx-auto py-10 space-y-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href={backLink}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-white/60" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
-              />
-              <h1
-                className="text-3xl font-normal tracking-tight text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {appData?.name || "Loading..."}
-              </h1>
-            </div>
-            <p className="text-white/60">
-              Edit your app with AI-powered code generation
-            </p>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-[#FF5800] flex items-center justify-center mx-auto mb-6">
+            <Sparkles className="h-7 w-7 text-white" />
           </div>
-        </div>
 
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-600 to-[#FF5800] mb-6">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            {appData?.name || "Loading..."}
+          </h2>
+          <p className="text-sm text-neutral-400 mb-6">
+            Launch a sandbox environment to enhance your app with AI assistance.
+          </p>
 
-              <h2 className="text-2xl font-bold text-white mb-3">
-                AI App Builder
-              </h2>
-              <p className="text-white/60 mb-8 max-w-md mx-auto">
-                Launch a sandbox environment to enhance your app with AI
-                assistance.
-              </p>
-
-              {appSnapshotInfo ? (
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <RefreshCw className="h-4 w-4 text-green-400" />
-                    <p className="text-sm text-green-400 font-medium">
-                      Code saved to GitHub
-                    </p>
-                  </div>
-                  <p className="text-xs text-white/50">
-                    Your code will be restored from{" "}
-                    <span className="font-mono text-green-400/80">
-                      {appSnapshotInfo.githubRepo.split("/").pop()}
-                    </span>
-                    {appSnapshotInfo.lastBackup && (
-                      <>
-                        {" "}
-                        (last updated{" "}
-                        {new Date(
-                          appSnapshotInfo.lastBackup,
-                        ).toLocaleDateString()}
-                        )
-                      </>
-                    )}
-                  </p>
-                </div>
-              ) : appData?.github_repo ? (
-                <p className="text-xs text-white/40 mb-4">
-                  No previous work found for this app.
+          {appSnapshotInfo ? (
+            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <RefreshCw className="h-4 w-4 text-green-400" />
+                <p className="text-sm text-green-400 font-medium">
+                  Code saved to GitHub
                 </p>
-              ) : null}
-
-              <Button
-                onClick={startSession}
-                disabled={isLoading}
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-[#FF5800] hover:opacity-90"
-              >
-                {isLoading ? (
+              </div>
+              <p className="text-xs text-neutral-500">
+                Your code will be restored from{" "}
+                <span className="font-mono text-green-400/80">
+                  {appSnapshotInfo.githubRepo.split("/").pop()}
+                </span>
+                {appSnapshotInfo.lastBackup && (
                   <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Starting...
-                  </>
-                ) : appSnapshotInfo || appData?.github_repo ? (
-                  <>
-                    <RefreshCw className="h-5 w-5 mr-2" />
-                    Start Building
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    Start Building
+                    {" "}
+                    (last updated{" "}
+                    {new Date(appSnapshotInfo.lastBackup).toLocaleDateString()})
                   </>
                 )}
-              </Button>
+              </p>
             </div>
+          ) : appData?.github_repo ? (
+            <p className="text-xs text-neutral-500 mb-4">
+              No previous work found for this app.
+            </p>
+          ) : null}
+
+          <div className="space-y-3">
+            <Button
+              onClick={startSession}
+              disabled={isLoading}
+              className="w-full h-10 rounded-lg bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Starting...
+                </>
+              ) : appSnapshotInfo || appData?.github_repo ? (
+                <>
+                  <RefreshCw className="h-5 w-5 mr-2" />
+                  Start Building
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Start Building
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => router.push(backLink)}
+              className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
+            >
+              Return to App
+            </Button>
           </div>
-        </BrandCard>
+        </div>
       </div>
     );
   }
@@ -3197,82 +3158,93 @@ ANTHROPIC_API_KEY=your_key_here`}
     const currentStepIndex = steps.findIndex((s) => s.key === progressStep);
 
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">
-                Starting Sandbox
-              </h2>
-              <p className="text-white/60">
-                Setting up your development environment...
-              </p>
-              <div className="mt-6 space-y-2 text-left max-w-xs mx-auto">
-                {steps.map((step, index) => {
-                  const isComplete = index < currentStepIndex;
-                  const isCurrent = index === currentStepIndex;
-
-                  return (
-                    <div
-                      key={step.key}
-                      className={`flex items-center gap-2 text-sm transition-all duration-300 ${
-                        isComplete
-                          ? "text-white/60"
-                          : isCurrent
-                            ? "text-white/80"
-                            : "text-white/40"
-                      }`}
-                    >
-                      {isComplete ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : isCurrent ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                      ) : (
-                        <div className="h-4 w-4" />
-                      )}
-                      {step.label}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-200">
+        <div className="max-w-sm mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-[#FF5800]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-7 w-7 animate-spin text-[#FF5800]" />
           </div>
-        </BrandCard>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Starting Sandbox
+          </h2>
+          <p className="text-sm text-neutral-400">
+            Setting up your development environment...
+          </p>
+          <div className="mt-6 space-y-2 text-left max-w-xs mx-auto">
+            {steps.map((step, index) => {
+              const isComplete = index < currentStepIndex;
+              const isCurrent = index === currentStepIndex;
+
+              return (
+                <div
+                  key={step.key}
+                  className={`flex items-center gap-2 text-sm transition-all duration-300 ${
+                    isComplete
+                      ? "text-neutral-400"
+                      : isCurrent
+                        ? "text-white"
+                        : "text-neutral-600"
+                  }`}
+                >
+                  {isComplete ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : isCurrent ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  ) : (
+                    <div className="h-4 w-4" />
+                  )}
+                  {step.label}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (status === "error") {
     return (
-      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/20 mb-4">
-                <AlertCircle className="h-6 w-6 text-red-500" />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">
-                Failed to Start Sandbox
-              </h2>
-              <p className="text-white/60 mb-4">
-                {errorMessage ||
-                  "There was an error starting the development environment."}
-              </p>
-              <Button onClick={startSession} variant="outline">
-                Try Again
-              </Button>
-            </div>
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-200">
+        <div className="max-w-sm mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-7 w-7 text-red-500" />
           </div>
-        </BrandCard>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Failed to Start Sandbox
+          </h2>
+          <p className="text-sm text-neutral-400 mb-4">
+            {errorMessage ||
+              "There was an error starting the development environment."}
+          </p>
+          <Button
+            onClick={startSession}
+            className="h-10 rounded-lg bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Catch-all: if we're in edit mode but haven't determined what to show yet, show Loading
+  // This prevents the main builder UI from flashing during state transitions
+  if (isEditMode && !session && !hasCheckedForSession) {
+    return (
+      <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center animate-in fade-in duration-200">
+        <div className="max-w-md mx-auto text-center">
+          <div className="w-14 h-14 rounded-full bg-[#FF5800]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-7 w-7 animate-spin text-[#FF5800]" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Loading</h2>
+          <p className="text-sm text-neutral-400">Checking session status...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-300">
+    <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] flex flex-col overflow-hidden bg-[#0A0A0A] animate-in fade-in duration-300">
       {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
       <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -3771,22 +3743,21 @@ ANTHROPIC_API_KEY=your_key_here`}
       {/* Full overlay only for timeout/manual restore - not for auto-recovery */}
       {(status === "timeout" || isRestoring) && (
         <div className="absolute inset-0 top-[49px] xl:top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-          <BrandCard className="max-w-md w-full">
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10 text-center space-y-3 xl:space-y-4 p-4 xl:p-6">
+          <div className="bg-neutral-900 rounded-xl max-w-md w-full p-4 xl:p-6">
+            <div className="text-center space-y-3 xl:space-y-4">
               <div
-                className={`w-12 h-12 xl:w-16 xl:h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
+                className={`w-12 h-12 xl:w-14 xl:h-14 rounded-full ${isRestoring ? "bg-green-500/10" : "bg-amber-500/10"} flex items-center justify-center mx-auto`}
               >
                 {isRestoring ? (
-                  <Loader2 className="h-6 w-6 xl:h-8 xl:w-8 text-green-400 animate-spin" />
+                  <Loader2 className="h-6 w-6 xl:h-7 xl:w-7 text-green-400 animate-spin" />
                 ) : (
-                  <Timer className="h-6 w-6 xl:h-8 xl:w-8 text-red-400" />
+                  <Timer className="h-6 w-6 xl:h-7 xl:w-7 text-amber-400" />
                 )}
               </div>
               <h2 className="text-lg xl:text-xl font-semibold text-white">
                 {isRestoring ? "Restoring Session" : "Session Expired"}
               </h2>
-              <p className="text-xs xl:text-sm text-white/60">
+              <p className="text-xs xl:text-sm text-neutral-400">
                 {isRestoring
                   ? "Setting up your development environment and restoring your files..."
                   : "Your sandbox session has timed out after 30 minutes of inactivity."}
@@ -3799,7 +3770,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Restoring your code...
                     </p>
                     {snapshotInfo?.githubRepo && (
-                      <p className="text-xs text-white/50 mt-1">
+                      <p className="text-xs text-neutral-500 mt-1">
                         From{" "}
                         <span className="font-mono">
                           {snapshotInfo.githubRepo.split("/").pop()}
@@ -3810,7 +3781,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                   <Button
                     disabled
-                    className="w-full bg-green-600 text-white cursor-wait"
+                    className="w-full h-10 rounded-lg bg-green-600 text-white cursor-wait"
                   >
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {restoreProgress
@@ -3830,7 +3801,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     variant="outline"
                     onClick={() => router.push("/dashboard/apps")}
                     disabled
-                    className="w-full opacity-50"
+                    className="w-full h-10 rounded-lg opacity-50 border-white/10"
                   >
                     Return to Apps
                   </Button>
@@ -3841,7 +3812,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <p className="text-sm text-green-400 font-medium">
                       Your code is saved to GitHub
                     </p>
-                    <p className="text-xs text-white/50 mt-1">
+                    <p className="text-xs text-neutral-500 mt-1">
                       <span className="font-mono">
                         {snapshotInfo.githubRepo?.split("/").pop()}
                       </span>
@@ -3850,7 +3821,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                           {" "}
                           · Last updated{" "}
                           {new Date(
-                            snapshotInfo.lastBackup,
+                            snapshotInfo.lastBackup
                           ).toLocaleDateString()}
                         </>
                       )}
@@ -3860,7 +3831,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Button
                     onClick={restoreSession}
                     disabled={isRestoring}
-                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                    className="w-full h-10 rounded-lg bg-green-600 hover:bg-green-500 text-white"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Restore & Continue
@@ -3870,7 +3841,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     variant="outline"
                     onClick={() => router.push("/dashboard/apps")}
                     disabled={isRestoring}
-                    className="w-full"
+                    className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
                   >
                     Return to Apps
                   </Button>
@@ -3878,7 +3849,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               ) : (
                 <div className="space-y-3">
                   <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                    <p className="text-xs text-white/50">
+                    <p className="text-xs text-neutral-500">
                       {snapshotInfo === null
                         ? "Checking for saved code..."
                         : "No saved code found. Start fresh."}
@@ -3887,7 +3858,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                   <Button
                     onClick={startSession}
-                    className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80"
+                    className="w-full h-10 rounded-lg bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     Start New Session
@@ -3896,14 +3867,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Button
                     variant="outline"
                     onClick={() => router.push("/dashboard/apps")}
-                    className="w-full"
+                    className="w-full h-10 rounded-lg border-white/10 hover:bg-white/10"
                   >
                     Return to Apps
                   </Button>
                 </div>
               )}
             </div>
-          </BrandCard>
+          </div>
         </div>
       )}
 

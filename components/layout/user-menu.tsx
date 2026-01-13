@@ -243,9 +243,9 @@ export default function UserMenu() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+            className="relative h-8 w-8 md:h-10 md:w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
           >
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-8 w-8 md:h-10 md:w-10">
               {userProfile?.avatar && (
                 <AvatarImage
                   src={userProfile.avatar}

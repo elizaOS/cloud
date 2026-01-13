@@ -11,7 +11,7 @@
  */
 
 import { memo, useCallback, useRef, useEffect, useState } from "react";
-import { Loader2, Send, Mic, Square, X } from "lucide-react";
+import { Loader2, ArrowUp, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useChatInput } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
@@ -383,12 +383,12 @@ const ChatInputInner = memo(function ChatInputInner({
                 onClick={handleSend}
                 disabled={!input.trim() || status !== "ready"}
                 size="icon"
-                className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
+                className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-[#FF5800] hover:bg-[#e54e00] disabled:bg-white/10 transition-all touch-manipulation group"
               >
                 {status === "generating" ? (
-                  <Loader2 className="h-4 w-4 xl:h-3.5 xl:w-3.5 animate-spin text-white/50" />
+                  <Loader2 className="h-4 w-4 xl:h-3.5 xl:w-3.5 animate-spin text-white" />
                 ) : (
-                  <Send className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white/60" />
+                  <ArrowUp className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white group-disabled:text-neutral-400" />
                 )}
               </Button>
             )}

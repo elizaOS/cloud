@@ -9,7 +9,7 @@ import {
   UserCog,
   Code,
   Mic,
-  Store,
+  Bot,
   Puzzle,
   Grid3x3,
   Shield,
@@ -52,21 +52,34 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
+    title: "Apps",
+    items: [
+      {
+        id: "my-apps",
+        label: "My Apps",
+        href: "/dashboard/apps",
+        icon: Grid3x3,
+        freeAllowed: false,
+      },
+      {
+        id: "workflows",
+        label: "Workflows",
+        href: "/dashboard/workflows",
+        icon: Workflow,
+        freeAllowed: false,
+        comingSoon: true,
+      },
+    ],
+  },
+  {
     title: "Agents",
     items: [
       {
         id: "my-agents",
         label: "My Agents",
         href: "/dashboard/my-agents",
-        icon: Store,
+        icon: Bot,
         freeAllowed: false, // Requires signup
-      },
-      {
-        id: "agent-creator",
-        label: "Agent Builder",
-        href: "/dashboard/build",
-        icon: UserCog,
-        freeAllowed: true,
       },
       {
         id: "api-explorer",
@@ -109,33 +122,6 @@ export const sidebarSections: SidebarSection[] = [
         icon: LayersIcon,
         freeAllowed: false,
         featureFlag: "gallery",
-      },
-    ],
-  },
-  {
-    title: "Apps",
-    items: [
-      {
-        id: "app-creator",
-        label: "App Creator",
-        href: "/dashboard/apps/create",
-        icon: Sparkles,
-        freeAllowed: false,
-      },
-      {
-        id: "my-apps",
-        label: "My Apps",
-        href: "/dashboard/apps",
-        icon: Grid3x3,
-        freeAllowed: false,
-      },
-      {
-        id: "workflows",
-        label: "Workflows",
-        href: "/dashboard/workflows",
-        icon: Workflow,
-        freeAllowed: false,
-        comingSoon: true,
       },
     ],
   },

@@ -8,7 +8,7 @@ import {
   useLoginWithOAuth,
 } from "@privy-io/react-auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -138,7 +138,7 @@ function LoginPageContent() {
   };
 
   const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github",
+    provider: "google" | "discord" | "github"
   ) => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning
@@ -194,30 +194,16 @@ function LoginPageContent() {
   // Show loading state while checking authentication or processing OAuth callback
   if (!ready || isProcessingOAuth) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}
         <LandingHeader />
 
-        {/* Fullscreen background video */}
-        <video
-          src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            filter: "brightness(0.4) blur(2px)",
-          }}
-        />
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-neutral-900/50 to-black" />
 
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
+          <div className="w-full max-w-md bg-neutral-900/90 border border-white/10 rounded-2xl p-8">
+            <div className="flex flex-col items-center gap-6">
               <div className="relative">
                 <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
@@ -226,19 +212,19 @@ function LoginPageContent() {
                 <h3 className="text-lg font-semibold text-white">
                   {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
                 </h3>
-                <p className="text-sm text-white/60">
+                <p className="text-sm text-neutral-500">
                   {isProcessingOAuth
                     ? "Processing your authentication"
                     : "Initializing..."}
                 </p>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
               </div>
             </div>
-          </BrandCard>
+          </div>
         </div>
       </div>
     );
@@ -247,30 +233,16 @@ function LoginPageContent() {
   // Don't render login page if already authenticated (redirecting)
   if (authenticated || isSyncing) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}
         <LandingHeader />
 
-        {/* Fullscreen background video */}
-        <video
-          src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            filter: "brightness(0.4) blur(2px)",
-          }}
-        />
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-neutral-900/50 to-black" />
 
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
+          <div className="w-full max-w-md bg-neutral-900/90 border border-white/10 rounded-2xl p-8">
+            <div className="flex flex-col items-center gap-6">
               <div className="relative">
                 <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
@@ -279,56 +251,41 @@ function LoginPageContent() {
                 <h3 className="text-lg font-semibold text-white">
                   Signing you in
                 </h3>
-                <p className="text-sm text-white/60">
+                <p className="text-sm text-neutral-500">
                   Taking you to your dashboard...
                 </p>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
                 <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
               </div>
             </div>
-          </BrandCard>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
       {/* Header */}
       <LandingHeader />
 
-      {/* Fullscreen background video */}
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          filter: "brightness(0.4) blur(2px)",
-        }}
-      />
-
-      {/* Gradient overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-neutral-900/50 to-black" />
 
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-          <CornerBrackets size="md" className="opacity-50" />
-
-          <div className="relative z-10 space-y-6">
+        <div className="w-full max-w-md bg-neutral-900/90 border border-white/10 rounded-2xl p-6 md:p-8">
+          <div className="space-y-6">
             {/* Header */}
-            <div className="space-y-3 text-center pb-2">
-              <h1 className="text-3xl font-bold tracking-tight text-white">
-                {isSignupIntent ? "Sign Up" : "Welcome back"}
+            <div className="space-y-2 text-center">
+              <h1 className="text-2xl font-semibold text-white">
+                {isSignupIntent ? "Create Account" : "Welcome back"}
               </h1>
-              <p className="text-base text-white/60">
+              <p className="text-sm text-neutral-500">
                 {isSignupIntent
-                  ? "Create your elizaOS account"
+                  ? "Sign up to get started with elizaOS"
                   : "Sign in to your elizaOS account"}
               </p>
             </div>
@@ -336,13 +293,7 @@ function LoginPageContent() {
             {!showCodeInput ? (
               // Email Input
               <form onSubmit={handleSendCode} className="space-y-4">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="email"
-                    className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                  >
-                    Email Address
-                  </label>
+                <div>
                   <Input
                     id="email"
                     type="email"
@@ -350,7 +301,7 @@ function LoginPageContent() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loadingButton !== null}
-                    className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                    className="h-11 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-neutral-600 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                     autoFocus
                   />
                 </div>
@@ -358,7 +309,7 @@ function LoginPageContent() {
                   type="submit"
                   disabled={loadingButton !== null || !email}
                   variant="primary"
-                  className="w-full h-11"
+                  className="w-full h-11 rounded-xl disabled:bg-neutral-700 disabled:text-neutral-500"
                 >
                   {loadingButton === "email" ? (
                     <>
@@ -376,25 +327,15 @@ function LoginPageContent() {
             ) : (
               // Code Input
               <form onSubmit={handleVerifyCode} className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor="code"
-                      className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                    >
-                      Verification Code
-                    </label>
-                    <BrandButton
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleBackToEmail}
-                      className="h-auto p-0"
-                    >
-                      <ArrowLeft className="mr-1 h-3 w-3" />
-                      Change email
-                    </BrandButton>
-                  </div>
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleBackToEmail}
+                    className="text-xs text-neutral-500 hover:text-white transition-colors flex items-center gap-1"
+                  >
+                    <ArrowLeft className="h-3 w-3" />
+                    Change email
+                  </button>
                   <Input
                     id="code"
                     type="text"
@@ -404,20 +345,20 @@ function LoginPageContent() {
                       setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
                     disabled={loadingButton !== null}
-                    className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-lg tracking-widest"
+                    className="h-12 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-neutral-600 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-xl tracking-[0.3em] font-mono"
                     maxLength={6}
                     autoFocus
                   />
-                  <p className="text-xs text-white/50 text-center">
+                  <p className="text-xs text-neutral-500 text-center">
                     Enter the 6-digit code sent to{" "}
-                    <span className="font-medium text-white/70">{email}</span>
+                    <span className="font-medium text-white">{email}</span>
                   </p>
                 </div>
                 <BrandButton
                   type="submit"
                   disabled={loadingButton !== null || code.length !== 6}
                   variant="primary"
-                  className="w-full h-11"
+                  className="w-full h-11 rounded-xl mt-8"
                 >
                   {loadingButton === "verify" ? (
                     <>
@@ -428,22 +369,21 @@ function LoginPageContent() {
                     "Verify & Sign In"
                   )}
                 </BrandButton>
-                <BrandButton
+                <button
                   type="button"
-                  variant="outline"
                   onClick={handleSendCode}
                   disabled={loadingButton !== null}
-                  className="w-full"
+                  className="w-full h-11 text-sm text-white rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
                 >
                   {loadingButton === "email" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Sending...
-                    </>
+                    </span>
                   ) : (
                     "Resend Code"
                   )}
-                </BrandButton>
+                </button>
               </form>
             )}
 
@@ -455,106 +395,100 @@ function LoginPageContent() {
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-white/10" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-black/60 px-2 text-white/50">
-                      Or continue with
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-neutral-900 px-3 text-neutral-500">
+                      or
                     </span>
                   </div>
                 </div>
 
                 {/* OAuth Buttons */}
-                <div className="grid gap-3">
-                  <BrandButton
-                    variant="outline"
+                <div className="space-y-3">
+                  <button
                     onClick={() => handleOAuthLogin("google")}
                     disabled={loadingButton !== null}
-                    className="w-full h-11"
+                    className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
                   >
                     {loadingButton === "google" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
                     ) : (
-                      <Chrome className="mr-2 h-4 w-4" />
+                      <>
+                        <Chrome className="h-4 w-4 text-white" />
+                        <span className="text-sm text-white">
+                          Continue with Google
+                        </span>
+                      </>
                     )}
-                    Google
-                  </BrandButton>
+                  </button>
 
-                  <BrandButton
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("discord")}
-                    disabled={loadingButton !== null}
-                    className="w-full h-11"
-                  >
-                    {loadingButton === "discord" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <DiscordIcon className="mr-2 h-4 w-4" />
-                    )}
-                    Discord
-                  </BrandButton>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleOAuthLogin("discord")}
+                      disabled={loadingButton !== null}
+                      className="flex items-center justify-center gap-2 h-11 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                      {loadingButton === "discord" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : (
+                        <>
+                          <DiscordIcon className="h-4 w-4 text-white" />
+                          <span className="text-sm text-white">Discord</span>
+                        </>
+                      )}
+                    </button>
 
-                  <BrandButton
-                    variant="outline"
-                    onClick={() => handleOAuthLogin("github")}
-                    disabled={loadingButton !== null}
-                    className="w-full h-11"
-                  >
-                    {loadingButton === "github" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Github className="mr-2 h-4 w-4" />
-                    )}
-                    GitHub
-                  </BrandButton>
-                </div>
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-black/60 px-2 text-white/50">
-                      Or use wallet
-                    </span>
+                    <button
+                      onClick={() => handleOAuthLogin("github")}
+                      disabled={loadingButton !== null}
+                      className="flex items-center justify-center gap-2 h-11 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    >
+                      {loadingButton === "github" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-white" />
+                      ) : (
+                        <>
+                          <Github className="h-4 w-4 text-white" />
+                          <span className="text-sm text-white">GitHub</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
 
                 {/* Wallet Connect */}
-                <BrandButton
-                  variant="outline"
+                <button
                   onClick={handleWalletConnect}
                   disabled={loadingButton !== null}
-                  className="w-full h-11 border-[#FF5800]/30 hover:border-[#FF5800]"
+                  className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-white disabled:opacity-50"
                 >
                   {loadingButton === "wallet" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Wallet className="mr-2 h-4 w-4" />
+                    <Wallet className="h-4 w-4" />
                   )}
-                  Connect Wallet
-                </BrandButton>
+                  <span className="text-sm font-medium">Connect Wallet</span>
+                </button>
               </>
             )}
 
             {/* Footer */}
-            <p className="text-center text-xs text-white/50 pt-2 border-t border-white/10">
+            <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">
               By signing in, you agree to our{" "}
               <a
                 href="/terms-of-service"
-                className="underline underline-offset-4 hover:text-[#FF5800] transition-colors"
+                className="text-neutral-400 hover:text-white transition-colors"
               >
-                Terms of Service
+                Terms
               </a>{" "}
               and{" "}
               <a
                 href="/privacy-policy"
-                className="underline underline-offset-4 hover:text-[#FF5800] transition-colors"
+                className="text-neutral-400 hover:text-white transition-colors"
               >
                 Privacy Policy
               </a>
             </p>
           </div>
-        </BrandCard>
+        </div>
       </div>
     </div>
   );
@@ -564,34 +498,21 @@ function LoginPageContent() {
 function LoginPageFallback() {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
-      {/* Fullscreen background video */}
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          filter: "brightness(0.4) blur(2px)",
-        }}
-      />
-
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-neutral-900/50 to-black" />
 
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-lg border border-white/10 backdrop-blur-sm bg-black/60 p-8">
-          <div className="flex flex-col items-center gap-6 py-8">
+        <div className="w-full max-w-md bg-neutral-900/90 border border-white/10 rounded-2xl p-8">
+          <div className="flex flex-col items-center gap-6">
             <div className="relative">
               <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
               <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
             </div>
             <div className="space-y-2 text-center">
               <h3 className="text-lg font-semibold text-white">Loading...</h3>
-              <p className="text-sm text-white/60">Initializing...</p>
+              <p className="text-sm text-neutral-500">Initializing...</p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
               <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
               <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />

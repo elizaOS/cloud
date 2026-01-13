@@ -8,6 +8,7 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
 import { OnboardingProvider, OnboardingOverlay } from "@/components/onboarding";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 /**
  * Free Mode Paths (accessible without auth):
@@ -35,18 +36,23 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Memoize toggle callback to prevent child re-renders
+  // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev);
   }, []);
 
+  const handleToggleCollapse = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, []);
+
   // Check if current path allows free access
   const isFreeModePath = FREE_MODE_PATHS.some((path) =>
-    pathname?.startsWith(path),
+    pathname?.startsWith(path)
   );
 
   // Redirect to login if not authenticated and trying to access protected path
@@ -100,12 +106,17 @@ export default function DashboardLayout({
   return (
     <OnboardingProvider>
       <PageHeaderProvider>
-        <div className="flex h-screen w-full bg-[#0A0A0A]">
+        <div className="flex h-screen w-full bg-neutral-900 x ">
           {/* Sidebar */}
-          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
+          <Sidebar
+            isOpen={sidebarOpen}
+            onToggle={handleToggleSidebar}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleCollapse}
+          />
 
           {/* Main Content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 max-md:pl-3 py-3 pr-3 flex-col overflow-hidden gap-1.5 md:gap-3">
             {/* Header - pass auth state for signup button */}
             <Header
               onToggleSidebar={handleToggleSidebar}
@@ -113,9 +124,9 @@ export default function DashboardLayout({
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <div className="px-2 py-3 md:px-6 md:py-6">{children}</div>
-            </main>
+            <ScrollArea className="flex-1 bg-black rounded-2xl min-w-0">
+              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">{children}</main>
+            </ScrollArea>
           </div>
         </div>
       </PageHeaderProvider>

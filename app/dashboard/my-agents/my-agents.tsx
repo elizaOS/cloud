@@ -8,7 +8,7 @@ import { CharacterFilters } from "@/components/my-agents/character-filters";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
-import type { AgentWithOwnership } from "@/components/my-agents/character-library-card";
+import type { AgentWithOwnership } from "@/components/my-agents/character-library-grid";
 
 export type ViewMode = "grid" | "list";
 export type SortOption = "name" | "created" | "modified" | "recent";
@@ -218,25 +218,26 @@ export function MyAgentsClient() {
   }
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <CharacterFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        totalCount={characters.length}
-        filteredCount={filteredCharacters.length}
-        onCreateNew={handleCreateNew}
-      />
+    <div className="mx-auto w-full max-w-[1400px]">
+      <div className="flex flex-col h-full gap-6">
+        <CharacterFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          totalCount={characters.length}
+          filteredCount={filteredCharacters.length}
+        />
 
-      <CharacterLibraryGrid
-        characters={sortedCharacters}
-        viewMode={viewMode}
-        onCreateNew={handleCreateNew}
-        onRemoveSaved={handleRemoveSaved}
-      />
+        <CharacterLibraryGrid
+          characters={sortedCharacters}
+          viewMode={viewMode}
+          onCreateNew={handleCreateNew}
+          onRemoveSaved={handleRemoveSaved}
+        />
+      </div>
     </div>
   );
 }

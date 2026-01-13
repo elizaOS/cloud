@@ -11,7 +11,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -29,7 +28,7 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LockOnButton } from "@/components/brand";
+import { LockOnButton, ElizaLogo } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
@@ -199,7 +198,9 @@ export function ChatSidebar({
   // Copy share link
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
-    const character = availableCharacters.find((c) => c.id === selectedCharacterId);
+    const character = availableCharacters.find(
+      (c) => c.id === selectedCharacterId
+    );
     if (!character?.username) {
       toast.error("Set a username first to share this agent");
       return;
@@ -325,7 +326,7 @@ export function ChatSidebar({
         className={cn(
           "flex h-full flex-col transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed bg-[#191919] inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
               ? "w-14 p-1.5"
               : "w-80 p-1.5",
@@ -344,13 +345,7 @@ export function ChatSidebar({
               href="/dashboard"
               className="flex items-center gap-2 hover:opacity-80 relative z-10"
             >
-              <Image
-                src="/cloudlogo.svg"
-                alt="ELIZA"
-                width={80}
-                height={24}
-                className={`invert shrink-0 ${isMobile ? "w-16" : "w-20"}`}
-              />
+              <ElizaLogo className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`} />
             </Link>
           )}
           {/* Collapse Toggle Button (Desktop) */}
