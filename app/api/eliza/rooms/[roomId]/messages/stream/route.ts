@@ -675,6 +675,33 @@ export async function POST(
       },
     });
   } catch (error) {
+    const errorMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+
+    // Categorize errors for appropriate logging and user feedback
+    const isConnectionError =
+      errorMsg.includes("cannot use a pool") ||
+      errorMsg.includes("end on the pool") ||
+      errorMsg.includes("connection") ||
+      errorMsg.includes("terminated") ||
+      errorMsg.includes("server conn crashed") ||
+      errorMsg.includes("08p01") ||
+      errorMsg.includes("econnreset") ||
+      errorMsg.includes("rollback") ||
+      errorMsg.includes("failed query");
+
+    if (isConnectionError) {
+      // Connection errors are transient - log at warn level
+      logger.warn("[Stream Messages] Request failed due to connection issue:", errorMsg.substring(0, 150));
+      return new Response(
+        JSON.stringify({
+          error: "A temporary connection issue occurred. Please try again.",
+          type: "connection_error",
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Other errors - log at error level
     logger.error("[Stream Messages] Request error:", error);
     return new Response(
       JSON.stringify({
