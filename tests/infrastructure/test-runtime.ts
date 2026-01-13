@@ -16,7 +16,7 @@ import type { DebugTrace, DebugRenderView } from "../../lib/debug";
 import { serverCheck } from "../setup";
 
 // Re-export the production RuntimeFactory directly
-export { runtimeFactory, invalidateRuntime, isRuntimeCached, getRuntimeCacheStats } from "../../lib/eliza/runtime-factory";
+export { runtimeFactory, invalidateRuntime, isRuntimeCached, getRuntimeCacheStats, _testing } from "../../lib/eliza/runtime-factory";
 
 // Re-export types from the production code
 export type { UserContext } from "../../lib/eliza/user-context";
