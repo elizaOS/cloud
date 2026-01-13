@@ -50,7 +50,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -77,7 +77,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     console.log("\nCleaning up caching test...");
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("Caching Tests", timings);
@@ -112,7 +112,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     expect(runtime2).toBeDefined();
     console.log(`\nWarm start: ${timings.cacheWarm}ms`);
     console.log(
-      `   Speedup: ${(((timings.cacheCold - timings.cacheWarm) / timings.cacheCold) * 100).toFixed(1)}%`
+      `   Speedup: ${(((timings.cacheCold - timings.cacheWarm) / timings.cacheCold) * 100).toFixed(1)}%`,
     );
 
     // Cleanup
@@ -124,7 +124,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
     console.log(
-      `\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`
+      `\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
     );
   });
 });
@@ -147,7 +147,7 @@ describe("RuntimeFactory - Performance Benchmarks", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     localConnectionString = getConnectionString();
@@ -173,9 +173,10 @@ describe("RuntimeFactory - Performance Benchmarks", () => {
   afterAll(async () => {
     console.log("\nCleaning up performance benchmark test...");
     if (localTestData && localConnectionString) {
-      await cleanupTestData(localConnectionString, localTestData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
-      );
+      await cleanupTestData(
+        localConnectionString,
+        localTestData.organization.id,
+      ).catch((err) => console.warn(`Data cleanup warning: ${err}`));
     }
     logTimings("Performance Benchmark Tests", localTimings);
   });

@@ -60,7 +60,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -87,12 +87,12 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
     console.log("\nCleaning up ASSISTANT Mode (MCP) test...");
     if (runtime) {
       await invalidateRuntime(runtime.agentId as string).catch((err) =>
-        console.warn(`Runtime cleanup warning: ${err}`)
+        console.warn(`Runtime cleanup warning: ${err}`),
       );
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("ASSISTANT Mode (MCP) Tests", timings);
@@ -114,7 +114,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
     expect(runtime).toBeDefined();
     expect(runtime.character?.name).toBe("Mira");
     console.log(
-      `\nASSISTANT runtime created in ${timings.assistantRuntimeCreate}ms`
+      `\nASSISTANT runtime created in ${timings.assistantRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -142,12 +142,14 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
       testUser,
       "What's the current price of Bitcoin?",
       testData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     timings.assistantMessage = endTimer("assistant_message");
 
     expect(result.didRespond).toBe(true);
-    console.log(`\nASSISTANT message processed in ${timings.assistantMessage}ms`);
+    console.log(
+      `\nASSISTANT message processed in ${timings.assistantMessage}ms`,
+    );
     console.log(`   Response: ${result.response?.text?.substring(0, 80)}...`);
   }, 180000);
 
@@ -176,7 +178,7 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     localConnectionString = getConnectionString();
@@ -203,13 +205,14 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
     console.log("\nCleaning up ASSISTANT Mode (Web Search) test...");
     if (runtime) {
       await invalidateRuntime(runtime.agentId as string).catch((err) =>
-        console.warn(`Runtime cleanup warning: ${err}`)
+        console.warn(`Runtime cleanup warning: ${err}`),
       );
     }
     if (localTestData && localConnectionString) {
-      await cleanupTestData(localConnectionString, localTestData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
-      );
+      await cleanupTestData(
+        localConnectionString,
+        localTestData.organization.id,
+      ).catch((err) => console.warn(`Data cleanup warning: ${err}`));
     }
     logTimings("ASSISTANT Mode (Web Search) Tests", localTimings);
   });
@@ -228,7 +231,7 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
 
     expect(runtime).toBeDefined();
     console.log(
-      `\nWeb Search runtime created in ${localTimings.webSearchRuntimeCreate}ms`
+      `\nWeb Search runtime created in ${localTimings.webSearchRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -241,12 +244,14 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
       testUser,
       "What is the latest news about AI?",
       localTestData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     localTimings.webSearchMessage = endTimer("websearch_message");
 
     expect(result.didRespond).toBe(true);
-    console.log(`\nWeb Search message processed in ${localTimings.webSearchMessage}ms`);
+    console.log(
+      `\nWeb Search message processed in ${localTimings.webSearchMessage}ms`,
+    );
   }, 180000);
 
   it("should cleanup web search runtime", async () => {

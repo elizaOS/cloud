@@ -115,12 +115,7 @@ export interface RestoreProgress {
   filePath: string;
 }
 
-export type PreviewTab =
-  | "preview"
-  | "console"
-  | "files"
-  | "history"
-  | "agents";
+export type PreviewTab = "preview" | "console" | "files" | "history" | "agents";
 
 export interface SourceContextInfo {
   icon: LucideIcon;

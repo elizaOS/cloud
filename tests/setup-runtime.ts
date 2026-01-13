@@ -25,7 +25,7 @@ let isSetup = false;
 export function getTestData(): TestDataSet {
   if (!globalTestData) {
     throw new Error(
-      "Test data not initialized. Call setupTestEnvironment() first."
+      "Test data not initialized. Call setupTestEnvironment() first.",
     );
   }
   return globalTestData;
@@ -61,7 +61,7 @@ export interface SetupOptions {
  * Call this in beforeAll() of your test suite
  */
 export async function setupTestEnvironment(
-  options: SetupOptions = {}
+  options: SetupOptions = {},
 ): Promise<void> {
   if (isSetup) {
     console.log("[Setup] Environment already initialized, skipping...");
@@ -78,7 +78,7 @@ export async function setupTestEnvironment(
   const connected = await verifyConnection();
   if (!connected) {
     throw new Error(
-      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
     );
   }
   console.log(`✅ Database connected`);
@@ -134,5 +134,8 @@ export async function cleanupTestEnvironment(): Promise<void> {
 }
 
 // Re-export for convenience
-export { getConnectionString, verifyConnection } from "./infrastructure/local-database";
+export {
+  getConnectionString,
+  verifyConnection,
+} from "./infrastructure/local-database";
 export type { TestDataSet } from "./infrastructure/test-data-factory";

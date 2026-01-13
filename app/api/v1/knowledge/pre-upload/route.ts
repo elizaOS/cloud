@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { extractUserIdFromBlobPath, trackOrphanedBlobBatch, type OrphanedBlobInfo } from "@/lib/utils/knowledge";
+import {
+  extractUserIdFromBlobPath,
+  trackOrphanedBlobBatch,
+  type OrphanedBlobInfo,
+} from "@/lib/utils/knowledge";
 import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
@@ -178,13 +182,16 @@ async function handlePOST(req: NextRequest) {
 
           if (isTextExtension) {
             // SECURITY: Log content mismatch before rejection for audit purposes
-            logger.warn("[PreUpload] Content mismatch detected - rejecting file", {
-              filename: file.name,
-              declaredExtension: ext,
-              detectedMimeType: detectedType.mime,
-              userId: user.id,
-              reason: "binary_file_with_text_extension",
-            });
+            logger.warn(
+              "[PreUpload] Content mismatch detected - rejecting file",
+              {
+                filename: file.name,
+                declaredExtension: ext,
+                detectedMimeType: detectedType.mime,
+                userId: user.id,
+                reason: "binary_file_with_text_extension",
+              },
+            );
             // Expected text file but detected as binary - reject
             throw new Error(
               `Content mismatch: ${file.name} appears to be a binary file (${detectedType.mime}) but has a text extension`,
@@ -245,10 +252,13 @@ async function handlePOST(req: NextRequest) {
 
   // Cleanup: If some files failed, delete successfully uploaded blobs to avoid orphans
   if (errors.length > 0 && results.length > 0) {
-    logger.info("[PreUpload] Partial failure - cleaning up successful uploads", {
-      successCount: results.length,
-      errorCount: errors.length,
-    });
+    logger.info(
+      "[PreUpload] Partial failure - cleaning up successful uploads",
+      {
+        successCount: results.length,
+        errorCount: errors.length,
+      },
+    );
 
     // Parallel cleanup for better performance
     const cleanupResults = await Promise.allSettled(
@@ -258,14 +268,19 @@ async function handlePOST(req: NextRequest) {
     const orphanedBlobs: OrphanedBlobInfo[] = [];
     cleanupResults.forEach((result, index) => {
       if (result.status === "fulfilled") {
-        logger.info("[PreUpload] Cleaned up blob", { blobUrl: results[index].blobUrl });
+        logger.info("[PreUpload] Cleaned up blob", {
+          blobUrl: results[index].blobUrl,
+        });
       } else {
         // Track orphaned blob for later cleanup
         orphanedBlobs.push({
           blobUrl: results[index].blobUrl,
           userId: user.id,
           reason: "partial_upload_failure",
-          originalError: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          originalError:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
           timestamp: Date.now(),
         });
       }
@@ -283,7 +298,10 @@ async function handlePOST(req: NextRequest) {
       {
         error: "Some files failed to upload - batch rolled back",
         details: errors,
-        orphanedBlobs: orphanedBlobs.length > 0 ? orphanedBlobs.map(b => b.blobUrl) : undefined,
+        orphanedBlobs:
+          orphanedBlobs.length > 0
+            ? orphanedBlobs.map((b) => b.blobUrl)
+            : undefined,
       },
       { status: 400 },
     );

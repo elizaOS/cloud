@@ -114,7 +114,10 @@ async function handleRunStarted(payload: RunStartedPayload): Promise<void> {
   let agentMode: "chat" | "assistant" | "build" | "unknown" = "unknown";
   if (source?.includes("chatPlayground")) {
     agentMode = "chat";
-  } else if (source?.includes("chatAssistant") || source?.includes("assistant")) {
+  } else if (
+    source?.includes("chatAssistant") ||
+    source?.includes("assistant")
+  ) {
     agentMode = "assistant";
   } else if (source?.includes("build") || source?.includes("character")) {
     agentMode = "build";
@@ -129,13 +132,13 @@ async function handleRunStarted(payload: RunStartedPayload): Promise<void> {
     agentId,
     "", // Input text will be set from message content if available
     source,
-    agentMode
+    agentMode,
   );
 
   registerCollector(collector);
 
   console.log(
-    `[Debug] Trace started: ${runId.substring(0, 8)} (mode: ${agentMode})`
+    `[Debug] Trace started: ${runId.substring(0, 8)} (mode: ${agentMode})`,
   );
 }
 
@@ -146,7 +149,9 @@ async function handleRunEnded(payload: RunEndedPayload): Promise<void> {
   const collector = getCollector(runId);
 
   if (!collector) {
-    console.warn(`[Debug] No collector found for runId: ${runId.substring(0, 8)}`);
+    console.warn(
+      `[Debug] No collector found for runId: ${runId.substring(0, 8)}`,
+    );
     return;
   }
 
@@ -160,7 +165,11 @@ async function handleRunEnded(payload: RunEndedPayload): Promise<void> {
           ? "timeout"
           : "completed";
 
-  const trace = collector.complete(traceStatus as "completed" | "error" | "timeout", undefined, error);
+  const trace = collector.complete(
+    traceStatus as "completed" | "error" | "timeout",
+    undefined,
+    error,
+  );
 
   // Store the completed trace
   storeDebugTrace(trace);
@@ -169,11 +178,13 @@ async function handleRunEnded(payload: RunEndedPayload): Promise<void> {
   removeCollector(runId);
 
   console.log(
-    `[Debug] Trace completed: ${runId.substring(0, 8)} (${trace.summary.totalActions} actions, ${trace.summary.totalModelCalls} model calls, ${formatDuration(trace.durationMs ?? 0)})`
+    `[Debug] Trace completed: ${runId.substring(0, 8)} (${trace.summary.totalActions} actions, ${trace.summary.totalModelCalls} model calls, ${formatDuration(trace.durationMs ?? 0)})`,
   );
 }
 
-async function handleActionStarted(payload: ActionStartedPayload): Promise<void> {
+async function handleActionStarted(
+  payload: ActionStartedPayload,
+): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
   const { runId, actionName, actionId, parameters, thought } = payload;
@@ -182,15 +193,12 @@ async function handleActionStarted(payload: ActionStartedPayload): Promise<void>
   const collector = getCollector(runId);
   if (!collector) return;
 
-  collector.recordActionStart(
-    actionName,
-    parameters ?? {},
-    thought,
-    actionId
-  );
+  collector.recordActionStart(actionName, parameters ?? {}, thought, actionId);
 }
 
-async function handleActionCompleted(payload: ActionCompletedPayload): Promise<void> {
+async function handleActionCompleted(
+  payload: ActionCompletedPayload,
+): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
   const { runId, result } = payload;
@@ -222,12 +230,17 @@ async function handleModelUsed(payload: ModelUsedPayload): Promise<void> {
 // ============================================================================
 
 async function handleStateComposed(
-  payload: DebugStateComposedPayload & { runtime: unknown }
+  payload: DebugStateComposedPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
-  const { runId, requestedProviders, providerOutputs, composedValues, durationMs } =
-    payload;
+  const {
+    runId,
+    requestedProviders,
+    providerOutputs,
+    composedValues,
+    durationMs,
+  } = payload;
   const collector = getCollector(runId);
   if (!collector) return;
 
@@ -235,12 +248,12 @@ async function handleStateComposed(
     requestedProviders,
     providerOutputs,
     composedValues,
-    durationMs
+    durationMs,
   );
 }
 
 async function handlePromptComposed(
-  payload: DebugPromptComposedPayload & { runtime: unknown }
+  payload: DebugPromptComposedPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -252,7 +265,7 @@ async function handlePromptComposed(
 }
 
 async function handleParseResult(
-  payload: DebugParseResultPayload & { runtime: unknown }
+  payload: DebugParseResultPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -274,12 +287,12 @@ async function handleParseResult(
     parsedOutput,
     parseError,
     attemptNumber,
-    maxAttempts
+    maxAttempts,
   );
 }
 
 async function handleIterationStart(
-  payload: DebugIterationPayload & { runtime: unknown }
+  payload: DebugIterationPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -291,7 +304,7 @@ async function handleIterationStart(
 }
 
 async function handleIterationEnd(
-  payload: DebugIterationPayload & { runtime: unknown }
+  payload: DebugIterationPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -303,7 +316,7 @@ async function handleIterationEnd(
 }
 
 async function handleModelCallStart(
-  payload: DebugModelCallStartPayload & { runtime: unknown }
+  payload: DebugModelCallStartPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -315,7 +328,7 @@ async function handleModelCallStart(
 }
 
 async function handleModelCallEnd(
-  payload: DebugModelCallEndPayload & { runtime: unknown }
+  payload: DebugModelCallEndPayload & { runtime: unknown },
 ): Promise<void> {
   if (!isDebugTracingEnabled()) return;
 
@@ -344,20 +357,44 @@ function formatDuration(ms: number): string {
 // ElizaOS runtime.emitEvent accepts any string event type, so custom events work at runtime
 const debugPluginEvents = {
   // Core ElizaOS events
-  [EventType.RUN_STARTED]: [handleRunStarted as (payload: unknown) => Promise<void>],
-  [EventType.RUN_ENDED]: [handleRunEnded as (payload: unknown) => Promise<void>],
-  [EventType.ACTION_STARTED]: [handleActionStarted as (payload: unknown) => Promise<void>],
-  [EventType.ACTION_COMPLETED]: [handleActionCompleted as (payload: unknown) => Promise<void>],
-  [EventType.MODEL_USED]: [handleModelUsed as (payload: unknown) => Promise<void>],
+  [EventType.RUN_STARTED]: [
+    handleRunStarted as (payload: unknown) => Promise<void>,
+  ],
+  [EventType.RUN_ENDED]: [
+    handleRunEnded as (payload: unknown) => Promise<void>,
+  ],
+  [EventType.ACTION_STARTED]: [
+    handleActionStarted as (payload: unknown) => Promise<void>,
+  ],
+  [EventType.ACTION_COMPLETED]: [
+    handleActionCompleted as (payload: unknown) => Promise<void>,
+  ],
+  [EventType.MODEL_USED]: [
+    handleModelUsed as (payload: unknown) => Promise<void>,
+  ],
 
   // Custom debug events with 'debug:' prefix
-  [DebugEventType.STATE_COMPOSED]: [handleStateComposed as (payload: unknown) => Promise<void>],
-  [DebugEventType.PROMPT_COMPOSED]: [handlePromptComposed as (payload: unknown) => Promise<void>],
-  [DebugEventType.PARSE_RESULT]: [handleParseResult as (payload: unknown) => Promise<void>],
-  [DebugEventType.ITERATION_START]: [handleIterationStart as (payload: unknown) => Promise<void>],
-  [DebugEventType.ITERATION_END]: [handleIterationEnd as (payload: unknown) => Promise<void>],
-  [DebugEventType.MODEL_CALL_START]: [handleModelCallStart as (payload: unknown) => Promise<void>],
-  [DebugEventType.MODEL_CALL_END]: [handleModelCallEnd as (payload: unknown) => Promise<void>],
+  [DebugEventType.STATE_COMPOSED]: [
+    handleStateComposed as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.PROMPT_COMPOSED]: [
+    handlePromptComposed as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.PARSE_RESULT]: [
+    handleParseResult as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.ITERATION_START]: [
+    handleIterationStart as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.ITERATION_END]: [
+    handleIterationEnd as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.MODEL_CALL_START]: [
+    handleModelCallStart as (payload: unknown) => Promise<void>,
+  ],
+  [DebugEventType.MODEL_CALL_END]: [
+    handleModelCallEnd as (payload: unknown) => Promise<void>,
+  ],
 };
 
 export const debugPlugin: Plugin = {

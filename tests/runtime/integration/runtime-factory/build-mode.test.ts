@@ -53,7 +53,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -80,12 +80,12 @@ describe("RuntimeFactory - BUILD Mode", () => {
     console.log("\nCleaning up BUILD mode test...");
     if (runtime) {
       await invalidateRuntime(runtime.agentId as string).catch((err) =>
-        console.warn(`Runtime cleanup warning: ${err}`)
+        console.warn(`Runtime cleanup warning: ${err}`),
       );
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("BUILD Mode Tests", timings);
@@ -105,9 +105,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
     timings.buildRuntimeCreate = endTimer("build_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(
-      `\nBUILD runtime created in ${timings.buildRuntimeCreate}ms`
-    );
+    console.log(`\nBUILD runtime created in ${timings.buildRuntimeCreate}ms`);
   }, 60000);
 
   it("should process BUILD mode message", async () => {
@@ -119,7 +117,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
       testUser,
       "Make this character more friendly and add knowledge about cooking.",
       testData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     timings.buildMessage = endTimer("build_message");
 

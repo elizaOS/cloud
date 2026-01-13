@@ -277,18 +277,19 @@ async function trackSessionActivity(
   } catch (error) {
     // Don't let session tracking failures affect the main request
     // Log detailed error info for debugging, including PostgreSQL error codes
-    const errorDetails = error instanceof Error
-      ? {
-          message: error.message,
-          name: error.name,
-          // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
-          code: (error as Error & { code?: string }).code,
-          // Additional context from Drizzle/PostgreSQL
-          detail: (error as Error & { detail?: string }).detail,
-          constraint: (error as Error & { constraint?: string }).constraint,
-          cause: error.cause,
-        }
-      : error;
+    const errorDetails =
+      error instanceof Error
+        ? {
+            message: error.message,
+            name: error.name,
+            // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
+            code: (error as Error & { code?: string }).code,
+            // Additional context from Drizzle/PostgreSQL
+            detail: (error as Error & { detail?: string }).detail,
+            constraint: (error as Error & { constraint?: string }).constraint,
+            cause: error.cause,
+          }
+        : error;
     logger.warn("[AUTH] Session tracking failed:", errorDetails);
   }
 }

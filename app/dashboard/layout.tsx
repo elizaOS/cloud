@@ -50,11 +50,17 @@ export default function DashboardLayout({
   );
 
   // Redirect to login if not authenticated and trying to access protected path
+  // Preserve the current URL as returnTo so users can return after login
   useEffect(() => {
     if (ready && !authenticated && !isFreeModePath) {
-      router.push("/login");
+      // Build login URL with returnTo parameter to preserve intended destination
+      const returnTo = encodeURIComponent(
+        pathname +
+          (typeof window !== "undefined" ? window.location.search : ""),
+      );
+      router.replace(`/login?returnTo=${returnTo}`);
     }
-  }, [ready, authenticated, isFreeModePath, router]);
+  }, [ready, authenticated, isFreeModePath, router, pathname]);
 
   // Show loading state while checking authentication
   if (!ready) {
@@ -117,7 +123,11 @@ export default function DashboardLayout({
 
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <div className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}>{children}</div>
+              <div
+                className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}
+              >
+                {children}
+              </div>
             </main>
           </div>
         </div>

@@ -194,7 +194,8 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create agent",
+        error:
+          error instanceof Error ? error.message : "Failed to create agent",
       },
       { status: 500 },
     );

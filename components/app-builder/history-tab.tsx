@@ -215,9 +215,12 @@ export function HistoryTab({
           >
             <History className="h-10 w-10 text-white/25" />
             <div>
-              <p className="text-sm text-white/70 font-medium mb-1">No history yet</p>
+              <p className="text-sm text-white/70 font-medium mb-1">
+                No history yet
+              </p>
               <p className="text-sm text-white/40 leading-relaxed">
-                Save your work to create version checkpoints you can restore later
+                Save your work to create version checkpoints you can restore
+                later
               </p>
             </div>
           </motion.div>
@@ -296,25 +299,35 @@ export function HistoryTab({
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           {/* Message */}
-                          <p className={cn(
-                            "text-sm leading-snug line-clamp-2 mb-1.5",
-                            isFirst ? "text-white/90 font-medium" : "text-white/75"
-                          )}>
+                          <p
+                            className={cn(
+                              "text-sm leading-snug line-clamp-2 mb-1.5",
+                              isFirst
+                                ? "text-white/90 font-medium"
+                                : "text-white/75",
+                            )}
+                          >
                             {commit.message.split("\n")[0]}
                           </p>
 
                           {/* Meta row */}
                           <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
-                            <span className="font-mono text-white/50">{commit.sha.substring(0, 7)}</span>
+                            <span className="font-mono text-white/50">
+                              {commit.sha.substring(0, 7)}
+                            </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3" />
                               {formatDate(commit.date)}
                             </span>
                             {isFirst && (
-                              <span className="text-emerald-400 font-medium">Latest</span>
+                              <span className="text-emerald-400 font-medium">
+                                Latest
+                              </span>
                             )}
                             {isCurrent && !isFirst && (
-                              <span className="text-emerald-400 font-medium">Active</span>
+                              <span className="text-emerald-400 font-medium">
+                                Active
+                              </span>
                             )}
                           </div>
                         </div>
@@ -370,7 +383,9 @@ export function HistoryTab({
                           <div className="px-4 pb-4 pt-2 ml-6 border-l-2 border-white/[0.06]">
                             {/* Full SHA */}
                             <div className="mb-4 p-3 bg-black/30 rounded-lg">
-                              <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">Commit SHA</p>
+                              <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
+                                Commit SHA
+                              </p>
                               <p className="text-sm font-mono text-white/60 select-all break-all">
                                 {commit.sha}
                               </p>
@@ -390,9 +405,15 @@ export function HistoryTab({
                             {/* Extended message */}
                             {commit.message.includes("\n") && (
                               <div className="mb-4 p-3 bg-black/30 rounded-lg">
-                                <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">Details</p>
+                                <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
+                                  Details
+                                </p>
                                 <p className="text-sm text-white/50 whitespace-pre-wrap font-mono leading-relaxed">
-                                  {commit.message.split("\n").slice(1).join("\n").trim()}
+                                  {commit.message
+                                    .split("\n")
+                                    .slice(1)
+                                    .join("\n")
+                                    .trim()}
                                 </p>
                               </div>
                             )}
@@ -400,9 +421,13 @@ export function HistoryTab({
                             {/* Actions */}
                             <div className="flex items-center justify-end pt-3 border-t border-white/[0.06]">
                               {isFirst ? (
-                                <span className="text-sm text-emerald-400/70">This is the latest version</span>
+                                <span className="text-sm text-emerald-400/70">
+                                  This is the latest version
+                                </span>
                               ) : isCurrent ? (
-                                <span className="text-sm text-emerald-400/70">Currently active version</span>
+                                <span className="text-sm text-emerald-400/70">
+                                  Currently active version
+                                </span>
                               ) : (
                                 <Button
                                   size="sm"

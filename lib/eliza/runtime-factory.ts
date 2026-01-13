@@ -202,7 +202,9 @@ class RuntimeCache {
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
+      elizaLogger.info(
+        `[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`,
+      );
       return true;
     }
     return false;
@@ -368,7 +370,9 @@ class DbAdapterPool {
   removeAdapter(agentId: string): void {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
-    elizaLogger.debug(`[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`);
+    elizaLogger.debug(
+      `[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`,
+    );
   }
 
   /**
@@ -430,7 +434,7 @@ export class RuntimeFactory {
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
     // IMPORTANT: We intentionally DON'T close the adapter here.
-    // 
+    //
     // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
     // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
     //

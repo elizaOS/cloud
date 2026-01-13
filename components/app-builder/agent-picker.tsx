@@ -332,25 +332,24 @@ export function CompactAgentPicker({
         ))}
 
         {/* Add button */}
-        {selectedIds.length < maxSelection &&
-          availableAgents.length > 0 && (
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  addAgent(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
-            >
-              <option value="">+ Add agent</option>
-              {availableAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
-          )}
+        {selectedIds.length < maxSelection && availableAgents.length > 0 && (
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                addAgent(e.target.value);
+                e.target.value = "";
+              }
+            }}
+            className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
+          >
+            <option value="">+ Add agent</option>
+            {availableAgents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {selectedIds.length === 0 && (

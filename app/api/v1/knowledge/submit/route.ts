@@ -10,7 +10,11 @@ import {
   isValidFilename,
 } from "@/lib/constants/knowledge";
 import { logger } from "@/lib/utils/logger";
-import { extractUserIdFromBlobPath, trackOrphanedBlobBatch, type OrphanedBlobInfo } from "@/lib/utils/knowledge";
+import {
+  extractUserIdFromBlobPath,
+  trackOrphanedBlobBatch,
+  type OrphanedBlobInfo,
+} from "@/lib/utils/knowledge";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -31,7 +35,10 @@ const FileSchema = z.object({
 
 const RequestSchema = z.object({
   characterId: z.string().uuid(),
-  files: z.array(FileSchema).min(1).max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
+  files: z
+    .array(FileSchema)
+    .min(1)
+    .max(KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST),
 });
 
 type FileToProcess = z.infer<typeof FileSchema>;
@@ -92,16 +99,16 @@ async function handlePOST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const parseResult = RequestSchema.safeParse(body);
   if (!parseResult.success) {
     return NextResponse.json(
-      { error: "Validation failed", details: parseResult.error.flatten().fieldErrors },
+      {
+        error: "Validation failed",
+        details: parseResult.error.flatten().fieldErrors,
+      },
       { status: 400 },
     );
   }
@@ -137,12 +144,18 @@ async function handlePOST(req: NextRequest) {
 
     if (!isValidFilename(file.filename)) {
       return NextResponse.json(
-        { error: `Invalid filename: ${file.filename} contains path-unsafe characters` },
+        {
+          error: `Invalid filename: ${file.filename} contains path-unsafe characters`,
+        },
         { status: 400 },
       );
     }
 
-    if (!ALLOWED_CONTENT_TYPES.includes(file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
+    if (
+      !ALLOWED_CONTENT_TYPES.includes(
+        file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
+      )
+    ) {
       return NextResponse.json(
         { error: `Invalid content type: ${file.contentType}` },
         { status: 400 },
@@ -216,7 +229,10 @@ async function handlePOST(req: NextRequest) {
           );
         }
         // Check if downloading this file would exceed batch limit
-        if (totalDownloadedBytes + actualSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+        if (
+          totalDownloadedBytes + actualSize >
+          KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE
+        ) {
           throw new Error(
             `Cumulative download size would exceed ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
           );
@@ -275,7 +291,10 @@ async function handlePOST(req: NextRequest) {
         fragmentCount: result.fragmentCount,
       });
     } catch (error) {
-      logger.error(`[KnowledgeSubmit] Error processing ${file.filename}:`, error);
+      logger.error(
+        `[KnowledgeSubmit] Error processing ${file.filename}:`,
+        error,
+      );
       results.push({
         filename: file.filename,
         blobUrl: file.blobUrl,
@@ -298,7 +317,7 @@ async function handlePOST(req: NextRequest) {
     // Cleanup successfully processed blobs to prevent storage bloat
     const successfulResults = results.filter((r) => r.status === "success");
     const cleanupResults = await Promise.allSettled(
-      successfulResults.map((r) => deleteBlob(r.blobUrl))
+      successfulResults.map((r) => deleteBlob(r.blobUrl)),
     );
 
     // Track any blobs that failed to delete as orphaned
@@ -309,7 +328,10 @@ async function handlePOST(req: NextRequest) {
           blobUrl: successfulResults[index].blobUrl,
           userId: user.id,
           reason: "cleanup_failed",
-          originalError: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          originalError:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
           timestamp: Date.now(),
         });
       }
@@ -322,7 +344,9 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    const cleanedCount = cleanupResults.filter(r => r.status === "fulfilled").length;
+    const cleanedCount = cleanupResults.filter(
+      (r) => r.status === "fulfilled",
+    ).length;
     logger.info("[KnowledgeSubmit] Cleaned up blobs", {
       cleaned: cleanedCount,
       orphaned: orphanedBlobs.length,

@@ -1,7 +1,7 @@
 /**
  * Test Data Factory
- * 
- * Creates test data (users, organizations, api keys, characters) 
+ *
+ * Creates test data (users, organizations, api keys, characters)
  * directly in the database using the cloud repositories.
  * This replicates the production data model for realistic integration testing.
  */
@@ -64,7 +64,7 @@ export async function createTestDataSet(
     characterName?: string;
     characterData?: Record<string, unknown>;
     characterSettings?: Record<string, unknown>;
-  } = {}
+  } = {},
 ): Promise<TestDataSet> {
   const {
     organizationName = `Test Org ${uuidv4().slice(0, 8)}`,
@@ -84,11 +84,11 @@ export async function createTestDataSet(
     // Create organization
     const orgId = uuidv4();
     const orgSlug = `test-org-${uuidv4().slice(0, 8)}`;
-    
+
     await client.query(
       `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings, allowed_models, allowed_providers)
        VALUES ($1, $2, $3, $4, true, '{}', '[]', '[]')`,
-      [orgId, organizationName, orgSlug, creditBalance]
+      [orgId, organizationName, orgSlug, creditBalance],
     );
 
     const organization: TestOrganization = {
@@ -100,11 +100,11 @@ export async function createTestDataSet(
 
     // Create user
     const userId = uuidv4();
-    
+
     await client.query(
       `INSERT INTO users (id, email, name, organization_id, role, is_anonymous, is_active)
        VALUES ($1, $2, $3, $4, 'owner', false, true)`,
-      [userId, userEmail, userName, orgId]
+      [userId, userEmail, userName, orgId],
     );
 
     const user: TestUser = {
@@ -133,7 +133,7 @@ export async function createTestDataSet(
         apiKeyPrefix,
         orgId,
         userId,
-      ]
+      ],
     );
 
     const apiKey: TestApiKey = {
@@ -150,7 +150,7 @@ export async function createTestDataSet(
     let character: TestCharacter | undefined;
     if (includeCharacter) {
       const characterId = uuidv4();
-      
+
       // Table is named user_characters in the cloud schema
       // Required fields: id, organization_id, user_id, name, bio, character_data
       await client.query(
@@ -161,11 +161,13 @@ export async function createTestDataSet(
           userId,
           orgId,
           characterName,
-          JSON.stringify((characterData as { bio?: string })?.bio || "Test character bio"),
+          JSON.stringify(
+            (characterData as { bio?: string })?.bio || "Test character bio",
+          ),
           true,
           JSON.stringify(characterData),
           JSON.stringify(characterSettings),
-        ]
+        ],
       );
 
       character = {
@@ -203,7 +205,7 @@ export async function createTestRoom(
     agentId?: string;
     name?: string;
     metadata?: Record<string, unknown>;
-  }
+  },
 ): Promise<{ id: string; name: string }> {
   // Note: ElizaOS manages rooms via plugin-sql
   // This function is a placeholder for future cloud room integration
@@ -220,7 +222,7 @@ export async function createAnonymousSession(
   connectionString: string,
   options: {
     messageLimit?: number;
-  } = {}
+  } = {},
 ): Promise<{ sessionToken: string; userId: string; sessionId: string }> {
   const { messageLimit = 10 } = options;
 
@@ -237,14 +239,14 @@ export async function createAnonymousSession(
     await client.query(
       `INSERT INTO organizations (id, name, slug, credit_balance, is_active, settings, allowed_models, allowed_providers)
        VALUES ($1, $2, $3, $4, true, '{}', '[]', '[]')`,
-      [orgId, "Anonymous Org", `anon-org-${uuidv4().slice(0, 8)}`, 0]
+      [orgId, "Anonymous Org", `anon-org-${uuidv4().slice(0, 8)}`, 0],
     );
 
     // Create anonymous user
     await client.query(
       `INSERT INTO users (id, is_anonymous, organization_id, role, is_active, anonymous_session_id)
        VALUES ($1, true, $2, 'member', true, $3)`,
-      [userId, orgId, sessionToken]
+      [userId, orgId, sessionToken],
     );
 
     // Create anonymous session
@@ -254,10 +256,12 @@ export async function createAnonymousSession(
     await client.query(
       `INSERT INTO anonymous_sessions (id, session_token, user_id, messages_limit, expires_at, is_active)
        VALUES ($1, $2, $3, $4, $5, true)`,
-      [sessionId, sessionToken, userId, messageLimit, expiresAt]
+      [sessionId, sessionToken, userId, messageLimit, expiresAt],
     );
 
-    console.log(`[TestDataFactory] Created anonymous session: ${sessionToken.slice(0, 12)}...`);
+    console.log(
+      `[TestDataFactory] Created anonymous session: ${sessionToken.slice(0, 12)}...`,
+    );
     return { sessionToken, userId, sessionId };
   } finally {
     await client.end();
@@ -269,20 +273,34 @@ export async function createAnonymousSession(
  */
 export async function cleanupTestData(
   connectionString: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<void> {
   const client = new Client({ connectionString });
   await client.connect();
 
   try {
     // Delete in order respecting foreign keys
-    await client.query(`DELETE FROM api_keys WHERE organization_id = $1`, [organizationId]);
-    await client.query(`DELETE FROM user_characters WHERE organization_id = $1`, [organizationId]);
-    await client.query(`DELETE FROM anonymous_sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id = $1)`, [organizationId]);
-    await client.query(`DELETE FROM users WHERE organization_id = $1`, [organizationId]);
-    await client.query(`DELETE FROM organizations WHERE id = $1`, [organizationId]);
+    await client.query(`DELETE FROM api_keys WHERE organization_id = $1`, [
+      organizationId,
+    ]);
+    await client.query(
+      `DELETE FROM user_characters WHERE organization_id = $1`,
+      [organizationId],
+    );
+    await client.query(
+      `DELETE FROM anonymous_sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id = $1)`,
+      [organizationId],
+    );
+    await client.query(`DELETE FROM users WHERE organization_id = $1`, [
+      organizationId,
+    ]);
+    await client.query(`DELETE FROM organizations WHERE id = $1`, [
+      organizationId,
+    ]);
 
-    console.log(`[TestDataFactory] Cleaned up test data for org: ${organizationId}`);
+    console.log(
+      `[TestDataFactory] Cleaned up test data for org: ${organizationId}`,
+    );
   } finally {
     await client.end();
   }

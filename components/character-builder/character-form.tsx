@@ -44,8 +44,6 @@ export function CharacterForm({
   activeTab,
 }: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
-  const [newAdjective, setNewAdjective] = useState("");
-  const [newTopic, setNewTopic] = useState("");
   const [newUserMessage, setNewUserMessage] = useState("");
   const [newAgentMessage, setNewAgentMessage] = useState("");
   const [isPublic, setIsPublic] = useState(character.isPublic ?? false);
@@ -380,7 +378,10 @@ export function CharacterForm({
           {/* Adjectives */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="adjectives"
+                className="text-sm font-medium text-white/70"
+              >
                 Personality Traits
               </label>
               <Tooltip>
@@ -401,74 +402,28 @@ export function CharacterForm({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={newAdjective}
-                onChange={(e) => setNewAdjective(e.target.value)}
-                placeholder="witty, sarcastic, thoughtful..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!newAdjective.trim()) return;
-                    const currentAdjectives = character.adjectives || [];
-                    updateField("adjectives", [
-                      ...currentAdjectives,
-                      newAdjective.trim(),
-                    ]);
-                    setNewAdjective("");
-                  }
-                }}
-                className="rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
-              />
-              <BrandButton
-                type="button"
-                variant="icon-primary"
-                size="icon"
-                disabled={!newAdjective.trim()}
-                onClick={() => {
-                  if (!newAdjective.trim()) return;
-                  const currentAdjectives = character.adjectives || [];
-                  updateField("adjectives", [
-                    ...currentAdjectives,
-                    newAdjective.trim(),
-                  ]);
-                  setNewAdjective("");
-                }}
-              >
-                <Plus
-                  className="h-4 w-4"
-                  style={{
-                    color: !newAdjective.trim()
-                      ? "rgba(255,255,255,0.4)"
-                      : "#FF5800",
-                  }}
-                />
-              </BrandButton>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {character.adjectives?.map((adj, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    const currentAdjectives = character.adjectives || [];
-                    updateField(
-                      "adjectives",
-                      currentAdjectives.filter((_, i) => i !== index),
-                    );
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
-                >
-                  <span className="text-sm text-white">{adj}</span>
-                  <X className="h-3.5 w-3.5 text-white/70" />
-                </button>
-              ))}
-            </div>
+            <Textarea
+              id="adjectives"
+              value={character.adjectives?.join(", ") || ""}
+              onChange={(e) => {
+                const items = e.target.value
+                  .split(/[,\n]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                updateField("adjectives", items);
+              }}
+              placeholder="witty, sarcastic, caring, thoughtful..."
+              className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
+            />
           </div>
 
           {/* Topics */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="topics"
+                className="text-sm font-medium text-white/70"
+              >
                 Topics of Interest
               </label>
               <Tooltip>
@@ -489,62 +444,19 @@ export function CharacterForm({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                placeholder="DeFi protocols, AI research, meme culture..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!newTopic.trim()) return;
-                    const currentTopics = character.topics || [];
-                    updateField("topics", [...currentTopics, newTopic.trim()]);
-                    setNewTopic("");
-                  }
-                }}
-                className="rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
-              />
-              <BrandButton
-                type="button"
-                variant="icon-primary"
-                size="icon"
-                disabled={!newTopic.trim()}
-                onClick={() => {
-                  if (!newTopic.trim()) return;
-                  const currentTopics = character.topics || [];
-                  updateField("topics", [...currentTopics, newTopic.trim()]);
-                  setNewTopic("");
-                }}
-              >
-                <Plus
-                  className="h-4 w-4"
-                  style={{
-                    color: !newTopic.trim()
-                      ? "rgba(255,255,255,0.4)"
-                      : "#FF5800",
-                  }}
-                />
-              </BrandButton>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {character.topics?.map((topic, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    const currentTopics = character.topics || [];
-                    updateField(
-                      "topics",
-                      currentTopics.filter((_, i) => i !== index),
-                    );
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
-                >
-                  <span className="text-sm text-white">{topic}</span>
-                  <X className="h-3.5 w-3.5 text-white/70" />
-                </button>
-              ))}
-            </div>
+            <Textarea
+              id="topics"
+              value={character.topics?.join(", ") || ""}
+              onChange={(e) => {
+                const items = e.target.value
+                  .split(/[,\n]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                updateField("topics", items);
+              }}
+              placeholder="DeFi protocols, AI research, meme culture..."
+              className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
+            />
           </div>
 
           {/* Message Examples */}

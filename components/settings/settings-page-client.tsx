@@ -21,6 +21,7 @@ import {
   ApisTab,
   AnalyticsTab,
   OrganizationTab,
+  ConnectionsTab,
 } from "./tabs";
 
 interface SettingsPageClientProps {
@@ -34,7 +35,8 @@ export type SettingsTab =
   | "billing"
   | "apis"
   | "analytics"
-  | "organization";
+  | "organization"
+  | "connections";
 
 export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const searchParams = useSearchParams();
@@ -73,6 +75,8 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         return <AnalyticsTab user={user} />;
       case "organization":
         return <OrganizationTab user={user} />;
+      case "connections":
+        return <ConnectionsTab />;
       default:
         return <GeneralTab user={user} />;
     }
