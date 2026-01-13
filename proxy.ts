@@ -28,6 +28,8 @@ const AUTH_CACHE_TTL = 300;
 interface CachedAuth {
   valid: boolean;
   userId?: string;
+  /** Token expiration (unix timestamp, seconds) */
+  expiration?: number;
   cachedAt: number;
 }
 
@@ -63,6 +65,15 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   } catch {
     /* ignore */
   }
+}
+
+function isJwtExpiredError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; claim?: unknown; reason?: unknown };
+  return (
+    e.code === "ERR_JWT_EXPIRED" ||
+    (e.claim === "exp" && e.reason === "check_failed")
+  );
 }
 
 const publicPaths = [
@@ -102,7 +113,15 @@ const publicPaths = [
   "/api/agents",
   "/api/v1/track",
   "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
+  "/api/v1/app-auth",
+  "/app-auth",
   "/.well-known",
+];
+
+// Public endpoint patterns that need special matching (e.g., /api/v1/apps/[id]/public)
+const publicPathPatterns = [
+  /^\/api\/v1\/apps\/[^/]+\/public$/,
+  /^\/api\/characters\/[^/]+\/public$/,
 ];
 
 const protectedPaths = [
@@ -135,9 +154,9 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  const isPublicPath = publicPaths.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  const isPublicPath =
+    publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+    publicPathPatterns.some((pattern) => pattern.test(pathname));
   if (isPublicPath) {
     const response = NextResponse.next();
     response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
@@ -178,18 +197,57 @@ export async function proxy(request: NextRequest) {
 
     const cachedAuth = await getCachedAuth(token);
     if (cachedAuth?.valid && cachedAuth.userId) {
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set("x-privy-user-id", cachedAuth.userId);
-      requestHeaders.set("x-auth-cached", "true");
-      const response = NextResponse.next({
-        request: { headers: requestHeaders },
-      });
-      response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-      response.headers.set("X-Auth-Cached", "true");
-      return response;
+      // Ensure we never accept a cached auth result past token expiration.
+      if (cachedAuth.expiration) {
+        const now = Math.floor(Date.now() / 1000);
+        if (cachedAuth.expiration <= now) {
+          await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
+        } else {
+          const requestHeaders = new Headers(request.headers);
+          requestHeaders.set("x-privy-user-id", cachedAuth.userId);
+          requestHeaders.set("x-auth-cached", "true");
+          const response = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
+          response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+          response.headers.set("X-Auth-Cached", "true");
+          return response;
+        }
+      } else {
+        // Backwards-compatible cache entry (no expiration stored)
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set("x-privy-user-id", cachedAuth.userId);
+        requestHeaders.set("x-auth-cached", "true");
+        const response = NextResponse.next({
+          request: { headers: requestHeaders },
+        });
+        response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+        response.headers.set("X-Auth-Cached", "true");
+        return response;
+      }
     }
 
-    const user = await privyClient.verifyAuthToken(token);
+    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null =
+      null;
+    try {
+      user = await privyClient.verifyAuthToken(token);
+    } catch (error) {
+      // Token expiry is an expected state; don't treat it as middleware failure.
+      if (isJwtExpiredError(error)) {
+        await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ error: "Token expired" }, { status: 401 });
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        // Best-effort cleanup so clients stop sending expired tokens.
+        const response = NextResponse.redirect(url);
+        response.cookies.delete("privy-token");
+        response.cookies.delete("privy-id-token");
+        return response;
+      }
+      throw error;
+    }
 
     if (!user) {
       await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
@@ -207,6 +265,11 @@ export async function proxy(request: NextRequest) {
     await setCachedAuth(token, {
       valid: true,
       userId: user.userId,
+      expiration:
+        typeof (user as unknown as { expiration?: unknown }).expiration ===
+        "number"
+          ? ((user as unknown as { expiration: number }).expiration as number)
+          : undefined,
       cachedAt: Date.now(),
     });
 
@@ -218,6 +281,7 @@ export async function proxy(request: NextRequest) {
     response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
     return response;
   } catch (error) {
+    // Unexpected middleware failures only.
     console.error("Middleware auth error:", error);
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(

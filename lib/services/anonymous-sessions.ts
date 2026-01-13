@@ -72,17 +72,9 @@ class AnonymousSessionsService {
   }
 
   /**
-   * Check for IP-based abuse (multiple sessions from same IP)
+   * NOTE: IP-based anonymous-session abuse checks were removed.
+   * We intentionally do not block anonymous session creation by IP.
    */
-  async checkIpAbuse(ipAddress: string): Promise<boolean> {
-    const count =
-      await anonymousSessionsRepository.countActiveSessionsByIp(ipAddress);
-    const maxSessionsPerIp = parseInt(
-      process.env.MAX_ANON_SESSIONS_PER_IP || "50",
-      10,
-    );
-    return count >= maxSessionsPerIp;
-  }
 }
 
 export const anonymousSessionsService = new AnonymousSessionsService();

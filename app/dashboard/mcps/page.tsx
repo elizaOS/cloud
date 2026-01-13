@@ -108,11 +108,7 @@ const demoMcpServers = [
     toolCount: 3,
     icon: "coins",
     color: "#F59E0B",
-    features: [
-      "Live Prices",
-      "Market Cap Data",
-      "Trending Coins",
-    ],
+    features: ["Live Prices", "Market Cap Data", "Trending Coins"],
   },
 ];
 

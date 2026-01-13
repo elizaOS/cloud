@@ -6,18 +6,25 @@
 /**
  * Get the ElizaOS Cloud API base URL based on environment
  * - Local: http://localhost:3000/api/v1
+ * - Test: http://localhost:3000/api/v1 (same as local)
  * - Development: https://www.dev.elizacloud.ai/api/v1
  * - Production: https://www.elizacloud.ai/api/v1
  */
 export function getElizaCloudApiUrl(): string {
+  // Allow explicit override via environment variable
+  if (process.env.ELIZAOS_CLOUD_BASE_URL) {
+    return process.env.ELIZAOS_CLOUD_BASE_URL;
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
   const nodeEnv = process.env.NODE_ENV;
 
-  // Local development
+  // Local development OR test environment - MUST use localhost
   if (
     appUrl?.includes("localhost") ||
     appUrl?.includes("127.0.0.1") ||
-    nodeEnv === "development"
+    nodeEnv === "development" ||
+    nodeEnv === "test"
   ) {
     return "http://localhost:3000/api/v1";
   }

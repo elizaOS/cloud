@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { nanoid } from "nanoid";
-import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
 
@@ -84,24 +83,7 @@ export async function GET(request: NextRequest) {
     );
     const ipAddress = await getClientIp();
     const userAgent = await getUserAgent();
-
-    if (process.env.NODE_ENV === "production") {
-      if (!ipAddress) {
-        logger.warn(
-          "[create-anonymous-session] Missing IP address in production - abuse detection bypassed",
-        );
-      } else {
-        const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
-        if (isAbuse) {
-          logger.warn("[create-anonymous-session] IP abuse detected", {
-            ipAddress: ipAddress.slice(0, 8) + "...",
-          });
-          return NextResponse.redirect(
-            new URL("/login?error=rate_limit", request.url),
-          );
-        }
-      }
-    }
+    // NOTE: IP-based anonymous-session abuse checks intentionally removed.
 
     const { newUser, newSession } = await createAnonymousUserAndSession({
       sessionToken: newSessionToken,
@@ -130,13 +112,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(returnUrl, request.url));
   } catch (error) {
     logger.error("[create-anonymous-session] Error creating session:", error);
-
-    // Handle specific error types with appropriate redirects
-    if (error instanceof Error && error.name === "RateLimitError") {
-      return NextResponse.redirect(
-        new URL("/login?error=rate_limit", request.url),
-      );
-    }
 
     return NextResponse.redirect(
       new URL("/login?error=session_error", request.url),

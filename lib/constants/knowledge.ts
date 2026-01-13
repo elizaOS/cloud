@@ -4,11 +4,14 @@
  */
 
 export const KNOWLEDGE_CONSTANTS = {
-  MAX_FILES_PER_REQUEST: 10,
-  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
-  STALE_JOB_THRESHOLD_MS: 10 * 60 * 1000, // 10 minutes
-  MAX_ATTEMPTS: 3,
-  POLLING_INTERVAL_MS: 3000,
+  /** Maximum number of files per upload request */
+  MAX_FILES_PER_REQUEST: 5,
+  /** Maximum size per individual file (5MB) */
+  MAX_FILE_SIZE: 5 * 1024 * 1024,
+  /** Maximum total size for all files combined (5MB) - enforced for serverless memory constraints */
+  MAX_BATCH_SIZE: 5 * 1024 * 1024,
+  /** Timeout for downloading files from blob storage (30s) */
+  BLOB_FETCH_TIMEOUT_MS: 30_000,
 } as const;
 
 export const ALLOWED_EXTENSIONS = [

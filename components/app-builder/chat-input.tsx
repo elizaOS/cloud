@@ -13,9 +13,10 @@
 import { memo, useCallback, useRef, useEffect, useState } from "react";
 import { Loader2, Send, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useChatInput } from "@/lib/app-builder/store";
+import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
 import { cn } from "@/lib/utils";
+import { ModelSelector } from "./model-selector";
 
 type SessionStatus =
   | "idle"
@@ -201,6 +202,8 @@ const ChatInputInner = memo(function ChatInputInner({
 }: ChatInputProps) {
   const input = useChatInput((state) => state.input);
   const setInput = useChatInput((state) => state.setInput);
+  const selectedModel = useModelSelection((state) => state.selectedModel);
+  const setSelectedModel = useModelSelection((state) => state.setSelectedModel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // STT hook
@@ -342,24 +345,35 @@ const ChatInputInner = memo(function ChatInputInner({
           style={{ minHeight: "44px", maxHeight: "100px" }}
         />
 
-        {/* Bottom bar with mic and send buttons */}
+        {/* Bottom bar with model selector, mic, and send buttons */}
         <div className="flex items-center justify-between px-2 pb-2">
-          {/* Left side - status indicator for mobile/tablet */}
-          <div className="flex items-center gap-1.5 xl:hidden">
-            {status === "generating" && !stt.isRecording && (
-              <span className="text-[10px] text-violet-400 flex items-center gap-1">
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                Building...
-              </span>
-            )}
-            {status === "recovering" && (
-              <span className="text-[10px] text-cyan-400 flex items-center gap-1">
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                Reconnecting...
-              </span>
-            )}
+          {/* Left side - model selector (desktop) or status (mobile) */}
+          <div className="flex items-center gap-1.5">
+            {/* Model selector - visible on desktop */}
+            <div className="hidden xl:block">
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                disabled={status === "generating"}
+                compact
+              />
+            </div>
+            {/* Status indicator - visible on mobile/tablet only */}
+            <div className="xl:hidden">
+              {status === "generating" && !stt.isRecording && (
+                <span className="text-[10px] text-violet-400 flex items-center gap-1">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Building...
+                </span>
+              )}
+              {status === "recovering" && (
+                <span className="text-[10px] text-cyan-400 flex items-center gap-1">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Reconnecting...
+                </span>
+              )}
+            </div>
           </div>
-          <div className="hidden xl:block" />
 
           {/* Right side - mic and send buttons */}
           <div className="flex items-center gap-2">

@@ -53,6 +53,12 @@ export async function uploadCharacterAvatar(formData: FormData) {
 export async function createCharacter(elizaCharacter: ElizaCharacter) {
   const user = await requireAuthWithOrg();
 
+  // Normalize isPublic to ensure consistency between is_public column and character_data
+  const isPublic =
+    typeof elizaCharacter.isPublic === "boolean"
+      ? elizaCharacter.isPublic
+      : false;
+
   const newCharacter: NewUserCharacter = {
     organization_id: user.organization_id!!,
     user_id: user.id,
@@ -74,15 +80,17 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     style: elizaCharacter.style ?? {},
     character_data: (() => {
       // Convert ElizaCharacter to Record format for database storage
+      // Ensure isPublic is consistent with the is_public column
       const record: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(elizaCharacter)) {
         record[key] = value;
       }
+      record.isPublic = isPublic;
       return record;
     })(),
     avatar_url: elizaCharacter.avatarUrl ?? null,
     is_template: false,
-    is_public: false,
+    is_public: isPublic,
     source: "cloud", // Created from main Eliza Cloud dashboard
   };
 

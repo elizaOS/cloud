@@ -5,15 +5,30 @@ import { appCleanupService } from "@/lib/services/app-cleanup";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+// Helper to allow empty strings (transform to null to clear) and omitted fields (undefined)
+// - Omitted field → undefined (Drizzle skips, keeps old value)
+// - Empty string "" → null (Drizzle sets NULL, clears the value)
+// - Valid URL → the URL string
+const optionalUrl = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().url().nullish(),
+);
+
+const optionalEmail = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().email().nullish(),
+);
+
 const UpdateAppSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  app_url: z.string().url().optional(),
-  website_url: z.string().url().optional(),
-  contact_email: z.string().email().optional(),
+  app_url: optionalUrl,
+  website_url: optionalUrl,
+  contact_email: optionalEmail,
   allowed_origins: z.array(z.string()).optional(),
-  logo_url: z.string().url().optional(),
+  logo_url: optionalUrl,
   is_active: z.boolean().optional(),
+  linked_character_ids: z.array(z.string().uuid()).max(4).optional(),
 });
 
 /**
@@ -120,6 +135,76 @@ export async function PUT(
     return NextResponse.json({ success: true, app: updatedApp });
   } catch (error) {
     logger.error("Failed to update app:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to update app",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/v1/apps/[id]
+ * Partially updates an app's properties.
+ * Requires ownership verification.
+ * Same as PUT but explicitly named for partial updates.
+ *
+ * @param request - Request body with optional fields to update.
+ * @param params - Route parameters containing the app ID.
+ * @returns Updated app details.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { id } = await params;
+
+    const existingApp = await appsService.getById(id);
+
+    if (!existingApp) {
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 },
+      );
+    }
+
+    if (existingApp.organization_id !== user.organization_id) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
+    }
+
+    const body = await request.json();
+    const validationResult = UpdateAppSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 },
+      );
+    }
+
+    const updatedApp = await appsService.update(id, validationResult.data);
+
+    logger.info(`Patched app: ${id}`, {
+      appId: id,
+      userId: user.id,
+      organizationId: user.organization_id,
+      fields: Object.keys(validationResult.data),
+    });
+
+    return NextResponse.json({ success: true, app: updatedApp });
+  } catch (error) {
+    logger.error("Failed to patch app:", error);
     return NextResponse.json(
       {
         success: false,

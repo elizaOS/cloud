@@ -57,7 +57,7 @@ export function MyAgentsClient() {
           (char: AgentWithOwnership) => ({
             ...char,
             isOwned: true,
-          })
+          }),
         );
       } else {
         ownedFetchFailed = true;
@@ -79,7 +79,7 @@ export function MyAgentsClient() {
             isOwned: false,
             ownerUsername: agent.owner_name || "Unknown",
             lastInteraction: agent.last_interaction_time,
-          })
+          }),
         );
       } else if (savedResponse.status !== 404) {
         // Only log error if it's not a 404 (endpoint may not exist yet)
@@ -178,18 +178,20 @@ export function MyAgentsClient() {
       };
       const timeDiff = getCreatedTime(b) - getCreatedTime(a);
       if (timeDiff !== 0) return timeDiff;
-      return (a.name || '').localeCompare(b.name || '');
+      return (a.name || "").localeCompare(b.name || "");
     }
     // Default: sort by most recent activity
     const getRecentTime = (char: AgentWithOwnership): number => {
       if (char.isOwned) {
         return char.updated_at ? new Date(char.updated_at).getTime() : 0;
       }
-      return char.lastInteraction ? new Date(char.lastInteraction).getTime() : 0;
+      return char.lastInteraction
+        ? new Date(char.lastInteraction).getTime()
+        : 0;
     };
     const timeDiff = getRecentTime(b) - getRecentTime(a);
     if (timeDiff !== 0) return timeDiff;
-    return (a.name || '').localeCompare(b.name || '');
+    return (a.name || "").localeCompare(b.name || "");
   });
 
   const handleCreateNew = useCallback(() => {

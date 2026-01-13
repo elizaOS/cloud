@@ -27,7 +27,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Copy, Upload, Trash2, MoreHorizontal, Pencil, X, Lock, Globe } from "lucide-react";
+import {
+  Copy,
+  Upload,
+  Trash2,
+  MoreHorizontal,
+  Pencil,
+  X,
+  Lock,
+  Globe,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
@@ -351,14 +360,11 @@ export function CharacterLibraryCard({
   };
 
   // Handler for removing a saved agent
-  const handleRemoveSaved = useCallback(
-    async (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setShowRemoveConfirm(true);
-    },
-    [],
-  );
+  const handleRemoveSaved = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowRemoveConfirm(true);
+  }, []);
 
   const handleConfirmRemove = useCallback(async () => {
     if (!character.id) return;

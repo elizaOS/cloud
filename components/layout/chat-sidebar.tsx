@@ -125,7 +125,7 @@ export function ChatSidebar({
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
 
         if (cancelled) return;
@@ -177,12 +177,12 @@ export function ChatSidebar({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: newIsPublic }),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success(
-          newIsPublic ? "Agent is now public" : "Agent is now private"
+          newIsPublic ? "Agent is now public" : "Agent is now private",
         );
       } else {
         setIsPublic(!newIsPublic);
@@ -199,7 +199,9 @@ export function ChatSidebar({
   // Copy share link
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
-    const character = availableCharacters.find((c) => c.id === selectedCharacterId);
+    const character = availableCharacters.find(
+      (c) => c.id === selectedCharacterId,
+    );
     if (!character?.username) {
       toast.error("Set a username first to share this agent");
       return;
@@ -221,7 +223,7 @@ export function ChatSidebar({
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
       return rooms.filter(
-        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
       );
     }
     return rooms.filter((room) => room.characterId === selectedCharacterId);
@@ -229,7 +231,7 @@ export function ChatSidebar({
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId
+    (c) => c.id === selectedCharacterId,
   );
 
   useEffect(() => {
@@ -329,14 +331,14 @@ export function ChatSidebar({
             : isCollapsed
               ? "w-14 p-1.5"
               : "w-80 p-1.5",
-          className
+          className,
         )}
       >
         {/* Header with Logo and Collapse Toggle */}
         <div
           className={cn(
             "relative flex h-14 mb-2 shrink-0 grow-0 items-center overflow-visible",
-            isCollapsed ? "justify-center px-0" : "justify-between px-3"
+            isCollapsed ? "justify-center px-0" : "justify-between px-3",
           )}
         >
           {!isCollapsed && (
@@ -384,7 +386,7 @@ export function ChatSidebar({
         <div
           className={cn(
             "flex items-center h-10",
-            isCollapsed ? "justify-center" : "gap-3 px-3"
+            isCollapsed ? "justify-center" : "gap-3 px-3",
           )}
         >
           {/* Avatar - wrapped in dropdown when collapsed */}
@@ -410,7 +412,7 @@ export function ChatSidebar({
                 <DropdownMenuItem
                   onClick={() =>
                     router.push(
-                      `/dashboard/build?characterId=${selectedCharacterId}`
+                      `/dashboard/build?characterId=${selectedCharacterId}`,
                     )
                   }
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
@@ -483,7 +485,7 @@ export function ChatSidebar({
                     <DropdownMenuItem
                       onClick={() =>
                         router.push(
-                          `/dashboard/build?characterId=${selectedCharacterId}`
+                          `/dashboard/build?characterId=${selectedCharacterId}`,
                         )
                       }
                       className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer transition-colors"
@@ -530,7 +532,7 @@ export function ChatSidebar({
         <div
           className={cn(
             "h-12 flex items-center mb-4",
-            isCollapsed ? "justify-center" : "pr-3"
+            isCollapsed ? "justify-center" : "pr-3",
           )}
         >
           {selectedCharacter ? (
@@ -539,7 +541,7 @@ export function ChatSidebar({
               disabled={operationState.isCreatingRoom}
               className={cn(
                 "flex items-center rounded-lg text-white hover:bg-white/10 transition-colors disabled:opacity-50 h-10",
-                isCollapsed ? "justify-center p-2" : "gap-3 w-full pl-3"
+                isCollapsed ? "justify-center p-2" : "gap-3 w-full pl-3",
               )}
             >
               {operationState.isCreatingRoom ? (
@@ -593,7 +595,7 @@ export function ChatSidebar({
                         "hover:bg-white/5",
                         roomId === room.id && "bg-white/10",
                         (isDeleting || isLoading) &&
-                          "opacity-50 pointer-events-none"
+                          "opacity-50 pointer-events-none",
                       )}
                     >
                       <div className="relative">
@@ -621,7 +623,7 @@ export function ChatSidebar({
                           className={cn(
                             "absolute top-0 right-0 h-full flex items-center",
                             "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                            "pr-1.5"
+                            "pr-1.5",
                           )}
                         >
                           <button
@@ -633,7 +635,7 @@ export function ChatSidebar({
                             className={cn(
                               "h-7 w-7 flex items-center justify-center rounded-md",
                               "hover:bg-red-500/20 text-white/60 hover:text-red-400",
-                              "transition-colors duration-150"
+                              "transition-colors duration-150",
                             )}
                           >
                             {isDeleting ? (

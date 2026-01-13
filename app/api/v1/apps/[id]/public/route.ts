@@ -28,10 +28,10 @@ export async function OPTIONS() {
 
 /**
  * GET /api/v1/apps/[id]/public
- * 
+ *
  * Get public information about an app.
  * No authentication required - used for OAuth authorization screens.
- * 
+ *
  * Only returns non-sensitive information like name, description, logo.
  */
 export async function GET(
@@ -68,16 +68,19 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      app: {
-        id: app.id,
-        name: app.name,
-        description: app.description,
-        logo_url: app.logo_url,
-        website_url: app.website_url,
+    return NextResponse.json(
+      {
+        success: true,
+        app: {
+          id: app.id,
+          name: app.name,
+          description: app.description,
+          logo_url: app.logo_url,
+          website_url: app.website_url,
+        },
       },
-    }, { headers: CORS_HEADERS });
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     logger.error("Failed to get public app info:", error);
     return NextResponse.json(

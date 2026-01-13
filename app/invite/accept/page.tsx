@@ -76,9 +76,11 @@ function InviteAcceptContent() {
 
   const handleAcceptInvite = async () => {
     if (!authenticated) {
-      // Store the token in localStorage to retrieve after login
+      // Store the token in localStorage to retrieve after login (backup for OAuth flows)
       localStorage.setItem("pending-invite-token", token!);
-      router.push("/login");
+      // Use returnTo to redirect back to this page after login
+      const currentUrl = `/invite/accept?token=${encodeURIComponent(token!)}`;
+      router.push(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
       return;
     }
 

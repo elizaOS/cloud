@@ -12,7 +12,10 @@
 
 "use client";
 
-import { CharacterLibraryCard, type AgentWithOwnership } from "./character-library-card";
+import {
+  CharacterLibraryCard,
+  type AgentWithOwnership,
+} from "./character-library-card";
 import { EmptyState } from "./empty-state";
 import type { ViewMode } from "./my-agents-client";
 
@@ -42,7 +45,10 @@ export function CharacterLibraryGrid({
       }
     >
       {characters.map((character) => (
-        <div key={character.id} className={viewMode === "grid" ? "max-w-sm" : ""}>
+        <div
+          key={character.id}
+          className={viewMode === "grid" ? "max-w-sm" : ""}
+        >
           <CharacterLibraryCard
             character={character}
             viewMode={viewMode}
