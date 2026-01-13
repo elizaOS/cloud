@@ -620,12 +620,15 @@ export async function generateResponseWithRetry(
     return (
       // AI SDK errors that are often transient
       name === "AI_NoOutputGeneratedError" ||
+      name === "AI_APICallError" ||
       msg.includes("no output generated") ||
       // Network/connection errors
       msg.includes("network") ||
       msg.includes("timeout") ||
       msg.includes("econnreset") ||
       msg.includes("socket") ||
+      msg.includes("connection") ||
+      msg.includes("terminated") ||
       // Rate limiting
       msg.includes("rate limit") ||
       msg.includes("429") ||
@@ -633,7 +636,10 @@ export async function generateResponseWithRetry(
       msg.includes("500") ||
       msg.includes("502") ||
       msg.includes("503") ||
-      msg.includes("504")
+      msg.includes("504") ||
+      // Database errors that may be transient
+      msg.includes("server conn crashed") ||
+      msg.includes("08p01")
     );
   };
 

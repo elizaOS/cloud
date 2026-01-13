@@ -267,7 +267,9 @@ class DbAdapterPool {
           msg.includes("08P01") ||
           msg.includes("FATAL") ||
           msg.includes("connection") ||
-          msg.includes("socket"))
+          msg.includes("socket") ||
+          msg.includes("terminated") ||
+          msg.includes("end on the pool"))
       ) {
         elizaLogger.warn(
           `[DbAdapterPool] Adapter creation failed, retrying (${retryCount + 1}/${MAX_RETRIES}): ${msg.substring(0, 100)}`,
@@ -307,7 +309,9 @@ class DbAdapterPool {
         msg.includes("FATAL") ||
         msg.includes("socket") ||
         msg.includes("ECONNRESET") ||
-        msg.includes("ETIMEDOUT")
+        msg.includes("ETIMEDOUT") ||
+        msg.includes("Connection terminated unexpectedly") ||
+        msg.includes("end on the pool")
       ) {
         elizaLogger.warn(
           `[DbAdapterPool] Health check failed - connection issue detected: ${msg.substring(0, 100)}`,

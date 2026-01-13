@@ -266,18 +266,20 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
 
     // For any other non-OK status (including 5xx), log once and return empty result
     // Moderation is non-blocking - we don't want to throw errors that could disrupt user experience
-    if (!hasLoggedModerationUnavailable) {
-      hasLoggedModerationUnavailable = true;
-      logger.warn(
-        "[ContentModeration] Moderation API returned error; skipping moderation checks",
-        {
-          backend: backend.backend,
-          status: response.status,
-          statusText: response.statusText,
-        },
-      );
+    if (!response.ok) {
+      if (!hasLoggedModerationUnavailable) {
+        hasLoggedModerationUnavailable = true;
+        logger.warn(
+          "[ContentModeration] Moderation API returned error; skipping moderation checks",
+          {
+            backend: backend.backend,
+            status: response.status,
+            statusText: response.statusText,
+          },
+        );
+      }
+      return emptyModerationResult();
     }
-    return emptyModerationResult();
   }
 
   const data = (await response.json()) as OpenAIModerationResponse;

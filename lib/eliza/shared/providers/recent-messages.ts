@@ -97,7 +97,10 @@ export const recentMessagesProvider: Provider = {
         msg.includes("FATAL") ||
         msg.includes("closed") ||
         msg.includes("terminated") ||
-        msg.includes("rollback")
+        msg.includes("rollback") ||
+        msg.includes("end on the pool") ||
+        msg.includes("socket") ||
+        msg.includes("ECONNRESET")
       );
     };
 
