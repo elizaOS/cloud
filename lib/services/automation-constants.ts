@@ -49,7 +49,7 @@ export const TWITTER_AUTOMATION_DEFAULTS = {
  * Helper to get Discord config with defaults applied
  */
 export function getDiscordConfigWithDefaults(
-  config: Record<string, unknown> | null | undefined
+  config: Record<string, unknown> | null | undefined,
 ) {
   return {
     ...DISCORD_AUTOMATION_DEFAULTS,
@@ -61,7 +61,7 @@ export function getDiscordConfigWithDefaults(
  * Helper to get Telegram config with defaults applied
  */
 export function getTelegramConfigWithDefaults(
-  config: Record<string, unknown> | null | undefined
+  config: Record<string, unknown> | null | undefined,
 ) {
   return {
     ...TELEGRAM_AUTOMATION_DEFAULTS,
@@ -73,7 +73,7 @@ export function getTelegramConfigWithDefaults(
  * Helper to get Twitter config with defaults applied
  */
 export function getTwitterConfigWithDefaults(
-  config: Record<string, unknown> | null | undefined
+  config: Record<string, unknown> | null | undefined,
 ) {
   return {
     ...TWITTER_AUTOMATION_DEFAULTS,

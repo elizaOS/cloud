@@ -54,7 +54,7 @@ describe("RuntimeFactory - CHAT Mode", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -81,12 +81,12 @@ describe("RuntimeFactory - CHAT Mode", () => {
     console.log("\nCleaning up CHAT mode test...");
     if (runtime) {
       await invalidateRuntime(runtime.agentId as string).catch((err) =>
-        console.warn(`Runtime cleanup warning: ${err}`)
+        console.warn(`Runtime cleanup warning: ${err}`),
       );
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("CHAT Mode Tests", timings);
@@ -120,7 +120,7 @@ describe("RuntimeFactory - CHAT Mode", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
     timings.chatMessage = endTimer("chat_message");
 
@@ -133,8 +133,8 @@ describe("RuntimeFactory - CHAT Mode", () => {
           hasResponse: !!result.response,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     if (result.error) {
       console.error(`Error: ${result.error}`);

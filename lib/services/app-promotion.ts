@@ -171,7 +171,7 @@ class AppPromotionService {
    * Bypasses Zod to avoid Turbopack bundling issues with Zod internals.
    */
   private validatePromotionalContent(
-    data: unknown
+    data: unknown,
   ): GeneratedPromotionalContent {
     if (!data || typeof data !== "object") {
       throw new Error("Promotional content must be an object");
@@ -225,7 +225,7 @@ class AppPromotionService {
 
   async generatePromotionalContent(
     app: App,
-    targetAudience?: string
+    targetAudience?: string,
   ): Promise<GeneratedPromotionalContent> {
     const appDescription =
       app.description || `${app.name} - An app built on Eliza Cloud`;
@@ -317,7 +317,7 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     userId: string,
     appId: string,
-    config: PromotionConfig
+    config: PromotionConfig,
   ): Promise<PromotionResult> {
     logger.info("[AppPromotion] Starting app promotion", {
       appId,
@@ -368,7 +368,7 @@ Return ONLY valid JSON, no markdown.`;
         userId,
         app,
         config.social,
-        promotionalContent
+        promotionalContent,
       );
       if (!result.channels.social.success) {
         result.errors.push("Social media promotion partially failed");
@@ -382,11 +382,11 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         userId,
         app,
-        config.seo
+        config.seo,
       );
       if (!result.channels.seo.success) {
         result.errors.push(
-          `SEO optimization failed: ${result.channels.seo.error}`
+          `SEO optimization failed: ${result.channels.seo.error}`,
         );
       }
       result.totalCreditsUsed += PROMOTION_COSTS.seoBundle;
@@ -397,11 +397,11 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         app,
         config.advertising,
-        promotionalContent
+        promotionalContent,
       );
       if (!result.channels.advertising.success) {
         result.errors.push(
-          `Ad campaign creation failed: ${result.channels.advertising.error}`
+          `Ad campaign creation failed: ${result.channels.advertising.error}`,
         );
       }
     }
@@ -413,11 +413,11 @@ Return ONLY valid JSON, no markdown.`;
       result.channels.twitterAutomation = await this.executeTwitterAutomation(
         organizationId,
         app,
-        config.twitterAutomation
+        config.twitterAutomation,
       );
       if (!result.channels.twitterAutomation.success) {
         result.errors.push(
-          `Twitter automation failed: ${result.channels.twitterAutomation.error}`
+          `Twitter automation failed: ${result.channels.twitterAutomation.error}`,
         );
       }
       result.totalCreditsUsed +=
@@ -434,11 +434,11 @@ Return ONLY valid JSON, no markdown.`;
       result.channels.telegramAutomation = await this.executeTelegramAutomation(
         organizationId,
         app,
-        config.telegramAutomation
+        config.telegramAutomation,
       );
       if (!result.channels.telegramAutomation.success) {
         result.errors.push(
-          `Telegram automation failed: ${result.channels.telegramAutomation.error}`
+          `Telegram automation failed: ${result.channels.telegramAutomation.error}`,
         );
       }
       result.totalCreditsUsed +=
@@ -455,11 +455,11 @@ Return ONLY valid JSON, no markdown.`;
       result.channels.discordAutomation = await this.executeDiscordAutomation(
         organizationId,
         app,
-        config.discordAutomation
+        config.discordAutomation,
       );
       if (!result.channels.discordAutomation.success) {
         result.errors.push(
-          `Discord automation failed: ${result.channels.discordAutomation.error}`
+          `Discord automation failed: ${result.channels.discordAutomation.error}`,
         );
       }
       result.totalCreditsUsed +=
@@ -483,7 +483,7 @@ Return ONLY valid JSON, no markdown.`;
     userId: string,
     app: App,
     config: NonNullable<PromotionConfig["social"]>,
-    content?: GeneratedPromotionalContent
+    content?: GeneratedPromotionalContent,
   ): Promise<NonNullable<PromotionResult["channels"]["social"]>> {
     const results: Array<{
       platform: SocialPlatform;
@@ -511,7 +511,7 @@ Return ONLY valid JSON, no markdown.`;
       });
 
       const platformResult = postResult.results.find(
-        (r) => r.platform === platform
+        (r) => r.platform === platform,
       );
       results.push({
         platform,
@@ -532,7 +532,7 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     userId: string,
     app: App,
-    config: NonNullable<PromotionConfig["seo"]>
+    config: NonNullable<PromotionConfig["seo"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["seo"]>> {
     if (!app.app_url) {
       return {
@@ -565,7 +565,7 @@ Return ONLY valid JSON, no markdown.`;
   }
 
   private determineSeoType(
-    config: NonNullable<PromotionConfig["seo"]>
+    config: NonNullable<PromotionConfig["seo"]>,
   ): string {
     if (config.generateMeta && config.generateSchema) return "publish_bundle";
     if (config.generateMeta) return "meta_generate";
@@ -578,7 +578,7 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     app: App,
     config: NonNullable<PromotionConfig["advertising"]>,
-    content?: GeneratedPromotionalContent
+    content?: GeneratedPromotionalContent,
   ): Promise<NonNullable<PromotionResult["channels"]["advertising"]>> {
     const startDate = new Date();
     const endDate = config.duration
@@ -605,7 +605,7 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         campaign.id,
         app,
-        content
+        content,
       );
     }
 
@@ -620,7 +620,7 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     campaignId: string,
     app: App,
-    content: GeneratedPromotionalContent
+    content: GeneratedPromotionalContent,
   ): Promise<void> {
     await advertisingService
       .createCreative(organizationId, {
@@ -649,7 +649,7 @@ Return ONLY valid JSON, no markdown.`;
   private async executeTwitterAutomation(
     organizationId: string,
     app: App,
-    config: NonNullable<PromotionConfig["twitterAutomation"]>
+    config: NonNullable<PromotionConfig["twitterAutomation"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["twitterAutomation"]>> {
     try {
       // Enable automation with the provided config
@@ -666,7 +666,7 @@ Return ONLY valid JSON, no markdown.`;
           postIntervalMax: config.postIntervalMax,
           vibeStyle: config.vibeStyle,
           topics: config.topics,
-        }
+        },
       );
 
       // Post an initial announcement tweet if autoPost is enabled
@@ -676,7 +676,7 @@ Return ONLY valid JSON, no markdown.`;
       if (config.autoPost) {
         const tweetResult = await twitterAppAutomationService.postAppTweet(
           organizationId,
-          app.id
+          app.id,
         );
 
         if (tweetResult.success) {
@@ -718,7 +718,7 @@ Return ONLY valid JSON, no markdown.`;
   private async executeTelegramAutomation(
     organizationId: string,
     app: App,
-    config: NonNullable<PromotionConfig["telegramAutomation"]>
+    config: NonNullable<PromotionConfig["telegramAutomation"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["telegramAutomation"]>> {
     try {
       // Use channelId for announcements, or groupId as fallback
@@ -746,7 +746,7 @@ Return ONLY valid JSON, no markdown.`;
           announceIntervalMin: config.announceIntervalMin,
           announceIntervalMax: config.announceIntervalMax,
           vibeStyle: config.vibeStyle,
-        }
+        },
       );
 
       // Post an initial announcement if autoAnnounce is enabled
@@ -755,7 +755,7 @@ Return ONLY valid JSON, no markdown.`;
       if (config.autoAnnounce) {
         const postResult = await telegramAppAutomationService.postAnnouncement(
           organizationId,
-          app.id
+          app.id,
         );
 
         if (postResult.success && postResult.messageId) {
@@ -797,7 +797,7 @@ Return ONLY valid JSON, no markdown.`;
   private async executeDiscordAutomation(
     organizationId: string,
     app: App,
-    config: NonNullable<PromotionConfig["discordAutomation"]>
+    config: NonNullable<PromotionConfig["discordAutomation"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["discordAutomation"]>> {
     try {
       // Validate that we have the required config
@@ -821,7 +821,7 @@ Return ONLY valid JSON, no markdown.`;
           announceIntervalMin: config.announceIntervalMin,
           announceIntervalMax: config.announceIntervalMax,
           vibeStyle: config.vibeStyle,
-        }
+        },
       );
 
       // Post an initial announcement if autoAnnounce is enabled
@@ -831,7 +831,7 @@ Return ONLY valid JSON, no markdown.`;
       if (config.autoAnnounce) {
         const postResult = await discordAppAutomationService.postAnnouncement(
           organizationId,
-          app.id
+          app.id,
         );
 
         if (postResult.success) {
@@ -873,7 +873,7 @@ Return ONLY valid JSON, no markdown.`;
    */
   async getPromotionSuggestions(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<{
     recommendedChannels: PromotionChannel[];
     estimatedBudget: { min: number; max: number };
@@ -896,7 +896,7 @@ Return ONLY valid JSON, no markdown.`;
     try {
       const status = await twitterAppAutomationService.getAutomationStatus(
         organizationId,
-        appId
+        appId,
       );
       twitterAutomationStatus = {
         connected: status.twitterConnected,
@@ -919,7 +919,7 @@ Return ONLY valid JSON, no markdown.`;
 
     if (twitterAutomationStatus.connected && !twitterAutomationStatus.enabled) {
       tips.unshift(
-        "🚀 Enable Twitter Automation for 24/7 AI-powered vibe marketing!"
+        "🚀 Enable Twitter Automation for 24/7 AI-powered vibe marketing!",
       );
     }
 
@@ -934,7 +934,7 @@ Return ONLY valid JSON, no markdown.`;
 
   async getPromotionHistory(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<{
     totalCampaigns: number;
     recentActivity: Array<{

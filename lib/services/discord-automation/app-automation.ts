@@ -34,7 +34,7 @@ class DiscordAppAutomationService {
    */
   private async getAppForOrg(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -49,17 +49,16 @@ class DiscordAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: Partial<DiscordAutomationConfig>
+    config: Partial<DiscordAutomationConfig>,
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
     // Verify Discord is connected
-    const status = await discordAutomationService.getConnectionStatus(
-      organizationId
-    );
+    const status =
+      await discordAutomationService.getConnectionStatus(organizationId);
     if (!status.connected) {
       throw new Error(
-        "Discord not connected. Add the bot to a server in Settings first."
+        "Discord not connected. Add the bot to a server in Settings first.",
       );
     }
 
@@ -67,10 +66,12 @@ class DiscordAppAutomationService {
     if (config.guildId) {
       const guild = await discordGuildsRepository.findByGuildId(
         organizationId,
-        config.guildId
+        config.guildId,
       );
       if (!guild) {
-        throw new Error("Guild not found. Please reconnect the Discord server.");
+        throw new Error(
+          "Guild not found. Please reconnect the Discord server.",
+        );
       }
     }
 
@@ -78,7 +79,7 @@ class DiscordAppAutomationService {
     if (config.channelId) {
       const channel = await discordChannelsRepository.findByChannelId(
         organizationId,
-        config.channelId
+        config.channelId,
       );
       if (!channel) {
         throw new Error("Channel not found. Please refresh channels.");
@@ -86,7 +87,7 @@ class DiscordAppAutomationService {
     }
 
     const currentConfig = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null
+      app.discord_automation as Record<string, unknown> | null,
     ) as DiscordAutomationConfig;
 
     const updatedConfig: DiscordAutomationConfig = {
@@ -112,14 +113,11 @@ class DiscordAppAutomationService {
   /**
    * Disable automation for an app.
    */
-  async disableAutomation(
-    organizationId: string,
-    appId: string
-  ): Promise<App> {
+  async disableAutomation(organizationId: string, appId: string): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const currentConfig = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null
+      app.discord_automation as Record<string, unknown> | null,
     ) as DiscordAutomationConfig;
 
     const updatedApp = await appsRepository.update(appId, {
@@ -142,15 +140,14 @@ class DiscordAppAutomationService {
    */
   async getAutomationStatus(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<DiscordAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
-    const connectionStatus = await discordAutomationService.getConnectionStatus(
-      organizationId
-    );
+    const connectionStatus =
+      await discordAutomationService.getConnectionStatus(organizationId);
 
     const config = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null
+      app.discord_automation as Record<string, unknown> | null,
     ) as DiscordAutomationConfig;
 
     // Get guild and channel names if configured
@@ -160,7 +157,7 @@ class DiscordAppAutomationService {
     if (config.guildId) {
       const guild = await discordGuildsRepository.findByGuildId(
         organizationId,
-        config.guildId
+        config.guildId,
       );
       guildName = guild?.guild_name;
     }
@@ -168,7 +165,7 @@ class DiscordAppAutomationService {
     if (config.channelId) {
       const channel = await discordChannelsRepository.findByChannelId(
         organizationId,
-        config.channelId
+        config.channelId,
       );
       channelName = channel?.channel_name;
     }
@@ -186,7 +183,10 @@ class DiscordAppAutomationService {
     };
   }
 
-  async generateAnnouncement(organizationId: string, app: App): Promise<string> {
+  async generateAnnouncement(
+    organizationId: string,
+    app: App,
+  ): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
       amount: DISCORD_POST_COST,
@@ -195,7 +195,9 @@ class DiscordAppAutomationService {
     });
 
     if (!deduction.success) {
-      throw new Error(`Insufficient credits for AI generation. Required: $${DISCORD_POST_COST.toFixed(4)}`);
+      throw new Error(
+        `Insufficient credits for AI generation. Required: $${DISCORD_POST_COST.toFixed(4)}`,
+      );
     }
 
     const config = app.discord_automation as DiscordAutomationConfig;
@@ -242,7 +244,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
       (a) =>
         a.url &&
         (a.size.width === 1200 || // twitter_card, facebook_feed, linkedin
-          a.type === "social_card")
+          a.type === "social_card"),
     );
     if (preferred?.url) return preferred.url;
 
@@ -258,7 +260,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
   async postAnnouncement(
     organizationId: string,
     appId: string,
-    text?: string
+    text?: string,
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.discord_automation as DiscordAutomationConfig;
@@ -274,13 +276,17 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
     // Verify channel still exists and is accessible
     const channel = await discordChannelsRepository.findByChannelId(
       organizationId,
-      config.channelId
+      config.channelId,
     );
     if (!channel) {
-      return { success: false, error: "Channel not found. Please reconfigure." };
+      return {
+        success: false,
+        error: "Channel not found. Please reconfigure.",
+      };
     }
 
-    const messageText = text || (await this.generateAnnouncement(organizationId, app));
+    const messageText =
+      text || (await this.generateAnnouncement(organizationId, app));
 
     // Get promotional image if available
     const promotionalImageUrl = this.getPromotionalImage(app);
@@ -307,7 +313,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
       {
         embeds: [embed],
         components,
-      }
+      },
     );
 
     if (result.success) {
@@ -361,13 +367,16 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
 
     const lastAnnouncement = new Date(config.lastAnnouncementAt);
     const now = new Date();
-    const minutesSince = (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
+    const minutesSince =
+      (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
 
     // Use a random interval between min and max for natural timing
     const minInterval =
-      config.announceIntervalMin || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMin;
+      config.announceIntervalMin ||
+      DISCORD_AUTOMATION_DEFAULTS.announceIntervalMin;
     const maxInterval =
-      config.announceIntervalMax || DISCORD_AUTOMATION_DEFAULTS.announceIntervalMax;
+      config.announceIntervalMax ||
+      DISCORD_AUTOMATION_DEFAULTS.announceIntervalMax;
     const targetInterval =
       minInterval + Math.random() * (maxInterval - minInterval);
 

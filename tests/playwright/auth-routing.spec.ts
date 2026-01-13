@@ -34,7 +34,7 @@ test.describe("Authentication Routing", () => {
         (e) =>
           !e.includes("WalletConnect") &&
           !e.includes("hydration") &&
-          !e.includes("ResizeObserver")
+          !e.includes("ResizeObserver"),
       );
       expect(criticalErrors).toHaveLength(0);
     });
@@ -87,7 +87,7 @@ test.describe("Authentication Routing", () => {
 
       // Store initial history length after dashboard load
       const initialHistoryLength = await page.evaluate(
-        () => window.history.length
+        () => window.history.length,
       );
 
       // Navigate to login with returnTo
@@ -96,7 +96,7 @@ test.describe("Authentication Routing", () => {
 
       // History length should only increase by 1 (not create multiple entries)
       const finalHistoryLength = await page.evaluate(
-        () => window.history.length
+        () => window.history.length,
       );
       expect(finalHistoryLength).toBeLessThanOrEqual(initialHistoryLength + 2);
     });
@@ -113,12 +113,12 @@ test.describe("Authentication Routing", () => {
 
       for (const maliciousUrl of maliciousUrls) {
         await page.goto(
-          `${BASE_URL}/login?returnTo=${encodeURIComponent(maliciousUrl)}`
+          `${BASE_URL}/login?returnTo=${encodeURIComponent(maliciousUrl)}`,
         );
         await page.waitForLoadState("networkidle");
         // Should still be on our domain
         expect(page.url()).toMatch(
-          new RegExp(`^${BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)
+          new RegExp(`^${BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`),
         );
       }
     });
@@ -134,7 +134,7 @@ test.describe("Authentication Routing", () => {
 
       for (const path of specialPaths) {
         await page.goto(
-          `${BASE_URL}/login?returnTo=${encodeURIComponent(path)}`
+          `${BASE_URL}/login?returnTo=${encodeURIComponent(path)}`,
         );
         await page.waitForLoadState("networkidle");
         // Should load without errors
@@ -151,7 +151,7 @@ test.describe("Authentication Routing", () => {
 
     test("login page with returnTo returns 200", async ({ request }) => {
       const response = await request.get(
-        `${BASE_URL}/login?returnTo=/dashboard/settings`
+        `${BASE_URL}/login?returnTo=/dashboard/settings`,
       );
       expect(response.status()).toBe(200);
     });
@@ -170,7 +170,7 @@ test.describe("Authentication Routing", () => {
   test.describe("Invite Flow Routing", () => {
     test("invite accept page should be accessible", async ({ request }) => {
       const response = await request.get(
-        `${BASE_URL}/invite/accept?token=test-token`
+        `${BASE_URL}/invite/accept?token=test-token`,
       );
       expect(response.status()).toBe(200);
     });
@@ -199,7 +199,7 @@ test.describe("Console Error Monitoring", () => {
         !e.includes("favicon") &&
         !e.includes("eth_accounts") &&
         !e.includes("404") &&
-        !e.includes("Failed to load resource")
+        !e.includes("Failed to load resource"),
     );
 
     // Log errors for debugging
@@ -230,7 +230,7 @@ test.describe("Console Error Monitoring", () => {
         !e.includes("LCP") &&
         !e.includes("favicon") &&
         !e.includes("eth_accounts") &&
-        !e.includes("TAVILY")
+        !e.includes("TAVILY"),
     );
 
     expect(criticalErrors).toHaveLength(0);

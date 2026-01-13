@@ -51,7 +51,9 @@ beforeAll(async () => {
   apiKeyValid = res.status !== 401;
 
   if (!apiKeyValid) {
-    console.log("[Twitter Tests] TEST_API_KEY is invalid - auth tests will skip");
+    console.log(
+      "[Twitter Tests] TEST_API_KEY is invalid - auth tests will skip",
+    );
   } else {
     console.log("[Twitter Tests] TEST_API_KEY is valid");
   }

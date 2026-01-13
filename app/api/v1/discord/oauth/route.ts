@@ -18,7 +18,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!discordAutomationService.isConfigured()) {
     return NextResponse.json(
       { error: "Discord integration not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 

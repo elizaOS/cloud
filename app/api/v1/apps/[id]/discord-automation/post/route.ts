@@ -22,7 +22,7 @@ const postSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
@@ -35,17 +35,20 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   try {
     const result = await discordAppAutomationService.postAnnouncement(
       user.organization_id,
       appId,
-      body.text
+      body.text,
     );
 
     if (!result.success) {
@@ -73,7 +76,7 @@ export async function POST(
     });
     return NextResponse.json(
       { error: "Failed to post announcement" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

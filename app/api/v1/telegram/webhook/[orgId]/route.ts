@@ -23,7 +23,7 @@ interface RouteParams {
 
 export async function POST(
   request: Request,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { orgId } = await params;
 
@@ -67,7 +67,7 @@ export async function POST(
 
 async function handleChatMemberUpdate(
   orgId: string,
-  update: ChatMemberUpdated
+  update: ChatMemberUpdated,
 ): Promise<void> {
   const chat = update.chat;
   const newStatus = update.new_chat_member.status;
@@ -125,7 +125,7 @@ function setupBotHandlers(bot: Telegraf, orgId: string, activeApps: App[]) {
     const matchingApp = activeApps.find(
       (app) =>
         app.telegram_automation?.channelId === String(chatId) ||
-        app.telegram_automation?.groupId === String(chatId)
+        app.telegram_automation?.groupId === String(chatId),
     );
 
     if (matchingApp) {
@@ -135,7 +135,7 @@ function setupBotHandlers(bot: Telegraf, orgId: string, activeApps: App[]) {
       await ctx.reply(welcomeMessage);
     } else {
       await ctx.reply(
-        `Hello ${userName}! 👋 I'm an AI assistant. How can I help you today?`
+        `Hello ${userName}! 👋 I'm an AI assistant. How can I help you today?`,
       );
     }
 
@@ -162,7 +162,7 @@ You can also just send me a message and I'll do my best to help!`;
     const matchingApp = activeApps.find(
       (app) =>
         app.telegram_automation?.channelId === String(chatId) ||
-        app.telegram_automation?.groupId === String(chatId)
+        app.telegram_automation?.groupId === String(chatId),
     );
 
     if (matchingApp) {
@@ -190,7 +190,7 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
     const matchingApp = activeApps.find(
       (app) =>
         app.telegram_automation?.channelId === String(chatId) ||
-        app.telegram_automation?.groupId === String(chatId)
+        app.telegram_automation?.groupId === String(chatId),
     );
 
     if (matchingApp?.telegram_automation?.autoReply) {
@@ -203,7 +203,7 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
             messageId: message.message_id,
             text,
             userName,
-          }
+          },
         );
       } catch (error) {
         logger.error("[Telegram Webhook] Error handling message", {
@@ -215,7 +215,7 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
       }
     } else if (!matchingApp) {
       await ctx.reply(
-        "Thanks for your message! This bot is configured for specific applications."
+        "Thanks for your message! This bot is configured for specific applications.",
       );
     }
   });

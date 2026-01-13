@@ -47,9 +47,9 @@ export const discordGuilds = pgTable(
     index("discord_guilds_guild_id_idx").on(table.guild_id),
     index("discord_guilds_org_guild_idx").on(
       table.organization_id,
-      table.guild_id
+      table.guild_id,
     ),
-  ]
+  ],
 );
 
 export type DiscordGuild = InferSelectModel<typeof discordGuilds>;

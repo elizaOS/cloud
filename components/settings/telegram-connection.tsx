@@ -215,7 +215,10 @@ export function TelegramConnection() {
               </p>
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                 <li>Open your Telegram channel or group</li>
-                <li>Go to Settings → Add Members → Search for @{status.botUsername}</li>
+                <li>
+                  Go to Settings → Add Members → Search for @
+                  {status.botUsername}
+                </li>
                 <li>Make the bot an admin (so it can post messages)</li>
                 <li>Go to your app&apos;s Promote tab to enable automation</li>
               </ol>
@@ -243,7 +246,9 @@ export function TelegramConnection() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Disconnect Telegram Bot?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      Disconnect Telegram Bot?
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
                       This will remove your bot credentials. Any active Telegram
                       automation will stop working until you reconnect.
@@ -264,7 +269,10 @@ export function TelegramConnection() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
+            <Collapsible
+              open={showInstructions}
+              onOpenChange={setShowInstructions}
+            >
               <CollapsibleTrigger asChild>
                 <Button
                   variant="ghost"
@@ -294,10 +302,13 @@ export function TelegramConnection() {
                     </a>
                   </li>
                   <li>
-                    Send <code className="bg-background px-1 rounded">/newbot</code>{" "}
+                    Send{" "}
+                    <code className="bg-background px-1 rounded">/newbot</code>{" "}
                     command
                   </li>
-                  <li>Choose a name for your bot (e.g., &quot;My App Bot&quot;)</li>
+                  <li>
+                    Choose a name for your bot (e.g., &quot;My App Bot&quot;)
+                  </li>
                   <li>
                     Choose a username ending in &quot;bot&quot; (e.g.,
                     &quot;myapp_bot&quot;)

@@ -50,9 +50,9 @@ export const discordChannels = pgTable(
     index("discord_channels_channel_id_idx").on(table.channel_id),
     index("discord_channels_guild_channel_idx").on(
       table.guild_id,
-      table.channel_id
+      table.channel_id,
     ),
-  ]
+  ],
 );
 
 export type DiscordChannel = InferSelectModel<typeof discordChannels>;

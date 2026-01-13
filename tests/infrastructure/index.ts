@@ -47,12 +47,7 @@ export {
 } from "./test-runtime";
 
 // Timing utilities
-export {
-  startTimer,
-  endTimer,
-  logTimings,
-  createScopedTimer,
-} from "./timing";
+export { startTimer, endTimer, logTimings, createScopedTimer } from "./timing";
 
 // HTTP/SSE test utilities
 export {

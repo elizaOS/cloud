@@ -39,7 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (error) {
     logger.warn("[Discord Callback] OAuth error", { error, errorDescription });
     const errorUrl = `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=${encodeURIComponent(
-      errorDescription || error
+      errorDescription || error,
     )}`;
     return NextResponse.redirect(new URL(errorUrl, baseUrl));
   }
@@ -49,13 +49,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     logger.warn("[Discord Callback] Missing params", {
       hasGuildId: !!guildId,
       hasState: !!state,
-      hasCode: !!code
+      hasCode: !!code,
     });
     return NextResponse.redirect(
       new URL(
         `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=missing_params`,
-        baseUrl
-      )
+        baseUrl,
+      ),
     );
   }
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const result = await discordAutomationService.handleBotOAuthCallback(
       guildId,
       state,
-      permissions || undefined
+      permissions || undefined,
     );
 
     if (result.success) {
@@ -80,8 +80,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(
       new URL(
         `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=callback_failed`,
-        baseUrl
-      )
+        baseUrl,
+      ),
     );
   }
 }

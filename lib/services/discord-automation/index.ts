@@ -47,7 +47,7 @@ class DiscordAutomationService {
    */
   isOAuthConfigured(): boolean {
     return Boolean(
-      DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN
+      DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN,
     );
   }
 
@@ -96,7 +96,7 @@ class DiscordAutomationService {
   async handleBotOAuthCallback(
     guildId: string,
     stateBase64: string,
-    permissions?: string
+    permissions?: string,
   ): Promise<{
     success: boolean;
     guildId?: string;
@@ -109,7 +109,7 @@ class DiscordAutomationService {
 
     try {
       const state: OAuthState = JSON.parse(
-        Buffer.from(stateBase64, "base64").toString()
+        Buffer.from(stateBase64, "base64").toString(),
       );
 
       // Fetch guild info using bot token
@@ -119,7 +119,7 @@ class DiscordAutomationService {
           headers: {
             Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
           },
-        }
+        },
       );
 
       if (!guildResponse.ok) {
@@ -173,11 +173,15 @@ class DiscordAutomationService {
    * Uses canSendMessages() to check if bot can actually post (only needs bot token)
    */
   async getConnectionStatus(
-    organizationId: string
+    organizationId: string,
   ): Promise<DiscordConnectionStatus> {
     // Check if bot can send messages (only needs DISCORD_BOT_TOKEN)
     if (!this.canSendMessages()) {
-      return { connected: false, guilds: [], error: "Discord bot not configured" };
+      return {
+        connected: false,
+        guilds: [],
+        error: "Discord bot not configured",
+      };
     }
 
     try {
@@ -193,7 +197,7 @@ class DiscordAutomationService {
         guilds.map(async (guild) => {
           const channels = await discordChannelsRepository.findByGuild(
             organizationId,
-            guild.guild_id
+            guild.guild_id,
           );
           return {
             id: guild.guild_id,
@@ -201,7 +205,7 @@ class DiscordAutomationService {
             iconUrl: getGuildIconUrl(guild.guild_id, guild.icon_hash),
             channelCount: channels.filter((c) => c.can_send_messages).length,
           };
-        })
+        }),
       );
 
       return { connected: true, guilds: guildsWithCounts };
@@ -219,7 +223,7 @@ class DiscordAutomationService {
    */
   async refreshChannels(
     organizationId: string,
-    guildId: string
+    guildId: string,
   ): Promise<DiscordChannelInfo[]> {
     if (!DISCORD_BOT_TOKEN) {
       logger.error("[Discord] Bot token not configured");
@@ -233,7 +237,7 @@ class DiscordAutomationService {
           headers: {
             Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -288,7 +292,7 @@ class DiscordAutomationService {
     options?: {
       embeds?: DiscordEmbed[];
       components?: DiscordActionRow[];
-    }
+    },
   ): Promise<SendMessageResult> {
     if (!DISCORD_BOT_TOKEN) {
       return { success: false, error: "Bot token not configured" };
@@ -298,7 +302,7 @@ class DiscordAutomationService {
       // Split message if too long
       const chunks = splitMessage(
         content,
-        DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH
+        DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH,
       );
       let lastMessageId: string | undefined;
 
@@ -324,7 +328,7 @@ class DiscordAutomationService {
             body: JSON.stringify(body),
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Discord API timeout")), 25_000)
+            setTimeout(() => reject(new Error("Discord API timeout")), 25_000),
           ),
         ]);
 
@@ -371,7 +375,7 @@ class DiscordAutomationService {
   async getSendableChannels(organizationId: string, guildId: string) {
     return discordChannelsRepository.findSendableByGuild(
       organizationId,
-      guildId
+      guildId,
     );
   }
 
@@ -394,7 +398,7 @@ class DiscordAutomationService {
    */
   async disconnect(
     organizationId: string,
-    guildId: string
+    guildId: string,
   ): Promise<{ success: boolean; error?: string }> {
     if (!DISCORD_BOT_TOKEN) {
       return { success: false, error: "Bot token not configured" };
@@ -409,7 +413,7 @@ class DiscordAutomationService {
           headers: {
             Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
           },
-        }
+        },
       );
 
       // Even if the API call fails (maybe already removed), clean up database
@@ -419,7 +423,7 @@ class DiscordAutomationService {
           {
             guildId,
             status: response.status,
-          }
+          },
         );
       }
 
@@ -466,7 +470,7 @@ class DiscordAutomationService {
           headers: {
             Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
           },
-        }
+        },
       );
       return response.ok;
     } catch {

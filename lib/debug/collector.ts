@@ -90,7 +90,7 @@ export class DebugTraceCollector {
     inputText: string,
     source: string,
     agentMode: "chat" | "assistant" | "build" | "unknown" = "unknown",
-    maxIterations: number = 6
+    maxIterations: number = 6,
   ) {
     this.trace = {
       runId,
@@ -123,7 +123,7 @@ export class DebugTraceCollector {
     this.currentIteration = iteration;
     this.trace.summary.iterationCount = Math.max(
       this.trace.summary.iterationCount,
-      iteration
+      iteration,
     );
 
     const stepData: IterationBoundaryStepData = {
@@ -163,7 +163,7 @@ export class DebugTraceCollector {
       }
     >,
     composedValues: Record<string, unknown>,
-    durationMs: number
+    durationMs: number,
   ): void {
     const stepData: StateCompositionStepData = {
       type: "state_composition",
@@ -194,7 +194,7 @@ export class DebugTraceCollector {
     templateName: string,
     composedPrompt: string,
     purpose: "planning" | "response" | "shouldRespond" | "singleShot" | "other",
-    templateSource?: string
+    templateSource?: string,
   ): void {
     const stepData: PromptCompositionStepData = {
       type: "prompt_composition",
@@ -217,7 +217,7 @@ export class DebugTraceCollector {
     modelType: string,
     prompt: string,
     purpose: string,
-    hasStreaming: boolean = false
+    hasStreaming: boolean = false,
   ): void {
     this.pendingModelCall = {
       startTime: Date.now(),
@@ -236,10 +236,12 @@ export class DebugTraceCollector {
       temperature?: number;
       maxTokens?: number;
       topP?: number;
-    }
+    },
   ): void {
     if (!this.pendingModelCall) {
-      console.warn("[DebugTraceCollector] recordModelCallEnd called without matching start");
+      console.warn(
+        "[DebugTraceCollector] recordModelCallEnd called without matching start",
+      );
       return;
     }
 
@@ -282,7 +284,7 @@ export class DebugTraceCollector {
     parsedOutput?: Record<string, unknown>,
     parseError?: string,
     attemptNumber: number = 1,
-    maxAttempts: number = 3
+    maxAttempts: number = 3,
   ): void {
     const stepData: ParseResultStepData = {
       type: "parse_result",
@@ -329,7 +331,7 @@ export class DebugTraceCollector {
             attemptNumber,
             maxAttempts,
           },
-          suggestedFix
+          suggestedFix,
         );
       }
     }
@@ -343,7 +345,7 @@ export class DebugTraceCollector {
     actionName: string,
     parameters: Record<string, unknown>,
     thought?: string,
-    actionId?: UUID
+    actionId?: UUID,
   ): void {
     this.pendingAction = {
       startTime: Date.now(),
@@ -363,7 +365,9 @@ export class DebugTraceCollector {
     error?: string;
   }): void {
     if (!this.pendingAction) {
-      console.warn("[DebugTraceCollector] recordActionEnd called without matching start");
+      console.warn(
+        "[DebugTraceCollector] recordActionEnd called without matching start",
+      );
       return;
     }
 
@@ -396,7 +400,7 @@ export class DebugTraceCollector {
           actionName: this.pendingAction.actionName,
           parameters: this.pendingAction.parameters,
           error: result.error,
-        }
+        },
       );
     }
 
@@ -411,7 +415,7 @@ export class DebugTraceCollector {
     this.addFailure(
       "action_not_found",
       `Action '${actionName}' was requested but not found in available actions`,
-      { actionName }
+      { actionName },
     );
   }
 
@@ -422,7 +426,7 @@ export class DebugTraceCollector {
       {
         iterationCount: this.trace.summary.iterationCount,
         maxIterations: this.trace.summary.maxIterations,
-      }
+      },
     );
   }
 
@@ -430,7 +434,7 @@ export class DebugTraceCollector {
     this.addFailure(
       "service_unavailable",
       `Service '${serviceName}' is not available`,
-      { serviceName }
+      { serviceName },
     );
   }
 
@@ -441,7 +445,7 @@ export class DebugTraceCollector {
   complete(
     status: "completed" | "error" | "timeout",
     finalResponse?: { text: string; thought?: string },
-    errorMessage?: string
+    errorMessage?: string,
   ): DebugTrace {
     this.trace.endedAt = Date.now();
     this.trace.durationMs = this.trace.endedAt - this.trace.startedAt;
@@ -489,7 +493,7 @@ export class DebugTraceCollector {
   private addStep(
     type: DebugStepData["type"],
     data: DebugStepData,
-    durationMs?: number
+    durationMs?: number,
   ): void {
     const step: DebugStep = {
       stepIndex: this.stepIndex++,
@@ -506,7 +510,7 @@ export class DebugTraceCollector {
     type: FailureType,
     message: string,
     details: Record<string, unknown>,
-    suggestedFix?: string
+    suggestedFix?: string,
   ): void {
     const failure: DebugFailure = {
       type,

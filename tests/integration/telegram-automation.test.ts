@@ -238,14 +238,11 @@ describe("Telegram Webhook API", () => {
   });
 
   test("handles invalid JSON gracefully", async () => {
-    const res = await fetch(
-      `${SERVER_URL}/api/v1/telegram/webhook/test-org`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "invalid json",
-      },
-    );
+    const res = await fetch(`${SERVER_URL}/api/v1/telegram/webhook/test-org`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "invalid json",
+    });
     // Returns 400 for invalid JSON or 401 if auth is required
     expect([400, 401]).toContain(res.status);
   });

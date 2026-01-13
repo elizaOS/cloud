@@ -30,7 +30,7 @@ const automationConfigSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
@@ -38,7 +38,7 @@ export async function GET(
   try {
     const status = await discordAppAutomationService.getAutomationStatus(
       user.organization_id,
-      appId
+      appId,
     );
     return NextResponse.json(status);
   } catch (error) {
@@ -51,14 +51,14 @@ export async function GET(
     });
     return NextResponse.json(
       { error: "Failed to get automation status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
@@ -71,10 +71,13 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   // Validate interval range - defaults are min=120, max=240
@@ -85,21 +88,25 @@ export async function POST(
     if (body.announceIntervalMin > body.announceIntervalMax) {
       return NextResponse.json(
         { error: "announceIntervalMin must be less than announceIntervalMax" },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } else if (body.announceIntervalMax && !body.announceIntervalMin) {
     if (body.announceIntervalMax < DEFAULT_INTERVAL_MIN) {
       return NextResponse.json(
-        { error: `announceIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)` },
-        { status: 400 }
+        {
+          error: `announceIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)`,
+        },
+        { status: 400 },
       );
     }
   } else if (body.announceIntervalMin && !body.announceIntervalMax) {
     if (body.announceIntervalMin > DEFAULT_INTERVAL_MAX) {
       return NextResponse.json(
-        { error: `announceIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)` },
-        { status: 400 }
+        {
+          error: `announceIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)`,
+        },
+        { status: 400 },
       );
     }
   }
@@ -108,7 +115,7 @@ export async function POST(
     const app = await discordAppAutomationService.enableAutomation(
       user.organization_id,
       appId,
-      body
+      body,
     );
 
     logger.info("[Discord Automation] Automation enabled", {
@@ -138,14 +145,14 @@ export async function POST(
     });
     return NextResponse.json(
       { error: "Failed to enable automation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
@@ -153,7 +160,7 @@ export async function DELETE(
   try {
     await discordAppAutomationService.disableAutomation(
       user.organization_id,
-      appId
+      appId,
     );
 
     logger.info("[Discord Automation] Automation disabled", {
@@ -172,7 +179,7 @@ export async function DELETE(
     });
     return NextResponse.json(
       { error: "Failed to disable automation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

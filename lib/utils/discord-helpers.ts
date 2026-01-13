@@ -41,7 +41,7 @@ export const DISCORD_BLURPLE = 0x5865f2;
 export function getGuildIconUrl(
   guildId: string,
   iconHash: string | null,
-  size: 64 | 128 | 256 | 512 = 128
+  size: 64 | 128 | 256 | 512 = 128,
 ): string | null {
   if (!iconHash) return null;
   const ext = iconHash.startsWith("a_") ? "gif" : "png";
@@ -215,7 +215,9 @@ export function createLinkButton(label: string, url: string) {
 /**
  * Create an action row with buttons
  */
-export function createActionRow(buttons: Array<{ label: string; url: string }>) {
+export function createActionRow(
+  buttons: Array<{ label: string; url: string }>,
+) {
   return {
     type: 1 as const, // Action Row
     components: buttons.map((b) => createLinkButton(b.label, b.url)),
@@ -237,7 +239,8 @@ export function createEmbed(options: {
   const embed: Record<string, unknown> = {};
 
   if (options.title) embed.title = options.title;
-  if (options.description) embed.description = truncate(options.description, 4096);
+  if (options.description)
+    embed.description = truncate(options.description, 4096);
   if (options.url) embed.url = options.url;
   if (options.color !== undefined) embed.color = options.color;
   if (options.thumbnailUrl) embed.thumbnail = { url: options.thumbnailUrl };

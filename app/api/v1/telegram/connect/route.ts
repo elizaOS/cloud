@@ -32,10 +32,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
-  const validation = await telegramAutomationService.validateBotToken(body.botToken);
+  const validation = await telegramAutomationService.validateBotToken(
+    body.botToken,
+  );
   if (!validation.valid || !validation.botInfo) {
     return NextResponse.json(
       { error: validation.error || "Invalid bot token" },
@@ -44,11 +49,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await telegramAutomationService.storeCredentials(user.organization_id, user.id, {
-      botToken: body.botToken,
-      botUsername: validation.botInfo.botUsername,
-      botId: validation.botInfo.botId,
-    });
+    await telegramAutomationService.storeCredentials(
+      user.organization_id,
+      user.id,
+      {
+        botToken: body.botToken,
+        botUsername: validation.botInfo.botUsername,
+        botId: validation.botInfo.botId,
+      },
+    );
   } catch (error) {
     logger.error("[Telegram Connect] Failed to store credentials", {
       organizationId: user.organization_id,
@@ -60,7 +69,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const webhookResult = await telegramAutomationService.setWebhook(user.organization_id);
+  const webhookResult = await telegramAutomationService.setWebhook(
+    user.organization_id,
+  );
   if (!webhookResult.success) {
     logger.warn("[Telegram Connect] Webhook setup failed", {
       organizationId: user.organization_id,

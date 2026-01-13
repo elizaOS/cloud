@@ -109,7 +109,7 @@ function parseSSEEventText(eventText: string): SSEEvent | null {
  * Yields events as they are received
  */
 export async function* parseSSEStream(
-  response: Response
+  response: Response,
 ): AsyncGenerator<SSEEvent, void, undefined> {
   if (!response.body) {
     throw new Error("Response has no body");
@@ -157,7 +157,9 @@ export async function* parseSSEStream(
 /**
  * Collect all SSE events from a response into an array
  */
-export async function collectSSEEvents(response: Response): Promise<SSEEvent[]> {
+export async function collectSSEEvents(
+  response: Response,
+): Promise<SSEEvent[]> {
   const events: SSEEvent[] = [];
   for await (const event of parseSSEStream(response)) {
     events.push(event);
@@ -169,7 +171,7 @@ export async function collectSSEEvents(response: Response): Promise<SSEEvent[]> 
  * Parse SSE events into structured streaming message events
  */
 export async function parseStreamingResponse(
-  response: Response
+  response: Response,
 ): Promise<StreamingMessageEvents> {
   const result: StreamingMessageEvents = {
     chunks: [],
@@ -197,14 +199,12 @@ export async function parseStreamingResponse(
         break;
 
       case "chunk":
-        result.chunks.push(
-          data as StreamingMessageEvents["chunks"][0]
-        );
+        result.chunks.push(data as StreamingMessageEvents["chunks"][0]);
         break;
 
       case "reasoning":
         result.reasoningChunks.push(
-          data as StreamingMessageEvents["reasoningChunks"][0]
+          data as StreamingMessageEvents["reasoningChunks"][0],
         );
         break;
 
@@ -256,7 +256,9 @@ export class TestApiClient {
   /**
    * Get default headers for requests
    */
-  private getHeaders(customHeaders?: Record<string, string>): Record<string, string> {
+  private getHeaders(
+    customHeaders?: Record<string, string>,
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...customHeaders,
@@ -281,7 +283,7 @@ export class TestApiClient {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      options?.timeout || this.defaultTimeout
+      options?.timeout || this.defaultTimeout,
     );
 
     try {
@@ -302,13 +304,13 @@ export class TestApiClient {
   async post(
     path: string,
     body: unknown,
-    options?: RequestOptions
+    options?: RequestOptions,
   ): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      options?.timeout || this.defaultTimeout
+      options?.timeout || this.defaultTimeout,
     );
 
     try {
@@ -332,7 +334,7 @@ export class TestApiClient {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      options?.timeout || this.defaultTimeout
+      options?.timeout || this.defaultTimeout,
     );
 
     try {
@@ -361,7 +363,7 @@ export class TestApiClient {
       appPromptConfig?: Record<string, unknown>;
       webSearchEnabled?: boolean;
       timeout?: number;
-    }
+    },
   ): Promise<StreamingMessageEvents> {
     const response = await this.post(
       `/api/eliza/rooms/${roomId}/messages/stream`,
@@ -374,7 +376,7 @@ export class TestApiClient {
         appPromptConfig: options?.appPromptConfig,
         webSearchEnabled: options?.webSearchEnabled,
       },
-      { timeout: options?.timeout || 60000 }
+      { timeout: options?.timeout || 60000 },
     );
 
     if (!response.ok) {
@@ -382,7 +384,7 @@ export class TestApiClient {
       throw new StreamingError(
         `Streaming request failed: ${response.status}`,
         response.status,
-        errorBody
+        errorBody,
       );
     }
 
@@ -404,7 +406,9 @@ export class TestApiClient {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      throw new Error(`Failed to create room: ${response.status} - ${JSON.stringify(errorBody)}`);
+      throw new Error(
+        `Failed to create room: ${response.status} - ${JSON.stringify(errorBody)}`,
+      );
     }
 
     const data = await response.json();
@@ -452,7 +456,7 @@ export class StreamingError extends Error {
   constructor(
     message: string,
     public status: number,
-    public body: unknown
+    public body: unknown,
   ) {
     super(message);
     this.name = "StreamingError";
@@ -462,7 +466,9 @@ export class StreamingError extends Error {
 /**
  * Create a test API client
  */
-export function createTestApiClient(options: TestApiClientOptions): TestApiClient {
+export function createTestApiClient(
+  options: TestApiClientOptions,
+): TestApiClient {
   return new TestApiClient(options);
 }
 

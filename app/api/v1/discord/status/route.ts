@@ -29,7 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const status = await discordAutomationService.getConnectionStatus(
-    user.organization_id
+    user.organization_id,
   );
 
   return NextResponse.json({

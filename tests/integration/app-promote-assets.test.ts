@@ -7,7 +7,7 @@ const TEST_APP_ID = process.env.TEST_APP_ID;
 async function fetchWithAuth(
   endpoint: string,
   method: "GET" | "POST" | "DELETE" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
   return fetch(`${SERVER_URL}${endpoint}`, {
     method,
@@ -22,7 +22,7 @@ async function fetchWithAuth(
 async function fetchWithoutAuth(
   endpoint: string,
   method: "GET" | "POST" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
   return fetch(`${SERVER_URL}${endpoint}`, {
     method,
@@ -48,7 +48,7 @@ describe("App Promote Assets API", () => {
       }
 
       const res = await fetchWithAuth(
-        "/api/v1/apps/00000000-0000-0000-0000-000000000000/promote/assets"
+        "/api/v1/apps/00000000-0000-0000-0000-000000000000/promote/assets",
       );
       expect(res.status).toBe(404);
     });
@@ -103,7 +103,7 @@ describe("App Promote Assets API", () => {
       const res = await fetchWithAuth(
         "/api/v1/apps/00000000-0000-0000-0000-000000000000/promote/assets",
         "POST",
-        { includeCopy: true }
+        { includeCopy: true },
       );
       expect(res.status).toBe(404);
     });
@@ -138,7 +138,9 @@ describe("App Promote Assets API", () => {
       }
 
       if (!process.env.TEST_FULL_GENERATION) {
-        console.log("Skipping: Set TEST_FULL_GENERATION=true to run full generation test");
+        console.log(
+          "Skipping: Set TEST_FULL_GENERATION=true to run full generation test",
+        );
         return;
       }
 

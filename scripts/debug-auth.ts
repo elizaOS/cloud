@@ -30,7 +30,9 @@ console.log("====================\n");
 // Create a direct pg connection (bypassing Neon serverless)
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
+  ssl: DATABASE_URL.includes("neon.tech")
+    ? { rejectUnauthorized: false }
+    : undefined,
 });
 
 const db = drizzle(pool, { schema });
@@ -38,7 +40,9 @@ const db = drizzle(pool, { schema });
 async function testConnection(): Promise<boolean> {
   console.log("📡 Testing database connection...");
   try {
-    const result = await pool.query("SELECT NOW() as now, current_database() as db");
+    const result = await pool.query(
+      "SELECT NOW() as now, current_database() as db",
+    );
     console.log(`✅ Connected to database: ${result.rows[0].db}`);
     console.log(`   Server time: ${result.rows[0].now}\n`);
     return true;
@@ -187,7 +191,7 @@ async function rawQuery(privyUserId: string): Promise<void> {
        FROM users u
        LEFT JOIN organizations o ON u.organization_id = o.id
        WHERE u.privy_user_id = $1`,
-      [privyUserId]
+      [privyUserId],
     );
 
     if (result.rows.length > 0) {
@@ -242,10 +246,18 @@ async function main() {
 
     default:
       console.log("Usage:");
-      console.log("  bun run scripts/debug-auth.ts test              # Test connection & list users");
-      console.log("  bun run scripts/debug-auth.ts check <privy_id>  # Check if user exists");
-      console.log("  bun run scripts/debug-auth.ts fix <privy_id>    # Create user if missing");
-      console.log("  bun run scripts/debug-auth.ts raw <privy_id>    # Run raw SQL query");
+      console.log(
+        "  bun run scripts/debug-auth.ts test              # Test connection & list users",
+      );
+      console.log(
+        "  bun run scripts/debug-auth.ts check <privy_id>  # Check if user exists",
+      );
+      console.log(
+        "  bun run scripts/debug-auth.ts fix <privy_id>    # Create user if missing",
+      );
+      console.log(
+        "  bun run scripts/debug-auth.ts raw <privy_id>    # Run raw SQL query",
+      );
   }
 
   await pool.end();

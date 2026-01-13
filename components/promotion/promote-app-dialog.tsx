@@ -248,7 +248,7 @@ export function PromoteAppDialog({
         setDiscordStatus(data);
       })
       .catch(() =>
-        setDiscordStatus({ configured: false, connected: false, guilds: [] })
+        setDiscordStatus({ configured: false, connected: false, guilds: [] }),
       );
   }, []);
 
@@ -847,7 +847,7 @@ export function PromoteAppDialog({
                         >
                           <Checkbox
                             checked={config.social?.platforms?.includes(
-                              platform.id
+                              platform.id,
                             )}
                             onCheckedChange={() =>
                               toggleSocialPlatform(platform.id)
@@ -979,7 +979,7 @@ export function PromoteAppDialog({
                         value={config.advertising?.adAccountId}
                         onValueChange={(value) => {
                           const account = adAccounts.find(
-                            (a) => a.id === value
+                            (a) => a.id === value,
                           );
                           setConfig((prev) => ({
                             ...prev,
@@ -1261,7 +1261,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 90)
+                              Math.min(1440, parseInt(e.target.value) || 90),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1300,7 +1300,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 180)
+                              Math.min(1440, parseInt(e.target.value) || 180),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1378,18 +1378,18 @@ export function PromoteAppDialog({
                                   "/api/v1/telegram/scan-chats",
                                   {
                                     method: "POST",
-                                  }
+                                  },
                                 );
                                 const data = await res.json();
                                 if (data.chats) {
                                   setTelegramChats(data.chats);
                                   if (data.chats.length > 0) {
                                     toast.success(
-                                      `Found ${data.chats.length} chat(s)!`
+                                      `Found ${data.chats.length} chat(s)!`,
                                     );
                                   } else {
                                     toast.info(
-                                      "No chats found. Make sure you added the bot and sent a message."
+                                      "No chats found. Make sure you added the bot and sent a message.",
                                     );
                                   }
                                 } else if (data.error) {
@@ -1525,7 +1525,7 @@ export function PromoteAppDialog({
                               <SelectItem value="none">No channel</SelectItem>
                               {telegramChats
                                 .filter(
-                                  (c) => c.type === "channel" && c.canPost
+                                  (c) => c.type === "channel" && c.canPost,
                                 )
                                 .map((chat) => (
                                   <SelectItem key={chat.id} value={chat.id}>
@@ -1575,7 +1575,7 @@ export function PromoteAppDialog({
                                 .filter(
                                   (c) =>
                                     c.type === "group" ||
-                                    c.type === "supergroup"
+                                    c.type === "supergroup",
                                 )
                                 .map((chat) => (
                                   <SelectItem key={chat.id} value={chat.id}>
@@ -1646,7 +1646,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 60)
+                              Math.min(1440, parseInt(e.target.value) || 60),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1683,7 +1683,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 240)
+                              Math.min(1440, parseInt(e.target.value) || 240),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1756,7 +1756,7 @@ export function PromoteAppDialog({
                           if (value) {
                             try {
                               const res = await fetch(
-                                `/api/v1/discord/channels?guildId=${value}`
+                                `/api/v1/discord/channels?guildId=${value}`,
                               );
                               const data = await res.json();
                               setDiscordChannels(data.channels || []);
@@ -1891,7 +1891,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 60)
+                              Math.min(1440, parseInt(e.target.value) || 60),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1925,7 +1925,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 240)
+                              Math.min(1440, parseInt(e.target.value) || 240),
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1982,7 +1982,7 @@ export function PromoteAppDialog({
                   <div className="flex justify-between">
                     <span className="text-white/60">URL:</span>
                     {(app.website_url || app.app_url)?.includes(
-                      "placeholder"
+                      "placeholder",
                     ) ? (
                       <span className="text-white/40 italic">
                         Not configured
@@ -2071,7 +2071,7 @@ export function PromoteAppDialog({
                       <span>
                         Discord Bot:{" "}
                         {discordStatus.guilds.find(
-                          (g) => g.id === config.discordAutomation?.guildId
+                          (g) => g.id === config.discordAutomation?.guildId,
                         )?.name || "Server"}
                         {config.discordAutomation?.channelId &&
                           discordChannels.length > 0 && (
@@ -2080,7 +2080,7 @@ export function PromoteAppDialog({
                               → #
                               {discordChannels.find(
                                 (c) =>
-                                  c.id === config.discordAutomation?.channelId
+                                  c.id === config.discordAutomation?.channelId,
                               )?.name || "channel"}
                             </>
                           )}
@@ -2272,7 +2272,7 @@ export function PromoteAppDialog({
                         </p>
                       )}
                     </div>
-                  )
+                  ),
               )}
             </div>
 

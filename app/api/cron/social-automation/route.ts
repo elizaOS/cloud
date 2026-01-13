@@ -60,7 +60,7 @@ function hashToFraction(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   // Convert to positive fraction between 0 and 1
@@ -70,7 +70,7 @@ function hashToFraction(str: string): number {
 function isAnnouncementDue(
   config: AutomationConfig,
   type: "announcement" | "post",
-  appId?: string
+  appId?: string,
 ): boolean {
   if (!config.enabled) return false;
 
@@ -102,7 +102,8 @@ function isAnnouncementDue(
 
   // Between min and max: use hash-based threshold to distribute posts
   // Each app gets a different position in the window based on its ID
-  const windowProgress = (minutesSince - minInterval) / (maxInterval - minInterval);
+  const windowProgress =
+    (minutesSince - minInterval) / (maxInterval - minInterval);
   const threshold = appId ? hashToFraction(appId + type) : 0.5;
   return windowProgress >= threshold;
 }
@@ -115,13 +116,13 @@ async function getAppsWithAutomation(): Promise<App[]> {
       or(
         sql`${apps.discord_automation}->>'enabled' = 'true'`,
         sql`${apps.telegram_automation}->>'enabled' = 'true'`,
-        sql`${apps.twitter_automation}->>'enabled' = 'true'`
-      )
+        sql`${apps.twitter_automation}->>'enabled' = 'true'`,
+      ),
     );
 }
 
 async function processDiscordAutomation(
-  app: App
+  app: App,
 ): Promise<ProcessResult | null> {
   const config = app.discord_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoAnnounce) return null;
@@ -131,7 +132,7 @@ async function processDiscordAutomation(
 
   const result = await discordAppAutomationService.postAnnouncement(
     app.organization_id,
-    app.id
+    app.id,
   );
 
   return {
@@ -145,7 +146,7 @@ async function processDiscordAutomation(
 }
 
 async function processTelegramAutomation(
-  app: App
+  app: App,
 ): Promise<ProcessResult | null> {
   const config = app.telegram_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoAnnounce) return null;
@@ -155,7 +156,7 @@ async function processTelegramAutomation(
 
   const result = await telegramAppAutomationService.postAnnouncement(
     app.organization_id,
-    app.id
+    app.id,
   );
 
   return {
@@ -169,7 +170,7 @@ async function processTelegramAutomation(
 }
 
 async function processTwitterAutomation(
-  app: App
+  app: App,
 ): Promise<ProcessResult | null> {
   const config = app.twitter_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoPost) return null;
@@ -179,7 +180,7 @@ async function processTwitterAutomation(
 
   const result = await twitterAppAutomationService.postAppTweet(
     app.organization_id,
-    app.id
+    app.id,
   );
 
   return {
@@ -258,7 +259,7 @@ async function processApp(app: App): Promise<ProcessResult[]> {
  */
 async function processAppsWithConcurrency(
   apps: App[],
-  concurrency: number
+  concurrency: number,
 ): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
@@ -290,7 +291,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Process apps in parallel with concurrency limit
   const results = await processAppsWithConcurrency(
     appsWithAutomation,
-    MAX_CONCURRENT_POSTS
+    MAX_CONCURRENT_POSTS,
   );
 
   const duration = Date.now() - startTime;

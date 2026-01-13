@@ -159,11 +159,11 @@ async function handlePOST(req: NextRequest) {
     try {
       messages = normalizeMessages(rawMessages);
     } catch (error) {
-      if (error instanceof Error && error.message.includes("Invalid message role")) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 },
-        );
+      if (
+        error instanceof Error &&
+        error.message.includes("Invalid message role")
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
       throw error;
     }

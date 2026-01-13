@@ -52,7 +52,10 @@ export function createMultiRowKeyboard(
   return { inline_keyboard: rows };
 }
 
-export function parseBotToken(token: string): { botId: string; valid: boolean } {
+export function parseBotToken(token: string): {
+  botId: string;
+  valid: boolean;
+} {
   const parts = token.split(":");
   if (parts.length !== 2 || !parts[0] || !parts[1]) {
     return { botId: "", valid: false };

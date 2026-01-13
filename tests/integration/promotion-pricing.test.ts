@@ -7,7 +7,7 @@ const TEST_APP_ID = process.env.TEST_APP_ID || "test-app-id";
 async function fetchWithAuth(
   endpoint: string,
   method: "GET" | "POST" | "DELETE" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
   return fetch(`${SERVER_URL}${endpoint}`, {
     method,
@@ -140,17 +140,19 @@ describe("Promotion Pricing Constants", () => {
   });
 
   test("PROMO_IMAGE_COST includes 20% markup", async () => {
-    const { PROMO_IMAGE_COST, PLATFORM_MARKUP } = await import(
-      "@/lib/promotion-pricing"
-    );
+    const { PROMO_IMAGE_COST, PLATFORM_MARKUP } =
+      await import("@/lib/promotion-pricing");
     const { IMAGE_GENERATION_COST } = await import("@/lib/pricing-constants");
 
     expect(PROMO_IMAGE_COST).toBe(IMAGE_GENERATION_COST * PLATFORM_MARKUP);
   });
 
   test("estimateAssetGenerationCost returns correct values", async () => {
-    const { estimateAssetGenerationCost, PROMO_IMAGE_COST, AD_COPY_GENERATION_COST } =
-      await import("@/lib/promotion-pricing");
+    const {
+      estimateAssetGenerationCost,
+      PROMO_IMAGE_COST,
+      AD_COPY_GENERATION_COST,
+    } = await import("@/lib/promotion-pricing");
 
     // Default: 1 image + 1 banner + copy
     const estimate = estimateAssetGenerationCost({});

@@ -29,14 +29,18 @@ const SocialPlatformSchema = z.enum([
 ]);
 
 const PromotionConfigSchema = z.object({
-  channels: z.array(z.enum([
-    "social",
-    "seo",
-    "advertising",
-    "twitter_automation",
-    "telegram_automation",
-    "discord_automation",
-  ])).min(1),
+  channels: z
+    .array(
+      z.enum([
+        "social",
+        "seo",
+        "advertising",
+        "twitter_automation",
+        "telegram_automation",
+        "discord_automation",
+      ]),
+    )
+    .min(1),
   social: z
     .object({
       platforms: z.array(SocialPlatformSchema).min(1),
@@ -167,7 +171,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  if (config.channels.includes("twitter_automation") && !config.twitterAutomation) {
+  if (
+    config.channels.includes("twitter_automation") &&
+    !config.twitterAutomation
+  ) {
     return NextResponse.json(
       {
         error:
@@ -177,7 +184,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  if (config.channels.includes("telegram_automation") && !config.telegramAutomation) {
+  if (
+    config.channels.includes("telegram_automation") &&
+    !config.telegramAutomation
+  ) {
     return NextResponse.json(
       {
         error:
@@ -187,7 +197,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  if (config.channels.includes("discord_automation") && !config.discordAutomation) {
+  if (
+    config.channels.includes("discord_automation") &&
+    !config.discordAutomation
+  ) {
     return NextResponse.json(
       {
         error:

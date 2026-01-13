@@ -606,7 +606,7 @@ export class AppsRepository {
       url: string;
       size: { width: number; height: number };
       generatedAt: string;
-    }
+    },
   ): Promise<App | undefined> {
     const [updated] = await dbWrite
       .update(apps)
@@ -627,7 +627,7 @@ export class AppsRepository {
    */
   async removePromotionalAsset(
     appId: string,
-    assetUrl: string
+    assetUrl: string,
   ): Promise<{ app: App | undefined; removedAsset: unknown }> {
     // First get the asset we're about to remove (for blob cleanup)
     const app = await this.findById(appId);

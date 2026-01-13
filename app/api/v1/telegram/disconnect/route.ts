@@ -15,7 +15,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    await telegramAutomationService.removeCredentials(user.organization_id, user.id);
+    await telegramAutomationService.removeCredentials(
+      user.organization_id,
+      user.id,
+    );
 
     logger.info("[Telegram Disconnect] Bot disconnected successfully", {
       organizationId: user.organization_id,

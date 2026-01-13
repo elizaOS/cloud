@@ -76,7 +76,8 @@ function LoginPageContent() {
       // Get the return URL from search params, default to dashboard
       const returnTo = searchParams.get("returnTo");
       // Validate returnTo is a relative path (security: prevent open redirects)
-      const isValidReturnTo = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//");
+      const isValidReturnTo =
+        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//");
       const redirectUrl = isValidReturnTo ? returnTo : "/dashboard";
 
       // Small delay to ensure the sync message is visible

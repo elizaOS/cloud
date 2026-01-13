@@ -17,7 +17,7 @@ class TelegramChatsRepository {
 
   async findByChatId(
     organizationId: string,
-    chatId: number
+    chatId: number,
   ): Promise<TelegramChat | undefined> {
     const results = await dbRead
       .select()
@@ -25,8 +25,8 @@ class TelegramChatsRepository {
       .where(
         and(
           eq(telegramChats.organization_id, organizationId),
-          eq(telegramChats.chat_id, chatId)
-        )
+          eq(telegramChats.chat_id, chatId),
+        ),
       )
       .limit(1);
     return results[0];
@@ -35,7 +35,7 @@ class TelegramChatsRepository {
   async upsert(data: NewTelegramChat): Promise<TelegramChat> {
     const existing = await this.findByChatId(
       data.organization_id,
-      data.chat_id
+      data.chat_id,
     );
 
     if (existing) {
@@ -67,8 +67,8 @@ class TelegramChatsRepository {
       .where(
         and(
           eq(telegramChats.organization_id, organizationId),
-          eq(telegramChats.chat_id, chatId)
-        )
+          eq(telegramChats.chat_id, chatId),
+        ),
       );
   }
 

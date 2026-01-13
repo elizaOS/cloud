@@ -95,7 +95,7 @@ class AppPromotionAssetsService {
 
     // Block private IPv4 ranges
     const ipParts = hostname.split(".");
-    if (ipParts.length === 4 && ipParts.every(p => /^\d+$/.test(p))) {
+    if (ipParts.length === 4 && ipParts.every((p) => /^\d+$/.test(p))) {
       const first = parseInt(ipParts[0], 10);
       const second = parseInt(ipParts[1], 10);
 
@@ -155,7 +155,7 @@ class AppPromotionAssetsService {
           },
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout")), 10_000)
+          setTimeout(() => reject(new Error("Timeout")), 10_000),
         ),
       ]);
 
@@ -174,24 +174,24 @@ class AppPromotionAssetsService {
       if (titleMatch) context.title = titleMatch[1].trim();
 
       const descMatch = html.match(
-        /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i
+        /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i,
       );
       if (descMatch) context.description = descMatch[1].trim();
 
       const ogDescMatch = html.match(
-        /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i
+        /<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i,
       );
       if (ogDescMatch && !context.description) {
         context.description = ogDescMatch[1].trim();
       }
 
       const ogImageMatch = html.match(
-        /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i
+        /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
       );
       if (ogImageMatch) context.ogImage = ogImageMatch[1].trim();
 
       const keywordsMatch = html.match(
-        /<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i
+        /<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i,
       );
       if (keywordsMatch) {
         context.keywords = keywordsMatch[1]
@@ -318,7 +318,7 @@ class AppPromotionAssetsService {
   async generateSocialCard(
     app: App,
     size: AdSize = "twitter_card",
-    customPrompt?: string
+    customPrompt?: string,
   ): Promise<GeneratedAsset | null> {
     const dimensions = AD_SIZES[size];
 
@@ -407,7 +407,7 @@ class AppPromotionAssetsService {
           appId: app.id,
           size,
           streamError,
-        }
+        },
       );
       return null;
     }
@@ -427,7 +427,7 @@ class AppPromotionAssetsService {
       {
         access: "public",
         contentType: "image/png",
-      }
+      },
     );
 
     if (!blob.url) {
@@ -458,14 +458,14 @@ class AppPromotionAssetsService {
    */
   async generateAdBanners(
     app: App,
-    sizes: AdSize[]
+    sizes: AdSize[],
   ): Promise<GeneratedAsset[]> {
     const results = await Promise.all(
       sizes.map(async (size) => {
         const asset = await this.generateSocialCard(app, size);
         if (!asset) return null;
         return { ...asset, type: "banner" } as GeneratedAsset;
-      })
+      }),
     );
     return results.filter((a): a is GeneratedAsset => a !== null);
   }
@@ -480,7 +480,7 @@ class AppPromotionAssetsService {
       | "professional"
       | "casual"
       | "exciting"
-      | "informative" = "professional"
+      | "informative" = "professional",
   ): Promise<AdCopyVariants> {
     // Detect app category for better copy
     const description = (app.description || "").toLowerCase();
@@ -569,7 +569,7 @@ Return ONLY valid JSON. No markdown, no explanation.`;
       includeCopy?: boolean;
       targetAudience?: string;
       customPrompt?: string; // Optional user-provided context for image generation
-    } = {}
+    } = {},
   ): Promise<{
     assets: GeneratedAsset[];
     copy?: AdCopyVariants;
@@ -584,13 +584,13 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         this.generateSocialCard(
           app,
           "twitter_card",
-          options.customPrompt
+          options.customPrompt,
         ).catch((err) => {
           errors.push(
-            `Failed to generate social card: ${extractErrorMessage(err)}`
+            `Failed to generate social card: ${extractErrorMessage(err)}`,
           );
           return null;
-        })
+        }),
       );
     }
 
@@ -599,14 +599,14 @@ Return ONLY valid JSON. No markdown, no explanation.`;
       imagePromises.push(
         this.generateSocialCard(app, "instagram_square", options.customPrompt)
           .then((asset) =>
-            asset ? ({ ...asset, type: "banner" } as GeneratedAsset) : null
+            asset ? ({ ...asset, type: "banner" } as GeneratedAsset) : null,
           )
           .catch((err) => {
             errors.push(
-              `Failed to generate banner: ${extractErrorMessage(err)}`
+              `Failed to generate banner: ${extractErrorMessage(err)}`,
             );
             return null;
-          })
+          }),
       );
     }
 
@@ -642,7 +642,7 @@ Return ONLY valid JSON. No markdown, no explanation.`;
     app: App,
     size: AdSize,
     websiteContext: WebsiteContext = {},
-    customPrompt?: string
+    customPrompt?: string,
   ): string {
     const dimensions = AD_SIZES[size];
     const aspectRatio = dimensions.width / dimensions.height;
@@ -864,7 +864,7 @@ Make it look like a premium tech company's marketing material that would appear 
   }
 
   getRecommendedSizes(
-    platform: "meta" | "google" | "twitter" | "linkedin"
+    platform: "meta" | "google" | "twitter" | "linkedin",
   ): AdSize[] {
     const recommendations: Record<string, AdSize[]> = {
       meta: [

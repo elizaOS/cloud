@@ -120,17 +120,17 @@ export class DebugTraceRenderer {
     lines.push(`- **Mode**: ${trace.agentMode.toUpperCase()}`);
     lines.push(`- **Duration**: ${formatDuration(trace.durationMs ?? 0)}`);
     lines.push(
-      `- **Iterations**: ${trace.summary.iterationCount}/${trace.summary.maxIterations}`
+      `- **Iterations**: ${trace.summary.iterationCount}/${trace.summary.maxIterations}`,
     );
     lines.push(
-      `- **Actions**: ${trace.summary.totalActions} executed, ${trace.summary.failedActions} failed`
+      `- **Actions**: ${trace.summary.totalActions} executed, ${trace.summary.failedActions} failed`,
     );
     lines.push(`- **Model Calls**: ${trace.summary.totalModelCalls}`);
     lines.push(
-      `- **Tokens**: ~${trace.summary.totalPromptTokens} prompt, ~${trace.summary.totalResponseTokens} response`
+      `- **Tokens**: ~${trace.summary.totalPromptTokens} prompt, ~${trace.summary.totalResponseTokens} response`,
     );
     lines.push(
-      `- **Parse Failures**: ${trace.summary.parseFailures}/${trace.summary.parseAttempts}`
+      `- **Parse Failures**: ${trace.summary.parseFailures}/${trace.summary.parseAttempts}`,
     );
     lines.push("");
 
@@ -162,21 +162,21 @@ export class DebugTraceRenderer {
         case "state_composition": {
           const data = step.data as StateCompositionStepData;
           lines.push(
-            `${relTime}${stepIdx}State composed (${data.requestedProviders.length} providers, ${formatDuration(data.durationMs)})`
+            `${relTime}${stepIdx}State composed (${data.requestedProviders.length} providers, ${formatDuration(data.durationMs)})`,
           );
           break;
         }
         case "prompt_composition": {
           const data = step.data as PromptCompositionStepData;
           lines.push(
-            `${relTime}${stepIdx}Prompt: **${data.purpose}** (~${data.estimatedTokens} tokens)`
+            `${relTime}${stepIdx}Prompt: **${data.purpose}** (~${data.estimatedTokens} tokens)`,
           );
           break;
         }
         case "model_call": {
           const data = step.data as ModelCallStepData;
           lines.push(
-            `${relTime}${stepIdx}Model: ${data.modelType} (${formatDuration(data.durationMs)}) -> ~${data.responseTokensEstimate} tokens`
+            `${relTime}${stepIdx}Model: ${data.modelType} (${formatDuration(data.durationMs)}) -> ~${data.responseTokensEstimate} tokens`,
           );
           break;
         }
@@ -190,7 +190,7 @@ export class DebugTraceRenderer {
           const data = step.data as ActionExecutionStepData;
           const status = data.result.success ? "✅" : "❌";
           lines.push(
-            `${relTime}${stepIdx}Action: **${data.actionName}** ${status} (${formatDuration(data.durationMs)})`
+            `${relTime}${stepIdx}Action: **${data.actionName}** ${status} (${formatDuration(data.durationMs)})`,
           );
           break;
         }
@@ -229,11 +229,11 @@ export class DebugTraceRenderer {
     lines.push("");
 
     const promptSteps = trace.steps.filter(
-      (s) => s.data.type === "prompt_composition"
+      (s) => s.data.type === "prompt_composition",
     );
     const modelSteps = trace.steps.filter((s) => s.data.type === "model_call");
     const parseSteps = trace.steps.filter(
-      (s) => s.data.type === "parse_result"
+      (s) => s.data.type === "parse_result",
     );
 
     let promptIdx = 0;
@@ -241,7 +241,9 @@ export class DebugTraceRenderer {
       const data = step.data as PromptCompositionStepData;
       promptIdx++;
 
-      lines.push(`## Prompt ${promptIdx}: ${data.purpose} (Iteration ${data.iteration})`);
+      lines.push(
+        `## Prompt ${promptIdx}: ${data.purpose} (Iteration ${data.iteration})`,
+      );
       lines.push("");
       lines.push(`**Template**: \`${data.templateName}\``);
       lines.push(`**Estimated Tokens**: ~${data.estimatedTokens}`);
@@ -257,26 +259,24 @@ export class DebugTraceRenderer {
       const modelStep = modelSteps.find(
         (s) =>
           (s.data as ModelCallStepData).iteration === data.iteration &&
-          (s.data as ModelCallStepData).purpose === data.purpose
+          (s.data as ModelCallStepData).purpose === data.purpose,
       );
 
       if (modelStep && opts.includeRawResponses) {
         const modelData = modelStep.data as ModelCallStepData;
         lines.push("### Model Response");
         lines.push(
-          `**Model**: ${modelData.modelType} | **Duration**: ${formatDuration(modelData.durationMs)}`
+          `**Model**: ${modelData.modelType} | **Duration**: ${formatDuration(modelData.durationMs)}`,
         );
         lines.push("```");
-        lines.push(
-          truncate(modelData.response, opts.maxPromptLength ?? 1000)
-        );
+        lines.push(truncate(modelData.response, opts.maxPromptLength ?? 1000));
         lines.push("```");
         lines.push("");
       }
 
       // Find parse result
       const parseStep = parseSteps.find(
-        (s) => (s.data as ParseResultStepData).iteration === data.iteration
+        (s) => (s.data as ParseResultStepData).iteration === data.iteration,
       );
 
       if (parseStep) {
@@ -313,7 +313,7 @@ export class DebugTraceRenderer {
     lines.push("");
 
     const actionSteps = trace.steps.filter(
-      (s) => s.data.type === "action_execution"
+      (s) => s.data.type === "action_execution",
     );
 
     if (actionSteps.length === 0) {
@@ -329,7 +329,9 @@ export class DebugTraceRenderer {
       lines.push(`## Action ${actionIdx}: ${data.actionName}`);
       lines.push("");
       lines.push(`**Iteration**: ${data.iteration}`);
-      lines.push(`**Result**: ${successEmoji(data.result.success)} ${data.result.success ? "Success" : "Failed"}`);
+      lines.push(
+        `**Result**: ${successEmoji(data.result.success)} ${data.result.success ? "Success" : "Failed"}`,
+      );
       lines.push(`**Duration**: ${formatDuration(data.durationMs)}`);
       lines.push("");
 
@@ -396,7 +398,7 @@ export class DebugTraceRenderer {
       lines.push("");
       lines.push(`**Step**: ${failure.stepIndex}`);
       lines.push(
-        `**Time**: ${formatRelativeTime(failure.timestamp, trace.startedAt)}`
+        `**Time**: ${formatRelativeTime(failure.timestamp, trace.startedAt)}`,
       );
       lines.push("");
 
@@ -464,7 +466,7 @@ export class DebugTraceRenderer {
 export function renderDebugTrace(
   trace: DebugTrace,
   view: DebugRenderView = "summary",
-  options?: Partial<Omit<DebugTraceRenderOptions, "view">>
+  options?: Partial<Omit<DebugTraceRenderOptions, "view">>,
 ): string {
   const renderer = new DebugTraceRenderer(trace);
   return renderer.render({ ...options, view });

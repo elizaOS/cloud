@@ -8,7 +8,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const chats = await telegramChatsRepository.findByOrganization(
-    user.organization_id
+    user.organization_id,
   );
 
   return NextResponse.json({

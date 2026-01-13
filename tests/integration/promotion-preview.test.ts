@@ -38,7 +38,9 @@ async function fetchWithAuth(
 // Validate API key before running tests
 beforeAll(async () => {
   if (!API_KEY) {
-    console.log("[Promotion Preview Tests] No TEST_API_KEY set - auth tests will skip");
+    console.log(
+      "[Promotion Preview Tests] No TEST_API_KEY set - auth tests will skip",
+    );
     return;
   }
 
@@ -47,7 +49,9 @@ beforeAll(async () => {
   apiKeyValid = res.status !== 401;
 
   if (!apiKeyValid) {
-    console.log("[Promotion Preview Tests] TEST_API_KEY is invalid - auth tests will skip");
+    console.log(
+      "[Promotion Preview Tests] TEST_API_KEY is invalid - auth tests will skip",
+    );
   } else {
     console.log("[Promotion Preview Tests] TEST_API_KEY is valid");
   }
@@ -57,11 +61,14 @@ describe("Promotion Preview API", () => {
   const FAKE_APP_ID = "00000000-0000-0000-0000-000000000000";
 
   test("returns 401 without auth", async () => {
-    const res = await fetch(`${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/promote/preview`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platforms: ["discord"], count: 1 }),
-    });
+    const res = await fetch(
+      `${SERVER_URL}/api/v1/apps/${FAKE_APP_ID}/promote/preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platforms: ["discord"], count: 1 }),
+      },
+    );
     expect(res.status).toBe(401);
   });
 
@@ -160,7 +167,7 @@ describe("Promotion Preview API", () => {
 
     // Test that valid platform names are accepted (will fail at 404 for fake app)
     const validPlatforms = ["discord", "telegram", "twitter"];
-    
+
     for (const platform of validPlatforms) {
       const res = await fetchWithAuth(
         `/api/v1/apps/${FAKE_APP_ID}/promote/preview`,

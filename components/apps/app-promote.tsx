@@ -93,7 +93,7 @@ interface SocialConnectionStatus {
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
-    null
+    null,
   );
   const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
     configured: false,
@@ -256,7 +256,7 @@ export function AppPromote({ app }: AppPromoteProps) {
 
       if (!response.ok) {
         toast.error(
-          data.error || "Failed to generate assets. Please try again."
+          data.error || "Failed to generate assets. Please try again.",
         );
         setIsGeneratingAssets(false);
         return;
@@ -276,11 +276,11 @@ export function AppPromote({ app }: AppPromoteProps) {
       // Show success with details
       if (data.errors?.length > 0) {
         toast.warning(
-          `Generated ${assetCount} assets with some errors: ${data.errors.join(", ")}`
+          `Generated ${assetCount} assets with some errors: ${data.errors.join(", ")}`,
         );
       } else {
         toast.success(
-          `Generated ${assetCount} promotional assets${hasCopy ? " and ad copy" : ""}`
+          `Generated ${assetCount} promotional assets${hasCopy ? " and ad copy" : ""}`,
         );
       }
 
@@ -293,7 +293,7 @@ export function AppPromote({ app }: AppPromoteProps) {
   };
 
   const handlePostNow = async (
-    platform: "discord" | "telegram" | "twitter"
+    platform: "discord" | "telegram" | "twitter",
   ) => {
     if (isPostingTo) return;
     setIsPostingTo(platform);
@@ -314,7 +314,7 @@ export function AppPromote({ app }: AppPromoteProps) {
 
       if (response.ok && data.success) {
         toast.success(
-          `Posted to ${platform.charAt(0).toUpperCase() + platform.slice(1)} successfully!`
+          `Posted to ${platform.charAt(0).toUpperCase() + platform.slice(1)} successfully!`,
         );
         // Update local post count
         setTotalSocialPosts((prev) => prev + 1);

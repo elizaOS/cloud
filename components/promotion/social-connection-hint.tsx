@@ -11,13 +11,7 @@
 import { useState, useEffect } from "react";
 import { BrandCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import {
-  X,
-  ArrowRight,
-  Bot,
-  MessageSquare,
-  Sparkles,
-} from "lucide-react";
+import { X, ArrowRight, Bot, MessageSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 const STORAGE_KEY_DISCORD = "eliza_dismiss_discord_hint";
@@ -144,8 +138,9 @@ export function SocialConnectionHint({
                 Connect Discord for Automated Promotion
               </h3>
               <p className="text-white/60 text-sm mb-3">
-                Add our bot to your Discord server to post AI-generated announcements,
-                share updates, and engage your community automatically.
+                Add our bot to your Discord server to post AI-generated
+                announcements, share updates, and engage your community
+                automatically.
               </p>
               <div className="flex items-center gap-3">
                 <Button
@@ -188,8 +183,8 @@ export function SocialConnectionHint({
                 Connect Telegram Bot for Announcements
               </h3>
               <p className="text-white/60 text-sm mb-3">
-                Create a Telegram bot to post announcements to your channels and groups,
-                auto-reply to messages, and welcome new members.
+                Create a Telegram bot to post announcements to your channels and
+                groups, auto-reply to messages, and welcome new members.
               </p>
               <div className="flex items-center gap-3">
                 <Button

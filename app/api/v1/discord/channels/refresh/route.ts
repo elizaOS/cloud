@@ -26,16 +26,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   // Verify the guild belongs to this organization
   const guild = await discordAutomationService.getGuild(
     user.organization_id,
-    body.guildId
+    body.guildId,
   );
   if (!guild) {
     return NextResponse.json({ error: "Guild not found" }, { status: 404 });
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const channels = await discordAutomationService.refreshChannels(
     user.organization_id,
-    body.guildId
+    body.guildId,
   );
 
   return NextResponse.json({

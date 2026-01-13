@@ -55,7 +55,7 @@ class TelegramAppAutomationService {
    */
   private async getAppForOrg(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -70,7 +70,7 @@ class TelegramAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: TelegramAutomationConfig
+    config: TelegramAutomationConfig,
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
@@ -78,12 +78,12 @@ class TelegramAppAutomationService {
       await telegramAutomationService.isConfigured(organizationId);
     if (!isConnected) {
       throw new Error(
-        "Telegram bot not connected. Connect a bot in Settings first."
+        "Telegram bot not connected. Connect a bot in Settings first.",
       );
     }
 
     const currentConfig = getTelegramConfigWithDefaults(
-      app.telegram_automation as Record<string, unknown> | null
+      app.telegram_automation as Record<string, unknown> | null,
     );
 
     const updatedConfig = {
@@ -112,7 +112,7 @@ class TelegramAppAutomationService {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const currentConfig = getTelegramConfigWithDefaults(
-      app.telegram_automation as Record<string, unknown> | null
+      app.telegram_automation as Record<string, unknown> | null,
     );
 
     const updatedApp = await appsRepository.update(appId, {
@@ -135,7 +135,7 @@ class TelegramAppAutomationService {
    */
   async getAutomationStatus(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<TelegramAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
     const connectionStatus =
@@ -164,7 +164,7 @@ class TelegramAppAutomationService {
 
   async generateAnnouncement(
     organizationId: string,
-    app: App
+    app: App,
   ): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -175,7 +175,7 @@ class TelegramAppAutomationService {
 
     if (!deduction.success) {
       throw new Error(
-        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`
+        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`,
       );
     }
 
@@ -215,7 +215,7 @@ Maximum 500 characters.`;
     organizationId: string,
     app: App,
     userMessage: string,
-    userName?: string
+    userName?: string,
   ): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -226,7 +226,7 @@ Maximum 500 characters.`;
 
     if (!deduction.success) {
       throw new Error(
-        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`
+        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`,
       );
     }
 
@@ -275,7 +275,7 @@ Maximum 300 characters.`;
       (a) =>
         a.url &&
         (a.size.width === a.size.height || // Square
-          a.type === "banner")
+          a.type === "banner"),
     );
     if (preferred?.url) return preferred.url;
 
@@ -293,7 +293,7 @@ Maximum 300 characters.`;
     organizationId: string,
     appId: string,
     text?: string,
-    chatIdOverride?: string
+    chatIdOverride?: string,
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.telegram_automation;
@@ -345,7 +345,7 @@ Maximum 300 characters.`;
             reply_markup: replyMarkup,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Telegram API timeout")), 25_000)
+            setTimeout(() => reject(new Error("Telegram API timeout")), 25_000),
           ),
         ]);
 
@@ -361,7 +361,7 @@ Maximum 300 characters.`;
         // No image - send text message as before
         const chunks = splitMessage(
           messageText,
-          TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH
+          TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH,
         );
 
         for (const chunk of chunks) {
@@ -381,8 +381,8 @@ Maximum 300 characters.`;
             new Promise<never>((_, reject) =>
               setTimeout(
                 () => reject(new Error("Telegram API timeout")),
-                25_000
-              )
+                25_000,
+              ),
             ),
           ]);
 
@@ -442,7 +442,7 @@ Maximum 300 characters.`;
       text: string;
       userName?: string;
       replyToMessageId?: number;
-    }
+    },
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.telegram_automation;
@@ -461,7 +461,7 @@ Maximum 300 characters.`;
       organizationId,
       app,
       message.text,
-      message.userName
+      message.userName,
     );
 
     const bot = new Telegraf(botToken);
@@ -472,7 +472,7 @@ Maximum 300 characters.`;
           reply_parameters: { message_id: message.messageId },
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Telegram API timeout")), 25_000)
+          setTimeout(() => reject(new Error("Telegram API timeout")), 25_000),
         ),
       ]);
 
@@ -534,9 +534,11 @@ Maximum 300 characters.`;
 
     // Use a random interval between min and max for natural timing
     const minInterval =
-      config.announceIntervalMin || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMin;
+      config.announceIntervalMin ||
+      TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMin;
     const maxInterval =
-      config.announceIntervalMax || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMax;
+      config.announceIntervalMax ||
+      TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMax;
     const targetInterval =
       minInterval + Math.random() * (maxInterval - minInterval);
 

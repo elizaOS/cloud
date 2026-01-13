@@ -25,7 +25,10 @@ interface PromotionalAsset {
  * @param formData - Form data containing the image file.
  * @returns Success status with the uploaded asset info, or error details.
  */
-export async function uploadPromotionalAsset(appId: string, formData: FormData) {
+export async function uploadPromotionalAsset(
+  appId: string,
+  formData: FormData,
+) {
   try {
     const user = await requireAuthWithOrg();
     const file = formData.get("file") as File;
@@ -36,7 +39,10 @@ export async function uploadPromotionalAsset(appId: string, formData: FormData) 
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      return { success: false, error: "Invalid file type. Please upload an image." };
+      return {
+        success: false,
+        error: "Invalid file type. Please upload an image.",
+      };
     }
 
     // Validate file size (max 10MB)
@@ -114,7 +120,7 @@ export async function deletePromotionalAsset(appId: string, assetUrl: string) {
     // Atomically remove the asset (avoids race conditions)
     const { removedAsset } = await appsRepository.removePromotionalAsset(
       appId,
-      assetUrl
+      assetUrl,
     );
 
     if (!removedAsset) {
@@ -132,7 +138,10 @@ export async function deletePromotionalAsset(appId: string, assetUrl: string) {
         });
       } catch (blobError) {
         // Log but don't fail - the database is already updated
-        logger.warn("[Apps Action] Failed to delete blob, continuing:", blobError);
+        logger.warn(
+          "[Apps Action] Failed to delete blob, continuing:",
+          blobError,
+        );
       }
     }
 

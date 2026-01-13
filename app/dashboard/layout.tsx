@@ -54,7 +54,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (ready && !authenticated && !isFreeModePath) {
       // Build login URL with returnTo parameter to preserve intended destination
-      const returnTo = encodeURIComponent(pathname + (typeof window !== "undefined" ? window.location.search : ""));
+      const returnTo = encodeURIComponent(
+        pathname +
+          (typeof window !== "undefined" ? window.location.search : ""),
+      );
       router.replace(`/login?returnTo=${returnTo}`);
     }
   }, [ready, authenticated, isFreeModePath, router, pathname]);
@@ -120,7 +123,11 @@ export default function DashboardLayout({
 
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <div className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}>{children}</div>
+              <div
+                className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}
+              >
+                {children}
+              </div>
             </main>
           </div>
         </div>

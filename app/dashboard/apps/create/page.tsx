@@ -137,11 +137,13 @@ const ChatMessage = memo(function ChatMessage({
   sendPrompt,
 }: ChatMessageProps) {
   const isProcessing = !!msg._thinkingId;
-  const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
-    hour12: true,
-    hour: "numeric",
-    minute: "2-digit",
-  }).toLowerCase();
+  const msgTime = new Date(msg.timestamp)
+    .toLocaleTimeString("en-US", {
+      hour12: true,
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    .toLowerCase();
 
   return (
     <div
@@ -160,7 +162,7 @@ const ChatMessage = memo(function ChatMessage({
         {isProcessing && (
           <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10 animate-pulse" />
         )}
-        
+
         <div className="flex items-center justify-between mb-2 xl:mb-2.5">
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
@@ -177,7 +179,7 @@ const ChatMessage = memo(function ChatMessage({
                     ? "text-[#FF5800]/70"
                     : "text-white/40"
               }`}
-              style={{ fontFamily: 'var(--font-sf-pro)' }}
+              style={{ fontFamily: "var(--font-sf-pro)" }}
             >
               {msg.role === "user"
                 ? "You"
@@ -214,7 +216,9 @@ const ChatMessage = memo(function ChatMessage({
                     disabled={status !== "ready"}
                     className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation"
                   >
-                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">{prompt}</span>
+                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">
+                      {prompt}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -401,9 +405,7 @@ export default function AppCreatorPage() {
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection for the app
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(
-    [],
-  );
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [availableAgents, setAvailableAgents] = useState<
     Array<{
       id: string;
@@ -755,7 +757,11 @@ export default function AppCreatorPage() {
 
   // Additional scroll on initialization complete (handles page refresh)
   useEffect(() => {
-    if (!isInitializing && messages.length > 0 && messagesContainerRef.current) {
+    if (
+      !isInitializing &&
+      messages.length > 0 &&
+      messagesContainerRef.current
+    ) {
       // Delay scroll to ensure layout is complete after initialization
       const timeoutId = setTimeout(() => {
         if (messagesContainerRef.current) {
@@ -776,11 +782,16 @@ export default function AppCreatorPage() {
 
   // Auto-scroll to bottom when switching to console tab
   useEffect(() => {
-    if (previewTab === "console" && consoleLogsRef.current && consoleLogs.length > 0) {
+    if (
+      previewTab === "console" &&
+      consoleLogsRef.current &&
+      consoleLogs.length > 0
+    ) {
       // Use setTimeout to ensure DOM has rendered
       setTimeout(() => {
         if (consoleLogsRef.current) {
-          consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
+          consoleLogsRef.current.scrollTop =
+            consoleLogsRef.current.scrollHeight;
         }
       }, 0);
     }
@@ -1673,19 +1684,23 @@ Some ideas:
                 // Note: Not logging individual chunks - shown in UI only
 
                 // Update the thinking message with accumulated reasoning using throttled updates
-                if (initialThinkingIdRef.current && initialThinkingStreamIdRef.current && reasoningText) {
+                if (
+                  initialThinkingIdRef.current &&
+                  initialThinkingStreamIdRef.current &&
+                  reasoningText
+                ) {
                   const thinkingId = initialThinkingIdRef.current;
                   const streamId = initialThinkingStreamIdRef.current;
-                  
+
                   // Accumulate chunk in buffer
                   accumulateThinkingChunk(streamId, reasoningText);
-                  
+
                   // Schedule throttled UI update
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
                     setMessages((prev) =>
                       prev.map((m) =>
-                        (m as Message & { _thinkingId?: number })._thinkingId ===
-                        thinkingId
+                        (m as Message & { _thinkingId?: number })
+                          ._thinkingId === thinkingId
                           ? {
                               ...m,
                               content: `**Setting up ${appName}**\n\n💭 ${accumulatedText}\n\n---\n\n*Thinking...*`,
@@ -1727,15 +1742,17 @@ Some ideas:
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
                   const streamId = initialThinkingStreamIdRef.current;
-                  const accumulatedThinking = streamId ? getThinkingText(streamId) : "";
-                  
+                  const accumulatedThinking = streamId
+                    ? getThinkingText(streamId)
+                    : "";
+
                   let progressContent = `**Setting up ${appName}**\n\n`;
-                  
+
                   // Include accumulated thinking text if available
                   if (accumulatedThinking) {
                     progressContent += `💭 ${accumulatedThinking}\n\n`;
                   }
-                  
+
                   progressContent += `---\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
@@ -1978,9 +1995,13 @@ Some ideas:
       // Reads from throttled buffer to ensure we always have the latest accumulated text
       const updateThinking = (currentStatus?: string) => {
         // Get latest accumulated text from throttled buffer (may be ahead of currentReasoning)
-        const latestReasoning = getThinkingText(thinkingStreamId) || currentReasoning;
+        const latestReasoning =
+          getThinkingText(thinkingStreamId) || currentReasoning;
         currentReasoning = latestReasoning; // Keep local in sync
-        const content = buildLocalProgressContent(latestReasoning, currentStatus);
+        const content = buildLocalProgressContent(
+          latestReasoning,
+          currentStatus,
+        );
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -2514,9 +2535,9 @@ ANTHROPIC_API_KEY=your_key_here`}
           {/* Secondary orb */}
           <div
             className="absolute bottom-1/4 -right-20 w-56 md:w-80 h-56 md:h-80 rounded-full blur-[100px] opacity-15 animate-liquid-orb"
-            style={{ 
+            style={{
               backgroundColor: selectedTemplate?.color || "#8B5CF6",
-              animationDelay: "-3s"
+              animationDelay: "-3s",
             }}
           />
           {/* Accent glow */}
@@ -2525,12 +2546,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             style={{ backgroundColor: "#FF5800" }}
           />
           {/* Subtle grid overlay */}
-          <div 
+          <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
               backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
                                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-              backgroundSize: '60px 60px'
+              backgroundSize: "60px 60px",
             }}
           />
         </div>
@@ -2553,10 +2574,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-lg md:text-xl font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+                  <h1
+                    className="text-lg md:text-xl font-bold tracking-tight text-white"
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                  >
                     App Creator
                   </h1>
-                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">Build something amazing</p>
+                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">
+                    Build something amazing
+                  </p>
                 </div>
               </div>
             </div>
@@ -2625,7 +2651,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       className={`text-sm font-medium transition-colors ${
                         setupStep === s.num ? "text-white" : ""
                       }`}
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       {s.label}
                     </span>
@@ -2633,8 +2659,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {i < 3 && (
                     <div
                       className={`w-6 h-[2px] mx-0.5 rounded-full transition-all duration-500 ${
-                        setupStep > s.num 
-                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50" 
+                        setupStep > s.num
+                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50"
                           : "bg-white/[0.06]"
                       }`}
                     />
@@ -2692,9 +2718,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                     {/* Header row with title and navigation */}
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 animate-stagger-fade stagger-1">
                       <div>
-                        <h2 
+                        <h2
                           className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                          style={{ fontFamily: 'var(--font-sf-pro)' }}
+                          style={{ fontFamily: "var(--font-sf-pro)" }}
                         >
                           What are you building?
                         </h2>
@@ -2775,8 +2801,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                                 />
                                 <div
                                   className="absolute inset-[1px] rounded-2xl md:rounded-3xl opacity-10 -z-10"
-                                  style={{ 
-                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`
+                                  style={{
+                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`,
                                   }}
                                 />
                               </>
@@ -2801,7 +2827,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                                 }`}
                               >
                                 {isSelected && (
-                                  <Check className="h-3 w-3 md:h-3.5 md:w-3.5 text-white" strokeWidth={3} />
+                                  <Check
+                                    className="h-3 w-3 md:h-3.5 md:w-3.5 text-white"
+                                    strokeWidth={3}
+                                  />
                                 )}
                               </div>
                             )}
@@ -2835,9 +2864,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                             </div>
 
                             {/* Content */}
-                            <h3 
+                            <h3
                               className="text-sm md:text-lg font-bold text-white mb-1 md:mb-1.5 pr-8 tracking-tight"
-                              style={{ fontFamily: 'var(--font-sf-pro)' }}
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
                             >
                               {template.label}
                             </h3>
@@ -2873,7 +2902,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                                   >
                                     {tech}
                                     {i < template.techStack.length - 1 && (
-                                      <span className="ml-3 text-white/15">•</span>
+                                      <span className="ml-3 text-white/15">
+                                        •
+                                      </span>
                                     )}
                                   </span>
                                 ))}
@@ -2889,17 +2920,21 @@ ANTHROPIC_API_KEY=your_key_here`}
                       <div className="text-center md:text-left">
                         {selectedTemplate ? (
                           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-                            <selectedTemplate.icon 
-                              className="h-3.5 w-3.5" 
+                            <selectedTemplate.icon
+                              className="h-3.5 w-3.5"
                               style={{ color: selectedTemplate.color }}
                             />
-                            <span className="text-xs text-white/50">Selected:</span>
+                            <span className="text-xs text-white/50">
+                              Selected:
+                            </span>
                             <span className="text-xs text-white/80 font-medium">
                               {selectedTemplate.label}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-sm text-white/35">Select a template to continue</p>
+                          <p className="text-sm text-white/35">
+                            Select a template to continue
+                          </p>
                         )}
                       </div>
                       <button
@@ -2910,7 +2945,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ?.comingSoon
                         }
                         className="btn-premium group relative flex items-center justify-center gap-2.5 px-8 md:px-10 py-3 md:py-3.5 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm md:text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                        style={{ fontFamily: 'var(--font-sf-pro)' }}
+                        style={{ fontFamily: "var(--font-sf-pro)" }}
                       >
                         <span className="relative z-10 flex items-center gap-2">
                           Continue
@@ -2932,9 +2967,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Name your creation
                     </h2>
@@ -2945,9 +2980,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Selected template preview - Premium pill */}
                   {selectedTemplate && (
                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -2971,7 +3008,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App Name - Premium input */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">App Name</Label>
+                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
+                        App Name
+                      </Label>
                       <span
                         className={`text-[10px] font-mono transition-colors ${
                           appName.length > 100
@@ -2990,7 +3029,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       placeholder="My Awesome App"
                       className="h-12 bg-black/30 border-white/[0.08] text-white text-base placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl transition-all duration-300"
                       maxLength={100}
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
                   </div>
 
@@ -3057,7 +3096,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appDescription.length > 500
                     }
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                    style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       Continue
@@ -3077,9 +3116,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Power-ups
                     </h2>
@@ -3090,9 +3129,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App summary - Premium */}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -3143,16 +3184,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/10"
                         }`}
                       >
-                        <div 
+                        <div
                           className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            includeMonetization ? "translate-x-4" : "translate-x-0"
-                          }`} 
+                            includeMonetization
+                              ? "translate-x-4"
+                              : "translate-x-0"
+                          }`}
                         />
                       </div>
                     </div>
-                    <h3 
+                    <h3
                       className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Monetization
                     </h3>
@@ -3184,8 +3227,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics 
-                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20" 
+                          includeAnalytics
+                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20"
                             : "bg-white/[0.04]"
                         }`}
                       >
@@ -3203,16 +3246,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/10"
                         }`}
                       >
-                        <div 
+                        <div
                           className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
                             includeAnalytics ? "translate-x-4" : "translate-x-0"
-                          }`} 
+                          }`}
                         />
                       </div>
                     </div>
-                    <h3 
+                    <h3
                       className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Analytics
                     </h3>
@@ -3241,7 +3284,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <button
                     onClick={() => setSetupStep(4)}
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold touch-manipulation"
-                    style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       Continue
@@ -3261,9 +3304,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Add AI Agents
                     </h2>
@@ -3274,9 +3317,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App summary - Premium */}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -3305,7 +3350,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {availableAgents.length === 0 && !loadingAgents && (
                   <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 animate-stagger-fade stagger-3">
                     <p className="text-sm text-amber-300/80 leading-relaxed">
-                      <span className="font-semibold">No agents yet?</span> No worries — you can skip this step and add agents later from the app builder.
+                      <span className="font-semibold">No agents yet?</span> No
+                      worries — you can skip this step and add agents later from
+                      the app builder.
                     </p>
                   </div>
                 )}
@@ -3334,7 +3381,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       onClick={startSession}
                       disabled={isLoading}
                       className="group relative flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-xl text-white text-sm font-semibold transition-all duration-500 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       {/* Animated gradient background */}
                       <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]" />
@@ -3369,10 +3416,17 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                 {/* Summary footer - Premium */}
                 <div className="flex items-center justify-center gap-4 pt-4 md:pt-6 animate-stagger-fade stagger-5">
-                  {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map((feature, i) => (
+                  {[
+                    "Live sandbox",
+                    "Hot reload",
+                    "AI assist",
+                    "GitHub sync",
+                  ].map((feature, i) => (
                     <div key={feature} className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-[#FF5800]/50" />
-                      <span className="text-[10px] md:text-xs text-white/25 font-medium">{feature}</span>
+                      <span className="text-[10px] md:text-xs text-white/25 font-medium">
+                        {feature}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -3438,7 +3492,10 @@ ANTHROPIC_API_KEY=your_key_here`}
           </Link>
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded flex-shrink-0">
-              <span className="text-white font-bold text-[10px]" style={{ fontFamily: "var(--font-sf-pro)" }}>
+              <span
+                className="text-white font-bold text-[10px]"
+                style={{ fontFamily: "var(--font-sf-pro)" }}
+              >
                 {(appData?.name || appName || "A").charAt(0).toUpperCase()}
               </span>
             </div>
@@ -3677,7 +3734,10 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="relative">
               <div className="absolute inset-0 bg-[#FF5800] blur-md opacity-40" />
               <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded-md border border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/20">
-                <span className="text-white font-bold text-sm" style={{ fontFamily: "var(--font-sf-pro)" }}>
+                <span
+                  className="text-white font-bold text-sm"
+                  style={{ fontFamily: "var(--font-sf-pro)" }}
+                >
                   {(appData?.name || appName || "A").charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -3856,7 +3916,10 @@ ANTHROPIC_API_KEY=your_key_here`}
               <Loader2 className="h-4 w-4 xl:h-4.5 xl:w-4.5 animate-spin text-[#FF5800] flex-shrink-0" />
               <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
             </div>
-            <span className="text-xs xl:text-sm text-white/90 font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+            <span
+              className="text-xs xl:text-sm text-white/90 font-medium"
+              style={{ fontFamily: "var(--font-sf-pro)" }}
+            >
               Reconnecting to sandbox...
             </span>
             <span className="text-[10px] xl:text-xs text-white/40 hidden sm:inline">
@@ -4140,8 +4203,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                       <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
                       <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
                     </div>
-                    <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Loading preview...</p>
-                    <p className="text-white/25 text-xs mt-1">Your app is starting up</p>
+                    <p
+                      className="text-white/60 text-sm font-medium"
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                    >
+                      Loading preview...
+                    </p>
+                    <p className="text-white/25 text-xs mt-1">
+                      Your app is starting up
+                    </p>
                   </div>
                 </div>
                 <iframe
@@ -4164,8 +4234,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
                     <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
                   </div>
-                  <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Starting sandbox...</p>
-                  <p className="text-white/25 text-xs mt-1">This usually takes 10-20 seconds</p>
+                  <p
+                    className="text-white/60 text-sm font-medium"
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                  >
+                    Starting sandbox...
+                  </p>
+                  <p className="text-white/25 text-xs mt-1">
+                    This usually takes 10-20 seconds
+                  </p>
                 </div>
               </div>
             )}
@@ -4232,9 +4309,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                           body: JSON.stringify({ linked_character_ids: ids }),
                         });
                         toast.success(
-                          ids.length > 0
-                            ? "Agents updated"
-                            : "Agents removed",
+                          ids.length > 0 ? "Agents updated" : "Agents removed",
                         );
                       } catch (error) {
                         console.error("Failed to update agents:", error);
@@ -4261,8 +4336,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <Terminal className="h-10 w-10 mx-auto opacity-40" />
                         <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
                       </div>
-                      <p className="text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Console is empty</p>
-                      <p className="text-xs text-white/15 mt-1">Logs will appear here during builds</p>
+                      <p
+                        className="text-sm font-medium"
+                        style={{ fontFamily: "var(--font-sf-pro)" }}
+                      >
+                        Console is empty
+                      </p>
+                      <p className="text-xs text-white/15 mt-1">
+                        Logs will appear here during builds
+                      </p>
                     </div>
                   </div>
                 ) : (

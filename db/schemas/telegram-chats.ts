@@ -43,7 +43,7 @@ export const telegramChats = pgTable(
   (table) => [
     index("telegram_chats_organization_id_idx").on(table.organization_id),
     index("telegram_chats_chat_id_idx").on(table.chat_id),
-  ]
+  ],
 );
 
 export type TelegramChat = InferSelectModel<typeof telegramChats>;

@@ -81,7 +81,9 @@ export function CharacterBuildMode({
   // Use effectiveCharacterId to get correct character on first render
   const initialCharacter = useMemo(() => {
     if (effectiveCharacterId) {
-      const found = initialCharacters.find((c) => c.id === effectiveCharacterId);
+      const found = initialCharacters.find(
+        (c) => c.id === effectiveCharacterId,
+      );
       if (found) return found;
     }
     // In creator mode, use a stable reference for the default character
@@ -215,15 +217,19 @@ export function CharacterBuildMode({
             const failedCount = data.failedCount || 0;
             const successCount = data.successCount || 0;
 
-            if (failedCount > 0 && data.results && Array.isArray(data.results)) {
+            if (
+              failedCount > 0 &&
+              data.results &&
+              Array.isArray(data.results)
+            ) {
               // Partial failure - store failed files in sessionStorage for retry
               const failedBlobUrls = new Set(
                 data.results
                   .filter((r: { status: string }) => r.status === "error")
-                  .map((r: { blobUrl: string }) => r.blobUrl)
+                  .map((r: { blobUrl: string }) => r.blobUrl),
               );
               const failedFiles = filesToProcess.filter((f) =>
-                failedBlobUrls.has(f.blobUrl)
+                failedBlobUrls.has(f.blobUrl),
               );
 
               // Store failed files in sessionStorage for PendingKnowledgeProcessor to pick up
@@ -306,12 +312,14 @@ export function CharacterBuildMode({
             );
             if (sessionStorageSucceeded) {
               toast.warning("Character updated, but file processing failed", {
-                description: errorData.error || "Files will be retried automatically.",
+                description:
+                  errorData.error || "Files will be retried automatically.",
                 duration: 6000,
               });
             } else {
               toast.warning("Character updated, but file processing failed", {
-                description: "File retry unavailable. You can re-upload files from the Files tab.",
+                description:
+                  "File retry unavailable. You can re-upload files from the Files tab.",
                 duration: 6000,
               });
             }

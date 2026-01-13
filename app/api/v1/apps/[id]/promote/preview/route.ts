@@ -36,7 +36,7 @@ interface PostPreview {
 
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
@@ -47,7 +47,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -83,7 +83,7 @@ export async function POST(
           const content =
             await discordAppAutomationService.generateAnnouncement(
               user.organization_id,
-              app
+              app,
             );
           previews.push({
             platform: "discord",
@@ -93,13 +93,14 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Discord generation failed", {
           appId: id,
           error: errorMessage,
         });
         errors.push(`Discord: ${errorMessage}`);
-      })
+      }),
     );
   }
 
@@ -116,7 +117,7 @@ export async function POST(
           const content =
             await telegramAppAutomationService.generateAnnouncement(
               user.organization_id,
-              app
+              app,
             );
           previews.push({
             platform: "telegram",
@@ -126,13 +127,14 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Telegram generation failed", {
           appId: id,
           error: errorMessage,
         });
         errors.push(`Telegram: ${errorMessage}`);
-      })
+      }),
     );
   }
 
@@ -149,7 +151,7 @@ export async function POST(
           const tweet = await twitterAppAutomationService.generateAppTweet(
             user.organization_id,
             app,
-            tweetTypes[i % tweetTypes.length]
+            tweetTypes[i % tweetTypes.length],
           );
           previews.push({
             platform: "twitter",
@@ -159,13 +161,14 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Twitter generation failed", {
           appId: id,
           error: errorMessage,
         });
         errors.push(`Twitter: ${errorMessage}`);
-      })
+      }),
     );
   }
 

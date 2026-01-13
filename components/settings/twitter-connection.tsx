@@ -124,7 +124,7 @@ export function TwitterConnection() {
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error(
-          data.error || "Failed to disconnect Twitter. Please try again."
+          data.error || "Failed to disconnect Twitter. Please try again.",
         );
       }
     } catch {
@@ -227,7 +227,7 @@ export function TwitterConnection() {
                 onClick={() =>
                   window.open(
                     `https://twitter.com/${status.username}`,
-                    "_blank"
+                    "_blank",
                   )
                 }
               >

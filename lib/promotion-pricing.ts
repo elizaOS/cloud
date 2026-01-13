@@ -75,7 +75,7 @@ export function formatCost(cost: number): string {
 
 /** Get post cost by platform (internal billing, not shown to users) */
 export function getPostCost(
-  platform: "discord" | "telegram" | "twitter"
+  platform: "discord" | "telegram" | "twitter",
 ): number {
   switch (platform) {
     case "discord":

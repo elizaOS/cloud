@@ -76,7 +76,10 @@ export async function POST(
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   // Validate interval range - defaults are min=120, max=240
@@ -93,14 +96,18 @@ export async function POST(
   } else if (body.announceIntervalMax && !body.announceIntervalMin) {
     if (body.announceIntervalMax < DEFAULT_INTERVAL_MIN) {
       return NextResponse.json(
-        { error: `announceIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)` },
+        {
+          error: `announceIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)`,
+        },
         { status: 400 },
       );
     }
   } else if (body.announceIntervalMin && !body.announceIntervalMax) {
     if (body.announceIntervalMin > DEFAULT_INTERVAL_MAX) {
       return NextResponse.json(
-        { error: `announceIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)` },
+        {
+          error: `announceIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)`,
+        },
         { status: 400 },
       );
     }
@@ -151,7 +158,10 @@ export async function DELETE(
   const { id: appId } = await params;
 
   try {
-    await telegramAppAutomationService.disableAutomation(user.organization_id, appId);
+    await telegramAppAutomationService.disableAutomation(
+      user.organization_id,
+      appId,
+    );
 
     logger.info("[Telegram Automation] Automation disabled", {
       appId,

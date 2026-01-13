@@ -50,7 +50,9 @@ export function DiscordConnection() {
   const [status, setStatus] = useState<DiscordStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [disconnectingGuildId, setDisconnectingGuildId] = useState<string | null>(null);
+  const [disconnectingGuildId, setDisconnectingGuildId] = useState<
+    string | null
+  >(null);
 
   const fetchStatus = async () => {
     setIsLoading(true);
@@ -95,7 +97,7 @@ export function DiscordConnection() {
       toast.success(
         guildName
           ? `Discord server "${decodeURIComponent(guildName)}" connected!`
-          : "Discord server connected!"
+          : "Discord server connected!",
       );
       // Clean up URL
       const url = new URL(window.location.href);
@@ -106,7 +108,9 @@ export function DiscordConnection() {
     } else if (discordStatus === "error") {
       const message = params.get("message");
       toast.error(
-        message ? `Discord error: ${decodeURIComponent(message)}` : "Discord connection failed"
+        message
+          ? `Discord error: ${decodeURIComponent(message)}`
+          : "Discord connection failed",
       );
       // Clean up URL
       const url = new URL(window.location.href);
@@ -120,7 +124,8 @@ export function DiscordConnection() {
 
   const handleAddServer = () => {
     // Redirect to OAuth flow
-    window.location.href = "/api/v1/discord/oauth?returnUrl=/dashboard/settings?tab=connections";
+    window.location.href =
+      "/api/v1/discord/oauth?returnUrl=/dashboard/settings?tab=connections";
   };
 
   const handleRefreshChannels = async (guildId: string) => {
@@ -205,8 +210,8 @@ export function DiscordConnection() {
         <CardContent>
           <div className="p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">
-              Discord integration requires environment variables to be configured.
-              Please contact your administrator.
+              Discord integration requires environment variables to be
+              configured. Please contact your administrator.
             </p>
           </div>
         </CardContent>
@@ -236,7 +241,8 @@ export function DiscordConnection() {
           {status?.connected && (
             <Badge variant="default" className="bg-green-500">
               <CheckCircle className="h-3 w-3 mr-1" />
-              {status.guilds.length} Server{status.guilds.length !== 1 ? "s" : ""}
+              {status.guilds.length} Server
+              {status.guilds.length !== 1 ? "s" : ""}
             </Badge>
           )}
         </div>
@@ -303,8 +309,9 @@ export function DiscordConnection() {
                             Remove {guild.name}?
                           </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will remove the bot from this server. Any active
-                            Discord automation for this server will stop working.
+                            This will remove the bot from this server. Any
+                            active Discord automation for this server will stop
+                            working.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -339,7 +346,8 @@ export function DiscordConnection() {
                 Next: Enable automation for your apps
               </p>
               <p className="text-xs text-muted-foreground">
-                Go to your app&apos;s Promote tab to enable Discord announcements.
+                Go to your app&apos;s Promote tab to enable Discord
+                announcements.
               </p>
             </div>
           </div>

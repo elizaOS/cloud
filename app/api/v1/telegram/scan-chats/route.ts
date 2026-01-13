@@ -11,13 +11,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const botToken = await telegramAutomationService.getBotToken(
-    user.organization_id
+    user.organization_id,
   );
 
   if (!botToken) {
     return NextResponse.json(
       { error: "Telegram bot not connected" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -43,7 +43,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const seenChatIds = new Set<number>();
 
     for (const update of updates) {
-      let chat: { id: number; title?: string; type: string; username?: string } | null = null;
+      let chat: {
+        id: number;
+        title?: string;
+        type: string;
+        username?: string;
+      } | null = null;
       let isAdmin = false;
 
       if (update.my_chat_member) {
@@ -60,7 +65,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (
         chat &&
         !seenChatIds.has(chat.id) &&
-        (chat.type === "group" || chat.type === "supergroup" || chat.type === "channel")
+        (chat.type === "group" ||
+          chat.type === "supergroup" ||
+          chat.type === "channel")
       ) {
         seenChatIds.add(chat.id);
 
@@ -86,14 +93,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Re-set the webhook (only if using HTTPS - required by Telegram)
     // Use ELIZA_API_URL (ngrok) for local dev, otherwise NEXT_PUBLIC_APP_URL
-    const WEBHOOK_URL = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+    const WEBHOOK_URL =
+      process.env.ELIZA_API_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://eliza.gg";
     if (WEBHOOK_URL.startsWith("https://")) {
       await bot.telegram.setWebhook(
         `${WEBHOOK_URL}/api/v1/telegram/webhook/${user.organization_id}`,
         {
-          allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],
+          allowed_updates: [
+            "message",
+            "callback_query",
+            "channel_post",
+            "my_chat_member",
+          ],
           drop_pending_updates: true,
-        }
+        },
       );
       logger.info("[Telegram Scan] Webhook set", {
         organizationId: user.organization_id,
@@ -101,10 +116,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     } else {
       // Skip webhook setup for local development without ngrok
-      logger.info("[Telegram Scan] Skipping webhook setup - HTTPS required (set ELIZA_API_URL with ngrok URL)", {
-        organizationId: user.organization_id,
-        appUrl: WEBHOOK_URL,
-      });
+      logger.info(
+        "[Telegram Scan] Skipping webhook setup - HTTPS required (set ELIZA_API_URL with ngrok URL)",
+        {
+          organizationId: user.organization_id,
+          appUrl: WEBHOOK_URL,
+        },
+      );
     }
 
     logger.info("[Telegram Scan] Scanned for chats", {
@@ -114,7 +132,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Fetch all chats for this org
     const allChats = await telegramChatsRepository.findByOrganization(
-      user.organization_id
+      user.organization_id,
     );
 
     return NextResponse.json({
@@ -136,8 +154,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to scan for chats" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to scan for chats",
+      },
+      { status: 500 },
     );
   }
 }

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Verify the guild belongs to this organization
   const guild = await discordAutomationService.getGuild(
     user.organization_id,
-    guildId
+    guildId,
   );
   if (!guild) {
     return NextResponse.json({ error: "Guild not found" }, { status: 404 });
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const channels = await discordAutomationService.getChannels(
     user.organization_id,
-    guildId
+    guildId,
   );
 
   return NextResponse.json({

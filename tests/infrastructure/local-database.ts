@@ -14,7 +14,7 @@ export function getConnectionString(): string {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
-      "DATABASE_URL environment variable is required. Make sure your .env is loaded."
+      "DATABASE_URL environment variable is required. Make sure your .env is loaded.",
     );
   }
   return url;

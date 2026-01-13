@@ -102,7 +102,7 @@ class TelegramAutomationService {
   async storeCredentials(
     organizationId: string,
     userId: string,
-    credentials: TelegramCredentials
+    credentials: TelegramCredentials,
   ): Promise<void> {
     const audit = {
       actorType: "user" as const,
@@ -118,7 +118,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit
+      audit,
     );
 
     await secretsService.create(
@@ -129,7 +129,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit
+      audit,
     );
 
     await secretsService.create(
@@ -140,7 +140,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit
+      audit,
     );
 
     // Invalidate cache so next status check fetches fresh data
@@ -157,7 +157,7 @@ class TelegramAutomationService {
    */
   async removeCredentials(
     organizationId: string,
-    userId: string
+    userId: string,
   ): Promise<void> {
     const audit = {
       actorType: "user" as const,
@@ -209,7 +209,7 @@ class TelegramAutomationService {
    */
   async getConnectionStatus(
     organizationId: string,
-    options?: { skipCache?: boolean }
+    options?: { skipCache?: boolean },
   ): Promise<TelegramConnectionStatus> {
     // Check cache first (unless explicitly skipped)
     if (!options?.skipCache) {
@@ -252,7 +252,7 @@ class TelegramAutomationService {
         {
           organizationId,
           error: error instanceof Error ? error.message : "Unknown error",
-        }
+        },
       );
 
       // Return stored data even if validation fails (don't cache error state)
@@ -277,7 +277,7 @@ class TelegramAutomationService {
    * Requires HTTPS URL - use ELIZA_API_URL with ngrok for local development.
    */
   async setWebhook(
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; error?: string }> {
     const botToken = await this.getBotToken(organizationId);
     if (!botToken) {
@@ -371,7 +371,7 @@ class TelegramAutomationService {
         >;
       };
       disableWebPagePreview?: boolean;
-    }
+    },
   ): Promise<{ success: boolean; messageId?: number; error?: string }> {
     const bot = await this.getBotInstance(organizationId);
     if (!bot) {

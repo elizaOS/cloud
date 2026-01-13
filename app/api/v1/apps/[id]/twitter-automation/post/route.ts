@@ -13,7 +13,9 @@ interface RouteParams {
 
 const PostTweetSchema = z.object({
   text: z.string().max(280).optional(),
-  type: z.enum(["promotional", "engagement", "educational", "announcement"]).optional(),
+  type: z
+    .enum(["promotional", "engagement", "educational", "announcement"])
+    .optional(),
 });
 
 export async function POST(
@@ -62,7 +64,10 @@ export async function POST(
     if (error instanceof Error && error.message === "App not found") {
       return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
-    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Insufficient credits")
+    ) {
       return NextResponse.json({ error: error.message }, { status: 402 });
     }
     logger.error("[Twitter Automation API] Failed to post tweet", {

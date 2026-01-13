@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!deduction.success) {
     return NextResponse.json(
       { error: "Insufficient credits", required: totalCost },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(
       { error: "Failed to generate assets. Credits have been refunded." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

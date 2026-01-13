@@ -270,11 +270,11 @@ export const apps = pgTable(
     organization_idx: index("apps_organization_idx").on(table.organization_id),
     created_by_idx: index("apps_created_by_idx").on(table.created_by_user_id),
     affiliate_code_idx: index("apps_affiliate_code_idx").on(
-      table.affiliate_code
+      table.affiliate_code,
     ),
     is_active_idx: index("apps_is_active_idx").on(table.is_active),
     created_at_idx: index("apps_created_at_idx").on(table.created_at),
-  })
+  }),
 );
 
 /**
@@ -320,12 +320,12 @@ export const appUsers = pgTable(
   (table) => ({
     app_user_unique_idx: uniqueIndex("app_users_app_user_idx").on(
       table.app_id,
-      table.user_id
+      table.user_id,
     ),
     app_id_idx: index("app_users_app_id_idx").on(table.app_id),
     user_id_idx: index("app_users_user_id_idx").on(table.user_id),
     first_seen_idx: index("app_users_first_seen_idx").on(table.first_seen_at),
-  })
+  }),
 );
 
 /**
@@ -358,7 +358,7 @@ export const appAnalytics = pgTable(
     total_input_tokens: integer("total_input_tokens").default(0).notNull(),
     total_output_tokens: integer("total_output_tokens").default(0).notNull(),
     total_cost: numeric("total_cost", { precision: 10, scale: 2 }).default(
-      "0.00"
+      "0.00",
     ),
     total_credits_used: numeric("total_credits_used", {
       precision: 10,
@@ -381,17 +381,17 @@ export const appAnalytics = pgTable(
     app_id_idx: index("app_analytics_app_id_idx").on(table.app_id),
     period_idx: index("app_analytics_period_idx").on(
       table.period_start,
-      table.period_end
+      table.period_end,
     ),
     period_type_idx: index("app_analytics_period_type_idx").on(
-      table.period_type
+      table.period_type,
     ),
     // Composite index for querying app analytics by time period
     app_period_idx: index("app_analytics_app_period_idx").on(
       table.app_id,
-      table.period_start
+      table.period_start,
     ),
-  })
+  }),
 );
 
 /**
@@ -425,7 +425,7 @@ export const appRequests = pgTable(
     input_tokens: integer("input_tokens").default(0),
     output_tokens: integer("output_tokens").default(0),
     credits_used: numeric("credits_used", { precision: 10, scale: 6 }).default(
-      "0.00"
+      "0.00",
     ),
 
     response_time_ms: integer("response_time_ms"),
@@ -444,9 +444,9 @@ export const appRequests = pgTable(
     ip_idx: index("app_requests_ip_idx").on(table.ip_address),
     app_created_idx: index("app_requests_app_created_idx").on(
       table.app_id,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 // Type inference

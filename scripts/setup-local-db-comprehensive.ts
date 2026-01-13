@@ -108,7 +108,7 @@ async function checkPgVector() {
     log("pgvector extension not found, attempting to create...");
     try {
       await client.query("CREATE EXTENSION IF NOT EXISTS vector;");
-      await client.query("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";");
+      await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
       log("✓ pgvector extension created successfully");
       await client.end();
       return true;

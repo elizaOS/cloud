@@ -14,15 +14,15 @@ class DiscordGuildsRepository {
       .where(
         and(
           eq(discordGuilds.organization_id, organizationId),
-          eq(discordGuilds.is_active, true)
-        )
+          eq(discordGuilds.is_active, true),
+        ),
       )
       .orderBy(desc(discordGuilds.bot_joined_at));
   }
 
   async findByGuildId(
     organizationId: string,
-    guildId: string
+    guildId: string,
   ): Promise<DiscordGuild | undefined> {
     const results = await dbRead
       .select()
@@ -30,19 +30,19 @@ class DiscordGuildsRepository {
       .where(
         and(
           eq(discordGuilds.organization_id, organizationId),
-          eq(discordGuilds.guild_id, guildId)
-        )
+          eq(discordGuilds.guild_id, guildId),
+        ),
       )
       .limit(1);
     return results[0];
   }
 
   async upsert(
-    data: Omit<NewDiscordGuild, "id" | "created_at" | "updated_at">
+    data: Omit<NewDiscordGuild, "id" | "created_at" | "updated_at">,
   ): Promise<DiscordGuild> {
     const existing = await this.findByGuildId(
       data.organization_id,
-      data.guild_id
+      data.guild_id,
     );
 
     if (existing) {
@@ -74,8 +74,8 @@ class DiscordGuildsRepository {
       .where(
         and(
           eq(discordGuilds.organization_id, organizationId),
-          eq(discordGuilds.guild_id, guildId)
-        )
+          eq(discordGuilds.guild_id, guildId),
+        ),
       );
   }
 
@@ -89,8 +89,8 @@ class DiscordGuildsRepository {
       .where(
         and(
           eq(discordGuilds.organization_id, organizationId),
-          eq(discordGuilds.guild_id, guildId)
-        )
+          eq(discordGuilds.guild_id, guildId),
+        ),
       );
   }
 
