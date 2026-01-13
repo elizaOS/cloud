@@ -202,8 +202,6 @@ export class AutoTopUpService {
     // Create and confirm PaymentIntent with saved payment method
     logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
 
-    // Generate idempotency key to prevent double charges on retries
-    // Key is unique per org per minute - only one auto top-up per minute per org
     const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / 60000)}`;
 
     const paymentIntent = await requireStripe().paymentIntents.create(
