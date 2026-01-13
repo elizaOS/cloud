@@ -298,15 +298,12 @@ class DbAdapterPool {
       ]);
       return true;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (
-        msg.includes("closed") ||
-        msg.includes("terminated") ||
-        msg.includes("connection")
-      ) {
-        return false;
-      }
-      return true;
+      // Any error during health check indicates an unhealthy adapter.
+      // A non-existent entity should return an empty array, not throw.
+      elizaLogger.warn(
+        `[DbAdapterPool] Adapter health check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return false;
     }
   }
 
