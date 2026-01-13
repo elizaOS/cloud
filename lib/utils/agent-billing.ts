@@ -46,22 +46,23 @@ export interface PostBillResult {
   error?: string;
 }
 
-// Estimated costs for common operations
+// Estimated costs for common operations (USD)
+// These should align with pricing-constants.ts where applicable
 export const ESTIMATED_COSTS = {
   // LLM operations (per request average)
-  chat_small: 0.005, // GPT-4o-mini, Claude Haiku
-  chat_large: 0.02, // GPT-4o, Claude Sonnet
-  chat_xlarge: 0.05, // GPT-4o with long context
+  chat_small: 0.001, // GPT-4o-mini, Claude Haiku (~500 input + 200 output tokens)
+  chat_large: 0.01, // GPT-4o, Claude Sonnet
+  chat_xlarge: 0.03, // GPT-4o with long context
 
-  // Media operations
-  image_gen: 0.05, // DALL-E, FLUX
-  video_gen: 0.5, // Kling, etc
+  // Media operations (aligned with pricing-constants.ts)
+  image_gen: 0.01, // Gemini Flash Image (matches IMAGE_GENERATION_COST)
+  video_gen: 0.05, // Video generation (matches VIDEO_GENERATION_COST)
   voice_tts: 0.015, // ElevenLabs TTS
   voice_stt: 0.01, // ElevenLabs STT
 
   // External operations
-  mcp_call: 0.02, // Average MCP tool call
-  a2a_call: 0.03, // A2A chat call
+  mcp_call: 0.01, // Average MCP tool call
+  a2a_call: 0.02, // A2A chat call
 };
 
 // ============================================================================

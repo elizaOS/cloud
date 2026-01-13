@@ -92,16 +92,30 @@ async function checkPgVector() {
   try {
     const client = new Client({ connectionString: LOCAL_DATABASE_URL });
     await client.connect();
+
+    // Check if extension exists
     const result = await client.query(
       "SELECT * FROM pg_extension WHERE extname = 'vector'",
     );
-    await client.end();
 
     if (result.rows.length > 0) {
       log("✓ pgvector extension is installed");
+      await client.end();
       return true;
-    } else {
-      error("pgvector extension is not installed");
+    }
+
+    // Try to create the extension if it doesn't exist
+    log("pgvector extension not found, attempting to create...");
+    try {
+      await client.query("CREATE EXTENSION IF NOT EXISTS vector;");
+      await client.query("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";");
+      log("✓ pgvector extension created successfully");
+      await client.end();
+      return true;
+    } catch (createErr) {
+      error(`Failed to create pgvector extension: ${createErr}`);
+      error("Make sure you're using the pgvector/pgvector Docker image");
+      await client.end();
       return false;
     }
   } catch (e) {
