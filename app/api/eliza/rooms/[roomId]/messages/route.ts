@@ -320,11 +320,62 @@ export async function POST(
       usage: result.usage,
     });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessageLower = errorMessage.toLowerCase();
+
+    // Categorize errors for appropriate logging
+    const isConnectionError =
+      errorMessageLower.includes("server conn crashed") ||
+      errorMessageLower.includes("08p01") ||
+      errorMessageLower.includes("connection") ||
+      errorMessageLower.includes("terminated") ||
+      errorMessageLower.includes("rollback") ||
+      errorMessageLower.includes("econnreset") ||
+      errorMessageLower.includes("socket") ||
+      errorMessageLower.includes("failed query") ||
+      errorMessageLower.includes("cannot use a pool") ||
+      errorMessageLower.includes("end on the pool");
+
+    const isServiceTimeout =
+      errorMessageLower.includes("service") &&
+      errorMessageLower.includes("registration") &&
+      errorMessageLower.includes("timeout");
+
+    if (isConnectionError) {
+      // Connection errors are transient - log at warn level
+      logger.warn(
+        "[Eliza Messages API] Request failed due to connection issue:",
+        errorMessage.substring(0, 150),
+      );
+      return NextResponse.json(
+        {
+          error: "A temporary connection issue occurred. Please try again.",
+          type: "connection_error",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (isServiceTimeout) {
+      // Service registration timeouts - log at warn level (transient infrastructure)
+      logger.warn(
+        "[Eliza Messages API] Service initialization timeout:",
+        errorMessage.substring(0, 150),
+      );
+      return NextResponse.json(
+        {
+          error: "The service is temporarily unavailable. Please try again.",
+          type: "service_timeout",
+        },
+        { status: 503 },
+      );
+    }
+
+    // Other errors - log at error level
     logger.error("[Eliza Messages API] Error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to process message",
+        error: errorMessage || "Failed to process message",
       },
       { status: 500 },
     );
