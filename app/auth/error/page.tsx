@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Loader2, Home, RefreshCw } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -44,53 +51,36 @@ function AuthErrorContent() {
   const isLoading = !ready || isLoggingIn;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-      <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-        <div className="flex flex-col items-center gap-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-500/10">
-            <AlertCircle className="h-7 w-7 text-red-500" />
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-6 w-6 text-destructive" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-white">{error.title}</h2>
-            <p className="text-sm text-neutral-500">{error.description}</p>
-          </div>
-
-          <div className="w-full space-y-3">
-            <Button
-              onClick={handleLogin}
-              disabled={isLoading}
-              className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
-            >
+          <CardTitle>{error.title}</CardTitle>
+          <CardDescription>{error.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <Button onClick={handleLogin} disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Loading...
                 </>
               ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </>
+                "Try Again"
               )}
             </Button>
-            <Button
-              variant="outline"
-              asChild
-              className="w-full h-11 rounded-xl border-white/10 hover:bg-white/10"
-            >
-              <Link href="/">
-                <Home className="h-4 w-4 mr-2" />
-                Go Home
-              </Link>
+            <Button variant="outline" asChild>
+              <Link href="/">Go Home</Link>
             </Button>
           </div>
-
-          <p className="text-xs text-neutral-600">
+          <div className="text-center text-xs text-muted-foreground">
             If this problem persists, please contact support.
-          </p>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -103,19 +93,16 @@ export default function AuthErrorPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-          <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-500/10">
-                <AlertCircle className="h-7 w-7 text-red-500" />
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                <AlertCircle className="h-6 w-6 text-destructive" />
               </div>
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
-                <p className="text-sm text-neutral-500">Loading error details...</p>
-              </div>
-            </div>
-          </div>
+              <CardTitle>Authentication Error</CardTitle>
+              <CardDescription>Loading error details...</CardDescription>
+            </CardHeader>
+          </Card>
         </div>
       }
     >

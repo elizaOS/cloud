@@ -3,8 +3,15 @@
 import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Terminal, CheckCircle2, AlertCircle, Key } from "lucide-react";
+import { Loader2, Terminal, CheckCircle2, AlertCircle } from "lucide-react";
 
 function CliLoginContent() {
   const { authenticated, login, user, ready } = usePrivy();
@@ -111,71 +118,66 @@ function CliLoginContent() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF5800]/10">
-              <Loader2 className="h-7 w-7 animate-spin text-[#FF5800]" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Loading...</h2>
-              <p className="text-sm text-neutral-500">Preparing authentication</p>
-            </div>
-          </div>
-        </div>
+            <CardTitle>Loading...</CardTitle>
+            <CardDescription>Preparing authentication</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-500/10">
-              <AlertCircle className="h-7 w-7 text-red-500" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-6 w-6 text-destructive" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
-              <p className="text-sm text-neutral-500">{errorMessage}</p>
-            </div>
+            <CardTitle>Authentication Error</CardTitle>
+            <CardDescription>{errorMessage}</CardDescription>
+          </CardHeader>
+          <CardContent>
             <Button
               onClick={() => window.close()}
               variant="outline"
-              className="w-full mt-2 rounded-xl border-white/10 hover:bg-white/10"
+              className="w-full"
             >
               Close Window
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (status === "waiting_auth") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-          <div className="flex flex-col items-center gap-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF5800]/10">
-              <Terminal className="h-7 w-7 text-[#FF5800]" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Terminal className="h-6 w-6 text-primary" />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
-              <p className="text-sm text-neutral-500">
-                Sign in to connect your ElizaOS CLI to the cloud
-              </p>
-            </div>
+            <CardTitle>CLI Authentication</CardTitle>
+            <CardDescription>
+              Sign in to connect your ElizaOS CLI to the cloud
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Button
               onClick={async () => {
                 setIsLoggingIn(true);
                 await login();
                 setTimeout(() => setIsLoggingIn(false), 1000);
               }}
-              className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+              className="w-full"
               disabled={!ready || isLoggingIn}
             >
               {!ready || isLoggingIn ? (
@@ -187,84 +189,72 @@ function CliLoginContent() {
                 "Sign In"
               )}
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (status === "completing") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF5800]/10">
-              <Key className="h-7 w-7 text-[#FF5800] animate-pulse" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Generating API Key</h2>
-              <p className="text-sm text-neutral-500">
-                Creating your credentials for CLI access...
-              </p>
-            </div>
-            <div className="flex gap-1.5 mt-2">
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
-            </div>
-          </div>
-        </div>
+            <CardTitle>Generating API Key</CardTitle>
+            <CardDescription>
+              Creating your credentials for CLI access...
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
 
   if (status === "success") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-          <div className="flex flex-col items-center gap-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-green-500/10">
-              <CheckCircle2 className="h-7 w-7 text-green-500" />
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Authentication Complete!</h2>
-              <p className="text-sm text-neutral-500">
-                Your API key has been generated and sent to the CLI
-              </p>
-            </div>
-
-            <div className="w-full rounded-xl bg-black/40 border border-white/10 p-4 space-y-3">
-              <p className="text-xs font-medium text-neutral-400">API Key Details</p>
-              <div className="text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Prefix</span>
-                  <span className="font-mono text-white">{apiKeyPrefix}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Created for</span>
-                  <span className="text-white">{user?.email?.address || "Your account"}</span>
-                </div>
+            <CardTitle>Authentication Complete!</CardTitle>
+            <CardDescription>
+              Your API key has been generated and sent to the CLI
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg bg-muted p-4">
+              <p className="text-sm font-medium mb-2">API Key Details:</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  <span className="font-medium">Prefix:</span> {apiKeyPrefix}
+                </p>
+                <p>
+                  <span className="font-medium">Created for:</span>{" "}
+                  {user?.email?.address || "Your account"}
+                </p>
               </div>
             </div>
 
-            <div className="w-full rounded-xl border border-green-500/20 bg-green-500/5 p-4">
-              <p className="text-sm text-green-400 flex items-center justify-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                You can now close this window and return to your terminal
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+              <p className="text-sm text-center">
+                ✓ You can now close this window and return to your terminal
               </p>
             </div>
 
             <Button
               onClick={() => window.close()}
               variant="outline"
-              className="w-full rounded-xl border-white/10 hover:bg-white/10"
+              className="w-full"
             >
               Close Window
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -280,19 +270,16 @@ export default function CliLoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
-          <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF5800]/10">
-                <Loader2 className="h-7 w-7 animate-spin text-[#FF5800]" />
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Loading...</h2>
-                <p className="text-sm text-neutral-500">Initializing authentication</p>
-              </div>
-            </div>
-          </div>
+              <CardTitle>Loading...</CardTitle>
+              <CardDescription>Initializing authentication</CardDescription>
+            </CardHeader>
+          </Card>
         </div>
       }
     >
