@@ -248,6 +248,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
 
     // Moderation is explicitly non-blocking in this app. If the backend is not permitted
     // (common with gateways / provider accounts), avoid noisy per-request errors.
+    // Also handle 5xx errors gracefully - moderation failures should never block users.
     if ([401, 403, 404, 405].includes(response.status)) {
       if (!hasLoggedModerationUnavailable) {
         hasLoggedModerationUnavailable = true;
@@ -263,9 +264,20 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
       return emptyModerationResult();
     }
 
-    throw new Error(
-      `Moderation API failed (${backend.backend}): ${response.status} ${response.statusText}`,
-    );
+    // For any other non-OK status (including 5xx), log once and return empty result
+    // Moderation is non-blocking - we don't want to throw errors that could disrupt user experience
+    if (!hasLoggedModerationUnavailable) {
+      hasLoggedModerationUnavailable = true;
+      logger.warn(
+        "[ContentModeration] Moderation API returned error; skipping moderation checks",
+        {
+          backend: backend.backend,
+          status: response.status,
+          statusText: response.statusText,
+        },
+      );
+    }
+    return emptyModerationResult();
   }
 
   const data = (await response.json()) as OpenAIModerationResponse;

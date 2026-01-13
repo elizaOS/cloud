@@ -86,6 +86,46 @@ export const recentMessagesProvider: Provider = {
   position: 94,
 
   get: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
+    // Helper function to check if error is a database connection issue
+    const isConnectionError = (error: unknown): boolean => {
+      const msg = error instanceof Error ? error.message : String(error);
+      return (
+        msg.includes("server conn crashed") ||
+        msg.includes("08P01") ||
+        msg.includes("Cannot use a pool") ||
+        msg.includes("connection") ||
+        msg.includes("FATAL") ||
+        msg.includes("closed") ||
+        msg.includes("terminated") ||
+        msg.includes("rollback")
+      );
+    };
+
+    // Retry wrapper for database operations
+    const withRetry = async <T>(
+      operation: () => Promise<T>,
+      maxRetries = 2,
+    ): Promise<T> => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          if (isConnectionError(error) && attempt < maxRetries) {
+            // Wait a bit before retrying on connection errors
+            await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+            logger.warn(
+              `[recentMessagesProvider] Retrying after connection error (attempt ${attempt + 1}/${maxRetries})`,
+            );
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw lastError;
+    };
+
     try {
       const memoryService = runtime.getService("memory") as any;
       const { roomId } = message;
@@ -134,17 +174,19 @@ export const recentMessagesProvider: Provider = {
         }
       }
 
-      // Parallelize data fetching
+      // Parallelize data fetching with retry logic for connection errors
       const [entitiesData, room, recentMessagesData] = await Promise.all([
-        getEntityDetails({ runtime, roomId }),
-        runtime.getRoom(roomId),
-        runtime.getMemories({
-          tableName: "messages",
-          roomId,
-          count: messagesToFetch,
-          unique: false,
-          start: startOffset,
-        }),
+        withRetry(() => getEntityDetails({ runtime, roomId })),
+        withRetry(() => runtime.getRoom(roomId)),
+        withRetry(() =>
+          runtime.getMemories({
+            tableName: "messages",
+            roomId,
+            count: messagesToFetch,
+            unique: false,
+            start: startOffset,
+          }),
+        ),
       ]);
 
       // Determine format based on room type

@@ -227,8 +227,10 @@ class DbAdapterPool {
   async getOrCreate(
     agentId: UUID,
     embeddingModel?: string,
+    retryCount = 0,
   ): Promise<IDatabaseAdapter> {
     const key = agentId as string;
+    const MAX_RETRIES = 2;
 
     if (this.adapters.has(key)) {
       const existingAdapter = this.adapters.get(key)!;
@@ -256,6 +258,27 @@ class DbAdapterPool {
       const adapter = await initPromise;
       this.adapters.set(key, adapter);
       return adapter;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      // Retry on connection errors
+      if (
+        retryCount < MAX_RETRIES &&
+        (msg.includes("server conn crashed") ||
+          msg.includes("08P01") ||
+          msg.includes("FATAL") ||
+          msg.includes("connection") ||
+          msg.includes("socket"))
+      ) {
+        elizaLogger.warn(
+          `[DbAdapterPool] Adapter creation failed, retrying (${retryCount + 1}/${MAX_RETRIES}): ${msg.substring(0, 100)}`,
+        );
+        // Wait before retry with exponential backoff
+        await new Promise((resolve) =>
+          setTimeout(resolve, 200 * Math.pow(2, retryCount)),
+        );
+        return this.getOrCreate(agentId, embeddingModel, retryCount + 1);
+      }
+      throw error;
     } finally {
       this.initPromises.delete(key);
     }
@@ -271,13 +294,27 @@ class DbAdapterPool {
       return true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      // Check for various connection failure indicators
+      // PostgreSQL error code 08P01 = protocol violation (server conn crashed)
+      // Also check for common connection error messages
       if (
         msg.includes("closed") ||
         msg.includes("terminated") ||
-        msg.includes("connection")
+        msg.includes("connection") ||
+        msg.includes("server conn crashed") ||
+        msg.includes("08P01") ||
+        msg.includes("Cannot use a pool") ||
+        msg.includes("FATAL") ||
+        msg.includes("socket") ||
+        msg.includes("ECONNRESET") ||
+        msg.includes("ETIMEDOUT")
       ) {
+        elizaLogger.warn(
+          `[DbAdapterPool] Health check failed - connection issue detected: ${msg.substring(0, 100)}`,
+        );
         return false;
       }
+      // For other errors (like "not found"), the connection is still healthy
       return true;
     }
   }

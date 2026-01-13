@@ -613,6 +613,30 @@ export async function generateResponseWithRetry(
   let lastError: Error | null = null;
   const { onStreamChunk, onReasoningChunk, messageId } = options || {};
 
+  // Helper to check if error is retryable
+  const isRetryableError = (error: Error): boolean => {
+    const msg = error.message.toLowerCase();
+    const name = error.name || "";
+    return (
+      // AI SDK errors that are often transient
+      name === "AI_NoOutputGeneratedError" ||
+      msg.includes("no output generated") ||
+      // Network/connection errors
+      msg.includes("network") ||
+      msg.includes("timeout") ||
+      msg.includes("econnreset") ||
+      msg.includes("socket") ||
+      // Rate limiting
+      msg.includes("rate limit") ||
+      msg.includes("429") ||
+      // Server errors
+      msg.includes("500") ||
+      msg.includes("502") ||
+      msg.includes("503") ||
+      msg.includes("504")
+    );
+  };
+
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
     try {
       // When streaming callback is provided, enable streaming mode with XML filtering
@@ -668,10 +692,23 @@ export async function generateResponseWithRetry(
       );
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.error(
-        `[generateResponseWithRetry] Attempt ${i + 1} failed:`,
-        lastError.message,
-      );
+      const errorName = lastError.name || "Error";
+
+      // Check if this is a retryable error and log accordingly
+      if (isRetryableError(lastError)) {
+        logger.warn(
+          `[generateResponseWithRetry] Attempt ${i + 1} failed with retryable error (${errorName}): ${lastError.message.substring(0, 100)}`,
+        );
+        // Add a small delay before retry for rate limiting/server errors
+        if (i < MAX_RESPONSE_RETRIES - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
+        }
+      } else {
+        logger.error(
+          `[generateResponseWithRetry] Attempt ${i + 1} failed:`,
+          lastError.message,
+        );
+      }
     }
   }
 
@@ -704,22 +741,37 @@ export async function runEvaluatorsWithTimeout(
 ): Promise<void> {
   if (typeof runtime.evaluate !== "function") return;
 
-  await Promise.race([
-    runtime.evaluate(
-      message,
-      { ...state },
-      true,
-      async (content) => {
-        const result = await callback?.(content);
-        return result ?? [];
-      },
-      [responseMemory],
-    ),
-    new Promise<void>((_, reject) =>
-      setTimeout(
-        () => reject(new Error("Evaluators timeout")),
-        EVALUATOR_TIMEOUT_MS,
+  try {
+    await Promise.race([
+      runtime.evaluate(
+        message,
+        { ...state },
+        true,
+        async (content) => {
+          const result = await callback?.(content);
+          return result ?? [];
+        },
+        [responseMemory],
       ),
-    ),
-  ]);
+      new Promise<void>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Evaluators timeout")),
+          EVALUATOR_TIMEOUT_MS,
+        ),
+      ),
+    ]);
+  } catch (error) {
+    // Log timeout and other errors at debug level since evaluators are non-critical
+    // The main response has already been sent - evaluators are for side effects only
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg === "Evaluators timeout") {
+      logger.debug(
+        `[Evaluators] Timed out after ${EVALUATOR_TIMEOUT_MS}ms - this is non-critical`,
+      );
+    } else {
+      logger.debug(`[Evaluators] Error (non-critical): ${msg}`);
+    }
+    // Re-throw so caller can handle/log as needed
+    throw error;
+  }
 }
