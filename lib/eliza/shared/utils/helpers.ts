@@ -617,10 +617,24 @@ export async function generateResponseWithRetry(
   const isRetryableError = (error: Error): boolean => {
     const msg = error.message.toLowerCase();
     const name = error.name || "";
+
+    // Non-retryable errors - don't retry these
+    if (
+      msg.includes("insufficient balance") ||
+      msg.includes("insufficient_quota") ||
+      msg.includes("insufficient credits") ||
+      msg.includes("402") ||
+      msg.includes("401") ||
+      msg.includes("403") ||
+      msg.includes("authentication") ||
+      msg.includes("unauthorized")
+    ) {
+      return false;
+    }
+
     return (
       // AI SDK errors that are often transient
       name === "AI_NoOutputGeneratedError" ||
-      name === "AI_APICallError" ||
       msg.includes("no output generated") ||
       // Network/connection errors
       msg.includes("network") ||
@@ -629,10 +643,10 @@ export async function generateResponseWithRetry(
       msg.includes("socket") ||
       msg.includes("connection") ||
       msg.includes("terminated") ||
-      // Rate limiting
+      // Rate limiting (usually means "slow down", can retry after delay)
       msg.includes("rate limit") ||
       msg.includes("429") ||
-      // Server errors
+      // Server errors (transient)
       msg.includes("500") ||
       msg.includes("502") ||
       msg.includes("503") ||

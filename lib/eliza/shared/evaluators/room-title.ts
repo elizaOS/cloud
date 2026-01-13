@@ -74,6 +74,52 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
 }
 
 /**
+ * Helper function to check if error is a database connection issue
+ */
+function isConnectionError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    msg.includes("server conn crashed") ||
+    msg.includes("08P01") ||
+    msg.includes("Cannot use a pool") ||
+    msg.includes("connection") ||
+    msg.includes("FATAL") ||
+    msg.includes("closed") ||
+    msg.includes("terminated") ||
+    msg.includes("rollback") ||
+    msg.includes("end on the pool") ||
+    msg.includes("socket") ||
+    msg.includes("ECONNRESET")
+  );
+}
+
+/**
+ * Retry wrapper for database operations
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 2,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (isConnectionError(error) && attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+        logger.debug(
+          `[RoomTitle] Retrying after connection error (attempt ${attempt + 1}/${maxRetries})`,
+        );
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Background title generation - runs without blocking
  */
 async function generateTitleInBackground(
@@ -83,7 +129,7 @@ async function generateTitleInBackground(
 ) {
   try {
     // Check if room already has a title
-    const existingRoom = await runtime.getRoom(roomId as UUID);
+    const existingRoom = await withRetry(() => runtime.getRoom(roomId as UUID));
 
     if (!existingRoom) {
       logger.debug(`[RoomTitle] Room not found: ${roomId}`);
@@ -97,12 +143,14 @@ async function generateTitleInBackground(
     }
 
     // Get recent messages for context
-    const recentMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: roomId as UUID,
-      count: 5, // Get first few messages for context
-      unique: false,
-    });
+    const recentMessages = await withRetry(() =>
+      runtime.getMemories({
+        tableName: "messages",
+        roomId: roomId as UUID,
+        count: 5, // Get first few messages for context
+        unique: false,
+      }),
+    );
 
     if (recentMessages.length < 1) {
       logger.debug(
@@ -156,15 +204,19 @@ async function generateTitleInBackground(
     }
 
     // Update room with the generated title using runtime
-    await runtime.updateRoom({
-      ...existingRoom,
-      name: title,
-    });
+    await withRetry(() =>
+      runtime.updateRoom({
+        ...existingRoom,
+        name: title,
+      }),
+    );
 
     logger.info(`[RoomTitle] ✓ Generated and saved room title: "${title}"`);
 
-    // Cache that we've processed this room
-    await runtime.setCache<boolean>(`room-title-generated-${roomId}`, true);
+    // Cache that we've processed this room (non-critical, don't retry)
+    runtime.setCache<boolean>(`room-title-generated-${roomId}`, true).catch(() => {
+      // Ignore cache errors - not critical
+    });
   } catch (error) {
     logger.error(
       "[RoomTitle] Error generating room title:",
@@ -187,32 +239,42 @@ export const roomTitleEvaluator: Evaluator = {
       return false;
     }
 
-    // Check if we've already generated a title for this room
-    const alreadyGenerated = await runtime.getCache<boolean>(
-      `room-title-generated-${message.roomId}`,
-    );
+    try {
+      // Check if we've already generated a title for this room
+      const alreadyGenerated = await runtime.getCache<boolean>(
+        `room-title-generated-${message.roomId}`,
+      );
 
-    if (alreadyGenerated) {
+      if (alreadyGenerated) {
+        return false;
+      }
+
+      // Get messages from this specific user (entityId) to check if this is their first message
+      // We only need to check the last 2 messages from this user
+      const userMessages = await runtime.getMemories({
+        tableName: "messages",
+        roomId: message.roomId,
+        entityId: message.entityId, // Filter by user who sent the message
+        count: 3,
+        unique: false,
+      });
+
+      // Filter messages by entityId since DB filter might not work properly
+      const filteredUserMessages = userMessages.filter(
+        (msg) => msg.entityId === message.entityId,
+      );
+
+      const result = filteredUserMessages.length === 1;
+      return result;
+    } catch (error) {
+      // If validation fails due to database error, return false
+      // The title will be generated on a future message
+      logger.debug(
+        "[RoomTitle] Validation error, skipping:",
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
-
-    // Get messages from this specific user (entityId) to cheeck if this is their first message
-    // We only need to check the last 2 messages from this user
-    const userMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: message.roomId,
-      entityId: message.entityId, // Filter by user who sent the message
-      count: 3,
-      unique: false,
-    });
-
-    // Filter messages by entityId since DB filter might not work properly
-    const filteredUserMessages = userMessages.filter(
-      (msg) => msg.entityId === message.entityId,
-    );
-
-    const result = filteredUserMessages.length === 1;
-    return result;
   },
   description:
     "Generates a concise, descriptive room title from the first user message.",

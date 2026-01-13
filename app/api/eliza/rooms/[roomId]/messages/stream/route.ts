@@ -602,9 +602,46 @@ export async function POST(
         // Send completion event
         await sendEvent("done", { timestamp: Date.now() });
       } catch (error) {
-        logger.error("[Stream Messages] Error:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorName = error instanceof Error ? error.name : "Error";
+
+        // Categorize error for better user feedback
+        let userMessage = "An error occurred while processing your message.";
+        let errorType = "processing_error";
+
+        if (
+          errorMessage.includes("insufficient balance") ||
+          errorMessage.includes("Insufficient balance") ||
+          errorMessage.includes("insufficient_quota")
+        ) {
+          userMessage = "Insufficient credits. Please add credits to continue.";
+          errorType = "insufficient_credits";
+          logger.warn("[Stream Messages] Insufficient credits error", {
+            userId: userContext.userId,
+          });
+        } else if (
+          errorMessage.includes("server conn crashed") ||
+          errorMessage.includes("08P01") ||
+          errorMessage.includes("connection")
+        ) {
+          userMessage = "A temporary connection issue occurred. Please try again.";
+          errorType = "connection_error";
+          logger.error("[Stream Messages] Database connection error:", errorMessage);
+        } else if (
+          errorName === "AI_NoOutputGeneratedError" ||
+          errorMessage.includes("No output generated")
+        ) {
+          userMessage = "The AI was unable to generate a response. Please try again.";
+          errorType = "no_output";
+          logger.warn("[Stream Messages] No output generated");
+        } else {
+          logger.error("[Stream Messages] Error:", error);
+        }
+
         await sendEvent("error", {
-          message: error instanceof Error ? error.message : "Processing failed",
+          message: userMessage,
+          type: errorType,
+          details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
         });
       } finally {
         // Close the writer to signal stream completion
