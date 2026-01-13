@@ -42,10 +42,10 @@ export interface AgentCardData {
   is_public?: boolean;
   category?: string | null;
   stats?: {
-    deploymentStatus?: "deployed" | "stopped" | "pending" | null;
+    deploymentStatus?: "deployed" | "stopped" | "pending" | "draft" | null;
     roomCount?: number;
     messageCount?: number;
-    lastActiveAt?: string | null;
+    lastActiveAt?: Date | string | null;
   };
   // For saved agents
   isOwned?: boolean;

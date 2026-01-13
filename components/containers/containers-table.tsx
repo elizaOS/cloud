@@ -52,10 +52,25 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
-import type { Container } from "@/db/repositories/containers";
+// Simplified container type for table display
+interface TableContainer {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  ecs_service_arn: string | null;
+  load_balancer_url: string | null;
+  port: number;
+  desired_count: number;
+  cpu: number;
+  memory: number;
+  last_deployed_at: Date | null;
+  created_at: Date;
+  error_message: string | null;
+}
 
 interface ContainersTableProps {
-  containers: Container[];
+  containers: TableContainer[];
 }
 
 const STATUS_COLORS = {
