@@ -243,6 +243,17 @@ async function generateTitleInBackground(
         "[RoomTitle] Skipping title generation due to connection issue:",
         errorMessage.substring(0, 100),
       );
+    } else if (
+      // API format errors from the model - non-critical
+      errorMessageLower.includes("must have content") ||
+      errorMessageLower.includes("invalid message") ||
+      errorMessageLower.includes("empty prompt") ||
+      errorMessageLower.includes("messages array")
+    ) {
+      logger.debug(
+        "[RoomTitle] Skipping title generation due to message format issue:",
+        errorMessage.substring(0, 100),
+      );
     } else {
       logger.warn(
         "[RoomTitle] Error generating room title:",
