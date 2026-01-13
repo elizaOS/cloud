@@ -29,7 +29,7 @@ import {
   BookOpen,
   MessageSquare,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";
@@ -43,6 +43,7 @@ interface UserProfile {
 
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();
+  const pathname = usePathname();
   const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCredits();
@@ -100,9 +101,12 @@ export default function UserMenu() {
     );
   }
 
-  // Handle login - redirect to custom login page
+  // Handle login - redirect to custom login page with returnTo parameter
+  // Include query params (like characterId) to return to exact page after login
   const handleLogin = () => {
-    router.push("/login");
+    const fullUrl =
+      pathname + (typeof window !== "undefined" ? window.location.search : "");
+    router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`);
   };
 
   // Signed out state
@@ -132,8 +136,9 @@ export default function UserMenu() {
     // Call Privy's logout to clear authentication state
     await logout();
 
-    // Force redirect to home page (router.push doesn't throw)
-    router.push("/");
+    // Use router.replace to avoid browser history pollution
+    // This prevents back button issues after re-login
+    router.replace("/");
   };
 
   // Get user details

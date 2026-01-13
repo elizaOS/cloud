@@ -20,6 +20,7 @@ import {
   getDefaultModels,
   buildElevenLabsSettings,
 } from "./config";
+import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
@@ -43,6 +44,7 @@ interface RuntimeSettings {
   IS_ANONYMOUS?: boolean;
   ELIZAOS_CLOUD_SMALL_MODEL?: string;
   ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL?: string;
   appPromptConfig?: unknown;
   [key: string]: unknown;
 }
@@ -146,12 +148,39 @@ class RuntimeCache {
     );
   }
 
+  /**
+   * Remove a runtime from cache WITHOUT closing it.
+   * Use this for invalidation - the runtime's services are stopped but
+   * the database adapter is NOT closed (it shares a global connection pool).
+   */
+  async remove(agentId: string): Promise<boolean> {
+    const entry = this.cache.get(agentId);
+    if (entry) {
+      // Stop services but DON'T close the adapter
+      // runtime.stop() stops services without closing the database
+      try {
+        await entry.runtime.stop();
+      } catch (e) {
+        elizaLogger.debug(`[RuntimeCache] Stop error for ${agentId}: ${e}`);
+      }
+      this.cache.delete(agentId);
+      elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Delete a runtime from cache AND close it completely.
+   * Use this only for full shutdown scenarios where you want to terminate
+   * the database connection.
+   */
   async delete(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
+      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
       return true;
     }
     return false;
@@ -259,7 +288,7 @@ class DbAdapterPool {
     if (!adapter) return true;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
-    if (!isHealthy) await this.invalidateAdapter(key);
+    if (!isHealthy) this.removeAdapter(key);
     return isHealthy;
   }
 
@@ -301,13 +330,41 @@ class DbAdapterPool {
     return adapter;
   }
 
-  async invalidateAdapter(agentId: string): Promise<void> {
+  /**
+   * Remove an adapter from tracking WITHOUT closing it.
+   * Use this for invalidation - the adapter shares a global connection pool
+   * that should NOT be terminated.
+   */
+  removeAdapter(agentId: string): void {
+    this.adapters.delete(agentId);
+    adapterEmbeddingDimensions.delete(agentId);
+    elizaLogger.debug(`[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`);
+  }
+
+  /**
+   * Close and remove an adapter completely.
+   * Use this only for full shutdown scenarios.
+   * WARNING: This will close the shared connection pool!
+   */
+  async closeAdapter(agentId: string): Promise<void> {
     const adapter = this.adapters.get(agentId);
     if (adapter) {
       await safeClose(adapter, "DbAdapterPool", agentId);
     }
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
+  }
+
+  /**
+   * @deprecated Use removeAdapter() for invalidation or closeAdapter() for shutdown.
+   * This method closes the adapter which terminates the shared connection pool.
+   */
+  async invalidateAdapter(agentId: string): Promise<void> {
+    // For backward compatibility, but logs a warning
+    elizaLogger.warn(
+      `[DbAdapterPool] invalidateAdapter() is deprecated - use removeAdapter() instead to avoid closing shared pool`,
+    );
+    await this.closeAdapter(agentId);
   }
 }
 
@@ -342,11 +399,26 @@ export class RuntimeFactory {
   }
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
-    const wasInMemoryBase = await runtimeCache.delete(agentId);
-    const wasInMemoryWs = await runtimeCache.delete(`${agentId}:ws`);
+    // IMPORTANT: We intentionally DON'T close the adapter here.
+    // 
+    // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
+    // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
+    //
+    // Instead, we:
+    // 1. Remove the runtime from cache (using stop(), not close())
+    // 2. Remove the adapter reference from our pool (without closing it)
+    // 3. Let garbage collection clean up the orphaned adapter
+    // 4. The shared connection pool stays alive for other agents
+    //
+    // On the next request, a fresh runtime will be created with a new adapter
+    // that reuses the same underlying connection pool.
+
+    const wasInMemoryBase = await runtimeCache.remove(agentId);
+    const wasInMemoryWs = await runtimeCache.remove(`${agentId}:ws`);
     const wasInMemory = wasInMemoryBase || wasInMemoryWs;
 
-    await dbAdapterPool.invalidateAdapter(agentId);
+    // Just remove from our tracking - DON'T close the adapter
+    dbAdapterPool.removeAdapter(agentId);
 
     try {
       await edgeRuntimeCache.invalidateCharacter(agentId);
@@ -484,6 +556,10 @@ export class RuntimeFactory {
         settings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
+    if (context.imageModel) {
+      settings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
+    }
+
     if (context.appPromptConfig) {
       settings.appPromptConfig = context.appPromptConfig;
     }
@@ -523,10 +599,18 @@ export class RuntimeFactory {
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
+    // Get embedding dimension from known model dimensions (skips 500ms API call)
+    const embeddingModel =
+      (charSettings.OPENAI_EMBEDDING_MODEL as string) ||
+      (charSettings.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
+    const embeddingDimension = getStaticEmbeddingDimension(embeddingModel);
+
     return {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
+      // Pass embedding dimension to runtime so it skips the embedding API call
+      EMBEDDING_DIMENSION: String(embeddingDimension),
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
@@ -535,6 +619,12 @@ export class RuntimeFactory {
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
+      ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
+        context.imageModel ||
+        getSetting(
+          "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
+          DEFAULT_IMAGE_MODEL.modelId,
+        ),
       ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {

@@ -46,8 +46,8 @@ export interface StreamChunkData {
 /**
  * Options for sending a streaming message.
  */
-/** Default stream timeout in milliseconds (60 seconds) */
-const STREAM_TIMEOUT_MS = 60_000;
+/** Default stream timeout in milliseconds (3 minutes for image generation support) */
+const STREAM_TIMEOUT_MS = 180_000;
 
 /** Maximum buffer size to prevent memory exhaustion (1MB) */
 const MAX_BUFFER_SIZE = 1024 * 1024;
@@ -65,6 +65,8 @@ interface SendMessageOptions {
   webSearchEnabled?: boolean;
   /** Whether image creation is enabled for this message. */
   createImageEnabled?: boolean;
+  /** Image model to use when createImageEnabled is true. */
+  imageModel?: string;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
   /** Callback invoked for each text chunk (real-time streaming). */
@@ -94,6 +96,7 @@ export async function sendStreamingMessage({
   sessionToken,
   webSearchEnabled,
   createImageEnabled,
+  imageModel,
   onMessage,
   onChunk,
   onReasoning,
@@ -127,6 +130,8 @@ export async function sendStreamingMessage({
         webSearchEnabled: webSearchEnabled ?? true,
         // Include createImageEnabled (defaults to false)
         createImageEnabled: createImageEnabled ?? false,
+        // Include imageModel if createImageEnabled and model specified
+        ...(createImageEnabled && imageModel && { imageModel }),
       }),
     });
   } catch (error) {

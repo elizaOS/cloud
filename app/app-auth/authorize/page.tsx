@@ -34,7 +34,9 @@ function AuthorizeContent() {
   useEffect(() => {
     async function validateApp() {
       if (!appId) {
-        setError("Missing app_id parameter. Apps must be registered with Eliza Cloud.");
+        setError(
+          "Missing app_id parameter. Apps must be registered with Eliza Cloud.",
+        );
         setIsLoading(false);
         return;
       }
@@ -63,7 +65,9 @@ function AuthorizeContent() {
         const res = await fetch(`/api/v1/apps/${appId}/public`);
         if (!res.ok) {
           if (res.status === 404) {
-            setError("App not found. Please ensure the app is registered with Eliza Cloud.");
+            setError(
+              "App not found. Please ensure the app is registered with Eliza Cloud.",
+            );
           } else {
             setError("Failed to verify app.");
           }
@@ -106,7 +110,7 @@ function AuthorizeContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ appId }),
         });
@@ -128,7 +132,16 @@ function AuthorizeContent() {
     }
 
     completeAuthorization();
-  }, [ready, authenticated, user, appInfo, redirectUri, state, getAccessToken, isAuthorizing]);
+  }, [
+    ready,
+    authenticated,
+    user,
+    appInfo,
+    redirectUri,
+    state,
+    getAccessToken,
+    isAuthorizing,
+  ]);
 
   const handleLogin = () => {
     login();
@@ -138,7 +151,10 @@ function AuthorizeContent() {
     if (redirectUri) {
       const redirectUrl = new URL(redirectUri);
       redirectUrl.searchParams.set("error", "access_denied");
-      redirectUrl.searchParams.set("error_description", "User denied authorization");
+      redirectUrl.searchParams.set(
+        "error_description",
+        "User denied authorization",
+      );
       if (state) {
         redirectUrl.searchParams.set("state", state);
       }

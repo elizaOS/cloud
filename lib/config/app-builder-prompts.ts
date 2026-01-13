@@ -1,8 +1,10 @@
 /**
- * Claude Code System Prompts for AI App Builder
+ * AI App Builder System Prompts
  *
- * Structured prompts that help Claude understand the Eliza Cloud
+ * Structured prompts that help AI models understand the Eliza Cloud
  * architecture, available APIs, and best practices.
+ *
+ * These prompts work with any AI model via AI SDK and AI Gateway.
  */
 
 /**

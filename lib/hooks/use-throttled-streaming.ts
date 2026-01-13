@@ -10,6 +10,14 @@ import { useRef, useCallback, useEffect } from "react";
 const MIN_UPDATE_INTERVAL_MS = 33; // ~30fps
 
 /**
+ * Pending update tracking with type discrimination.
+ * Allows proper cleanup of both timeouts and animation frames.
+ */
+type PendingUpdate =
+  | { type: "timeout"; timeoutId: ReturnType<typeof setTimeout>; rafId?: number }
+  | { type: "raf"; frameId: number };
+
+/**
  * Hook for throttled streaming updates with smooth visual pacing.
  *
  * WHY THIS EXISTS:
@@ -42,8 +50,8 @@ export function useThrottledStreamingUpdate() {
   // Map of messageId -> accumulated text (no re-renders when updated)
   const textMapRef = useRef<Map<string, string>>(new Map());
 
-  // Map of messageId -> pending rAF frame ID (for throttling)
-  const pendingUpdatesRef = useRef<Map<string, number>>(new Map());
+  // Map of messageId -> pending update info (for throttling)
+  const pendingUpdatesRef = useRef<Map<string, PendingUpdate>>(new Map());
 
   // Map of messageId -> last update timestamp (for minimum interval enforcement)
   const lastUpdateTimeRef = useRef<Map<string, number>>(new Map());
@@ -56,9 +64,16 @@ export function useThrottledStreamingUpdate() {
     const lastUpdateTime = lastUpdateTimeRef.current;
 
     return () => {
-      // Cancel all pending animation frames
-      pendingUpdates.forEach((frameId) => {
-        cancelAnimationFrame(frameId);
+      // Cancel all pending updates (both timeouts and animation frames)
+      pendingUpdates.forEach((pending) => {
+        if (pending.type === "timeout") {
+          clearTimeout(pending.timeoutId);
+          if (pending.rafId !== undefined) {
+            cancelAnimationFrame(pending.rafId);
+          }
+        } else {
+          cancelAnimationFrame(pending.frameId);
+        }
       });
       pendingUpdates.clear();
       textMap.clear();
@@ -75,13 +90,28 @@ export function useThrottledStreamingUpdate() {
   }, []);
 
   /**
+   * Get the current accumulated text for a message (synchronous read).
+   * Useful when you need to read the current state without triggering an update.
+   */
+  const getText = useCallback((messageId: string): string => {
+    return textMapRef.current.get(messageId) || "";
+  }, []);
+
+  /**
    * Clear all accumulated text (call on error or reset).
    */
   const clearAll = useCallback(() => {
     textMapRef.current.clear();
     lastUpdateTimeRef.current.clear();
-    pendingUpdatesRef.current.forEach((frameId) => {
-      cancelAnimationFrame(frameId);
+    pendingUpdatesRef.current.forEach((pending) => {
+      if (pending.type === "timeout") {
+        clearTimeout(pending.timeoutId);
+        if (pending.rafId !== undefined) {
+          cancelAnimationFrame(pending.rafId);
+        }
+      } else {
+        cancelAnimationFrame(pending.frameId);
+      }
     });
     pendingUpdatesRef.current.clear();
   }, []);
@@ -106,19 +136,27 @@ export function useThrottledStreamingUpdate() {
       if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS) {
         const delay = MIN_UPDATE_INTERVAL_MS - timeSinceLastUpdate;
 
-        const timeoutId = window.setTimeout(() => {
-          pendingUpdatesRef.current.delete(messageId);
+        // Create the pending entry to track both timeout and future rAF
+        const pendingEntry: PendingUpdate = {
+          type: "timeout",
+          timeoutId: setTimeout(() => {
+            // Use rAF for paint-synced update
+            const rafId = requestAnimationFrame(() => {
+              // Only delete AFTER the rAF fires - this prevents race conditions
+              pendingUpdatesRef.current.delete(messageId);
+              lastUpdateTimeRef.current.set(messageId, performance.now());
+              const text = textMapRef.current.get(messageId) || "";
+              onUpdate(text);
+            });
+            // Track the rAF ID so it can be cancelled if clearAll is called
+            const current = pendingUpdatesRef.current.get(messageId);
+            if (current && current.type === "timeout") {
+              current.rafId = rafId;
+            }
+          }, delay),
+        };
 
-          // Use rAF for paint-synced update
-          requestAnimationFrame(() => {
-            lastUpdateTimeRef.current.set(messageId, performance.now());
-            const text = textMapRef.current.get(messageId) || "";
-            onUpdate(text);
-          });
-        }, delay);
-
-        // Store timeout as negative to distinguish from rAF
-        pendingUpdatesRef.current.set(messageId, -timeoutId);
+        pendingUpdatesRef.current.set(messageId, pendingEntry);
         return;
       }
 
@@ -130,7 +168,7 @@ export function useThrottledStreamingUpdate() {
         onUpdate(text);
       });
 
-      pendingUpdatesRef.current.set(messageId, frameId);
+      pendingUpdatesRef.current.set(messageId, { type: "raf", frameId });
     },
     [],
   );
@@ -138,6 +176,7 @@ export function useThrottledStreamingUpdate() {
   return {
     accumulateChunk,
     clearAll,
+    getText,
     scheduleUpdate,
   };
 }

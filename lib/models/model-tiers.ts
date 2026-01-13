@@ -139,6 +139,97 @@ export interface AdditionalModel {
   provider: string;
 }
 
+/**
+ * Image generation models
+ * Note: Gemini Pro is expensive ($120/M output tokens)
+ */
+export interface ImageModel {
+  id: string;
+  name: string;
+  description: string;
+  modelId: string;
+  provider: string;
+  tier: "fast" | "pro" | "ultra";
+  /** Warning message to show users (e.g., for expensive models) */
+  warning?: string;
+}
+
+export const IMAGE_MODELS: ImageModel[] = [
+  {
+    id: "gemini-flash-image",
+    name: "Gemini Flash",
+    description: "Fastest for quick images",
+    modelId: "google/gemini-2.5-flash-image",
+    provider: "google",
+    tier: "fast",
+  },
+  {
+    id: "gemini-pro-image",
+    name: "Gemini Pro",
+    description: "Best for everyday images",
+    modelId: "google/gemini-3-pro-image",
+    provider: "google",
+    tier: "pro",
+  },
+  {
+    id: "gemini-flash-preview",
+    name: "Gemini Flash Preview",
+    description: "Most capable for complex images",
+    modelId: "google/gemini-2.5-flash-image-preview",
+    provider: "google",
+    tier: "ultra",
+  },
+];
+
+/** Image tiers for tier-based selection (like text models) */
+export const IMAGE_TIERS: {
+  id: ModelTier;
+  name: string;
+  description: string;
+  model: ImageModel;
+}[] = [
+  {
+    id: "fast",
+    name: "Fast",
+    description: "Fastest for quick images",
+    model: IMAGE_MODELS[0],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    description: "Best for everyday images",
+    model: IMAGE_MODELS[1],
+  },
+  {
+    id: "ultra",
+    name: "Ultra",
+    description: "Most capable for complex images",
+    model: IMAGE_MODELS[2],
+  },
+];
+
+/** Additional image models shown in "More models" submenu */
+export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
+  {
+    id: "gpt-5-nano",
+    name: "GPT-5 Nano",
+    description: "OpenAI's fast image model",
+    modelId: "openai/gpt-5-nano",
+    provider: "openai",
+    tier: "fast",
+  },
+  {
+    id: "flux-kontext-max",
+    name: "Flux Kontext Max",
+    description: "Premium quality generation",
+    modelId: "bfl/flux-kontext-max",
+    provider: "bfl",
+    tier: "pro",
+  },
+];
+
+export const DEFAULT_IMAGE_MODEL = IMAGE_MODELS[0];
+
 export const ADDITIONAL_MODELS: AdditionalModel[] = [
   // Moonshot AI
   {

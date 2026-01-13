@@ -7,3 +7,7 @@
 export { ChatInput } from "./chat-input";
 export { HistoryTab } from "./history-tab";
 export { useAppBuilderSTT } from "./use-app-builder-stt";
+export { SessionLoader } from "./session-loader";
+export { AgentPicker, CompactAgentPicker } from "./agent-picker";
+export type { Agent } from "./agent-picker";
+export { ModelSelector } from "./model-selector";

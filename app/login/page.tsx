@@ -59,7 +59,7 @@ function LoginPageContent() {
   const loginInProgressRef = useRef(false);
   const lastLoginAttemptRef = useRef<number>(0);
 
-  // Redirect to dashboard if already authenticated
+  // Redirect after authentication - respects returnTo parameter
   useEffect(() => {
     if (ready && authenticated) {
       // Clear OAuth session flag and guards
@@ -73,9 +73,16 @@ function LoginPageContent() {
         setIsSyncing(true);
       }, 0);
 
+      // Get the return URL from search params, default to dashboard
+      const returnTo = searchParams.get("returnTo");
+      // Validate returnTo is a relative path (security: prevent open redirects)
+      const isValidReturnTo = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//");
+      const redirectUrl = isValidReturnTo ? returnTo : "/dashboard";
+
       // Small delay to ensure the sync message is visible
+      // Use router.replace to avoid polluting browser history with /login
       const timer = setTimeout(() => {
-        router.push("/dashboard");
+        router.replace(redirectUrl);
       }, 100);
 
       return () => clearTimeout(timer);

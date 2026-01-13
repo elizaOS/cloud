@@ -120,29 +120,28 @@ export function CharacterEditor({
             )}
           </div>
           <div className="flex items-center justify-between w-full sm:w-auto">
-              <div className="flex gap-2 items-center justify-between">
-             <div className="md:pl-2">JSON:</div>
-            <div className="flex items-center -space-x-1.5 rounded-2xl border bg-white/10 border-white/20 p-0.5 mr-3">
-           
-            <Button
-            size={"sm"}
-              onClick={() => setShowJson(!showJson)}
-              className={`flex pl-3.5 pr-3 items-center rounded-xl text-white transition-colors z-10 border ${
-                showJson
-                  ? "bg-red-900/60 border-red-500/50 hover:bg-red-800/80 hover:border-red-400/70"
-                  : "bg-transparent border-transparent hover:bg-white/15"
-              }`}
-            >
-              {showJson ? "Exit" : "Edit"}
-            </Button>
-            <Button
-             size={"sm"}
-              onClick={handleExport}
-              className="flex pl-3 pr-3.5 items-center rounded-xl text-white bg-transparent hover:bg-white/15 transition-colors"
-            >
-              Export
-            </Button>
-            </div>
+            <div className="flex gap-2 items-center justify-between">
+              <div className="md:pl-2">JSON:</div>
+              <div className="flex items-center -space-x-1.5 rounded-2xl border bg-white/10 border-white/20 p-0.5 mr-3">
+                <Button
+                  size={"sm"}
+                  onClick={() => setShowJson(!showJson)}
+                  className={`flex pl-3.5 pr-3 items-center rounded-xl text-white transition-colors z-10 border ${
+                    showJson
+                      ? "bg-red-900/60 border-red-500/50 hover:bg-red-800/80 hover:border-red-400/70"
+                      : "bg-transparent border-transparent hover:bg-white/15"
+                  }`}
+                >
+                  {showJson ? "Exit" : "Edit"}
+                </Button>
+                <Button
+                  size={"sm"}
+                  onClick={handleExport}
+                  className="flex pl-3 pr-3.5 items-center rounded-xl text-white bg-transparent hover:bg-white/15 transition-colors"
+                >
+                  Export
+                </Button>
+              </div>
             </div>
             <Button
               onClick={hasUnsavedChanges ? handleSave : onExit}
@@ -154,11 +153,16 @@ export function CharacterEditor({
               }`}
               data-onboarding="build-save"
             >
-              {isSaving ? "Saving" : hasUnsavedChanges ? (character.id ? "Save" : "Deploy") : "Exit"}
+              {isSaving
+                ? "Saving"
+                : hasUnsavedChanges
+                  ? character.id
+                    ? "Save"
+                    : "Deploy"
+                  : "Exit"}
             </Button>
           </div>
         </div>
-        
       </div>
 
       {/* Animated Tabs - Hidden in JSON mode */}
@@ -193,12 +197,20 @@ export function CharacterEditor({
           <>
             {activeTab === "character" && activeFormTab === "avatar" ? (
               <div className="h-full px-3 sm:px-6 pt-1.5 pb-3 sm:pb-6">
-                <CharacterForm character={character} onChange={onChange} activeTab={activeFormTab} />
+                <CharacterForm
+                  character={character}
+                  onChange={onChange}
+                  activeTab={activeFormTab}
+                />
               </div>
             ) : activeTab === "character" ? (
               <ScrollArea className="h-full">
                 <div className="px-3 sm:px-6 pb-3 sm:pb-6">
-                  <CharacterForm character={character} onChange={onChange} activeTab={activeFormTab} />
+                  <CharacterForm
+                    character={character}
+                    onChange={onChange}
+                    activeTab={activeFormTab}
+                  />
                 </div>
               </ScrollArea>
             ) : null}

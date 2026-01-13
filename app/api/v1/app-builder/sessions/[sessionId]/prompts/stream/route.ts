@@ -1,6 +1,16 @@
+/**
+ * Stream API Route - AI SDK v6 Based Streaming with Full Tool Execution
+ *
+ * This route provides streaming responses using Vercel's AI SDK v6
+ * with full tool execution support (file writes, build checks, etc.).
+ * Uses AI Gateway for model flexibility.
+ */
+
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { appBuilderAISDK } from "@/lib/services/app-builder-ai-sdk";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
+import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
@@ -18,6 +28,7 @@ interface RouteParams {
 
 const SendPromptSchema = z.object({
   prompt: z.string().min(1).max(10000),
+  model: z.string().optional(), // Optional model selection
 });
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -64,6 +75,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const { prompt, model } = validationResult.data;
+
     const stream = new TransformStream();
     const rawWriter = stream.writable.getWriter();
     const streamWriter = createStreamWriter(rawWriter);
@@ -79,50 +92,142 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       streamWriter.startHeartbeat(15000);
 
       try {
-        const result = await aiAppBuilder.sendPrompt(
-          sessionId,
-          validationResult.data.prompt,
-          user.id,
-          {
-            onThinking: async (text) => {
-              if (!streamWriter.isConnected()) return;
-              await streamWriter.sendEvent("thinking", {
-                text: text.substring(0, 1000),
-              });
-            },
-            onToolUse: async (tool, input, result) => {
-              if (!streamWriter.isConnected()) return;
-              await streamWriter.sendEvent("tool_use", {
-                tool,
-                input,
-                result: result.substring(0, 500),
-              });
-            },
-            abortSignal: abortController.signal,
-          },
-        );
+        // Get session and sandbox instance
+        const session = await aiAppBuilder.getSession(sessionId, user.id);
+        if (!session) {
+          throw new Error("Session not found");
+        }
 
-        if (streamWriter.isConnected()) {
-          await streamWriter.sendEvent("complete", {
-            success: result.success,
-            output: result.output,
-            filesAffected: result.filesAffected,
-            error: result.error,
-          });
+        // Get the actual sandbox instance from sandboxService
+        const sandbox = session.sandboxId
+          ? sandboxService.getSandboxInstance(session.sandboxId)
+          : undefined;
+
+        // Buffer for batching thinking text chunks
+        let thinkingBuffer = "";
+        let thinkingFlushTimer: ReturnType<typeof setTimeout> | null = null;
+        const THINKING_FLUSH_INTERVAL_MS = 50; // Batch thinking chunks every 50ms for faster feedback
+        const THINKING_MIN_CHUNK_SIZE = 5; // Low threshold for faster first paint
+
+        const flushThinkingBuffer = async () => {
+          if (thinkingBuffer && streamWriter.isConnected()) {
+            await streamWriter.sendEvent("thinking", {
+              text: thinkingBuffer.substring(0, 2000),
+            });
+            thinkingBuffer = "";
+          }
+          thinkingFlushTimer = null;
+        };
+
+        const scheduleThinkingFlush = () => {
+          if (!thinkingFlushTimer) {
+            thinkingFlushTimer = setTimeout(
+              flushThinkingBuffer,
+              THINKING_FLUSH_INTERVAL_MS,
+            );
+          }
+        };
+
+        // Execute with AI SDK streaming and full tool execution
+        for await (const event of appBuilderAISDK.executeStream(prompt, {
+          sandbox,
+          sandboxId: session.sandboxId,
+          model,
+          abortSignal: abortController.signal,
+        })) {
+          // Check for abort
+          if (abortController.signal.aborted) {
+            logger.info("Stream aborted by client", { sessionId });
+            break;
+          }
+
+          // Handle different event types
+          switch (event.type) {
+            case "thinking":
+              // Buffer thinking text to batch small chunks together
+              thinkingBuffer += event.text;
+              if (thinkingBuffer.length >= THINKING_MIN_CHUNK_SIZE) {
+                await flushThinkingBuffer();
+              } else {
+                scheduleThinkingFlush();
+              }
+              break;
+
+            case "tool_call":
+              // Flush any pending thinking before tool calls
+              if (thinkingBuffer) {
+                await flushThinkingBuffer();
+              }
+              // Send tool_start event for instant UI feedback
+              if (streamWriter.isConnected()) {
+                await streamWriter.sendEvent("tool_start", {
+                  tool: event.toolName,
+                  input: event.args,
+                });
+              }
+              break;
+
+            case "tool_result":
+              // Send tool_use event when tool completes
+              if (streamWriter.isConnected()) {
+                await streamWriter.sendEvent("tool_use", {
+                  tool: event.toolName,
+                  input: event.args,
+                  result:
+                    typeof event.result === "string"
+                      ? event.result.substring(0, 500)
+                      : JSON.stringify(event.result).substring(0, 500),
+                });
+              }
+              break;
+
+            case "complete":
+              // Flush any remaining thinking text
+              if (thinkingBuffer) {
+                await flushThinkingBuffer();
+              }
+              if (thinkingFlushTimer) {
+                clearTimeout(thinkingFlushTimer);
+              }
+              if (streamWriter.isConnected()) {
+                await streamWriter.sendEvent("complete", {
+                  success: event.result.success,
+                  output: event.result.output,
+                  filesAffected: event.result.filesAffected,
+                  error: event.result.error,
+                  toolCallCount: event.result.toolCallCount,
+                });
+              }
+              break;
+
+            case "error":
+              // Flush any remaining thinking text
+              if (thinkingBuffer) {
+                await flushThinkingBuffer();
+              }
+              if (thinkingFlushTimer) {
+                clearTimeout(thinkingFlushTimer);
+              }
+              if (streamWriter.isConnected()) {
+                await streamWriter.sendEvent("error", {
+                  success: false,
+                  error: event.error,
+                });
+              }
+              break;
+          }
+        }
+
+        // Ensure any remaining buffer is flushed
+        if (thinkingFlushTimer) {
+          clearTimeout(thinkingFlushTimer);
+        }
+        if (thinkingBuffer) {
+          await flushThinkingBuffer();
         }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send prompt";
-
-        // Reset session status to "ready" so user can try again
-        try {
-          await aiAppBuilder.resetSessionStatus(sessionId, user.id);
-        } catch (resetError) {
-          logger.warn("Failed to reset session status after error", {
-            sessionId,
-            resetError,
-          });
-        }
 
         if (
           errorMessage.includes("aborted") ||
@@ -157,6 +262,40 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     logger.error("Auth or ownership verification failed for prompt stream", {
       error,
     });
+    const status = getErrorStatusCode(error);
+    const message = getSafeErrorMessage(error);
+
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+/**
+ * GET endpoint to list available models for the app builder
+ */
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
+
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+
+    const models = appBuilderAISDK.getAvailableModels();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        models,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    logger.error("Failed to get models for stream", { error });
     const status = getErrorStatusCode(error);
     const message = getSafeErrorMessage(error);
 

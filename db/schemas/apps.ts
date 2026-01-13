@@ -161,6 +161,12 @@ export const apps = pgTable(
       .default({})
       .notNull(),
 
+    // Linked characters (max 4 AI agents that can be used in this app)
+    linked_character_ids: jsonb("linked_character_ids")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+
     // Deployment status
     deployment_status: appDeploymentStatusEnum("deployment_status")
       .notNull()

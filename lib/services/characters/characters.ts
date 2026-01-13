@@ -14,11 +14,7 @@ import { usersService } from "../users";
 import { logger } from "@/lib/utils/logger";
 import { dbRead, dbWrite } from "@/db/client";
 import { elizaRoomCharactersTable, userCharacters, users } from "@/db/schemas";
-import {
-  memoryTable,
-  roomTable,
-  participantTable,
-} from "@/db/schemas/eliza";
+import { memoryTable, roomTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
@@ -194,7 +190,9 @@ export class CharactersService {
     let username = data.username;
     if (!username) {
       username = await this.generateUniqueUsername(data.name);
-      logger.info(`[Characters] Generated username: @${username} for "${data.name}"`);
+      logger.info(
+        `[Characters] Generated username: @${username} for "${data.name}"`,
+      );
     } else {
       // Validate provided username
       const validation = validateUsername(username);
@@ -587,11 +585,11 @@ export class CharactersService {
         avatar_url: userCharacters.avatar_url,
         bio: userCharacters.bio,
         owner_id: userCharacters.user_id,
-        owner_name: sql<string | null>`COALESCE(${users.name}, ${users.nickname})`.as(
-          "owner_name"
-        ),
+        owner_name: sql<
+          string | null
+        >`COALESCE(${users.name}, ${users.nickname})`.as("owner_name"),
         last_interaction_time: sql<string>`MAX(${memoryTable.createdAt})`.as(
-          "last_interaction_time"
+          "last_interaction_time",
         ),
       })
       .from(memoryTable)
@@ -601,8 +599,8 @@ export class CharactersService {
         and(
           eq(memoryTable.entityId, userId),
           ne(userCharacters.user_id, userId),
-          eq(userCharacters.is_public, true)
-        )
+          eq(userCharacters.is_public, true),
+        ),
       )
       .groupBy(
         userCharacters.id,
@@ -612,7 +610,7 @@ export class CharactersService {
         userCharacters.bio,
         userCharacters.user_id,
         users.name,
-        users.nickname
+        users.nickname,
       )
       .orderBy(sql`MAX(${memoryTable.createdAt}) DESC`);
 
@@ -634,7 +632,7 @@ export class CharactersService {
    */
   async getSavedAgentDetails(
     userId: string,
-    agentId: string
+    agentId: string,
   ): Promise<{
     agent: {
       id: string;
@@ -658,7 +656,7 @@ export class CharactersService {
       where: and(
         eq(userCharacters.id, agentId),
         ne(userCharacters.user_id, userId),
-        eq(userCharacters.is_public, true)
+        eq(userCharacters.is_public, true),
       ),
     });
 
@@ -671,7 +669,7 @@ export class CharactersService {
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(
-        and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
+        and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId)),
       );
     const messageCount = messageResult[0]?.count ?? 0;
 
@@ -683,8 +681,8 @@ export class CharactersService {
       .where(
         and(
           eq(roomTable.agentId, agentId),
-          eq(participantTable.entityId, userId)
-        )
+          eq(participantTable.entityId, userId),
+        ),
       );
     const roomCount = roomResult[0]?.count ?? 0;
 
@@ -716,7 +714,7 @@ export class CharactersService {
    */
   async removeSavedAgent(
     userId: string,
-    agentId: string
+    agentId: string,
   ): Promise<
     | {
         success: true;
@@ -734,7 +732,7 @@ export class CharactersService {
     const agent = await dbRead.query.userCharacters.findFirst({
       where: and(
         eq(userCharacters.id, agentId),
-        ne(userCharacters.user_id, userId)
+        ne(userCharacters.user_id, userId),
       ),
     });
 
@@ -750,92 +748,98 @@ export class CharactersService {
       .where(
         and(
           eq(participantTable.entityId, userId),
-          eq(roomTable.agentId, agentId)
-        )
+          eq(roomTable.agentId, agentId),
+        ),
       );
 
     const roomIds = userRooms.map((r) => r.roomId);
 
     // Use transaction to ensure atomicity of all delete operations
-    const { deletedMemories, deletedParticipants, deletedRooms } = await dbWrite.transaction(async (tx) => {
-      let memoryCount = 0;
-      let participantCount = 0;
-      let roomCount = 0;
+    const { deletedMemories, deletedParticipants, deletedRooms } =
+      await dbWrite.transaction(async (tx) => {
+        let memoryCount = 0;
+        let participantCount = 0;
+        let roomCount = 0;
 
-      if (roomIds.length > 0) {
-        // Delete memories in these rooms for this user
-        // Note: We only delete memories where entityId = user.id to preserve
-        // the agent's memories and other users' data
-        const memoryResult = await tx
+        if (roomIds.length > 0) {
+          // Delete memories in these rooms for this user
+          // Note: We only delete memories where entityId = user.id to preserve
+          // the agent's memories and other users' data
+          const memoryResult = await tx
+            .delete(memoryTable)
+            .where(
+              and(
+                eq(memoryTable.entityId, userId),
+                inArray(memoryTable.roomId, roomIds),
+              ),
+            )
+            .returning({ id: memoryTable.id });
+          memoryCount = memoryResult.length;
+
+          // Delete participant records for this user in these rooms
+          const participantResult = await tx
+            .delete(participantTable)
+            .where(
+              and(
+                eq(participantTable.entityId, userId),
+                inArray(participantTable.roomId, roomIds),
+              ),
+            )
+            .returning({ id: participantTable.id });
+          participantCount = participantResult.length;
+
+          // For DM rooms (1:1), check if we should delete the room entirely
+          // Only delete rooms where no other participants remain
+          // PERFORMANCE: Use batch query instead of N+1 individual queries
+          const roomParticipantCounts = await tx
+            .select({
+              roomId: participantTable.roomId,
+              count: sql<number>`count(*)`.as("count"),
+            })
+            .from(participantTable)
+            .where(inArray(participantTable.roomId, roomIds))
+            .groupBy(participantTable.roomId);
+
+          // Create a map for quick lookup
+          const participantCountMap = new Map(
+            roomParticipantCounts.map((r) => [r.roomId, Number(r.count)]),
+          );
+
+          // Find rooms with no remaining participants (count = 0 or not in results)
+          const emptyRoomIds = roomIds.filter(
+            (roomId) =>
+              !participantCountMap.has(roomId) ||
+              participantCountMap.get(roomId) === 0,
+          );
+
+          // Delete all empty rooms in a single batch query
+          if (emptyRoomIds.length > 0) {
+            await tx
+              .delete(roomTable)
+              .where(inArray(roomTable.id, emptyRoomIds));
+            roomCount = emptyRoomIds.length;
+          }
+        }
+
+        // Also delete any memories directly tied to this agent+user combination
+        // that might be in other rooms (e.g., world rooms, etc.)
+        const directMemoryResult = await tx
           .delete(memoryTable)
           .where(
             and(
               eq(memoryTable.entityId, userId),
-              inArray(memoryTable.roomId, roomIds)
-            )
+              eq(memoryTable.agentId, agentId),
+            ),
           )
           .returning({ id: memoryTable.id });
-        memoryCount = memoryResult.length;
+        memoryCount += directMemoryResult.length;
 
-        // Delete participant records for this user in these rooms
-        const participantResult = await tx
-          .delete(participantTable)
-          .where(
-            and(
-              eq(participantTable.entityId, userId),
-              inArray(participantTable.roomId, roomIds)
-            )
-          )
-          .returning({ id: participantTable.id });
-        participantCount = participantResult.length;
-
-        // For DM rooms (1:1), check if we should delete the room entirely
-        // Only delete rooms where no other participants remain
-        // PERFORMANCE: Use batch query instead of N+1 individual queries
-        const roomParticipantCounts = await tx
-          .select({
-            roomId: participantTable.roomId,
-            count: sql<number>`count(*)`.as("count"),
-          })
-          .from(participantTable)
-          .where(inArray(participantTable.roomId, roomIds))
-          .groupBy(participantTable.roomId);
-
-        // Create a map for quick lookup
-        const participantCountMap = new Map(
-          roomParticipantCounts.map((r) => [r.roomId, Number(r.count)])
-        );
-
-        // Find rooms with no remaining participants (count = 0 or not in results)
-        const emptyRoomIds = roomIds.filter(
-          (roomId) => !participantCountMap.has(roomId) || participantCountMap.get(roomId) === 0
-        );
-
-        // Delete all empty rooms in a single batch query
-        if (emptyRoomIds.length > 0) {
-          await tx
-            .delete(roomTable)
-            .where(inArray(roomTable.id, emptyRoomIds));
-          roomCount = emptyRoomIds.length;
-        }
-      }
-
-      // Also delete any memories directly tied to this agent+user combination
-      // that might be in other rooms (e.g., world rooms, etc.)
-      const directMemoryResult = await tx
-        .delete(memoryTable)
-        .where(
-          and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
-        )
-        .returning({ id: memoryTable.id });
-      memoryCount += directMemoryResult.length;
-
-      return {
-        deletedMemories: memoryCount,
-        deletedParticipants: participantCount,
-        deletedRooms: roomCount,
-      };
-    });
+        return {
+          deletedMemories: memoryCount,
+          deletedParticipants: participantCount,
+          deletedRooms: roomCount,
+        };
+      });
 
     logger.info("[Characters] Removed saved agent:", {
       userId,

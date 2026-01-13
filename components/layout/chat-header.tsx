@@ -149,7 +149,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId
+    (a) => a.id === selectedCharacterId,
   );
 
   // Determine if user is the owner of the selected character
@@ -168,7 +168,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -261,7 +261,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: !isPublic }),
-        }
+        },
       );
 
       const data = await response.json();

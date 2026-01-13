@@ -10,41 +10,6 @@ import { eq } from "drizzle-orm";
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
- * Simple in-memory rate limiter per IP address.
- * Prevents abuse of the session cookie setting endpoint.
- */
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute per IP
-
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  // Periodic cleanup
-  if (rateLimitMap.size > 1000) {
-    const cutoff = now - 5 * RATE_LIMIT_WINDOW_MS;
-    for (const [key, value] of rateLimitMap.entries()) {
-      if (value.resetAt < cutoff) {
-        rateLimitMap.delete(key);
-      }
-    }
-  }
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count };
-}
-
-/**
  * POST /api/set-anonymous-session
  * Sets the anonymous session cookie when a user arrives with a session token.
  * Public endpoint - no authentication required.
@@ -58,26 +23,6 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
  * @returns Success status with user and session IDs.
  */
 export async function POST(request: NextRequest) {
-  // Rate limiting by IP
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const clientIp = realIp || forwardedFor?.split(",")[0]?.trim() || "unknown";
-
-  const rateLimit = checkRateLimit(clientIp);
-  if (!rateLimit.allowed) {
-    logger.warn("[Set Session] Rate limit exceeded for IP");
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": "60",
-          "X-RateLimit-Remaining": "0",
-        },
-      },
-    );
-  }
-
   logger.info("[Set Session] Received request to set anonymous session cookie");
 
   try {

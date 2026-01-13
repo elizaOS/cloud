@@ -1,10 +1,11 @@
 /**
  * Knowledge Context Builder for AI App Builder
  *
- * Aggregates context for Claude to build Eliza Cloud apps.
+ * Aggregates context for AI models to build Eliza Cloud apps.
  * Documents the ACTUAL files in cloud-apps-template.
  *
  * Supports tiered context loading to optimize token usage.
+ * Works with any AI model via AI SDK and AI Gateway.
  */
 
 import { buildApiContext } from "@/lib/fragments/api-context";
@@ -38,7 +39,7 @@ export interface KnowledgeContext {
 export type PatternType =
   | "streaming-chat"
   | "agent-chat"
-  | "character-chat"
+  | "agent-dedicated-chat"
   | "image-generation"
   | "credits-display"
   | "dashboard-layout"
@@ -106,17 +107,20 @@ const CONSTRAINTS = `
 - \`@/hooks/use-eliza.ts\` - React hooks are pre-built
 - \`@/components/eliza/\` - Provider and utilities are ready to use
 
-### CRITICAL: ElizaProvider in layout.tsx
+### CRITICAL: ElizaProvider and Analytics in layout.tsx
 **NEVER remove ElizaProvider from layout.tsx!** Without it, all Eliza hooks will fail.
+**ALWAYS include Analytics** for dashboard metrics on deployed apps.
 When writing layout.tsx, you MUST include:
 \`\`\`tsx
 import { ElizaProvider } from '@/components/eliza';
+import { Analytics } from '@vercel/analytics/next';
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
         <ElizaProvider>{children}</ElizaProvider>
+        <Analytics />
       </body>
     </html>
   );
@@ -759,15 +763,15 @@ export default function AgentsPage() {
 }`,
   },
 
-  "character-chat": {
-    description: "Chat interface for a specific AI character/agent",
+  "agent-dedicated-chat": {
+    description: "Chat interface for a specific AI agent",
     code: `'use client';
 import { useAgentChat } from '@/hooks/use-eliza';
 import { Send, Loader2, Bot, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 
 // Pass the agent ID as a prop or from URL params
-export default function CharacterChat({ agentId }: { agentId: string }) {
+export default function AgentChat({ agentId }: { agentId: string }) {
   const { agent, agentLoading, messages, loading, error, send, reset } = useAgentChat(agentId);
   const [input, setInput] = useState('');
 
@@ -788,7 +792,7 @@ export default function CharacterChat({ agentId }: { agentId: string }) {
 
   return (
     <div className="flex flex-col h-screen bg-gray-950">
-      {/* Header with character info */}
+      {/* Header with agent info */}
       <header className="p-4 border-b border-gray-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {agent?.avatar ? (
@@ -799,7 +803,7 @@ export default function CharacterChat({ agentId }: { agentId: string }) {
             </div>
           )}
           <div>
-            <h1 className="font-semibold">{agent?.name || 'AI Character'}</h1>
+            <h1 className="font-semibold">{agent?.name || 'AI Agent'}</h1>
             {agent?.description && (
               <p className="text-sm text-gray-400 line-clamp-1">{agent.description}</p>
             )}
@@ -815,7 +819,7 @@ export default function CharacterChat({ agentId }: { agentId: string }) {
         {messages.length === 0 && (
           <div className="text-center text-gray-500 py-12">
             <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Start chatting with {agent?.name || 'the character'}!</p>
+            <p>Start chatting with {agent?.name || 'the agent'}!</p>
           </div>
         )}
         {messages.map((m, i) => (
@@ -852,7 +856,7 @@ export default function CharacterChat({ agentId }: { agentId: string }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder={\`Message \${agent?.name || 'character'}...\`}
+            placeholder={\`Message \${agent?.name || 'agent'}...\`}
             className="input-eliza flex-1"
             disabled={loading}
           />
@@ -1603,7 +1607,6 @@ export function selectContextTier(
     "full application",
     "integration",
     "agent",
-    "character",
     "chat with",
     "talk to",
     "voice",
@@ -1633,11 +1636,11 @@ export function selectContextTier(
 
   // Template-based defaults
   const complexTemplates = [
-    "agent-dashboard", 
-    "analytics", 
-    "mcp-service", 
-    "saas-starter", 
-    "ai-tool"
+    "agent-dashboard",
+    "analytics",
+    "mcp-service",
+    "saas-starter",
+    "ai-tool",
   ];
   const isComplexTemplate =
     templateType && complexTemplates.includes(templateType);

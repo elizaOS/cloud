@@ -110,7 +110,9 @@ export default async function ChatPage({
     const isPublic = character.is_public === true;
 
     // Check if this is a claimable affiliate character
-    const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
+    const claimCheck = await charactersService.isClaimableAffiliateCharacter(
+      character.id,
+    );
     const isClaimableAffiliate = claimCheck.claimable;
 
     // Allow access if: character is public, user is owner, or it's a claimable affiliate character
@@ -172,7 +174,9 @@ export default async function ChatPage({
   // Initialize claimable affiliate state with defaults to ensure they're defined in all code paths
   // These values are used for both access control (line 139) and character claiming logic (line 312)
   let isClaimableAffiliate = false;
-  let claimCheck: { claimable: boolean; ownerId?: string } = { claimable: false };
+  let claimCheck: { claimable: boolean; ownerId?: string } = {
+    claimable: false,
+  };
 
   // Check if this is a claimable affiliate character (anonymous users can still access)
   const claimCheckResult =

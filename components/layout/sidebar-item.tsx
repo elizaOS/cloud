@@ -72,12 +72,13 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
   const isLocked = !authenticated && item.freeAllowed === false;
 
   // If item is locked, show as button with login prompt
+  // Use returnTo to redirect back to the locked item after login
   if (isLocked) {
     const lockedButton = (
       <button
         onClick={(e) => {
           e.preventDefault();
-          router.push("/login");
+          router.push(`/login?returnTo=${encodeURIComponent(item.href)}`);
         }}
         className={cn(
           "relative flex w-full items-center rounded-lg transition-all duration-200",
