@@ -259,7 +259,7 @@ export class SandboxService {
 
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
+        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
       );
     }
 
@@ -321,7 +321,7 @@ export class SandboxService {
 
       if (errorMessage.includes("OIDC")) {
         throw new Error(
-          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${detailedMessage}`,
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${detailedMessage}`
         );
       }
 
@@ -337,7 +337,7 @@ export class SandboxService {
             `2. Template URL is invalid or inaccessible\n` +
             `3. Account sandbox quota exceeded\n` +
             `4. Invalid configuration parameters\n\n` +
-            `Details: ${detailedMessage}`,
+            `Details: ${detailedMessage}`
         );
       }
 
@@ -347,7 +347,7 @@ export class SandboxService {
         statusCode === 429
       ) {
         throw new Error(
-          `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again.\n\nDetails: ${detailedMessage}`,
+          `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again.\n\nDetails: ${detailedMessage}`
         );
       }
 
@@ -376,10 +376,66 @@ export class SandboxService {
         {
           sandboxId,
           stderr: await bunInstall.stderr(),
-        },
+        }
       );
     } else {
       logger.info("Bun installed successfully", { sandboxId });
+    }
+
+    // Verify template cloned successfully by checking for package.json
+    const packageJsonCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-f", "package.json"],
+    });
+
+    if (packageJsonCheck.exitCode !== 0) {
+      logger.warn(
+        "package.json not found after sandbox creation, attempting to re-clone template",
+        {
+          sandboxId,
+          templateUrl,
+        }
+      );
+      onProgress?.({ step: "installing", message: "Re-cloning template..." });
+
+      // Attempt to re-clone the template
+      const cloneResult = await sandbox.runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          `git clone --depth 1 ${templateUrl} /tmp/template-retry && cp -r /tmp/template-retry/. . && rm -rf /tmp/template-retry`,
+        ],
+      });
+
+      if (cloneResult.exitCode !== 0) {
+        const stderr = await cloneResult.stderr();
+        logger.error("Failed to re-clone template", {
+          sandboxId,
+          templateUrl,
+          stderr,
+        });
+        throw new Error(
+          `Template failed to clone properly - package.json not found. The git repository may be temporarily unavailable. Please try again.\n\nTemplate URL: ${templateUrl}`
+        );
+      }
+
+      // Verify package.json exists after retry
+      const retryCheck = await sandbox.runCommand({
+        cmd: "test",
+        args: ["-f", "package.json"],
+      });
+
+      if (retryCheck.exitCode !== 0) {
+        logger.error("package.json still not found after re-clone attempt", {
+          sandboxId,
+          templateUrl,
+        });
+        throw new Error(
+          `Template repository does not contain a package.json file. Please ensure the template repository is properly configured.\n\nTemplate URL: ${templateUrl}`
+        );
+      }
+
+      logger.info("Template re-cloned successfully", { sandboxId });
     }
 
     // Install dependencies
@@ -438,7 +494,7 @@ export class SandboxService {
         });
 
         const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString(
-          "base64",
+          "base64"
         );
         await sandbox.runCommand({
           cmd: "sh",
@@ -446,7 +502,7 @@ export class SandboxService {
         });
 
         const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString(
-          "base64",
+          "base64"
         );
         await sandbox.runCommand({
           cmd: "sh",
@@ -458,7 +514,7 @@ export class SandboxService {
 
         const analyticsBase64 = Buffer.from(
           ELIZA_ANALYTICS_COMPONENT,
-          "utf-8",
+          "utf-8"
         ).toString("base64");
         await sandbox.runCommand({
           cmd: "sh",
@@ -485,7 +541,7 @@ export class SandboxService {
             const bodyTag = bodyMatch[0];
             updatedLayout = updatedLayout.replace(
               bodyTag,
-              `${bodyTag}\n        <ElizaAnalytics />\n        <Analytics />`,
+              `${bodyTag}\n        <ElizaAnalytics />\n        <Analytics />`
             );
           }
 
@@ -598,7 +654,7 @@ export class SandboxService {
   async writeFile(
     sandboxId: string,
     path: string,
-    content: string,
+    content: string
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -629,7 +685,7 @@ export class SandboxService {
 
   async installPackages(
     sandboxId: string,
-    packages: string[],
+    packages: string[]
   ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -676,7 +732,7 @@ export class SandboxService {
 
   async installDependenciesAndRestart(
     sandboxId: string,
-    onProgress?: (progress: SandboxProgress) => void,
+    onProgress?: (progress: SandboxProgress) => void
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) {
@@ -773,7 +829,7 @@ export class SandboxService {
     options: {
       onProgress?: (progress: SandboxProgress) => void;
       timeoutMs?: number;
-    } = {},
+    } = {}
   ): Promise<SandboxSessionData | null> {
     const { onProgress, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
     const creds = getSandboxCredentials();
@@ -932,7 +988,7 @@ export class SandboxService {
           {
             sandboxId,
             statusCode,
-          },
+          }
         );
 
         onProgress?.({ step: "starting", message: "Restarting dev server..." });
