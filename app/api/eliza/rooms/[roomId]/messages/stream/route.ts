@@ -20,6 +20,7 @@ import { charactersService } from "@/lib/services/characters/characters";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
+import { isConnectionError, trackConnectionError } from "@/lib/utils/db";
 import type { NextRequest } from "next/server";
 import {
   validateAppId,
@@ -44,7 +45,7 @@ export const maxDuration = 180; // 3 minutes for image generation support
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   const encoder = new TextEncoder();
 
@@ -81,7 +82,7 @@ export async function POST(
     if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -93,7 +94,7 @@ export async function POST(
           error: promptConfigResult.error,
           details: promptConfigResult.details,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -109,7 +110,7 @@ export async function POST(
     if (agentMode && !isValidAgentModeConfig(agentMode)) {
       return new Response(
         JSON.stringify({ error: "Invalid agent mode configuration" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -128,7 +129,7 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId, appPromptConfig, webSearchEnabled },
+      { sessionToken, appId, appPromptConfig, webSearchEnabled }
     );
 
     // Set webSearchEnabled on context (defaults to true)
@@ -144,7 +145,7 @@ export async function POST(
           error:
             "Your account has been suspended due to policy violations. Please contact support.",
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -154,7 +155,7 @@ export async function POST(
     const moderationCheck = contentModerationService.startModerationCheck(
       text,
       userContext.userId,
-      roomId,
+      roomId
     );
 
     // The moderation continues in background - violations are logged and tracked
@@ -173,8 +174,12 @@ export async function POST(
         })
         .catch((error) => {
           // Non-critical - moderation failures should not spam logs
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          logger.debug("[Stream] Background moderation skipped:", errorMsg.substring(0, 100));
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
+          logger.debug(
+            "[Stream] Background moderation skipped:",
+            errorMsg.substring(0, 100)
+          );
         });
     }
 
@@ -194,7 +199,7 @@ export async function POST(
             requiresSignup: true,
             reason: limitCheck.reason,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } },
+          { status: 429, headers: { "Content-Type": "application/json" } }
         );
       }
     }
@@ -213,7 +218,7 @@ export async function POST(
         const balanceCheck = await appCreditsService.checkBalance(
           userContext.appId,
           userContext.userId,
-          MINIMUM_MESSAGE_COST,
+          MINIMUM_MESSAGE_COST
         );
 
         if (!balanceCheck.sufficient) {
@@ -230,7 +235,7 @@ export async function POST(
               details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
               requiresPurchase: true,
             }),
-            { status: 402, headers: { "Content-Type": "application/json" } },
+            { status: 402, headers: { "Content-Type": "application/json" } }
           );
         }
       }
@@ -250,7 +255,7 @@ export async function POST(
           error: "This conversation has ended. Please start a new chat.",
           roomLocked: true,
         }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -283,7 +288,7 @@ export async function POST(
                   "This agent is private. Only the owner can chat with it.",
                 accessDenied: true,
               }),
-              { status: 403, headers: { "Content-Type": "application/json" } },
+              { status: 403, headers: { "Content-Type": "application/json" } }
             );
           }
 
@@ -312,7 +317,7 @@ export async function POST(
               {
                 hasAutoImage: affiliateData.autoImage,
                 hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
-              },
+              }
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
             userContext.agentMode = AgentMode.ASSISTANT;
@@ -323,7 +328,7 @@ export async function POST(
       } catch (error) {
         logger.error(
           "[Stream] Failed to check character access/affiliate status:",
-          error,
+          error
         );
       }
     }
@@ -336,7 +341,7 @@ export async function POST(
     ) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
 
       // Update room agentId for build mode (proper column, not metadata)
@@ -344,12 +349,12 @@ export async function POST(
         try {
           await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
           );
         } catch (error) {
           logger.error(
             "[Stream] BUILD mode - Failed to update room agentId:",
-            error,
+            error
           );
         }
       }
@@ -357,9 +362,7 @@ export async function POST(
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId
-        ? `Using character ${characterId}`
-        : "Using default character",
+      characterId ? `Using character ${characterId}` : "Using default character"
     );
 
     // Step 5: Apply model preferences if provided
@@ -371,7 +374,7 @@ export async function POST(
       logger.info(`[Stream] User selected model: ${model}`);
     } else if (userContext.modelPreferences) {
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
       );
     } else {
       logger.info("[Stream] No model preference set, using defaults");
@@ -381,7 +384,7 @@ export async function POST(
     if (createImageEnabled) {
       userContext.imageModel = imageModel;
       logger.info(
-        `[Stream] Image generation enabled - model: ${imageModel || "default"}, mode: ${agentModeConfig.mode}`,
+        `[Stream] Image generation enabled - model: ${imageModel || "default"}, mode: ${agentModeConfig.mode}`
       );
     }
 
@@ -401,7 +404,7 @@ export async function POST(
       agentModeConfig.metadata?.clientCharacterState
     ) {
       const validatedState = clientCharacterStateSchema.safeParse(
-        agentModeConfig.metadata.clientCharacterState,
+        agentModeConfig.metadata.clientCharacterState
       );
 
       if (!validatedState.success) {
@@ -413,7 +416,7 @@ export async function POST(
             error: "Invalid character state provided",
             details: validatedState.error.issues,
           }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
+          { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
 
@@ -426,7 +429,7 @@ export async function POST(
             : true,
       };
       logger.info(
-        "[Stream] BUILD mode - Stored validated client character state in runtime settings",
+        "[Stream] BUILD mode - Stored validated client character state in runtime settings"
       );
     }
 
@@ -448,7 +451,7 @@ export async function POST(
             error: "Your message was blocked due to content policy violations.",
             details: error.message,
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
+          { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
       throw error;
@@ -590,7 +593,7 @@ export async function POST(
         if (result.usage && !userContext.isAnonymous) {
           // This is just for the warning event, actual credit deduction happened in MessageHandler
           const remainingCredits = await checkUserCredits(
-            userContext.organizationId,
+            userContext.organizationId
           );
           if (remainingCredits < 1.0) {
             await sendEvent("warning", {
@@ -602,7 +605,8 @@ export async function POST(
         // Send completion event
         await sendEvent("done", { timestamp: Date.now() });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorMessageLower = errorMessage.toLowerCase();
         const errorName = error instanceof Error ? error.name : "Error";
 
@@ -621,34 +625,26 @@ export async function POST(
           logger.warn("[Stream Messages] Insufficient credits error", {
             userId: userContext.userId,
           });
-        } else if (
-          errorMessageLower.includes("server conn crashed") ||
-          errorMessageLower.includes("08p01") ||
-          errorMessageLower.includes("connection") ||
-          errorMessageLower.includes("terminated") ||
-          errorMessageLower.includes("rollback") ||
-          errorMessageLower.includes("econnreset") ||
-          errorMessageLower.includes("socket") ||
-          errorMessageLower.includes("end on the pool") ||
-          errorMessageLower.includes("failed query") ||
-          errorMessageLower.includes("cannot use a pool")
-        ) {
-          userMessage = "A temporary connection issue occurred. Please try again.";
+        } else if (isConnectionError(error)) {
+          userMessage =
+            "A temporary connection issue occurred. Please try again.";
           errorType = "connection_error";
-          // Use warn level since connection errors are often transient and recoverable
-          logger.warn("[Stream Messages] Database connection error:", errorMessage.substring(0, 150));
+          // Track connection error (logs at warn level with rate limiting)
+          trackConnectionError(error, "[Stream Messages]");
         } else if (
           errorName === "AI_NoOutputGeneratedError" ||
           errorMessageLower.includes("no output generated")
         ) {
-          userMessage = "The AI was unable to generate a response. Please try again.";
+          userMessage =
+            "The AI was unable to generate a response. Please try again.";
           errorType = "no_output";
           logger.warn("[Stream Messages] No output generated");
         } else if (
           errorMessageLower.includes("rate limit") ||
           errorMessageLower.includes("429")
         ) {
-          userMessage = "The service is temporarily busy. Please try again in a moment.";
+          userMessage =
+            "The service is temporarily busy. Please try again in a moment.";
           errorType = "rate_limit";
           logger.warn("[Stream Messages] Rate limit hit");
         } else {
@@ -658,7 +654,8 @@ export async function POST(
         await sendEvent("error", {
           message: userMessage,
           type: errorType,
-          details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+          details:
+            process.env.NODE_ENV === "development" ? errorMessage : undefined,
         });
       } finally {
         // Close the writer to signal stream completion
@@ -678,29 +675,16 @@ export async function POST(
       },
     });
   } catch (error) {
-    const errorMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-
-    // Categorize errors for appropriate logging and user feedback
-    const isConnectionError =
-      errorMsg.includes("cannot use a pool") ||
-      errorMsg.includes("end on the pool") ||
-      errorMsg.includes("connection") ||
-      errorMsg.includes("terminated") ||
-      errorMsg.includes("server conn crashed") ||
-      errorMsg.includes("08p01") ||
-      errorMsg.includes("econnreset") ||
-      errorMsg.includes("rollback") ||
-      errorMsg.includes("failed query");
-
-    if (isConnectionError) {
-      // Connection errors are transient - log at warn level
-      logger.warn("[Stream Messages] Request failed due to connection issue:", errorMsg.substring(0, 150));
+    // Use shared connection error detection
+    if (isConnectionError(error)) {
+      // Track connection error (logs at warn level with rate limiting)
+      trackConnectionError(error, "[Stream Messages]");
       return new Response(
         JSON.stringify({
           error: "A temporary connection issue occurred. Please try again.",
           type: "connection_error",
         }),
-        { status: 503, headers: { "Content-Type": "application/json" } },
+        { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -710,7 +694,7 @@ export async function POST(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
@@ -727,7 +711,7 @@ async function authenticateAndBuildContext(
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
     webSearchEnabled?: boolean;
-  },
+  }
 ) {
   const anonymousSessionToken =
     request.headers.get("X-Anonymous-Session") || body?.sessionToken;
@@ -738,7 +722,7 @@ async function authenticateAndBuildContext(
 
     if (authResult.user.is_anonymous) {
       logger.warn(
-        "[Stream] User authenticated but marked anonymous - possible migration issue",
+        "[Stream] User authenticated but marked anonymous - possible migration issue"
       );
     }
 
@@ -756,7 +740,7 @@ async function authenticateAndBuildContext(
   // Try provided session token
   if (anonymousSessionToken) {
     const session = await anonymousSessionsService.getByToken(
-      anonymousSessionToken,
+      anonymousSessionToken
     );
 
     if (session && !session.converted_at && session.is_active) {

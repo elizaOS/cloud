@@ -183,7 +183,7 @@ export function getCurrentRegion(): DatabaseRegion {
  */
 function getDatabaseUrl(
   region: DatabaseRegion,
-  role: DatabaseRole,
+  role: DatabaseRole
 ): string | null {
   // CRITICAL: Writes ALWAYS go to the primary database (NA)
   // EU is read-only via logical replication, so we must never write there
@@ -211,7 +211,7 @@ function getPrimaryDatabaseUrl(): string {
   if (!url) {
     throw new Error(
       "DATABASE_URL environment variable is not set. " +
-        "Make sure you have a .env.local file with DATABASE_URL defined.",
+        "Make sure you have a .env.local file with DATABASE_URL defined."
     );
   }
   return url;
@@ -229,7 +229,27 @@ function isNeonDatabase(url: string): boolean {
 }
 
 /**
- * Create a database connection from a URL
+ * Pool configuration optimized for Neon pooler in serverless environments.
+ * Using Neon's pooled endpoint (-pooler), we can safely increase limits:
+ * - Neon pooler handles up to 10,000 concurrent connections server-side
+ * - Per-instance pools are just local caches for connection reuse
+ */
+const POOL_CONFIG = {
+  /** Maximum connections per pool - safe to increase with Neon pooler */
+  max: 10,
+  /** Keep connections warm for reuse (60s) */
+  idleTimeoutMillis: 60_000,
+  /** Reasonable timeout for Neon cold starts */
+  connectionTimeoutMillis: 15_000,
+} as const;
+
+/**
+ * Create a database connection from a URL with optimized pool settings.
+ *
+ * Pool configuration optimized for Neon pooler:
+ * - max: 10 connections per serverless instance (Neon pooler handles 10K)
+ * - idleTimeoutMillis: 60s keeps connections warm for reuse
+ * - connectionTimeoutMillis: 15s allows for Neon cold starts
  */
 function createConnection(url: string): Database {
   if (isNeonDatabase(url)) {
@@ -237,10 +257,20 @@ function createConnection(url: string): Database {
     if (typeof WebSocket === "undefined") {
       neonConfig.webSocketConstructor = ws;
     }
-    const pool = new NeonPool({ connectionString: url });
+    const pool = new NeonPool({
+      connectionString: url,
+      max: POOL_CONFIG.max,
+      idleTimeoutMillis: POOL_CONFIG.idleTimeoutMillis,
+      connectionTimeoutMillis: POOL_CONFIG.connectionTimeoutMillis,
+    });
     return drizzleNeon(pool, { schema }) as Database;
   } else {
-    const pool = new PgPool({ connectionString: url });
+    const pool = new PgPool({
+      connectionString: url,
+      max: POOL_CONFIG.max,
+      idleTimeoutMillis: POOL_CONFIG.idleTimeoutMillis,
+      connectionTimeoutMillis: POOL_CONFIG.connectionTimeoutMillis,
+    });
     return drizzleNode(pool, { schema }) as Database;
   }
 }
@@ -441,7 +471,7 @@ export function getDbConnectionInfo() {
  * Execute a read query (uses read replica)
  */
 export async function withReadDb<T>(
-  fn: (db: Database) => Promise<T>,
+  fn: (db: Database) => Promise<T>
 ): Promise<T> {
   return fn(connectionManager.getReadConnection());
 }
@@ -450,7 +480,7 @@ export async function withReadDb<T>(
  * Execute a write query (uses primary)
  */
 export async function withWriteDb<T>(
-  fn: (db: Database) => Promise<T>,
+  fn: (db: Database) => Promise<T>
 ): Promise<T> {
   return fn(connectionManager.getWriteConnection());
 }
@@ -461,7 +491,7 @@ export async function withWriteDb<T>(
 export async function withRegionalDb<T>(
   region: DatabaseRegion,
   role: DatabaseRole,
-  fn: (db: Database) => Promise<T>,
+  fn: (db: Database) => Promise<T>
 ): Promise<T> {
   return fn(connectionManager.getRegionalConnection(region, role));
 }

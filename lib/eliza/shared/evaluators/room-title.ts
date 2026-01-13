@@ -8,6 +8,11 @@ import {
   logger,
   type UUID,
 } from "@elizaos/core";
+import {
+  isConnectionError,
+  withDbRetry,
+  trackConnectionError,
+} from "@/lib/utils/db";
 
 /**
  * Room Title Generator Evaluator
@@ -69,57 +74,17 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
     // Errors are already handled inside generateTitleInBackground
     // This catch is just a safety net for unexpected errors
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("Insufficient") && !msg.includes("quota") && !msg.includes("connection")) {
-      logger.debug("[RoomTitle] Background title generation error:", msg.substring(0, 100));
+    if (
+      !msg.includes("Insufficient") &&
+      !msg.includes("quota") &&
+      !msg.includes("connection")
+    ) {
+      logger.debug(
+        "[RoomTitle] Background title generation error:",
+        msg.substring(0, 100)
+      );
     }
   });
-}
-
-/**
- * Helper function to check if error is a database connection issue
- */
-function isConnectionError(error: unknown): boolean {
-  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-  return (
-    msg.includes("server conn crashed") ||
-    msg.includes("08p01") ||
-    msg.includes("cannot use a pool") ||
-    msg.includes("connection") ||
-    msg.includes("fatal") ||
-    msg.includes("closed") ||
-    msg.includes("terminated") ||
-    msg.includes("rollback") ||
-    msg.includes("failed query") ||
-    msg.includes("end on the pool") ||
-    msg.includes("socket") ||
-    msg.includes("econnreset")
-  );
-}
-
-/**
- * Retry wrapper for database operations
- */
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  maxRetries = 2,
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      if (isConnectionError(error) && attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
-        logger.debug(
-          `[RoomTitle] Retrying after connection error (attempt ${attempt + 1}/${maxRetries})`,
-        );
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw lastError;
 }
 
 /**
@@ -128,11 +93,14 @@ async function withRetry<T>(
 async function generateTitleInBackground(
   runtime: IAgentRuntime,
   message: Memory,
-  roomId: string,
+  roomId: string
 ) {
   try {
     // Check if room already has a title
-    const existingRoom = await withRetry(() => runtime.getRoom(roomId as UUID));
+    const existingRoom = await withDbRetry(
+      () => runtime.getRoom(roomId as UUID),
+      { label: "[RoomTitle]" }
+    );
 
     if (!existingRoom) {
       logger.debug(`[RoomTitle] Room not found: ${roomId}`);
@@ -146,18 +114,20 @@ async function generateTitleInBackground(
     }
 
     // Get recent messages for context
-    const recentMessages = await withRetry(() =>
-      runtime.getMemories({
-        tableName: "messages",
-        roomId: roomId as UUID,
-        count: 5, // Get first few messages for context
-        unique: false,
-      }),
+    const recentMessages = await withDbRetry(
+      () =>
+        runtime.getMemories({
+          tableName: "messages",
+          roomId: roomId as UUID,
+          count: 5, // Get first few messages for context
+          unique: false,
+        }),
+      { label: "[RoomTitle]" }
     );
 
     if (recentMessages.length < 1) {
       logger.debug(
-        `[RoomTitle] Not enough messages yet (${recentMessages.length}/1)`,
+        `[RoomTitle] Not enough messages yet (${recentMessages.length}/1)`
       );
       return;
     }
@@ -207,25 +177,28 @@ async function generateTitleInBackground(
     }
 
     // Update room with the generated title using runtime
-    await withRetry(() =>
-      runtime.updateRoom({
-        ...existingRoom,
-        name: title,
-      }),
+    await withDbRetry(
+      () =>
+        runtime.updateRoom({
+          ...existingRoom,
+          name: title,
+        }),
+      { label: "[RoomTitle]" }
     );
 
     logger.info(`[RoomTitle] ✓ Generated and saved room title: "${title}"`);
 
     // Cache that we've processed this room (non-critical, don't retry)
-    runtime.setCache<boolean>(`room-title-generated-${roomId}`, true).catch(() => {
-      // Ignore cache errors - not critical
-    });
+    runtime
+      .setCache<boolean>(`room-title-generated-${roomId}`, true)
+      .catch(() => {
+        // Ignore cache errors - not critical
+      });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorMessageLower = errorMessage.toLowerCase();
 
-    // Non-critical errors should be logged at debug level
-    // Room title generation is optional - failures shouldn't spam logs
+    // Categorize errors - room title generation is non-critical but we want visibility
     if (
       errorMessageLower.includes("insufficient balance") ||
       errorMessageLower.includes("insufficient_quota") ||
@@ -234,15 +207,14 @@ async function generateTitleInBackground(
       errorMessageLower.includes("rate limit") ||
       errorMessageLower.includes("429")
     ) {
+      // Quota/rate limit errors are expected when user is low on credits
       logger.debug(
         "[RoomTitle] Skipping title generation due to quota/rate limit:",
-        errorMessage.substring(0, 100),
+        errorMessage.substring(0, 100)
       );
     } else if (isConnectionError(error)) {
-      logger.debug(
-        "[RoomTitle] Skipping title generation due to connection issue:",
-        errorMessage.substring(0, 100),
-      );
+      // Connection errors - track for monitoring (logs at warn level with rate limiting)
+      trackConnectionError(error, "[RoomTitle]");
     } else if (
       // API format errors from the model - non-critical
       errorMessageLower.includes("must have content") ||
@@ -252,13 +224,11 @@ async function generateTitleInBackground(
     ) {
       logger.debug(
         "[RoomTitle] Skipping title generation due to message format issue:",
-        errorMessage.substring(0, 100),
+        errorMessage.substring(0, 100)
       );
     } else {
-      logger.warn(
-        "[RoomTitle] Error generating room title:",
-        errorMessage,
-      );
+      // Unexpected errors - log at warn level for visibility
+      logger.warn("[RoomTitle] Error generating room title:", errorMessage);
     }
   }
 }
@@ -271,7 +241,7 @@ export const roomTitleEvaluator: Evaluator = {
   similes: ["GENERATE_ROOM_TITLE", "CONVERSATION_TITLE"],
   validate: async (
     runtime: IAgentRuntime,
-    message: Memory,
+    message: Memory
   ): Promise<boolean> => {
     if (!message.roomId || !message.entityId) {
       return false;
@@ -280,7 +250,7 @@ export const roomTitleEvaluator: Evaluator = {
     try {
       // Check if we've already generated a title for this room
       const alreadyGenerated = await runtime.getCache<boolean>(
-        `room-title-generated-${message.roomId}`,
+        `room-title-generated-${message.roomId}`
       );
 
       if (alreadyGenerated) {
@@ -299,7 +269,7 @@ export const roomTitleEvaluator: Evaluator = {
 
       // Filter messages by entityId since DB filter might not work properly
       const filteredUserMessages = userMessages.filter(
-        (msg) => msg.entityId === message.entityId,
+        (msg) => msg.entityId === message.entityId
       );
 
       const result = filteredUserMessages.length === 1;
@@ -309,7 +279,7 @@ export const roomTitleEvaluator: Evaluator = {
       // The title will be generated on a future message
       logger.debug(
         "[RoomTitle] Validation error, skipping:",
-        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.message : String(error)
       );
       return false;
     }

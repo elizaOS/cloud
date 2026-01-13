@@ -17,6 +17,7 @@ import {
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import { isConnectionError, trackConnectionError } from "@/lib/utils/db";
 import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { dbRead } from "@/db/client";
@@ -323,30 +324,16 @@ export async function POST(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorMessageLower = errorMessage.toLowerCase();
 
-    // Categorize errors for appropriate logging
-    const isConnectionError =
-      errorMessageLower.includes("server conn crashed") ||
-      errorMessageLower.includes("08p01") ||
-      errorMessageLower.includes("connection") ||
-      errorMessageLower.includes("terminated") ||
-      errorMessageLower.includes("rollback") ||
-      errorMessageLower.includes("econnreset") ||
-      errorMessageLower.includes("socket") ||
-      errorMessageLower.includes("failed query") ||
-      errorMessageLower.includes("cannot use a pool") ||
-      errorMessageLower.includes("end on the pool");
-
+    // Check for service registration timeout (infrastructure issue)
     const isServiceTimeout =
       errorMessageLower.includes("service") &&
       errorMessageLower.includes("registration") &&
       errorMessageLower.includes("timeout");
 
-    if (isConnectionError) {
-      // Connection errors are transient - log at warn level
-      logger.warn(
-        "[Eliza Messages API] Request failed due to connection issue:",
-        errorMessage.substring(0, 150),
-      );
+    // Use shared connection error detection
+    if (isConnectionError(error)) {
+      // Track connection error (logs at warn level with rate limiting)
+      trackConnectionError(error, "[Eliza Messages API]");
       return NextResponse.json(
         {
           error: "A temporary connection issue occurred. Please try again.",

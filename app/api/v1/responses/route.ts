@@ -33,6 +33,7 @@ import {
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import { isConnectionError, trackConnectionError } from "@/lib/utils/db";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 import type {
@@ -1184,23 +1185,10 @@ function handleStreamingResponse(
         }
       }
     } catch (error) {
-      const errorMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-
-      // Categorize errors for appropriate logging
-      const isConnectionError =
-        errorMsg.includes("failed query") ||
-        errorMsg.includes("connection") ||
-        errorMsg.includes("terminated") ||
-        errorMsg.includes("server conn crashed") ||
-        errorMsg.includes("08p01") ||
-        errorMsg.includes("econnreset") ||
-        errorMsg.includes("rollback") ||
-        errorMsg.includes("cannot use a pool") ||
-        errorMsg.includes("end on the pool");
-
-      if (isConnectionError) {
-        // Connection errors are transient - log at warn level
-        logger.warn("[Responses API] Streaming failed due to connection issue:", errorMsg.substring(0, 150));
+      // Use shared connection error detection
+      if (isConnectionError(error)) {
+        // Track connection error (logs at warn level with rate limiting)
+        trackConnectionError(error, "[Responses API]");
       } else {
         logger.error("[Responses API] Streaming error:", error);
       }

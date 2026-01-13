@@ -23,6 +23,7 @@ import {
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
+import { isConnectionError, trackConnectionError } from "@/lib/utils/db";
 import "@/lib/polyfills/dom-polyfills";
 import {
   edgeRuntimeCache,
@@ -62,7 +63,7 @@ interface CachedRuntime {
 const safeClose = async (
   closeable: { close(): Promise<void> },
   label: string,
-  id: string,
+  id: string
 ): Promise<void> => {
   await closeable
     .close()
@@ -96,7 +97,7 @@ class RuntimeCache {
 
   async getWithHealthCheck(
     agentId: string,
-    dbPool: DbAdapterPool,
+    dbPool: DbAdapterPool
   ): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
@@ -128,7 +129,7 @@ class RuntimeCache {
     cacheKey: string,
     runtime: AgentRuntime,
     characterName: string,
-    actualAgentId: UUID,
+    actualAgentId: UUID
   ): Promise<void> {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_SIZE) {
@@ -144,7 +145,7 @@ class RuntimeCache {
       characterName,
     });
     elizaLogger.debug(
-      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey})`,
+      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey})`
     );
   }
 
@@ -164,7 +165,9 @@ class RuntimeCache {
         elizaLogger.debug(`[RuntimeCache] Stop error for ${agentId}: ${e}`);
       }
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
+      elizaLogger.info(
+        `[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`
+      );
       return true;
     }
     return false;
@@ -180,7 +183,9 @@ class RuntimeCache {
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
+      elizaLogger.info(
+        `[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`
+      );
       return true;
     }
     return false;
@@ -213,8 +218,8 @@ class RuntimeCache {
   async clear(): Promise<void> {
     await Promise.all(
       Array.from(this.cache.entries()).map(([id, entry]) =>
-        safeClose(entry.runtime, "RuntimeCache", id),
-      ),
+        safeClose(entry.runtime, "RuntimeCache", id)
+      )
     );
     this.cache.clear();
   }
@@ -227,7 +232,7 @@ class DbAdapterPool {
   async getOrCreate(
     agentId: UUID,
     embeddingModel?: string,
-    retryCount = 0,
+    retryCount = 0
   ): Promise<IDatabaseAdapter> {
     const key = agentId as string;
     const MAX_RETRIES = 2;
@@ -243,7 +248,7 @@ class DbAdapterPool {
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
       elizaLogger.warn(
-        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
+        `[DbAdapterPool] Stale connection for ${agentId}, recreating`
       );
     }
 
@@ -259,27 +264,15 @@ class DbAdapterPool {
       this.adapters.set(key, adapter);
       return adapter;
     } catch (error) {
-      const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-      // Retry on connection errors
-      if (
-        retryCount < MAX_RETRIES &&
-        (msg.includes("server conn crashed") ||
-          msg.includes("08p01") ||
-          msg.includes("fatal") ||
-          msg.includes("connection") ||
-          msg.includes("socket") ||
-          msg.includes("terminated") ||
-          msg.includes("end on the pool") ||
-          msg.includes("rollback") ||
-          msg.includes("failed query") ||
-          msg.includes("econnreset"))
-      ) {
+      // Retry on connection errors using shared utility
+      if (retryCount < MAX_RETRIES && isConnectionError(error)) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
         elizaLogger.warn(
-          `[DbAdapterPool] Adapter creation failed, retrying (${retryCount + 1}/${MAX_RETRIES}): ${msg.substring(0, 100)}`,
+          `[DbAdapterPool] Adapter creation failed, retrying (${retryCount + 1}/${MAX_RETRIES}): ${errorMsg.substring(0, 100)}`
         );
         // Wait before retry with exponential backoff
         await new Promise((resolve) =>
-          setTimeout(resolve, 200 * Math.pow(2, retryCount)),
+          setTimeout(resolve, 200 * Math.pow(2, retryCount))
         );
         return this.getOrCreate(agentId, embeddingModel, retryCount + 1);
       }
@@ -290,7 +283,7 @@ class DbAdapterPool {
   }
 
   private async checkAdapterHealth(
-    adapter: IDatabaseAdapter,
+    adapter: IDatabaseAdapter
   ): Promise<boolean> {
     try {
       await adapter.getEntitiesByIds([
@@ -298,28 +291,10 @@ class DbAdapterPool {
       ]);
       return true;
     } catch (error) {
-      const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-      // Check for various connection failure indicators
-      // PostgreSQL error code 08P01 = protocol violation (server conn crashed)
-      // Also check for common connection error messages
-      if (
-        msg.includes("closed") ||
-        msg.includes("terminated") ||
-        msg.includes("connection") ||
-        msg.includes("server conn crashed") ||
-        msg.includes("08p01") ||
-        msg.includes("cannot use a pool") ||
-        msg.includes("fatal") ||
-        msg.includes("socket") ||
-        msg.includes("econnreset") ||
-        msg.includes("etimedout") ||
-        msg.includes("end on the pool") ||
-        msg.includes("rollback") ||
-        msg.includes("failed query")
-      ) {
-        elizaLogger.warn(
-          `[DbAdapterPool] Health check failed - connection issue detected: ${msg.substring(0, 100)}`,
-        );
+      // Use shared connection error detection
+      if (isConnectionError(error)) {
+        // Track the error for monitoring (logs at warn level with rate limiting)
+        trackConnectionError(error, "[DbAdapterPool] Health check failed");
         return false;
       }
       // For other errors (like "not found"), the connection is still healthy
@@ -339,7 +314,7 @@ class DbAdapterPool {
 
   private async createAdapter(
     agentId: UUID,
-    embeddingModel?: string,
+    embeddingModel?: string
   ): Promise<IDatabaseAdapter> {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
@@ -348,7 +323,7 @@ class DbAdapterPool {
     const startTime = Date.now();
     const adapter = createDatabaseAdapter(
       { postgresUrl: process.env.DATABASE_URL },
-      agentId,
+      agentId
     );
     await adapter.init();
 
@@ -361,7 +336,7 @@ class DbAdapterPool {
         await adapter.ensureEmbeddingDimension(dimension);
         adapterEmbeddingDimensions.set(key, dimension);
         elizaLogger.info(
-          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`,
+          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`
         );
       } catch (e) {
         elizaLogger.debug(`[DbAdapterPool] Embedding dimension: ${e}`);
@@ -370,7 +345,7 @@ class DbAdapterPool {
     }
 
     elizaLogger.debug(
-      `[DbAdapterPool] Created adapter for ${agentId} in ${Date.now() - startTime}ms`,
+      `[DbAdapterPool] Created adapter for ${agentId} in ${Date.now() - startTime}ms`
     );
     return adapter;
   }
@@ -383,7 +358,9 @@ class DbAdapterPool {
   removeAdapter(agentId: string): void {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
-    elizaLogger.debug(`[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`);
+    elizaLogger.debug(
+      `[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`
+    );
   }
 
   /**
@@ -407,7 +384,7 @@ class DbAdapterPool {
   async invalidateAdapter(agentId: string): Promise<void> {
     // For backward compatibility, but logs a warning
     elizaLogger.warn(
-      `[DbAdapterPool] invalidateAdapter() is deprecated - use removeAdapter() instead to avoid closing shared pool`,
+      `[DbAdapterPool] invalidateAdapter() is deprecated - use removeAdapter() instead to avoid closing shared pool`
     );
     await this.closeAdapter(agentId);
   }
@@ -419,7 +396,7 @@ const dbAdapterPool = new DbAdapterPool();
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
   private readonly DEFAULT_AGENT_ID = stringToUuid(
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
+    "b850bc30-45f8-0041-a00a-83df46d8555d"
   ) as UUID;
   private readonly DEFAULT_AGENT_ID_STRING =
     "b850bc30-45f8-0041-a00a-83df46d8555d";
@@ -445,7 +422,7 @@ export class RuntimeFactory {
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
     // IMPORTANT: We intentionally DON'T close the adapter here.
-    // 
+    //
     // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
     // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
     //
@@ -477,7 +454,7 @@ export class RuntimeFactory {
     }
 
     elizaLogger.info(
-      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (base: ${wasInMemoryBase}, ws: ${wasInMemoryWs})`,
+      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (base: ${wasInMemoryBase}, ws: ${wasInMemoryWs})`
     );
 
     return wasInMemory;
@@ -490,7 +467,7 @@ export class RuntimeFactory {
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
     const startTime = Date.now();
     elizaLogger.info(
-      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}, webSearch=${context.webSearchEnabled}`,
+      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}, webSearch=${context.webSearchEnabled}`
     );
 
     const isDefaultCharacter =
@@ -503,12 +480,12 @@ export class RuntimeFactory {
       : await agentLoader.loadCharacter(
           context.characterId!,
           context.agentMode,
-          loaderOptions,
+          loaderOptions
         );
 
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
-        `[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`,
+        `[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`
       );
     }
 
@@ -521,11 +498,11 @@ export class RuntimeFactory {
 
     const cachedRuntime = await runtimeCache.getWithHealthCheck(
       cacheKey,
-      dbAdapterPool,
+      dbAdapterPool
     );
     if (cachedRuntime) {
       elizaLogger.info(
-        `[RuntimeFactory] Cache HIT: ${character.name} (${Date.now() - startTime}ms)`,
+        `[RuntimeFactory] Cache HIT: ${character.name} (${Date.now() - startTime}ms)`
       );
       this.applyUserContext(cachedRuntime, context);
       edgeRuntimeCache.incrementRequestCount(agentId as string).catch((e) => {
@@ -579,7 +556,7 @@ export class RuntimeFactory {
       });
 
     elizaLogger.success(
-      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode}, webSearch=${context.webSearchEnabled}) in ${Date.now() - startTime}ms`,
+      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode}, webSearch=${context.webSearchEnabled}) in ${Date.now() - startTime}ms`
     );
     return runtime;
   }
@@ -611,7 +588,7 @@ export class RuntimeFactory {
   }
 
   private transformMcpSettings(
-    mcpSettings: Record<string, unknown>,
+    mcpSettings: Record<string, unknown>
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
@@ -619,7 +596,7 @@ export class RuntimeFactory {
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string }>,
+      mcpSettings.servers as Record<string, { url?: string }>
     )) {
       transformedServers[serverId] = {
         ...serverConfig,
@@ -638,7 +615,7 @@ export class RuntimeFactory {
 
   private buildSettings(
     character: Character,
-    context: UserContext,
+    context: UserContext
   ): NonNullable<Character["settings"]> {
     const charSettings = (character.settings || {}) as Record<string, unknown>;
     const getSetting = (key: string, fallback: string) =>
@@ -668,13 +645,13 @@ export class RuntimeFactory {
         context.imageModel ||
         getSetting(
           "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
-          DEFAULT_IMAGE_MODEL.modelId,
+          DEFAULT_IMAGE_MODEL.modelId
         ),
       ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {
             mcp: this.transformMcpSettings(
-              charSettings.mcp as Record<string, unknown>,
+              charSettings.mcp as Record<string, unknown>
             ),
           }
         : {}),
@@ -694,7 +671,7 @@ export class RuntimeFactory {
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
-    agentId: UUID,
+    agentId: UUID
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -703,7 +680,7 @@ export class RuntimeFactory {
       const initStart = Date.now();
       await runtime.initialize({ skipMigrations: true });
       elizaLogger.info(
-        `[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`,
+        `[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`
       );
       initSucceeded = true;
     } catch (e) {
@@ -716,7 +693,7 @@ export class RuntimeFactory {
         msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
       elizaLogger.warn(
-        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`,
+        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`
       );
       this.resolveInitPromise(runtime);
     }
@@ -748,14 +725,14 @@ export class RuntimeFactory {
             throw e;
           }
         }
-      })(),
+      })()
     );
 
     if (parallelOps.length > 0) {
       const parallelStart = Date.now();
       await Promise.all(parallelOps);
       elizaLogger.debug(
-        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`,
+        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`
       );
     }
 
@@ -779,7 +756,7 @@ export class RuntimeFactory {
   private async ensureAgentExists(
     runtime: AgentRuntime,
     character: Character,
-    agentId: UUID,
+    agentId: UUID
   ): Promise<void> {
     try {
       await runtime.createEntity({
@@ -821,7 +798,7 @@ export class RuntimeFactory {
       elizaLogger.debug = console.debug.bind(console);
       elizaLogger.success = (
         obj: string | Error | Record<string, unknown>,
-        msg?: string,
+        msg?: string
       ) => {
         logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
       };
@@ -839,7 +816,7 @@ export class RuntimeFactory {
         fatal: console.error.bind(console),
         success: (
           obj: string | Error | Record<string, unknown>,
-          msg?: string,
+          msg?: string
         ) => {
           logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
         },
@@ -852,7 +829,7 @@ export class RuntimeFactory {
 
   private async waitForMcpServiceIfNeeded(
     runtime: AgentRuntime,
-    plugins: Plugin[],
+    plugins: Plugin[]
   ): Promise<void> {
     if (!plugins.some((p) => p.name === "mcp")) return;
 
@@ -880,7 +857,7 @@ export class RuntimeFactory {
     const elapsed = Date.now() - startTime;
     if (!mcpService) {
       elizaLogger.warn(
-        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
+        `[RuntimeFactory] MCP service not available after ${elapsed}ms`
       );
       return;
     }
@@ -894,7 +871,7 @@ export class RuntimeFactory {
     const servers = mcpService.getServers?.();
     if (servers) {
       elizaLogger.info(
-        `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
+        `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`
       );
     }
   }
