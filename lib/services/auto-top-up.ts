@@ -202,20 +202,27 @@ export class AutoTopUpService {
     // Create and confirm PaymentIntent with saved payment method
     logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
 
-    const paymentIntent = await requireStripe().paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: "usd",
-      customer: org.stripe_customer_id,
-      payment_method: org.stripe_default_payment_method,
-      confirm: true,
-      off_session: true, // Critical: allows charging without user present
-      metadata: {
-        organization_id: organizationId,
-        credits: amount.toFixed(2),
-        type: "auto_top_up",
+    // Generate idempotency key to prevent double charges on retries
+    // Key is unique per org per minute - only one auto top-up per minute per org
+    const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / 60000)}`;
+
+    const paymentIntent = await requireStripe().paymentIntents.create(
+      {
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        customer: org.stripe_customer_id,
+        payment_method: org.stripe_default_payment_method,
+        confirm: true,
+        off_session: true, // Critical: allows charging without user present
+        metadata: {
+          organization_id: organizationId,
+          credits: amount.toFixed(2),
+          type: "auto_top_up",
+        },
+        description: `Auto top-up - $${amount.toFixed(2)}`,
       },
-      description: `Auto top-up - $${amount.toFixed(2)}`,
-    });
+      { idempotencyKey },
+    );
 
     logger.info(
       `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
