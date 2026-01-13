@@ -88,19 +88,20 @@ export const recentMessagesProvider: Provider = {
   get: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
     // Helper function to check if error is a database connection issue
     const isConnectionError = (error: unknown): boolean => {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
       return (
         msg.includes("server conn crashed") ||
-        msg.includes("08P01") ||
-        msg.includes("Cannot use a pool") ||
+        msg.includes("08p01") ||
+        msg.includes("cannot use a pool") ||
         msg.includes("connection") ||
-        msg.includes("FATAL") ||
+        msg.includes("fatal") ||
         msg.includes("closed") ||
         msg.includes("terminated") ||
         msg.includes("rollback") ||
+        msg.includes("failed query") ||
         msg.includes("end on the pool") ||
         msg.includes("socket") ||
-        msg.includes("ECONNRESET")
+        msg.includes("econnreset")
       );
     };
 

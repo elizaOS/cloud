@@ -259,17 +259,20 @@ class DbAdapterPool {
       this.adapters.set(key, adapter);
       return adapter;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
       // Retry on connection errors
       if (
         retryCount < MAX_RETRIES &&
         (msg.includes("server conn crashed") ||
-          msg.includes("08P01") ||
-          msg.includes("FATAL") ||
+          msg.includes("08p01") ||
+          msg.includes("fatal") ||
           msg.includes("connection") ||
           msg.includes("socket") ||
           msg.includes("terminated") ||
-          msg.includes("end on the pool"))
+          msg.includes("end on the pool") ||
+          msg.includes("rollback") ||
+          msg.includes("failed query") ||
+          msg.includes("econnreset"))
       ) {
         elizaLogger.warn(
           `[DbAdapterPool] Adapter creation failed, retrying (${retryCount + 1}/${MAX_RETRIES}): ${msg.substring(0, 100)}`,
@@ -295,7 +298,7 @@ class DbAdapterPool {
       ]);
       return true;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
       // Check for various connection failure indicators
       // PostgreSQL error code 08P01 = protocol violation (server conn crashed)
       // Also check for common connection error messages
@@ -304,14 +307,15 @@ class DbAdapterPool {
         msg.includes("terminated") ||
         msg.includes("connection") ||
         msg.includes("server conn crashed") ||
-        msg.includes("08P01") ||
-        msg.includes("Cannot use a pool") ||
-        msg.includes("FATAL") ||
+        msg.includes("08p01") ||
+        msg.includes("cannot use a pool") ||
+        msg.includes("fatal") ||
         msg.includes("socket") ||
-        msg.includes("ECONNRESET") ||
-        msg.includes("ETIMEDOUT") ||
-        msg.includes("Connection terminated unexpectedly") ||
-        msg.includes("end on the pool")
+        msg.includes("econnreset") ||
+        msg.includes("etimedout") ||
+        msg.includes("end on the pool") ||
+        msg.includes("rollback") ||
+        msg.includes("failed query")
       ) {
         elizaLogger.warn(
           `[DbAdapterPool] Health check failed - connection issue detected: ${msg.substring(0, 100)}`,
