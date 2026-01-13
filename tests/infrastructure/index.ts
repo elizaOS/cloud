@@ -30,6 +30,8 @@ export {
   isRuntimeCached,
   getRuntimeCacheStats,
   AgentMode,
+  // Test internals for race condition testing
+  _testing,
   // Test helpers
   createTestRuntime,
   buildUserContext,
