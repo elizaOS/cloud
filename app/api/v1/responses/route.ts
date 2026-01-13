@@ -1184,7 +1184,26 @@ function handleStreamingResponse(
         }
       }
     } catch (error) {
-      logger.error("[Responses API] Streaming error:", error);
+      const errorMsg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+
+      // Categorize errors for appropriate logging
+      const isConnectionError =
+        errorMsg.includes("failed query") ||
+        errorMsg.includes("connection") ||
+        errorMsg.includes("terminated") ||
+        errorMsg.includes("server conn crashed") ||
+        errorMsg.includes("08p01") ||
+        errorMsg.includes("econnreset") ||
+        errorMsg.includes("rollback") ||
+        errorMsg.includes("cannot use a pool") ||
+        errorMsg.includes("end on the pool");
+
+      if (isConnectionError) {
+        // Connection errors are transient - log at warn level
+        logger.warn("[Responses API] Streaming failed due to connection issue:", errorMsg.substring(0, 150));
+      } else {
+        logger.error("[Responses API] Streaming error:", error);
+      }
       writer.abort();
     }
   })();

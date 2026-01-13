@@ -165,11 +165,23 @@ export async function verifyAuthTokenCached(
 
     return claims;
   } catch (error) {
-    // Log error but don't expose details
-    logger.error(
-      "[PrivyClient] ✗ Token verification error:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessageLower = errorMessage.toLowerCase();
+
+    // Expected auth errors (token expiration, invalid tokens) should be logged at debug level
+    // These are normal occurrences, not system errors
+    if (
+      errorMessageLower.includes("exp") ||
+      errorMessageLower.includes("expired") ||
+      errorMessageLower.includes("invalid") ||
+      errorMessageLower.includes("claim") ||
+      errorMessageLower.includes("timestamp")
+    ) {
+      logger.debug("[PrivyClient] Token verification failed (expected):", errorMessage);
+    } else {
+      // Unexpected errors should be logged at error level
+      logger.error("[PrivyClient] Token verification error:", errorMessage);
+    }
 
     // On error, try to verify directly without caching
     // This prevents cache issues from breaking auth entirely
