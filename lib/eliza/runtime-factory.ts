@@ -310,7 +310,10 @@ class DbAdapterPool {
   async checkHealth(agentId: UUID): Promise<boolean> {
     const key = agentId as string;
     const adapter = this.adapters.get(key);
-    if (!adapter) return true;
+    // If adapter doesn't exist (e.g., removed by another cache entry's eviction),
+    // return false to force runtime recreation with a fresh adapter.
+    // Multiple cache keys can share the same agentId (e.g., "abc123" and "abc123:ws").
+    if (!adapter) return false;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
     if (!isHealthy) this.removeAdapter(key);
