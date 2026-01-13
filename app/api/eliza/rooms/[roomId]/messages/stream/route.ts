@@ -603,6 +603,7 @@ export async function POST(
         await sendEvent("done", { timestamp: Date.now() });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessageLower = errorMessage.toLowerCase();
         const errorName = error instanceof Error ? error.name : "Error";
 
         // Categorize error for better user feedback
@@ -610,10 +611,10 @@ export async function POST(
         let errorType = "processing_error";
 
         if (
-          errorMessage.includes("insufficient balance") ||
-          errorMessage.includes("Insufficient balance") ||
-          errorMessage.includes("insufficient_quota") ||
-          errorMessage.includes("402")
+          errorMessageLower.includes("insufficient balance") ||
+          errorMessageLower.includes("insufficient_quota") ||
+          errorMessageLower.includes("insufficient credits") ||
+          errorMessageLower.includes("402")
         ) {
           userMessage = "Insufficient credits. Please add credits to continue.";
           errorType = "insufficient_credits";
@@ -621,14 +622,16 @@ export async function POST(
             userId: userContext.userId,
           });
         } else if (
-          errorMessage.includes("server conn crashed") ||
-          errorMessage.includes("08P01") ||
-          errorMessage.includes("connection") ||
-          errorMessage.includes("terminated unexpectedly") ||
-          errorMessage.includes("rollback") ||
-          errorMessage.includes("ECONNRESET") ||
-          errorMessage.includes("socket") ||
-          errorMessage.includes("end on the pool")
+          errorMessageLower.includes("server conn crashed") ||
+          errorMessageLower.includes("08p01") ||
+          errorMessageLower.includes("connection") ||
+          errorMessageLower.includes("terminated") ||
+          errorMessageLower.includes("rollback") ||
+          errorMessageLower.includes("econnreset") ||
+          errorMessageLower.includes("socket") ||
+          errorMessageLower.includes("end on the pool") ||
+          errorMessageLower.includes("failed query") ||
+          errorMessageLower.includes("cannot use a pool")
         ) {
           userMessage = "A temporary connection issue occurred. Please try again.";
           errorType = "connection_error";
@@ -636,14 +639,14 @@ export async function POST(
           logger.warn("[Stream Messages] Database connection error:", errorMessage.substring(0, 150));
         } else if (
           errorName === "AI_NoOutputGeneratedError" ||
-          errorMessage.includes("No output generated")
+          errorMessageLower.includes("no output generated")
         ) {
           userMessage = "The AI was unable to generate a response. Please try again.";
           errorType = "no_output";
           logger.warn("[Stream Messages] No output generated");
         } else if (
-          errorMessage.includes("rate limit") ||
-          errorMessage.includes("429")
+          errorMessageLower.includes("rate limit") ||
+          errorMessageLower.includes("429")
         ) {
           userMessage = "The service is temporarily busy. Please try again in a moment.";
           errorType = "rate_limit";
