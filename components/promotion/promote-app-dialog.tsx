@@ -190,6 +190,7 @@ export function PromoteAppDialog({
   const [step, setStep] = useState<
     "channels" | "configure" | "review" | "result"
   >("channels");
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState<PromotionConfig>({
     channels: [],
@@ -246,6 +247,133 @@ export function PromoteAppDialog({
   );
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(true);
 
+  // Track existing automation for each platform
+  const [existingAutomation, setExistingAutomation] = useState<{
+    discord: {
+      exists: boolean;
+      guildName?: string;
+      channelName?: string;
+      isPaused?: boolean;
+    };
+    telegram: { exists: boolean; chatTitle?: string; isPaused?: boolean };
+    twitter: { exists: boolean };
+  }>({
+    discord: { exists: false },
+    telegram: { exists: false },
+    twitter: { exists: false },
+  });
+  // Whether to use existing automation config or set up new
+  const [useExistingAutomation, setUseExistingAutomation] = useState<{
+    discord: boolean;
+    telegram: boolean;
+    twitter: boolean;
+  }>({
+    discord: true,
+    telegram: true,
+    twitter: true,
+  });
+
+  // ========== WIZARD-STYLE TAB NAVIGATION ==========
+  // Build ordered list of tabs based on selected channels
+  const tabOrder = useMemo(() => {
+    const tabs: string[] = [];
+    // Add automation channels first (most likely to need config)
+    if (config.channels.includes("discord_automation"))
+      tabs.push("discord_automation");
+    if (config.channels.includes("telegram_automation"))
+      tabs.push("telegram_automation");
+    if (config.channels.includes("twitter_automation"))
+      tabs.push("twitter_automation");
+    if (config.channels.includes("social")) tabs.push("social");
+    if (config.channels.includes("seo")) tabs.push("seo");
+    if (config.channels.includes("advertising")) tabs.push("advertising");
+    return tabs;
+  }, [config.channels]);
+
+  const currentTabId = tabOrder[activeTabIndex] || tabOrder[0];
+  const isLastTab = activeTabIndex >= tabOrder.length - 1;
+  const hasAutomation = config.channels.some((c) =>
+    [
+      "twitter_automation",
+      "telegram_automation",
+      "discord_automation",
+    ].includes(c)
+  );
+
+  // Validate current tab before advancing
+  const validateCurrentTab = useCallback((): {
+    valid: boolean;
+    error?: string;
+  } => {
+    switch (currentTabId) {
+      case "discord_automation":
+        // Skip validation if using existing automation
+        if (
+          existingAutomation.discord.exists &&
+          useExistingAutomation.discord
+        ) {
+          return { valid: true };
+        }
+        if (!config.discordAutomation?.guildId)
+          return { valid: false, error: "Please select a Discord server" };
+        if (!config.discordAutomation?.channelId)
+          return { valid: false, error: "Please select a channel" };
+        return { valid: true };
+      case "telegram_automation":
+        // Skip validation if using existing automation
+        if (
+          existingAutomation.telegram.exists &&
+          useExistingAutomation.telegram
+        ) {
+          return { valid: true };
+        }
+        if (
+          !config.telegramAutomation?.channelId &&
+          !config.telegramAutomation?.groupId
+        )
+          return { valid: false, error: "Please select a channel or group" };
+        return { valid: true };
+      case "social":
+        if (!config.social?.platforms || config.social.platforms.length === 0)
+          return { valid: false, error: "Please select at least one platform" };
+        return { valid: true };
+      case "advertising":
+        if (!config.advertising?.adAccountId)
+          return { valid: false, error: "Please select an ad account" };
+        if (!config.advertising?.budget || config.advertising.budget <= 0)
+          return { valid: false, error: "Please set a budget" };
+        return { valid: true };
+      default:
+        return { valid: true };
+    }
+  }, [currentTabId, config, existingAutomation, useExistingAutomation]);
+
+  const goToNextTab = useCallback(() => {
+    const validation = validateCurrentTab();
+    if (!validation.valid) {
+      toast.error(validation.error || "Please complete this configuration");
+      return;
+    }
+    if (isLastTab) {
+      // All tabs done - will call handleReviewStep below
+      return "review";
+    }
+    setActiveTabIndex((prev) => prev + 1);
+    return null;
+  }, [validateCurrentTab, isLastTab]);
+
+  const goToPrevTab = useCallback(() => {
+    if (activeTabIndex > 0) {
+      setActiveTabIndex((prev) => prev - 1);
+    } else {
+      setStep("channels");
+      setActiveTabIndex(0);
+    }
+  }, [activeTabIndex]);
+
+  // Reset tab index when going back to channel selection
+  // This is handled in goToPrevTab when activeTabIndex is 0
+
   // Check Twitter, Telegram, and Discord connection status
   useEffect(() => {
     fetch("/api/v1/twitter/status")
@@ -275,6 +403,71 @@ export function PromoteAppDialog({
         setDiscordStatus({ configured: false, connected: false, guilds: [] })
       );
   }, []);
+
+  // Fetch existing automation status for this app
+  useEffect(() => {
+    // Discord automation
+    fetch(`/api/v1/apps/${app.id}/discord-automation`)
+      .then((res) => res.json())
+      .then((data) => {
+        // Check if automation was ever configured (has channel), not just if enabled
+        // This way paused automations are still detected as "existing"
+        const exists = Boolean(data.channelId);
+        setExistingAutomation((prev) => ({
+          ...prev,
+          discord: {
+            exists,
+            guildName: data.guildName,
+            channelName: data.channelName,
+            isPaused: exists && !data.enabled,
+          },
+        }));
+      })
+      .catch(() => {
+        setExistingAutomation((prev) => ({
+          ...prev,
+          discord: { exists: false },
+        }));
+      });
+
+    // Telegram automation
+    fetch(`/api/v1/apps/${app.id}/telegram-automation`)
+      .then((res) => res.json())
+      .then((data) => {
+        // Check if automation was ever configured, not just if enabled
+        const exists = Boolean(data.channelId || data.groupId);
+        setExistingAutomation((prev) => ({
+          ...prev,
+          telegram: {
+            exists,
+            chatTitle: data.channelName || data.groupName,
+            isPaused: exists && !data.enabled,
+          },
+        }));
+      })
+      .catch(() => {
+        setExistingAutomation((prev) => ({
+          ...prev,
+          telegram: { exists: false },
+        }));
+      });
+
+    // Twitter automation
+    fetch(`/api/v1/apps/${app.id}/twitter-automation`)
+      .then((res) => res.json())
+      .then((data) => {
+        setExistingAutomation((prev) => ({
+          ...prev,
+          twitter: { exists: Boolean(data.autoPost || data.enabled) },
+        }));
+      })
+      .catch(() => {
+        setExistingAutomation((prev) => ({
+          ...prev,
+          twitter: { exists: false },
+        }));
+      });
+  }, [app.id]);
 
   // Fetch user characters for agent voice selection
   useEffect(() => {
@@ -359,26 +552,42 @@ export function PromoteAppDialog({
     if (isLoading) return;
     setIsLoading(true);
 
-    // Include agentCharacterId in automation configs if selected
+    // Build config with agentCharacterId and useExisting flags
+    // If useExisting is true, we don't send config details (just triggers a post)
     const configWithCharacter = {
       ...config,
       twitterAutomation: config.twitterAutomation
         ? {
             ...config.twitterAutomation,
             agentCharacterId: selectedCharacterId || undefined,
+            useExisting:
+              existingAutomation.twitter.exists &&
+              useExistingAutomation.twitter,
           }
         : undefined,
       telegramAutomation: config.telegramAutomation
-        ? {
-            ...config.telegramAutomation,
-            agentCharacterId: selectedCharacterId || undefined,
-          }
+        ? existingAutomation.telegram.exists && useExistingAutomation.telegram
+          ? {
+              useExisting: true,
+              agentCharacterId: selectedCharacterId || undefined,
+            }
+          : {
+              ...config.telegramAutomation,
+              agentCharacterId: selectedCharacterId || undefined,
+              useExisting: false,
+            }
         : undefined,
       discordAutomation: config.discordAutomation
-        ? {
-            ...config.discordAutomation,
-            agentCharacterId: selectedCharacterId || undefined,
-          }
+        ? existingAutomation.discord.exists && useExistingAutomation.discord
+          ? {
+              useExisting: true,
+              agentCharacterId: selectedCharacterId || undefined,
+            }
+          : {
+              ...config.discordAutomation,
+              agentCharacterId: selectedCharacterId || undefined,
+              useExisting: false,
+            }
         : undefined,
     };
 
@@ -451,14 +660,28 @@ export function PromoteAppDialog({
 
     toast.error("Failed to launch promotion. Please try again.");
     setIsLoading(false);
-  }, [app.id, config, isLoading, selectedCharacterId]);
+  }, [
+    app.id,
+    config,
+    isLoading,
+    selectedCharacterId,
+    existingAutomation,
+    useExistingAutomation,
+  ]);
 
   const handleClose = () => {
     setStep("channels");
+    setActiveTabIndex(0);
     setConfig({ channels: [] });
     setResult(null);
     setPostPreviews([]);
-    setSelectedCharacterId(null); // Reset character selection
+    setSelectedCharacterId(null);
+    // Reset "use existing" flags to default (true = prefer existing)
+    setUseExistingAutomation({
+      discord: true,
+      telegram: true,
+      twitter: true,
+    });
     onOpenChange(false);
   };
 
@@ -515,27 +738,35 @@ export function PromoteAppDialog({
   } => {
     const errors: string[] = [];
 
-    // Validate Telegram automation
+    // Validate Telegram automation (skip if using existing)
     if (config.channels.includes("telegram_automation")) {
-      const telegramConfig = config.telegramAutomation;
-      if (!telegramConfig?.channelId && !telegramConfig?.groupId) {
-        errors.push(
-          "📱 Telegram Bot: Click the 'Telegram Bot' tab and select a channel or group to post in"
-        );
+      if (
+        !(existingAutomation.telegram.exists && useExistingAutomation.telegram)
+      ) {
+        const telegramConfig = config.telegramAutomation;
+        if (!telegramConfig?.channelId && !telegramConfig?.groupId) {
+          errors.push(
+            "📱 Telegram Bot: Click the 'Telegram Bot' tab and select a channel or group to post in"
+          );
+        }
       }
     }
 
-    // Validate Discord automation
+    // Validate Discord automation (skip if using existing)
     if (config.channels.includes("discord_automation")) {
-      const discordConfig = config.discordAutomation;
-      if (!discordConfig?.guildId) {
-        errors.push(
-          "🎮 Discord Bot: Click the 'Discord Bot' tab and select a server"
-        );
-      } else if (!discordConfig?.channelId) {
-        errors.push(
-          "🎮 Discord Bot: Click the 'Discord Bot' tab and select a channel"
-        );
+      if (
+        !(existingAutomation.discord.exists && useExistingAutomation.discord)
+      ) {
+        const discordConfig = config.discordAutomation;
+        if (!discordConfig?.guildId) {
+          errors.push(
+            "🎮 Discord Bot: Click the 'Discord Bot' tab and select a server"
+          );
+        } else if (!discordConfig?.channelId) {
+          errors.push(
+            "🎮 Discord Bot: Click the 'Discord Bot' tab and select a channel"
+          );
+        }
       }
     }
 
@@ -565,7 +796,7 @@ export function PromoteAppDialog({
     }
 
     return { valid: errors.length === 0, errors };
-  }, [config]);
+  }, [config, existingAutomation, useExistingAutomation]);
 
   const handleReviewStep = useCallback(() => {
     // Validate configuration first
@@ -958,11 +1189,14 @@ export function PromoteAppDialog({
                   : `${config.channels.length} channel(s) selected`}
               </div>
               <Button
-                onClick={() => setStep("configure")}
+                onClick={() => {
+                  setActiveTabIndex(0);
+                  setStep("configure");
+                }}
                 disabled={config.channels.length === 0}
                 className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
-                Continue
+                Continue →
               </Button>
             </div>
           </div>
@@ -970,20 +1204,46 @@ export function PromoteAppDialog({
 
         {step === "configure" && (
           <div className="flex flex-col max-h-[calc(80vh-120px)]">
-            {/* Configuration Guide */}
+            {/* Progress Indicator */}
             <div className="px-6 pt-4 pb-2">
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <p className="text-sm text-blue-400">
-                  💡 Configure each selected channel by clicking through the
-                  tabs below. Tabs with{" "}
-                  <span className="inline-flex h-2 w-2 rounded-full bg-orange-400 mx-1" />{" "}
-                  need configuration.
-                </p>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-white/60">
+                  Step {activeTabIndex + 1} of {tabOrder.length}
+                </span>
+                <span className="text-sm text-white/80 font-medium">
+                  {currentTabId === "discord_automation" && "Discord Bot"}
+                  {currentTabId === "telegram_automation" && "Telegram Bot"}
+                  {currentTabId === "twitter_automation" &&
+                    "Twitter Automation"}
+                  {currentTabId === "social" && "Social Media"}
+                  {currentTabId === "seo" && "SEO Settings"}
+                  {currentTabId === "advertising" && "Advertising"}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {tabOrder.map((tabId, i) => (
+                  <div
+                    key={tabId}
+                    className={`h-1 flex-1 rounded-full transition-all ${
+                      i < activeTabIndex
+                        ? "bg-green-500"
+                        : i === activeTabIndex
+                          ? "bg-[#FF5800]"
+                          : "bg-white/10"
+                    }`}
+                  />
+                ))}
               </div>
             </div>
 
             <Tabs
-              defaultValue={config.channels[0]}
+              value={currentTabId}
+              onValueChange={(val) => {
+                const newIndex = tabOrder.indexOf(val);
+                if (newIndex !== -1 && newIndex <= activeTabIndex) {
+                  setActiveTabIndex(newIndex);
+                }
+              }}
               className="w-full flex flex-col flex-1 overflow-hidden"
             >
               <TabsList className="w-full justify-start mx-6 mt-2 bg-white/5 border border-white/10 shrink-0">
@@ -1653,143 +1913,278 @@ export function PromoteAppDialog({
 
                 {/* Telegram Automation Config */}
                 <TabsContent value="telegram_automation" className="space-y-4">
-                  <div className="bg-[#0088cc]/10 dark:bg-[#0088cc]/20 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg
-                        className="h-5 w-5 text-[#0088cc]"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
+                  {/* Show existing automation card if it exists */}
+                  {existingAutomation.telegram.exists ? (
+                    <div className="space-y-4">
+                      <div
+                        className={`${existingAutomation.telegram.isPaused ? "bg-yellow-500/10 border-yellow-500/30" : "bg-green-500/10 border-green-500/30"} border rounded-lg p-4`}
                       >
-                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                      </svg>
-                      <span className="font-medium">
-                        Bot: @{telegramStatus.botUsername}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Your AI bot will post announcements and respond to
-                      messages promoting {app.name} in your Telegram channels
-                      and groups.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {telegramChats.length === 0 ? (
-                      <div className="space-y-4">
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                          <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
-                            <strong>Step 1:</strong> Add @
-                            {telegramStatus.botUsername} to your Telegram group
-                            or channel as an admin
-                          </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
-                            <strong>Step 2:</strong> Send any message in that
-                            chat
-                          </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
-                            <strong>Step 3:</strong> Click the button below to
-                            scan for chats
-                          </p>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={async () => {
-                              const btn =
-                                document.activeElement as HTMLButtonElement;
-                              if (btn) btn.disabled = true;
-                              try {
-                                const res = await fetch(
-                                  "/api/v1/telegram/scan-chats",
-                                  {
-                                    method: "POST",
-                                  }
-                                );
-                                const data = await res.json();
-                                if (data.chats) {
-                                  setTelegramChats(data.chats);
-                                  if (data.chats.length > 0) {
-                                    toast.success(
-                                      `Found ${data.chats.length} chat(s)!`
-                                    );
-                                  } else {
-                                    toast.info(
-                                      "No chats found. Make sure you added the bot and sent a message."
-                                    );
-                                  }
-                                } else if (data.error) {
-                                  toast.error(data.error);
-                                }
-                              } catch {
-                                toast.error("Failed to scan for chats");
-                              }
-                              if (btn) btn.disabled = false;
-                            }}
-                          >
-                            🔍 Scan for Chats
-                          </Button>
-                        </div>
-
-                        <div>
-                          <Label>Group/Channel ID (manual entry)</Label>
-                          <Input
-                            placeholder="-1001234567890"
-                            value={
-                              config.telegramAutomation?.groupId ||
-                              config.telegramAutomation?.channelId ||
-                              ""
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value.trim();
-                              setConfig((prev) => ({
-                                ...prev,
-                                telegramAutomation: {
-                                  enabled: true,
-                                  channelId: undefined,
-                                  groupId: val || undefined,
-                                  autoReply:
-                                    prev.telegramAutomation?.autoReply ?? true,
-                                  autoAnnounce:
-                                    prev.telegramAutomation?.autoAnnounce ??
-                                    true,
-                                  announceIntervalMin:
-                                    prev.telegramAutomation
-                                      ?.announceIntervalMin ?? 120,
-                                  announceIntervalMax:
-                                    prev.telegramAutomation
-                                      ?.announceIntervalMax ?? 240,
-                                },
-                              }));
-                            }}
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle
+                            className={`h-5 w-5 ${existingAutomation.telegram.isPaused ? "text-yellow-400" : "text-green-400"}`}
                           />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Get this from @RawDataBot (add it to your group, it
-                            will show the chat ID)
+                          <span className="font-medium text-white">
+                            Telegram Automation{" "}
+                            {existingAutomation.telegram.isPaused
+                              ? "(Paused)"
+                              : "Active"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-white/60">
+                          {existingAutomation.telegram.isPaused
+                            ? "Was"
+                            : "Currently"}{" "}
+                          posting to{" "}
+                          <span className="text-white font-medium">
+                            {existingAutomation.telegram.chatTitle ||
+                              "channel/group"}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Toggle between using existing or reconfiguring */}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={
+                            useExistingAutomation.telegram
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setUseExistingAutomation((prev) => ({
+                              ...prev,
+                              telegram: true,
+                            }))
+                          }
+                          className={
+                            useExistingAutomation.telegram
+                              ? "bg-[#FF5800] hover:bg-[#FF5800]/90 flex-1"
+                              : "flex-1"
+                          }
+                        >
+                          Post using existing
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={
+                            !useExistingAutomation.telegram
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setUseExistingAutomation((prev) => ({
+                              ...prev,
+                              telegram: false,
+                            }))
+                          }
+                          className={
+                            !useExistingAutomation.telegram
+                              ? "bg-[#FF5800] hover:bg-[#FF5800]/90 flex-1"
+                              : "flex-1"
+                          }
+                        >
+                          Update settings
+                        </Button>
+                      </div>
+
+                      {/* Show config form only if they want to update */}
+                      {!useExistingAutomation.telegram && (
+                        <div className="border-t border-white/10 pt-4">
+                          <p className="text-sm text-yellow-400 mb-3">
+                            ⚠️ This will update your existing Telegram
+                            automation settings
                           </p>
                         </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-[#0088cc]/10 dark:bg-[#0088cc]/20 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg
+                          className="h-5 w-5 text-[#0088cc]"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                        </svg>
+                        <span className="font-medium">
+                          Bot: @{telegramStatus.botUsername}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Your AI bot will post announcements and respond to
+                        messages promoting {app.name} in your Telegram channels
+                        and groups.
+                      </p>
+                    </div>
+                  )}
 
-                        {/* Automation Settings for Manual Entry */}
-                        <div className="space-y-3 pt-4 border-t">
-                          <Label className="text-base font-medium">
-                            Automation Features
-                          </Label>
+                  {/* Only show config form if no existing automation OR user wants to update */}
+                  {(!existingAutomation.telegram.exists ||
+                    !useExistingAutomation.telegram) && (
+                    <div className="space-y-4">
+                      {telegramChats.length === 0 ? (
+                        <div className="space-y-4">
+                          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                            <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
+                              <strong>Step 1:</strong> Add @
+                              {telegramStatus.botUsername} to your Telegram
+                              group or channel as an admin
+                            </p>
+                            <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
+                              <strong>Step 2:</strong> Send any message in that
+                              chat
+                            </p>
+                            <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
+                              <strong>Step 3:</strong> Click the button below to
+                              scan for chats
+                            </p>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={async () => {
+                                const btn =
+                                  document.activeElement as HTMLButtonElement;
+                                if (btn) btn.disabled = true;
+                                try {
+                                  const res = await fetch(
+                                    "/api/v1/telegram/scan-chats",
+                                    {
+                                      method: "POST",
+                                    }
+                                  );
+                                  const data = await res.json();
+                                  if (data.chats) {
+                                    setTelegramChats(data.chats);
+                                    if (data.chats.length > 0) {
+                                      toast.success(
+                                        `Found ${data.chats.length} chat(s)!`
+                                      );
+                                    } else {
+                                      toast.info(
+                                        "No chats found. Make sure you added the bot and sent a message."
+                                      );
+                                    }
+                                  } else if (data.error) {
+                                    toast.error(data.error);
+                                  }
+                                } catch {
+                                  toast.error("Failed to scan for chats");
+                                }
+                                if (btn) btn.disabled = false;
+                              }}
+                            >
+                              🔍 Scan for Chats
+                            </Button>
+                          </div>
 
-                          <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                            <Checkbox
-                              checked={
-                                config.telegramAutomation?.autoAnnounce ?? true
+                          <div>
+                            <Label>Group/Channel ID (manual entry)</Label>
+                            <Input
+                              placeholder="-1001234567890"
+                              value={
+                                config.telegramAutomation?.groupId ||
+                                config.telegramAutomation?.channelId ||
+                                ""
                               }
-                              onCheckedChange={(checked) =>
+                              onChange={(e) => {
+                                const val = e.target.value.trim();
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  telegramAutomation: {
+                                    enabled: true,
+                                    channelId: undefined,
+                                    groupId: val || undefined,
+                                    autoReply:
+                                      prev.telegramAutomation?.autoReply ??
+                                      true,
+                                    autoAnnounce:
+                                      prev.telegramAutomation?.autoAnnounce ??
+                                      true,
+                                    announceIntervalMin:
+                                      prev.telegramAutomation
+                                        ?.announceIntervalMin ?? 120,
+                                    announceIntervalMax:
+                                      prev.telegramAutomation
+                                        ?.announceIntervalMax ?? 240,
+                                  },
+                                }));
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Get this from @RawDataBot (add it to your group,
+                              it will show the chat ID)
+                            </p>
+                          </div>
+
+                          {/* Automation Settings for Manual Entry */}
+                          <div className="space-y-3 pt-4 border-t">
+                            <Label className="text-base font-medium">
+                              Automation Features
+                            </Label>
+
+                            <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                              <Checkbox
+                                checked={
+                                  config.telegramAutomation?.autoAnnounce ??
+                                  true
+                                }
+                                onCheckedChange={(checked) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    telegramAutomation: {
+                                      enabled: true,
+                                      channelId:
+                                        prev.telegramAutomation?.channelId,
+                                      groupId: prev.telegramAutomation?.groupId,
+                                      autoReply:
+                                        prev.telegramAutomation?.autoReply ??
+                                        true,
+                                      autoAnnounce: !!checked,
+                                      announceIntervalMin:
+                                        prev.telegramAutomation
+                                          ?.announceIntervalMin ?? 120,
+                                      announceIntervalMax:
+                                        prev.telegramAutomation
+                                          ?.announceIntervalMax ?? 240,
+                                    },
+                                  }))
+                                }
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium">
+                                  Auto-Announcements
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Post periodic AI-generated updates
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <Label>Channel (for announcements)</Label>
+                            <Select
+                              value={
+                                config.telegramAutomation?.channelId || "none"
+                              }
+                              onValueChange={(value) =>
                                 setConfig((prev) => ({
                                   ...prev,
                                   telegramAutomation: {
                                     enabled: true,
                                     channelId:
-                                      prev.telegramAutomation?.channelId,
+                                      value === "none" ? undefined : value,
                                     groupId: prev.telegramAutomation?.groupId,
                                     autoReply:
                                       prev.telegramAutomation?.autoReply ??
                                       true,
-                                    autoAnnounce: !!checked,
+                                    autoAnnounce:
+                                      prev.telegramAutomation?.autoAnnounce ??
+                                      true,
                                     announceIntervalMin:
                                       prev.telegramAutomation
                                         ?.announceIntervalMin ?? 120,
@@ -1799,33 +2194,189 @@ export function PromoteAppDialog({
                                   },
                                 }))
                               }
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium">
-                                Auto-Announcements
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Post periodic AI-generated updates
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <Label>Channel (for announcements)</Label>
-                          <Select
-                            value={
-                              config.telegramAutomation?.channelId || "none"
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a channel" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No channel</SelectItem>
+                                {telegramChats
+                                  .filter(
+                                    (c) => c.type === "channel" && c.canPost
+                                  )
+                                  .map((chat) => (
+                                    <SelectItem key={chat.id} value={chat.id}>
+                                      {chat.title}{" "}
+                                      {chat.username && `(@${chat.username})`}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              AI will post periodic announcements to this
+                              channel
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label>Group (for interactions)</Label>
+                            <Select
+                              value={
+                                config.telegramAutomation?.groupId || "none"
+                              }
+                              onValueChange={(value) =>
+                                setConfig((prev) => ({
+                                  ...prev,
+                                  telegramAutomation: {
+                                    enabled: true,
+                                    channelId:
+                                      prev.telegramAutomation?.channelId,
+                                    groupId:
+                                      value === "none" ? undefined : value,
+                                    autoReply:
+                                      prev.telegramAutomation?.autoReply ??
+                                      true,
+                                    autoAnnounce:
+                                      prev.telegramAutomation?.autoAnnounce ??
+                                      true,
+                                    announceIntervalMin:
+                                      prev.telegramAutomation
+                                        ?.announceIntervalMin ?? 120,
+                                    announceIntervalMax:
+                                      prev.telegramAutomation
+                                        ?.announceIntervalMax ?? 240,
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a group" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No group</SelectItem>
+                                {telegramChats
+                                  .filter(
+                                    (c) =>
+                                      c.type === "group" ||
+                                      c.type === "supergroup"
+                                  )
+                                  .map((chat) => (
+                                    <SelectItem key={chat.id} value={chat.id}>
+                                      {chat.title}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              AI will respond to messages in this group
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="space-y-3 pt-4 border-t">
+                        <Label className="text-base font-medium">
+                          Automation Features
+                        </Label>
+
+                        <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={
+                              config.telegramAutomation?.autoAnnounce ?? true
                             }
-                            onValueChange={(value) =>
+                            onCheckedChange={(checked) =>
                               setConfig((prev) => ({
                                 ...prev,
                                 telegramAutomation: {
                                   enabled: true,
-                                  channelId:
-                                    value === "none" ? undefined : value,
+                                  channelId: prev.telegramAutomation?.channelId,
+                                  groupId: prev.telegramAutomation?.groupId,
+                                  autoReply:
+                                    prev.telegramAutomation?.autoReply ?? true,
+                                  autoAnnounce: !!checked,
+                                  announceIntervalMin:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMin ?? 120,
+                                  announceIntervalMax:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMax ?? 240,
+                                },
+                              }))
+                            }
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              Auto-Announcements
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Post periodic AI-generated updates to your channel
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div>
+                          <Label htmlFor="announceIntervalMin">
+                            Min Announce Interval (minutes)
+                          </Label>
+                          <Input
+                            id="announceIntervalMin"
+                            type="number"
+                            min={30}
+                            max={1440}
+                            value={
+                              config.telegramAutomation?.announceIntervalMin ??
+                              60
+                            }
+                            onChange={(e) => {
+                              const value = Math.max(
+                                30,
+                                Math.min(1440, parseInt(e.target.value) || 60)
+                              );
+                              setConfig((prev) => ({
+                                ...prev,
+                                telegramAutomation: {
+                                  enabled: true,
+                                  channelId: prev.telegramAutomation?.channelId,
+                                  groupId: prev.telegramAutomation?.groupId,
+                                  autoReply:
+                                    prev.telegramAutomation?.autoReply ?? true,
+                                  autoAnnounce:
+                                    prev.telegramAutomation?.autoAnnounce ??
+                                    true,
+                                  announceIntervalMin: value,
+                                  announceIntervalMax:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMax ?? 240,
+                                },
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="announceIntervalMax">
+                            Max Announce Interval (minutes)
+                          </Label>
+                          <Input
+                            id="announceIntervalMax"
+                            type="number"
+                            min={60}
+                            max={1440}
+                            value={
+                              config.telegramAutomation?.announceIntervalMax ??
+                              240
+                            }
+                            onChange={(e) => {
+                              const value = Math.max(
+                                60,
+                                Math.min(1440, parseInt(e.target.value) || 240)
+                              );
+                              setConfig((prev) => ({
+                                ...prev,
+                                telegramAutomation: {
+                                  enabled: true,
+                                  channelId: prev.telegramAutomation?.channelId,
                                   groupId: prev.telegramAutomation?.groupId,
                                   autoReply:
                                     prev.telegramAutomation?.autoReply ?? true,
@@ -1834,9 +2385,220 @@ export function PromoteAppDialog({
                                     true,
                                   announceIntervalMin:
                                     prev.telegramAutomation
+                                      ?.announceIntervalMin ?? 60,
+                                  announceIntervalMax: value,
+                                },
+                              }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Discord Automation Config */}
+                <TabsContent value="discord_automation" className="space-y-4">
+                  {/* Show existing automation card if it exists */}
+                  {existingAutomation.discord.exists ? (
+                    <div className="space-y-4">
+                      <div
+                        className={`${existingAutomation.discord.isPaused ? "bg-yellow-500/10 border-yellow-500/30" : "bg-green-500/10 border-green-500/30"} border rounded-lg p-4`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle
+                            className={`h-5 w-5 ${existingAutomation.discord.isPaused ? "text-yellow-400" : "text-green-400"}`}
+                          />
+                          <span className="font-medium text-white">
+                            Discord Automation{" "}
+                            {existingAutomation.discord.isPaused
+                              ? "(Paused)"
+                              : "Active"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-white/60">
+                          {existingAutomation.discord.isPaused
+                            ? "Was"
+                            : "Currently"}{" "}
+                          posting to{" "}
+                          <span className="text-white font-medium">
+                            #
+                            {existingAutomation.discord.channelName ||
+                              "channel"}
+                          </span>{" "}
+                          in{" "}
+                          <span className="text-white font-medium">
+                            {existingAutomation.discord.guildName || "server"}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Toggle between using existing or reconfiguring */}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={
+                            useExistingAutomation.discord
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setUseExistingAutomation((prev) => ({
+                              ...prev,
+                              discord: true,
+                            }))
+                          }
+                          className={
+                            useExistingAutomation.discord
+                              ? "bg-[#FF5800] hover:bg-[#FF5800]/90 flex-1"
+                              : "flex-1"
+                          }
+                        >
+                          Post using existing
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={
+                            !useExistingAutomation.discord
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setUseExistingAutomation((prev) => ({
+                              ...prev,
+                              discord: false,
+                            }))
+                          }
+                          className={
+                            !useExistingAutomation.discord
+                              ? "bg-[#FF5800] hover:bg-[#FF5800]/90 flex-1"
+                              : "flex-1"
+                          }
+                        >
+                          Update settings
+                        </Button>
+                      </div>
+
+                      {/* Show config form only if they want to update */}
+                      {!useExistingAutomation.discord && (
+                        <div className="border-t border-white/10 pt-4">
+                          <p className="text-sm text-yellow-400 mb-3">
+                            ⚠️ This will update your existing Discord automation
+                            settings
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-[#5865F2]/10 dark:bg-[#5865F2]/20 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg
+                          className="h-5 w-5 text-[#5865F2]"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                        </svg>
+                        <span className="font-medium">
+                          {discordStatus.guilds.length} Server
+                          {discordStatus.guilds.length !== 1 ? "s" : ""}{" "}
+                          Connected
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Your AI bot will post announcements promoting {app.name}{" "}
+                        in your selected Discord channel.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Only show config form if no existing automation OR user wants to update */}
+                  {(!existingAutomation.discord.exists ||
+                    !useExistingAutomation.discord) && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Select Server</Label>
+                        <Select
+                          value={config.discordAutomation?.guildId || ""}
+                          onValueChange={async (value) => {
+                            setConfig((prev) => ({
+                              ...prev,
+                              discordAutomation: {
+                                enabled: true,
+                                guildId: value,
+                                channelId: undefined,
+                                autoAnnounce:
+                                  prev.discordAutomation?.autoAnnounce ?? true,
+                                announceIntervalMin:
+                                  prev.discordAutomation?.announceIntervalMin ??
+                                  120,
+                                announceIntervalMax:
+                                  prev.discordAutomation?.announceIntervalMax ??
+                                  240,
+                              },
+                            }));
+                            // Fetch channels for selected guild
+                            if (value) {
+                              try {
+                                const res = await fetch(
+                                  `/api/v1/discord/channels?guildId=${value}`
+                                );
+                                const data = await res.json();
+                                setDiscordChannels(data.channels || []);
+                              } catch {
+                                setDiscordChannels([]);
+                              }
+                            } else {
+                              setDiscordChannels([]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a server" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {discordStatus.guilds.map((guild) => (
+                              <SelectItem key={guild.id} value={guild.id}>
+                                <div className="flex items-center gap-2">
+                                  {guild.iconUrl ? (
+                                    <img
+                                      src={guild.iconUrl}
+                                      alt=""
+                                      className="h-5 w-5 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="h-5 w-5 rounded-full bg-[#5865F2] flex items-center justify-center text-xs text-white">
+                                      {guild.name.charAt(0)}
+                                    </div>
+                                  )}
+                                  {guild.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {config.discordAutomation?.guildId && (
+                        <div>
+                          <Label>Select Channel</Label>
+                          <Select
+                            value={config.discordAutomation?.channelId || ""}
+                            onValueChange={(value) =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                discordAutomation: {
+                                  enabled: true,
+                                  guildId: prev.discordAutomation?.guildId,
+                                  channelId: value,
+                                  autoAnnounce:
+                                    prev.discordAutomation?.autoAnnounce ??
+                                    true,
+                                  announceIntervalMin:
+                                    prev.discordAutomation
                                       ?.announceIntervalMin ?? 120,
                                   announceIntervalMax:
-                                    prev.telegramAutomation
+                                    prev.discordAutomation
                                       ?.announceIntervalMax ?? 240,
                                 },
                               }))
@@ -1846,430 +2608,140 @@ export function PromoteAppDialog({
                               <SelectValue placeholder="Select a channel" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">No channel</SelectItem>
-                              {telegramChats
-                                .filter(
-                                  (c) => c.type === "channel" && c.canPost
-                                )
-                                .map((chat) => (
-                                  <SelectItem key={chat.id} value={chat.id}>
-                                    {chat.title}{" "}
-                                    {chat.username && `(@${chat.username})`}
+                              {discordChannels
+                                .filter((c) => c.canSend)
+                                .map((channel) => (
+                                  <SelectItem
+                                    key={channel.id}
+                                    value={channel.id}
+                                  >
+                                    # {channel.name}
                                   </SelectItem>
                                 ))}
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground mt-1">
-                            AI will post periodic announcements to this channel
+                            AI will post announcements to this channel
                           </p>
                         </div>
+                      )}
 
-                        <div>
-                          <Label>Group (for interactions)</Label>
-                          <Select
-                            value={config.telegramAutomation?.groupId || "none"}
-                            onValueChange={(value) =>
+                      <div className="space-y-3 pt-4 border-t">
+                        <Label className="text-base font-medium">
+                          Automation Features
+                        </Label>
+
+                        <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={
+                              config.discordAutomation?.autoAnnounce ?? true
+                            }
+                            onCheckedChange={(checked) =>
                               setConfig((prev) => ({
                                 ...prev,
-                                telegramAutomation: {
+                                discordAutomation: {
                                   enabled: true,
-                                  channelId: prev.telegramAutomation?.channelId,
-                                  groupId: value === "none" ? undefined : value,
-                                  autoReply:
-                                    prev.telegramAutomation?.autoReply ?? true,
-                                  autoAnnounce:
-                                    prev.telegramAutomation?.autoAnnounce ??
-                                    true,
+                                  guildId: prev.discordAutomation?.guildId,
+                                  channelId: prev.discordAutomation?.channelId,
+                                  autoAnnounce: !!checked,
                                   announceIntervalMin:
-                                    prev.telegramAutomation
+                                    prev.discordAutomation
                                       ?.announceIntervalMin ?? 120,
                                   announceIntervalMax:
-                                    prev.telegramAutomation
+                                    prev.discordAutomation
                                       ?.announceIntervalMax ?? 240,
                                 },
                               }))
                             }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a group" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No group</SelectItem>
-                              {telegramChats
-                                .filter(
-                                  (c) =>
-                                    c.type === "group" ||
-                                    c.type === "supergroup"
-                                )
-                                .map((chat) => (
-                                  <SelectItem key={chat.id} value={chat.id}>
-                                    {chat.title}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            AI will respond to messages in this group
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="space-y-3 pt-4 border-t">
-                      <Label className="text-base font-medium">
-                        Automation Features
-                      </Label>
-
-                      <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                        <Checkbox
-                          checked={
-                            config.telegramAutomation?.autoAnnounce ?? true
-                          }
-                          onCheckedChange={(checked) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              telegramAutomation: {
-                                enabled: true,
-                                channelId: prev.telegramAutomation?.channelId,
-                                groupId: prev.telegramAutomation?.groupId,
-                                autoReply:
-                                  prev.telegramAutomation?.autoReply ?? true,
-                                autoAnnounce: !!checked,
-                                announceIntervalMin:
-                                  prev.telegramAutomation
-                                    ?.announceIntervalMin ?? 120,
-                                announceIntervalMax:
-                                  prev.telegramAutomation
-                                    ?.announceIntervalMax ?? 240,
-                              },
-                            }))
-                          }
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium">Auto-Announcements</div>
-                          <div className="text-sm text-muted-foreground">
-                            Post periodic AI-generated updates to your channel
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              Auto-Announcements
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Post periodic AI-generated updates with embeds and
+                              buttons
+                            </div>
                           </div>
-                        </div>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                      <div>
-                        <Label htmlFor="announceIntervalMin">
-                          Min Announce Interval (minutes)
-                        </Label>
-                        <Input
-                          id="announceIntervalMin"
-                          type="number"
-                          min={30}
-                          max={1440}
-                          value={
-                            config.telegramAutomation?.announceIntervalMin ?? 60
-                          }
-                          onChange={(e) => {
-                            const value = Math.max(
-                              30,
-                              Math.min(1440, parseInt(e.target.value) || 60)
-                            );
-                            setConfig((prev) => ({
-                              ...prev,
-                              telegramAutomation: {
-                                enabled: true,
-                                channelId: prev.telegramAutomation?.channelId,
-                                groupId: prev.telegramAutomation?.groupId,
-                                autoReply:
-                                  prev.telegramAutomation?.autoReply ?? true,
-                                autoAnnounce:
-                                  prev.telegramAutomation?.autoAnnounce ?? true,
-                                announceIntervalMin: value,
-                                announceIntervalMax:
-                                  prev.telegramAutomation
-                                    ?.announceIntervalMax ?? 240,
-                              },
-                            }));
-                          }}
-                        />
+                        </label>
                       </div>
-                      <div>
-                        <Label htmlFor="announceIntervalMax">
-                          Max Announce Interval (minutes)
-                        </Label>
-                        <Input
-                          id="announceIntervalMax"
-                          type="number"
-                          min={60}
-                          max={1440}
-                          value={
-                            config.telegramAutomation?.announceIntervalMax ??
-                            240
-                          }
-                          onChange={(e) => {
-                            const value = Math.max(
-                              60,
-                              Math.min(1440, parseInt(e.target.value) || 240)
-                            );
-                            setConfig((prev) => ({
-                              ...prev,
-                              telegramAutomation: {
-                                enabled: true,
-                                channelId: prev.telegramAutomation?.channelId,
-                                groupId: prev.telegramAutomation?.groupId,
-                                autoReply:
-                                  prev.telegramAutomation?.autoReply ?? true,
-                                autoAnnounce:
-                                  prev.telegramAutomation?.autoAnnounce ?? true,
-                                announceIntervalMin:
-                                  prev.telegramAutomation
-                                    ?.announceIntervalMin ?? 60,
-                                announceIntervalMax: value,
-                              },
-                            }));
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
 
-                {/* Discord Automation Config */}
-                <TabsContent value="discord_automation" className="space-y-4">
-                  <div className="bg-[#5865F2]/10 dark:bg-[#5865F2]/20 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg
-                        className="h-5 w-5 text-[#5865F2]"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
-                      </svg>
-                      <span className="font-medium">
-                        {discordStatus.guilds.length} Server
-                        {discordStatus.guilds.length !== 1 ? "s" : ""} Connected
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Your AI bot will post announcements promoting {app.name}{" "}
-                      in your selected Discord channel.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Select Server</Label>
-                      <Select
-                        value={config.discordAutomation?.guildId || ""}
-                        onValueChange={async (value) => {
-                          setConfig((prev) => ({
-                            ...prev,
-                            discordAutomation: {
-                              enabled: true,
-                              guildId: value,
-                              channelId: undefined,
-                              autoAnnounce:
-                                prev.discordAutomation?.autoAnnounce ?? true,
-                              announceIntervalMin:
-                                prev.discordAutomation?.announceIntervalMin ??
-                                120,
-                              announceIntervalMax:
-                                prev.discordAutomation?.announceIntervalMax ??
-                                240,
-                            },
-                          }));
-                          // Fetch channels for selected guild
-                          if (value) {
-                            try {
-                              const res = await fetch(
-                                `/api/v1/discord/channels?guildId=${value}`
-                              );
-                              const data = await res.json();
-                              setDiscordChannels(data.channels || []);
-                            } catch {
-                              setDiscordChannels([]);
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div>
+                          <Label htmlFor="discordAnnounceIntervalMin">
+                            Min Announce Interval (minutes)
+                          </Label>
+                          <Input
+                            id="discordAnnounceIntervalMin"
+                            type="number"
+                            min={30}
+                            max={1440}
+                            value={
+                              config.discordAutomation?.announceIntervalMin ??
+                              60
                             }
-                          } else {
-                            setDiscordChannels([]);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a server" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {discordStatus.guilds.map((guild) => (
-                            <SelectItem key={guild.id} value={guild.id}>
-                              <div className="flex items-center gap-2">
-                                {guild.iconUrl ? (
-                                  <img
-                                    src={guild.iconUrl}
-                                    alt=""
-                                    className="h-5 w-5 rounded-full"
-                                  />
-                                ) : (
-                                  <div className="h-5 w-5 rounded-full bg-[#5865F2] flex items-center justify-center text-xs text-white">
-                                    {guild.name.charAt(0)}
-                                  </div>
-                                )}
-                                {guild.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {config.discordAutomation?.guildId && (
-                      <div>
-                        <Label>Select Channel</Label>
-                        <Select
-                          value={config.discordAutomation?.channelId || ""}
-                          onValueChange={(value) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              discordAutomation: {
-                                enabled: true,
-                                guildId: prev.discordAutomation?.guildId,
-                                channelId: value,
-                                autoAnnounce:
-                                  prev.discordAutomation?.autoAnnounce ?? true,
-                                announceIntervalMin:
-                                  prev.discordAutomation?.announceIntervalMin ??
-                                  120,
-                                announceIntervalMax:
-                                  prev.discordAutomation?.announceIntervalMax ??
-                                  240,
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a channel" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {discordChannels
-                              .filter((c) => c.canSend)
-                              .map((channel) => (
-                                <SelectItem key={channel.id} value={channel.id}>
-                                  # {channel.name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          AI will post announcements to this channel
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-3 pt-4 border-t">
-                      <Label className="text-base font-medium">
-                        Automation Features
-                      </Label>
-
-                      <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                        <Checkbox
-                          checked={
-                            config.discordAutomation?.autoAnnounce ?? true
-                          }
-                          onCheckedChange={(checked) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              discordAutomation: {
-                                enabled: true,
-                                guildId: prev.discordAutomation?.guildId,
-                                channelId: prev.discordAutomation?.channelId,
-                                autoAnnounce: !!checked,
-                                announceIntervalMin:
-                                  prev.discordAutomation?.announceIntervalMin ??
-                                  120,
-                                announceIntervalMax:
-                                  prev.discordAutomation?.announceIntervalMax ??
-                                  240,
-                              },
-                            }))
-                          }
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium">Auto-Announcements</div>
-                          <div className="text-sm text-muted-foreground">
-                            Post periodic AI-generated updates with embeds and
-                            buttons
-                          </div>
+                            onChange={(e) => {
+                              const value = Math.max(
+                                30,
+                                Math.min(1440, parseInt(e.target.value) || 60)
+                              );
+                              setConfig((prev) => ({
+                                ...prev,
+                                discordAutomation: {
+                                  enabled: true,
+                                  guildId: prev.discordAutomation?.guildId,
+                                  channelId: prev.discordAutomation?.channelId,
+                                  autoAnnounce:
+                                    prev.discordAutomation?.autoAnnounce ??
+                                    true,
+                                  announceIntervalMin: value,
+                                  announceIntervalMax:
+                                    prev.discordAutomation
+                                      ?.announceIntervalMax ?? 240,
+                                },
+                              }));
+                            }}
+                          />
                         </div>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                      <div>
-                        <Label htmlFor="discordAnnounceIntervalMin">
-                          Min Announce Interval (minutes)
-                        </Label>
-                        <Input
-                          id="discordAnnounceIntervalMin"
-                          type="number"
-                          min={30}
-                          max={1440}
-                          value={
-                            config.discordAutomation?.announceIntervalMin ?? 60
-                          }
-                          onChange={(e) => {
-                            const value = Math.max(
-                              30,
-                              Math.min(1440, parseInt(e.target.value) || 60)
-                            );
-                            setConfig((prev) => ({
-                              ...prev,
-                              discordAutomation: {
-                                enabled: true,
-                                guildId: prev.discordAutomation?.guildId,
-                                channelId: prev.discordAutomation?.channelId,
-                                autoAnnounce:
-                                  prev.discordAutomation?.autoAnnounce ?? true,
-                                announceIntervalMin: value,
-                                announceIntervalMax:
-                                  prev.discordAutomation?.announceIntervalMax ??
-                                  240,
-                              },
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="discordAnnounceIntervalMax">
-                          Max Announce Interval (minutes)
-                        </Label>
-                        <Input
-                          id="discordAnnounceIntervalMax"
-                          type="number"
-                          min={60}
-                          max={1440}
-                          value={
-                            config.discordAutomation?.announceIntervalMax ?? 240
-                          }
-                          onChange={(e) => {
-                            const value = Math.max(
-                              60,
-                              Math.min(1440, parseInt(e.target.value) || 240)
-                            );
-                            setConfig((prev) => ({
-                              ...prev,
-                              discordAutomation: {
-                                enabled: true,
-                                guildId: prev.discordAutomation?.guildId,
-                                channelId: prev.discordAutomation?.channelId,
-                                autoAnnounce:
-                                  prev.discordAutomation?.autoAnnounce ?? true,
-                                announceIntervalMin:
-                                  prev.discordAutomation?.announceIntervalMin ??
-                                  60,
-                                announceIntervalMax: value,
-                              },
-                            }));
-                          }}
-                        />
+                        <div>
+                          <Label htmlFor="discordAnnounceIntervalMax">
+                            Max Announce Interval (minutes)
+                          </Label>
+                          <Input
+                            id="discordAnnounceIntervalMax"
+                            type="number"
+                            min={60}
+                            max={1440}
+                            value={
+                              config.discordAutomation?.announceIntervalMax ??
+                              240
+                            }
+                            onChange={(e) => {
+                              const value = Math.max(
+                                60,
+                                Math.min(1440, parseInt(e.target.value) || 240)
+                              );
+                              setConfig((prev) => ({
+                                ...prev,
+                                discordAutomation: {
+                                  enabled: true,
+                                  guildId: prev.discordAutomation?.guildId,
+                                  channelId: prev.discordAutomation?.channelId,
+                                  autoAnnounce:
+                                    prev.discordAutomation?.autoAnnounce ??
+                                    true,
+                                  announceIntervalMin:
+                                    prev.discordAutomation
+                                      ?.announceIntervalMin ?? 60,
+                                  announceIntervalMax: value,
+                                },
+                              }));
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </TabsContent>
               </div>
             </Tabs>
@@ -2277,16 +2749,21 @@ export function PromoteAppDialog({
             <div className="flex justify-between items-center p-6 pt-4 border-t border-white/10 bg-black/50 shrink-0">
               <Button
                 variant="outline"
-                onClick={() => setStep("channels")}
+                onClick={goToPrevTab}
                 className="border-white/20 text-white/70 hover:bg-white/10 hover:text-white"
               >
-                Back
+                ← Back
               </Button>
               <Button
-                onClick={handleReviewStep}
+                onClick={() => {
+                  const result = goToNextTab();
+                  if (result === "review") {
+                    handleReviewStep();
+                  }
+                }}
                 className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
-                Review & Launch
+                {isLastTab ? "Review & Launch →" : "Continue →"}
               </Button>
             </div>
           </div>
