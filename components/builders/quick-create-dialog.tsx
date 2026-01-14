@@ -35,6 +35,7 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "./post-creation-app-prompt";
+import { trackEvent } from "@/lib/analytics/posthog";
 
 export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
@@ -123,7 +124,7 @@ export function QuickCreateDialog({
   });
   const [showAppPrompt, setShowAppPrompt] = useState(false);
 
-  // Name validation state (only for app/service types)
+// Name validation state (only for app/service types)
   const [nameValidation, setNameValidation] = useState<{
     isChecking: boolean;
     isAvailable: boolean | null;
@@ -131,6 +132,13 @@ export function QuickCreateDialog({
     suggestedName: string | null;
   }>({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
   const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Track when dialog opens with defaultType=agent
+  useEffect(() => {
+    if (open && defaultType === "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
+  }, [open, defaultType]);
 
   // Debounced name check for app/service types
   useEffect(() => {
@@ -200,6 +208,11 @@ export function QuickCreateDialog({
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
+
+    // Track when user starts creating an agent (only if not already tracked via defaultType)
+    if (type === "agent" && defaultType !== "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
   };
 
   const regenerateName = () => {
@@ -309,7 +322,16 @@ export function QuickCreateDialog({
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Creation failed");
+      const errorMessage = err instanceof Error ? err.message : "Creation failed";
+      toast.error(errorMessage);
+
+      // Track failed agent creation
+      if (selectedType === "agent") {
+        trackEvent("agent_create_failed", {
+          source: "quick_create",
+          error_message: errorMessage,
+        });
+      }
     } finally {
       setIsLoading(false);
     }

@@ -24,6 +24,7 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -466,6 +467,16 @@ async function handleCreateContainer(request: NextRequest) {
           );
         });
 
+      // Track container deployment started in PostHog using internal UUID
+      trackServerEvent(user.id, "container_deploy_started", {
+        container_id: container.id,
+        container_name: validatedData.name,
+        is_update: isUpdate,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        cost: deploymentCost,
+      });
+
       // Return immediately with container info and polling instructions
       return NextResponse.json(
         {
@@ -526,6 +537,13 @@ async function handleCreateContainer(request: NextRequest) {
       } catch (refundError) {
         logger.error(`❌ Failed to refund credits:`, refundError);
       }
+
+      // Track failed container deployment in PostHog using internal UUID
+      trackServerEvent(user.id, "container_deploy_failed", {
+        container_id: container.id,
+        container_name: validatedData.name,
+        error_message: errorMessage,
+      });
 
       return NextResponse.json(
         {
