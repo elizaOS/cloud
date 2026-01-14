@@ -44,6 +44,9 @@ function UserIdentifier(): null {
     // Update ref at start of each effect run so async callbacks can check current state
     authenticatedRef.current = authenticated;
 
+    // AbortController to cancel in-flight requests on cleanup (e.g., logout)
+    const abortController = new AbortController();
+
     if (!ready) return;
 
     // Handle logout
@@ -65,7 +68,7 @@ function UserIdentifier(): null {
       const wasLoggedOutBefore = previousAuthState.current === false;
 
       // Fetch internal user ID from API
-      fetch("/api/v1/user")
+      fetch("/api/v1/user", { signal: abortController.signal })
         .then((res) => res.json())
         .then((data) => {
           // Verify user is still authenticated before identifying
@@ -89,6 +92,8 @@ function UserIdentifier(): null {
           }
         })
         .catch((error) => {
+          // Ignore abort errors - expected when component unmounts or user logs out
+          if (error instanceof Error && error.name === "AbortError") return;
           console.error("[PostHog] Failed to fetch user ID:", error);
         })
         .finally(() => {
@@ -97,6 +102,11 @@ function UserIdentifier(): null {
     }
 
     previousAuthState.current = authenticated;
+
+    // Cleanup: abort any in-flight fetch when effect re-runs or component unmounts
+    return () => {
+      abortController.abort();
+    };
   }, [ready, authenticated, user]);
 
   return null;
