@@ -33,6 +33,8 @@ export interface TelegramAutomationConfig {
   welcomeMessage?: string;
   vibeStyle?: string;
   agentCharacterId?: string; // Character used for automation voice
+  lastAnnouncementAt?: string; // ISO timestamp of last announcement
+  totalMessages?: number; // Total messages sent
 }
 
 export interface TelegramAutomationStatus {
@@ -43,8 +45,11 @@ export interface TelegramAutomationStatus {
   groupId?: string;
   autoReply: boolean;
   autoAnnounce: boolean;
+  announceIntervalMin?: number;
+  announceIntervalMax?: number;
   lastAnnouncementAt?: string;
   totalMessages: number;
+  agentCharacterId?: string; // Character voice for posts
 }
 
 export interface PostResult {
@@ -146,24 +151,27 @@ class TelegramAppAutomationService {
     const connectionStatus =
       await telegramAutomationService.getConnectionStatus(organizationId);
 
-    const config = app.telegram_automation || {
+    const config = (app.telegram_automation || {
       enabled: false,
       autoReply: true,
       autoAnnounce: false,
       announceIntervalMin: 120,
       announceIntervalMax: 240,
-    };
+    }) as TelegramAutomationConfig;
 
     return {
-      enabled: config.enabled,
+      enabled: config.enabled ?? false,
       botConnected: connectionStatus.connected,
       botUsername: connectionStatus.botUsername || config.botUsername,
       channelId: config.channelId,
       groupId: config.groupId,
-      autoReply: config.autoReply,
-      autoAnnounce: config.autoAnnounce,
+      autoReply: config.autoReply ?? true,
+      autoAnnounce: config.autoAnnounce ?? false,
+      announceIntervalMin: config.announceIntervalMin ?? 120,
+      announceIntervalMax: config.announceIntervalMax ?? 240,
       lastAnnouncementAt: config.lastAnnouncementAt,
-      totalMessages: config.totalMessages || 0,
+      totalMessages: config.totalMessages ?? 0,
+      agentCharacterId: config.agentCharacterId,
     };
   }
 

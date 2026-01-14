@@ -28,6 +28,7 @@ const automationConfigSchema = z.object({
   announceIntervalMax: z.number().min(30).max(1440).optional(),
   welcomeMessage: z.string().max(500).optional(),
   vibeStyle: z.string().max(100).optional(),
+  agentCharacterId: z.string().uuid().optional(), // Character voice for posts
 });
 
 export async function GET(

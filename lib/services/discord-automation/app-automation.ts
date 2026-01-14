@@ -182,8 +182,11 @@ class DiscordAppAutomationService {
       channelId: config.channelId,
       channelName,
       autoAnnounce: config.autoAnnounce,
+      announceIntervalMin: config.announceIntervalMin,
+      announceIntervalMax: config.announceIntervalMax,
       lastAnnouncementAt: config.lastAnnouncementAt,
       totalMessages: config.totalMessages || 0,
+      agentCharacterId: config.agentCharacterId,
     };
   }
 
