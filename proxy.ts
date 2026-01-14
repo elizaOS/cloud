@@ -112,6 +112,7 @@ const publicPaths = [
   "/api/a2a",
   "/api/agents",
   "/api/v1/track",
+  "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",

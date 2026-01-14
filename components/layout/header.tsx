@@ -12,7 +12,7 @@
 
 import { memo, useCallback, useState } from "react";
 import { Menu, LogIn, Plus } from "lucide-react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useRouter, usePathname } from "next/navigation";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
 import { usePageHeader } from "./page-header-context";
@@ -30,13 +30,16 @@ function HeaderComponent({
   isAnonymous = false,
 }: HeaderProps) {
   const { pageInfo } = usePageHeader();
-  const { login } = usePrivy();
+  const router = useRouter();
+  const pathname = usePathname();
   const [showQuickCreate, setShowQuickCreate] = useState(false);
 
-  // Memoize login handler to prevent unnecessary re-renders
+  // Redirect to login page with returnTo to preserve current location (including query params like characterId)
   const handleLogin = useCallback(() => {
-    login();
-  }, [login]);
+    const fullUrl =
+      pathname + (typeof window !== "undefined" ? window.location.search : "");
+    router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`);
+  }, [router, pathname]);
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/40 px-4 md:px-6">

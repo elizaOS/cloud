@@ -56,9 +56,18 @@ interface AppOverviewProps {
   showApiKey?: string;
 }
 
-type DeploymentStatus = "deployed" | "deploying" | "building" | "failed" | "draft";
+type DeploymentStatus =
+  | "deployed"
+  | "deploying"
+  | "building"
+  | "failed"
+  | "draft";
 
-function DeploymentStatusBadge({ status }: { status: DeploymentStatus }): JSX.Element {
+function DeploymentStatusBadge({
+  status,
+}: {
+  status: DeploymentStatus;
+}): JSX.Element {
   switch (status) {
     case "deployed":
       return (
@@ -153,9 +162,12 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   async function handleRegenerateApiKey(): Promise<void> {
     setIsRegenerating(true);
     try {
-      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `/api/v1/apps/${app.id}/regenerate-api-key`,
+        {
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -229,7 +241,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 <p className="text-sm text-white/60">Deployment Status</p>
                 <div className="mt-1">
                   <DeploymentStatusBadge
-                    status={(app.deployment_status || "draft") as DeploymentStatus}
+                    status={
+                      (app.deployment_status || "draft") as DeploymentStatus
+                    }
                   />
                 </div>
               </div>

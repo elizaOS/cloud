@@ -14,6 +14,17 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import crypto from "crypto";
 
+export class AppNameConflictError extends Error {
+  constructor(
+    message: string,
+    public readonly conflictType: "app" | "subdomain",
+    public readonly suggestedName?: string,
+  ) {
+    super(message);
+    this.name = "AppNameConflictError";
+  }
+}
+
 /**
  * Service for app CRUD operations and app management.
  */
@@ -24,6 +35,39 @@ export class AppsService {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .substring(0, 50);
+  }
+
+  /**
+   * Check if an app name is available for creation.
+   * Validates that neither the generated slug nor the subdomain would conflict.
+   */
+  async isNameAvailable(name: string): Promise<{
+    available: boolean;
+    slug: string;
+    conflictType?: "app" | "subdomain";
+    suggestedName?: string;
+  }> {
+    const result = await appsRepository.checkNameAvailability(name);
+
+    if (!result.available) {
+      // Generate a suggested alternative name
+      const suffix = crypto.randomBytes(2).toString("hex");
+      const suggestedName = `${name}-${suffix}`;
+
+      return {
+        ...result,
+        suggestedName,
+      };
+    }
+
+    return result;
+  }
+
+  /**
+   * Check if a specific slug is available.
+   */
+  async isSlugAvailable(slug: string): Promise<boolean> {
+    return appsRepository.isSlugAvailable(slug);
   }
 
   async getById(id: string): Promise<App | undefined> {

@@ -49,7 +49,7 @@ describe("Message Handler - Basic Message Processing", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -79,7 +79,7 @@ describe("Message Handler - Basic Message Processing", () => {
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("Basic Message Tests", timings);
@@ -109,7 +109,10 @@ describe("Message Handler - Basic Message Processing", () => {
   it("should create test user with ElizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "BasicMessageTestUser");
+    testUserContext = await createTestUser(
+      testRuntimeResult.runtime,
+      "BasicMessageTestUser",
+    );
 
     timings.userCreation = endTimer("user_creation");
 
@@ -133,7 +136,7 @@ describe("Message Handler - Basic Message Processing", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.greetingMessage = endTimer("greeting_message");
@@ -162,7 +165,7 @@ describe("Message Handler - Basic Message Processing", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.questionMessage = endTimer("question_message");
@@ -188,7 +191,11 @@ describe("Message Handler - Basic Message Processing", () => {
       "Thanks for the help!",
     ];
 
-    const results: Array<{ message: string; didRespond: boolean; duration: number }> = [];
+    const results: Array<{
+      message: string;
+      didRespond: boolean;
+      duration: number;
+    }> = [];
 
     for (const message of messages) {
       startTimer(`seq_message_${results.length}`);
@@ -199,7 +206,7 @@ describe("Message Handler - Basic Message Processing", () => {
         testData,
         {
           timeoutMs: 60000,
-        }
+        },
       );
       const duration = endTimer(`seq_message_${results.length}`);
       results.push({ message, didRespond: result.didRespond, duration });
@@ -207,7 +214,9 @@ describe("Message Handler - Basic Message Processing", () => {
 
     console.log("\nSequential message processing:");
     for (const r of results) {
-      console.log(`   "${r.message.substring(0, 30)}..." - responded: ${r.didRespond}, ${r.duration}ms`);
+      console.log(
+        `   "${r.message.substring(0, 30)}..." - responded: ${r.didRespond}, ${r.duration}ms`,
+      );
     }
 
     for (const r of results) {

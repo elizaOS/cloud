@@ -9,7 +9,8 @@ import { logger } from "@/lib/utils/logger";
  * UUID v4 regex pattern for validation.
  * Matches standard UUID format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
  */
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Structured log marker for orphaned blobs.
@@ -20,7 +21,11 @@ const ORPHANED_BLOB_LOG_MARKER = "[ORPHANED_BLOB]";
 export interface OrphanedBlobInfo {
   blobUrl: string;
   userId?: string;
-  reason: "cleanup_failed" | "partial_upload_failure" | "expired_pending" | "unknown";
+  reason:
+    | "cleanup_failed"
+    | "partial_upload_failure"
+    | "expired_pending"
+    | "unknown";
   originalError?: string;
   timestamp: number;
 }

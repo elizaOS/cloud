@@ -69,24 +69,56 @@ const safeClose = async (
     .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
 };
 
+/**
+ * Stop a runtime's services without closing the database adapter.
+ * This is the safe way to evict a runtime since the adapter shares a global connection pool.
+ */
+async function stopRuntimeServices(
+  runtime: AgentRuntime,
+  id: string,
+  label: string,
+): Promise<void> {
+  try {
+    await runtime.stop();
+  } catch (e) {
+    elizaLogger.debug(`[${label}] Stop error for ${id}: ${e}`);
+  }
+}
+
 class RuntimeCache {
   private cache = new Map<string, CachedRuntime>();
-  private readonly MAX_SIZE = 50; // Max cached runtimes
+  private readonly MAX_SIZE = 50;
   private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
+
+  private isStale(entry: CachedRuntime, now: number): boolean {
+    return (
+      now - entry.createdAt > this.MAX_AGE_MS ||
+      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
+    );
+  }
+
+  private async evictEntry(
+    key: string,
+    entry: CachedRuntime,
+    reason: string,
+  ): Promise<void> {
+    await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
+    this.cache.delete(key);
+    elizaLogger.debug(
+      `[RuntimeCache] Evicted ${reason} runtime: ${key} (adapter kept alive)`,
+    );
+  }
 
   async get(agentId: string): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
 
     const now = Date.now();
-    if (
-      now - entry.createdAt > this.MAX_AGE_MS ||
-      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
-    ) {
-      await safeClose(entry.runtime, "RuntimeCache", agentId);
-      this.cache.delete(agentId);
-      elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+    if (this.isStale(entry, now)) {
+      await this.evictEntry(agentId, entry, "stale");
+      // Remove adapter reference for stale entries (consistent with getWithHealthCheck)
+      dbAdapterPool.removeAdapter(entry.agentId as string);
       return null;
     }
 
@@ -102,21 +134,17 @@ class RuntimeCache {
     if (!entry) return null;
 
     const now = Date.now();
-    if (
-      now - entry.createdAt > this.MAX_AGE_MS ||
-      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
-    ) {
-      await safeClose(entry.runtime, "RuntimeCache", agentId);
-      this.cache.delete(agentId);
-      elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+    if (this.isStale(entry, now)) {
+      await this.evictEntry(agentId, entry, "stale");
+      // Remove adapter reference for stale entries (checkHealth not called yet)
+      dbPool.removeAdapter(entry.agentId as string);
       return null;
     }
 
+    // checkHealth() removes the adapter internally if unhealthy
     const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
     if (!isHealthy) {
-      await safeClose(entry.runtime, "RuntimeCache", agentId);
-      this.cache.delete(agentId);
-      elizaLogger.debug(`[RuntimeCache] Evicted unhealthy runtime: ${agentId}`);
+      await this.evictEntry(agentId, entry, "unhealthy");
       return null;
     }
 
@@ -149,25 +177,19 @@ class RuntimeCache {
   }
 
   /**
-   * Remove a runtime from cache WITHOUT closing it.
-   * Use this for invalidation - the runtime's services are stopped but
-   * the database adapter is NOT closed (it shares a global connection pool).
+   * Remove a runtime from cache WITHOUT closing its database adapter.
+   * The adapter shares a global connection pool that should remain active.
    */
   async remove(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
-    if (entry) {
-      // Stop services but DON'T close the adapter
-      // runtime.stop() stops services without closing the database
-      try {
-        await entry.runtime.stop();
-      } catch (e) {
-        elizaLogger.debug(`[RuntimeCache] Stop error for ${agentId}: ${e}`);
-      }
-      this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
-      return true;
-    }
-    return false;
+    if (!entry) return false;
+
+    await stopRuntimeServices(entry.runtime, agentId, "RuntimeCache");
+    this.cache.delete(agentId);
+    elizaLogger.info(
+      `[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`,
+    );
+    return true;
   }
 
   /**
@@ -180,7 +202,9 @@ class RuntimeCache {
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
+      elizaLogger.info(
+        `[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`,
+      );
       return true;
     }
     return false;
@@ -191,18 +215,21 @@ class RuntimeCache {
   }
 
   private async evictOldest(): Promise<void> {
-    let oldest: { key: string; lastUsed: number } | null = null;
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
     for (const [key, entry] of this.cache.entries()) {
-      if (!oldest || entry.lastUsed < oldest.lastUsed) {
-        oldest = { key, lastUsed: entry.lastUsed };
+      if (entry.lastUsed < oldestTime) {
+        oldestKey = key;
+        oldestTime = entry.lastUsed;
       }
     }
-    if (oldest) {
-      const entry = this.cache.get(oldest.key);
+
+    if (oldestKey) {
+      const entry = this.cache.get(oldestKey);
       if (entry) {
-        await safeClose(entry.runtime, "RuntimeCache", oldest.key);
+        await this.evictEntry(oldestKey, entry, "oldest");
       }
-      this.cache.delete(oldest.key);
     }
   }
 
@@ -210,6 +237,10 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
+  /**
+   * Clear all cached runtimes and close their adapters.
+   * WARNING: This closes the shared connection pool. Only use for full shutdown.
+   */
   async clear(): Promise<void> {
     await Promise.all(
       Array.from(this.cache.entries()).map(([id, entry]) =>
@@ -237,11 +268,12 @@ class DbAdapterPool {
         return existingAdapter;
       }
 
-      await safeClose(existingAdapter, "DbAdapterPool", key);
+      // Don't close the adapter - it shares a global connection pool.
+      // Just remove our reference and let plugin-sql handle pool recreation.
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
       elizaLogger.warn(
-        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
+        `[DbAdapterPool] Stale adapter for ${agentId}, recreating (pool kept alive)`,
       );
     }
 
@@ -270,22 +302,22 @@ class DbAdapterPool {
       ]);
       return true;
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (
-        msg.includes("closed") ||
-        msg.includes("terminated") ||
-        msg.includes("connection")
-      ) {
-        return false;
-      }
-      return true;
+      // Any error during health check indicates an unhealthy adapter.
+      // A non-existent entity should return an empty array, not throw.
+      elizaLogger.warn(
+        `[DbAdapterPool] Adapter health check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return false;
     }
   }
 
   async checkHealth(agentId: UUID): Promise<boolean> {
     const key = agentId as string;
     const adapter = this.adapters.get(key);
-    if (!adapter) return true;
+    // If adapter doesn't exist (e.g., removed by another cache entry's eviction),
+    // return false to force runtime recreation with a fresh adapter.
+    // Multiple cache keys can share the same agentId (e.g., "abc123" and "abc123:ws").
+    if (!adapter) return false;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
     if (!isHealthy) this.removeAdapter(key);
@@ -338,7 +370,9 @@ class DbAdapterPool {
   removeAdapter(agentId: string): void {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
-    elizaLogger.debug(`[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`);
+    elizaLogger.debug(
+      `[DbAdapterPool] Removed adapter reference: ${agentId} (connection pool kept alive)`,
+    );
   }
 
   /**
@@ -400,7 +434,7 @@ export class RuntimeFactory {
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
     // IMPORTANT: We intentionally DON'T close the adapter here.
-    // 
+    //
     // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
     // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
     //
@@ -872,3 +906,83 @@ export function isRuntimeCached(agentId: string): boolean {
 }
 
 export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };
+
+// ============================================================================
+// TEST EXPORTS - Only for integration testing, do not use in production code
+// ============================================================================
+
+/**
+ * Internal access for testing pool lifecycle and race conditions.
+ * WARNING: These exports bypass normal safety mechanisms and should
+ * only be used in test files.
+ */
+export const _testing = {
+  /**
+   * Get the internal RuntimeCache instance
+   */
+  getRuntimeCache: () => runtimeCache,
+
+  /**
+   * Get the internal DbAdapterPool instance
+   */
+  getDbAdapterPool: () => dbAdapterPool,
+
+  /**
+   * Access the safeClose function for testing
+   */
+  safeClose,
+
+  /**
+   * Access the stopRuntimeServices function for testing
+   */
+  stopRuntimeServices,
+
+  /**
+   * Force cache eviction using the FIXED behavior (runtime.stop(), no pool close).
+   * Use this to verify the fix works correctly.
+   */
+  async forceEvictRuntime(agentId: string): Promise<void> {
+    const entry = runtimeCache["cache"].get(agentId);
+    if (entry) {
+      await stopRuntimeServices(entry.runtime, agentId, "TestForceEvict");
+      runtimeCache["cache"].delete(agentId);
+    }
+  },
+
+  /**
+   * Force cache eviction using the OLD (buggy) behavior that closes the pool.
+   * Use this to verify that closing the pool causes failures.
+   */
+  async forceEvictRuntimeOld(agentId: string): Promise<void> {
+    const entry = runtimeCache["cache"].get(agentId);
+    if (entry) {
+      await safeClose(entry.runtime, "TestForceEvictOld", agentId);
+      runtimeCache["cache"].delete(agentId);
+    }
+  },
+
+  /**
+   * Get raw cache entries for inspection
+   */
+  getCacheEntries(): Map<string, { runtime: AgentRuntime; lastUsed: number; createdAt: number }> {
+    return new Map(runtimeCache["cache"]);
+  },
+
+  /**
+   * Get adapter pool entries for inspection
+   */
+  getAdapterEntries(): Map<string, IDatabaseAdapter> {
+    return new Map(dbAdapterPool["adapters"]);
+  },
+
+  /**
+   * Directly close an adapter (bypassing normal cleanup)
+   * This simulates what happens during eviction
+   */
+  async closeAdapterDirectly(agentId: string): Promise<void> {
+    const adapter = dbAdapterPool["adapters"].get(agentId);
+    if (adapter) {
+      await adapter.close();
+    }
+  },
+};

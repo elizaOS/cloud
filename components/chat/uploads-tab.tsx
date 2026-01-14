@@ -3,13 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Upload,
-  FileText,
-  Trash2,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
+import { Upload, FileText, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
