@@ -87,10 +87,11 @@ const PromotionConfigSchema = z.object({
     .optional(),
   telegramAutomation: z
     .object({
-      enabled: z.boolean(),
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional(),
       channelId: z.string().optional(),
       groupId: z.string().optional(),
-      autoAnnounce: z.boolean(),
+      autoAnnounce: z.boolean().optional(),
       autoReply: z.boolean().optional(),
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
@@ -100,10 +101,11 @@ const PromotionConfigSchema = z.object({
     .optional(),
   discordAutomation: z
     .object({
-      enabled: z.boolean().default(true),
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional().default(true),
       guildId: z.string().optional(),
       channelId: z.string().optional(),
-      autoAnnounce: z.boolean().default(true),
+      autoAnnounce: z.boolean().optional().default(true),
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
