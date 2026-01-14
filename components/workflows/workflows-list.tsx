@@ -11,9 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateWorkflowDialog } from "./create-workflow-dialog";
+import { CreateScenarioDialog } from "./create-scenario-dialog";
 import { deleteWorkflow } from "@/app/actions/workflows";
 import { useRouter } from "next/navigation";
+import { BrandButton, CornerBrackets } from "@/components/brand";
 
 interface WorkflowsListProps {
   workflows: WorkflowType[];
@@ -31,24 +32,21 @@ export function WorkflowsList({ workflows }: WorkflowsListProps) {
   if (workflows.length === 0) {
     return (
       <>
-        <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-white/20 rounded-xl">
-          <div className="p-4 bg-white/5 rounded-full mb-4">
-            <Workflow className="w-8 h-8 text-white/40" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">
-            No workflows yet
+        <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
+          <CornerBrackets size="md" color="#E1E1E1" />
+          <h3 className="text-lg font-medium text-neutral-500">
+            No scenarios yet
           </h3>
-          <p className="text-white/60 text-sm mb-6 text-center max-w-md">
-            Create your first workflow to automate tasks with AI agents, image
-            generation, and more.
-          </p>
-          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create Workflow
-          </Button>
+          <BrandButton
+            onClick={() => setShowCreateDialog(true)}
+            className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+          >
+            <Plus className="h-4 w-4" />
+            Create scenario
+          </BrandButton>
         </div>
 
-        <CreateWorkflowDialog
+        <CreateScenarioDialog
           open={showCreateDialog}
           onOpenChange={setShowCreateDialog}
         />
@@ -59,10 +57,13 @@ export function WorkflowsList({ workflows }: WorkflowsListProps) {
   return (
     <>
       <div className="flex justify-end mb-6">
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Create Workflow
-        </Button>
+        <BrandButton
+          onClick={() => setShowCreateDialog(true)}
+          className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+        >
+          <Plus className="h-4 w-4" />
+          Create scenario
+        </BrandButton>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -135,7 +136,7 @@ export function WorkflowsList({ workflows }: WorkflowsListProps) {
         ))}
       </div>
 
-      <CreateWorkflowDialog
+      <CreateScenarioDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
       />

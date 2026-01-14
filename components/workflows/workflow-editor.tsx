@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -22,7 +21,6 @@ import "@xyflow/react/dist/style.css";
 import { ArrowLeft, Save, Loader2, Play } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { updateWorkflow } from "@/app/actions/workflows";
 import { WorkflowNodePalette } from "./workflow-node-palette";
 import { TriggerNode } from "./nodes/trigger-node";
@@ -88,13 +86,18 @@ function WorkflowCanvas({
   isSaving,
   onRun,
   isRunning,
+  hasUnsavedChanges,
+  setHasUnsavedChanges,
 }: {
   workflow: Workflow;
-  onSave: (nodes: Node[], edges: Edge[]) => void;
+  onSave: (name: string, nodes: Node[], edges: Edge[]) => void;
   isSaving: boolean;
   onRun: () => void;
   isRunning: boolean;
+  hasUnsavedChanges: boolean;
+  setHasUnsavedChanges: (value: boolean) => void;
 }) {
+  const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState(
     toReactFlowNodes(workflow.nodes),
   );
@@ -102,6 +105,17 @@ function WorkflowCanvas({
     toReactFlowEdges(workflow.edges),
   );
   const [workflowName, setWorkflowName] = useState(workflow.name);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Track changes
+  useEffect(() => {
+    const hasChanges =
+      workflowName !== workflow.name ||
+      JSON.stringify(toDbNodes(nodes)) !== JSON.stringify(workflow.nodes) ||
+      JSON.stringify(toDbEdges(edges)) !== JSON.stringify(workflow.edges);
+    setHasUnsavedChanges(hasChanges);
+  }, [nodes, edges, workflowName, workflow, setHasUnsavedChanges]);
 
   const onConnect: OnConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -109,27 +123,82 @@ function WorkflowCanvas({
   );
 
   const handleSave = () => {
-    onSave(nodes, edges);
+    onSave(workflowName, nodes, edges);
+  };
+
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to leave?",
+      );
+      if (!confirmed) return;
+    }
+    router.push("/dashboard/workflows");
+  };
+
+  const handleNameClick = () => {
+    setIsEditingName(true);
+    setTimeout(() => nameInputRef.current?.focus(), 0);
+  };
+
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    if (!workflowName.trim()) {
+      setWorkflowName("New scenario");
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      setIsEditingName(false);
+      if (!workflowName.trim()) {
+        setWorkflowName("New scenario");
+      }
+    }
+    if (e.key === "Escape") {
+      setIsEditingName(false);
+      setWorkflowName(workflow.name);
+    }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard/workflows"
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+        <div className="flex items-center gap-3">
+          {/* Back button - gray rounded box */}
+          <button
+            onClick={handleBack}
+            className="flex items-center justify-center w-10 h-10 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-white/60" />
-          </Link>
-          <Input
-            value={workflowName}
-            onChange={(e) => setWorkflowName(e.target.value)}
-            className="text-lg font-semibold bg-transparent border-none focus:ring-0 w-64"
-            placeholder="Workflow name"
-          />
+            <ArrowLeft className="w-5 h-5 text-neutral-400" />
+          </button>
+
+          {/* Editable title */}
+          {isEditingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={workflowName}
+              onChange={(e) => setWorkflowName(e.target.value)}
+              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
+              className="text-lg font-medium text-neutral-400 bg-transparent border-b border-neutral-500 outline-none px-1"
+            />
+          ) : (
+            <button
+              onClick={handleNameClick}
+              className="text-lg font-medium text-neutral-400 hover:text-neutral-300 transition-colors"
+            >
+              {workflowName}
+            </button>
+          )}
+
+          {hasUnsavedChanges && (
+            <span className="text-xs text-neutral-500">• Unsaved</span>
+          )}
         </div>
+
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -145,11 +214,15 @@ function WorkflowCanvas({
             ) : (
               <>
                 <Play className="w-4 h-4" />
-                Run Workflow
+                Run
               </>
             )}
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="gap-2 bg-[#FF5800] text-black hover:bg-[#FF5800]/90"
+          >
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -213,23 +286,37 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const handleSave = async (nodes: Node[], edges: Edge[]) => {
+  // Warn on browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
     setIsSaving(true);
 
     await updateWorkflow(workflow.id, {
+      name,
       nodes: toDbNodes(nodes),
       edges: toDbEdges(edges),
     });
 
     setIsSaving(false);
+    setHasUnsavedChanges(false);
     router.refresh();
   };
 
   const handleRun = async () => {
     setIsRunning(true);
-    // TODO: Implement workflow execution
-    // For now, just simulate a delay
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsRunning(false);
     alert("Workflow execution not yet implemented!");
@@ -243,6 +330,8 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
         isSaving={isSaving}
         onRun={handleRun}
         isRunning={isRunning}
+        hasUnsavedChanges={hasUnsavedChanges}
+        setHasUnsavedChanges={setHasUnsavedChanges}
       />
     </ReactFlowProvider>
   );
