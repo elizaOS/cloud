@@ -46,9 +46,23 @@ export const workflowNodeTypeEnum = pgEnum("workflow_node_type", [
   "agent", // Call an AI agent
   "image", // Generate an image
   "output", // Output/save result
+  "delay", // Wait/pause execution
+  "http", // HTTP request to external API
+  "condition", // Conditional branching
+  "tts", // Text-to-speech
+  "discord", // Send to Discord
 ]);
 
-export type WorkflowNodeType = "trigger" | "agent" | "image" | "output";
+export type WorkflowNodeType =
+  | "trigger"
+  | "agent"
+  | "image"
+  | "output"
+  | "delay"
+  | "http"
+  | "condition"
+  | "tts"
+  | "discord";
 
 /**
  * Workflow node definition.

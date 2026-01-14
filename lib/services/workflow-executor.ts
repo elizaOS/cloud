@@ -12,7 +12,9 @@ import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { fal } from "@fal-ai/client";
-import { ensureElizaCloudUrl } from "@/lib/blob";
+import { ensureElizaCloudUrl, uploadToBlob } from "@/lib/blob";
+import { discordService } from "./discord";
+import { getElevenLabsService } from "./elevenlabs";
 
 // ============================================================================
 // Types
@@ -277,6 +279,16 @@ class WorkflowExecutorService {
         return this.executeImageNode(config, context);
       case "output":
         return this.executeOutputNode(config, context);
+      case "delay":
+        return this.executeDelayNode(config, context);
+      case "http":
+        return this.executeHttpNode(config, context);
+      case "condition":
+        return this.executeConditionNode(config, context);
+      case "tts":
+        return this.executeTtsNode(config, context);
+      case "discord":
+        return this.executeDiscordNode(config, context);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -505,6 +517,248 @@ class WorkflowExecutorService {
       outputType,
       savedImages,
       data: allOutputs,
+    };
+  }
+
+  /**
+   * Execute delay node - waits for specified time
+   */
+  private async executeDelayNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const delayMs = ((config.delaySeconds as number) ?? 5) * 1000;
+
+    this.log(context, "info", "delay", `Waiting for ${delayMs / 1000} seconds...`);
+    await this.delay(delayMs);
+    this.log(context, "info", "delay", "Delay completed");
+
+    return {
+      type: "delay",
+      delayMs,
+      completedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Execute HTTP node - makes HTTP requests
+   */
+  private async executeHttpNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const url = config.url as string;
+    const method = (config.method as string) ?? "GET";
+    const headers = (config.headers as Record<string, string>) ?? {};
+    let body = config.body as string | undefined;
+
+    if (!url) {
+      throw new Error("URL is required for HTTP node");
+    }
+
+    // Replace placeholders in URL and body with previous node outputs
+    const outputs = this.collectOutputs(context);
+    for (const [nodeId, output] of Object.entries(outputs)) {
+      const data = output as Record<string, unknown>;
+      if (data?.response) {
+        body = body?.replace(`{{${nodeId}}}`, String(data.response));
+      }
+    }
+
+    this.log(context, "info", "http", `Making ${method} request to ${url}`);
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      ...(body && method !== "GET" ? { body } : {}),
+    });
+
+    const responseText = await response.text();
+    let responseData: unknown;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = responseText;
+    }
+
+    this.log(context, "info", "http", `Response status: ${response.status}`);
+
+    return {
+      type: "http",
+      url,
+      method,
+      status: response.status,
+      response: responseData,
+    };
+  }
+
+  /**
+   * Execute condition node - branches based on condition
+   */
+  private async executeConditionNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const field = (config.field as string) ?? "response";
+    const operator = (config.operator as string) ?? "contains";
+    const value = (config.value as string) ?? "";
+
+    // Get the latest agent response to check
+    let textToCheck = "";
+    for (const [, output] of context.nodeOutputs) {
+      const data = output.output as Record<string, unknown>;
+      if (data?.response) {
+        textToCheck = String(data.response);
+      }
+    }
+
+    let result = false;
+    switch (operator) {
+      case "contains":
+        result = textToCheck.toLowerCase().includes(value.toLowerCase());
+        break;
+      case "equals":
+        result = textToCheck.toLowerCase() === value.toLowerCase();
+        break;
+      case "startsWith":
+        result = textToCheck.toLowerCase().startsWith(value.toLowerCase());
+        break;
+      case "endsWith":
+        result = textToCheck.toLowerCase().endsWith(value.toLowerCase());
+        break;
+      case "regex":
+        result = new RegExp(value, "i").test(textToCheck);
+        break;
+      default:
+        result = textToCheck.toLowerCase().includes(value.toLowerCase());
+    }
+
+    this.log(
+      context,
+      "info",
+      "condition",
+      `Condition: "${field}" ${operator} "${value}" = ${result}`,
+    );
+
+    return {
+      type: "condition",
+      field,
+      operator,
+      value,
+      result,
+      branch: result ? "true" : "false",
+    };
+  }
+
+  /**
+   * Execute TTS node - generates speech from text
+   */
+  private async executeTtsNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const voiceId = (config.voiceId as string) ?? "21m00Tcm4TlvDq8ikWAM"; // Rachel voice
+    let text = (config.text as string) ?? "";
+
+    // Auto-use previous agent response if no text specified
+    if (!text) {
+      for (const [, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+        if (data?.type === "agent" && data?.response) {
+          text = String(data.response);
+          this.log(context, "info", "tts", "Using agent response as TTS input");
+          break;
+        }
+      }
+    }
+
+    if (!text) {
+      throw new Error("No text provided for TTS");
+    }
+
+    this.log(context, "info", "tts", `Generating speech (${text.length} chars)...`);
+
+    const elevenlabs = getElevenLabsService();
+    const audioStream = await elevenlabs.textToSpeech({
+      text,
+      voiceId,
+      modelId: "eleven_monolingual_v1",
+    });
+
+    // Convert stream to buffer and upload to blob storage
+    const chunks: Uint8Array[] = [];
+    const reader = audioStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const audioBuffer = Buffer.concat(chunks);
+
+    const { url: audioUrl } = await uploadToBlob(audioBuffer, {
+      filename: `workflow-${context.workflowId}-tts-${Date.now()}.mp3`,
+      folder: "workflows/audio",
+      userId: context.userId,
+      contentType: "audio/mpeg",
+    });
+
+    this.log(context, "info", "tts", "Audio generated and uploaded");
+
+    return {
+      type: "tts",
+      voiceId,
+      text: text.slice(0, 100) + (text.length > 100 ? "..." : ""),
+      audioUrl,
+    };
+  }
+
+  /**
+   * Execute Discord node - sends message to Discord
+   */
+  private async executeDiscordNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const channelId = config.channelId as string | undefined;
+    let message = (config.message as string) ?? "";
+
+    // Auto-compose message from previous outputs if not specified
+    if (!message) {
+      const outputs = this.collectOutputs(context);
+      for (const [nodeId, output] of Object.entries(outputs)) {
+        const data = output as Record<string, unknown>;
+        if (data?.response) {
+          message += `**${nodeId}:**\n${data.response}\n\n`;
+        }
+        if (data?.imageUrl) {
+          message += `**Image:** ${data.imageUrl}\n`;
+        }
+      }
+    }
+
+    if (!message) {
+      message = `Workflow ${context.workflowId} completed at ${new Date().toISOString()}`;
+    }
+
+    this.log(context, "info", "discord", `Sending message to Discord...`);
+
+    const sent = await discordService.sendText(message, channelId);
+
+    this.log(
+      context,
+      sent ? "info" : "warn",
+      "discord",
+      sent ? "Message sent to Discord" : "Failed to send to Discord (check config)",
+    );
+
+    return {
+      type: "discord",
+      channelId: channelId ?? "default",
+      messageSent: sent,
+      messagePreview: message.slice(0, 100),
     };
   }
 

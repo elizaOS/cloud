@@ -31,6 +31,11 @@ import { TriggerNode } from "./nodes/trigger-node";
 import { AgentNode } from "./nodes/agent-node";
 import { ImageNode } from "./nodes/image-node";
 import { OutputNode } from "./nodes/output-node";
+import { DelayNode } from "./nodes/delay-node";
+import { HttpNode } from "./nodes/http-node";
+import { ConditionNode } from "./nodes/condition-node";
+import { TtsNode } from "./nodes/tts-node";
+import { DiscordNode } from "./nodes/discord-node";
 import type { WorkflowNodeType } from "@/db/schemas";
 
 interface WorkflowEditorProps {
@@ -42,6 +47,11 @@ const nodeTypes: NodeTypes = {
   agent: AgentNode,
   image: ImageNode,
   output: OutputNode,
+  delay: DelayNode,
+  http: HttpNode,
+  condition: ConditionNode,
+  tts: TtsNode,
+  discord: DiscordNode,
 };
 
 function toReactFlowNodes(nodes: WorkflowNode[]): Node[] {
@@ -304,6 +314,7 @@ function WorkflowCanvas({
           node={selectedNode}
           onUpdate={handleUpdateNodeData}
           onClose={() => setSelectedNode(null)}
+          workflowId={workflow.id}
         />
 
         <ExecutionResultsPanel
@@ -338,10 +349,20 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
   const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
     setIsSaving(true);
 
+    // Extract trigger config from trigger node
+    const triggerNode = nodes.find((n) => n.type === "trigger");
+    const triggerData = triggerNode?.data as Record<string, unknown> | undefined;
+    const triggerConfig = {
+      type: (triggerData?.triggerType as "manual" | "webhook" | "schedule") ?? "manual",
+      schedule: triggerData?.schedule as string | undefined,
+      webhookSecret: triggerData?.webhookSecret as string | undefined,
+    };
+
     await updateWorkflow(workflow.id, {
       name,
       nodes: toDbNodes(nodes),
       edges: toDbEdges(edges),
+      trigger_config: triggerConfig,
     });
 
     setIsSaving(false);
