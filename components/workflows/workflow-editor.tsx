@@ -18,11 +18,15 @@ import {
   BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+
 import { ArrowLeft, Save, Loader2, Play } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { Button } from "@/components/ui/button";
-import { updateWorkflow } from "@/app/actions/workflows";
+import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
+import type { ExecutionResult } from "@/lib/services/workflow-executor";
 import { WorkflowNodePalette } from "./workflow-node-palette";
+import { NodeConfigPanel } from "./node-config-panel";
+import { ExecutionResultsPanel } from "./execution-results-panel";
 import { TriggerNode } from "./nodes/trigger-node";
 import { AgentNode } from "./nodes/agent-node";
 import { ImageNode } from "./nodes/image-node";
@@ -33,7 +37,6 @@ interface WorkflowEditorProps {
   workflow: Workflow;
 }
 
-// Register custom node types
 const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
   agent: AgentNode,
@@ -41,7 +44,6 @@ const nodeTypes: NodeTypes = {
   output: OutputNode,
 };
 
-// Convert DB nodes to React Flow format
 function toReactFlowNodes(nodes: WorkflowNode[]): Node[] {
   return nodes.map((node) => ({
     id: node.id,
@@ -51,7 +53,6 @@ function toReactFlowNodes(nodes: WorkflowNode[]): Node[] {
   }));
 }
 
-// Convert DB edges to React Flow format
 function toReactFlowEdges(edges: WorkflowEdge[]): Edge[] {
   return edges.map((edge) => ({
     id: edge.id,
@@ -61,7 +62,6 @@ function toReactFlowEdges(edges: WorkflowEdge[]): Edge[] {
   }));
 }
 
-// Convert React Flow nodes back to DB format
 function toDbNodes(nodes: Node[]): WorkflowNode[] {
   return nodes.map((node) => ({
     id: node.id,
@@ -71,7 +71,6 @@ function toDbNodes(nodes: Node[]): WorkflowNode[] {
   }));
 }
 
-// Convert React Flow edges back to DB format
 function toDbEdges(edges: Edge[]): WorkflowEdge[] {
   return edges.map((edge) => ({
     id: edge.id,
@@ -86,6 +85,8 @@ function WorkflowCanvas({
   isSaving,
   onRun,
   isRunning,
+  executionResult,
+  onClearResult,
   hasUnsavedChanges,
   setHasUnsavedChanges,
 }: {
@@ -94,6 +95,8 @@ function WorkflowCanvas({
   isSaving: boolean;
   onRun: () => void;
   isRunning: boolean;
+  executionResult: ExecutionResult | null;
+  onClearResult: () => void;
   hasUnsavedChanges: boolean;
   setHasUnsavedChanges: (value: boolean) => void;
 }) {
@@ -106,9 +109,9 @@ function WorkflowCanvas({
   );
   const [workflowName, setWorkflowName] = useState(workflow.name);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Track changes
   useEffect(() => {
     const hasChanges =
       workflowName !== workflow.name ||
@@ -120,6 +123,28 @@ function WorkflowCanvas({
   const onConnect: OnConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     [setEdges],
+  );
+
+  const handleNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      setSelectedNode(node);
+    },
+    [],
+  );
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
+  const handleUpdateNodeData = useCallback(
+    (nodeId: string, data: Record<string, unknown>) => {
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node,
+        ),
+      );
+    },
+    [setNodes],
   );
 
   const handleSave = () => {
@@ -163,10 +188,8 @@ function WorkflowCanvas({
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50">
         <div className="flex items-center gap-3">
-          {/* Back button - gray rounded box */}
           <button
             onClick={handleBack}
             className="flex items-center justify-center w-10 h-10 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
@@ -174,7 +197,6 @@ function WorkflowCanvas({
             <ArrowLeft className="w-5 h-5 text-neutral-400" />
           </button>
 
-          {/* Editable title */}
           {isEditingName ? (
             <input
               ref={nameInputRef}
@@ -238,7 +260,6 @@ function WorkflowCanvas({
         </div>
       </div>
 
-      {/* Canvas */}
       <div className="flex-1 relative">
         <ReactFlow
           nodes={nodes}
@@ -246,6 +267,8 @@ function WorkflowCanvas({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={handleNodeClick}
+          onPaneClick={handlePaneClick}
           nodeTypes={nodeTypes}
           fitView
           className="bg-[#0A0A0A]"
@@ -265,7 +288,6 @@ function WorkflowCanvas({
           />
         </ReactFlow>
 
-        {/* Node Palette */}
         <WorkflowNodePalette
           onAddNode={(type: WorkflowNodeType) => {
             const newNode: Node = {
@@ -277,6 +299,18 @@ function WorkflowCanvas({
             setNodes((nds) => [...nds, newNode]);
           }}
         />
+
+        <NodeConfigPanel
+          node={selectedNode}
+          onUpdate={handleUpdateNodeData}
+          onClose={() => setSelectedNode(null)}
+        />
+
+        <ExecutionResultsPanel
+          result={executionResult}
+          isRunning={isRunning}
+          onClose={onClearResult}
+        />
       </div>
     </div>
   );
@@ -287,8 +321,8 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
-  // Warn on browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -317,9 +351,11 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
 
   const handleRun = async () => {
     setIsRunning(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setExecutionResult(null);
+
+    const result = await runWorkflow(workflow.id);
+    setExecutionResult(result);
     setIsRunning(false);
-    alert("Workflow execution not yet implemented!");
   };
 
   return (
@@ -330,6 +366,8 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
         isSaving={isSaving}
         onRun={handleRun}
         isRunning={isRunning}
+        executionResult={executionResult}
+        onClearResult={() => setExecutionResult(null)}
         hasUnsavedChanges={hasUnsavedChanges}
         setHasUnsavedChanges={setHasUnsavedChanges}
       />

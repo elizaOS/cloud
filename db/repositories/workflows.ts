@@ -92,6 +92,21 @@ export class WorkflowsRepository {
     return result.length;
   }
 
+  /**
+   * Lists all active workflows with schedule triggers.
+   * Used by the scheduler to check for workflows that need to run.
+   */
+  async listScheduledWorkflows(): Promise<Workflow[]> {
+    const allActive = await dbRead.query.workflows.findMany({
+      where: eq(workflows.status, "active"),
+    });
+
+    // Filter to only schedule triggers (JSON filtering in JS)
+    return allActive.filter(
+      (w) => w.trigger_config.type === "schedule" && w.trigger_config.schedule,
+    );
+  }
+
   // ============================================================================
   // WRITE OPERATIONS (use NA primary)
   // ============================================================================

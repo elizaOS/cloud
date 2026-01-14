@@ -77,7 +77,11 @@ export interface WorkflowEdge {
 export interface WorkflowTriggerConfig {
   type: WorkflowTriggerType;
   webhookPath?: string; // For webhook triggers
+  webhookSecret?: string; // Optional secret for webhook authentication
   schedule?: string; // Cron expression for schedule triggers
+  timezone?: string; // Timezone for schedule triggers (default: UTC)
+  retryOnFailure?: boolean; // Whether to retry on failure
+  maxRetries?: number; // Maximum retry attempts (default: 3)
 }
 
 /**

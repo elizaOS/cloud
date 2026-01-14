@@ -972,3 +972,52 @@ button:not(:disabled),
   background-color: transparent !important;
   color: #e1e1e1 !important;
 }
+
+/* ========================================
+   ReactFlow Workflow Styling
+   ======================================== */
+
+/* Remove default ReactFlow node background */
+.react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Selected node styling */
+.react-flow__node.selected {
+  box-shadow: none !important;
+}
+
+.react-flow__node.selected > div {
+  box-shadow: 0 0 0 2px #FF5800 !important;
+  border-radius: 12px;
+}
+
+/* Node drag handle */
+.react-flow__node:hover {
+  box-shadow: none !important;
+}
+
+/* Edge styling */
+.react-flow__edge-path {
+  stroke: #FF5800 !important;
+  stroke-width: 2 !important;
+}
+
+/* Connection line */
+.react-flow__connection-line {
+  stroke: #FF5800 !important;
+  stroke-width: 2 !important;
+}
+
+/* Handle styling */
+.react-flow__handle {
+  background: #FF5800 !important;
+  border: 2px solid #FF8C00 !important;
+}
+
+.react-flow__handle:hover {
+  background: #FF8C00 !important;
+}

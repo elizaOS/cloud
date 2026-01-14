@@ -10,6 +10,10 @@ import type {
   WorkflowTriggerConfig,
 } from "@/db/schemas";
 import { revalidatePath } from "next/cache";
+import {
+  workflowExecutorService,
+  type ExecutionResult,
+} from "@/lib/services/workflow-executor";
 
 /**
  * Creates a new workflow for the authenticated user's organization.
@@ -38,6 +42,25 @@ export async function createWorkflow(data: {
 
   revalidatePath("/dashboard/workflows");
   return workflow;
+}
+
+/**
+ * Runs/executes a workflow.
+ */
+export async function runWorkflow(
+  workflowId: string,
+  triggerInput?: Record<string, unknown>,
+): Promise<ExecutionResult> {
+  const user = await requireAuthWithOrg();
+
+  const result = await workflowExecutorService.execute(
+    workflowId,
+    user.organization_id,
+    user.id,
+    triggerInput,
+  );
+
+  return result;
 }
 
 /**
