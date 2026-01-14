@@ -122,7 +122,7 @@ export function initPostHog(): void {
 
   posthog.init(apiKey, {
     api_host: apiHost,
-    capture_pageview: true,
+    capture_pageview: false, // Disabled - using custom PageViewTracker component instead
     capture_pageleave: true,
     enable_recording_console_log: false,
     respect_dnt: true,
