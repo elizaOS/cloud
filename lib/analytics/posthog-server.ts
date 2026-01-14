@@ -74,17 +74,6 @@ export function identifyServerUser(
   }
 }
 
-export function aliasUser(distinctId: string, alias: string): void {
-  const client = getPostHogClient();
-  if (!client) return;
-
-  try {
-    client.alias({ distinctId, alias });
-  } catch (error) {
-    console.error("[PostHog] Failed to alias user:", error);
-  }
-}
-
 export async function flushPostHog(): Promise<void> {
   const client = getPostHogClient();
   if (!client) return;
