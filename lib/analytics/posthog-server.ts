@@ -7,6 +7,7 @@
 
 import { PostHog } from "posthog-node";
 import type { PostHogEvent, EventProperties } from "./posthog";
+import { logger } from "@/lib/utils/logger";
 
 let posthogClient: PostHog | null = null;
 
@@ -45,7 +46,7 @@ export function trackServerEvent(
       },
     });
   } catch (error) {
-    console.error("[PostHog] Failed to track event:", error);
+    logger.error("[PostHog] Failed to track event", { error });
   }
 }
 
@@ -70,7 +71,7 @@ export function identifyServerUser(
   try {
     client.identify({ distinctId, properties });
   } catch (error) {
-    console.error("[PostHog] Failed to identify user:", error);
+    logger.error("[PostHog] Failed to identify user", { error });
   }
 }
 
