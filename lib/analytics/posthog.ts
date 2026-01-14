@@ -172,18 +172,18 @@ function isProduction(): boolean {
 }
 
 export function initPostHog(): void {
-  // Only initialize in production
-  if (!isProduction()) return;
+  if (!isBrowser()) return;
 
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 
+  // Initialize if key is set (allows staging/preview to opt-in)
   if (!apiKey) {
-    console.warn("[PostHog] NEXT_PUBLIC_POSTHOG_KEY not set, analytics disabled");
+    if (isProduction()) {
+      console.warn("[PostHog] NEXT_PUBLIC_POSTHOG_KEY not set, analytics disabled");
+    }
     return;
   }
-
-  if (!isBrowser()) return;
 
   posthog.init(apiKey, {
     api_host: apiHost,
