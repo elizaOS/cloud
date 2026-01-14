@@ -9,7 +9,7 @@ import {
   resetUser,
   trackEvent,
   getPostHog,
-  type AuthMethod,
+  getSignupMethod,
 } from "@/lib/analytics/posthog";
 
 function PageViewTracker(): null {
@@ -120,22 +120,6 @@ export function PostHogProvider({ children }: PostHogProviderProps): React.React
       {children}
     </>
   );
-}
-
-interface PrivyUserAuth {
-  email?: { address: string } | null;
-  google?: { email: string } | null;
-  discord?: { email: string } | null;
-  github?: { username: string } | null;
-  wallet?: { address: string } | null;
-}
-
-function getSignupMethod(user: PrivyUserAuth): AuthMethod {
-  if (user.google) return "google";
-  if (user.discord) return "discord";
-  if (user.github) return "github";
-  if (user.wallet && !user.email) return "wallet";
-  return "email";
 }
 
 export default PostHogProvider;

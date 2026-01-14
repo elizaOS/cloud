@@ -44,6 +44,22 @@ export type PostHogEvent =
 export type AuthMethod = "email" | "google" | "discord" | "github" | "wallet";
 export type AgentSource = "quick_create" | "builder" | "dashboard";
 
+export interface PrivyUserAuthInfo {
+  google?: { email?: string; name?: string } | null;
+  discord?: { email?: string; username?: string } | null;
+  github?: { username?: string } | null;
+  wallet?: { address?: string } | null;
+  email?: { address?: string } | null;
+}
+
+export function getSignupMethod(user: PrivyUserAuthInfo): AuthMethod {
+  if (user.google) return "google";
+  if (user.discord) return "discord";
+  if (user.github) return "github";
+  if (user.wallet && !user.email) return "wallet";
+  return "email";
+}
+
 export interface SignupCompletedProps {
   method: AuthMethod;
   has_referral?: boolean;

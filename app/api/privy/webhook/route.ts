@@ -10,6 +10,7 @@ import {
   trackServerEvent,
   identifyServerUser,
 } from "@/lib/analytics/posthog-server";
+import { getSignupMethod } from "@/lib/analytics/posthog";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -120,7 +121,7 @@ async function handlePrivyWebhook(request: NextRequest) {
         // Track signup event for new users
         if (payload.type === "user.created") {
           const privyUser = payload.user;
-          const signupMethod = getSignupMethodFromPrivyUser(privyUser);
+          const signupMethod = getSignupMethod(privyUser);
 
           // Identify user in PostHog using internal UUID for consistent tracking
           identifyServerUser(user.id, {
@@ -231,20 +232,3 @@ export const POST = withRateLimit(
   handlePrivyWebhook,
   RateLimitPresets.AGGRESSIVE,
 );
-
-interface PrivyUserForSignup {
-  google?: unknown;
-  discord?: unknown;
-  github?: unknown;
-  wallet?: unknown;
-}
-
-function getSignupMethodFromPrivyUser(
-  user: PrivyUserForSignup,
-): "google" | "discord" | "github" | "wallet" | "email" {
-  if (user.google) return "google";
-  if (user.discord) return "discord";
-  if (user.github) return "github";
-  if (user.wallet) return "wallet";
-  return "email";
-}
