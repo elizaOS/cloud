@@ -44,6 +44,7 @@ export interface DiscordAutomationConfig {
   vibeStyle?: string;
   lastAnnouncementAt?: string;
   totalMessages?: number;
+  agentCharacterId?: string; // Character used for automation voice
 }
 
 export interface DiscordAutomationStatus {

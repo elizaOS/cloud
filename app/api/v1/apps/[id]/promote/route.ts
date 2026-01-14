@@ -82,6 +82,7 @@ const PromotionConfigSchema = z.object({
       postIntervalMax: z.number().int().min(60).max(1440).default(150),
       vibeStyle: z.string().max(100).optional(),
       topics: z.array(z.string().max(50)).max(10).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
   telegramAutomation: z
@@ -94,6 +95,7 @@ const PromotionConfigSchema = z.object({
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
   discordAutomation: z
@@ -105,6 +107,7 @@ const PromotionConfigSchema = z.object({
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
 });

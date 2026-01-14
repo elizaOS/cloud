@@ -25,6 +25,7 @@ interface RouteParams {
 const PreviewRequestSchema = z.object({
   platforms: z.array(z.enum(["discord", "telegram", "twitter"])).min(1),
   count: z.number().int().min(1).max(4).default(3),
+  agentCharacterId: z.string().uuid().optional(),
 });
 
 interface PostPreview {
@@ -51,17 +52,38 @@ export async function POST(
     );
   }
 
-  const { platforms, count } = parsed.data;
+  const { platforms, count, agentCharacterId } = parsed.data;
 
   const app = await appsService.getById(id);
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json({ error: "App not found" }, { status: 404 });
   }
 
+  // Create a preview app object with the selected character for generation
+  // This allows previews to use the character voice without persisting to DB
+  const previewApp = agentCharacterId
+    ? {
+        ...app,
+        twitter_automation: {
+          ...(app.twitter_automation || {}),
+          agentCharacterId,
+        },
+        discord_automation: {
+          ...(app.discord_automation || {}),
+          agentCharacterId,
+        },
+        telegram_automation: {
+          ...(app.telegram_automation || {}),
+          agentCharacterId,
+        },
+      }
+    : app;
+
   logger.info("[Promote Preview API] Generating previews", {
     appId: id,
     platforms,
     count,
+    agentCharacterId,
   });
 
   const previews: PostPreview[] = [];
@@ -83,7 +105,7 @@ export async function POST(
           const content =
             await discordAppAutomationService.generateAnnouncement(
               user.organization_id,
-              app,
+              previewApp,
             );
           previews.push({
             platform: "discord",
@@ -117,7 +139,7 @@ export async function POST(
           const content =
             await telegramAppAutomationService.generateAnnouncement(
               user.organization_id,
-              app,
+              previewApp,
             );
           previews.push({
             platform: "telegram",
@@ -150,7 +172,7 @@ export async function POST(
         for (let i = 0; i < Math.min(count, tweetTypes.length); i++) {
           const tweet = await twitterAppAutomationService.generateAppTweet(
             user.organization_id,
-            app,
+            previewApp,
             tweetTypes[i % tweetTypes.length],
           );
           previews.push({

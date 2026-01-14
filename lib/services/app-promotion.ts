@@ -69,6 +69,7 @@ export interface PromotionConfig {
     postIntervalMax: number;
     vibeStyle?: string;
     topics?: string[];
+    agentCharacterId?: string;
   };
   telegramAutomation?: {
     enabled: boolean;
@@ -79,6 +80,7 @@ export interface PromotionConfig {
     announceIntervalMin: number;
     announceIntervalMax: number;
     vibeStyle?: string;
+    agentCharacterId?: string;
   };
   discordAutomation?: {
     enabled: boolean;
@@ -88,6 +90,7 @@ export interface PromotionConfig {
     announceIntervalMin: number;
     announceIntervalMax: number;
     vibeStyle?: string;
+    agentCharacterId?: string;
   };
 }
 
@@ -666,6 +669,7 @@ Return ONLY valid JSON, no markdown.`;
           postIntervalMax: config.postIntervalMax,
           vibeStyle: config.vibeStyle,
           topics: config.topics,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 
@@ -746,6 +750,7 @@ Return ONLY valid JSON, no markdown.`;
           announceIntervalMin: config.announceIntervalMin,
           announceIntervalMax: config.announceIntervalMax,
           vibeStyle: config.vibeStyle,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 
@@ -821,6 +826,7 @@ Return ONLY valid JSON, no markdown.`;
           announceIntervalMin: config.announceIntervalMin,
           announceIntervalMax: config.announceIntervalMax,
           vibeStyle: config.vibeStyle,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 

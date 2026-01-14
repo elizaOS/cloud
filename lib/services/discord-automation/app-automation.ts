@@ -17,6 +17,10 @@ import {
   DISCORD_AUTOMATION_DEFAULTS,
   getDiscordConfigWithDefaults,
 } from "@/lib/services/automation-constants";
+import {
+  getCharacterPromptContext,
+  buildCharacterSystemPrompt,
+} from "@/lib/services/character-prompt-helper";
 import type { App } from "@/db/schemas/apps";
 import type {
   DiscordAutomationConfig,
@@ -34,7 +38,7 @@ class DiscordAppAutomationService {
    */
   private async getAppForOrg(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -49,7 +53,7 @@ class DiscordAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: Partial<DiscordAutomationConfig>,
+    config: Partial<DiscordAutomationConfig>
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
@@ -58,7 +62,7 @@ class DiscordAppAutomationService {
       await discordAutomationService.getConnectionStatus(organizationId);
     if (!status.connected) {
       throw new Error(
-        "Discord not connected. Add the bot to a server in Settings first.",
+        "Discord not connected. Add the bot to a server in Settings first."
       );
     }
 
@@ -66,11 +70,11 @@ class DiscordAppAutomationService {
     if (config.guildId) {
       const guild = await discordGuildsRepository.findByGuildId(
         organizationId,
-        config.guildId,
+        config.guildId
       );
       if (!guild) {
         throw new Error(
-          "Guild not found. Please reconnect the Discord server.",
+          "Guild not found. Please reconnect the Discord server."
         );
       }
     }
@@ -79,7 +83,7 @@ class DiscordAppAutomationService {
     if (config.channelId) {
       const channel = await discordChannelsRepository.findByChannelId(
         organizationId,
-        config.channelId,
+        config.channelId
       );
       if (!channel) {
         throw new Error("Channel not found. Please refresh channels.");
@@ -87,7 +91,7 @@ class DiscordAppAutomationService {
     }
 
     const currentConfig = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null,
+      app.discord_automation as Record<string, unknown> | null
     ) as DiscordAutomationConfig;
 
     const updatedConfig: DiscordAutomationConfig = {
@@ -117,7 +121,7 @@ class DiscordAppAutomationService {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const currentConfig = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null,
+      app.discord_automation as Record<string, unknown> | null
     ) as DiscordAutomationConfig;
 
     const updatedApp = await appsRepository.update(appId, {
@@ -140,14 +144,14 @@ class DiscordAppAutomationService {
    */
   async getAutomationStatus(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<DiscordAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
     const connectionStatus =
       await discordAutomationService.getConnectionStatus(organizationId);
 
     const config = getDiscordConfigWithDefaults(
-      app.discord_automation as Record<string, unknown> | null,
+      app.discord_automation as Record<string, unknown> | null
     ) as DiscordAutomationConfig;
 
     // Get guild and channel names if configured
@@ -157,7 +161,7 @@ class DiscordAppAutomationService {
     if (config.guildId) {
       const guild = await discordGuildsRepository.findByGuildId(
         organizationId,
-        config.guildId,
+        config.guildId
       );
       guildName = guild?.guild_name;
     }
@@ -165,7 +169,7 @@ class DiscordAppAutomationService {
     if (config.channelId) {
       const channel = await discordChannelsRepository.findByChannelId(
         organizationId,
-        config.channelId,
+        config.channelId
       );
       channelName = channel?.channel_name;
     }
@@ -185,7 +189,7 @@ class DiscordAppAutomationService {
 
   async generateAnnouncement(
     organizationId: string,
-    app: App,
+    app: App
   ): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -196,14 +200,62 @@ class DiscordAppAutomationService {
 
     if (!deduction.success) {
       throw new Error(
-        `Insufficient credits for AI generation. Required: $${DISCORD_POST_COST.toFixed(4)}`,
+        `Insufficient credits for AI generation. Required: $${DISCORD_POST_COST.toFixed(4)}`
       );
     }
 
     const config = app.discord_automation as DiscordAutomationConfig;
     const vibeStyle = config?.vibeStyle || "professional and engaging";
 
-    const systemPrompt = `You are creating a Discord announcement for an app called "${app.name}".
+    let characterPrompt = "";
+    if (config?.agentCharacterId) {
+      const characterContext = await getCharacterPromptContext(
+        config.agentCharacterId
+      );
+      if (characterContext) {
+        characterPrompt = buildCharacterSystemPrompt(characterContext);
+        logger.info("[DiscordAppAutomation] Using character voice", {
+          appId: app.id,
+          characterId: config.agentCharacterId,
+          characterName: characterContext.name,
+        });
+      } else {
+        logger.warn(
+          "[DiscordAppAutomation] Character not found, using default",
+          {
+            appId: app.id,
+            characterId: config.agentCharacterId,
+          }
+        );
+      }
+    } else {
+      logger.info(
+        "[DiscordAppAutomation] No character selected, using default voice",
+        {
+          appId: app.id,
+        }
+      );
+    }
+
+    const systemPrompt = characterPrompt
+      ? `${characterPrompt}
+
+CRITICAL: You MUST write in YOUR character voice, not as a generic AI assistant.
+
+Task: Create a Discord announcement for "${app.name}"
+App Description: ${app.description || "A great application"}
+App URL: ${app.website_url || app.app_url}
+
+Requirements:
+- Write EXACTLY as YOUR character would write it - use YOUR personality, YOUR topics, YOUR style
+- Reference your interests and use your natural speaking patterns
+- Keep it under ${MAX_ANNOUNCEMENT_LENGTH} characters
+- Use 1-2 emojis max that FIT YOUR personality
+- Do NOT include the URL (it will be added automatically)
+- Stay true to who YOU are - don't sound corporate or generic
+
+Write the announcement NOW in YOUR voice:`
+      : `You are creating a Discord announcement for an app called "${app.name}".
 The app is: ${app.description || "A great application"}
 Website: ${app.website_url || app.app_url}
 
@@ -244,7 +296,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
       (a) =>
         a.url &&
         (a.size.width === 1200 || // twitter_card, facebook_feed, linkedin
-          a.type === "social_card"),
+          a.type === "social_card")
     );
     if (preferred?.url) return preferred.url;
 
@@ -260,7 +312,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
   async postAnnouncement(
     organizationId: string,
     appId: string,
-    text?: string,
+    text?: string
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.discord_automation as DiscordAutomationConfig;
@@ -276,7 +328,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
     // Verify channel still exists and is accessible
     const channel = await discordChannelsRepository.findByChannelId(
       organizationId,
-      config.channelId,
+      config.channelId
     );
     if (!channel) {
       return {
@@ -313,7 +365,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
       {
         embeds: [embed],
         components,
-      },
+      }
     );
 
     if (result.success) {

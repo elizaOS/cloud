@@ -10,7 +10,7 @@
  * - Track promotion status
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,10 +46,13 @@ import {
   MessageSquare,
   Send,
   Hash,
+  Sparkles,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PromoteAppDialogProps {
   open: boolean;
@@ -62,10 +65,26 @@ interface PromoteAppDialogProps {
     website_url?: string;
   };
   twitterEnabled?: boolean;
+  adAccounts?: Array<{
+    id: string;
+    name: string;
+    platform: string;
+  }>;
+}
+
+interface AgentCharacter {
+  id: string;
+  name: string;
+  username?: string | null;
+  avatar_url?: string | null;
+  avatarUrl?: string | null;
+  bio?: string | string[];
 }
 
 type PromotionChannel =
   | "social"
+  | "seo"
+  | "advertising"
   | "twitter_automation"
   | "telegram_automation"
   | "discord_automation";
@@ -78,6 +97,7 @@ interface TwitterAutomationConfig {
   discovery: boolean;
   postIntervalMin: number;
   postIntervalMax: number;
+  agentCharacterId?: string;
 }
 
 interface TelegramAutomationConfig {
@@ -88,6 +108,7 @@ interface TelegramAutomationConfig {
   autoAnnounce: boolean;
   announceIntervalMin: number;
   announceIntervalMax: number;
+  agentCharacterId?: string;
 }
 
 interface DiscordAutomationConfig {
@@ -97,6 +118,7 @@ interface DiscordAutomationConfig {
   autoAnnounce: boolean;
   announceIntervalMin: number;
   announceIntervalMax: number;
+  agentCharacterId?: string;
 }
 
 interface PromotionConfig {
@@ -132,9 +154,6 @@ interface PostPreview {
 
 const SOCIAL_PLATFORMS = [
   { id: "twitter", name: "Twitter/X", icon: "𝕏" },
-  { id: "bluesky", name: "Bluesky", icon: "🦋" },
-  { id: "linkedin", name: "LinkedIn", icon: "in" },
-  { id: "facebook", name: "Facebook", icon: "f" },
   { id: "discord", name: "Discord", icon: "🎮" },
   { id: "telegram", name: "Telegram", icon: "✈️" },
 ];
@@ -221,6 +240,11 @@ export function PromoteAppDialog({
   >([]);
   const [postPreviews, setPostPreviews] = useState<PostPreview[]>([]);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
+  const [userCharacters, setUserCharacters] = useState<AgentCharacter[]>([]);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    null
+  );
+  const [isLoadingCharacters, setIsLoadingCharacters] = useState(true);
 
   // Check Twitter, Telegram, and Discord connection status
   useEffect(() => {
@@ -248,9 +272,31 @@ export function PromoteAppDialog({
         setDiscordStatus(data);
       })
       .catch(() =>
-        setDiscordStatus({ configured: false, connected: false, guilds: [] }),
+        setDiscordStatus({ configured: false, connected: false, guilds: [] })
       );
   }, []);
+
+  // Fetch user characters for agent voice selection
+  useEffect(() => {
+    fetch("/api/my-agents/characters?limit=50")
+      .then((res) => res.json())
+      .then((data) => setUserCharacters(data?.data?.characters || []))
+      .catch(() => setUserCharacters([]))
+      .finally(() => setIsLoadingCharacters(false));
+  }, []);
+
+  // Helper to get selected character
+  const selectedCharacter = useMemo(
+    () => userCharacters.find((c) => c.id === selectedCharacterId),
+    [selectedCharacterId, userCharacters]
+  );
+
+  // Helper to get bio preview
+  const getBioPreview = (bio: string | string[] | undefined): string => {
+    if (!bio) return "No description";
+    const text = Array.isArray(bio) ? bio[0] : bio;
+    return text.length > 80 ? text.slice(0, 77) + "..." : text;
+  };
 
   const toggleChannel = (channel: PromotionChannel) => {
     setConfig((prev) => {
@@ -313,17 +359,48 @@ export function PromoteAppDialog({
     if (isLoading) return;
     setIsLoading(true);
 
-    let data;
+    // Include agentCharacterId in automation configs if selected
+    const configWithCharacter = {
+      ...config,
+      twitterAutomation: config.twitterAutomation
+        ? {
+            ...config.twitterAutomation,
+            agentCharacterId: selectedCharacterId || undefined,
+          }
+        : undefined,
+      telegramAutomation: config.telegramAutomation
+        ? {
+            ...config.telegramAutomation,
+            agentCharacterId: selectedCharacterId || undefined,
+          }
+        : undefined,
+      discordAutomation: config.discordAutomation
+        ? {
+            ...config.discordAutomation,
+            agentCharacterId: selectedCharacterId || undefined,
+          }
+        : undefined,
+    };
+
+    let data: {
+      appId: string;
+      appName: string;
+      appUrl: string;
+      channels: Record<string, { success: boolean; error?: string }>;
+      totalCreditsUsed: number;
+      errors?: string[];
+    };
     try {
       const response = await fetch(`/api/v1/apps/${app.id}/promote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(configWithCharacter),
       });
 
       data = await response.json();
 
-      if (response.ok) {
+      // Handle both 200 (full success) and 207 (partial success)
+      if (response.ok || response.status === 207) {
         // Build channels object with only the channels that have results
         const channelResults: Record<
           string,
@@ -349,7 +426,20 @@ export function PromoteAppDialog({
           totalCreditsUsed: data.totalCreditsUsed,
         });
         setStep("result");
-        toast.success("Promotion launched!");
+
+        // Show appropriate message based on status
+        if (response.status === 207 && data.errors && data.errors.length > 0) {
+          toast.warning(
+            `Promotion partially successful. ${data.errors.length} channel(s) had issues.`
+          );
+          // Show specific errors
+          for (const error of data.errors) {
+            toast.error(error, { duration: 5000 });
+          }
+        } else {
+          toast.success("Promotion launched successfully!");
+        }
+
         setIsLoading(false);
         return;
       }
@@ -359,15 +449,16 @@ export function PromoteAppDialog({
       return;
     }
 
-    toast.error(data?.error || "Failed to launch promotion. Please try again.");
+    toast.error("Failed to launch promotion. Please try again.");
     setIsLoading(false);
-  }, [app.id, config, isLoading]);
+  }, [app.id, config, isLoading, selectedCharacterId]);
 
   const handleClose = () => {
     setStep("channels");
     setConfig({ channels: [] });
     setResult(null);
     setPostPreviews([]);
+    setSelectedCharacterId(null); // Reset character selection
     onOpenChange(false);
   };
 
@@ -390,12 +481,23 @@ export function PromoteAppDialog({
     fetch(`/api/v1/apps/${app.id}/promote/preview`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platforms, count: 3 }),
+      body: JSON.stringify({
+        platforms,
+        count: 3,
+        agentCharacterId: selectedCharacterId || undefined,
+      }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.previews) {
           setPostPreviews(data.previews);
+          // Show warning if some platforms failed
+          if (data.errors && data.errors.length > 0) {
+            toast.warning(
+              `Preview generated for ${data.previews.length} post(s). ${data.errors.length} platform(s) failed.`,
+              { duration: 5000 }
+            );
+          }
         }
       })
       .catch(() => {
@@ -404,12 +506,83 @@ export function PromoteAppDialog({
       .finally(() => {
         setIsLoadingPreviews(false);
       });
-  }, [app.id, config.channels, isLoadingPreviews]);
+  }, [app.id, config.channels, isLoadingPreviews, selectedCharacterId]);
+
+  // Validate configuration before proceeding to review
+  const validateConfiguration = useCallback((): {
+    valid: boolean;
+    errors: string[];
+  } => {
+    const errors: string[] = [];
+
+    // Validate Telegram automation
+    if (config.channels.includes("telegram_automation")) {
+      const telegramConfig = config.telegramAutomation;
+      if (!telegramConfig?.channelId && !telegramConfig?.groupId) {
+        errors.push(
+          "📱 Telegram Bot: Click the 'Telegram Bot' tab and select a channel or group to post in"
+        );
+      }
+    }
+
+    // Validate Discord automation
+    if (config.channels.includes("discord_automation")) {
+      const discordConfig = config.discordAutomation;
+      if (!discordConfig?.guildId) {
+        errors.push(
+          "🎮 Discord Bot: Click the 'Discord Bot' tab and select a server"
+        );
+      } else if (!discordConfig?.channelId) {
+        errors.push(
+          "🎮 Discord Bot: Click the 'Discord Bot' tab and select a channel"
+        );
+      }
+    }
+
+    // Validate Social media
+    if (config.channels.includes("social")) {
+      if (!config.social?.platforms || config.social.platforms.length === 0) {
+        errors.push(
+          "📢 Social Media: Click the 'Social Media' tab and select at least one platform"
+        );
+      }
+    }
+
+    // Validate Advertising
+    if (config.channels.includes("advertising")) {
+      if (!config.advertising?.adAccountId) {
+        errors.push(
+          "📊 Advertising: Click the 'Advertising' tab and select an ad account"
+        );
+      } else if (
+        !config.advertising?.budget ||
+        config.advertising.budget <= 0
+      ) {
+        errors.push(
+          "📊 Advertising: Click the 'Advertising' tab and set a budget"
+        );
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }, [config]);
 
   const handleReviewStep = useCallback(() => {
+    // Validate configuration first
+    const validation = validateConfiguration();
+
+    if (!validation.valid) {
+      // Show validation errors with clear guidance
+      const errorMessage = validation.errors.join("\n• ");
+      toast.error(`Please complete configuration:\n• ${errorMessage}`, {
+        duration: 6000,
+      });
+      return;
+    }
+
     setStep("review");
     fetchPreviews();
-  }, [fetchPreviews]);
+  }, [validateConfiguration, fetchPreviews]);
 
   // Automation setup is FREE - no cost to display
   // Post generation costs are hidden to encourage engagement
@@ -797,19 +970,43 @@ export function PromoteAppDialog({
 
         {step === "configure" && (
           <div className="flex flex-col max-h-[calc(80vh-120px)]">
+            {/* Configuration Guide */}
+            <div className="px-6 pt-4 pb-2">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-sm text-blue-400">
+                  💡 Configure each selected channel by clicking through the
+                  tabs below. Tabs with{" "}
+                  <span className="inline-flex h-2 w-2 rounded-full bg-orange-400 mx-1" />{" "}
+                  need configuration.
+                </p>
+              </div>
+            </div>
+
             <Tabs
               defaultValue={config.channels[0]}
               className="w-full flex flex-col flex-1 overflow-hidden"
             >
-              <TabsList className="w-full justify-start mx-6 mt-4 bg-white/5 border border-white/10 shrink-0">
+              <TabsList className="w-full justify-start mx-6 mt-2 bg-white/5 border border-white/10 shrink-0">
                 {config.channels.includes("social") && (
-                  <TabsTrigger value="social">Social Media</TabsTrigger>
+                  <TabsTrigger value="social" className="relative">
+                    Social Media
+                    {(!config.social?.platforms ||
+                      config.social.platforms.length === 0) && (
+                      <span className="ml-2 h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+                    )}
+                  </TabsTrigger>
                 )}
                 {config.channels.includes("seo") && (
                   <TabsTrigger value="seo">SEO</TabsTrigger>
                 )}
                 {config.channels.includes("advertising") && (
-                  <TabsTrigger value="advertising">Advertising</TabsTrigger>
+                  <TabsTrigger value="advertising" className="relative">
+                    Advertising
+                    {(!config.advertising?.adAccountId ||
+                      !config.advertising?.budget) && (
+                      <span className="ml-2 h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+                    )}
+                  </TabsTrigger>
                 )}
                 {config.channels.includes("twitter_automation") && (
                   <TabsTrigger value="twitter_automation">
@@ -817,18 +1014,145 @@ export function PromoteAppDialog({
                   </TabsTrigger>
                 )}
                 {config.channels.includes("telegram_automation") && (
-                  <TabsTrigger value="telegram_automation">
+                  <TabsTrigger value="telegram_automation" className="relative">
                     Telegram Bot
+                    {!config.telegramAutomation?.channelId &&
+                      !config.telegramAutomation?.groupId && (
+                        <span className="ml-2 h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+                      )}
                   </TabsTrigger>
                 )}
                 {config.channels.includes("discord_automation") && (
-                  <TabsTrigger value="discord_automation">
+                  <TabsTrigger value="discord_automation" className="relative">
                     Discord Bot
+                    {(!config.discordAutomation?.guildId ||
+                      !config.discordAutomation?.channelId) && (
+                      <span className="ml-2 h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+                    )}
                   </TabsTrigger>
                 )}
               </TabsList>
 
               <div className="flex-1 overflow-y-auto p-6 pt-4">
+                {/* Agent Voice Selector - Shows when any automation channel is selected */}
+                {(config.channels.includes("twitter_automation") ||
+                  config.channels.includes("telegram_automation") ||
+                  config.channels.includes("discord_automation")) && (
+                  <div className="mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles className="h-5 w-5 text-purple-400" />
+                      <h3 className="text-base font-semibold text-white">
+                        Agent Voice (Optional)
+                      </h3>
+                    </div>
+                    <p className="text-sm text-white/60 mb-4">
+                      Choose a character to give your automated posts a unique
+                      personality and style. This applies to all automation
+                      channels.
+                    </p>
+
+                    {isLoadingCharacters ? (
+                      <div className="flex items-center justify-center p-8 bg-white/5 rounded-lg">
+                        <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[180px] rounded-lg border border-white/10 bg-white/5 p-3">
+                        <div className="space-y-2">
+                          {/* Default Voice Option */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCharacterId(null)}
+                            className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                              selectedCharacterId === null
+                                ? "border-purple-500 bg-purple-500/10"
+                                : "border-white/10 bg-white/5 hover:border-white/20"
+                            }`}
+                          >
+                            <div className="flex-shrink-0">
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                                <Bot className="h-5 w-5 text-white" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-white">
+                                Default Voice
+                              </div>
+                              <div className="text-xs text-white/60">
+                                Professional and engaging tone
+                              </div>
+                            </div>
+                            {selectedCharacterId === null && (
+                              <CheckCircle className="h-5 w-5 text-purple-400 flex-shrink-0" />
+                            )}
+                          </button>
+
+                          {/* User Characters */}
+                          {userCharacters.map((character) => (
+                            <button
+                              key={character.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedCharacterId(character.id)
+                              }
+                              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                                selectedCharacterId === character.id
+                                  ? "border-purple-500 bg-purple-500/10"
+                                  : "border-white/10 bg-white/5 hover:border-white/20"
+                              }`}
+                            >
+                              <div className="flex-shrink-0">
+                                {character.avatar_url || character.avatarUrl ? (
+                                  <Image
+                                    src={
+                                      character.avatar_url ||
+                                      character.avatarUrl ||
+                                      ""
+                                    }
+                                    alt={character.name}
+                                    width={40}
+                                    height={40}
+                                    className="rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center">
+                                    <Users className="h-5 w-5 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-white truncate">
+                                  {character.name}
+                                </div>
+                                <div className="text-xs text-white/60 truncate">
+                                  {getBioPreview(character.bio)}
+                                </div>
+                              </div>
+                              {selectedCharacterId === character.id && (
+                                <CheckCircle className="h-5 w-5 text-purple-400 flex-shrink-0" />
+                              )}
+                            </button>
+                          ))}
+
+                          {userCharacters.length === 0 && (
+                            <div className="text-center py-6 text-white/60">
+                              <p className="text-sm">No characters available</p>
+                              <p className="text-xs mt-1">
+                                Create characters in{" "}
+                                <Link
+                                  href="/my-agents"
+                                  className="text-purple-400 hover:text-purple-300 underline"
+                                >
+                                  My Agents
+                                </Link>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </div>
+                )}
+
                 {/* Social Media Config */}
                 <TabsContent value="social" className="space-y-4 mt-0">
                   <div>
@@ -847,7 +1171,7 @@ export function PromoteAppDialog({
                         >
                           <Checkbox
                             checked={config.social?.platforms?.includes(
-                              platform.id,
+                              platform.id
                             )}
                             onCheckedChange={() =>
                               toggleSocialPlatform(platform.id)
@@ -979,7 +1303,7 @@ export function PromoteAppDialog({
                         value={config.advertising?.adAccountId}
                         onValueChange={(value) => {
                           const account = adAccounts.find(
-                            (a) => a.id === value,
+                            (a) => a.id === value
                           );
                           setConfig((prev) => ({
                             ...prev,
@@ -1002,7 +1326,7 @@ export function PromoteAppDialog({
                         <SelectContent>
                           {adAccounts.map((account) => (
                             <SelectItem key={account.id} value={account.id}>
-                              {account.accountName} ({account.platform})
+                              {account.name} ({account.platform})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1261,7 +1585,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 90),
+                              Math.min(1440, parseInt(e.target.value) || 90)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1300,7 +1624,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 180),
+                              Math.min(1440, parseInt(e.target.value) || 180)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1378,18 +1702,18 @@ export function PromoteAppDialog({
                                   "/api/v1/telegram/scan-chats",
                                   {
                                     method: "POST",
-                                  },
+                                  }
                                 );
                                 const data = await res.json();
                                 if (data.chats) {
                                   setTelegramChats(data.chats);
                                   if (data.chats.length > 0) {
                                     toast.success(
-                                      `Found ${data.chats.length} chat(s)!`,
+                                      `Found ${data.chats.length} chat(s)!`
                                     );
                                   } else {
                                     toast.info(
-                                      "No chats found. Make sure you added the bot and sent a message.",
+                                      "No chats found. Make sure you added the bot and sent a message."
                                     );
                                   }
                                 } else if (data.error) {
@@ -1525,7 +1849,7 @@ export function PromoteAppDialog({
                               <SelectItem value="none">No channel</SelectItem>
                               {telegramChats
                                 .filter(
-                                  (c) => c.type === "channel" && c.canPost,
+                                  (c) => c.type === "channel" && c.canPost
                                 )
                                 .map((chat) => (
                                   <SelectItem key={chat.id} value={chat.id}>
@@ -1575,7 +1899,7 @@ export function PromoteAppDialog({
                                 .filter(
                                   (c) =>
                                     c.type === "group" ||
-                                    c.type === "supergroup",
+                                    c.type === "supergroup"
                                 )
                                 .map((chat) => (
                                   <SelectItem key={chat.id} value={chat.id}>
@@ -1646,7 +1970,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 60),
+                              Math.min(1440, parseInt(e.target.value) || 60)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1683,7 +2007,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 240),
+                              Math.min(1440, parseInt(e.target.value) || 240)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1756,7 +2080,7 @@ export function PromoteAppDialog({
                           if (value) {
                             try {
                               const res = await fetch(
-                                `/api/v1/discord/channels?guildId=${value}`,
+                                `/api/v1/discord/channels?guildId=${value}`
                               );
                               const data = await res.json();
                               setDiscordChannels(data.channels || []);
@@ -1891,7 +2215,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               30,
-                              Math.min(1440, parseInt(e.target.value) || 60),
+                              Math.min(1440, parseInt(e.target.value) || 60)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1925,7 +2249,7 @@ export function PromoteAppDialog({
                           onChange={(e) => {
                             const value = Math.max(
                               60,
-                              Math.min(1440, parseInt(e.target.value) || 240),
+                              Math.min(1440, parseInt(e.target.value) || 240)
                             );
                             setConfig((prev) => ({
                               ...prev,
@@ -1982,7 +2306,7 @@ export function PromoteAppDialog({
                   <div className="flex justify-between">
                     <span className="text-white/60">URL:</span>
                     {(app.website_url || app.app_url)?.includes(
-                      "placeholder",
+                      "placeholder"
                     ) ? (
                       <span className="text-white/40 italic">
                         Not configured
@@ -2000,6 +2324,43 @@ export function PromoteAppDialog({
                     )}
                   </div>
                 </div>
+
+                {/* Show selected character if any automation is enabled */}
+                {(config.channels.includes("twitter_automation") ||
+                  config.channels.includes("telegram_automation") ||
+                  config.channels.includes("discord_automation")) && (
+                  <div className="border-t border-white/10 pt-3 mt-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Sparkles className="h-4 w-4 text-purple-400" />
+                      <span className="text-white/60">Agent Voice:</span>
+                      {selectedCharacter ? (
+                        <div className="flex items-center gap-2">
+                          {(selectedCharacter.avatar_url ||
+                            selectedCharacter.avatarUrl) && (
+                            <Image
+                              src={
+                                selectedCharacter.avatar_url ||
+                                selectedCharacter.avatarUrl ||
+                                ""
+                              }
+                              alt={selectedCharacter.name}
+                              width={20}
+                              height={20}
+                              className="rounded-full object-cover"
+                            />
+                          )}
+                          <span className="font-medium text-white">
+                            {selectedCharacter.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-medium text-white/80">
+                          Default Voice
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-white/10 pt-3 mt-3 space-y-2">
                   {config.channels.includes("social") && (
@@ -2071,7 +2432,7 @@ export function PromoteAppDialog({
                       <span>
                         Discord Bot:{" "}
                         {discordStatus.guilds.find(
-                          (g) => g.id === config.discordAutomation?.guildId,
+                          (g) => g.id === config.discordAutomation?.guildId
                         )?.name || "Server"}
                         {config.discordAutomation?.channelId &&
                           discordChannels.length > 0 && (
@@ -2080,7 +2441,7 @@ export function PromoteAppDialog({
                               → #
                               {discordChannels.find(
                                 (c) =>
-                                  c.id === config.discordAutomation?.channelId,
+                                  c.id === config.discordAutomation?.channelId
                               )?.name || "channel"}
                             </>
                           )}
@@ -2272,7 +2633,7 @@ export function PromoteAppDialog({
                         </p>
                       )}
                     </div>
-                  ),
+                  )
               )}
             </div>
 

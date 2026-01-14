@@ -6,6 +6,10 @@ import { logger } from "@/lib/utils/logger";
 import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { TwitterApi } from "twitter-api-v2";
+import {
+  getCharacterPromptContext,
+  buildCharacterSystemPrompt,
+} from "@/lib/services/character-prompt-helper";
 
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY;
@@ -34,7 +38,7 @@ export interface GeneratedTweet {
 class TwitterAppAutomationService {
   private async getAppForOrg(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -46,14 +50,14 @@ class TwitterAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: Partial<TwitterAutomationConfig>,
+    config: Partial<TwitterAutomationConfig>
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const hasTwitter = await this.isTwitterConnected(organizationId);
     if (!hasTwitter) {
       throw new Error(
-        "Twitter account must be connected before enabling automation",
+        "Twitter account must be connected before enabling automation"
       );
     }
 
@@ -121,7 +125,7 @@ class TwitterAppAutomationService {
 
   async getAutomationStatus(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<{
     enabled: boolean;
     config: TwitterAutomationConfig | null;
@@ -150,7 +154,7 @@ class TwitterAppAutomationService {
       | "promotional"
       | "engagement"
       | "educational"
-      | "announcement" = "promotional",
+      | "announcement" = "promotional"
   ): Promise<GeneratedTweet> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -161,7 +165,7 @@ class TwitterAppAutomationService {
 
     if (!deduction.success) {
       throw new Error(
-        `Insufficient credits for AI generation. Required: $${TWITTER_POST_COST.toFixed(4)}`,
+        `Insufficient credits for AI generation. Required: $${TWITTER_POST_COST.toFixed(4)}`
       );
     }
 
@@ -169,7 +173,64 @@ class TwitterAppAutomationService {
     const vibeStyle = config?.vibeStyle ?? "professional yet approachable";
     const topics = config?.topics?.join(", ") ?? "";
 
-    const prompt = `Generate a single tweet promoting this app. Keep it under 280 characters.
+    let characterPrompt = "";
+    if (config?.agentCharacterId) {
+      const characterContext = await getCharacterPromptContext(
+        config.agentCharacterId
+      );
+      if (characterContext) {
+        characterPrompt = buildCharacterSystemPrompt(characterContext);
+        logger.info("[TwitterAppAutomation] Using character voice", {
+          appId: app.id,
+          characterId: config.agentCharacterId,
+          characterName: characterContext.name,
+        });
+      } else {
+        logger.warn(
+          "[TwitterAppAutomation] Character not found, using default",
+          {
+            appId: app.id,
+            characterId: config.agentCharacterId,
+          }
+        );
+      }
+    } else {
+      logger.info(
+        "[TwitterAppAutomation] No character selected, using default voice",
+        {
+          appId: app.id,
+        }
+      );
+    }
+
+    const prompt = characterPrompt
+      ? `${characterPrompt}
+
+CRITICAL INSTRUCTION: You MUST tweet as YOUR character would - not as a generic marketer.
+
+Task: Promote this app in a tweet (max 280 chars)
+App: ${app.name}
+Description: ${app.description ?? "An AI-powered app built on Eliza Cloud"}
+URL: ${app.app_url}
+${topics ? `YOUR focus topics: ${topics}` : ""}
+
+Tweet Type: ${type}
+
+RULES:
+1. Write EXACTLY how YOUR character would promote this
+2. Use YOUR personality, YOUR interests, YOUR speaking patterns  
+3. Connect the app to YOUR topics/expertise naturally
+4. Include 1-2 hashtags that YOUR character would use
+5. Include the app URL naturally
+6. Be AUTHENTICALLY you - not corporate, not generic
+
+${type === "promotional" ? "Show why YOUR character finds this app interesting" : ""}
+${type === "engagement" ? "Ask a question YOUR character would ask about this" : ""}
+${type === "educational" ? "Share insight from YOUR character's perspective" : ""}
+${type === "announcement" ? "Announce it the way YOUR character would" : ""}
+
+Tweet NOW in YOUR authentic voice:`
+      : `Generate a single tweet promoting this app. Keep it under 280 characters.
 
 App Name: ${app.name}
 Description: ${app.description ?? "An AI-powered app built on Eliza Cloud"}
@@ -217,7 +278,7 @@ Return ONLY the tweet text, nothing else.`;
   async postAppTweet(
     organizationId: string,
     appId: string,
-    tweetText?: string,
+    tweetText?: string
   ): Promise<{
     success: boolean;
     tweetId?: string;
@@ -239,7 +300,7 @@ Return ONLY the tweet text, nothing else.`;
       const generated = await this.generateAppTweet(
         organizationId,
         app,
-        "promotional",
+        "promotional"
       );
       text = generated.text;
     }
@@ -251,8 +312,8 @@ Return ONLY the tweet text, nothing else.`;
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("Twitter API timeout")),
-            TWITTER_API_TIMEOUT_MS,
-          ),
+            TWITTER_API_TIMEOUT_MS
+          )
         ),
       ]);
     } catch (error) {
@@ -291,13 +352,13 @@ Return ONLY the tweet text, nothing else.`;
   private async isTwitterConnected(organizationId: string): Promise<boolean> {
     const accessToken = await secretsService.get(
       organizationId,
-      "TWITTER_ACCESS_TOKEN",
+      "TWITTER_ACCESS_TOKEN"
     );
     return !!accessToken;
   }
 
   private async getTwitterClient(
-    organizationId: string,
+    organizationId: string
   ): Promise<TwitterApi | null> {
     const [accessToken, accessTokenSecret] = await Promise.all([
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
