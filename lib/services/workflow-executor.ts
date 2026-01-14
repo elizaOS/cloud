@@ -5,12 +5,14 @@
  * Handles agent calls, image generation, and output handling.
  */
 
-import { workflowsRepository } from "@/db/repositories";
+import { workflowsRepository, generationsRepository } from "@/db/repositories";
 import { creditsService } from "./credits";
 import { logger } from "@/lib/utils/logger";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { fal } from "@fal-ai/client";
+import { ensureElizaCloudUrl } from "@/lib/blob";
 
 // ============================================================================
 // Types
@@ -358,73 +360,150 @@ class WorkflowExecutorService {
   }
 
   /**
-   * Execute image node - generates images
+   * Execute image node - generates images using FAL.ai
    */
   private async executeImageNode(
     config: Record<string, unknown>,
     context: WorkflowExecutionContext,
   ): Promise<unknown> {
     const model = (config.model as string) ?? "fal-ai/flux/schnell";
-    let prompt = (config.prompt as string) ?? "A beautiful landscape";
+    let prompt = (config.prompt as string) ?? "";
     const width = (config.width as number) ?? 1024;
     const height = (config.height as number) ?? 1024;
-    const usePromptFromNode = config.usePromptFromNode as string | undefined;
 
-    // Get prompt from previous node if specified
-    if (usePromptFromNode) {
-      const previousOutput = context.nodeOutputs.get(usePromptFromNode);
-      if (previousOutput?.output) {
-        const prevData = previousOutput.output as Record<string, unknown>;
-        if (prevData.response) {
-          prompt = prevData.response as string;
+    // Auto-detect prompt from previous agent node if not specified
+    if (!prompt) {
+      for (const [, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+        if (data?.type === "agent" && data?.response) {
+          prompt = data.response as string;
+          this.log(
+            context,
+            "info",
+            "image",
+            "Using agent response as image prompt",
+          );
+          break;
         }
       }
     }
 
-    // TODO: Integrate with FAL.ai for actual image generation
+    // Default fallback prompt
+    if (!prompt) {
+      prompt = "A beautiful landscape";
+    }
+
+    this.log(context, "info", "image", `Generating image with ${model}...`);
+    this.log(context, "info", "image", `Prompt: ${prompt.slice(0, 100)}...`);
+
+    // Call FAL.ai
+    const result = await fal.subscribe(model, {
+      input: {
+        prompt,
+        image_size: { width, height },
+      },
+    });
+
+    // Extract image URL from result
+    const imageUrl =
+      result.data?.images?.[0]?.url ??
+      result.data?.image?.url ??
+      result.data?.url ??
+      null;
+
+    if (!imageUrl) {
+      throw new Error("FAL.ai did not return an image URL");
+    }
+
+    this.log(context, "info", "image", "Image generated successfully");
+
     return {
       type: "image",
       model,
       prompt,
       width,
       height,
-      imageUrl: "[Image URL placeholder]",
+      imageUrl,
     };
   }
 
   /**
-   * Execute output node - handles results
+   * Execute output node - handles results and saves to gallery
    */
   private async executeOutputNode(
     config: Record<string, unknown>,
     context: WorkflowExecutionContext,
   ): Promise<unknown> {
-    const outputType = (config.type as string) ?? "display";
+    const outputType = (config.outputType as string) ?? "display";
+    const saveToGallery = (config.saveToGallery as boolean) ?? true; // Default to save
 
     // Collect all previous outputs
     const allOutputs = this.collectOutputs(context);
+    const savedImages: string[] = [];
+
+    // Always save images to gallery (or based on config)
+    if (saveToGallery) {
+      for (const [nodeId, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+
+        if (data?.type === "image" && data?.imageUrl) {
+          this.log(context, "info", "output", `Saving image from ${nodeId} to gallery...`);
+
+          // Proxy FAL.ai URL through our blob storage
+          const originalUrl = data.imageUrl as string;
+          this.log(context, "info", "output", "Uploading to blob storage...");
+          const storageUrl = await ensureElizaCloudUrl(originalUrl, {
+            filename: `workflow-${context.workflowId}-${nodeId}.jpg`,
+            folder: "workflows",
+            userId: context.userId,
+            fallbackToOriginal: false,
+          });
+
+          await generationsRepository.create({
+            organization_id: context.organizationId,
+            user_id: context.userId,
+            type: "image",
+            model: (data.model as string) ?? "fal-ai/flux/schnell",
+            provider: "fal",
+            prompt: (data.prompt as string) ?? "",
+            status: "completed",
+            storage_url: storageUrl,
+            dimensions: {
+              width: (data.width as number) ?? 1024,
+              height: (data.height as number) ?? 1024,
+            },
+            metadata: {
+              source: "workflow",
+              workflowId: context.workflowId,
+              nodeId,
+              originalUrl,
+            },
+            completed_at: new Date(),
+          });
+
+          savedImages.push(storageUrl);
+          this.log(context, "info", "output", "Image saved to gallery!");
+        }
+      }
+    }
 
     if (outputType === "webhook") {
       const webhookUrl = config.webhookUrl as string;
       if (webhookUrl) {
-        // TODO: Send to webhook
-        this.log(
-          context,
-          "info",
-          "output",
-          `Would send to webhook: ${webhookUrl}`,
-        );
+        this.log(context, "info", "output", `Sending to webhook: ${webhookUrl}`);
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(allOutputs),
+        });
+        this.log(context, "info", "output", "Webhook sent successfully");
       }
-    }
-
-    if (outputType === "save" && config.saveToGallery) {
-      // TODO: Save generated images to gallery
-      this.log(context, "info", "output", "Would save to gallery");
     }
 
     return {
       type: "output",
       outputType,
+      savedImages,
       data: allOutputs,
     };
   }
