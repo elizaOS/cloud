@@ -118,7 +118,9 @@ export interface BillingPageViewedProps {
 
 export interface CreditsPurchaseStartedProps {
   pack_id: string;
-  amount: number;
+  pack_name?: string;
+  credits?: number;
+  price_cents?: number;
 }
 
 export interface CreditsPurchasedProps {
@@ -137,7 +139,7 @@ export interface AgentChatMessageSentProps {
 
 export interface AgentCreateFailedProps {
   source: AgentSource;
-  error_type: string;
+  error_type?: string;
   error_message?: string;
 }
 
