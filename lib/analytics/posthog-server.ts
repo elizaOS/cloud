@@ -40,15 +40,19 @@ export function trackServerEvent(
   const client = getPostHogClient();
   if (!client) return;
 
-  client.capture({
-    distinctId,
-    event,
-    properties: {
-      ...properties,
-      $lib: "posthog-node",
-      source: "server",
-    },
-  });
+  try {
+    client.capture({
+      distinctId,
+      event,
+      properties: {
+        ...properties,
+        $lib: "posthog-node",
+        source: "server",
+      },
+    });
+  } catch (error) {
+    console.error("[PostHog] Failed to track event:", error);
+  }
 }
 
 export interface ServerUserProperties {
@@ -69,14 +73,22 @@ export function identifyServerUser(
   const client = getPostHogClient();
   if (!client) return;
 
-  client.identify({ distinctId, properties });
+  try {
+    client.identify({ distinctId, properties });
+  } catch (error) {
+    console.error("[PostHog] Failed to identify user:", error);
+  }
 }
 
 export function aliasUser(distinctId: string, alias: string): void {
   const client = getPostHogClient();
   if (!client) return;
 
-  client.alias({ distinctId, alias });
+  try {
+    client.alias({ distinctId, alias });
+  } catch (error) {
+    console.error("[PostHog] Failed to alias user:", error);
+  }
 }
 
 export async function flushPostHog(): Promise<void> {
