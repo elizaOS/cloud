@@ -202,6 +202,17 @@ export function trackEvent(event: PostHogEvent, properties?: EventProperties): v
   posthog.capture(event, properties);
 }
 
+/**
+ * Sanitize error messages before sending to analytics.
+ * Removes stack traces, truncates to 200 chars, and takes only the first line.
+ * This prevents leaking sensitive information like file paths or internal details.
+ */
+export function sanitizeErrorMessage(message: string | undefined): string | undefined {
+  if (!message) return undefined;
+  // Take first line only (removes stack traces), truncate to 200 chars
+  return message.split("\n")[0].substring(0, 200);
+}
+
 export interface UserProperties {
   email?: string;
   name?: string;

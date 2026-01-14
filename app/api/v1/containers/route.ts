@@ -25,6 +25,7 @@ import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -542,7 +543,7 @@ async function handleCreateContainer(request: NextRequest) {
       trackServerEvent(user.id, "container_deploy_failed", {
         container_id: container.id,
         container_name: validatedData.name,
-        error_message: errorMessage,
+        error_message: sanitizeErrorMessage(errorMessage),
       });
 
       return NextResponse.json(

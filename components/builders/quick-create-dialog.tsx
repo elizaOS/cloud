@@ -35,7 +35,7 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "./post-creation-app-prompt";
-import { trackEvent } from "@/lib/analytics/posthog";
+import { trackEvent, sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
@@ -329,7 +329,7 @@ export function QuickCreateDialog({
       if (selectedType === "agent") {
         trackEvent("agent_create_failed", {
           source: "quick_create",
-          error_message: errorMessage,
+          error_message: sanitizeErrorMessage(errorMessage),
         });
       }
     } finally {
