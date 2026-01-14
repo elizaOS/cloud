@@ -60,6 +60,8 @@ export interface AgentCreateCompletedProps {
   source: "quick_create" | "builder";
   has_custom_bio?: boolean;
   creation_time_ms?: number;
+  agent_count?: number;
+  is_first_agent?: boolean;
 }
 
 export interface AgentEditStartedProps {
@@ -76,10 +78,15 @@ export interface AgentChatStartedProps {
 
 export interface ContainerDeployProps {
   container_id?: string;
+  container_name?: string;
   agent_id?: string;
   status?: "started" | "completed" | "failed";
   error_message?: string;
   deployment_time_ms?: number;
+  is_update?: boolean;
+  cpu?: number;
+  memory?: number;
+  container_url?: string;
 }
 
 export interface PageViewedProps {
@@ -88,15 +95,54 @@ export interface PageViewedProps {
   referrer?: string;
 }
 
+export interface BillingPageViewedProps {
+  current_credits: number;
+  available_packs: number;
+}
+
+export interface CreditsPurchaseStartedProps {
+  pack_id: string;
+  amount: number;
+}
+
+export interface CreditsPurchasedProps {
+  amount: number;
+  currency: string;
+  purchase_type: string;
+  organization_id: string;
+}
+
+export interface AgentChatMessageSentProps {
+  agent_id: string;
+  room_id: string;
+  agent_name?: string;
+  message_length: number;
+}
+
+export interface AgentCreateFailedProps {
+  source: AgentSource;
+  error_type: string;
+  error_message?: string;
+}
+
+export interface LoginCompletedProps {
+  method: AuthMethod;
+}
+
 export type EventProperties =
   | SignupCompletedProps
+  | LoginCompletedProps
   | AgentCreateStartedProps
   | AgentCreateCompletedProps
+  | AgentCreateFailedProps
   | AgentEditStartedProps
   | AgentChatStartedProps
+  | AgentChatMessageSentProps
   | ContainerDeployProps
   | PageViewedProps
-  | Record<string, unknown>;
+  | BillingPageViewedProps
+  | CreditsPurchaseStartedProps
+  | CreditsPurchasedProps;
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
