@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Node } from "@xyflow/react";
+import Image from "next/image";
+import { AgentPickerDialog } from "./agent-picker-dialog";
 
 interface NodeConfigPanelProps {
   node: Node | null;
@@ -67,6 +69,8 @@ export function NodeConfigPanel({
         return <TtsConfig data={localData} onChange={updateField} />;
       case "discord":
         return <DiscordConfig data={localData} onChange={updateField} />;
+      case "mcp":
+        return <McpConfig data={localData} onChange={updateField} />;
       default:
         return <div className="text-white/60">Unknown node type: {node.type}</div>;
     }
@@ -227,13 +231,27 @@ function AgentConfig({
   data: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
 }) {
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const mode = (data.mode as string) ?? "generic";
+  const agentName = data.agentName as string;
+  const agentAvatarUrl = data.agentAvatarUrl as string | undefined;
+
   return (
     <div className="space-y-4">
       <div>
         <Label className="text-white/80">Mode</Label>
         <Select
-          value={(data.mode as string) ?? "generic"}
-          onValueChange={(v) => onChange("mode", v)}
+          value={mode}
+          onValueChange={(v) => {
+            onChange("mode", v);
+            if (v === "my-agent") {
+              setShowAgentPicker(true);
+            } else {
+              onChange("agentId", "");
+              onChange("agentName", "");
+              onChange("agentAvatarUrl", "");
+            }
+          }}
         >
           <SelectTrigger className="mt-1">
             <SelectValue />
@@ -245,17 +263,54 @@ function AgentConfig({
         </Select>
       </div>
 
-      {data.mode === "my-agent" && (
+      {mode === "my-agent" && (
         <div>
-          <Label className="text-white/80">Agent ID</Label>
-          <Input
-            value={(data.agentId as string) ?? ""}
-            onChange={(e) => onChange("agentId", e.target.value)}
-            placeholder="Enter agent ID"
-            className="mt-1"
-          />
+          <Label className="text-white/80">Selected Agent</Label>
+          {agentName ? (
+            <button
+              onClick={() => setShowAgentPicker(true)}
+              className="mt-2 flex items-center gap-3 w-full p-3 rounded-lg border border-[#FF5800] bg-[#FF5800]/10 text-left hover:bg-[#FF5800]/20 transition-colors"
+            >
+              {agentAvatarUrl ? (
+                <Image
+                  src={agentAvatarUrl}
+                  alt={agentName}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-blue-400" />
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="font-medium text-white">{agentName}</div>
+                <div className="text-xs text-white/40">Click to change</div>
+              </div>
+            </button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => setShowAgentPicker(true)}
+              className="mt-2 w-full"
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Select Agent
+            </Button>
+          )}
         </div>
       )}
+
+      <AgentPickerDialog
+        open={showAgentPicker}
+        onOpenChange={setShowAgentPicker}
+        onSelect={(agent) => {
+          onChange("agentId", agent.id);
+          onChange("agentName", agent.name);
+          onChange("agentAvatarUrl", agent.avatarUrl ?? "");
+        }}
+      />
 
       <div>
         <Label className="text-white/80">Prompt</Label>
@@ -270,23 +325,25 @@ function AgentConfig({
         </p>
       </div>
 
-      <div>
-        <Label className="text-white/80">Model (Generic mode)</Label>
-        <Select
-          value={(data.model as string) ?? "gpt-4o-mini"}
-          onValueChange={(v) => onChange("model", v)}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
-            <SelectItem value="gpt-4o">GPT-4o (Powerful)</SelectItem>
-            <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
-            <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {mode === "generic" && (
+        <div>
+          <Label className="text-white/80">Model</Label>
+          <Select
+            value={(data.model as string) ?? "gpt-4o-mini"}
+            onValueChange={(v) => onChange("model", v)}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
+              <SelectItem value="gpt-4o">GPT-4o (Powerful)</SelectItem>
+              <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }
@@ -654,6 +711,107 @@ function DiscordConfig({
         <p className="text-white/60">• Agent responses</p>
         <p className="text-white/60">• Generated image URLs</p>
         <p className="text-white/60">• Workflow completion status</p>
+      </div>
+    </div>
+  );
+}
+
+// MCP servers and their tools
+const MCP_SERVERS = {
+  crypto: {
+    name: "Crypto Prices",
+    description: "Get real-time cryptocurrency prices",
+    tools: [
+      { id: "get_crypto_price", name: "Get Price", description: "Get current price for a crypto" },
+      { id: "get_multiple_prices", name: "Get Multiple Prices", description: "Get prices for multiple cryptos" },
+      { id: "get_price_change", name: "Get Price Change", description: "Get 24h price change" },
+    ],
+  },
+  time: {
+    name: "Time & Date",
+    description: "Time zone and date utilities",
+    tools: [
+      { id: "get_current_time", name: "Get Current Time", description: "Get time in any timezone" },
+      { id: "get_timezone_info", name: "Get Timezone Info", description: "Get timezone details" },
+      { id: "format_date", name: "Format Date", description: "Format a date string" },
+    ],
+  },
+  weather: {
+    name: "Weather",
+    description: "Current weather and forecasts",
+    tools: [
+      { id: "get_current_weather", name: "Get Weather", description: "Get current weather for a location" },
+      { id: "get_forecast", name: "Get Forecast", description: "Get weather forecast" },
+    ],
+  },
+};
+
+// MCP Tool Configuration
+function McpConfig({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const selectedServer = (data.mcpServer as string) ?? "";
+  const selectedTool = (data.toolName as string) ?? "";
+  const toolArgs = (data.toolArgs as Record<string, string>) ?? {};
+  const label = (data.label as string) ?? "MCP Tool";
+
+  const serverConfig = selectedServer ? MCP_SERVERS[selectedServer as keyof typeof MCP_SERVERS] : null;
+  const toolInfo = serverConfig?.tools.find((t) => t.id === selectedTool);
+
+  // Determine input label and placeholder based on tool
+  const getInputConfig = () => {
+    if (selectedServer === "crypto") {
+      if (selectedTool === "get_multiple_prices") {
+        return { field: "symbols", label: "Symbols", placeholder: "BTC,ETH,SOL" };
+      }
+      return { field: "symbol", label: "Symbol", placeholder: "BTC" };
+    }
+    if (selectedServer === "time") {
+      return { field: "timezone", label: "Timezone", placeholder: "America/New_York" };
+    }
+    if (selectedServer === "weather") {
+      return { field: "location", label: "Location", placeholder: "New York, NY" };
+    }
+    return null;
+  };
+
+  const inputConfig = getInputConfig();
+
+  return (
+    <div className="space-y-4">
+      {/* Show the tool name */}
+      <div className="bg-white/5 rounded-lg p-3">
+        <div className="text-sm font-medium text-white">{label}</div>
+        {toolInfo && (
+          <div className="text-xs text-white/40 mt-1">{toolInfo.description}</div>
+        )}
+      </div>
+
+      {/* Input field for arguments */}
+      {inputConfig && (
+        <div>
+          <Label className="text-white/80">{inputConfig.label}</Label>
+          <Input
+            value={toolArgs[inputConfig.field] ?? ""}
+            onChange={(e) => onChange("toolArgs", { ...toolArgs, [inputConfig.field]: e.target.value })}
+            placeholder={inputConfig.placeholder}
+            className="mt-1"
+          />
+          <p className="text-xs text-white/40 mt-1">
+            Use {"{{nodeId}}"} to reference output from a previous node
+          </p>
+        </div>
+      )}
+
+      <div className="bg-emerald-500/10 rounded-lg p-3 text-xs space-y-1">
+        <p className="text-emerald-400 font-medium">Output:</p>
+        <p className="text-white/60">
+          The result is available as <code>response</code> for the next node.
+        </p>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   GitBranch,
   Volume2,
   MessageCircle,
+  Puzzle,
 } from "lucide-react";
 import type { WorkflowNodeType } from "@/db/schemas";
 
@@ -75,6 +76,13 @@ const nodeTypes = [
     description: "Send message",
   },
   {
+    type: "mcp" as WorkflowNodeType,
+    label: "MCP Tool",
+    icon: Puzzle,
+    color: "emerald",
+    description: "Call MCP server",
+  },
+  {
     type: "output" as WorkflowNodeType,
     label: "Output",
     icon: FolderOutput,
@@ -93,6 +101,7 @@ const colorClasses: Record<string, string> = {
   pink: "bg-pink-500/20 text-pink-400 hover:bg-pink-500/30",
   violet: "bg-violet-500/20 text-violet-400 hover:bg-violet-500/30",
   indigo: "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30",
+  emerald: "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30",
 };
 
 export function WorkflowNodePalette({ onAddNode }: WorkflowNodePaletteProps) {

@@ -289,6 +289,8 @@ class WorkflowExecutorService {
         return this.executeTtsNode(config, context);
       case "discord":
         return this.executeDiscordNode(config, context);
+      case "mcp":
+        return this.executeMcpNode(config, context);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -759,6 +761,105 @@ class WorkflowExecutorService {
       channelId: channelId ?? "default",
       messageSent: sent,
       messagePreview: message.slice(0, 100),
+    };
+  }
+
+  /**
+   * Execute MCP node - calls an MCP tool
+   */
+  private async executeMcpNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const mcpServer = (config.mcpServer as string) ?? "";
+    const toolName = (config.toolName as string) ?? "";
+    let toolArgs = (config.toolArgs as Record<string, unknown>) ?? {};
+
+    if (!mcpServer || !toolName) {
+      throw new Error("MCP server and tool name are required");
+    }
+
+    // Map MCP server IDs to their endpoints
+    const mcpEndpoints: Record<string, string> = {
+      crypto: "/api/mcps/crypto/mcp",
+      time: "/api/mcps/time/mcp",
+      weather: "/api/mcps/weather/mcp",
+    };
+
+    const endpoint = mcpEndpoints[mcpServer];
+    if (!endpoint) {
+      throw new Error(`Unknown MCP server: ${mcpServer}`);
+    }
+
+    // Substitute placeholders in tool arguments with previous node outputs
+    const processedArgs: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(toolArgs)) {
+      if (typeof value === "string" && value.startsWith("{{") && value.endsWith("}}")) {
+        const nodeId = value.slice(2, -2);
+        const nodeOutput = context.nodeOutputs.get(nodeId);
+        if (nodeOutput) {
+          const data = nodeOutput.output as Record<string, unknown>;
+          processedArgs[key] = data?.response ?? data;
+        } else {
+          processedArgs[key] = value;
+        }
+      } else {
+        processedArgs[key] = value;
+      }
+    }
+
+    this.log(context, "info", "mcp", `Calling ${mcpServer}/${toolName}...`);
+
+    // Build JSON-RPC request
+    const mcpRequest = {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: {
+        name: toolName,
+        arguments: processedArgs,
+      },
+      id: `workflow-${context.workflowId}-${Date.now()}`,
+    };
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(mcpRequest),
+    });
+
+    if (!response.ok) {
+      throw new Error(`MCP call failed: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.error) {
+      throw new Error(`MCP error: ${result.error.message ?? JSON.stringify(result.error)}`);
+    }
+
+    this.log(context, "info", "mcp", `MCP tool ${toolName} completed`);
+
+    // Extract the actual content from MCP response
+    const content = result.result?.content?.[0]?.text;
+    let parsedContent: unknown = content;
+    if (content) {
+      try {
+        parsedContent = JSON.parse(content);
+      } catch {
+        parsedContent = content;
+      }
+    }
+
+    return {
+      type: "mcp",
+      mcpServer,
+      toolName,
+      args: processedArgs,
+      response: parsedContent,
+      raw: result,
     };
   }
 

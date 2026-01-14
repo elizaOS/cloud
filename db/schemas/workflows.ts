@@ -51,6 +51,7 @@ export const workflowNodeTypeEnum = pgEnum("workflow_node_type", [
   "condition", // Conditional branching
   "tts", // Text-to-speech
   "discord", // Send to Discord
+  "mcp", // Call MCP tool
 ]);
 
 export type WorkflowNodeType =
@@ -62,7 +63,8 @@ export type WorkflowNodeType =
   | "http"
   | "condition"
   | "tts"
-  | "discord";
+  | "discord"
+  | "mcp";
 
 /**
  * Workflow node definition.

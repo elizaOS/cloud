@@ -24,9 +24,11 @@ import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { Button } from "@/components/ui/button";
 import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
 import type { ExecutionResult } from "@/lib/services/workflow-executor";
-import { WorkflowNodePalette } from "./workflow-node-palette";
 import { NodeConfigPanel } from "./node-config-panel";
 import { ExecutionResultsPanel } from "./execution-results-panel";
+import { CanvasContextMenu } from "./canvas-context-menu";
+import { NodeContextMenu } from "./node-context-menu";
+import { AddModuleDialog } from "./add-module-dialog";
 import { TriggerNode } from "./nodes/trigger-node";
 import { AgentNode } from "./nodes/agent-node";
 import { ImageNode } from "./nodes/image-node";
@@ -36,6 +38,7 @@ import { HttpNode } from "./nodes/http-node";
 import { ConditionNode } from "./nodes/condition-node";
 import { TtsNode } from "./nodes/tts-node";
 import { DiscordNode } from "./nodes/discord-node";
+import { McpNode } from "./nodes/mcp-node";
 import type { WorkflowNodeType } from "@/db/schemas";
 
 interface WorkflowEditorProps {
@@ -52,6 +55,7 @@ const nodeTypes: NodeTypes = {
   condition: ConditionNode,
   tts: TtsNode,
   discord: DiscordNode,
+  mcp: McpNode,
 };
 
 function toReactFlowNodes(nodes: WorkflowNode[]): Node[] {
@@ -120,6 +124,10 @@ function WorkflowCanvas({
   const [workflowName, setWorkflowName] = useState(workflow.name);
   const [isEditingName, setIsEditingName] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowX: number; flowY: number } | null>(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -278,7 +286,33 @@ function WorkflowCanvas({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={handleNodeClick}
-          onPaneClick={handlePaneClick}
+          onPaneClick={(e) => {
+            handlePaneClick();
+            setContextMenu(null);
+            setNodeContextMenu(null);
+          }}
+          onPaneContextMenu={(e) => {
+            e.preventDefault();
+            setNodeContextMenu(null);
+            const reactFlowBounds = (e.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
+            if (reactFlowBounds) {
+              setContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                flowX: e.clientX - reactFlowBounds.left,
+                flowY: e.clientY - reactFlowBounds.top,
+              });
+            }
+          }}
+          onNodeContextMenu={(e, node) => {
+            e.preventDefault();
+            setContextMenu(null);
+            setNodeContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              nodeId: node.id,
+            });
+          }}
           nodeTypes={nodeTypes}
           fitView
           className="bg-[#0A0A0A]"
@@ -298,13 +332,55 @@ function WorkflowCanvas({
           />
         </ReactFlow>
 
-        <WorkflowNodePalette
-          onAddNode={(type: WorkflowNodeType) => {
+        {/* Canvas Context Menu */}
+        {contextMenu && (
+          <CanvasContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            onAddModule={() => {
+              setAddPosition({ x: contextMenu.flowX, y: contextMenu.flowY });
+              setShowAddDialog(true);
+            }}
+          />
+        )}
+
+        {/* Node Context Menu */}
+        {nodeContextMenu && (
+          <NodeContextMenu
+            x={nodeContextMenu.x}
+            y={nodeContextMenu.y}
+            nodeId={nodeContextMenu.nodeId}
+            onClose={() => setNodeContextMenu(null)}
+            onSettings={() => {
+              const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
+              if (node) {
+                setSelectedNode(node);
+              }
+            }}
+            onDelete={() => {
+              setNodes((nds) => nds.filter((n) => n.id !== nodeContextMenu.nodeId));
+              setEdges((eds) => eds.filter(
+                (e) => e.source !== nodeContextMenu.nodeId && e.target !== nodeContextMenu.nodeId
+              ));
+              if (selectedNode?.id === nodeContextMenu.nodeId) {
+                setSelectedNode(null);
+              }
+            }}
+          />
+        )}
+
+        {/* Add Module Dialog */}
+        <AddModuleDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          onAddNode={(type: WorkflowNodeType, initialData?: Record<string, unknown>) => {
+            const label = initialData?.label ?? type.charAt(0).toUpperCase() + type.slice(1);
             const newNode: Node = {
               id: `${type}-${Date.now()}`,
               type,
-              position: { x: 100, y: 100 + nodes.length * 100 },
-              data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
+              position: addPosition,
+              data: { ...initialData, label },
             };
             setNodes((nds) => [...nds, newNode]);
           }}
