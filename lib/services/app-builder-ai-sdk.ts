@@ -81,7 +81,7 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
+const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
 
 // ============================================================================
 // Available Models (fetched dynamically, these are suggestions)
@@ -89,15 +89,15 @@ const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude Sonnet 4.5",
-    description: "Best balance of speed and capability for coding tasks",
-    isDefault: true,
-  },
-  {
     id: "anthropic/claude-haiku-4.5",
     name: "Claude Haiku 4.5",
     description: "Fastest model for quick iterations",
+    isDefault: true,
+  },
+  {
+    id: "anthropic/claude-sonnet-4.5",
+    name: "Claude Sonnet 4.5",
+    description: "Best balance of speed and capability for coding tasks",
   },
   {
     id: "openai/gpt-5.2",
@@ -189,6 +189,9 @@ export class AppBuilderAISDK {
       }
     };
 
+    // Track if we completed normally (vs timeout/abort)
+    let completedNormally = false;
+
     try {
       // Build context by reading current files IN PARALLEL for faster startup
       const [pageContent, globalsCss] = await Promise.all([
@@ -214,20 +217,7 @@ ${tailwindWarning}
 ---
 USER REQUEST: ${prompt}
 
-GUIDELINES:
-1. You CAN modify any file at any time - including ones you've already written
-2. Do NOT import files that don't exist yet - install packages first if needed
-3. When adding features, update the necessary files (page.tsx, components, etc.)
-
-WRITE FILES PROGRESSIVELY - users see live updates!
-- Write layout.tsx FIRST with unique metadata
-- Write page.tsx EARLY, then iterate on it as needed
-- Write components ONE BY ONE
-- Feel free to update existing files to add new features
-
-BUILD CHECK: Call check_build ONLY ONCE at the end!
-- Do NOT check after every file - HMR auto-refreshes
-- Fix any errors before finishing`;
+Build this app with your own creative vision. Install packages before importing them. Call check_build once at the end.`;
 
       const finalSystemPrompt =
         systemPrompt ||
@@ -364,12 +354,6 @@ BUILD CHECK: Call check_build ONLY ONCE at the end!
             .map((tr) => `Tool: ${tr.toolName}\nResult: ${tr.result}`)
             .join("\n\n");
 
-          // Remind AI of files already written to prevent duplicates
-          const uniqueFiles = [...new Set(filesAffected)];
-          if (uniqueFiles.length > 0) {
-            resultsContent += `\n\n---\nFILES ALREADY WRITTEN (do NOT re-write unless fixing errors):\n${uniqueFiles.join("\n")}`;
-          }
-
           messages.push({ role: "user", content: resultsContent });
         } else {
           // No tool calls - check if build has errors
@@ -403,6 +387,8 @@ BUILD CHECK: Call check_build ONLY ONCE at the end!
         }
       }
 
+      completedNormally = true;
+
       logger.info("AI execution complete", {
         model,
         sandboxId,
@@ -422,6 +408,18 @@ BUILD CHECK: Call check_build ONLY ONCE at the end!
         },
       };
     } catch (error) {
+      // IMPORTANT: Even on timeout/error, do a build check if we wrote files
+      // This ensures users see any build errors before we exit
+      if (!completedNormally && filesAffected.length > 0) {
+        try {
+          const emergencyBuildCheck = await checkBuild(sandbox);
+          if (emergencyBuildCheck.includes("BUILD ERRORS")) {
+            outputText += `\n\n⚠️ Build errors detected:\n${emergencyBuildCheck}`;
+          }
+        } catch {
+          // Ignore build check errors during error handling
+        }
+      }
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       logger.error("AI execution failed", { sandboxId, error: errorMessage });

@@ -1,5 +1,5 @@
 import { logger } from "@/lib/utils/logger";
-import { appsService } from "./apps";
+import { appsService, AppNameConflictError } from "./apps";
 import { githubReposService } from "./github-repos";
 import { vercelDeploymentsService } from "./vercel-deployments";
 import { discordService } from "./discord";
@@ -86,6 +86,28 @@ export class AppFactoryService {
       createGitHubRepo,
       assignSubdomain,
     });
+
+    // Step 0: Validate name availability before creating anything
+    const nameCheck = await appsService.isNameAvailable(data.name);
+    if (!nameCheck.available) {
+      const errorMessage =
+        nameCheck.conflictType === "subdomain"
+          ? `The name "${data.name}" would create a subdomain that is already in use. Please choose a different name.`
+          : `An app with the name "${data.name}" already exists. Please choose a different name.`;
+
+      logger.warn("AppFactory: Name conflict detected", {
+        name: data.name,
+        slug: nameCheck.slug,
+        conflictType: nameCheck.conflictType,
+        suggestedName: nameCheck.suggestedName,
+      });
+
+      throw new AppNameConflictError(
+        errorMessage,
+        nameCheck.conflictType!,
+        nameCheck.suggestedName,
+      );
+    }
 
     // Step 1: Create the app record
     const { app, apiKey } = await appsService.create(data);

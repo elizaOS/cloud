@@ -425,6 +425,18 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
+  // Name validation state
+  const [nameValidation, setNameValidation] = useState<{
+    isChecking: boolean;
+    isAvailable: boolean | null;
+    error: string | null;
+    suggestedName: string | null;
+  }>({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Minimum description length
+  const MIN_DESCRIPTION_LENGTH = 10;
+
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
@@ -488,6 +500,81 @@ export default function AppCreatorPage() {
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
+
+  // ============================================================================
+  // DEBOUNCED APP NAME AVAILABILITY CHECK
+  // ============================================================================
+  useEffect(() => {
+    // Clear any pending timeout
+    if (nameCheckTimeoutRef.current) {
+      clearTimeout(nameCheckTimeoutRef.current);
+    }
+
+    const trimmedName = appName.trim();
+
+    // Reset validation if name is empty or too short
+    if (!trimmedName || trimmedName.length < 2) {
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error: trimmedName.length > 0 && trimmedName.length < 2 ? "Name must be at least 2 characters" : null,
+        suggestedName: null,
+      });
+      return;
+    }
+
+    // Set checking state
+    setNameValidation((prev) => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+    }));
+
+    // Debounce the API call
+    nameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/v1/apps/check-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNameValidation({
+            isChecking: false,
+            isAvailable: data.available,
+            error: data.available
+              ? null
+              : data.conflictType === "subdomain"
+                ? "This name would create a subdomain that is already in use"
+                : "An app with this name already exists",
+            suggestedName: data.suggestedName || null,
+          });
+        } else {
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
+        }
+      } catch {
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (nameCheckTimeoutRef.current) {
+        clearTimeout(nameCheckTimeoutRef.current);
+      }
+    };
+  }, [appName]);
 
   // ============================================================================
   // FETCH USER'S AGENTS FOR APP AGENT SELECTION
@@ -3005,39 +3092,77 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
 
                 <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
-                  {/* App Name - Premium input */}
+                  {/* App Name - Premium input with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        App Name
+                        App Name <span className="text-red-400">*</span>
                       </Label>
-                      <span
-                        className={`text-[10px] font-mono transition-colors ${
-                          appName.length > 100
-                            ? "text-red-400"
-                            : appName.length > 80
-                              ? "text-amber-400"
-                              : "text-white/25"
-                        }`}
-                      >
-                        {appName.length}/100
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {nameValidation.isChecking && (
+                          <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                        )}
+                        {!nameValidation.isChecking && nameValidation.isAvailable === true && appName.trim().length >= 2 && (
+                          <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                            <Check className="h-3 w-3" />
+                            Available
+                          </span>
+                        )}
+                        {!nameValidation.isChecking && nameValidation.isAvailable === false && (
+                          <span className="flex items-center gap-1 text-[10px] text-red-400">
+                            <AlertCircle className="h-3 w-3" />
+                            Taken
+                          </span>
+                        )}
+                        <span
+                          className={`text-[10px] font-mono transition-colors ${
+                            appName.length > 100
+                              ? "text-red-400"
+                              : appName.length > 80
+                                ? "text-amber-400"
+                                : "text-white/25"
+                          }`}
+                        >
+                          {appName.length}/100
+                        </span>
+                      </div>
                     </div>
                     <Input
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className="h-12 bg-black/30 border-white/[0.08] text-white text-base placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl transition-all duration-300"
+                      className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
+                        nameValidation.error
+                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          : nameValidation.isAvailable === true && appName.trim().length >= 2
+                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                       maxLength={100}
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
+                    {nameValidation.error && (
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {nameValidation.error}
+                        {nameValidation.suggestedName && (
+                          <button
+                            type="button"
+                            onClick={() => setAppName(nameValidation.suggestedName!)}
+                            className="ml-1 text-[#FF5800] hover:underline"
+                          >
+                            Try &quot;{nameValidation.suggestedName}&quot;
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Description - Premium textarea */}
+                  {/* Description - Premium textarea with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        Description
+                        Description <span className="text-red-400">*</span>
                       </Label>
                       <div className="flex items-center gap-3">
                         <button
@@ -3056,9 +3181,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                           className={`text-[10px] font-mono transition-colors ${
                             appDescription.length > 500
                               ? "text-red-400"
-                              : appDescription.length > 400
+                              : appDescription.length < MIN_DESCRIPTION_LENGTH && appDescription.length > 0
                                 ? "text-amber-400"
-                                : "text-white/25"
+                                : appDescription.length > 400
+                                  ? "text-amber-400"
+                                  : "text-white/25"
                           }`}
                         >
                           {appDescription.length}/500
@@ -3068,9 +3195,23 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <Textarea
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
-                      placeholder="Describe what your app should do... or let AI help you write it"
-                      className="min-h-[120px] bg-black/30 border-white/[0.08] text-white text-sm placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl resize-none transition-all duration-300 leading-relaxed"
+                      placeholder="Describe what your app should do... (minimum 10 characters)"
+                      className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                        appDescription.length > 500
+                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          : appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH
+                            ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                              ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                              : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                     />
+                    {appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                      <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Description must be at least {MIN_DESCRIPTION_LENGTH} characters ({MIN_DESCRIPTION_LENGTH - appDescription.length} more needed)
+                      </p>
+                    )}
                     {appDescription.length > 500 && (
                       <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
                         <AlertCircle className="h-3.5 w-3.5" />
@@ -3092,15 +3233,28 @@ ANTHROPIC_API_KEY=your_key_here`}
                     onClick={() => setSetupStep(3)}
                     disabled={
                       !appName.trim() ||
+                      appName.trim().length < 2 ||
                       appName.length > 100 ||
+                      nameValidation.isChecking ||
+                      nameValidation.isAvailable === false ||
+                      appDescription.length < MIN_DESCRIPTION_LENGTH ||
                       appDescription.length > 500
                     }
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
                     style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      {nameValidation.isChecking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </>
+                      )}
                     </span>
                   </button>
                 </div>
