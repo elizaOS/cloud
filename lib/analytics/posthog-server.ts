@@ -10,7 +10,14 @@ import type { PostHogEvent, EventProperties } from "./posthog";
 
 let posthogClient: PostHog | null = null;
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 function getPostHogClient(): PostHog | null {
+  // Only initialize in production
+  if (!isProduction()) return null;
+
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!apiKey) return null;
 

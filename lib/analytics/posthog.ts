@@ -102,7 +102,14 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 export function initPostHog(): void {
+  // Only initialize in production
+  if (!isProduction()) return;
+
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 
@@ -117,11 +124,6 @@ export function initPostHog(): void {
     api_host: apiHost,
     capture_pageview: true,
     capture_pageleave: true,
-    loaded: () => {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[PostHog] Initialized in development mode");
-      }
-    },
     enable_recording_console_log: false,
     respect_dnt: true,
     persistence: "localStorage+cookie",
