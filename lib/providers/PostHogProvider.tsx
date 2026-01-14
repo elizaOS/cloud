@@ -37,8 +37,13 @@ function UserIdentifier(): null {
   const identifiedRef = useRef(false);
   const previousAuthState = useRef<boolean | null>(null);
   const fetchingUserRef = useRef(false);
+  // Track current authenticated state for async callback checks
+  const authenticatedRef = useRef(authenticated);
 
   useEffect(() => {
+    // Update ref at start of each effect run so async callbacks can check current state
+    authenticatedRef.current = authenticated;
+
     if (!ready) return;
 
     // Handle logout
@@ -65,7 +70,7 @@ function UserIdentifier(): null {
         .then((data) => {
           // Verify user is still authenticated before identifying
           // (prevents corrupted state if user logged out during fetch)
-          if (!identifiedRef.current && data.success && data.data?.id) {
+          if (!identifiedRef.current && authenticatedRef.current && data.success && data.data?.id) {
             // Use internal UUID for consistent tracking
             identifyUser(data.data.id, {
               email,
