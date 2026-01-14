@@ -56,12 +56,16 @@ function UserIdentifier(): null {
       const email = user.email?.address || user.google?.email || user.discord?.email;
       const name = user.google?.name || user.discord?.username || user.github?.username;
       const method = getSignupMethod(user);
+      // Capture auth state at fetch start to prevent race condition with logout
+      const wasLoggedOutBefore = previousAuthState.current === false;
 
       // Fetch internal user ID from API
       fetch("/api/v1/user")
         .then((res) => res.json())
         .then((data) => {
-          if (data.success && data.data?.id) {
+          // Verify user is still authenticated before identifying
+          // (prevents corrupted state if user logged out during fetch)
+          if (!identifiedRef.current && data.success && data.data?.id) {
             // Use internal UUID for consistent tracking
             identifyUser(data.data.id, {
               email,
@@ -73,7 +77,8 @@ function UserIdentifier(): null {
 
             identifiedRef.current = true;
 
-            if (previousAuthState.current === false) {
+            // Use captured state instead of current ref to avoid race condition
+            if (wasLoggedOutBefore) {
               trackEvent("login_completed", { method });
             }
           }
