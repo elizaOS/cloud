@@ -59,7 +59,7 @@ export interface ServerUserProperties {
   wallet_address?: string;
   signup_method?: string;
   created_at?: string;
-  [key: string]: unknown;
+  [key: string]: string | number | boolean | undefined;
 }
 
 export function identifyServerUser(
