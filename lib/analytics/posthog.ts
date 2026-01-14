@@ -103,6 +103,7 @@ export interface ContainerDeployProps {
   cpu?: number;
   memory?: number;
   container_url?: string;
+  cost?: number;
 }
 
 export interface PageViewedProps {
