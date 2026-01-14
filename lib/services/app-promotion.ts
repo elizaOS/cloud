@@ -362,7 +362,23 @@ Return ONLY valid JSON, no markdown.`;
 
       if (contentDeduction.success) {
         result.totalCreditsUsed += PROMOTION_COSTS.contentGeneration;
-        promotionalContent = await this.generatePromotionalContent(app);
+        try {
+          promotionalContent = await this.generatePromotionalContent(app);
+        } catch (error) {
+          // Refund credits if content generation fails
+          await creditsService.refundCredits({
+            organizationId,
+            amount: PROMOTION_COSTS.contentGeneration,
+            description: `Refund: Content generation failed for ${app.name}`,
+            metadata: { appId, type: "content_generation_refund" },
+          });
+          result.totalCreditsUsed -= PROMOTION_COSTS.contentGeneration;
+          logger.error("[AppPromotion] Content generation failed, credits refunded", {
+            appId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          result.errors.push("Content generation failed - credits refunded");
+        }
       }
     }
 

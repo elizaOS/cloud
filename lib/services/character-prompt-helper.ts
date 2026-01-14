@@ -9,6 +9,26 @@
 import { charactersService } from "./characters/characters";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Fisher-Yates shuffle algorithm for unbiased random sampling.
+ * Returns a new shuffled array without modifying the original.
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Get random sample from array using Fisher-Yates shuffle.
+ */
+function getRandomSample<T>(array: T[], count: number): T[] {
+  return shuffleArray(array).slice(0, count);
+}
+
 export interface CharacterPromptContext {
   name: string;
   bio: string;
@@ -81,28 +101,23 @@ export function buildCharacterSystemPrompt(
   }
 
   if (context.adjectives.length > 0) {
-    const selectedAdjectives = context.adjectives
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5);
+    const selectedAdjectives = getRandomSample(context.adjectives, 5);
     parts.push(`Your personality: ${selectedAdjectives.join(", ")}`);
   }
 
   if (context.topics.length > 0) {
-    const selectedTopics = context.topics
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5);
+    const selectedTopics = getRandomSample(context.topics, 5);
     parts.push(`Topics you enjoy: ${selectedTopics.join(", ")}`);
   }
 
   const styleGuidelines = [...context.postStyle, ...context.allStyle];
   if (styleGuidelines.length > 0) {
-    parts.push(`Your writing style: ${styleGuidelines.slice(0, 5).join("; ")}`);
+    const selectedStyles = getRandomSample(styleGuidelines, 5);
+    parts.push(`Your writing style: ${selectedStyles.join("; ")}`);
   }
 
   if (context.postExamples.length > 0) {
-    const examples = context.postExamples
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 3);
+    const examples = getRandomSample(context.postExamples, 3);
     parts.push(
       `Example posts you've written:\n${examples.map((ex) => `- "${ex}"`).join("\n")}`
     );
@@ -114,7 +129,7 @@ export function buildCharacterSystemPrompt(
   logger.debug("[CharacterPromptHelper] Built character prompt", {
     name: context.name,
     promptLength: prompt.length,
-    promptPreview: prompt.substring(0, 200) + "...",
+    promptPreview: `${prompt.substring(0, 200)}...`,
   });
 
   return prompt;
