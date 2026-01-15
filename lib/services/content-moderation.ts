@@ -161,16 +161,8 @@ function getModerationBackend(): {
     return null;
   }
 
-  // Prefer Vercel AI Gateway if configured (it is OpenAI-compatible and supports /v1/moderations)
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
-  if (gatewayKey) {
-    return {
-      backend: "vercel-gateway",
-      apiKey: gatewayKey,
-      url: "https://ai-gateway.vercel.sh/v1/moderations",
-    };
-  }
-
+  // Fix 11: Use OpenAI directly for moderation - Vercel Gateway doesn't support /v1/moderations
+  // (returns 405 Method Not Allowed). Skip the gateway to avoid unnecessary fallback chain.
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
     return {
@@ -180,6 +172,7 @@ function getModerationBackend(): {
     };
   }
 
+  // No moderation available without OpenAI key
   return null;
 }
 

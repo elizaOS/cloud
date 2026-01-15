@@ -158,11 +158,45 @@ async function generateTitleInBackground(
       title = title.substring(0, 57) + "...";
     }
 
-    // Update room with the generated title using runtime
-    await runtime.updateRoom({
-      ...existingRoom,
-      name: title,
-    });
+    // Fix 12: Retry transient DB errors with exponential backoff
+    // "Failed query: rollback" errors occur when connection dies mid-transaction
+    const MAX_UPDATE_RETRIES = 3;
+    let updateSuccess = false;
+
+    for (let attempt = 0; attempt < MAX_UPDATE_RETRIES; attempt++) {
+      try {
+        await runtime.updateRoom({
+          ...existingRoom,
+          name: title,
+        });
+        updateSuccess = true;
+        break; // Success
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        const isRetryable =
+          errMsg.includes("rollback") ||
+          errMsg.includes("connection") ||
+          errMsg.includes("terminated") ||
+          errMsg.includes("timeout");
+
+        if (!isRetryable || attempt === MAX_UPDATE_RETRIES - 1) {
+          logger.error(
+            `[RoomTitle] updateRoom failed after ${attempt + 1} attempts: ${errMsg}`,
+          );
+          return; // Fire-and-forget, don't throw
+        }
+
+        // Exponential backoff: 100ms, 200ms, 400ms
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
+        logger.warn(
+          `[RoomTitle] Retrying updateRoom (${attempt + 2}/${MAX_UPDATE_RETRIES})`,
+        );
+      }
+    }
+
+    if (!updateSuccess) {
+      return; // Failed after all retries
+    }
 
     logger.info(`[RoomTitle] ✓ Generated and saved room title: "${title}"`);
 

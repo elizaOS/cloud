@@ -31,7 +31,10 @@ export class CacheClient {
   private revalidationQueue = new Map<string, Promise<void>>();
   // MEMORY LEAK FIX: Add limits and timeouts to revalidation queue
   private readonly MAX_REVALIDATION_QUEUE_SIZE = 100;
-  private readonly REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds
+  // Fix 14: Configurable revalidation timeout (default 45s for production)
+  private readonly REVALIDATION_TIMEOUT_MS = process.env.REVALIDATION_TIMEOUT_MS
+    ? parseInt(process.env.REVALIDATION_TIMEOUT_MS)
+    : 45000;
 
   private initialize(): void {
     if (this.initialized) return;
@@ -202,9 +205,19 @@ export class CacheClient {
           );
         });
 
+        // Fix 14: Track revalidation duration for slow fetch detection
+        const revalidationStart = Date.now();
+
         // Race revalidation against timeout
         const revalidationPromise = Promise.race([revalidate(), timeoutPromise])
           .then((fresh) => {
+            const duration = Date.now() - revalidationStart;
+            // Log slow revalidations (>15s) to identify problematic fetchers
+            if (duration > 15000) {
+              logger.warn(
+                `[Cache] Slow revalidation for ${key}: ${duration}ms`,
+              );
+            }
             if (fresh !== null) {
               return this.set(
                 key,

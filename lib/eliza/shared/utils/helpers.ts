@@ -780,22 +780,36 @@ export async function generateResponseWithRetry(
     }
   }
 
-  if (lastRawResponse && lastRawResponse.length > 10) {
+  // Fix 13: Improved XML fallback with regex extraction and lower thresholds
+  if (lastRawResponse && lastRawResponse.length > 0) {
+    // Try regex extraction for <text> tag even if full XML parse failed
+    const textMatch = lastRawResponse.match(/<text>([\s\S]*?)<\/text>/i);
+    if (textMatch?.[1]?.trim()) {
+      logger.info(
+        `[generateResponseWithRetry] Extracted text via regex fallback (${textMatch[1].trim().length} chars)`,
+      );
+      return { text: textMatch[1].trim(), thought: "" };
+    }
+
+    // Strip XML tags and use raw content with lower threshold
     const cleanedResponse = lastRawResponse
       .replace(/<[^>]+>/g, "")
       .replace(/\s+/g, " ")
       .trim();
 
-    if (cleanedResponse.length > 20) {
+    // Lowered threshold from 20 to 5 chars - any meaningful response is better than none
+    if (cleanedResponse.length > 5) {
       logger.info(
-        `[generateResponseWithRetry] Using cleaned raw response as fallback`,
+        `[generateResponseWithRetry] Using cleaned response as fallback (${cleanedResponse.length} chars)`,
       );
       return { text: cleanedResponse, thought: "" };
     }
   }
 
   logger.error(
-    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`,
+    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. ` +
+      `Last raw response: "${lastRawResponse?.substring(0, 100) || "empty"}". ` +
+      `Last error: ${lastError?.message || "Unknown"}`,
   );
   return { text: "", thought: "" };
 }

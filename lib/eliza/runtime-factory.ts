@@ -851,9 +851,11 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 1000; // Reduced from 2s to 1s
-    const maxDelay = 200;
-    let waitMs = 5; // Start lower at 5ms
+    // Fix 10: Increased from 1s to 3s for serverless cold starts
+    // MCP plugin loading can take 1-2s in cold start scenarios
+    const maxWaitMs = 3000;
+    const maxDelay = 300;
+    let waitMs = 10; // Start at 10ms for better granularity
     let mcpService: McpService | null = null;
 
     // Check immediately first
@@ -869,9 +871,10 @@ export class RuntimeFactory {
     const elapsed = Date.now() - startTime;
     if (!mcpService) {
       elizaLogger.warn(
-        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
+        `[RuntimeFactory] MCP service not available after ${elapsed}ms - ` +
+          `proceeding without MCP capabilities (cold start likely)`,
       );
-      return;
+      return; // Graceful degradation, don't throw
     }
 
     elizaLogger.debug(`[RuntimeFactory] MCP service found in ${elapsed}ms`);
