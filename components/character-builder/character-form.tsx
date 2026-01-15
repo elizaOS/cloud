@@ -53,6 +53,10 @@ export function CharacterForm({
   const [adjectivesDraft, setAdjectivesDraft] = useState(character.adjectives?.join(", ") || "");
   const [topicsDraft, setTopicsDraft] = useState(character.topics?.join(", ") || "");
 
+  // Focus tracking to prevent overwrites while user is editing
+  const [isAdjectivesEditing, setIsAdjectivesEditing] = useState(false);
+  const [isTopicsEditing, setIsTopicsEditing] = useState(false);
+
   // Sync isPublic state when character data changes (e.g., loaded from API)
   // Skip sync if currently toggling to prevent race condition
   useEffect(() => {
@@ -61,14 +65,18 @@ export function CharacterForm({
     }
   }, [character.isPublic, isTogglingShare]);
 
-  // Sync draft states when character data changes externally
+  // Sync draft states when character data changes externally (skip if user is editing)
   useEffect(() => {
-    setAdjectivesDraft(character.adjectives?.join(", ") || "");
-  }, [character.adjectives]);
+    if (!isAdjectivesEditing) {
+      setAdjectivesDraft(character.adjectives?.join(", ") || "");
+    }
+  }, [character.adjectives, isAdjectivesEditing]);
 
   useEffect(() => {
-    setTopicsDraft(character.topics?.join(", ") || "");
-  }, [character.topics]);
+    if (!isTopicsEditing) {
+      setTopicsDraft(character.topics?.join(", ") || "");
+    }
+  }, [character.topics, isTopicsEditing]);
 
   const handleToggleShare = async () => {
     if (isTogglingShare) return; // Prevent double-clicking
@@ -427,7 +435,17 @@ export function CharacterForm({
               id="adjectives"
               value={adjectivesDraft}
               onChange={(e) => setAdjectivesDraft(e.target.value)}
-              onBlur={() => updateField("adjectives", parseCommaSeparated(adjectivesDraft))}
+              onFocus={() => setIsAdjectivesEditing(true)}
+              onBlur={() => {
+                setIsAdjectivesEditing(false);
+                updateField("adjectives", parseCommaSeparated(adjectivesDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  updateField("adjectives", parseCommaSeparated(adjectivesDraft));
+                }
+              }}
               placeholder="witty, sarcastic, caring, thoughtful..."
               className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
             />
@@ -464,7 +482,17 @@ export function CharacterForm({
               id="topics"
               value={topicsDraft}
               onChange={(e) => setTopicsDraft(e.target.value)}
-              onBlur={() => updateField("topics", parseCommaSeparated(topicsDraft))}
+              onFocus={() => setIsTopicsEditing(true)}
+              onBlur={() => {
+                setIsTopicsEditing(false);
+                updateField("topics", parseCommaSeparated(topicsDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  updateField("topics", parseCommaSeparated(topicsDraft));
+                }
+              }}
               placeholder="DeFi protocols, AI research, meme culture..."
               className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
             />
