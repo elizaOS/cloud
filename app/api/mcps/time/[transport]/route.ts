@@ -1,7 +1,7 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
-export const maxDuration = 30;
+export const maxDuration = 300; // 5 minutes for SSE long-lived connections
 
 // ============================================================================
 // Time & Date Utilities
@@ -779,7 +779,7 @@ const handler = createMcpHandler(
   {
     redisUrl: process.env.REDIS_URL,
     basePath: "/api/mcps/time",
-    maxDuration: 30,
+    maxDuration: 300,
   },
 );
 
