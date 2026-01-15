@@ -1436,9 +1436,50 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog, checkGitStatus]);
 
-  // No more complex auto-restore effect needed
-  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
-  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
+  // Auto-restore ref to prevent duplicate triggers
+  const autoRestoreTriggeredRef = useRef(false);
+
+  // Auto-restore when session times out - automatically restore sandbox if possible
+  useEffect(() => {
+    // Only trigger when status becomes "timeout"
+    if (status !== "timeout") {
+      // Reset the ref when status changes away from timeout
+      autoRestoreTriggeredRef.current = false;
+      return;
+    }
+
+    // Don't trigger if already restoring or already triggered
+    if (isRestoring || autoRestoreTriggeredRef.current) return;
+
+    // Don't trigger if no session
+    if (!session) return;
+
+    // Check if we can restore - either from snapshotInfo or directly from app's github repo
+    const canAutoRestore =
+      snapshotInfo?.canRestore ||
+      !!appSnapshotInfo?.githubRepo ||
+      !!appData?.github_repo;
+
+    if (canAutoRestore) {
+      // Mark as triggered to prevent re-entry
+      autoRestoreTriggeredRef.current = true;
+
+      // Auto-trigger restore after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        restoreSession();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    status,
+    session,
+    isRestoring,
+    snapshotInfo?.canRestore,
+    appSnapshotInfo?.githubRepo,
+    appData?.github_repo,
+    restoreSession,
+  ]);
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
