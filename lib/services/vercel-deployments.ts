@@ -134,45 +134,17 @@ async function isSubdomainAvailableInDb(subdomain: string): Promise<boolean> {
 }
 
 /**
- * Check if a subdomain is available (both locally and in Vercel)
- * This ensures we don't try to use a subdomain that's still claimed by Vercel
+ * Check if a subdomain is available
+ * 
+ * We only check the local database because:
+ * 1. We own the parent domain (apps.elizacloud.ai) - subdomains are managed internally
+ * 2. Vercel's /v6/domains/ API checks domain registration, not project assignments
+ * 3. Subdomain assignment to Vercel projects happens later via addDomainToProject
+ * 4. The database is the source of truth for our subdomain allocations
  */
 async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
-  // First check local database
-  const localAvailable = await isSubdomainAvailableInDb(subdomain);
-  if (!localAvailable) {
-    return false;
-  }
-
-  // If Vercel is not configured, only check local DB
-  if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
-    return true;
-  }
-
-  // Check if domain is available in Vercel
-  const fullDomain = `${subdomain}.${APP_DOMAIN}`;
-  try {
-    // Try to get domain info from Vercel - if it exists, it's not available
-    await vercelFetch(`/v6/domains/${fullDomain}`);
-    // If we get here without error, the domain exists in Vercel
-    logger.debug("[Vercel Deployments] Subdomain exists in Vercel", {
-      subdomain,
-      fullDomain,
-    });
-    return false;
-  } catch (error) {
-    // 404 means domain doesn't exist - it's available
-    const errorMessage = error instanceof Error ? error.message : "";
-    if (errorMessage.includes("404") || errorMessage.includes("not_found")) {
-      return true;
-    }
-    // For other errors, assume available (don't block creation)
-    logger.warn("[Vercel Deployments] Error checking subdomain in Vercel", {
-      subdomain,
-      error: errorMessage,
-    });
-    return true;
-  }
+  // Only check local database - that's our source of truth for subdomain assignments
+  return await isSubdomainAvailableInDb(subdomain);
 }
 
 /**

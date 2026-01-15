@@ -25,7 +25,13 @@ import {
   HistoryTab,
   SessionLoader,
   AgentPicker,
+  WebTerminal,
 } from "@/components/app-builder";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 async function fetchWithRetry(
@@ -1430,9 +1436,50 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog, checkGitStatus]);
 
-  // No more complex auto-restore effect needed
-  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
-  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
+  // Auto-restore ref to prevent duplicate triggers
+  const autoRestoreTriggeredRef = useRef(false);
+
+  // Auto-restore when session times out - automatically restore sandbox if possible
+  useEffect(() => {
+    // Only trigger when status becomes "timeout"
+    if (status !== "timeout") {
+      // Reset the ref when status changes away from timeout
+      autoRestoreTriggeredRef.current = false;
+      return;
+    }
+
+    // Don't trigger if already restoring or already triggered
+    if (isRestoring || autoRestoreTriggeredRef.current) return;
+
+    // Don't trigger if no session
+    if (!session) return;
+
+    // Check if we can restore - either from snapshotInfo or directly from app's github repo
+    const canAutoRestore =
+      snapshotInfo?.canRestore ||
+      !!appSnapshotInfo?.githubRepo ||
+      !!appData?.github_repo;
+
+    if (canAutoRestore) {
+      // Mark as triggered to prevent re-entry
+      autoRestoreTriggeredRef.current = true;
+
+      // Auto-trigger restore after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        restoreSession();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    status,
+    session,
+    isRestoring,
+    snapshotInfo?.canRestore,
+    appSnapshotInfo?.githubRepo,
+    appData?.github_repo,
+    restoreSession,
+  ]);
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
@@ -2094,6 +2141,7 @@ Some ideas:
   }, [
     isEditMode,
     appData,
+    
     session,
     status,
     isLoading,
@@ -2159,16 +2207,28 @@ Some ideas:
           }
         }
 
-        // Show clean operations list
+        // Show operations list with reasoning context
         if (actionsLog.length > 0) {
           actionsLog.forEach((action) => {
             const isActive =
               action.status === "active" || action.status === "pending";
             const statusIcon = isActive ? "⏳" : "✓";
 
-            // Clean action display - just status, tool, and detail
+            // Action display with status, tool, detail, and timestamp
             content += `${statusIcon} **${action.tool}**\n`;
-            content += `> \`${action.detail}\`\n\n`;
+            content += `\`${action.detail}\`\n`;
+            content += `*${action.timestamp}*\n`;
+
+            // Show reasoning context if available (the "why" behind this action)
+            if (action.context) {
+              // Truncate long reasoning for cleaner display during build
+              const truncatedContext =
+                action.context.length > 200
+                  ? action.context.substring(0, 200).trim() + "..."
+                  : action.context;
+              content += `> 💭 ${truncatedContext.replace(/\n/g, " ")}\n`;
+            }
+            content += "\n";
           });
         }
 
@@ -4618,94 +4678,154 @@ ANTHROPIC_API_KEY=your_key_here`}
               </div>
             )}
 
-            {/* Console tab - Premium */}
+            {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (
-              <div
-                ref={consoleLogsRef}
-                className="h-full bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25 animate-in fade-in duration-200"
+              <ResizablePanelGroup
+                direction="vertical"
+                className="h-full animate-in fade-in duration-200"
               >
-                {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/25">
-                    <div className="text-center">
-                      <div className="relative inline-block mb-4">
-                        <Terminal className="h-10 w-10 mx-auto opacity-40" />
-                        <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                {/* Logs Panel - Top */}
+                <ResizablePanel defaultSize={60} minSize={20}>
+                  <div className="h-full flex flex-col">
+                    {/* Logs Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/20">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500/70 animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Logs
+                        </span>
+                        {consoleLogs.length > 0 && (
+                          <span className="text-[10px] text-white/30 tabular-nums">
+                            ({consoleLogs.length})
+                          </span>
+                        )}
                       </div>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ fontFamily: "var(--font-sf-pro)" }}
-                      >
-                        Console is empty
-                      </p>
-                      <p className="text-xs text-white/15 mt-1">
-                        Logs will appear here during builds
-                      </p>
+                    </div>
+                    {/* Logs Content */}
+                    <div
+                      ref={consoleLogsRef}
+                      className="flex-1 bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+                    >
+                      {consoleLogs.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-white/25">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-4">
+                              <Terminal className="h-8 w-8 mx-auto opacity-40" />
+                              <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                            </div>
+                            <p
+                              className="text-xs font-medium"
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
+                            >
+                              No logs yet
+                            </p>
+                            <p className="text-[10px] text-white/15 mt-1">
+                              Logs will appear here during builds
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-0.5">
+                          {consoleLogs.map((log, i) => {
+                            let colorClass = "text-white/60";
+                            let bgClass = "";
+
+                            if (log.includes("[info]")) {
+                              colorClass = "text-blue-400";
+                            } else if (log.includes("[success]")) {
+                              colorClass = "text-green-400";
+                            } else if (
+                              log.includes("[error]") ||
+                              log.includes("Error") ||
+                              log.includes("error")
+                            ) {
+                              colorClass = "text-red-400";
+                              bgClass = "bg-red-500/10";
+                            } else if (
+                              log.includes("[warning]") ||
+                              log.includes("Warning")
+                            ) {
+                              colorClass = "text-yellow-400";
+                              bgClass = "bg-yellow-500/5";
+                            } else if (log.includes("Progress:")) {
+                              colorClass = "text-purple-400";
+                            } else if (
+                              log.includes("GET ") ||
+                              log.includes("POST ") ||
+                              log.includes("PUT ") ||
+                              log.includes("DELETE ")
+                            ) {
+                              if (log.includes(" 2")) {
+                                colorClass = "text-green-400/70";
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                                colorClass = "text-red-400/70";
+                              } else {
+                                colorClass = "text-cyan-400/70";
+                              }
+                            } else if (
+                              log.includes("Next.js") ||
+                              log.includes("Turbopack")
+                            ) {
+                              colorClass = "text-white/80";
+                            }
+
+                            return (
+                              <div
+                                key={i}
+                                className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                              >
+                                <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
+                                  {i + 1}
+                                </span>
+                                <pre
+                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
+                                >
+                                  {log}
+                                </pre>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 space-y-1">
-                    {consoleLogs.map((log, i) => {
-                      let colorClass = "text-white/60";
-                      let bgClass = "";
+                </ResizablePanel>
 
-                      if (log.includes("[info]")) {
-                        colorClass = "text-blue-400";
-                      } else if (log.includes("[success]")) {
-                        colorClass = "text-green-400";
-                      } else if (
-                        log.includes("[error]") ||
-                        log.includes("Error") ||
-                        log.includes("error")
-                      ) {
-                        colorClass = "text-red-400";
-                        bgClass = "bg-red-500/10";
-                      } else if (
-                        log.includes("[warning]") ||
-                        log.includes("Warning")
-                      ) {
-                        colorClass = "text-yellow-400";
-                        bgClass = "bg-yellow-500/5";
-                      } else if (log.includes("Progress:")) {
-                        colorClass = "text-purple-400";
-                      } else if (
-                        log.includes("GET ") ||
-                        log.includes("POST ") ||
-                        log.includes("PUT ") ||
-                        log.includes("DELETE ")
-                      ) {
-                        if (log.includes(" 2")) {
-                          colorClass = "text-green-400/70";
-                        } else if (log.includes(" 4") || log.includes(" 5")) {
-                          colorClass = "text-red-400/70";
-                        } else {
-                          colorClass = "text-cyan-400/70";
-                        }
-                      } else if (
-                        log.includes("Next.js") ||
-                        log.includes("Turbopack")
-                      ) {
-                        colorClass = "text-white/80";
-                      }
+                {/* Resizable Handle */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-white/[0.04] hover:bg-[#FF5800]/30 transition-colors data-[resize-handle-active]:bg-[#FF5800]/50"
+                />
 
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
-                        >
-                          <span className="text-white/20 select-none w-5 text-right shrink-0">
-                            {i + 1}
-                          </span>
-                          <pre
-                            className={`whitespace-pre-wrap break-all ${colorClass}`}
-                          >
-                            {log}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                {/* Terminal Panel - Bottom */}
+                <ResizablePanel defaultSize={40} minSize={15}>
+                  <div className="h-full flex flex-col">
+                    {/* Terminal Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="h-3 w-3 text-[#FF5800]" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Terminal
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-white/20">
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                        </span>
+                      </div>
+                    </div>
+                    {/* Terminal Content */}
+                    <div className="flex-1 min-h-0">
+                      <WebTerminal
+                        sessionId={session?.id}
+                        sandboxUrl={session?.sandboxUrl}
+                        disabled={!session}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             )}
           </div>
         </div>
