@@ -30,6 +30,11 @@ import {
 import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
 import { SocialConnectionHint } from "@/components/promotion/social-connection-hint";
 import {
+  PlatformAutomationCard,
+  type Platform,
+} from "@/components/apps/platform-automation-card";
+import { AutomationEditSheet } from "@/components/apps/automation-edit-sheet";
+import {
   uploadPromotionalAsset,
   deletePromotionalAsset,
 } from "@/app/actions/apps";
@@ -95,6 +100,11 @@ export function AppPromote({ app }: AppPromoteProps) {
   const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
     null,
   );
+  // State for automation edit sheet
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editSheetPlatform, setEditSheetPlatform] = useState<Platform>("discord");
+  const [editSheetMode, setEditSheetMode] = useState<"create" | "edit">("edit");
+  const [automationRefreshKey, setAutomationRefreshKey] = useState(0);
   const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
     configured: false,
     connected: false,
@@ -111,7 +121,6 @@ export function AppPromote({ app }: AppPromoteProps) {
     });
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
-  const [isPostingTo, setIsPostingTo] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
   const [showPromptInput, setShowPromptInput] = useState(false);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
@@ -292,40 +301,22 @@ export function AppPromote({ app }: AppPromoteProps) {
     }
   };
 
-  const handlePostNow = async (
-    platform: "discord" | "telegram" | "twitter",
-  ) => {
-    if (isPostingTo) return;
-    setIsPostingTo(platform);
+  // Handlers for automation edit/setup
+  const handleEditAutomation = (platform: Platform) => {
+    setEditSheetPlatform(platform);
+    setEditSheetMode("edit");
+    setEditSheetOpen(true);
+  };
 
-    const endpoints: Record<string, string> = {
-      discord: `/api/v1/apps/${app.id}/discord-automation/post`,
-      telegram: `/api/v1/apps/${app.id}/telegram-automation/post`,
-      twitter: `/api/v1/apps/${app.id}/twitter/automation/post`,
-    };
+  const handleSetupAutomation = (platform: Platform) => {
+    setEditSheetPlatform(platform);
+    setEditSheetMode("create");
+    setEditSheetOpen(true);
+  };
 
-    try {
-      const response = await fetch(endpoints[platform], {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok && data.success) {
-        toast.success(
-          `Posted to ${platform.charAt(0).toUpperCase() + platform.slice(1)} successfully!`,
-        );
-        // Update local post count
-        setTotalSocialPosts((prev) => prev + 1);
-      } else {
-        toast.error(data.error || `Failed to post to ${platform}`);
-      }
-    } catch {
-      toast.error("Network error. Please try again.");
-    }
-
-    setIsPostingTo(null);
+  const handleAutomationSuccess = () => {
+    // Refresh the automation cards
+    setAutomationRefreshKey((prev) => prev + 1);
   };
 
   const handleAssetUpload = async (files: FileList | null) => {
@@ -490,154 +481,57 @@ export function AppPromote({ app }: AppPromoteProps) {
         </div>
       </BrandCard>
 
-      {/* Quick Actions - Post Now */}
-      {(automationStatus.discord.enabled ||
-        automationStatus.telegram.enabled ||
-        automationStatus.twitter.enabled) && (
-        <BrandCard className="p-6">
-          <CornerBrackets />
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Play className="h-5 w-5 text-[#FF5800]" />
-                Quick Actions
-              </h3>
-              <p className="text-white/60 text-sm">
-                Post an AI-generated announcement right now
-              </p>
-            </div>
+      {/* Platform Automations - Unified Cards */}
+      <BrandCard className="p-6">
+        <CornerBrackets />
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Bot className="h-5 w-5 text-[#FF5800]" />
+              Platform Automations
+            </h3>
+            <p className="text-white/60 text-sm">
+              Manage scheduled posts and automation for each platform
+            </p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {automationStatus.discord.enabled && (
-              <button
-                type="button"
-                onClick={() =>
-                  automationStatus.discord.ready && handlePostNow("discord")
-                }
-                disabled={
-                  isPostingTo !== null || !automationStatus.discord.ready
-                }
-                className="p-4 rounded-lg border border-[#5865F2]/30 bg-[#5865F2]/5 hover:bg-[#5865F2]/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-[#5865F2]/20">
-                    <Hash className="h-5 w-5 text-[#5865F2]" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">
-                      Post to Discord
-                    </div>
-                    <div className="text-white/60 text-xs">
-                      {automationStatus.discord.ready
-                        ? "Send announcement now"
-                        : "No channel configured"}
-                    </div>
-                  </div>
-                </div>
-                {isPostingTo === "discord" ? (
-                  <div className="flex items-center justify-center mt-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#5865F2]" />
-                    <span className="text-[#5865F2] text-sm ml-2">
-                      Posting...
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end mt-2">
-                    <Send className="h-4 w-4 text-[#5865F2]" />
-                  </div>
-                )}
-              </button>
-            )}
+        <div className="space-y-4">
+          <PlatformAutomationCard
+            platform="discord"
+            appId={app.id}
+            onEdit={handleEditAutomation}
+            onSetup={handleSetupAutomation}
+            refreshKey={automationRefreshKey}
+          />
+          <PlatformAutomationCard
+            platform="telegram"
+            appId={app.id}
+            onEdit={handleEditAutomation}
+            onSetup={handleSetupAutomation}
+            refreshKey={automationRefreshKey}
+          />
+          {TWITTER_ENABLED && (
+            <PlatformAutomationCard
+              platform="twitter"
+              appId={app.id}
+              onEdit={handleEditAutomation}
+              onSetup={handleSetupAutomation}
+              refreshKey={automationRefreshKey}
+            />
+          )}
+        </div>
+      </BrandCard>
 
-            {automationStatus.telegram.enabled && (
-              <button
-                type="button"
-                onClick={() =>
-                  automationStatus.telegram.ready && handlePostNow("telegram")
-                }
-                disabled={
-                  isPostingTo !== null || !automationStatus.telegram.ready
-                }
-                className="p-4 rounded-lg border border-[#0088cc]/30 bg-[#0088cc]/5 hover:bg-[#0088cc]/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-[#0088cc]/20">
-                    <Send className="h-5 w-5 text-[#0088cc]" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">
-                      Post to Telegram
-                    </div>
-                    <div className="text-white/60 text-xs">
-                      {!automationStatus.telegram.ready
-                        ? "No channel/group configured"
-                        : automationStatus.telegram.botUsername
-                          ? `@${automationStatus.telegram.botUsername}`
-                          : "Send announcement now"}
-                    </div>
-                  </div>
-                </div>
-                {isPostingTo === "telegram" ? (
-                  <div className="flex items-center justify-center mt-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#0088cc]" />
-                    <span className="text-[#0088cc] text-sm ml-2">
-                      Posting...
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end mt-2">
-                    <Send className="h-4 w-4 text-[#0088cc]" />
-                  </div>
-                )}
-              </button>
-            )}
-
-            {TWITTER_ENABLED && automationStatus.twitter.enabled && (
-              <button
-                type="button"
-                onClick={() =>
-                  automationStatus.twitter.ready && handlePostNow("twitter")
-                }
-                disabled={
-                  isPostingTo !== null || !automationStatus.twitter.ready
-                }
-                className="p-4 rounded-lg border border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-lg bg-sky-500/20">
-                    <Twitter className="h-5 w-5 text-sky-500" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">
-                      Post to Twitter/X
-                    </div>
-                    <div className="text-white/60 text-xs">
-                      {!automationStatus.twitter.ready
-                        ? "Auto-post not enabled"
-                        : twitterStatus.username
-                          ? `@${twitterStatus.username}`
-                          : "Send tweet now"}
-                    </div>
-                  </div>
-                </div>
-                {isPostingTo === "twitter" ? (
-                  <div className="flex items-center justify-center mt-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
-                    <span className="text-sky-500 text-sm ml-2">
-                      Posting...
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end mt-2">
-                    <Send className="h-4 w-4 text-sky-500" />
-                  </div>
-                )}
-              </button>
-            )}
-          </div>
-        </BrandCard>
-      )}
+      {/* Automation Edit Sheet */}
+      <AutomationEditSheet
+        open={editSheetOpen}
+        onOpenChange={setEditSheetOpen}
+        platform={editSheetPlatform}
+        appId={app.id}
+        mode={editSheetMode}
+        onSuccess={handleAutomationSuccess}
+      />
 
       {/* Promotional Assets */}
       <BrandCard className="p-6">
