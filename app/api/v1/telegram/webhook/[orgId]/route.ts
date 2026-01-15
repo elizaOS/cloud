@@ -46,6 +46,13 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
+  // Also track chats from regular messages/posts (helps discover groups)
+  if ("message" in update && update.message) {
+    await trackChatFromMessage(orgId, update.message.chat, botToken);
+  } else if ("channel_post" in update && update.channel_post) {
+    await trackChatFromMessage(orgId, update.channel_post.chat, botToken);
+  }
+
   const bot = new Telegraf(botToken);
   const activeApps =
     await telegramAppAutomationService.getAppsWithActiveAutomation(orgId);
@@ -63,6 +70,69 @@ export async function POST(
   }
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Track a chat from a regular message/post.
+ * This helps discover groups the bot is already in.
+ */
+async function trackChatFromMessage(
+  orgId: string,
+  chat: { id: number; type: string; title?: string; username?: string },
+  botToken: string,
+): Promise<void> {
+  // Only track groups, supergroups, and channels
+  if (
+    chat.type !== "channel" &&
+    chat.type !== "group" &&
+    chat.type !== "supergroup"
+  ) {
+    return;
+  }
+
+  // Check if already tracked
+  const existing = await telegramChatsRepository.findByChatId(orgId, chat.id);
+  if (existing) {
+    return;
+  }
+
+  // Get bot's membership status to determine permissions
+  try {
+    const bot = new Telegraf(botToken);
+    const botInfo = await bot.telegram.getMe();
+    const member = await bot.telegram.getChatMember(chat.id, botInfo.id);
+
+    const isAdmin =
+      member.status === "administrator" || member.status === "creator";
+    const canPost =
+      isAdmin || (member.status === "member" && chat.type !== "channel");
+
+    await telegramChatsRepository.upsert({
+      organization_id: orgId,
+      chat_id: chat.id,
+      chat_type: chat.type,
+      title: chat.title || `Chat ${chat.id}`,
+      username: chat.username,
+      is_admin: isAdmin,
+      can_post_messages: canPost,
+    });
+
+    logger.info("[Telegram Webhook] Discovered chat from message", {
+      orgId,
+      chatId: chat.id,
+      chatTitle: chat.title,
+      chatType: chat.type,
+      isAdmin,
+      canPost,
+    });
+  } catch (error) {
+    // Silently fail - chat might be private or bot might not have access
+    logger.debug("[Telegram Webhook] Could not track chat", {
+      orgId,
+      chatId: chat.id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 }
 
 async function handleChatMemberUpdate(
