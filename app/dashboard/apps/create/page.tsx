@@ -2121,6 +2121,7 @@ Some ideas:
     // - No active session
     // - Not currently loading/restoring
     // - Haven't already triggered auto-start
+    // - Initialization is complete (prevents race condition on page refresh)
     if (
       isEditMode &&
       appData &&
@@ -2128,6 +2129,7 @@ Some ideas:
       status === "idle" &&
       !isLoading &&
       !isRestoring &&
+      !isInitializing &&
       !autoStartTriggeredRef.current
     ) {
       autoStartTriggeredRef.current = true;
@@ -2141,11 +2143,11 @@ Some ideas:
   }, [
     isEditMode,
     appData,
-    
     session,
     status,
     isLoading,
     isRestoring,
+    isInitializing,
     startSession,
   ]);
 
