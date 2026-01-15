@@ -45,8 +45,7 @@ interface DiscoveredService {
   mcpTools?: string[];
   a2aSkills?: string[];
   x402Support: boolean;
-  organizationId?: string;
-  creatorId?: string;
+  // organizationId and creatorId intentionally removed for privacy
   verified?: boolean;
   slug?: string;
 }
@@ -271,6 +270,7 @@ async function fetchLocalAgents(
       category: char.category ?? undefined,
       tags: char.tags ?? [],
       active: true,
+      // Endpoints are publicly discoverable but still require API key authentication when called
       a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
       mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
       mcpTools: [],
@@ -314,6 +314,7 @@ async function fetchLocalMcps(
       category: mcp.category,
       tags: mcp.tags ?? [],
       active: mcp.status === "live",
+      // Endpoint is publicly discoverable but still requires API key authentication when called
       mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
       mcpTools: mcp.tools.map((t) => t.name),
       a2aSkills: [],
