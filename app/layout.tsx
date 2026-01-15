@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
+import { PostHogProvider } from "@/lib/providers/PostHogProvider";
 import localFont from "next/font/local";
 import { DM_Mono, Inter } from "next/font/google";
 
@@ -152,32 +153,34 @@ export default function RootLayout({
         className={`${sfPro.variable} ${dmMono.variable} ${inter.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
       >
         <PrivyProvider>
-          <CreditsProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <NextTopLoader showSpinner={false} color="#FF5800" />
-              {children}
-              <Toaster
-                richColors
-                theme="dark"
-                position="top-right"
-                toastOptions={{
-                  style: {
-                    background: "rgba(0, 0, 0, 0.8)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "white",
-                    backdropFilter: "blur(12px)",
-                    borderRadius: "0px",
-                  },
-                  className: "font-sf-pro",
-                }}
-              />
-            </ThemeProvider>
-          </CreditsProvider>
+          <PostHogProvider>
+            <CreditsProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <NextTopLoader showSpinner={false} color="#FF5800" />
+                {children}
+                <Toaster
+                  richColors
+                  theme="dark"
+                  position="top-right"
+                  toastOptions={{
+                    style: {
+                      background: "rgba(0, 0, 0, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "white",
+                      backdropFilter: "blur(12px)",
+                      borderRadius: "0px",
+                    },
+                    className: "font-sf-pro",
+                  }}
+                />
+              </ThemeProvider>
+            </CreditsProvider>
+          </PostHogProvider>
         </PrivyProvider>
         <Analytics />
       </body>

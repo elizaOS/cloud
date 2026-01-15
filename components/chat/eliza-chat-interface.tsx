@@ -1368,9 +1368,7 @@ export function ElizaChatInterface({
               animate={true}
             />
             <div className="space-y-2">
-              <p className="text-base font-semibold">
-                Loading conversation...
-              </p>
+              <p className="text-base font-semibold">Loading conversation...</p>
             </div>
             {/* Message Skeletons */}
             <div className="w-full max-w-2xl space-y-4 mt-8">

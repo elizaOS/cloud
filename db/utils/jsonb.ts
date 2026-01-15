@@ -21,4 +21,3 @@ export function jsonbParam(value: unknown): SQL {
   const json = safeJsonStringify(value ?? {});
   return sql`${json}::jsonb`;
 }
-

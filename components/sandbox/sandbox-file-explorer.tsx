@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Editor, { Monaco } from "@monaco-editor/react";
 import type * as monacoEditor from "monaco-editor";
 import {
@@ -29,6 +29,77 @@ interface FileTreeNode {
 interface SandboxFileExplorerProps {
   sessionId: string;
   className?: string;
+}
+
+// ============================================================================
+// File Cache - Global cache for file contents and tree across component mounts
+// ============================================================================
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+interface FileCache {
+  trees: Map<string, CacheEntry<FileTreeNode[]>>;
+  files: Map<string, CacheEntry<string>>;
+}
+
+// Global cache persists across component remounts within the same session
+const globalFileCache: FileCache = {
+  trees: new Map(),
+  files: new Map(),
+};
+
+// Cache TTL: 5 minutes for file tree, 10 minutes for file content
+const TREE_CACHE_TTL_MS = 5 * 60 * 1000;
+const FILE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function getCacheKey(sessionId: string, path?: string): string {
+  return path ? `${sessionId}:${path}` : sessionId;
+}
+
+function isValidCache<T>(entry: CacheEntry<T> | undefined, ttlMs: number): entry is CacheEntry<T> {
+  if (!entry) return false;
+  return Date.now() - entry.timestamp < ttlMs;
+}
+
+function getTreeFromCache(sessionId: string): FileTreeNode[] | null {
+  const key = getCacheKey(sessionId);
+  const entry = globalFileCache.trees.get(key);
+  if (isValidCache(entry, TREE_CACHE_TTL_MS)) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setTreeInCache(sessionId: string, tree: FileTreeNode[]): void {
+  const key = getCacheKey(sessionId);
+  globalFileCache.trees.set(key, { data: tree, timestamp: Date.now() });
+}
+
+function getFileFromCache(sessionId: string, path: string): string | null {
+  const key = getCacheKey(sessionId, path);
+  const entry = globalFileCache.files.get(key);
+  if (isValidCache(entry, FILE_CACHE_TTL_MS)) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setFileInCache(sessionId: string, path: string, content: string): void {
+  const key = getCacheKey(sessionId, path);
+  globalFileCache.files.set(key, { data: content, timestamp: Date.now() });
+}
+
+function invalidateFileInCache(sessionId: string, path: string): void {
+  const key = getCacheKey(sessionId, path);
+  globalFileCache.files.delete(key);
+}
+
+function invalidateTreeCache(sessionId: string): void {
+  const key = getCacheKey(sessionId);
+  globalFileCache.trees.delete(key);
 }
 
 // File extension to language mapping
@@ -104,8 +175,25 @@ export function SandboxFileExplorer({
     null,
   );
 
-  // Fetch file tree
-  const fetchFileTree = useCallback(async () => {
+  // Fetch file tree with caching
+  const fetchFileTree = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless forced refresh)
+    if (!forceRefresh) {
+      const cachedTree = getTreeFromCache(sessionId);
+      if (cachedTree) {
+        setTree(cachedTree);
+        setLoading(false);
+        // Auto-expand src directory for cached data too
+        setExpandedDirs((prev) => {
+          const next = new Set(prev);
+          next.add("./src");
+          next.add("./src/app");
+          return next;
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const res = await fetch(
@@ -114,7 +202,10 @@ export function SandboxFileExplorer({
       );
       const data = await res.json();
       if (data.success) {
-        setTree(data.tree || []);
+        const treeData = data.tree || [];
+        setTree(treeData);
+        // Cache the tree data
+        setTreeInCache(sessionId, treeData);
         // Auto-expand src directory
         setExpandedDirs((prev) => {
           const next = new Set(prev);
@@ -135,9 +226,9 @@ export function SandboxFileExplorer({
     fetchFileTree();
   }, [fetchFileTree]);
 
-  // Open a file
+  // Open a file with caching
   const openFile = async (path: string) => {
-    // Check if already open
+    // Check if already open in editor tabs
     const existing = openFiles.find((f) => f.path === path);
     if (existing) {
       setActiveFile(path);
@@ -146,6 +237,22 @@ export function SandboxFileExplorer({
 
     setLoadingFile(path);
     try {
+      // Check cache first
+      const cachedContent = getFileFromCache(sessionId, path);
+      if (cachedContent !== null) {
+        const newFile: OpenFile = {
+          path,
+          content: cachedContent,
+          originalContent: cachedContent,
+          language: getLanguageFromPath(path),
+        };
+        setOpenFiles((prev) => [...prev, newFile]);
+        setActiveFile(path);
+        setLoadingFile(null);
+        return;
+      }
+
+      // Fetch from API (uses native sandbox.readFile internally)
       const res = await fetch(
         `/api/v1/app-builder/sessions/${sessionId}/files`,
         {
@@ -157,6 +264,9 @@ export function SandboxFileExplorer({
       );
       const data = await res.json();
       if (data.success) {
+        // Cache the file content
+        setFileInCache(sessionId, path, data.content);
+        
         const newFile: OpenFile = {
           path,
           content: data.content,
@@ -194,7 +304,7 @@ export function SandboxFileExplorer({
     }
   };
 
-  // Save file
+  // Save file (uses native sandbox.writeFiles internally)
   const saveFile = async (path: string) => {
     const file = openFiles.find((f) => f.path === path);
     if (!file) return;
@@ -216,6 +326,9 @@ export function SandboxFileExplorer({
       );
       const data = await res.json();
       if (data.success) {
+        // Update cache with new content
+        setFileInCache(sessionId, path, file.content);
+        
         setOpenFiles((prev) =>
           prev.map((f) =>
             f.path === path ? { ...f, originalContent: f.content } : f,
@@ -380,9 +493,13 @@ export function SandboxFileExplorer({
             variant="ghost"
             size="icon"
             className="h-5 w-5"
-            onClick={fetchFileTree}
+            onClick={() => {
+              // Invalidate cache and force refresh
+              invalidateTreeCache(sessionId);
+              fetchFileTree(true);
+            }}
             disabled={loading}
-            title="Refresh files"
+            title="Refresh files (clears cache)"
           >
             <RefreshCw
               className={cn("h-3 w-3 text-white/50", loading && "animate-spin")}

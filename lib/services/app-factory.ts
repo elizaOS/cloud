@@ -1,8 +1,9 @@
 import { logger } from "@/lib/utils/logger";
-import { appsService } from "./apps";
+import { appsService, AppNameConflictError } from "./apps";
 import { githubReposService } from "./github-repos";
 import { vercelDeploymentsService } from "./vercel-deployments";
 import { discordService } from "./discord";
+import { usersService } from "./users";
 import type { App } from "@/db/repositories/apps";
 
 /**
@@ -86,6 +87,28 @@ export class AppFactoryService {
       createGitHubRepo,
       assignSubdomain,
     });
+
+    // Step 0: Validate name availability before creating anything
+    const nameCheck = await appsService.isNameAvailable(data.name);
+    if (!nameCheck.available) {
+      const errorMessage =
+        nameCheck.conflictType === "subdomain"
+          ? `The name "${data.name}" would create a subdomain that is already in use. Please choose a different name.`
+          : `An app with the name "${data.name}" already exists. Please choose a different name.`;
+
+      logger.warn("AppFactory: Name conflict detected", {
+        name: data.name,
+        slug: nameCheck.slug,
+        conflictType: nameCheck.conflictType,
+        suggestedName: nameCheck.suggestedName,
+      });
+
+      throw new AppNameConflictError(
+        errorMessage,
+        nameCheck.conflictType!,
+        nameCheck.suggestedName,
+      );
+    }
 
     // Step 1: Create the app record
     const { app, apiKey } = await appsService.create(data);
@@ -216,25 +239,48 @@ export class AppFactoryService {
       });
     }
 
-    // Send Discord notification for app creation (non-blocking)
-    discordService
-      .logAppCreated({
-        appId: app.id,
-        appName: app.name,
-        slug: app.slug,
-        userId: data.created_by_user_id,
-        organizationId: data.organization_id,
-        appUrl: productionUrl || data.app_url,
-        description: data.description,
-        githubRepo,
-        subdomain,
-      })
-      .catch((err) => {
-        logger.warn("AppFactory: Failed to send Discord notification", {
-          appId: app.id,
-          error: err instanceof Error ? err.message : "Unknown error",
+    // Only send Discord notification if app has a real production URL (not draft/placeholder)
+    // This prevents alerts for undeployed apps with placeholder URLs
+    const finalAppUrl = productionUrl || data.app_url;
+    const isPlaceholderUrl =
+      !finalAppUrl ||
+      finalAppUrl.includes("placeholder.local") ||
+      finalAppUrl === "https://placeholder.local";
+
+    if (!isPlaceholderUrl && productionUrl) {
+      // Fetch user info to get their name (non-blocking)
+      usersService
+        .getById(data.created_by_user_id)
+        .then((user) => {
+          const userName = user?.name || user?.nickname || user?.email || null;
+          return discordService.logAppCreated({
+            appId: app.id,
+            appName: app.name,
+            slug: app.slug,
+            userName,
+            userId: data.created_by_user_id,
+            organizationId: data.organization_id,
+            appUrl: productionUrl,
+            description: data.description,
+            githubRepo,
+            subdomain,
+          });
+        })
+        .catch((err) => {
+          logger.warn("AppFactory: Failed to send Discord notification", {
+            appId: app.id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
         });
-      });
+    } else {
+      logger.info(
+        "AppFactory: Skipping Discord notification for draft app (no production URL)",
+        {
+          appId: app.id,
+          appUrl: finalAppUrl,
+        },
+      );
+    }
 
     return {
       app,

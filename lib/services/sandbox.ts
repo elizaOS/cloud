@@ -18,6 +18,8 @@ import {
   type SandboxSessionData,
   readFileViaSh,
   writeFileViaSh,
+  writeFilesViaSh,
+  mkDirViaSh,
   installDependencies,
   waitForDevServer,
 } from "./sandbox/index";
@@ -432,43 +434,28 @@ export class SandboxService {
         });
         onProgress?.({ step: "installing", message: "Setting up SDK..." });
 
-        await sandbox.runCommand({
-          cmd: "mkdir",
-          args: ["-p", libPath, hooksPath, componentsPath],
-        });
+        // Create directories using native SDK method
+        await Promise.all([
+          mkDirViaSh(sandbox, libPath),
+          mkDirViaSh(sandbox, hooksPath),
+          mkDirViaSh(sandbox, componentsPath),
+        ]);
 
-        const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString(
-          "base64",
-        );
-        await sandbox.runCommand({
-          cmd: "sh",
-          args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
-        });
+        // Batch write all SDK files at once using native SDK method
+        const { written, failed } = await writeFilesViaSh(sandbox, [
+          { path: `${libPath}/eliza.ts`, content: ELIZA_SDK_FILE },
+          { path: `${hooksPath}/use-eliza.ts`, content: ELIZA_HOOK_FILE },
+          {
+            path: `${componentsPath}/eliza-analytics.tsx`,
+            content: ELIZA_ANALYTICS_COMPONENT,
+          },
+        ]);
 
-        const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString(
-          "base64",
-        );
-        await sandbox.runCommand({
-          cmd: "sh",
-          args: [
-            "-c",
-            `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
-          ],
-        });
+        if (failed.length > 0) {
+          logger.warn("Some SDK files failed to write", { sandboxId, failed });
+        }
 
-        const analyticsBase64 = Buffer.from(
-          ELIZA_ANALYTICS_COMPONENT,
-          "utf-8",
-        ).toString("base64");
-        await sandbox.runCommand({
-          cmd: "sh",
-          args: [
-            "-c",
-            `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
-          ],
-        });
-
-        logger.info("SDK files injected", { sandboxId });
+        logger.info("SDK files injected", { sandboxId, written });
 
         const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
         const layoutContent = await readFileViaSh(sandbox, layoutPath);
@@ -542,11 +529,30 @@ export class SandboxService {
       const envContent = Object.entries(mergedEnv)
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
-      const envBase64 = Buffer.from(envContent, "utf-8").toString("base64");
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: ["-c", `echo '${envBase64}' | base64 -d > .env.local`],
-      });
+
+      // Use native SDK method for writing env file
+      // Note: .env.local is a special file that bypasses normal path validation
+      try {
+        if (typeof sandbox.writeFiles === "function") {
+          await sandbox.writeFiles([
+            { path: ".env.local", content: Buffer.from(envContent, "utf-8") },
+          ]);
+        } else {
+          // Fallback to shell command
+          const envBase64 = Buffer.from(envContent, "utf-8").toString("base64");
+          await sandbox.runCommand({
+            cmd: "sh",
+            args: ["-c", `echo '${envBase64}' | base64 -d > .env.local`],
+          });
+        }
+      } catch {
+        // Fallback to shell command if native method fails
+        const envBase64 = Buffer.from(envContent, "utf-8").toString("base64");
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: ["-c", `echo '${envBase64}' | base64 -d > .env.local`],
+        });
+      }
     }
 
     // Start dev server

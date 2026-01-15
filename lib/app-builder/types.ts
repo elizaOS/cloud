@@ -35,9 +35,18 @@ export type ProgressStep =
 
 export type SourceType = "agent" | "workflow" | "service" | "standalone";
 
+export interface MessageOperation {
+  tool: string;
+  detail: string;
+  timestamp: string; // When the operation was performed
+  reasoning?: string; // Reasoning that led to this operation (for accordion)
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  reasoning?: string; // Overall reasoning (deprecated - use operations.reasoning)
+  operations?: MessageOperation[]; // Per-operation data with reasoning for accordions
   filesAffected?: string[];
   timestamp: string;
   _thinkingId?: number;
@@ -115,12 +124,7 @@ export interface RestoreProgress {
   filePath: string;
 }
 
-export type PreviewTab =
-  | "preview"
-  | "console"
-  | "files"
-  | "history"
-  | "agents";
+export type PreviewTab = "preview" | "console" | "files" | "history" | "agents";
 
 export interface SourceContextInfo {
   icon: LucideIcon;
@@ -148,10 +152,22 @@ export interface AppBuilderModel {
  */
 export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    description: "Fast and capable for most coding tasks",
+    provider: "Anthropic",
+  },
+  {
     id: "anthropic/claude-sonnet-4.5",
     name: "Claude Sonnet 4.5",
     description: "Best for complex coding tasks with excellent reasoning",
     provider: "Anthropic",
+  },
+  {
+    id: "openai/gpt-5.2-codex",
+    name: "GPT-5.2 Codex",
+    description: "OpenAI's most capable coding model",
+    provider: "OpenAI",
   },
   {
     id: "openai/gpt-5.2",
@@ -160,10 +176,16 @@ export const APP_BUILDER_MODELS: AppBuilderModel[] = [
     provider: "OpenAI",
   },
   {
-    id: "anthropic/claude-haiku-4.5",
-    name: "Claude Haiku 4.5",
-    description: "Fast and capable for most coding tasks",
-    provider: "Anthropic",
+    id: "xai/grok-code-fast-1",
+    name: "Grok Code Fast",
+    description: "xAI's fast coding model",
+    provider: "xAI",
+  },
+  {
+    id: "deepseek/deepseek-v3.2",
+    name: "DeepSeek V3.2",
+    description: "DeepSeek's advanced reasoning model",
+    provider: "DeepSeek",
   },
   {
     id: "google/gemini-3-flash",
@@ -173,4 +195,4 @@ export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   },
 ];
 
-export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-sonnet-4.5";
+export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-haiku-4.5";

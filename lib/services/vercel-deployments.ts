@@ -124,13 +124,27 @@ function generateProjectName(appSlug: string, appId: string): string {
 }
 
 /**
- * Check if a subdomain is available
+ * Check if a subdomain is available in the local database
  */
-async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
+async function isSubdomainAvailableInDb(subdomain: string): Promise<boolean> {
   const existing = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.subdomain, subdomain),
   });
   return !existing;
+}
+
+/**
+ * Check if a subdomain is available
+ * 
+ * We only check the local database because:
+ * 1. We own the parent domain (apps.elizacloud.ai) - subdomains are managed internally
+ * 2. Vercel's /v6/domains/ API checks domain registration, not project assignments
+ * 3. Subdomain assignment to Vercel projects happens later via addDomainToProject
+ * 4. The database is the source of truth for our subdomain allocations
+ */
+async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
+  // Only check local database - that's our source of truth for subdomain assignments
+  return await isSubdomainAvailableInDb(subdomain);
 }
 
 /**

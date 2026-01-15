@@ -43,7 +43,7 @@ async function setupTestEnvironment(): Promise<void> {
   const connected = await verifyConnection();
   if (!connected) {
     throw new Error(
-      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
     );
   }
   connectionString = getConnectionString();
@@ -77,7 +77,9 @@ async function cleanupTestEnvironment(): Promise<void> {
     await testRuntimeResult.cleanup();
   }
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      () => {},
+    );
   }
   logTimings("MCP Loading Tests", timings);
   console.log("✅ Cleanup complete\n");
@@ -144,7 +146,10 @@ describe("MCP Plugin Loading - Production Flow", () => {
   it("should create test user with ElizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "MCPTestUser");
+    testUserContext = await createTestUser(
+      testRuntimeResult.runtime,
+      "MCPTestUser",
+    );
 
     timings.userCreation = endTimer("user_creation");
 
@@ -168,7 +173,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.messageProcessing = endTimer("message_processing");

@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,7 +29,18 @@ const SocialPlatformSchema = z.enum([
 ]);
 
 const PromotionConfigSchema = z.object({
-  channels: z.array(z.enum(["social", "seo", "advertising"])).min(1),
+  channels: z
+    .array(
+      z.enum([
+        "social",
+        "seo",
+        "advertising",
+        "twitter_automation",
+        "telegram_automation",
+        "discord_automation",
+      ]),
+    )
+    .min(1),
   social: z
     .object({
       platforms: z.array(SocialPlatformSchema).min(1),
@@ -59,6 +71,47 @@ const PromotionConfigSchema = z.object({
       targetLocations: z.array(z.string().length(2)).max(50).optional(),
     })
     .optional(),
+  twitterAutomation: z
+    .object({
+      enabled: z.boolean(),
+      autoPost: z.boolean(),
+      autoReply: z.boolean(),
+      autoEngage: z.boolean(),
+      discovery: z.boolean(),
+      postIntervalMin: z.number().int().min(30).max(1440).default(90),
+      postIntervalMax: z.number().int().min(60).max(1440).default(150),
+      vibeStyle: z.string().max(100).optional(),
+      topics: z.array(z.string().max(50)).max(10).optional(),
+      agentCharacterId: z.string().uuid().optional(),
+    })
+    .optional(),
+  telegramAutomation: z
+    .object({
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional(),
+      channelId: z.string().optional(),
+      groupId: z.string().optional(),
+      autoAnnounce: z.boolean().optional(),
+      autoReply: z.boolean().optional(),
+      announceIntervalMin: z.number().int().min(30).max(1440).default(60),
+      announceIntervalMax: z.number().int().min(60).max(1440).default(120),
+      vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
+    })
+    .optional(),
+  discordAutomation: z
+    .object({
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional().default(true),
+      guildId: z.string().optional(),
+      channelId: z.string().optional(),
+      autoAnnounce: z.boolean().optional().default(true),
+      announceIntervalMin: z.number().int().min(30).max(1440).default(60),
+      announceIntervalMax: z.number().int().min(60).max(1440).default(120),
+      vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
+    })
+    .optional(),
 });
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -70,14 +123,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   if (isHistory) {
     const history = await appPromotionService.getPromotionHistory(
-      user.organization_id!,
+      user.organization_id,
       id,
     );
     return NextResponse.json(history);
   }
 
   const suggestions = await appPromotionService.getPromotionSuggestions(
-    user.organization_id!,
+    user.organization_id,
     id,
   );
 
@@ -92,6 +145,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const parsed = PromotionConfigSchema.safeParse(body);
 
   if (!parsed.success) {
+    logger.warn("[Promote API] Validation failed", {
+      appId: id,
+      errors: parsed.error.flatten(),
+      receivedChannels: body.channels,
+    });
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 },
@@ -118,6 +176,45 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
+  if (
+    config.channels.includes("twitter_automation") &&
+    !config.twitterAutomation
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Twitter automation config required when twitter_automation channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    config.channels.includes("telegram_automation") &&
+    !config.telegramAutomation
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Telegram automation config required when telegram_automation channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    config.channels.includes("discord_automation") &&
+    !config.discordAutomation
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Discord automation config required when discord_automation channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
   logger.info("[Promote API] Starting promotion", {
     appId: id,
     channels: config.channels,
@@ -125,7 +222,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   });
 
   const result = await appPromotionService.promoteApp(
-    user.organization_id!,
+    user.organization_id,
     user.id,
     id,
     config,

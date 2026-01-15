@@ -3,7 +3,7 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { memoriesRepository } from "@/db/repositories";
+import { memoriesRepository, entitiesRepository } from "@/db/repositories";
 import { v4 as uuidv4 } from "uuid";
 
 // Default agent ID for Eliza builder
@@ -19,7 +19,7 @@ const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   const { roomId } = await ctx.params;
   const body = await request.json();
@@ -40,7 +40,7 @@ export async function POST(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
     userId = anonData.user.id;
@@ -51,6 +51,13 @@ export async function POST(
   if (!hasAccess) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
+
+  // Ensure the default agent entity exists before creating memory
+  await entitiesRepository.create({
+    id: DEFAULT_AGENT_ID,
+    agentId: DEFAULT_AGENT_ID,
+    names: ["Eliza"],
+  });
 
   // Store welcome message directly in memoryTable
   const messageId = uuidv4();
@@ -68,7 +75,7 @@ export async function POST(
   });
 
   logger.info(
-    `[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`,
+    `[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`
   );
 
   return NextResponse.json({
@@ -84,7 +91,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   const { roomId } = await ctx.params;
 
@@ -99,7 +106,7 @@ export async function DELETE(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
     userId = anonData.user.id;

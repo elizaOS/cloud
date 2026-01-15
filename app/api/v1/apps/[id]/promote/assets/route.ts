@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import {
@@ -9,8 +10,14 @@ import {
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import {
+  PROMO_IMAGE_COST,
+  AD_COPY_GENERATION_COST,
+  estimateAssetGenerationCost,
+} from "@/lib/promotion-pricing";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Asset generation with AI can take 30-60 seconds
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,10 +30,8 @@ const GenerateAssetsSchema = z.object({
   includeCopy: z.boolean().optional(),
   includeAdBanners: z.boolean().optional(),
   targetAudience: z.string().max(500).optional(),
+  customPrompt: z.string().max(1000).optional(),
 });
-
-const ASSET_GENERATION_COST = 0.05;
-const COPY_GENERATION_COST = 0.02;
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -47,16 +52,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Calculate cost
-  const imageCount = parsed.data.includeCopy !== false ? 3 : 0; // Default social cards
-  const bannerCount = parsed.data.includeAdBanners ? 3 : 0;
-  const totalImageCost = (imageCount + bannerCount) * ASSET_GENERATION_COST;
-  const copyCost = parsed.data.includeCopy !== false ? COPY_GENERATION_COST : 0;
+  // Calculate cost - 1 social card always generated + 1 banner (if requested)
+  const imageCount = 1; // Social cards always generated (includeSocialCards: true)
+  const bannerCount = parsed.data.includeAdBanners ? 1 : 0;
+  const totalImageCost = (imageCount + bannerCount) * PROMO_IMAGE_COST;
+  const copyCost =
+    parsed.data.includeCopy !== false ? AD_COPY_GENERATION_COST : 0;
   const totalCost = totalImageCost + copyCost;
 
-  // Deduct credits
   const deduction = await creditsService.deductCredits({
-    organizationId: user.organization_id!,
+    organizationId: user.organization_id,
     amount: totalCost,
     description: `Generate promotional assets for ${app.name}`,
     metadata: { appId: id, imageCount: imageCount + bannerCount },
@@ -75,38 +80,76 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     includeCopy: parsed.data.includeCopy !== false,
   });
 
-  // Generate assets
-  const result = await appPromotionAssetsService.generateAssetBundle(app, {
-    includeSocialCards: true,
-    includeAdBanners: parsed.data.includeAdBanners,
-    includeCopy: parsed.data.includeCopy,
-    targetAudience: parsed.data.targetAudience,
-  });
-
-  // Refund for failed generations
-  const successfulImages = result.assets.length;
-  const failedImages = imageCount + bannerCount - successfulImages;
-  if (failedImages > 0) {
-    await creditsService.refundCredits({
-      organizationId: user.organization_id!,
-      amount: failedImages * ASSET_GENERATION_COST,
-      description: `Refund for failed asset generations`,
-      metadata: { appId: id, failedCount: failedImages },
+  try {
+    const result = await appPromotionAssetsService.generateAssetBundle(app, {
+      includeSocialCards: true,
+      includeAdBanners: parsed.data.includeAdBanners,
+      includeCopy: parsed.data.includeCopy,
+      targetAudience: parsed.data.targetAudience,
+      customPrompt: parsed.data.customPrompt,
     });
-  }
 
-  return NextResponse.json({
-    assets: result.assets.map((asset) => ({
-      type: asset.type,
-      size: asset.size,
-      url: asset.url,
-      format: asset.format,
-      generatedAt: asset.generatedAt.toISOString(),
-    })),
-    copy: result.copy,
-    errors: result.errors,
-    creditsUsed: totalCost - failedImages * ASSET_GENERATION_COST,
-  });
+    // Refund for failed generations
+    const successfulImages = result.assets.length;
+    const failedImages = imageCount + bannerCount - successfulImages;
+    if (failedImages > 0) {
+      await creditsService.refundCredits({
+        organizationId: user.organization_id,
+        amount: failedImages * PROMO_IMAGE_COST,
+        description: "Refund for failed asset generations",
+        metadata: { appId: id, failedCount: failedImages },
+      });
+    }
+
+    if (successfulImages > 0) {
+      const promotionalAssets = result.assets.map((asset) => ({
+        type: asset.type as "social_card" | "banner",
+        url: asset.url,
+        size: { width: asset.size.width, height: asset.size.height },
+        generatedAt: asset.generatedAt.toISOString(),
+      }));
+
+      await appsService.update(id, {
+        promotional_assets: promotionalAssets,
+      });
+
+      logger.info("[Promote Assets API] Saved promotional assets to app", {
+        appId: id,
+        assetCount: promotionalAssets.length,
+      });
+    }
+
+    return NextResponse.json({
+      assets: result.assets.map((asset) => ({
+        type: asset.type,
+        size: asset.size,
+        url: asset.url,
+        format: asset.format,
+        generatedAt: asset.generatedAt.toISOString(),
+      })),
+      copy: result.copy,
+      errors: result.errors,
+      creditsUsed: totalCost - failedImages * PROMO_IMAGE_COST,
+    });
+  } catch (error) {
+    // Full refund on complete failure
+    await creditsService.refundCredits({
+      organizationId: user.organization_id,
+      amount: totalCost,
+      description: "Refund for failed asset generation",
+      metadata: { appId: id, reason: "generation_error" },
+    });
+
+    logger.error("[Promote Assets API] Generation failed", {
+      appId: id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    return NextResponse.json(
+      { error: "Failed to generate assets. Credits have been refunded." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -130,6 +173,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     ? appPromotionAssetsService.getRecommendedSizes(platform)
     : Object.keys(AD_SIZES);
 
+  const costEstimate = estimateAssetGenerationCost({
+    imageCount: 1,
+    includeCopy: true,
+    includeBanner: true,
+  });
+
   return NextResponse.json({
     recommendedSizes,
     availableSizes: Object.entries(AD_SIZES).map(([name, dimensions]) => ({
@@ -137,9 +186,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ...dimensions,
     })),
     estimatedCost: {
-      perImage: ASSET_GENERATION_COST,
-      copyGeneration: COPY_GENERATION_COST,
-      fullBundle: ASSET_GENERATION_COST * 6 + COPY_GENERATION_COST, // 6 images + copy
+      perImage: PROMO_IMAGE_COST,
+      copyGeneration: AD_COPY_GENERATION_COST,
+      fullBundle: costEstimate.total,
+      display: costEstimate.display,
     },
   });
 }

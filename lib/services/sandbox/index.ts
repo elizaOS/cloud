@@ -14,6 +14,8 @@
 export type {
   RunCommandOptions,
   CommandResult,
+  CommandFinished,
+  SandboxFile,
   SandboxInstance,
   SandboxProgress,
   SandboxConfig,
@@ -30,17 +32,44 @@ export {
   isPathAllowed,
 } from "./security";
 
-// File operations
-export { readFileViaSh, writeFileViaSh, listFilesViaSh } from "./file-ops";
+// File operations (using native SDK methods with shell fallback)
+export {
+  readFileViaSh,
+  writeFileViaSh,
+  writeFilesViaSh,
+  mkDirViaSh,
+  listFilesViaSh,
+} from "./file-ops";
 
 // Package manager
 export { installPackages, installDependencies } from "./package-manager";
 
-// Build tools
-export { checkBuild, waitForDevServer } from "./build-tools";
+// Build tools (with native SDK streaming support)
+export {
+  checkBuild,
+  waitForDevServer,
+  streamBuildOutput,
+  runProductionBuild,
+  getCommandOutputStreaming,
+} from "./build-tools";
 
 // Tool schemas
 export { toolSchemas, type ToolName } from "./tool-schemas";
 
 // Tool executor
 export { executeToolCall, type ToolExecutionResult } from "./tool-executor";
+
+// Sandbox management (admin utilities)
+export {
+  listSandboxes,
+  getSandbox,
+  cleanupStaleSandboxes,
+  streamCommandLogs,
+  collectCommandOutput,
+  getSandboxStats,
+  type SandboxSummary,
+  type SandboxPagination,
+  type ListSandboxesResult,
+  type ListSandboxesOptions,
+  type GetSandboxOptions,
+} from "./sandbox-manager";

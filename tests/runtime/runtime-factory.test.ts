@@ -58,7 +58,7 @@ async function setupEnvironment(): Promise<void> {
   const connected = await verifyConnection();
   if (!connected) {
     throw new Error(
-      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
     );
   }
   connectionString = getConnectionString();
@@ -86,7 +86,7 @@ async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
     await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`)
+      (err) => console.warn(`Cleanup warning: ${err}`),
     );
   }
   logTimings("All RuntimeFactory Tests", allTimings);
@@ -118,7 +118,7 @@ describe("RuntimeFactory - CHAT Mode", () => {
     expect(runtime).toBeDefined();
     expect(runtime.agentId).toBeDefined();
     console.log(
-      `\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`
+      `\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -133,7 +133,7 @@ describe("RuntimeFactory - CHAT Mode", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
     allTimings.chatMessage = endTimer("chat_message");
 
@@ -146,8 +146,8 @@ describe("RuntimeFactory - CHAT Mode", () => {
           hasResponse: !!result.response,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
     if (result.error) {
       console.error(`❌ Error: ${result.error}`);
@@ -191,7 +191,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
     expect(runtime).toBeDefined();
     expect(runtime.character?.name).toBe("Mira");
     console.log(
-      `\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`
+      `\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -219,7 +219,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
       testUser,
       "What's the current price of Bitcoin?",
       testData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     allTimings.assistantMessage = endTimer("assistant_message");
 
@@ -258,7 +258,7 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
 
     expect(runtime).toBeDefined();
     console.log(
-      `\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`
+      `\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -271,7 +271,7 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
       testUser,
       "What is the latest news about AI?",
       testData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     allTimings.webSearchMessage = endTimer("websearch_message");
 
@@ -310,7 +310,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
 
     expect(runtime).toBeDefined();
     console.log(
-      `\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`
+      `\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`,
     );
   }, 60000);
 
@@ -323,7 +323,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
       testUser,
       "Make this character more friendly and add knowledge about cooking.",
       testData,
-      { timeoutMs: 120000 }
+      { timeoutMs: 120000 },
     );
     allTimings.buildMessage = endTimer("build_message");
 
@@ -374,7 +374,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     expect(runtime2).toBeDefined();
     console.log(`\n✅ Warm start: ${allTimings.cacheWarm}ms`);
     console.log(
-      `   Speedup: ${(((allTimings.cacheCold - allTimings.cacheWarm) / allTimings.cacheCold) * 100).toFixed(1)}%`
+      `   Speedup: ${(((allTimings.cacheCold - allTimings.cacheWarm) / allTimings.cacheCold) * 100).toFixed(1)}%`,
     );
 
     // Cleanup
@@ -386,7 +386,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
     console.log(
-      `\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`
+      `\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
     );
   });
 });

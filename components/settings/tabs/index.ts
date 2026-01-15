@@ -5,3 +5,4 @@ export { BillingTab } from "./billing-tab";
 export { ApisTab } from "./apis-tab";
 export { AnalyticsTab } from "./analytics-tab";
 export { OrganizationTab } from "./organization-tab";
+export { ConnectionsTab } from "./connections-tab";

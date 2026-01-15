@@ -6,6 +6,11 @@ import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import {
+  trackServerEvent,
+  identifyServerUser,
+} from "@/lib/analytics/posthog-server";
+import { getSignupMethod } from "@/lib/analytics/posthog";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -112,6 +117,39 @@ async function handlePrivyWebhook(request: NextRequest) {
 
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
+
+        // Track signup event for new users
+        if (payload.type === "user.created") {
+          const privyUser = payload.user;
+          const signupMethod = getSignupMethod(privyUser);
+
+          // Identify user in PostHog using internal UUID for consistent tracking
+          identifyServerUser(user.id, {
+            email:
+              privyUser.email?.address ||
+              privyUser.google?.email ||
+              privyUser.discord?.email,
+            name:
+              privyUser.google?.name ||
+              privyUser.discord?.username ||
+              privyUser.github?.username,
+            wallet_address: privyUser.wallet?.address,
+            signup_method: signupMethod,
+            created_at: new Date().toISOString(),
+            organization_id: user.organization_id || undefined,
+          });
+
+          // Track signup completed event using internal UUID
+          trackServerEvent(user.id, "signup_completed", {
+            method: signupMethod,
+            has_referral: false, // TODO: Add referral tracking if implemented
+          });
+
+          logger.info("[PostHog] Tracked signup_completed", {
+            userId: user.id,
+            method: signupMethod,
+          });
+        }
 
         // Check for anonymous session cookie and migrate data
         const cookieStore = await cookies();

@@ -127,17 +127,17 @@ async function handlePOST(req: NextRequest) {
     // Forward via provider
     const gatewayProvider = getProvider();
     const response = await gatewayProvider.embeddings(request);
-    
+
     // Extract upstream rate limit headers to forward to client
     const upstreamRateLimitHeaders: Record<string, string> = {};
     const rateLimitHeaderNames = [
-      'x-ratelimit-limit-requests',
-      'x-ratelimit-limit-tokens', 
-      'x-ratelimit-remaining-requests',
-      'x-ratelimit-remaining-tokens',
-      'x-ratelimit-reset-requests',
-      'x-ratelimit-reset-tokens',
-      'retry-after',
+      "x-ratelimit-limit-requests",
+      "x-ratelimit-limit-tokens",
+      "x-ratelimit-remaining-requests",
+      "x-ratelimit-remaining-tokens",
+      "x-ratelimit-reset-requests",
+      "x-ratelimit-reset-tokens",
+      "retry-after",
     ];
     for (const headerName of rateLimitHeaderNames) {
       const value = response.headers.get(headerName);
@@ -145,16 +145,18 @@ async function handlePOST(req: NextRequest) {
         upstreamRateLimitHeaders[headerName] = value;
       }
     }
-    
+
     // Log if we're approaching rate limits
-    const remainingRequests = response.headers.get('x-ratelimit-remaining-requests');
+    const remainingRequests = response.headers.get(
+      "x-ratelimit-remaining-requests",
+    );
     if (remainingRequests && parseInt(remainingRequests) < 50) {
-      logger.warn('[OpenAI Proxy] Upstream rate limit warning', {
+      logger.warn("[OpenAI Proxy] Upstream rate limit warning", {
         remainingRequests,
-        limitRequests: response.headers.get('x-ratelimit-limit-requests'),
+        limitRequests: response.headers.get("x-ratelimit-limit-requests"),
       });
     }
-    
+
     const data: OpenAIEmbeddingsResponse = await response.json();
 
     // Calculate actual cost and reconcile

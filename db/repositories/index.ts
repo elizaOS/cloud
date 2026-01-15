@@ -110,3 +110,9 @@ export * from "./ad-transactions";
 export * from "./seo-artifacts";
 export * from "./seo-provider-calls";
 export * from "./seo-requests";
+
+// ============================================
+// Discord Domain (Bot Automation)
+// ============================================
+export * from "./discord-guilds";
+export * from "./discord-channels";

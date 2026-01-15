@@ -1,11 +1,15 @@
 /**
  * Shared types for sandbox operations.
  * Used by both SandboxService and AppBuilderAISDK.
+ *
+ * Types are aligned with Vercel Sandbox SDK v1.x
+ * @see https://vercel.com/docs/vercel-sandbox/sdk-reference
  */
 
 export interface RunCommandOptions {
   cmd: string;
   args?: string[];
+  cwd?: string;
   stderr?: NodeJS.WritableStream;
   stdout?: NodeJS.WritableStream;
   detached?: boolean;
@@ -14,18 +18,70 @@ export interface RunCommandOptions {
 }
 
 export interface CommandResult {
+  cmdId: string;
+  exitCode: number | null;
+  cwd: string;
+  startedAt: number;
+  stdout: (opts?: { signal?: AbortSignal }) => Promise<string>;
+  stderr: (opts?: { signal?: AbortSignal }) => Promise<string>;
+  output: (
+    stream: "stdout" | "stderr" | "both",
+    opts?: { signal?: AbortSignal },
+  ) => Promise<string>;
+  logs: (opts?: {
+    signal?: AbortSignal;
+  }) => AsyncGenerator<{ stream: "stdout" | "stderr"; data: string }>;
+  wait: (opts?: { signal?: AbortSignal }) => Promise<CommandFinished>;
+  kill: (
+    signal?: string,
+    opts?: { abortSignal?: AbortSignal },
+  ) => Promise<void>;
+}
+
+export interface CommandFinished extends CommandResult {
   exitCode: number;
-  stdout: () => Promise<string>;
-  stderr: () => Promise<string>;
+}
+
+export interface SandboxFile {
+  path: string;
+  content: Buffer;
 }
 
 export interface SandboxInstance {
-  id?: string;
-  status: string;
+  sandboxId: string;
+  status: "pending" | "running" | "stopping" | "stopped" | "failed";
+  timeout: number;
+  createdAt: Date;
   domain: (port: number) => string;
-  runCommand: (params: RunCommandOptions) => Promise<CommandResult>;
-  stop: () => Promise<void>;
-  extendTimeout: (durationMs: number) => Promise<void>;
+
+  // Command execution
+  runCommand: (
+    params: RunCommandOptions | string,
+    args?: string[],
+    opts?: { signal?: AbortSignal },
+  ) => Promise<CommandResult>;
+  getCommand: (
+    cmdId: string,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<CommandResult>;
+
+  // File operations (native SDK methods)
+  readFile: (
+    file: { path: string; cwd?: string },
+    opts?: { signal?: AbortSignal },
+  ) => Promise<ReadableStream | null>;
+  writeFiles: (
+    files: SandboxFile[],
+    opts?: { signal?: AbortSignal },
+  ) => Promise<void>;
+  mkDir: (path: string, opts?: { signal?: AbortSignal }) => Promise<void>;
+
+  // Lifecycle
+  stop: (opts?: { signal?: AbortSignal }) => Promise<void>;
+  extendTimeout: (
+    durationMs: number,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<void>;
 }
 
 export type SandboxProgress =

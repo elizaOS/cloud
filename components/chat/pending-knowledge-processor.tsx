@@ -185,10 +185,10 @@ export function PendingKnowledgeProcessor({
             const failedBlobUrls = new Set(
               data.results
                 .filter((r: { status: string }) => r.status === "error")
-                .map((r: { blobUrl: string }) => r.blobUrl)
+                .map((r: { blobUrl: string }) => r.blobUrl),
             );
             const failedFiles = pending.files.filter((f) =>
-              failedBlobUrls.has(f.blobUrl)
+              failedBlobUrls.has(f.blobUrl),
             );
 
             if (failedFiles.length > 0) {
@@ -199,7 +199,7 @@ export function PendingKnowledgeProcessor({
                     ...pending,
                     files: failedFiles,
                     createdAt: Date.now(), // Reset timestamp for retry window
-                  })
+                  }),
                 );
               } catch {
                 // sessionStorage may fail in private browsing
@@ -303,14 +303,22 @@ export function PendingKnowledgeProcessor({
       pending = JSON.parse(stored);
     } catch {
       // Invalid JSON, remove corrupted data
-      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
       return;
     }
 
     // Check if pending data is too old (prevent processing stale data)
     if (Date.now() - pending.createdAt > MAX_AGE_MS) {
       // Clean up expired data and orphaned blobs
-      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
 
       // Clean up orphaned blobs in background (fire and forget)
       // This prevents storage bloat from expired pending files
@@ -331,7 +339,11 @@ export function PendingKnowledgeProcessor({
 
     // Verify characterId matches
     if (pending.characterId !== characterId) {
-      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
       return;
     }
 
@@ -371,4 +383,3 @@ export function PendingKnowledgeProcessor({
   // No visible UI - just background processing with toast feedback
   return null;
 }
-
