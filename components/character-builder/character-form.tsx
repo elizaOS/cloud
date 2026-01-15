@@ -49,6 +49,14 @@ export function CharacterForm({
   const [isPublic, setIsPublic] = useState(character.isPublic ?? false);
   const [isTogglingShare, setIsTogglingShare] = useState(false);
 
+  // Draft states for comma-separated fields (only parse on blur)
+  const [adjectivesDraft, setAdjectivesDraft] = useState(character.adjectives?.join(", ") || "");
+  const [topicsDraft, setTopicsDraft] = useState(character.topics?.join(", ") || "");
+
+  // Focus tracking to prevent overwrites while user is editing
+  const [isAdjectivesEditing, setIsAdjectivesEditing] = useState(false);
+  const [isTopicsEditing, setIsTopicsEditing] = useState(false);
+
   // Sync isPublic state when character data changes (e.g., loaded from API)
   // Skip sync if currently toggling to prevent race condition
   useEffect(() => {
@@ -56,6 +64,19 @@ export function CharacterForm({
       setIsPublic(character.isPublic ?? false);
     }
   }, [character.isPublic, isTogglingShare]);
+
+  // Sync draft states when character data changes externally (skip if user is editing)
+  useEffect(() => {
+    if (!isAdjectivesEditing) {
+      setAdjectivesDraft(character.adjectives?.join(", ") || "");
+    }
+  }, [character.adjectives, isAdjectivesEditing]);
+
+  useEffect(() => {
+    if (!isTopicsEditing) {
+      setTopicsDraft(character.topics?.join(", ") || "");
+    }
+  }, [character.topics, isTopicsEditing]);
 
   const handleToggleShare = async () => {
     if (isTogglingShare) return; // Prevent double-clicking
@@ -116,6 +137,14 @@ export function CharacterForm({
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
+  };
+
+  // Parse comma-separated text to array (used on blur)
+  const parseCommaSeparated = (text: string): string[] => {
+    return text
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
   };
 
   const addTag = (type: TagType) => {
@@ -404,13 +433,20 @@ export function CharacterForm({
             </div>
             <Textarea
               id="adjectives"
-              value={character.adjectives?.join(", ") || ""}
-              onChange={(e) => {
-                const items = e.target.value
-                  .split(/[,\n]/)
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-                updateField("adjectives", items);
+              value={adjectivesDraft}
+              onChange={(e) => setAdjectivesDraft(e.target.value)}
+              onFocus={() => setIsAdjectivesEditing(true)}
+              onBlur={() => {
+                setIsAdjectivesEditing(false);
+                updateField("adjectives", parseCommaSeparated(adjectivesDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  const parsed = parseCommaSeparated(adjectivesDraft);
+                  updateField("adjectives", parsed);
+                  setAdjectivesDraft(parsed.join(", "));
+                }
               }}
               placeholder="witty, sarcastic, caring, thoughtful..."
               className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
@@ -446,13 +482,20 @@ export function CharacterForm({
             </div>
             <Textarea
               id="topics"
-              value={character.topics?.join(", ") || ""}
-              onChange={(e) => {
-                const items = e.target.value
-                  .split(/[,\n]/)
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-                updateField("topics", items);
+              value={topicsDraft}
+              onChange={(e) => setTopicsDraft(e.target.value)}
+              onFocus={() => setIsTopicsEditing(true)}
+              onBlur={() => {
+                setIsTopicsEditing(false);
+                updateField("topics", parseCommaSeparated(topicsDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  const parsed = parseCommaSeparated(topicsDraft);
+                  updateField("topics", parsed);
+                  setTopicsDraft(parsed.join(", "));
+                }
               }}
               placeholder="DeFi protocols, AI research, meme culture..."
               className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
