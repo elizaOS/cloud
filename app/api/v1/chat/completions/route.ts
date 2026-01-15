@@ -10,6 +10,7 @@ import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { appsService } from "@/lib/services/apps";
+import { appCreditsService } from "@/lib/services/app-credits";
 import {
   calculateCost,
   getProviderFromModel,
@@ -57,7 +58,7 @@ async function handlePOST(req: NextRequest) {
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID"
     );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
@@ -81,16 +82,29 @@ async function handlePOST(req: NextRequest) {
       "unknown";
     const userAgent = req.headers.get("user-agent") || "unknown";
 
+    // Check for app monetization
+    const appId = req.headers.get("X-App-Id");
+    let useAppCredits = false;
+    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null =
+      null;
+
+    if (appId) {
+      monetizedApp = await appsService.getById(appId);
+      if (monetizedApp?.monetization_enabled) {
+        useAppCredits = true;
+      }
+    }
+
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system",
+      (msg) => msg.role === "system"
     );
     const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant",
+      (msg) => msg.role === "assistant"
     );
     const toolMessages = request.messages.filter((msg) => msg.role === "tool");
 
@@ -137,7 +151,7 @@ async function handlePOST(req: NextRequest) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -151,7 +165,7 @@ async function handlePOST(req: NextRequest) {
             code: "invalid_value",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -169,7 +183,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -189,7 +203,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -206,7 +220,7 @@ async function handlePOST(req: NextRequest) {
               if (!hasNonEmptyText) {
                 logger.debug(
                   "[Chat Completions API] Filtering out empty text content block",
-                  { messageIndex: i, role: msg.role },
+                  { messageIndex: i, role: msg.role }
                 );
               }
               return hasNonEmptyText;
@@ -225,7 +239,7 @@ async function handlePOST(req: NextRequest) {
               role: msg.role,
               originalParts: msg.content.length,
               remainingParts: filteredContent.length,
-            },
+            }
           );
           msg.content = filteredContent;
         }
@@ -239,7 +253,7 @@ async function handlePOST(req: NextRequest) {
         ) {
           logger.warn(
             "[Chat Completions API] Content array has no valid content",
-            { messageIndex: i, role: msg.role },
+            { messageIndex: i, role: msg.role }
           );
           return Response.json(
             {
@@ -251,7 +265,7 @@ async function handlePOST(req: NextRequest) {
                 code: "invalid_value",
               },
             },
-            { status: 400 },
+            { status: 400 }
           );
         }
       }
@@ -263,7 +277,7 @@ async function handlePOST(req: NextRequest) {
         "[Chat Completions API] User blocked due to moderation violations",
         {
           userId: user.id,
-        },
+        }
       );
       return Response.json(
         {
@@ -274,7 +288,7 @@ async function handlePOST(req: NextRequest) {
             code: "moderation_violation",
           },
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -300,9 +314,9 @@ async function handlePOST(req: NextRequest) {
                 userId: user.id,
                 categories: result.flaggedCategories,
                 action: result.action,
-              },
+              }
             );
-          },
+          }
         );
       }
     }
@@ -312,42 +326,98 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 4. RESERVE credits BEFORE making API call (prevents TOCTOU race condition)
+    // 4. RESERVE/DEDUCT credits BEFORE making API call
     const inputText = request.messages
       .map((m) =>
-        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content)
       )
       .join(" ");
 
-    let reservation: CreditReservation;
-    try {
-      reservation = await creditsService.reserve({
-        organizationId: user.organization_id!!,
-        model,
-        provider,
-        estimatedInputTokens: estimateTokens(inputText),
-        estimatedOutputTokens: 500,
+    // Estimate cost for pre-flight check
+    const estimatedInputTokens = estimateTokens(inputText);
+    const estimatedOutputTokens = 500;
+    const { totalCost: estimatedBaseCost } = await calculateCost(
+      normalizedModel,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens
+    );
+
+    let reservation: CreditReservation | null = null;
+    let appCreditDeduction: Awaited<
+      ReturnType<typeof appCreditsService.deductCredits>
+    > | null = null;
+
+    if (useAppCredits && appId) {
+      // App credits: deduct upfront (simpler model for monetized apps)
+      appCreditDeduction = await appCreditsService.deductCredits({
+        appId,
         userId: user.id,
-        description: `Chat Completions: ${model}`,
+        baseCost: estimatedBaseCost,
+        description: `Chat: ${model}`,
+        metadata: {
+          model,
+          provider,
+          estimatedInputTokens,
+          estimatedOutputTokens,
+        },
       });
-    } catch (error) {
-      if (error instanceof InsufficientCreditsError) {
-        logger.warn("[Chat Completions] Insufficient credits", {
-          organizationId: user.organization_id!!,
-          required: error.required,
+
+      if (!appCreditDeduction.success) {
+        logger.warn("[Chat Completions] Insufficient app credits", {
+          appId,
+          userId: user.id,
+          required: appCreditDeduction.totalCost,
+          message: appCreditDeduction.message,
         });
-        return Response.json(
-          {
-            error: {
-              message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
-              type: "insufficient_quota",
-              code: "insufficient_balance",
+        return withCors(
+          Response.json(
+            {
+              error: {
+                message:
+                  appCreditDeduction.message ||
+                  `Insufficient app credits. Required: $${appCreditDeduction.totalCost.toFixed(4)}`,
+                type: "insufficient_quota",
+                code: "insufficient_app_credits",
+              },
             },
-          },
-          { status: 402 },
+            { status: 402 }
+          )
         );
       }
-      throw error;
+    } else {
+      // Org credits: reserve and reconcile (standard flow)
+      try {
+        reservation = await creditsService.reserve({
+          organizationId: user.organization_id!!,
+          model,
+          provider,
+          estimatedInputTokens,
+          estimatedOutputTokens,
+          userId: user.id,
+          description: `Chat Completions: ${model}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          logger.warn("[Chat Completions] Insufficient credits", {
+            organizationId: user.organization_id!!,
+            required: error.required,
+          });
+          return withCors(
+            Response.json(
+              {
+                error: {
+                  message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
+                  type: "insufficient_quota",
+                  code: "insufficient_balance",
+                },
+              },
+              { status: 402 }
+            )
+          );
+        }
+        throw error;
+      }
     }
 
     logger.info("[Chat Completions] Request started", {
@@ -357,7 +427,10 @@ async function handlePOST(req: NextRequest) {
       provider,
       streaming: isStreaming,
       messageCount: request.messages.length,
-      reservedAmount: reservation.reservedAmount,
+      reservedAmount:
+        reservation?.reservedAmount ?? appCreditDeduction?.totalCost ?? 0,
+      useAppCredits,
+      appId: appId ?? undefined,
     });
 
     // 5. Forward to Vercel AI Gateway
@@ -378,7 +451,7 @@ async function handlePOST(req: NextRequest) {
         origin,
         ipAddress,
         userAgent,
-        reservation,
+        reservation
       );
     } else {
       return withCors(
@@ -392,8 +465,8 @@ async function handlePOST(req: NextRequest) {
           origin,
           ipAddress,
           userAgent,
-          reservation,
-        ),
+          reservation
+        )
       );
     }
   } catch (error) {
@@ -417,8 +490,8 @@ async function handlePOST(req: NextRequest) {
         return withCors(
           Response.json(
             { error: gatewayError.error },
-            { status: gatewayError.status },
-          ),
+            { status: gatewayError.status }
+          )
         );
       }
     }
@@ -434,8 +507,8 @@ async function handlePOST(req: NextRequest) {
             code: "internal_server_error",
           },
         },
-        { status: 500 },
-      ),
+        { status: 500 }
+      )
     );
   }
 }
@@ -451,7 +524,7 @@ async function handleNonStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservation?: CreditReservation,
+  reservation?: CreditReservation
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -466,7 +539,7 @@ async function handleNonStreamingResponse(
       model,
       provider,
       usage.prompt_tokens,
-      usage.completion_tokens,
+      usage.completion_tokens
     );
 
     await reservation.reconcile(totalCost);
@@ -557,7 +630,7 @@ function handleStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservation?: CreditReservation,
+  reservation?: CreditReservation
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -656,7 +729,7 @@ function handleStreamingResponse(
           {
             model,
             contentLength: fullContent.length,
-          },
+          }
         );
 
         // Estimate tokens from content
@@ -664,7 +737,7 @@ function handleStreamingResponse(
           .map((m) =>
             typeof m.content === "string"
               ? m.content
-              : JSON.stringify(m.content),
+              : JSON.stringify(m.content)
           )
           .join(" ");
         inputTokens = estimateTokens(messageText);
@@ -677,7 +750,7 @@ function handleStreamingResponse(
           model,
           provider,
           inputTokens,
-          outputTokens,
+          outputTokens
         );
 
         // Reconcile credits: refund difference if actual < reserved
@@ -755,7 +828,7 @@ function handleStreamingResponse(
           {
             organizationId: user.organization_id,
             refundedAmount: reservation.reservedAmount,
-          },
+          }
         );
       }
 
