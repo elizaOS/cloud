@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { appCreditsService } from "@/lib/services/app-credits";
 import Stripe from "stripe";
@@ -6,7 +7,7 @@ import Stripe from "stripe";
 export const dynamic = "force-dynamic";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-12-15.clover",
 });
 
 // CORS headers - reflect origin for credentialed requests
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
     const appId = metadata.app_id;
     const userId = metadata.user_id;
     const organizationId = metadata.organization_id;
-    const amount = parseFloat(metadata.amount || "0");
+    const amount = Number.parseFloat(metadata.amount || "0");
 
     if (!appId || !userId || !organizationId || !amount) {
       return NextResponse.json(
@@ -117,9 +118,8 @@ export async function GET(request: NextRequest) {
         appId,
         userId,
         organizationId,
-        amount,
-        stripeSessionId: sessionId,
-        description: "Credit purchase via checkout",
+        purchaseAmount: amount,
+        stripePaymentIntentId: sessionId,
       });
 
       logger.info("Verified and processed app credit purchase", {

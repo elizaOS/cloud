@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Content-Type, Authorization, X-API-Key, X-App-Id"
     );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             code: "app_not_found",
           },
         },
-        { status: 404 },
-      ),
+        { status: 404 }
+      )
     );
   }
 
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 },
-      ),
+        { status: 400 }
+      )
     );
   }
 
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             code: "invalid_value",
           },
         },
-        { status: 400 },
-      ),
+        { status: 400 }
+      )
     );
   }
 
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Estimate cost
   const inputText = chatRequest.messages
     .map((m: OpenAIChatMessage) =>
-      typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      typeof m.content === "string" ? m.content : JSON.stringify(m.content)
     )
     .join(" ");
 
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     normalizedModel,
     provider,
     estimatedInputTokens,
-    estimatedOutputTokens,
+    estimatedOutputTokens
   );
 
   // Check and deduct app credits with markup
@@ -184,8 +184,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             balance: deductionResult.newBalance,
           },
         },
-        { status: 402 },
-      ),
+        { status: 402 }
+      )
     );
   }
 
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           "Cache-Control": "no-cache",
           Connection: "keep-alive",
         },
-      }),
+      })
     );
   } else {
     // Non-streaming response
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       normalizedModel,
       provider,
       actualInputTokens,
-      actualOutputTokens,
+      actualOutputTokens
     );
 
     // If actual cost differs from estimated, we could refund or charge more
