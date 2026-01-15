@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 // Maximum allowed credit amount for validation
 const MAX_CREDITS = 10000;
@@ -237,6 +238,16 @@ async function handleStripeWebhook(req: NextRequest) {
             logger.info(
               `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
             );
+
+            // Track credits purchased in PostHog using internal UUID
+            if (userId) {
+              trackServerEvent(userId, "credits_purchased", {
+                amount: credits,
+                currency: session.currency || "usd",
+                purchase_type: purchaseType,
+                organization_id: organizationId,
+              });
+            }
 
             // Log payment to Discord (fire and forget)
             organizationsRepository.findById(organizationId).then((org) => {
