@@ -2159,16 +2159,28 @@ Some ideas:
           }
         }
 
-        // Show clean operations list
+        // Show operations list with reasoning context
         if (actionsLog.length > 0) {
           actionsLog.forEach((action) => {
             const isActive =
               action.status === "active" || action.status === "pending";
             const statusIcon = isActive ? "⏳" : "✓";
 
-            // Clean action display - just status, tool, and detail
+            // Action display with status, tool, detail, and timestamp
             content += `${statusIcon} **${action.tool}**\n`;
-            content += `> \`${action.detail}\`\n\n`;
+            content += `\`${action.detail}\`\n`;
+            content += `*${action.timestamp}*\n`;
+
+            // Show reasoning context if available (the "why" behind this action)
+            if (action.context) {
+              // Truncate long reasoning for cleaner display during build
+              const truncatedContext =
+                action.context.length > 200
+                  ? action.context.substring(0, 200).trim() + "..."
+                  : action.context;
+              content += `> 💭 ${truncatedContext.replace(/\n/g, " ")}\n`;
+            }
+            content += "\n";
           });
         }
 
