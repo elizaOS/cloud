@@ -179,16 +179,16 @@ const ChatMessage = memo(function ChatMessage({
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
               <div className="relative">
-                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-[#FF5800]" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-30" />
+                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-white/80" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
               </div>
             )}
             <span
               className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
                 msg.role === "user"
-                  ? "text-[#FF5800]/80"
+                  ? "text-white/70"
                   : isProcessing
-                    ? "text-[#FF5800]/70"
+                    ? "text-white/60"
                     : "text-white/40"
               }`}
               style={{ fontFamily: "var(--font-sf-pro)" }}
