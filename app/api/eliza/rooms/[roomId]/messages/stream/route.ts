@@ -19,6 +19,7 @@ import { appCreditsService } from "@/lib/services/app-credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
+import { estimateRequestCost } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import {
@@ -208,13 +209,23 @@ export async function POST(
 
       // Only enforce app-specific credit check if monetization is enabled
       if (monetizationSettings?.monetizationEnabled) {
-        // Estimate minimum cost (actual cost calculated after processing)
-        const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
+        // Estimate actual cost based on model and message content
+        // This prevents "Insufficient balance" errors AFTER the AI call starts
+        const selectedModel = model || "claude-3-5-sonnet-20241022";
+
+        // estimateRequestCost calculates based on input tokens + estimated output (500)
+        // and includes a 50% safety buffer
+        const estimatedCost = await estimateRequestCost(selectedModel, [
+          { role: "user", content: text },
+        ]);
+
+        // Ensure minimum $0.05 to prevent edge cases with very short messages
+        const requiredBalance = Math.max(estimatedCost, 0.05);
 
         const balanceCheck = await appCreditsService.checkBalance(
           userContext.appId,
           userContext.userId,
-          MINIMUM_MESSAGE_COST,
+          requiredBalance,
         );
 
         if (!balanceCheck.sufficient) {
@@ -222,13 +233,15 @@ export async function POST(
             appId: userContext.appId,
             userId: userContext.userId,
             balance: balanceCheck.balance,
-            required: MINIMUM_MESSAGE_COST,
+            required: requiredBalance,
+            estimatedCost,
+            model: selectedModel,
           });
 
           return new Response(
             JSON.stringify({
               error: "Insufficient credits",
-              details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
+              details: `Estimated cost: $${estimatedCost.toFixed(3)}. Your balance: $${balanceCheck.balance.toFixed(2)}. Please purchase more credits to continue.`,
               requiresPurchase: true,
             }),
             { status: 402, headers: { "Content-Type": "application/json" } },

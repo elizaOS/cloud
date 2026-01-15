@@ -144,6 +144,12 @@ const nextConfig: NextConfig = {
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
+    // jsdom chain: isomorphic-dompurify → jsdom → html-encoding-sniffer → @exodus/bytes
+    // These must be external to avoid ESM/CJS interop issues with @exodus/bytes/encoding-lite.js
+    "jsdom",
+    "@exodus/bytes",
+    "html-encoding-sniffer",
+    "isomorphic-dompurify",
   ],
 
   async headers() {

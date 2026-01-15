@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "eliza-cloud-v2",
@@ -148,7 +147,7 @@
         "drizzle-kit": "^0.31.8",
         "eslint": "^9.39.2",
         "eslint-config-next": "^16.1.2",
-        "pg": "^8.17.0",
+        "pg": "^8.17.1",
         "prettier": "^3.8.0",
         "prettier-plugin-tailwindcss": "^0.7.2",
         "shadcn": "^3.6.3",

@@ -48,19 +48,18 @@
  */
 
 import { drizzle as drizzleNode } from "drizzle-orm/node-postgres";
-import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import { drizzle as drizzleNeonHttp } from "drizzle-orm/neon-http";
 import { Pool as PgPool } from "pg";
-import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 import * as schema from "./schemas";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
+type Database = NodePgDatabase<typeof schema> | NeonHttpDatabase<typeof schema>;
 
 type DatabaseRegion = "na" | "eu" | "apac";
 type DatabaseRole = "read" | "write";
@@ -230,17 +229,28 @@ function isNeonDatabase(url: string): boolean {
 
 /**
  * Create a database connection from a URL
+ *
+ * For Neon databases: Uses HTTP driver (stateless) to avoid WebSocket
+ * connection staleness issues in serverless environments.
+ *
+ * For non-Neon databases: Uses traditional PgPool for local development.
  */
 function createConnection(url: string): Database {
   if (isNeonDatabase(url)) {
-    // Configure WebSocket for Node.js environment
-    if (typeof WebSocket === "undefined") {
-      neonConfig.webSocketConstructor = ws;
-    }
-    const pool = new NeonPool({ connectionString: url });
-    return drizzleNeon(pool, { schema }) as Database;
+    // Use Neon HTTP driver - creates fresh connection per query
+    // This eliminates "server conn crashed?" errors caused by stale WebSocket connections
+    // in serverless environments where functions can be cold-started after Neon's
+    // idle timeout (5-10 minutes) closes the WebSocket server-side
+    const sql = neon(url);
+    return drizzleNeonHttp(sql, { schema }) as Database;
   } else {
-    const pool = new PgPool({ connectionString: url });
+    // For non-Neon databases (local dev with PostgreSQL), use connection pooling
+    const pool = new PgPool({
+      connectionString: url,
+      max: 5, // Lower for serverless - prevent connection exhaustion
+      idleTimeoutMillis: 20000, // 20s - shorter than Vercel function timeout
+      connectionTimeoutMillis: 10000, // 10s connection timeout
+    });
     return drizzleNode(pool, { schema }) as Database;
   }
 }

@@ -33,6 +33,35 @@ export function isCreatorMode(runtime: IAgentRuntime): boolean {
 export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
 
+/**
+ * Timeout for AI model requests (30 seconds).
+ * Prevents hanging requests that cause AI_NoOutputGeneratedError.
+ */
+export const AI_MODEL_TIMEOUT_MS = 30000;
+
+/**
+ * Wraps a promise with a timeout.
+ * Throws an error if the promise doesn't resolve within the specified time.
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId!);
+  }
+}
+
 // =============================================================================
 // Response Post-Processing Utilities
 // =============================================================================
@@ -475,16 +504,20 @@ export async function generatePlanningWithStreaming(
     );
   }
 
-  const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-    prompt,
-    ...(onReasoningChunk &&
-      streamFilter && {
-        stream: true,
-        onStreamChunk: async (chunk: string) => {
-          await streamFilter!.processChunk(chunk);
-        },
-      }),
-  });
+  const response = await withTimeout(
+    runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt,
+      ...(onReasoningChunk &&
+        streamFilter && {
+          stream: true,
+          onStreamChunk: async (chunk: string) => {
+            await streamFilter!.processChunk(chunk);
+          },
+        }),
+    }),
+    AI_MODEL_TIMEOUT_MS,
+    "AI model request timed out after 30 seconds (planning)",
+  );
 
   if (streamFilter) {
     await streamFilter.flush();
@@ -629,16 +662,20 @@ export async function generateResponseWithRetry(
         );
       }
 
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
-        ...(onStreamChunk &&
-          streamFilter && {
-            stream: true,
-            onStreamChunk: async (chunk: string) => {
-              await streamFilter!.processChunk(chunk);
-            },
-          }),
-      });
+      const response = await withTimeout(
+        runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt,
+          ...(onStreamChunk &&
+            streamFilter && {
+              stream: true,
+              onStreamChunk: async (chunk: string) => {
+                await streamFilter!.processChunk(chunk);
+              },
+            }),
+        }),
+        AI_MODEL_TIMEOUT_MS,
+        "AI model request timed out after 30 seconds",
+      );
 
       // Flush any remaining buffered content
       if (streamFilter) {
