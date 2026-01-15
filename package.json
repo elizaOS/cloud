@@ -115,6 +115,7 @@
     "@vercel/sandbox": "^1.1.9",
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.35",
+    "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -176,6 +177,7 @@
   },
   "devDependencies": {
     "@elizaos/cli": "^1.7.1",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^25.0.8",
     "@types/pg": "^8.16.0",
     "@types/react": "^19.2.8",

@@ -1,9 +1,6 @@
 /**
- * App earnings dashboard component displaying earnings statistics and charts.
- * Shows lifetime earnings, breakdowns by period, and withdrawal information.
- *
- * @param props - App earnings dashboard configuration
- * @param props.appId - App ID to fetch earnings for
+ * Enhanced app earnings dashboard with animated counters, milestone tracking,
+ * and celebratory withdrawal flow.
  */
 
 "use client";
@@ -31,6 +28,7 @@ import {
   Zap,
   FlaskConical,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import {
   BarChart,
@@ -43,6 +41,13 @@ import {
   Legend,
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
+import {
+  AnimatedCounter,
+  AnimatedCounterWithLabel,
+  MilestoneProgress,
+  WithdrawDialog,
+} from "./monetization";
+import { cn } from "@/lib/utils";
 
 interface EarningsSummary {
   totalLifetimeEarnings: number;
@@ -81,6 +86,8 @@ interface AppEarningsDashboardProps {
   appId: string;
 }
 
+const PAYOUT_THRESHOLD = 25;
+
 export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,9 +95,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<
-    boolean | null
-  >(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -102,47 +107,59 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
 
   const fetchEarnings = async () => {
     setIsLoading(true);
     setError(null);
 
-    const url = new URL(
-      `/api/v1/apps/${appId}/earnings`,
-      window.location.origin,
-    );
-    url.searchParams.set("days", period);
+    try {
+      const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
+      url.searchParams.set("days", period);
 
-    // Pass testData param to API if present in the page URL
-    if (testDataParam) {
-      url.searchParams.set("testData", "true");
-    }
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
-
-    if (data.success) {
-      setSummary(data.earnings.summary);
-      setBreakdown(data.earnings.breakdown);
-      setChartData(data.earnings.chartData);
-      setTransactions(data.earnings.recentTransactions);
-      setIsTestData(data.testData === true);
-      if (data.monetization) {
-        setMonetizationEnabled(data.monetization.enabled);
+      if (testDataParam) {
+        url.searchParams.set("testData", "true");
       }
-    } else {
-      setError(data.error || "Failed to load earnings data");
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+
+      if (data.success) {
+        setSummary(data.earnings.summary);
+        setBreakdown(data.earnings.breakdown);
+        setChartData(data.earnings.chartData);
+        setTransactions(data.earnings.recentTransactions);
+        setIsTestData(data.testData === true);
+        if (data.monetization) {
+          setMonetizationEnabled(data.monetization.enabled);
+        }
+      } else {
+        setError(data.error || "Failed to load earnings data");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load earnings data");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchEarnings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId, period, testDataParam]);
+
+  const handleWithdrawSuccess = (newBalance: number) => {
+    if (summary) {
+      setSummary({
+        ...summary,
+        withdrawableBalance: newBalance,
+      });
+    }
+    fetchEarnings();
+  };
 
   if (isLoading) {
     return (
@@ -174,69 +191,27 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     );
   }
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "inference_markup":
-        return <Zap className="h-4 w-4 text-purple-400" />;
-      case "purchase_share":
-        return <Coins className="h-4 w-4 text-yellow-400" />;
-      case "withdrawal":
-        return <ArrowUpRight className="h-4 w-4 text-red-400" />;
-      default:
-        return <DollarSign className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "inference_markup":
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-purple-500/20 text-purple-400"
-          >
-            Inference
-          </Badge>
-        );
-      case "purchase_share":
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-yellow-500/20 text-yellow-400"
-          >
-            Purchase
-          </Badge>
-        );
-      case "withdrawal":
-        return (
-          <Badge variant="secondary" className="bg-red-500/20 text-red-400">
-            Withdrawal
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="bg-gray-500/20 text-gray-400">
-            {type}
-          </Badge>
-        );
-    }
-  };
+  const canWithdraw =
+    summary && summary.withdrawableBalance >= (summary.payoutThreshold || PAYOUT_THRESHOLD);
 
   return (
     <div className="space-y-6">
       {isTestData && (
         <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
           <FlaskConical className="h-5 w-5 text-amber-500" />
-          <p className="text-sm text-amber-400">Test Data Mode</p>
+          <p className="text-sm text-amber-400">
+            Test Data Mode - Showing sample earnings data
+          </p>
         </div>
       )}
 
+      {/* Period Selector */}
       <div className="flex justify-end">
         <Select
           value={period}
           onValueChange={(v) => setPeriod(v as typeof period)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -247,6 +222,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         </Select>
       </div>
 
+      {/* Empty State */}
       {!summary && !isLoading && (
         <BrandCard>
           <CornerBrackets className="opacity-20" />
@@ -278,70 +254,122 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         </BrandCard>
       )}
 
+      {/* Hero Stats Card */}
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Lifetime Earnings</p>
-                  <p className="text-2xl font-bold text-white mt-1">
-                    ${summary.totalLifetimeEarnings.toFixed(2)}
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
-              </div>
-            </div>
-          </BrandCard>
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-lg border p-6",
+            canWithdraw
+              ? "bg-gradient-to-br from-green-900/20 via-black/40 to-[#FF5800]/10 border-green-500/30"
+              : "bg-gradient-to-br from-[#FF5800]/10 via-black/40 to-purple-900/10 border-white/10",
+          )}
+        >
+          <CornerBrackets
+            size="lg"
+            color={canWithdraw ? "#22C55E" : "#FF5800"}
+            className="opacity-30"
+          />
 
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Pending</p>
-                  <p className="text-2xl font-bold text-yellow-400 mt-1">
-                    ${summary.pendingBalance.toFixed(2)}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-500" />
-              </div>
-            </div>
-          </BrandCard>
+          {/* Background decoration */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-[#FF5800]/5 to-transparent rounded-full blur-3xl animate-liquid-orb" />
+          </div>
 
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Withdrawable</p>
-                  <p className="text-2xl font-bold text-green-400 mt-1">
-                    ${summary.withdrawableBalance.toFixed(2)}
-                  </p>
-                </div>
-                <Wallet className="h-8 w-8 text-green-500" />
+          <div className="relative z-10 grid gap-6 md:grid-cols-2">
+            {/* Left: Total Earnings */}
+            <div>
+              <p className="text-xs text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <TrendingUp className="h-3 w-3" />
+                Total Lifetime Earnings
+              </p>
+              <div className="text-4xl font-bold mb-3">
+                <AnimatedCounter
+                  value={summary.totalLifetimeEarnings}
+                  prefix="$"
+                  decimals={2}
+                  className="gradient-text"
+                  duration={2000}
+                />
               </div>
+              {breakdown && (
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-green-400 flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3" />$
+                    {breakdown.thisWeek.total.toFixed(2)}
+                  </span>
+                  <span className="text-white/40">this week</span>
+                </div>
+              )}
             </div>
-          </BrandCard>
 
-          <BrandCard>
-            <CornerBrackets size="sm" className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/60">Withdrawn</p>
-                  <p className="text-2xl font-bold text-white/60 mt-1">
-                    ${summary.totalWithdrawn.toFixed(2)}
-                  </p>
-                </div>
-                <ArrowUpRight className="h-8 w-8 text-white/40" />
+            {/* Right: Withdrawable Balance */}
+            <div className="md:text-right">
+              <p className="text-xs text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5 md:justify-end">
+                <Wallet className="h-3 w-3" />
+                Ready to Withdraw
+              </p>
+              <div className="text-3xl font-bold text-green-400 mb-3">
+                <AnimatedCounter
+                  value={summary.withdrawableBalance}
+                  prefix="$"
+                  decimals={2}
+                  duration={1500}
+                />
               </div>
+
+              {canWithdraw ? (
+                <Button
+                  onClick={() => setShowWithdrawDialog(true)}
+                  className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:opacity-90 animate-glow-pulse"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Withdraw Now
+                </Button>
+              ) : (
+                <div className="md:ml-auto md:max-w-[200px]">
+                  <MilestoneProgress
+                    current={summary.withdrawableBalance}
+                    target={summary.payoutThreshold || PAYOUT_THRESHOLD}
+                    showAmount={false}
+                  />
+                </div>
+              )}
             </div>
-          </BrandCard>
+          </div>
         </div>
       )}
 
+      {/* Stats Grid */}
+      {summary && (
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard
+            label="Pending"
+            value={summary.pendingBalance}
+            icon={<Clock className="h-5 w-5" />}
+            color="yellow"
+          />
+          <StatCard
+            label="Withdrawable"
+            value={summary.withdrawableBalance}
+            icon={<Wallet className="h-5 w-5" />}
+            color="green"
+          />
+          <StatCard
+            label="From Inference"
+            value={summary.totalInferenceEarnings}
+            icon={<Zap className="h-5 w-5" />}
+            color="purple"
+          />
+          <StatCard
+            label="From Purchases"
+            value={summary.totalPurchaseEarnings}
+            icon={<Coins className="h-5 w-5" />}
+            color="orange"
+          />
+        </div>
+      )}
+
+      {/* Period Breakdown */}
       {breakdown && (
         <div className="grid gap-4 md:grid-cols-4">
           {[
@@ -349,22 +377,20 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
             { label: "This Week", data: breakdown.thisWeek },
             { label: "This Month", data: breakdown.thisMonth },
             { label: "All Time", data: breakdown.allTime },
-          ].map(({ label, data }) => (
-            <BrandCard key={label}>
+          ].map(({ label, data }, index) => (
+            <BrandCard key={label} className="animate-stagger-fade" style={{ animationDelay: `${index * 0.1}s` }}>
               <CornerBrackets size="sm" className="opacity-20" />
               <div className="relative z-10">
-                <p className="text-sm text-white/60 mb-2">{label}</p>
-                <p className="text-xl font-bold text-white">
+                <p className="text-xs text-white/50 mb-2">{label}</p>
+                <p className="text-xl font-bold text-white mb-2">
                   ${data.total.toFixed(2)}
                 </p>
-                <div className="mt-2 flex gap-2 text-xs">
-                  <span className="text-purple-400">
-                    <Zap className="h-3 w-3 inline mr-1" />$
-                    {data.inferenceEarnings.toFixed(2)}
+                <div className="flex gap-3 text-xs">
+                  <span className="text-purple-400 flex items-center gap-1">
+                    <Zap className="h-3 w-3" />${data.inferenceEarnings.toFixed(2)}
                   </span>
-                  <span className="text-yellow-400">
-                    <Coins className="h-3 w-3 inline mr-1" />$
-                    {data.purchaseEarnings.toFixed(2)}
+                  <span className="text-yellow-400 flex items-center gap-1">
+                    <Coins className="h-3 w-3" />${data.purchaseEarnings.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -373,10 +399,12 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         </div>
       )}
 
+      {/* Chart */}
       <BrandCard>
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-[#FF5800]" />
             Earnings Over Time
           </h3>
           {chartData.length > 0 ? (
@@ -411,12 +439,14 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                   fill="#a855f7"
                   name="Inference Markup"
                   stackId="a"
+                  radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey="purchaseEarnings"
                   fill="#eab308"
                   name="Purchase Share"
                   stackId="a"
+                  radius={[4, 4, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -429,70 +459,25 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         </div>
       </BrandCard>
 
-      {summary &&
-        (summary.totalInferenceEarnings > 0 ||
-          summary.totalPurchaseEarnings > 0) && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <BrandCard>
-              <CornerBrackets className="opacity-20" />
-              <div className="relative z-10">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-purple-500" />
-                  Inference Earnings
-                </h3>
-                <div className="text-3xl font-bold text-purple-400">
-                  ${summary.totalInferenceEarnings.toFixed(2)}
-                </div>
-                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-purple-500"
-                    style={{
-                      width: `${(summary.totalInferenceEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </BrandCard>
-
-            <BrandCard>
-              <CornerBrackets className="opacity-20" />
-              <div className="relative z-10">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-yellow-500" />
-                  Purchase Earnings
-                </h3>
-                <div className="text-3xl font-bold text-yellow-400">
-                  ${summary.totalPurchaseEarnings.toFixed(2)}
-                </div>
-                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-500"
-                    style={{
-                      width: `${(summary.totalPurchaseEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </BrandCard>
-          </div>
-        )}
-
+      {/* Recent Transactions */}
       <BrandCard>
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Recent Transactions
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-white/60" />
+            Recent Earnings
           </h3>
 
           {transactions.length > 0 ? (
-            <div className="space-y-3">
-              {transactions.map((tx) => (
+            <div className="space-y-2">
+              {transactions.map((tx, index) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors animate-stagger-fade"
+                  style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <div className="flex items-center gap-3">
-                    {getTypeIcon(tx.type)}
+                    <TransactionIcon type={tx.type} />
                     <div>
                       <p className="text-sm text-white">{tx.description}</p>
                       <p className="text-xs text-white/40">
@@ -503,13 +488,12 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getTypeBadge(tx.type)}
+                    <TransactionBadge type={tx.type} />
                     <span
-                      className={`font-mono font-semibold ${
-                        Number(tx.amount) >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
+                      className={cn(
+                        "font-mono font-semibold",
+                        Number(tx.amount) >= 0 ? "text-green-400" : "text-red-400",
+                      )}
                     >
                       {Number(tx.amount) >= 0 ? "+" : ""}$
                       {Math.abs(Number(tx.amount)).toFixed(4)}
@@ -529,6 +513,93 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           )}
         </div>
       </BrandCard>
+
+      {/* Withdraw Dialog */}
+      {summary && (
+        <WithdrawDialog
+          open={showWithdrawDialog}
+          onOpenChange={setShowWithdrawDialog}
+          appId={appId}
+          withdrawableBalance={summary.withdrawableBalance}
+          payoutThreshold={summary.payoutThreshold || PAYOUT_THRESHOLD}
+          onSuccess={handleWithdrawSuccess}
+        />
+      )}
     </div>
   );
+}
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  color: "yellow" | "green" | "purple" | "orange";
+}
+
+function StatCard({ label, value, icon, color }: StatCardProps) {
+  const colorClasses = {
+    yellow: "text-yellow-400 bg-yellow-500/10",
+    green: "text-green-400 bg-green-500/10",
+    purple: "text-purple-400 bg-purple-500/10",
+    orange: "text-[#FF5800] bg-[#FF5800]/10",
+  };
+
+  return (
+    <BrandCard>
+      <CornerBrackets size="sm" className="opacity-20" />
+      <div className="relative z-10 flex items-center gap-3">
+        <div className={cn("p-2 rounded-lg", colorClasses[color])}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-xs text-white/50">{label}</p>
+          <p className={cn("text-lg font-bold", colorClasses[color].split(" ")[0])}>
+            <AnimatedCounter value={value} prefix="$" decimals={2} duration={1000} />
+          </p>
+        </div>
+      </div>
+    </BrandCard>
+  );
+}
+
+function TransactionIcon({ type }: { type: string }) {
+  switch (type) {
+    case "inference_markup":
+      return <Zap className="h-4 w-4 text-purple-400" />;
+    case "purchase_share":
+      return <Coins className="h-4 w-4 text-yellow-400" />;
+    case "withdrawal":
+      return <ArrowUpRight className="h-4 w-4 text-red-400" />;
+    default:
+      return <DollarSign className="h-4 w-4 text-gray-400" />;
+  }
+}
+
+function TransactionBadge({ type }: { type: string }) {
+  switch (type) {
+    case "inference_markup":
+      return (
+        <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 text-xs">
+          Inference
+        </Badge>
+      );
+    case "purchase_share":
+      return (
+        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 text-xs">
+          Purchase
+        </Badge>
+      );
+    case "withdrawal":
+      return (
+        <Badge variant="secondary" className="bg-red-500/20 text-red-400 text-xs">
+          Withdrawal
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="secondary" className="bg-gray-500/20 text-gray-400 text-xs">
+          {type}
+        </Badge>
+      );
+  }
 }
