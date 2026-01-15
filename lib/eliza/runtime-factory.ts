@@ -79,6 +79,17 @@ async function stopRuntimeServices(
   label: string,
 ): Promise<void> {
   try {
+    // Fix 15: Remove all event listeners before stopping to prevent memory leaks
+    // ElizaOS runtime registers listeners on MESSAGE_RECEIVED, RUN_STARTED, etc.
+    // Without cleanup, 50 cached runtimes × 10+ listeners = memory leak
+    if (typeof (runtime as unknown as { removeAllListeners?: () => void }).removeAllListeners === "function") {
+      (runtime as unknown as { removeAllListeners: () => void }).removeAllListeners();
+    }
+    // Also clear any internal event emitter if accessible
+    const runtimeWithEmitter = runtime as unknown as { eventEmitter?: { removeAllListeners?: () => void } };
+    if (runtimeWithEmitter.eventEmitter?.removeAllListeners) {
+      runtimeWithEmitter.eventEmitter.removeAllListeners();
+    }
     await runtime.stop();
   } catch (e) {
     elizaLogger.debug(`[${label}] Stop error for ${id}: ${e}`);

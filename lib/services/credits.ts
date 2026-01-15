@@ -107,6 +107,10 @@ export interface ReserveAndDeductParams extends DeductCreditsParams {
 /**
  * Service for managing credits, transactions, and credit packs.
  */
+// Fix 20: Rate limit configuration warnings to reduce log noise
+// Only log billing email warning once per deployment
+const loggedBillingEmailWarnings = new Set<string>();
+
 export class CreditsService {
   // Credit Transactions
   async getTransactionById(id: string): Promise<CreditTransaction | undefined> {
@@ -514,9 +518,14 @@ export class CreditsService {
 
       const recipientEmail = org.billing_email;
       if (!recipientEmail) {
-        console.warn("[CreditsService] No billing email for organization", {
-          organizationId,
-        });
+        // Fix 20: Rate limit this warning - only log once per organization per deployment
+        if (!loggedBillingEmailWarnings.has(organizationId)) {
+          loggedBillingEmailWarnings.add(organizationId);
+          logger.warn(
+            "[CreditsService] No billing email configured for organization - low credit email cannot be sent",
+            { organizationId },
+          );
+        }
         return;
       }
 

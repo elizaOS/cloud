@@ -10,6 +10,34 @@ import {
 } from "@elizaos/core";
 
 /**
+ * Fix 17: Timeout wrapper for database queries
+ * Prevents "Connection terminated" errors when queries take too long
+ * Returns fallback value on timeout instead of throwing
+ */
+const QUERY_TIMEOUT_MS = 5000; // 5 second timeout per query
+
+async function withQueryTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error("Query timeout")), timeoutMs),
+      ),
+    ]);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg === "Query timeout") {
+      logger.warn(`[RoomTitle] Query timed out after ${timeoutMs}ms`);
+    }
+    return fallback;
+  }
+}
+
+/**
  * Room Title Generator Evaluator
  *
  * Automatically generates concise room titles from the first user message.
@@ -82,22 +110,26 @@ async function generateTitleInBackground(
   roomId: string,
 ) {
   try {
-    // Fix 7: Batch independent DB calls with Promise.all to reduce HTTP latency
-    // Both getRoom and getMemories only depend on roomId (no interdependency)
+    // Fix 7 + Fix 17: Batch independent DB calls with timeout wrapper
+    // Prevents "Connection terminated" errors when Neon connection drops during query
     const [existingRoom, recentMessages] = await Promise.all([
-      // Check if room already has a title
-      runtime.getRoom(roomId as UUID),
-      // Get recent messages for context
-      runtime.getMemories({
-        tableName: "messages",
-        roomId: roomId as UUID,
-        count: 5, // Get first few messages for context
-        unique: false,
-      }),
+      // Check if room already has a title (null fallback on timeout)
+      withQueryTimeout(runtime.getRoom(roomId as UUID), QUERY_TIMEOUT_MS, null),
+      // Get recent messages for context (empty array fallback on timeout)
+      withQueryTimeout(
+        runtime.getMemories({
+          tableName: "messages",
+          roomId: roomId as UUID,
+          count: 5, // Get first few messages for context
+          unique: false,
+        }),
+        QUERY_TIMEOUT_MS,
+        [],
+      ),
     ]);
 
     if (!existingRoom) {
-      logger.debug(`[RoomTitle] Room not found: ${roomId}`);
+      logger.debug(`[RoomTitle] Room not found or query timed out: ${roomId}`);
       return;
     }
 
@@ -110,6 +142,19 @@ async function generateTitleInBackground(
     if (recentMessages.length < 1) {
       logger.debug(
         `[RoomTitle] Not enough messages yet (${recentMessages.length}/1)`,
+      );
+      return;
+    }
+
+    // Fix 18: Validate message has actual content before title generation
+    // Prevents "Each message must have content" API errors
+    const messageContent =
+      message.content?.text ||
+      (typeof message.content === "string" ? message.content : "");
+
+    if (!messageContent.trim()) {
+      logger.debug(
+        "[RoomTitle] Skipping title generation - empty message content",
       );
       return;
     }

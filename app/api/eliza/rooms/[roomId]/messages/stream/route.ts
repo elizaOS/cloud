@@ -479,6 +479,17 @@ export async function POST(
     };
     const sseEnd = encoder.encode("\n\n");
 
+    // Fix 16: Add AbortController and stream timeout for error recovery
+    // Prevents hung processes when writer fails mid-stream
+    const streamAbortController = new AbortController();
+    const STREAM_TIMEOUT_MS = 120000; // 2 minutes max stream duration
+
+    // Set up stream timeout - will abort if streaming takes too long
+    const streamTimeoutId = setTimeout(() => {
+      streamAbortController.abort();
+      logger.warn("[Stream] Stream timeout reached after 2 minutes, aborting");
+    }, STREAM_TIMEOUT_MS);
+
     // Helper to write SSE events - writes immediately and doesn't buffer
     const sendEvent = async (event: string, data: unknown) => {
       const jsonData = JSON.stringify(data);
@@ -628,13 +639,30 @@ export async function POST(
         // Send completion event
         await sendEvent("done", { timestamp: Date.now() });
       } catch (error) {
-        logger.error("[Stream Messages] Error:", error);
-        await sendEvent("error", {
-          message: error instanceof Error ? error.message : "Processing failed",
-        });
+        // Fix 16: Check if error was due to abort before logging
+        if (!streamAbortController.signal.aborted) {
+          logger.error("[Stream Messages] Error:", error);
+          try {
+            await sendEvent("error", {
+              message: error instanceof Error ? error.message : "Processing failed",
+            });
+          } catch {
+            // Writer may already be closed/errored, ignore
+          }
+        } else {
+          logger.warn("[Stream Messages] Stream was aborted due to timeout");
+        }
       } finally {
-        // Close the writer to signal stream completion
-        await writer.close();
+        // Fix 16: Clean up timeout and ensure writer is properly closed
+        clearTimeout(streamTimeoutId);
+        try {
+          // Only close if not already closed
+          if (!writer.closed) {
+            await writer.close();
+          }
+        } catch {
+          // Writer already closed or errored, ignore
+        }
       }
     })();
 
