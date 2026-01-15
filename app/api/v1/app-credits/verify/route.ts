@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: "session_id is required" },
-        { status: 400, headers: corsHeaders },
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404, headers: corsHeaders },
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
           error: "Payment not completed",
           status: session.payment_status,
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Invalid session type",
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Invalid session metadata",
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
         amount,
         message: "Credits added successfully",
       },
-      { headers: corsHeaders },
+      { headers: corsHeaders }
     );
   } catch (error) {
     logger.error("Failed to verify purchase:", error);
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Verification failed",
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) }
     );
   }
 }
