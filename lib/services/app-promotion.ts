@@ -69,25 +69,30 @@ export interface PromotionConfig {
     postIntervalMax: number;
     vibeStyle?: string;
     topics?: string[];
+    agentCharacterId?: string;
   };
   telegramAutomation?: {
-    enabled: boolean;
+    useExisting?: boolean; // If true, just post using existing config
+    enabled?: boolean;
     channelId?: string;
     groupId?: string;
-    autoAnnounce: boolean;
+    autoAnnounce?: boolean;
     autoReply?: boolean;
-    announceIntervalMin: number;
-    announceIntervalMax: number;
+    announceIntervalMin?: number;
+    announceIntervalMax?: number;
     vibeStyle?: string;
+    agentCharacterId?: string;
   };
   discordAutomation?: {
-    enabled: boolean;
+    useExisting?: boolean; // If true, just post using existing config
+    enabled?: boolean;
     guildId?: string;
     channelId?: string;
-    autoAnnounce: boolean;
-    announceIntervalMin: number;
-    announceIntervalMax: number;
+    autoAnnounce?: boolean;
+    announceIntervalMin?: number;
+    announceIntervalMax?: number;
     vibeStyle?: string;
+    agentCharacterId?: string;
   };
 }
 
@@ -357,7 +362,23 @@ Return ONLY valid JSON, no markdown.`;
 
       if (contentDeduction.success) {
         result.totalCreditsUsed += PROMOTION_COSTS.contentGeneration;
-        promotionalContent = await this.generatePromotionalContent(app);
+        try {
+          promotionalContent = await this.generatePromotionalContent(app);
+        } catch (error) {
+          // Refund credits if content generation fails
+          await creditsService.refundCredits({
+            organizationId,
+            amount: PROMOTION_COSTS.contentGeneration,
+            description: `Refund: Content generation failed for ${app.name}`,
+            metadata: { appId, type: "content_generation_refund" },
+          });
+          result.totalCreditsUsed -= PROMOTION_COSTS.contentGeneration;
+          logger.error("[AppPromotion] Content generation failed, credits refunded", {
+            appId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          result.errors.push("Content generation failed - credits refunded");
+        }
       }
     }
 
@@ -666,6 +687,7 @@ Return ONLY valid JSON, no markdown.`;
           postIntervalMax: config.postIntervalMax,
           vibeStyle: config.vibeStyle,
           topics: config.topics,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 
@@ -721,6 +743,26 @@ Return ONLY valid JSON, no markdown.`;
     config: NonNullable<PromotionConfig["telegramAutomation"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["telegramAutomation"]>> {
     try {
+      // If useExisting is true, just post using existing automation config
+      if (config.useExisting) {
+        logger.info("[AppPromotion] Using existing Telegram automation, posting only", {
+          appId: app.id,
+          organizationId,
+        });
+
+        const postResult = await telegramAppAutomationService.postAnnouncement(
+          organizationId,
+          app.id,
+        );
+
+        return {
+          success: postResult.success,
+          enabled: true,
+          initialMessageId: postResult.messageId?.toString(),
+          error: postResult.error,
+        };
+      }
+
       // Use channelId for announcements, or groupId as fallback
       const chatId = config.channelId || config.groupId;
 
@@ -738,21 +780,22 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         app.id,
         {
-          enabled: config.enabled,
+          enabled: config.enabled ?? true,
           channelId: config.channelId,
           groupId: config.groupId,
-          autoAnnounce: config.autoAnnounce,
+          autoAnnounce: config.autoAnnounce ?? true,
           autoReply: config.autoReply,
-          announceIntervalMin: config.announceIntervalMin,
-          announceIntervalMax: config.announceIntervalMax,
+          announceIntervalMin: config.announceIntervalMin ?? 120,
+          announceIntervalMax: config.announceIntervalMax ?? 240,
           vibeStyle: config.vibeStyle,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 
       // Post an initial announcement if autoAnnounce is enabled
       let initialMessageId: string | undefined;
 
-      if (config.autoAnnounce) {
+      if (config.autoAnnounce !== false) {
         const postResult = await telegramAppAutomationService.postAnnouncement(
           organizationId,
           app.id,
@@ -800,7 +843,28 @@ Return ONLY valid JSON, no markdown.`;
     config: NonNullable<PromotionConfig["discordAutomation"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["discordAutomation"]>> {
     try {
-      // Validate that we have the required config
+      // If useExisting is true, just post using existing automation config
+      if (config.useExisting) {
+        logger.info("[AppPromotion] Using existing Discord automation, posting only", {
+          appId: app.id,
+          organizationId,
+        });
+
+        const postResult = await discordAppAutomationService.postAnnouncement(
+          organizationId,
+          app.id,
+        );
+
+        return {
+          success: postResult.success,
+          enabled: true,
+          initialMessageId: postResult.messageId,
+          channelId: postResult.channelId,
+          error: postResult.error,
+        };
+      }
+
+      // Validate that we have the required config for new setup
       if (!config.guildId || !config.channelId) {
         return {
           success: false,
@@ -814,13 +878,14 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         app.id,
         {
-          enabled: config.enabled,
+          enabled: config.enabled ?? true,
           guildId: config.guildId,
           channelId: config.channelId,
-          autoAnnounce: config.autoAnnounce,
-          announceIntervalMin: config.announceIntervalMin,
-          announceIntervalMax: config.announceIntervalMax,
+          autoAnnounce: config.autoAnnounce ?? true,
+          announceIntervalMin: config.announceIntervalMin ?? 120,
+          announceIntervalMax: config.announceIntervalMax ?? 240,
           vibeStyle: config.vibeStyle,
+          agentCharacterId: config.agentCharacterId,
         },
       );
 
@@ -828,7 +893,7 @@ Return ONLY valid JSON, no markdown.`;
       let initialMessageId: string | undefined;
       let channelId: string | undefined;
 
-      if (config.autoAnnounce) {
+      if (config.autoAnnounce !== false) {
         const postResult = await discordAppAutomationService.postAnnouncement(
           organizationId,
           app.id,

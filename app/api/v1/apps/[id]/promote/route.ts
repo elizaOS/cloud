@@ -82,29 +82,34 @@ const PromotionConfigSchema = z.object({
       postIntervalMax: z.number().int().min(60).max(1440).default(150),
       vibeStyle: z.string().max(100).optional(),
       topics: z.array(z.string().max(50)).max(10).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
   telegramAutomation: z
     .object({
-      enabled: z.boolean(),
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional(),
       channelId: z.string().optional(),
       groupId: z.string().optional(),
-      autoAnnounce: z.boolean(),
+      autoAnnounce: z.boolean().optional(),
       autoReply: z.boolean().optional(),
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
   discordAutomation: z
     .object({
-      enabled: z.boolean().default(true),
+      useExisting: z.boolean().optional(), // If true, just post using existing config
+      enabled: z.boolean().optional().default(true),
       guildId: z.string().optional(),
       channelId: z.string().optional(),
-      autoAnnounce: z.boolean().default(true),
+      autoAnnounce: z.boolean().optional().default(true),
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
+      agentCharacterId: z.string().uuid().optional(),
     })
     .optional(),
 });
