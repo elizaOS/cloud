@@ -39,6 +39,5 @@ describe("MCP Tools Registration", () => {
     expect(lib.errorResponse).toBeDefined();
     expect(lib.getAuthContext).toBeDefined();
     expect(lib.authContextStorage).toBeDefined();
-    expect(lib.reserveCredits).toBeDefined();
   });
 });

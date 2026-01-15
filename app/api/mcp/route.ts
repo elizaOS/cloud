@@ -3,6 +3,8 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { authContextStorage } from "./lib/context";
 
+export const maxDuration = 60;
+
 // Lazy-loaded MCP handler to avoid triggering undici Response polyfill
 // at module evaluation time. The polyfill breaks NextResponse instanceof
 // checks in other routes. See: https://github.com/vercel/next.js/issues/58611
