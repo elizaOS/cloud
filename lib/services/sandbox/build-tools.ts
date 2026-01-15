@@ -13,87 +13,64 @@ import type { SandboxInstance, CommandResult } from "./types";
 const BUILD_CHECK_DELAY_MS = 50;
 
 /**
- * Check build status by verifying the dev server is responding
- * and parsing logs/response for errors.
+ * Check build status by running `bun run build`.
+ * This catches TypeScript type errors that the dev server HMR might miss.
  *
- * NOTE: Uses curl internally for health check - this is intentional
- * and bypasses the AI command allowlist (curl is blocked for AI).
+ * NOTE: This runs a full production build which is more thorough than
+ * just checking dev server logs.
  */
 export async function checkBuild(sandbox: SandboxInstance): Promise<string> {
-  // Reduced delay - HMR should have already processed changes
+  // Small delay to let any pending file writes complete
   await new Promise((r) => setTimeout(r, BUILD_CHECK_DELAY_MS));
 
-  // Run log check and curl health check in parallel for speed
-  const [logsResult, curlResult] = await Promise.all([
-    sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        "tail -100 /tmp/next-dev.log 2>/dev/null | grep -i -E 'error|failed|cannot' | grep -v 'warning:' | tail -20",
-      ],
-    }),
-    sandbox.runCommand({
-      cmd: "curl",
-      args: [
-        "-s",
-        "-w",
-        "\n---STATUS:%{http_code}---",
-        "-m",
-        "5",
-        "http://localhost:3000",
-      ],
-    }),
-  ]);
+  try {
+    // Run the actual build command
+    const command = await sandbox.runCommand({
+      cmd: "bun",
+      args: ["run", "build"],
+    });
 
-  const logs = await logsResult.stdout();
-  const response = await curlResult.stdout();
+    // Get both stdout and stderr
+    const [stdout, stderr] = await Promise.all([
+      command.stdout(),
+      command.stderr(),
+    ]);
 
-  const statusMatch = response.match(/---STATUS:(\d+)---/);
-  const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
-  const body = response.replace(/---STATUS:\d+---/, "");
+    const output = `${stdout}\n${stderr}`.trim();
+    const exitCode = command.exitCode ?? -1;
 
-  const errors: string[] = [];
-
-  if (statusCode >= 400 || statusCode === 0) {
-    errors.push(`HTTP ${statusCode}: Page failed to load`);
-  }
-
-  // Parse error patterns from response body
-  const errorPatterns = [
-    /Error:([^<]+)/gi,
-    /Cannot ([^<]+)/gi,
-    /Module not found([^<]+)/gi,
-    /SyntaxError([^<]+)/gi,
-    /TypeError([^<]+)/gi,
-    /Build Error/gi,
-    /CssSyntaxError([^<]+)/gi,
-  ];
-
-  for (const pattern of errorPatterns) {
-    const matches = body.matchAll(pattern);
-    for (const match of matches) {
-      const err = match[0].substring(0, 200).trim();
-      if (!errors.includes(err)) {
-        errors.push(err);
-      }
+    if (exitCode === 0) {
+      return "BUILD OK - No errors detected!";
     }
-  }
 
-  // Add relevant log errors (excluding deprecation warnings)
-  if (logs.trim()) {
-    const logErrors = logs
-      .split("\n")
-      .filter((l) => l.trim() && !l.includes("DeprecationWarning"))
-      .slice(0, 5);
-    errors.push(...logErrors);
-  }
+    // Extract meaningful error messages from build output
+    const lines = output.split("\n");
+    const errorLines = lines
+      .filter(
+        (line) =>
+          line.includes("Error") ||
+          line.includes("error") ||
+          line.includes("failed") ||
+          line.includes("Cannot") ||
+          line.includes("Module not found") ||
+          line.includes("Type ") ||
+          line.includes("TS"),
+      )
+      .filter(
+        (line) =>
+          !line.includes("warning") && !line.includes("DeprecationWarning"),
+      )
+      .slice(0, 15);
 
-  if (errors.length === 0) {
-    return "BUILD OK - No errors detected!";
-  }
+    const errorSummary =
+      errorLines.length > 0 ? errorLines.join("\n") : output.slice(0, 1500);
 
-  const uniqueErrors = [...new Set(errors)].slice(0, 10);
-  return `BUILD ERRORS:\n${uniqueErrors.join("\n")}\n\nPlease fix these errors!`;
+    return `BUILD ERRORS:\n${errorSummary}\n\nPlease fix these errors!`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("Build check failed", { error: message });
+    return `BUILD ERRORS:\nBuild command failed: ${message}\n\nPlease fix these errors!`;
+  }
 }
 
 /**

@@ -78,6 +78,7 @@ export interface BuilderSession {
 export interface PromptResult {
   success: boolean;
   output: string;
+  reasoning?: string;
   filesAffected: string[];
   error?: string;
 }

@@ -179,16 +179,16 @@ const ChatMessage = memo(function ChatMessage({
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
               <div className="relative">
-                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-[#FF5800]" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-30" />
+                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-white/80" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
               </div>
             )}
             <span
               className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
                 msg.role === "user"
-                  ? "text-[#FF5800]/80"
+                  ? "text-white/70"
                   : isProcessing
-                    ? "text-[#FF5800]/70"
+                    ? "text-white/60"
                     : "text-white/40"
               }`}
               style={{ fontFamily: "var(--font-sf-pro)" }}
@@ -451,6 +451,7 @@ export default function AppCreatorPage() {
       detail: string;
       timestamp: string;
       status: "pending" | "active" | "done";
+      context?: string;
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
@@ -1922,7 +1923,7 @@ Some ideas:
                       : reasoningText;
                   accumulateThinkingChunk(streamId, chunkText);
 
-                  // Schedule throttled UI update - show FULL reasoning text (no truncation!)
+                  // Schedule throttled UI update
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
                     let content = `**Setting up ${appName}**\n\n`;
                     if (sessionActionsLogRef.current.length > 0) {
@@ -1930,12 +1931,21 @@ Some ideas:
                         const statusMarker =
                           action.status === "active" ? "⏳" : "✓";
                         content += `${statusMarker} **${action.tool}**\n`;
-                        content += `> \`${action.detail}\`\n\n`;
+                        content += `> \`${action.detail}\`\n`;
+                        // Show reasoning inline with this action
+                        if (action.context) {
+                          const truncated =
+                            action.context.length > 150
+                              ? action.context.substring(0, 150).trim() + "..."
+                              : action.context;
+                          content += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                        }
+                        content += "\n";
                       });
                     }
-                    // Show FULL reasoning text - no truncation
+                    // Show current streaming reasoning (new text since last action)
                     if (accumulatedText.trim()) {
-                      content += `${accumulatedText}\n`;
+                      content += `💭 *${accumulatedText.trim()}*\n`;
                     }
 
                     setMessages((prev) =>
@@ -1962,7 +1972,13 @@ Some ideas:
                   ].status = "done";
                 }
 
-                // Add new action
+                // Capture current reasoning for this action (before clearing buffer)
+                const streamId = initialThinkingStreamIdRef.current;
+                const actionReasoning = streamId
+                  ? getThinkingText(streamId).trim()
+                  : undefined;
+
+                // Add new action WITH its reasoning context
                 sessionActionsLogRef.current.push({
                   tool: toolDisplay,
                   detail,
@@ -1973,7 +1989,11 @@ Some ideas:
                     second: "2-digit",
                   }),
                   status: "active",
+                  context: actionReasoning || undefined,
                 });
+
+                // Clear buffer - reasoning is now attached to this action
+                clearThinkingBuffer();
 
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
@@ -1983,13 +2003,22 @@ Some ideas:
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
 
-                  // Build organized content showing each action
+                  // Build organized content showing each action with its inline reasoning
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
                     progressContent += `${statusMarker} **${action.tool}**\n`;
-                    progressContent += `> \`${action.detail}\`\n\n`;
+                    progressContent += `> \`${action.detail}\`\n`;
+                    // Show reasoning inline with this action
+                    if (action.context) {
+                      const truncated =
+                        action.context.length > 150
+                          ? action.context.substring(0, 150).trim() + "..."
+                          : action.context;
+                      progressContent += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                    }
+                    progressContent += "\n";
                   });
 
                   setMessages((prev) =>
@@ -2018,19 +2047,30 @@ Some ideas:
                     action.status = "done";
                   });
 
+                  // Generate clean summary based on what was done
+                  // AI's raw output goes in reasoning accordion for transparency
+                  const result = data.session.initialPromptResult;
+                  const fileCount = result.filesAffected?.length || 0;
+                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
+
                   let assistantContent = "";
-                  if (data.session.initialPromptResult.output) {
-                    assistantContent += data.session.initialPromptResult.output;
+                  if (hasBuildErrors) {
+                    assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (fileCount > 0) {
+                    assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
+                  } else {
+                    assistantContent = `I've set up your app! Check out the preview to see it in action.`;
                   }
 
-                  if (sessionActionsLogRef.current.length > 0) {
-                    assistantContent +=
-                      "\n\n---\n\n**Completed Operations**\n\n";
-                    sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `✓ **${action.tool}**\n`;
-                      assistantContent += `> \`${action.detail}\`\n\n`;
-                    });
-                  }
+                  // Build operations array for accordion display (same format as sendPrompt)
+                  const operations = sessionActionsLogRef.current.map(
+                    (action) => ({
+                      tool: action.tool,
+                      detail: action.detail,
+                      timestamp: action.timestamp,
+                      reasoning: action.context, // Per-action reasoning
+                    }),
+                  );
 
                   setMessages((prev) =>
                     prev.map((m) => {
@@ -2044,6 +2084,9 @@ Some ideas:
                         return {
                           ...rest,
                           content: assistantContent,
+                          operations, // Operations array for accordions
+                          reasoning:
+                            data.session.initialPromptResult.reasoning, // Fallback reasoning
                           filesAffected:
                             data.session.initialPromptResult.filesAffected,
                         };
@@ -2121,6 +2164,7 @@ Some ideas:
     // - No active session
     // - Not currently loading/restoring
     // - Haven't already triggered auto-start
+    // - Initialization is complete (prevents race condition on page refresh)
     if (
       isEditMode &&
       appData &&
@@ -2128,6 +2172,7 @@ Some ideas:
       status === "idle" &&
       !isLoading &&
       !isRestoring &&
+      !isInitializing &&
       !autoStartTriggeredRef.current
     ) {
       autoStartTriggeredRef.current = true;
@@ -2141,11 +2186,11 @@ Some ideas:
   }, [
     isEditMode,
     appData,
-    
     session,
     status,
     isLoading,
     isRestoring,
+    isInitializing,
     startSession,
   ]);
 
@@ -2203,13 +2248,14 @@ Some ideas:
           if (currentStatus) {
             content += `*${currentStatus}*`;
           } else if (currentThinkingPreview) {
-            content += `*Thinking...*`;
+            // Show actual reasoning text inline during planning phase
+            content += `💭 *${currentThinkingPreview}*`;
           }
         }
 
         // Show operations list with reasoning context
         if (actionsLog.length > 0) {
-          actionsLog.forEach((action) => {
+          actionsLog.forEach((action, idx) => {
             const isActive =
               action.status === "active" || action.status === "pending";
             const statusIcon = isActive ? "⏳" : "✓";
@@ -2230,6 +2276,9 @@ Some ideas:
             }
             content += "\n";
           });
+
+          // Note: Reasoning is shown inline with each action via action.context
+          // We don't show a separate thinking preview blob at the bottom to avoid duplication
         }
 
         return content || "**Processing your request**\n\n*Analyzing...*";
@@ -2371,16 +2420,20 @@ Some ideas:
                   } = formatToolDisplay(toolName, data.input);
 
                   // Add as pending action WITH reasoning context for accordion display
+                  // Use server's reasoningContext, fallback to client's accumulated thinking
+                  const reasoningForAction =
+                    data.reasoningContext || currentThinkingPreview || undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
                     status: "pending",
-                    context: data.reasoningContext || undefined, // Reasoning that led to this tool
+                    context: reasoningForAction,
                   });
 
-                  // Clear preview - tool action now takes focus
+                  // Clear preview AND throttled buffer - reasoning is now attached to action
                   currentThinkingPreview = "";
+                  clearThinkingBuffer(); // Reset the accumulator so we don't duplicate
 
                   updateThinking(`⏳ ${statusMessage}`);
                 } else if (eventType === "tool_use") {
@@ -2448,19 +2501,20 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
-              // Build clean content - NO reasoning mixed in!
-              let content = "";
+              // Generate clean summary based on what was done
+              // AI's raw output goes in reasoning accordion for transparency
+              const fileCount = finalData.filesAffected?.length || 0;
+              const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
 
-              // Final output should be a clean summary, not accumulated reasoning
-              if (finalData.output && finalData.output.trim()) {
-                content += finalData.output.trim();
+              let content = "";
+              if (hasBuildErrors) {
+                content = `I've made changes but encountered some build errors.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+              } else if (fileCount > 0) {
+                content = `Done! I've updated ${fileCount} file${fileCount !== 1 ? "s" : ""}. Check out the preview to see the changes.`;
+              } else if (actionsLog.length > 0) {
+                content = "I've completed your request.";
               } else {
-                // If no clean output, generate a summary based on actions
-                if (actionsLog.length > 0) {
-                  content = "I've completed your request.";
-                } else {
-                  content = "Done!";
-                }
+                content = "Done!";
               }
 
               // Build operations list with per-action reasoning for accordions
