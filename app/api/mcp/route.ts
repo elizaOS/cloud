@@ -8,7 +8,7 @@ import { authContextStorage } from "./lib/context";
 // checks in other routes. See: https://github.com/vercel/next.js/issues/58611
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
 
-async function getMcpHandler() {
+export async function getMcpHandler() {
   if (mcpHandler) return mcpHandler;
 
   // Dynamic imports to delay polyfill until first MCP request
