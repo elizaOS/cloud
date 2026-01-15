@@ -261,11 +261,30 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     );
   }
 
-  const data = (await response.json()) as OpenAIModerationResponse;
-  const result = data.results[0];
+  // Fix 22: Graceful degradation on malformed response
+  // Moderation is non-blocking - return empty result instead of throwing
+  let data: OpenAIModerationResponse;
+  try {
+    data = (await response.json()) as OpenAIModerationResponse;
+  } catch (parseError) {
+    // JSON parse failed - return empty result (non-blocking)
+    logger.warn("[ContentModeration] Failed to parse response body", {
+      backend: backend.backend,
+      status: response.status,
+    });
+    return emptyModerationResult();
+  }
+
+  const result = data.results?.[0];
 
   if (!result) {
-    throw new Error("Moderation API returned no results");
+    // No results in response - return empty result (non-blocking)
+    logger.debug("[ContentModeration] No results in moderation response", {
+      backend: backend.backend,
+      hasResults: !!data.results,
+      resultsLength: data.results?.length,
+    });
+    return emptyModerationResult();
   }
 
   // Check only the categories we care about

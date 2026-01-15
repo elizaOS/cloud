@@ -165,10 +165,54 @@ export async function verifyAuthTokenCached(
 
     return claims;
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    // Fix 25: Handle clock skew for "exp" claim failures
+    // Vercel functions may have slight clock drift from Privy's servers
+    const CLOCK_SKEW_TOLERANCE_SECONDS = 60; // 1 minute tolerance
+
+    if (errorMessage.includes('"exp" claim timestamp check failed')) {
+      // Try to decode token and check if within tolerance
+      try {
+        const [, payloadBase64] = token.split(".");
+        if (payloadBase64) {
+          const payload = JSON.parse(
+            Buffer.from(payloadBase64, "base64url").toString(),
+          );
+          const now = Math.floor(Date.now() / 1000);
+          const tokenExp = payload.exp;
+
+          // If token expired within tolerance window, it's likely clock skew
+          if (tokenExp && now - tokenExp <= CLOCK_SKEW_TOLERANCE_SECONDS) {
+            logger.warn("[PrivyClient] Token expired within clock skew tolerance", {
+              tokenExp,
+              now,
+              diff: now - tokenExp,
+              tolerance: CLOCK_SKEW_TOLERANCE_SECONDS,
+            });
+
+            // Return the decoded claims since they're likely valid
+            // Extract claims from the decoded payload
+            if (payload.sub && payload.aud && payload.iss) {
+              return {
+                userId: payload.sub,
+                appId: payload.aud,
+                issuer: payload.iss,
+                issuedAt: payload.iat,
+                expiration: payload.exp,
+              } as AuthTokenClaims;
+            }
+          }
+        }
+      } catch {
+        // Payload decode failed, continue to regular error handling
+      }
+    }
+
     // Log error but don't expose details
     logger.error(
       "[PrivyClient] ✗ Token verification error:",
-      error instanceof Error ? error.message : "Unknown error",
+      errorMessage,
     );
 
     // On error, try to verify directly without caching

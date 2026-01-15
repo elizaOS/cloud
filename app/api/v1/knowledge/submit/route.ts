@@ -201,12 +201,39 @@ async function handlePOST(req: NextRequest) {
   // Track cumulative downloaded bytes to prevent memory exhaustion
   let totalDownloadedBytes = 0;
 
+  // Fix 23: Track processing time to return partial success before Vercel timeout
+  const PROCESSING_TIMEOUT_MS = 240000; // 4 minutes (leave 1 min buffer for 5 min limit)
+  const processingStartTime = Date.now();
+
   // Process files sequentially to:
   // 1. Manage memory - prevents multiple large files (5MB each) in memory simultaneously
   // 2. Avoid rate limits on the knowledge service's embedding API
   // 3. Ensure clean error tracking per file without parallel operation interference
   // Parallel processing is intentionally avoided here despite potential performance gains.
-  for (const file of files) {
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+    const file = files[fileIndex];
+
+    // Fix 23: Check if approaching timeout before processing next file
+    const elapsed = Date.now() - processingStartTime;
+    if (elapsed > PROCESSING_TIMEOUT_MS) {
+      const processedCount = results.filter((r) => r.status === "success").length;
+      const pendingFiles = files.slice(fileIndex).map((f) => f.filename);
+
+      logger.warn("[KnowledgeSubmit] Approaching timeout, returning partial success", {
+        elapsed,
+        processedCount,
+        pendingCount: pendingFiles.length,
+      });
+
+      return Response.json({
+        success: true,
+        partial: true,
+        message: `Processed ${processedCount}/${files.length} files before timeout. Retry with remaining files.`,
+        results,
+        pendingFiles,
+      });
+    }
+
     try {
       const response = await fetchWithTimeout(
         file.blobUrl,

@@ -204,16 +204,35 @@ async function handlePOST(req: NextRequest) {
       headers: upstreamRateLimitHeaders,
     });
   } catch (error) {
-    logger.error("[OpenAI Proxy] Embeddings error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+
+    // Fix 24: Return appropriate status codes based on error type
+    // Auth errors should return 401, not generic 500
+    const isAuthError =
+      errorMessage.includes("Invalid") ||
+      errorMessage.includes("expired") ||
+      errorMessage.includes("not found") ||
+      errorMessage.includes("inactive") ||
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Forbidden");
+
+    const statusCode = isAuthError ? 401 : 500;
+    const errorType = isAuthError ? "auth_error" : "api_error";
+
+    logger.error(`[OpenAI Proxy] Embeddings ${errorType}:`, {
+      message: errorMessage,
+      statusCode,
+    });
+
     return Response.json(
       {
         error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
+          message: errorMessage,
+          type: errorType,
+          code: isAuthError ? "authentication_failed" : "internal_error",
         },
       },
-      { status: 500 },
+      { status: statusCode },
     );
   }
 }

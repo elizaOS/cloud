@@ -234,9 +234,28 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
+    // Fix 23: Track processing time to return partial success before timeout
+    const PROCESSING_TIMEOUT_MS = 240000; // 4 minutes (leave 1 min buffer)
+    const processingStartTime = Date.now();
+
     // Process all files
     const results: UploadResult[] = await Promise.all(
-      files.map(async (file) => {
+      files.map(async (file, index) => {
+        // Check timeout before starting each file
+        const elapsed = Date.now() - processingStartTime;
+        if (elapsed > PROCESSING_TIMEOUT_MS) {
+          logger.warn(`[Knowledge Upload] Skipping file ${file.name} due to timeout`);
+          return {
+            id: "",
+            filename: file.name,
+            type: file.type,
+            size: file.size,
+            uploadedAt: Date.now(),
+            status: "timeout_skipped" as const,
+            error: "Processing timeout - please retry this file",
+          };
+        }
+
         try {
           // Read file content and convert to base64
           const arrayBuffer = await file.arrayBuffer();
