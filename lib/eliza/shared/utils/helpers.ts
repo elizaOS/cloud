@@ -15,6 +15,7 @@ import {
 } from "@elizaos/core";
 import { v4 } from "uuid";
 import type { ParsedResponse, ParsedPlan } from "./parsers";
+import { filterModelParams } from "./model-utils";
 
 /**
  * Default Eliza agent ID - used to detect creator mode
@@ -31,13 +32,26 @@ export function isCreatorMode(runtime: IAgentRuntime): boolean {
 }
 
 export const MAX_RESPONSE_RETRIES = 3;
-export const EVALUATOR_TIMEOUT_MS = 30000;
+
+/**
+ * Timeout for evaluator execution (60 seconds).
+ * Increased from 30s to accommodate HTTP-based Neon driver latency
+ * when evaluators make multiple sequential database calls.
+ */
+export const EVALUATOR_TIMEOUT_MS = 60000;
 
 /**
  * Timeout for AI model requests (30 seconds).
  * Prevents hanging requests that cause AI_NoOutputGeneratedError.
  */
 export const AI_MODEL_TIMEOUT_MS = 30000;
+
+/**
+ * Maximum buffer size for streaming XML filter (100KB).
+ * Prevents memory exhaustion from unbounded buffer growth
+ * when XML tags span multiple streaming chunks.
+ */
+const MAX_STREAM_BUFFER_SIZE = 100000;
 
 /**
  * Wraps a promise with a timeout.
@@ -556,6 +570,20 @@ function createStreamingXmlFilter(
   ): Promise<string> => {
     state.buffer += input;
 
+    // CRITICAL: Prevent unbounded buffer growth (Fix 9 - Memory Management)
+    // If buffer exceeds limit, flush it to prevent OOM crashes
+    if (state.buffer.length > MAX_STREAM_BUFFER_SIZE) {
+      logger.warn(
+        `[StreamFilter] Buffer exceeded ${MAX_STREAM_BUFFER_SIZE} bytes, flushing to prevent OOM`,
+      );
+      if (state.inside && state.buffer) {
+        await onContent(state.buffer);
+      }
+      state.buffer = "";
+      state.inside = false;
+      return "";
+    }
+
     while (state.buffer.length > 0) {
       if (!state.inside) {
         const tagStart = state.buffer.indexOf(startTag);
@@ -646,6 +674,13 @@ export async function generateResponseWithRetry(
   let lastError: Error | null = null;
   const { onStreamChunk, onReasoningChunk, messageId } = options || {};
 
+  // Fix 6: Get model name for parameter filtering (reasoning models don't support temperature, etc.)
+  const rawModel = runtime.character?.settings?.model;
+  const modelName: string =
+    (typeof rawModel === "string" ? rawModel : null) ||
+    process.env.ELIZAOS_CLOUD_LARGE_MODEL ||
+    "claude-3-5-sonnet";
+
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
     try {
       // When streaming callback is provided, enable streaming mode with XML filtering
@@ -654,16 +689,35 @@ export async function generateResponseWithRetry(
       let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null =
         null;
 
+      // Fix 8: Track streamed content separately to avoid false retry on empty response variable
+      let streamedTextContent = "";
+      let streamedThoughtContent = "";
+
       if (onStreamChunk) {
         streamFilter = createStreamingXmlFilter(
-          onStreamChunk,
+          async (chunk: string, msgId?: UUID) => {
+            streamedTextContent += chunk; // Track what we've streamed
+            await onStreamChunk(chunk, msgId);
+          },
           messageId,
-          onReasoningChunk,
+          onReasoningChunk
+            ? async (
+                chunk: string,
+                phase: "planning" | "actions" | "response",
+                msgId?: UUID,
+              ) => {
+                if (phase === "response") {
+                  streamedThoughtContent += chunk;
+                }
+                await onReasoningChunk(chunk, phase, msgId);
+              }
+            : undefined,
         );
       }
 
-      const response = await withTimeout(
-        runtime.useModel(ModelType.TEXT_LARGE, {
+      // Fix 6: Filter out unsupported params for reasoning models (o1, o3, deepseek-r1)
+      const modelParams = filterModelParams(
+        {
           prompt,
           ...(onStreamChunk &&
             streamFilter && {
@@ -672,7 +726,12 @@ export async function generateResponseWithRetry(
                 await streamFilter!.processChunk(chunk);
               },
             }),
-        }),
+        },
+        modelName,
+      );
+
+      const response = await withTimeout(
+        runtime.useModel(ModelType.TEXT_LARGE, modelParams),
         AI_MODEL_TIMEOUT_MS,
         "AI model request timed out after 30 seconds",
       );
@@ -680,6 +739,15 @@ export async function generateResponseWithRetry(
       // Flush any remaining buffered content
       if (streamFilter) {
         await streamFilter.flush();
+      }
+
+      // Fix 8: If we successfully streamed content, return it instead of checking response variable
+      // This prevents false "empty response" retries when streaming worked but response var is empty
+      if (streamedTextContent.length > 0) {
+        logger.info(
+          `[generateResponseWithRetry] Returning streamed content (${streamedTextContent.length} chars)`,
+        );
+        return { text: streamedTextContent, thought: streamedThoughtContent };
       }
 
       if (

@@ -82,8 +82,19 @@ async function generateTitleInBackground(
   roomId: string,
 ) {
   try {
-    // Check if room already has a title
-    const existingRoom = await runtime.getRoom(roomId as UUID);
+    // Fix 7: Batch independent DB calls with Promise.all to reduce HTTP latency
+    // Both getRoom and getMemories only depend on roomId (no interdependency)
+    const [existingRoom, recentMessages] = await Promise.all([
+      // Check if room already has a title
+      runtime.getRoom(roomId as UUID),
+      // Get recent messages for context
+      runtime.getMemories({
+        tableName: "messages",
+        roomId: roomId as UUID,
+        count: 5, // Get first few messages for context
+        unique: false,
+      }),
+    ]);
 
     if (!existingRoom) {
       logger.debug(`[RoomTitle] Room not found: ${roomId}`);
@@ -95,14 +106,6 @@ async function generateTitleInBackground(
       logger.debug(`[RoomTitle] Room already has title: ${existingRoom.name}`);
       return;
     }
-
-    // Get recent messages for context
-    const recentMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: roomId as UUID,
-      count: 5, // Get first few messages for context
-      unique: false,
-    });
 
     if (recentMessages.length < 1) {
       logger.debug(
@@ -187,24 +190,24 @@ export const roomTitleEvaluator: Evaluator = {
       return false;
     }
 
-    // Check if we've already generated a title for this room
-    const alreadyGenerated = await runtime.getCache<boolean>(
-      `room-title-generated-${message.roomId}`,
-    );
+    // Fix 7: Batch independent DB calls with Promise.all to reduce HTTP latency
+    // Both cache lookup and message fetch only depend on roomId/entityId (no interdependency)
+    const [alreadyGenerated, userMessages] = await Promise.all([
+      // Check if we've already generated a title for this room
+      runtime.getCache<boolean>(`room-title-generated-${message.roomId}`),
+      // Get messages from this specific user (entityId) to check if this is their first message
+      runtime.getMemories({
+        tableName: "messages",
+        roomId: message.roomId,
+        entityId: message.entityId, // Filter by user who sent the message
+        count: 3,
+        unique: false,
+      }),
+    ]);
 
     if (alreadyGenerated) {
       return false;
     }
-
-    // Get messages from this specific user (entityId) to cheeck if this is their first message
-    // We only need to check the last 2 messages from this user
-    const userMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: message.roomId,
-      entityId: message.entityId, // Filter by user who sent the message
-      count: 3,
-      unique: false,
-    });
 
     // Filter messages by entityId since DB filter might not work properly
     const filteredUserMessages = userMessages.filter(
