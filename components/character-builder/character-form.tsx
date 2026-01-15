@@ -443,7 +443,9 @@ export function CharacterForm({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  updateField("adjectives", parseCommaSeparated(adjectivesDraft));
+                  const parsed = parseCommaSeparated(adjectivesDraft);
+                  updateField("adjectives", parsed);
+                  setAdjectivesDraft(parsed.join(", "));
                 }
               }}
               placeholder="witty, sarcastic, caring, thoughtful..."
@@ -490,7 +492,9 @@ export function CharacterForm({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  updateField("topics", parseCommaSeparated(topicsDraft));
+                  const parsed = parseCommaSeparated(topicsDraft);
+                  updateField("topics", parsed);
+                  setTopicsDraft(parsed.join(", "));
                 }
               }}
               placeholder="DeFi protocols, AI research, meme culture..."
