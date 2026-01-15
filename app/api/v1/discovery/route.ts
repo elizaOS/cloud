@@ -276,8 +276,7 @@ async function fetchLocalAgents(
       mcpTools: [],
       a2aSkills: [],
       x402Support: false,
-      organizationId: char.organization_id,
-      creatorId: char.user_id,
+      // Note: organizationId and creatorId intentionally omitted for privacy
       verified: false,
       slug: char.slug ?? undefined,
       pricing: char.monetization_enabled
@@ -319,8 +318,7 @@ async function fetchLocalMcps(
       mcpTools: mcp.tools.map((t) => t.name),
       a2aSkills: [],
       x402Support: mcp.x402_enabled,
-      organizationId: mcp.organization_id,
-      creatorId: mcp.created_by_user_id,
+      // Note: organizationId and creatorId intentionally omitted for privacy
       verified: mcp.is_verified,
       slug: mcp.slug,
       pricing:
