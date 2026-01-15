@@ -117,15 +117,15 @@ export const apps = pgTable(
     // Creator earnings tracking (summary)
     total_creator_earnings: numeric("total_creator_earnings", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
-      .default("0.00")
+      .default("0.000000")
       .notNull(),
     total_platform_revenue: numeric("total_platform_revenue", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
-      .default("0.00")
+      .default("0.000000")
       .notNull(),
 
     // App features/permissions

@@ -26,34 +26,34 @@ export const appEarnings = pgTable(
       .references(() => apps.id, { onDelete: "cascade" }),
     total_lifetime_earnings: numeric("total_lifetime_earnings", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
       .notNull()
-      .default("0.00"),
+      .default("0.000000"),
     total_inference_earnings: numeric("total_inference_earnings", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
       .notNull()
-      .default("0.00"),
+      .default("0.000000"),
     total_purchase_earnings: numeric("total_purchase_earnings", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
       .notNull()
-      .default("0.00"),
-    pending_balance: numeric("pending_balance", { precision: 12, scale: 2 })
+      .default("0.000000"),
+    pending_balance: numeric("pending_balance", { precision: 12, scale: 6 })
       .notNull()
-      .default("0.00"),
+      .default("0.000000"),
     withdrawable_balance: numeric("withdrawable_balance", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
       .notNull()
-      .default("0.00"),
-    total_withdrawn: numeric("total_withdrawn", { precision: 12, scale: 2 })
+      .default("0.000000"),
+    total_withdrawn: numeric("total_withdrawn", { precision: 12, scale: 6 })
       .notNull()
-      .default("0.00"),
+      .default("0.000000"),
     last_withdrawal_at: timestamp("last_withdrawal_at"),
     payout_threshold: numeric("payout_threshold", { precision: 10, scale: 2 })
       .notNull()
@@ -82,7 +82,7 @@ export const appEarningsTransactions = pgTable(
       onDelete: "set null",
     }),
     type: text("type").notNull(),
-    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    amount: numeric("amount", { precision: 10, scale: 6 }).notNull(),
     description: text("description"),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
