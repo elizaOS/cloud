@@ -26,7 +26,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, X, Copy, Check, HelpCircle, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  X,
+  Copy,
+  Check,
+  HelpCircle,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { MessageSquare, Image, Video, Mic, Bot, Database } from "lucide-react";
 import {
@@ -63,7 +71,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     isAvailable: boolean | null;
     error: string | null;
     suggestedName: string | null;
-  }>({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
   const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const featureIcons = {
@@ -104,7 +117,10 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
       setNameValidation({
         isChecking: false,
         isAvailable: null,
-        error: trimmedName.length > 0 && trimmedName.length < 2 ? "Name must be at least 2 characters" : null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
         suggestedName: null,
       });
       return;
@@ -133,10 +149,20 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             suggestedName: data.suggestedName || null,
           });
         } else {
-          setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
         }
       } catch {
-        setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
       }
     }, 500);
 
@@ -148,12 +174,14 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
   }, [formData.name]);
 
   // Validation helpers
-  const isNameValid = formData.name.trim().length >= 2 && 
-    formData.name.length <= 100 && 
-    !nameValidation.isChecking && 
+  const isNameValid =
+    formData.name.trim().length >= 2 &&
+    formData.name.length <= 100 &&
+    !nameValidation.isChecking &&
     nameValidation.isAvailable !== false;
-  
-  const isDescriptionValid = formData.description.length >= MIN_DESCRIPTION_LENGTH;
+
+  const isDescriptionValid =
+    formData.description.length >= MIN_DESCRIPTION_LENGTH;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,7 +255,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
     // Reset all state
     setCreatedApp(null);
     setCopied(false);
-    setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+    setNameValidation({
+      isChecking: false,
+      isAvailable: null,
+      error: null,
+      suggestedName: null,
+    });
     setFormData({
       name: "",
       description: "",
@@ -336,19 +369,24 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   {nameValidation.isChecking && (
                     <Loader2 className="h-3 w-3 animate-spin text-white/40" />
                   )}
-                  {!nameValidation.isChecking && nameValidation.isAvailable === true && formData.name.trim().length >= 2 && (
-                    <span className="flex items-center gap-1 text-xs text-emerald-400">
-                      <Check className="h-3 w-3" />
-                      Available
-                    </span>
-                  )}
-                  {!nameValidation.isChecking && nameValidation.isAvailable === false && (
-                    <span className="flex items-center gap-1 text-xs text-red-400">
-                      <AlertCircle className="h-3 w-3" />
-                      Taken
-                    </span>
-                  )}
-                  <span className="text-xs text-white/40">{formData.name.length}/100</span>
+                  {!nameValidation.isChecking &&
+                    nameValidation.isAvailable === true &&
+                    formData.name.trim().length >= 2 && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-400">
+                        <Check className="h-3 w-3" />
+                        Available
+                      </span>
+                    )}
+                  {!nameValidation.isChecking &&
+                    nameValidation.isAvailable === false && (
+                      <span className="flex items-center gap-1 text-xs text-red-400">
+                        <AlertCircle className="h-3 w-3" />
+                        Taken
+                      </span>
+                    )}
+                  <span className="text-xs text-white/40">
+                    {formData.name.length}/100
+                  </span>
                 </div>
               </div>
               <Input
@@ -362,7 +400,8 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 className={
                   nameValidation.error
                     ? "border-red-500/50 focus:border-red-500"
-                    : nameValidation.isAvailable === true && formData.name.trim().length >= 2
+                    : nameValidation.isAvailable === true &&
+                        formData.name.trim().length >= 2
                       ? "border-emerald-500/30 focus:border-emerald-500"
                       : ""
                 }
@@ -375,7 +414,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                   {nameValidation.suggestedName && (
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, name: nameValidation.suggestedName! })}
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          name: nameValidation.suggestedName!,
+                        })
+                      }
                       className="ml-1 text-[#FF5800] hover:underline"
                     >
                       Try &quot;{nameValidation.suggestedName}&quot;
@@ -390,12 +434,16 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 <Label htmlFor="description">
                   Description <span className="text-red-500">*</span>
                 </Label>
-                <span className={`text-xs ${
-                  formData.description.length > 0 && formData.description.length < MIN_DESCRIPTION_LENGTH
-                    ? "text-amber-400"
-                    : "text-white/40"
-                }`}>
-                  {formData.description.length} characters (min {MIN_DESCRIPTION_LENGTH})
+                <span
+                  className={`text-xs ${
+                    formData.description.length > 0 &&
+                    formData.description.length < MIN_DESCRIPTION_LENGTH
+                      ? "text-amber-400"
+                      : "text-white/40"
+                  }`}
+                >
+                  {formData.description.length} characters (min{" "}
+                  {MIN_DESCRIPTION_LENGTH})
                 </span>
               </div>
               <Textarea
@@ -407,19 +455,24 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
                 placeholder="A brief description of your app... (minimum 10 characters)"
                 rows={3}
                 className={
-                  formData.description.length > 0 && formData.description.length < MIN_DESCRIPTION_LENGTH
+                  formData.description.length > 0 &&
+                  formData.description.length < MIN_DESCRIPTION_LENGTH
                     ? "border-amber-500/30 focus:border-amber-500"
                     : formData.description.length >= MIN_DESCRIPTION_LENGTH
                       ? "border-emerald-500/30 focus:border-emerald-500"
                       : ""
                 }
               />
-              {formData.description.length > 0 && formData.description.length < MIN_DESCRIPTION_LENGTH && (
-                <p className="text-xs text-amber-400 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  Description must be at least {MIN_DESCRIPTION_LENGTH} characters ({MIN_DESCRIPTION_LENGTH - formData.description.length} more needed)
-                </p>
-              )}
+              {formData.description.length > 0 &&
+                formData.description.length < MIN_DESCRIPTION_LENGTH && (
+                  <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    Description must be at least {MIN_DESCRIPTION_LENGTH}{" "}
+                    characters (
+                    {MIN_DESCRIPTION_LENGTH - formData.description.length} more
+                    needed)
+                  </p>
+                )}
             </div>
 
             <div>
@@ -612,7 +665,12 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !isNameValid || !isDescriptionValid || nameValidation.isChecking}
+              disabled={
+                isLoading ||
+                !isNameValid ||
+                !isDescriptionValid ||
+                nameValidation.isChecking
+              }
               className="bg-gradient-to-r from-[#FF5800] to-purple-600"
             >
               {isLoading ? (

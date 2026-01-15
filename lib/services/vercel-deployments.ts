@@ -163,10 +163,7 @@ async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
   } catch (error) {
     // 404 means domain doesn't exist - it's available
     const errorMessage = error instanceof Error ? error.message : "";
-    if (
-      errorMessage.includes("404") ||
-      errorMessage.includes("not_found")
-    ) {
+    if (errorMessage.includes("404") || errorMessage.includes("not_found")) {
       return true;
     }
     // For other errors, assume available (don't block creation)

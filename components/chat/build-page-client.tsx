@@ -19,6 +19,7 @@ import { useChatStore, type Character } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 import { TriangleAlert } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/posthog";
 
 interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];
@@ -58,6 +59,29 @@ export function BuildPageClient({
     description:
       "Build and customize AI agents using the ElizaOS runtime with intelligent assistance.",
   });
+
+  // Track builder flow on mount - only for authenticated users
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (initialCharacterId) {
+      // Editing existing agent
+      const character = initialCharacters.find(
+        (c) => c.id === initialCharacterId,
+      );
+      trackEvent("agent_edit_started", {
+        agent_id: initialCharacterId,
+        agent_name: character?.name,
+        source: "builder",
+      });
+    } else {
+      // Creating new agent
+      trackEvent("agent_create_started", {
+        source: "builder",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- track only on mount
+  }, []);
 
   // Initialize store atomically on mount and when props change
   // CRITICAL: Auth state, characters, and selection must be set together to prevent race conditions

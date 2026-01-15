@@ -201,12 +201,17 @@ async function removeAppDomains(appId: string): Promise<{
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           if (!errorMessage.includes("404")) {
-            errors.push(`Failed to remove subdomain from project: ${errorMessage}`);
-            logger.warn("[AppCleanup] Failed to remove subdomain from project", {
-              appId,
-              subdomain: domain.subdomain,
-              error: errorMessage,
-            });
+            errors.push(
+              `Failed to remove subdomain from project: ${errorMessage}`,
+            );
+            logger.warn(
+              "[AppCleanup] Failed to remove subdomain from project",
+              {
+                appId,
+                subdomain: domain.subdomain,
+                error: errorMessage,
+              },
+            );
           }
         }
 
@@ -216,10 +221,13 @@ async function removeAppDomains(appId: string): Promise<{
           await vercelFetch(`/v6/domains/${fullSubdomain}`, {
             method: "DELETE",
           });
-          logger.info("[AppCleanup] Removed subdomain from Vercel domain registry", {
-            appId,
-            subdomain: fullSubdomain,
-          });
+          logger.info(
+            "[AppCleanup] Removed subdomain from Vercel domain registry",
+            {
+              appId,
+              subdomain: fullSubdomain,
+            },
+          );
         } catch (error) {
           // Ignore 404 and 403 errors - domain may not exist in registry or may not be owned
           const errorMessage =
@@ -230,11 +238,14 @@ async function removeAppDomains(appId: string): Promise<{
             !errorMessage.includes("not_found") &&
             !errorMessage.includes("forbidden")
           ) {
-            logger.warn("[AppCleanup] Failed to remove subdomain from Vercel registry", {
-              appId,
-              subdomain: fullSubdomain,
-              error: errorMessage,
-            });
+            logger.warn(
+              "[AppCleanup] Failed to remove subdomain from Vercel registry",
+              {
+                appId,
+                subdomain: fullSubdomain,
+                error: errorMessage,
+              },
+            );
           }
         }
       }

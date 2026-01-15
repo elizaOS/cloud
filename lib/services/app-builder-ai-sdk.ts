@@ -6,10 +6,16 @@
  *
  * Key features:
  * - Uses AI Gateway for model flexibility (no hardcoded models)
- * - Real-time streaming responses
+ * - Real-time streaming responses with FULL reasoning/thinking token exposure
  * - Full tool execution with manual loop (SDK v6.0.x pattern)
  * - Abort signal support for cancellation
  * - Build checks only at the end (not per-file)
+ *
+ * IMPORTANT: Uses fullStream to capture ALL parts including:
+ * - text-delta: Regular text output
+ * - reasoning: Chain-of-thought/thinking tokens (exposed to UI!)
+ * - tool-call: Tool invocations
+ * - tool-result: Tool execution results
  */
 
 import { streamText, tool } from "ai";
@@ -43,6 +49,7 @@ export interface AppBuilderStreamCallbacks {
     result: string,
   ) => void | Promise<void>;
   onThinking?: (text: string) => void | Promise<void>;
+  onReasoning?: (text: string) => void | Promise<void>; // Chain-of-thought tokens
 }
 
 export interface AppBuilderConfig {
@@ -59,6 +66,7 @@ export interface AppBuilderConfig {
 
 export interface AppBuilderResult {
   output: string;
+  reasoning?: string; // Separate reasoning/thinking for collapsible display
   filesAffected: string[];
   success: boolean;
   error?: string;
@@ -67,8 +75,14 @@ export interface AppBuilderResult {
 
 // Event types emitted by the stream
 export type AppBuilderEvent =
-  | { type: "thinking"; text: string }
-  | { type: "tool_call"; toolName: string; args: unknown }
+  | { type: "thinking"; text: string } // Regular text output (shown in UI)
+  | { type: "reasoning"; text: string } // Chain-of-thought/reasoning tokens (deep thinking)
+  | {
+      type: "tool_call";
+      toolName: string;
+      args: unknown;
+      reasoningContext?: string;
+    } // Include reasoning that led to this tool call
   | { type: "tool_result"; toolName: string; args: unknown; result: string }
   | { type: "complete"; result: AppBuilderResult }
   | { type: "error"; error: string };
@@ -100,9 +114,24 @@ const AVAILABLE_MODELS = [
     description: "Best balance of speed and capability for coding tasks",
   },
   {
+    id: "openai/gpt-5.2-codex",
+    name: "GPT-5.2 Codex",
+    description: "OpenAI's most capable coding model",
+  },
+  {
     id: "openai/gpt-5.2",
     name: "GPT-5.2",
     description: "OpenAI's most capable model",
+  },
+  {
+    id: "xai/grok-code-fast-1",
+    name: "Grok Code Fast",
+    description: "xAI's fast coding model",
+  },
+  {
+    id: "deepseek/deepseek-v3.2",
+    name: "DeepSeek V3.2",
+    description: "DeepSeek's advanced reasoning model",
   },
   {
     id: "google/gemini-3-flash",
@@ -174,6 +203,7 @@ export class AppBuilderAISDK {
 
     const filesAffected: string[] = [];
     let outputText = "";
+    let allReasoningText = ""; // Accumulate ALL reasoning across iterations
     let toolCallCount = 0;
     const startTime = Date.now();
 
@@ -246,6 +276,7 @@ Build this app with your own creative vision. Install packages before importing 
         checkAbort();
 
         // Stream with tools (no execute functions - SDK v6.0.x pattern)
+        // Use fullStream to capture ALL parts including reasoning tokens
         const result = streamText({
           model: gateway.languageModel(model),
           system: finalSystemPrompt,
@@ -282,24 +313,106 @@ Build this app with your own creative vision. Install packages before importing 
           abortSignal,
         });
 
-        // Stream text chunks as "thinking"
+        // Use fullStream to capture ALL parts including reasoning/thinking tokens
+        // This is CRITICAL for exposing chain-of-thought to the UI
         let assistantText = "";
-        for await (const chunk of result.textStream) {
+        let reasoningText = "";
+
+        for await (const part of result.fullStream) {
           checkTimeout();
           checkAbort();
-          if (chunk) {
-            assistantText += chunk;
-            yield { type: "thinking", text: chunk };
-            if (callbacks?.onThinking) await callbacks.onThinking(chunk);
+
+          // Handle known part types
+          if (part.type === "text-delta") {
+            // Regular text output - property is 'text' in SDK v6
+            if (part.text) {
+              assistantText += part.text;
+              yield { type: "thinking", text: part.text };
+              if (callbacks?.onThinking) await callbacks.onThinking(part.text);
+            }
+          } else if (part.type === "error") {
+            logger.error("Stream error", {
+              sandboxId,
+              error: part.error,
+            });
+          } else if (part.type === "tool-call") {
+            // Tool calls are handled separately below via result.toolCalls
+          } else if (
+            part.type === "reasoning-start" ||
+            part.type === "reasoning-end"
+          ) {
+            // Reasoning lifecycle events - check for text content
+            // Different providers may include reasoning text in different ways
+            const partAny = part as Record<string, unknown>;
+            if (partAny.text && typeof partAny.text === "string") {
+              reasoningText += partAny.text;
+              yield { type: "reasoning", text: partAny.text };
+              if (callbacks?.onReasoning)
+                await callbacks.onReasoning(partAny.text);
+            }
+          } else {
+            // Handle any other reasoning-related types dynamically
+            // Some providers may send reasoning content with different type names
+            const partAny = part as Record<string, unknown>;
+            const partType = String(partAny.type || "");
+
+            if (
+              partType.includes("reasoning") ||
+              partType.includes("thinking")
+            ) {
+              // Extract text from reasoning-related parts
+              const text =
+                (partAny.text as string) ||
+                (partAny.textDelta as string) ||
+                (partAny.content as string) ||
+                "";
+              if (text) {
+                reasoningText += text;
+                yield { type: "reasoning", text };
+                if (callbacks?.onReasoning) await callbacks.onReasoning(text);
+              }
+            }
           }
         }
 
-        if (assistantText.trim()) {
-          outputText += assistantText + "\n";
+        // Also check for reasoning in the final result object
+        // Some providers/models accumulate reasoning here after streaming completes
+        try {
+          const resultAny = result as unknown as {
+            reasoning?: string | Promise<string>;
+            reasoningText?: string | Promise<string>;
+          };
+          const finalReasoning =
+            (await resultAny.reasoning) || (await resultAny.reasoningText);
+          if (finalReasoning && typeof finalReasoning === "string") {
+            // If we got reasoning from the result that wasn't captured during streaming
+            if (!reasoningText.includes(finalReasoning)) {
+              reasoningText += finalReasoning;
+              yield { type: "reasoning", text: finalReasoning };
+              if (callbacks?.onReasoning)
+                await callbacks.onReasoning(finalReasoning);
+            }
+          }
+        } catch {
+          // Reasoning not available on this result - that's OK
         }
 
-        // Get tool calls
+        // Get tool calls (already resolved after fullStream completes)
         const toolCalls = await result.toolCalls;
+
+        // ALL text output goes to reasoning - it's the model's thinking process
+        // Only the FINAL iteration (no tool calls) might have actual final output
+        const allTextThisIteration = (
+          reasoningText +
+          "\n" +
+          assistantText
+        ).trim();
+        if (allTextThisIteration) {
+          allReasoningText += allTextThisIteration + "\n\n";
+        }
+
+        // Only set outputText from the LAST iteration (when no more tools)
+        // This ensures intermediate "thinking" doesn't become final output
 
         // Execute tools using shared executor
         const toolResults: Array<{ toolName: string; result: string }> = [];
@@ -314,7 +427,12 @@ Build this app with your own creative vision. Install packages before importing 
             unknown
           >;
 
-          yield { type: "tool_call", toolName: tc.toolName, args: toolArgs };
+          yield {
+            type: "tool_call",
+            toolName: tc.toolName,
+            args: toolArgs,
+            reasoningContext: allTextThisIteration || undefined, // Include reasoning that led to this tool
+          };
           if (callbacks?.onToolCall)
             await callbacks.onToolCall(tc.toolName, toolArgs);
 
@@ -356,7 +474,13 @@ Build this app with your own creative vision. Install packages before importing 
 
           messages.push({ role: "user", content: resultsContent });
         } else {
-          // No tool calls - check if build has errors
+          // No tool calls - this is the FINAL iteration
+          // Only NOW do we capture the assistant text as final output (if any)
+          if (assistantText.trim()) {
+            outputText = assistantText.trim();
+          }
+
+          // Check if build has errors
           if (filesAffected.length > 0 && iteration < MAX_ITERATIONS - 3) {
             const buildCheck = await checkBuild(sandbox);
             if (buildCheck.includes("BUILD ERRORS")) {
@@ -402,6 +526,7 @@ Build this app with your own creative vision. Install packages before importing 
         type: "complete",
         result: {
           output: outputText || "Changes applied!",
+          reasoning: allReasoningText.trim() || undefined,
           filesAffected: [...new Set(filesAffected)],
           success: true,
           toolCallCount,
@@ -429,6 +554,7 @@ Build this app with your own creative vision. Install packages before importing 
         type: "complete",
         result: {
           output: outputText || "Operation failed",
+          reasoning: allReasoningText.trim() || undefined,
           filesAffected: [...new Set(filesAffected)],
           success: false,
           error: errorMessage,

@@ -35,6 +35,7 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "./post-creation-app-prompt";
+import { trackEvent, sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
@@ -129,14 +130,31 @@ export function QuickCreateDialog({
     isAvailable: boolean | null;
     error: string | null;
     suggestedName: string | null;
-  }>({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
   const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Track when dialog opens with defaultType=agent
+  useEffect(() => {
+    if (open && defaultType === "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
+  }, [open, defaultType]);
 
   // Debounced name check for app/service types
   useEffect(() => {
     // Only check for app and service types
     if (selectedType !== "app" && selectedType !== "service") {
-      setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error: null,
+        suggestedName: null,
+      });
       return;
     }
 
@@ -150,7 +168,10 @@ export function QuickCreateDialog({
       setNameValidation({
         isChecking: false,
         isAvailable: null,
-        error: trimmedName.length > 0 && trimmedName.length < 2 ? "Name must be at least 2 characters" : null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
         suggestedName: null,
       });
       return;
@@ -179,10 +200,20 @@ export function QuickCreateDialog({
             suggestedName: data.suggestedName || null,
           });
         } else {
-          setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
         }
       } catch {
-        setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
       }
     }, 500);
 
@@ -200,6 +231,11 @@ export function QuickCreateDialog({
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
+
+    // Track when user starts creating an agent (only if not already tracked via defaultType)
+    if (type === "agent" && defaultType !== "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
   };
 
   const regenerateName = () => {
@@ -309,7 +345,17 @@ export function QuickCreateDialog({
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Creation failed");
+      const errorMessage =
+        err instanceof Error ? err.message : "Creation failed";
+      toast.error(errorMessage);
+
+      // Track failed agent creation
+      if (selectedType === "agent") {
+        trackEvent("agent_create_failed", {
+          source: "quick_create",
+          error_message: sanitizeErrorMessage(errorMessage),
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -346,7 +392,12 @@ export function QuickCreateDialog({
     setCreatedResult(null);
     setCopied(false);
     setServiceEndpoints({ mcp: true, a2a: true, rest: true });
-    setNameValidation({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+    setNameValidation({
+      isChecking: false,
+      isAvailable: null,
+      error: null,
+      suggestedName: null,
+    });
     onOpenChange(false);
   };
 
@@ -534,18 +585,21 @@ export function QuickCreateDialog({
                     {nameValidation.isChecking && (
                       <Loader2 className="h-3 w-3 animate-spin text-white/40" />
                     )}
-                    {!nameValidation.isChecking && nameValidation.isAvailable === true && name.trim().length >= 2 && (
-                      <span className="flex items-center gap-1 text-xs text-emerald-400">
-                        <Check className="h-3 w-3" />
-                        Available
-                      </span>
-                    )}
-                    {!nameValidation.isChecking && nameValidation.isAvailable === false && (
-                      <span className="flex items-center gap-1 text-xs text-red-400">
-                        <AlertCircle className="h-3 w-3" />
-                        Taken
-                      </span>
-                    )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === true &&
+                      name.trim().length >= 2 && (
+                        <span className="flex items-center gap-1 text-xs text-emerald-400">
+                          <Check className="h-3 w-3" />
+                          Available
+                        </span>
+                      )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === false && (
+                        <span className="flex items-center gap-1 text-xs text-red-400">
+                          <AlertCircle className="h-3 w-3" />
+                          Taken
+                        </span>
+                      )}
                   </div>
                 )}
               </div>
@@ -559,9 +613,10 @@ export function QuickCreateDialog({
                     "flex-1",
                     nameValidation.error
                       ? "border-red-500/50 focus:border-red-500"
-                      : nameValidation.isAvailable === true && name.trim().length >= 2
+                      : nameValidation.isAvailable === true &&
+                          name.trim().length >= 2
                         ? "border-emerald-500/30 focus:border-emerald-500"
-                        : ""
+                        : "",
                   )}
                 />
                 <Button
@@ -684,13 +739,12 @@ export function QuickCreateDialog({
             <Button
               onClick={handleCreate}
               disabled={
-                isLoading || 
-                !name.trim() || 
+                isLoading ||
+                !name.trim() ||
                 name.trim().length < 2 ||
-                ((selectedType === "app" || selectedType === "service") && (
-                  nameValidation.isChecking || 
-                  nameValidation.isAvailable === false
-                ))
+                ((selectedType === "app" || selectedType === "service") &&
+                  (nameValidation.isChecking ||
+                    nameValidation.isAvailable === false))
               }
               className="bg-gradient-to-r from-[#FF5800] to-purple-600"
             >

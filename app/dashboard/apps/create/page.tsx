@@ -117,6 +117,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -192,6 +198,7 @@ const ChatMessage = memo(function ChatMessage({
             {msgTime}
           </span>
         </div>
+        {/* Main content */}
         <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -200,6 +207,76 @@ const ChatMessage = memo(function ChatMessage({
             {msg.content}
           </ReactMarkdown>
         </div>
+
+        {/* Per-operation accordions with reasoning */}
+        {msg.role === "assistant" &&
+          msg.operations &&
+          msg.operations.length > 0 &&
+          !isProcessing && (
+            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
+                Completed Operations
+              </p>
+              <Accordion type="multiple" className="space-y-1">
+                {msg.operations.map((op, idx) => (
+                  <AccordionItem
+                    key={idx}
+                    value={`op-${idx}`}
+                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-3 py-2 text-[12px] hover:no-underline hover:bg-white/[0.02]">
+                      <div className="flex items-center gap-2 text-left w-full">
+                        <span className="text-emerald-400/80">✓</span>
+                        <span className="font-medium text-white/80">
+                          {op.tool}
+                        </span>
+                        <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
+                          {op.detail}
+                        </span>
+                        <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
+                          {op.timestamp}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    {op.reasoning && (
+                      <AccordionContent className="px-3 pb-3">
+                        <div className="text-[11px] leading-[1.6] text-white/50 bg-black/20 rounded-md p-3 max-h-[200px] overflow-y-auto">
+                          <pre className="whitespace-pre-wrap font-sans">
+                            {op.reasoning}
+                          </pre>
+                        </div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          )}
+
+        {/* Fallback: overall reasoning accordion if no per-operation reasoning */}
+        {msg.role === "assistant" &&
+          msg.reasoning &&
+          !msg.operations?.some((op) => op.reasoning) &&
+          !isProcessing && (
+            <Accordion type="single" collapsible className="mt-3">
+              <AccordionItem value="reasoning" className="border-white/10">
+                <AccordionTrigger className="py-2 text-[11px] xl:text-[12px] text-white/40 hover:text-white/60 hover:no-underline font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[14px]">💭</span>
+                    <span>View all reasoning</span>
+                    <span className="text-[10px] text-white/25 font-normal">
+                      ({msg.reasoning.split(/\s+/).length} words)
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="text-[12px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2 max-h-[300px] overflow-y-auto">
+                  <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
+                    {msg.reasoning}
+                  </pre>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         {i === 0 &&
           msg.role === "assistant" &&
           session?.examplePrompts &&
@@ -431,7 +508,12 @@ export default function AppCreatorPage() {
     isAvailable: boolean | null;
     error: string | null;
     suggestedName: string | null;
-  }>({ isChecking: false, isAvailable: null, error: null, suggestedName: null });
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
   const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Minimum description length
@@ -517,7 +599,10 @@ export default function AppCreatorPage() {
       setNameValidation({
         isChecking: false,
         isAvailable: null,
-        error: trimmedName.length > 0 && trimmedName.length < 2 ? "Name must be at least 2 characters" : null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
         suggestedName: null,
       });
       return;
@@ -1765,8 +1850,12 @@ Some ideas:
                     description: "Your development environment is ready.",
                   });
                 }
-              } else if (eventType === "thinking") {
-                // Stream actual reasoning text to show chain of thought
+              } else if (
+                eventType === "thinking" ||
+                eventType === "reasoning"
+              ) {
+                // Stream reasoning/thinking text to show chain of thought
+                // "thinking" = regular text output, "reasoning" = deep CoT tokens
                 const reasoningText = data.text || "";
                 // Note: Not logging individual chunks - shown in UI only
 
@@ -1779,19 +1868,34 @@ Some ideas:
                   const thinkingId = initialThinkingIdRef.current;
                   const streamId = initialThinkingStreamIdRef.current;
 
-                  // Accumulate chunk in buffer
-                  accumulateThinkingChunk(streamId, reasoningText);
+                  // Accumulate chunk in buffer (prefix reasoning with 💭 to distinguish)
+                  const chunkText =
+                    eventType === "reasoning"
+                      ? `💭 ${reasoningText}`
+                      : reasoningText;
+                  accumulateThinkingChunk(streamId, chunkText);
 
-                  // Schedule throttled UI update
+                  // Schedule throttled UI update - show FULL reasoning text (no truncation!)
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
+                    let content = `**Setting up ${appName}**\n\n`;
+                    if (sessionActionsLogRef.current.length > 0) {
+                      sessionActionsLogRef.current.forEach((action) => {
+                        const statusMarker =
+                          action.status === "active" ? "⏳" : "✓";
+                        content += `${statusMarker} **${action.tool}**\n`;
+                        content += `> \`${action.detail}\`\n\n`;
+                      });
+                    }
+                    // Show FULL reasoning text - no truncation
+                    if (accumulatedText.trim()) {
+                      content += `${accumulatedText}\n`;
+                    }
+
                     setMessages((prev) =>
                       prev.map((m) =>
                         (m as Message & { _thinkingId?: number })
                           ._thinkingId === thinkingId
-                          ? {
-                              ...m,
-                              content: `**Setting up ${appName}**\n\n💭 ${accumulatedText}\n\n---\n\n*Thinking...*`,
-                            }
+                          ? { ...m, content }
                           : m,
                       ),
                     );
@@ -1804,23 +1908,26 @@ Some ideas:
                   data.input,
                 );
 
+                // Mark previous action as done
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
                     sessionActionsLogRef.current.length - 1
                   ].status = "done";
                 }
-                const timestamp = new Date().toLocaleTimeString("en-US", {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                });
+
+                // Add new action
                 sessionActionsLogRef.current.push({
                   tool: toolDisplay,
                   detail,
-                  timestamp,
+                  timestamp: new Date().toLocaleTimeString("en-US", {
+                    hour12: false,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
                   status: "active",
                 });
+
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
                   "info",
@@ -1828,26 +1935,15 @@ Some ideas:
 
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
-                  const streamId = initialThinkingStreamIdRef.current;
-                  const accumulatedThinking = streamId
-                    ? getThinkingText(streamId)
-                    : "";
 
+                  // Build organized content showing each action
                   let progressContent = `**Setting up ${appName}**\n\n`;
-
-                  // Include accumulated thinking text if available
-                  if (accumulatedThinking) {
-                    progressContent += `💭 ${accumulatedThinking}\n\n`;
-                  }
-
-                  progressContent += `---\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
-                    progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
+                    progressContent += `${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
-                  progressContent += `*Working...*`;
 
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -1881,10 +1977,10 @@ Some ideas:
                   }
 
                   if (sessionActionsLogRef.current.length > 0) {
-                    assistantContent += "\n\n---\n\n";
-                    assistantContent += "**Operations Completed**\n\n";
+                    assistantContent +=
+                      "\n\n---\n\n**Completed Operations**\n\n";
                     sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
+                      assistantContent += `✓ **${action.tool}**\n`;
                       assistantContent += `> \`${action.detail}\`\n\n`;
                     });
                   }
@@ -1964,7 +2060,6 @@ Some ideas:
     checkGitStatus,
     accumulateThinkingChunk,
     clearThinkingBuffer,
-    getThinkingText,
     scheduleThinkingUpdate,
   ]);
 
@@ -2038,57 +2133,51 @@ Some ideas:
         detail: string;
         timestamp: string;
         status: "pending" | "active" | "done";
+        context?: string; // Associated thinking/reasoning text for this action
       }[] = [];
 
       // getTimeString is imported from @/lib/app-builder
 
-      // Track current reasoning text for display (used by buildLocalProgressContent)
-      let currentReasoning = "";
+      // Track current thinking preview for display during active processing
+      let currentThinkingPreview = "";
 
       // Clear any previous thinking buffer
       clearThinkingBuffer();
 
       const buildLocalProgressContent = (
-        reasoningText: string,
+        newThinkingChunk?: string,
         currentStatus?: string,
       ) => {
         let content = "";
 
-        // Show current chain-of-thought reasoning (full accumulated text)
-        if (reasoningText) {
-          // Show the full reasoning text as markdown (it may contain formatting)
-          content += reasoningText + "\n\n";
+        // Show current status when no actions have started yet
+        if (actionsLog.length === 0) {
+          if (currentStatus) {
+            content += `*${currentStatus}*`;
+          } else if (currentThinkingPreview) {
+            content += `*Thinking...*`;
+          }
         }
 
+        // Show clean operations list
         if (actionsLog.length > 0) {
-          content += "---\n\n";
           actionsLog.forEach((action) => {
-            const isActive = action.status === "active";
-            const statusMarker = isActive ? "⏳" : "✓";
-            content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
+            const isActive =
+              action.status === "active" || action.status === "pending";
+            const statusIcon = isActive ? "⏳" : "✓";
+
+            // Clean action display - just status, tool, and detail
+            content += `${statusIcon} **${action.tool}**\n`;
             content += `> \`${action.detail}\`\n\n`;
           });
-        }
-
-        if (currentStatus && !reasoningText) {
-          // Only show status if we don't have reasoning text yet
-          content += `*${currentStatus}*`;
         }
 
         return content || "**Processing your request**\n\n*Analyzing...*";
       };
 
       // Update UI with current reasoning and status (called directly for non-thinking events)
-      // Reads from throttled buffer to ensure we always have the latest accumulated text
       const updateThinking = (currentStatus?: string) => {
-        // Get latest accumulated text from throttled buffer (may be ahead of currentReasoning)
-        const latestReasoning =
-          getThinkingText(thinkingStreamId) || currentReasoning;
-        currentReasoning = latestReasoning; // Keep local in sync
-        const content = buildLocalProgressContent(
-          latestReasoning,
-          currentStatus,
-        );
+        const content = buildLocalProgressContent(undefined, currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -2106,7 +2195,9 @@ Some ideas:
 
       // Throttled update for thinking text (~30fps for smooth appearance)
       const updateThinkingThrottled = (accumulatedText: string) => {
-        currentReasoning = accumulatedText; // Keep local variable in sync
+        // Track FULL thinking text - no truncation!
+        currentThinkingPreview = accumulatedText;
+
         const content = buildLocalProgressContent(accumulatedText);
         setMessages((prev) => {
           const updated = [...prev];
@@ -2155,6 +2246,7 @@ Some ideas:
         let buffer = "";
         let finalData: {
           output?: string;
+          reasoning?: string; // Separate reasoning for collapsible display
           filesAffected?: string[];
           success?: boolean;
           error?: string;
@@ -2180,7 +2272,7 @@ Some ideas:
                   // Heartbeat received, connection is alive
                   continue;
                 } else if (eventType === "thinking") {
-                  // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
+                  // Stream the actual text output to UI
                   // Uses throttled updates (~30fps) to prevent UI flickering from rapid chunks
                   const reasoningText = data.text || "";
                   if (reasoningText) {
@@ -2193,6 +2285,22 @@ Some ideas:
                     );
                   }
                   // Note: Not logging individual chunks - shown in UI only
+                } else if (eventType === "reasoning") {
+                  // Deep reasoning / chain-of-thought tokens (internal thought process)
+                  // These are the model's internal reasoning before producing output
+                  const reasoningText = data.text || "";
+                  if (reasoningText) {
+                    // Prefix reasoning chunks with 💭 to distinguish from regular output
+                    accumulateThinkingChunk(
+                      thinkingStreamId,
+                      `💭 ${reasoningText}`,
+                    );
+                    // Schedule throttled UI update (~30fps for smooth text appearance)
+                    scheduleThinkingUpdate(
+                      thinkingStreamId,
+                      updateThinkingThrottled,
+                    );
+                  }
                 } else if (eventType === "tool_start") {
                   // Instant feedback when tool begins (before execution)
                   const toolName = data.tool;
@@ -2202,13 +2310,18 @@ Some ideas:
                     statusMessage,
                   } = formatToolDisplay(toolName, data.input);
 
-                  // Add as pending action
+                  // Add as pending action WITH reasoning context for accordion display
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
                     status: "pending",
+                    context: data.reasoningContext || undefined, // Reasoning that led to this tool
                   });
+
+                  // Clear preview - tool action now takes focus
+                  currentThinkingPreview = "";
+
                   updateThinking(`⏳ ${statusMessage}`);
                 } else if (eventType === "tool_use") {
                   // Tool completed - update status
@@ -2225,11 +2338,14 @@ Some ideas:
                   );
                   if (pendingIdx >= 0) {
                     actionsLog[pendingIdx].status = "done";
+                    // Clear thinking preview since action completed
+                    currentThinkingPreview = "";
                   } else {
                     // Fallback: mark previous as done, add this one
                     if (actionsLog.length > 0) {
                       actionsLog[actionsLog.length - 1].status = "done";
                     }
+                    // Add as completed action (no context - reasoning goes in final accordion)
                     actionsLog.push({
                       tool: toolDisplay,
                       detail,
@@ -2272,24 +2388,34 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
+              // Build clean content - NO reasoning mixed in!
               let content = "";
 
-              if (finalData.output) {
-                content += finalData.output;
+              // Final output should be a clean summary, not accumulated reasoning
+              if (finalData.output && finalData.output.trim()) {
+                content += finalData.output.trim();
+              } else {
+                // If no clean output, generate a summary based on actions
+                if (actionsLog.length > 0) {
+                  content = "I've completed your request.";
+                } else {
+                  content = "Done!";
+                }
               }
 
-              if (actionsLog.length > 0) {
-                content += "\n\n---\n\n";
-                content += "**Operations Completed**\n\n";
-                actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
-                  content += `> \`${action.detail}\`\n\n`;
-                });
-              }
+              // Build operations list with per-action reasoning for accordions
+              const operations = actionsLog.map((action) => ({
+                tool: action.tool,
+                detail: action.detail,
+                timestamp: action.timestamp, // When the operation was performed
+                reasoning: action.context, // Reasoning that led to this action
+              }));
 
               return {
                 ...rest,
                 content,
+                operations, // Per-operation data with reasoning for accordions
+                reasoning: finalData.reasoning, // Overall reasoning as fallback
                 filesAffected: finalData.filesAffected,
               };
             }
@@ -3102,18 +3228,21 @@ ANTHROPIC_API_KEY=your_key_here`}
                         {nameValidation.isChecking && (
                           <Loader2 className="h-3 w-3 animate-spin text-white/40" />
                         )}
-                        {!nameValidation.isChecking && nameValidation.isAvailable === true && appName.trim().length >= 2 && (
-                          <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                            <Check className="h-3 w-3" />
-                            Available
-                          </span>
-                        )}
-                        {!nameValidation.isChecking && nameValidation.isAvailable === false && (
-                          <span className="flex items-center gap-1 text-[10px] text-red-400">
-                            <AlertCircle className="h-3 w-3" />
-                            Taken
-                          </span>
-                        )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === true &&
+                          appName.trim().length >= 2 && (
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                              <Check className="h-3 w-3" />
+                              Available
+                            </span>
+                          )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === false && (
+                            <span className="flex items-center gap-1 text-[10px] text-red-400">
+                              <AlertCircle className="h-3 w-3" />
+                              Taken
+                            </span>
+                          )}
                         <span
                           className={`text-[10px] font-mono transition-colors ${
                             appName.length > 100
@@ -3134,7 +3263,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                       className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
                         nameValidation.error
                           ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
-                          : nameValidation.isAvailable === true && appName.trim().length >= 2
+                          : nameValidation.isAvailable === true &&
+                              appName.trim().length >= 2
                             ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
                             : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
                       }`}
@@ -3148,7 +3278,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                         {nameValidation.suggestedName && (
                           <button
                             type="button"
-                            onClick={() => setAppName(nameValidation.suggestedName!)}
+                            onClick={() =>
+                              setAppName(nameValidation.suggestedName!)
+                            }
                             className="ml-1 text-[#FF5800] hover:underline"
                           >
                             Try &quot;{nameValidation.suggestedName}&quot;
@@ -3181,7 +3313,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                           className={`text-[10px] font-mono transition-colors ${
                             appDescription.length > 500
                               ? "text-red-400"
-                              : appDescription.length < MIN_DESCRIPTION_LENGTH && appDescription.length > 0
+                              : appDescription.length <
+                                    MIN_DESCRIPTION_LENGTH &&
+                                  appDescription.length > 0
                                 ? "text-amber-400"
                                 : appDescription.length > 400
                                   ? "text-amber-400"
@@ -3199,19 +3333,26 @@ ANTHROPIC_API_KEY=your_key_here`}
                       className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
                         appDescription.length > 500
                           ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
-                          : appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH
+                          : appDescription.length > 0 &&
+                              appDescription.length < MIN_DESCRIPTION_LENGTH
                             ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
                             : appDescription.length >= MIN_DESCRIPTION_LENGTH
                               ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
                               : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
                       }`}
                     />
-                    {appDescription.length > 0 && appDescription.length < MIN_DESCRIPTION_LENGTH && (
-                      <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Description must be at least {MIN_DESCRIPTION_LENGTH} characters ({MIN_DESCRIPTION_LENGTH - appDescription.length} more needed)
-                      </p>
-                    )}
+                    {appDescription.length > 0 &&
+                      appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                        <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Description must be at least {
+                            MIN_DESCRIPTION_LENGTH
+                          }{" "}
+                          characters (
+                          {MIN_DESCRIPTION_LENGTH - appDescription.length} more
+                          needed)
+                        </p>
+                      )}
                     {appDescription.length > 500 && (
                       <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
                         <AlertCircle className="h-3.5 w-3.5" />

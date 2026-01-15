@@ -44,6 +44,7 @@ export interface DiscordAutomationConfig {
   vibeStyle?: string;
   lastAnnouncementAt?: string;
   totalMessages?: number;
+  agentCharacterId?: string; // Character used for automation voice
 }
 
 export interface DiscordAutomationStatus {
@@ -54,8 +55,11 @@ export interface DiscordAutomationStatus {
   channelId?: string;
   channelName?: string;
   autoAnnounce: boolean;
+  announceIntervalMin?: number;
+  announceIntervalMax?: number;
   lastAnnouncementAt?: string;
   totalMessages: number;
+  agentCharacterId?: string; // Character voice for posts
 }
 
 export interface OAuthState {
