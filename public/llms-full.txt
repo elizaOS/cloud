@@ -3462,8 +3462,8 @@ Browse available MCPs in the registry.
 
 Pre-configured demo MCPs for testing:
 
-| MCP     | Endpoint                 | Description   |
-| ------- | ------------------------ | ------------- |
+| MCP     | Endpoint            | Description   |
+| ------- | ------------------- | ------------- |
 | Weather | `/api/mcps/weather` | Weather data  |
 | Time    | `/api/mcps/time`    | Time zones    |
 | Crypto  | `/api/mcps/crypto`  | Crypto prices |
@@ -9287,8 +9287,8 @@ app.listen(3000);
 
 elizaOS Cloud provides demo MCP servers for testing:
 
-| Server  | URL                      | Description              |
-| ------- | ------------------------ | ------------------------ |
+| Server  | URL                 | Description              |
+| ------- | ------------------- | ------------------------ |
 | Weather | `/api/mcps/weather` | Weather data demo        |
 | Time    | `/api/mcps/time`    | Time and timezone demo   |
 | Crypto  | `/api/mcps/crypto`  | Cryptocurrency data demo |
