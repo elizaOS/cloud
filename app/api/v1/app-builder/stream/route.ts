@@ -131,13 +131,13 @@ export async function POST(request: NextRequest) {
             await streamWriter.sendEvent("tool_use", {
               tool,
               input,
-              result: result.substring(0, 500),
+              result, // Full result - no truncation!
             });
           },
           onThinking: async (text) => {
             if (!streamWriter.isConnected()) return;
             await streamWriter.sendEvent("thinking", {
-              text: text.substring(0, 1000),
+              text, // Full text - no truncation!
             });
           },
           abortSignal: abortController.signal,

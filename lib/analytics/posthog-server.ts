@@ -30,7 +30,7 @@ function getPostHogClient(): PostHog | null {
 export function trackServerEvent(
   distinctId: string,
   event: PostHogEvent,
-  properties?: EventProperties
+  properties?: EventProperties,
 ): void {
   const client = getPostHogClient();
   if (!client) return;
@@ -63,7 +63,7 @@ export interface ServerUserProperties {
 
 export function identifyServerUser(
   distinctId: string,
-  properties: ServerUserProperties
+  properties: ServerUserProperties,
 ): void {
   const client = getPostHogClient();
   if (!client) return;

@@ -322,12 +322,16 @@ async function handleDeploymentMonitor(request: NextRequest) {
               const deploymentDuration = container.created_at
                 ? Date.now() - new Date(container.created_at).getTime()
                 : undefined;
-              trackServerEvent(container.user_id, "container_deploy_completed", {
-                container_id: container.id,
-                container_name: container.name,
-                deployment_time_ms: deploymentDuration,
-                container_url: outputs.containerUrl,
-              });
+              trackServerEvent(
+                container.user_id,
+                "container_deploy_completed",
+                {
+                  container_id: container.id,
+                  container_name: container.name,
+                  deployment_time_ms: deploymentDuration,
+                  container_url: outputs.containerUrl,
+                },
+              );
             }
 
             results.push({

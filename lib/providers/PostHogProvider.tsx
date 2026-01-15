@@ -52,8 +52,10 @@ function UserIdentifier(): null {
 
     // Handle login - fetch internal user ID for consistent identification
     if (authenticated && user && !identifiedRef.current) {
-      const email = user.email?.address || user.google?.email || user.discord?.email;
-      const name = user.google?.name || user.discord?.username || user.github?.username;
+      const email =
+        user.email?.address || user.google?.email || user.discord?.email;
+      const name =
+        user.google?.name || user.discord?.username || user.github?.username;
       const method = getSignupMethod(user);
       const isFirstLogin = previousAuthState.current === false;
 
@@ -101,7 +103,9 @@ interface PostHogProviderProps {
   children: React.ReactNode;
 }
 
-export function PostHogProvider({ children }: PostHogProviderProps): React.ReactElement {
+export function PostHogProvider({
+  children,
+}: PostHogProviderProps): React.ReactElement {
   useEffect(() => {
     initPostHog();
   }, []);

@@ -964,7 +964,10 @@ export const _testing = {
   /**
    * Get raw cache entries for inspection
    */
-  getCacheEntries(): Map<string, { runtime: AgentRuntime; lastUsed: number; createdAt: number }> {
+  getCacheEntries(): Map<
+    string,
+    { runtime: AgentRuntime; lastUsed: number; createdAt: number }
+  > {
     return new Map(runtimeCache["cache"]);
   },
 

@@ -12,7 +12,6 @@ import { checkBuild } from "./build-tools";
 // Timeout for individual tool calls (60 seconds)
 const TOOL_TIMEOUT_MS = 60000;
 
-
 export interface ToolExecutionResult {
   result: string;
   filesAffected?: string[];

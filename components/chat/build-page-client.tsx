@@ -67,7 +67,7 @@ export function BuildPageClient({
     if (initialCharacterId) {
       // Editing existing agent
       const character = initialCharacters.find(
-        (c) => c.id === initialCharacterId
+        (c) => c.id === initialCharacterId,
       );
       trackEvent("agent_edit_started", {
         agent_id: initialCharacterId,
