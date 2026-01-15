@@ -188,12 +188,41 @@ export async function sendStreamingMessage({
   let buffer = "";
 
   let completeCalled = false;
+  let doneEventReceived = false;
+  let streamCloseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Timeout to close stream if server doesn't close it after "done" event
+  // This prevents the loading state from hanging indefinitely
+  const STREAM_CLOSE_TIMEOUT_MS = 5000;
+
+  const handleDoneEvent = () => {
+    if (doneEventReceived) return;
+    doneEventReceived = true;
+    completeCalled = true;
+    onComplete?.();
+
+    // Set a timeout to close the reader if the stream doesn't close naturally
+    // This handles cases where the server's stream closure doesn't propagate
+    streamCloseTimeoutId = setTimeout(() => {
+      console.debug("[Stream] Forcing stream close after done event timeout");
+      try {
+        reader.cancel();
+      } catch {
+        // Reader already closed, ignore
+      }
+    }, STREAM_CLOSE_TIMEOUT_MS);
+  };
 
   try {
     while (true) {
       const { done, value } = await reader.read();
 
       if (done) {
+        // Clear the stream close timeout since stream ended naturally
+        if (streamCloseTimeoutId) {
+          clearTimeout(streamCloseTimeoutId);
+          streamCloseTimeoutId = null;
+        }
         // Process any remaining data in buffer
         if (buffer.trim()) {
           try {
@@ -203,10 +232,7 @@ export async function sendStreamingMessage({
               onChunk,
               onReasoning,
               onError,
-              () => {
-                completeCalled = true;
-                onComplete?.();
-              },
+              handleDoneEvent,
             );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
@@ -243,7 +269,7 @@ export async function sendStreamingMessage({
             onChunk,
             onReasoning,
             onError,
-            onComplete,
+            handleDoneEvent,
           );
         } catch (err) {
           console.error("[Stream] Error parsing SSE message:", err, message);
@@ -252,12 +278,25 @@ export async function sendStreamingMessage({
       }
     }
   } catch (error) {
+    // Clear stream close timeout on error
+    if (streamCloseTimeoutId) {
+      clearTimeout(streamCloseTimeoutId);
+    }
     if (error instanceof Error && error.name === "AbortError") {
+      // Don't report or throw error if we already received done event
+      // Stream completed successfully, this abort is just cleanup
+      if (doneEventReceived) {
+        console.debug("[Stream] Stream cleanup after done event completed");
+        return; // Exit gracefully - stream was successful
+      }
       onError?.("Stream timeout: Connection took too long");
     }
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    if (streamCloseTimeoutId) {
+      clearTimeout(streamCloseTimeoutId);
+    }
   }
 }
 

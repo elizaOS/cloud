@@ -47,7 +47,7 @@ export const maxDuration = 60;
 interface AISdkRequest {
   model: string;
   input: Array<{
-    role: "user" | "system" | "assistant" | "tool";
+    role: "user" | "system" | "assistant" | "tool" | "developer";
     content:
       | string
       | Array<{
@@ -115,8 +115,12 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
     stream,
   } = aiSdkRequest;
 
-  // Transform messages: fix content types for multimodal
+  // Transform messages: fix content types for multimodal and role mapping
   const transformedMessages = input.map((msg, msgIndex) => {
+    // Convert "developer" role to "system" for OpenAI compatibility
+    // AI SDK v2.0+ uses "developer" for instruction messages, OpenAI uses "system"
+    const transformedRole = msg.role === "developer" ? "system" : msg.role;
+
     // If content is an array (multimodal), transform types and filter empty text blocks
     if (Array.isArray(msg.content)) {
       const originalLength = msg.content.length;
@@ -190,12 +194,12 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             role: msg.role,
           },
         );
-        return { ...msg, content: "" };
+        return { ...msg, role: transformedRole, content: "" };
       }
 
-      return { ...msg, content: transformedContent };
+      return { ...msg, role: transformedRole, content: transformedContent };
     }
-    return msg;
+    return { ...msg, role: transformedRole };
   });
 
   // Transform to OpenAI format
@@ -414,6 +418,7 @@ async function handlePOST(req: NextRequest) {
 
     // Validate and clean message content
     // Filter out empty system messages (characters may not have system prompts configured)
+    // Note: "developer" role from AI SDK v2.0+ is already converted to "system" by transformAISdkToOpenAI()
     request.messages = request.messages.filter((msg, i) => {
       if (
         msg.role === "system" &&

@@ -658,6 +658,9 @@ export async function POST(
         try {
           // Only close if not already closed
           if (!writer.closed) {
+            // Wait for any pending writes to be flushed before closing
+            // This ensures the "done" event is fully sent before stream ends
+            await writer.ready;
             await writer.close();
           }
         } catch {
