@@ -5,6 +5,26 @@ import { authContextStorage } from "./lib/context";
 
 export const maxDuration = 60;
 
+/**
+ * Response shape from mcp-handler's createMcpHandler().
+ * We extract properties manually because undici polyfills Response,
+ * breaking instanceof checks with Next.js native Response.
+ */
+interface McpHandlerResponse {
+  status: number;
+  statusText?: string;
+  headers?: Headers;
+  text?: () => Promise<string>;
+}
+
+function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
+  return (
+    typeof resp === "object" &&
+    resp !== null &&
+    typeof (resp as McpHandlerResponse).status === "number"
+  );
+}
+
 // Lazy-loaded MCP handler to avoid triggering undici Response polyfill
 // at module evaluation time. The polyfill breaks NextResponse instanceof
 // checks in other routes. See: https://github.com/vercel/next.js/issues/58611
@@ -97,31 +117,27 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       });
     }
 
-    // Convert MCP handler response
-    const resp = mcpResponse as {
-      status?: number;
-      statusText?: string;
-      headers?: Headers;
-      text?: () => Promise<string>;
-    };
-
-    if (typeof resp.status !== "number") {
+    // Convert MCP handler response (use type guard for safety)
+    if (!isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const bodyText = resp.text ? await resp.text() : "";
+    const bodyText = mcpResponse.text ? await mcpResponse.text() : "";
     const headers: Record<string, string> = {};
-    if (resp.headers && typeof resp.headers.forEach === "function") {
-      resp.headers.forEach((value, key) => {
+    if (
+      mcpResponse.headers &&
+      typeof mcpResponse.headers.forEach === "function"
+    ) {
+      mcpResponse.headers.forEach((value: string, key: string) => {
         headers[key] = value;
       });
     }
 
     return new Response(bodyText, {
-      status: resp.status,
+      status: mcpResponse.status,
       headers,
     });
   } catch (error) {
