@@ -75,23 +75,11 @@ export async function executeToolCall(
             return `Error: write_file called with empty content for ${path}. Please provide the file content.`;
           }
 
-          // DEDUPLICATION: Check if file already has identical content
-          const existingContent = await readFileViaSh(sandbox, path);
-          if (
-            existingContent !== null &&
-            existingContent.trim() === content.trim()
-          ) {
-            logger.info("File unchanged, skipping write", { sandboxId, path });
-            return `Skipped ${path} (unchanged). File already has this content.`;
-          }
-
           await writeFileViaSh(sandbox, path, content);
           filesAffected.push(path);
 
-          // NO type check per file - HMR handles refresh, check_build only at end
-          // This significantly speeds up multi-file writes
           logger.info("File written", { sandboxId, path });
-          return `Wrote ${path}. HMR will auto-refresh.`;
+          return `Wrote ${path}`;
         }
 
         case "read_file": {

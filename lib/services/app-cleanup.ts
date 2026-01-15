@@ -156,6 +156,10 @@ async function removeAppDomains(appId: string): Promise<{
     });
 
     for (const domain of domains) {
+      const fullSubdomain = domain.subdomain
+        ? `${domain.subdomain}.${process.env.APP_DOMAIN || "apps.elizacloud.ai"}`
+        : null;
+
       // Remove custom domain from Vercel if it exists
       if (domain.custom_domain && domain.vercel_project_id) {
         try {
@@ -180,29 +184,68 @@ async function removeAppDomains(appId: string): Promise<{
       }
 
       // Remove subdomain from Vercel project if it exists
-      if (domain.subdomain && domain.vercel_project_id) {
+      if (fullSubdomain && domain.vercel_project_id) {
         try {
-          const fullDomain = `${domain.subdomain}.${process.env.APP_DOMAIN || "apps.elizacloud.ai"}`;
           await vercelFetch(
-            `/v9/projects/${domain.vercel_project_id}/domains/${fullDomain}`,
+            `/v9/projects/${domain.vercel_project_id}/domains/${fullSubdomain}`,
             { method: "DELETE" },
           );
           removed++;
-          logger.info("[AppCleanup] Removed subdomain from Vercel", {
+          logger.info("[AppCleanup] Removed subdomain from Vercel project", {
             appId,
-            subdomain: fullDomain,
+            subdomain: fullSubdomain,
+            projectId: domain.vercel_project_id,
           });
         } catch (error) {
           // Ignore 404 errors - domain may not exist
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
           if (!errorMessage.includes("404")) {
-            errors.push(`Failed to remove subdomain: ${errorMessage}`);
-            logger.warn("[AppCleanup] Failed to remove subdomain", {
+            errors.push(
+              `Failed to remove subdomain from project: ${errorMessage}`,
+            );
+            logger.warn(
+              "[AppCleanup] Failed to remove subdomain from project",
+              {
+                appId,
+                subdomain: domain.subdomain,
+                error: errorMessage,
+              },
+            );
+          }
+        }
+
+        // Also try to remove the subdomain from Vercel's global domain registry
+        // This ensures the domain is fully released and can be reused
+        try {
+          await vercelFetch(`/v6/domains/${fullSubdomain}`, {
+            method: "DELETE",
+          });
+          logger.info(
+            "[AppCleanup] Removed subdomain from Vercel domain registry",
+            {
               appId,
-              subdomain: domain.subdomain,
-              error: errorMessage,
-            });
+              subdomain: fullSubdomain,
+            },
+          );
+        } catch (error) {
+          // Ignore 404 and 403 errors - domain may not exist in registry or may not be owned
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          if (
+            !errorMessage.includes("404") &&
+            !errorMessage.includes("403") &&
+            !errorMessage.includes("not_found") &&
+            !errorMessage.includes("forbidden")
+          ) {
+            logger.warn(
+              "[AppCleanup] Failed to remove subdomain from Vercel registry",
+              {
+                appId,
+                subdomain: fullSubdomain,
+                error: errorMessage,
+              },
+            );
           }
         }
       }

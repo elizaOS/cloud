@@ -4,9 +4,20 @@
  * This route provides streaming responses using Vercel's AI SDK v6
  * with full tool execution support (file writes, build checks, etc.).
  * Uses AI Gateway for model flexibility.
+ *
+ * IMPORTANT: Exposes BOTH regular text AND reasoning/thinking tokens:
+ * - "thinking" events: Regular text output from the model
+ * - "reasoning" events: Chain-of-thought / deep thinking tokens
+ *
+ * Reasoning tokens are the internal thought process that models like
+ * Claude 3.5, o1, and DeepSeek use for complex problem solving.
  */
 
 import type { NextRequest } from "next/server";
+
+// Max duration for AI-powered code generation with tool execution
+// Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
+export const maxDuration = 800;
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appBuilderAISDK } from "@/lib/services/app-builder-ai-sdk";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
@@ -109,14 +120,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const THINKING_FLUSH_INTERVAL_MS = 50; // Batch thinking chunks every 50ms for faster feedback
         const THINKING_MIN_CHUNK_SIZE = 5; // Low threshold for faster first paint
 
+        // Buffer for batching reasoning/CoT tokens (deep thinking)
+        let reasoningBuffer = "";
+        let reasoningFlushTimer: ReturnType<typeof setTimeout> | null = null;
+        const REASONING_FLUSH_INTERVAL_MS = 30; // Faster flush for reasoning - users want to see thought process
+        const REASONING_MIN_CHUNK_SIZE = 3; // Even lower threshold for immediate feedback
+
         const flushThinkingBuffer = async () => {
           if (thinkingBuffer && streamWriter.isConnected()) {
             await streamWriter.sendEvent("thinking", {
-              text: thinkingBuffer.substring(0, 2000),
+              text: thinkingBuffer, // Full text - no truncation!
             });
             thinkingBuffer = "";
           }
           thinkingFlushTimer = null;
+        };
+
+        const flushReasoningBuffer = async () => {
+          if (reasoningBuffer && streamWriter.isConnected()) {
+            await streamWriter.sendEvent("reasoning", {
+              text: reasoningBuffer, // Full text - no truncation!
+            });
+            reasoningBuffer = "";
+          }
+          reasoningFlushTimer = null;
         };
 
         const scheduleThinkingFlush = () => {
@@ -124,6 +151,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             thinkingFlushTimer = setTimeout(
               flushThinkingBuffer,
               THINKING_FLUSH_INTERVAL_MS,
+            );
+          }
+        };
+
+        const scheduleReasoningFlush = () => {
+          if (!reasoningFlushTimer) {
+            reasoningFlushTimer = setTimeout(
+              flushReasoningBuffer,
+              REASONING_FLUSH_INTERVAL_MS,
             );
           }
         };
@@ -153,46 +189,68 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               }
               break;
 
+            case "reasoning":
+              // Chain-of-thought / deep reasoning tokens
+              // These are the model's internal thought process (CoT)
+              reasoningBuffer += event.text;
+              if (reasoningBuffer.length >= REASONING_MIN_CHUNK_SIZE) {
+                await flushReasoningBuffer();
+              } else {
+                scheduleReasoningFlush();
+              }
+              break;
+
             case "tool_call":
-              // Flush any pending thinking before tool calls
+              // Flush any pending thinking/reasoning before tool calls
               if (thinkingBuffer) {
                 await flushThinkingBuffer();
               }
-              // Send tool_start event for instant UI feedback
+              if (reasoningBuffer) {
+                await flushReasoningBuffer();
+              }
+              // Send tool_start event for instant UI feedback WITH reasoning context
               if (streamWriter.isConnected()) {
                 await streamWriter.sendEvent("tool_start", {
                   tool: event.toolName,
                   input: event.args,
+                  reasoningContext: event.reasoningContext, // Reasoning that led to this tool call
                 });
               }
               break;
 
             case "tool_result":
-              // Send tool_use event when tool completes
+              // Send tool_use event when tool completes - no truncation!
               if (streamWriter.isConnected()) {
                 await streamWriter.sendEvent("tool_use", {
                   tool: event.toolName,
                   input: event.args,
                   result:
                     typeof event.result === "string"
-                      ? event.result.substring(0, 500)
-                      : JSON.stringify(event.result).substring(0, 500),
+                      ? event.result
+                      : JSON.stringify(event.result),
                 });
               }
               break;
 
             case "complete":
-              // Flush any remaining thinking text
+              // Flush any remaining thinking/reasoning text
               if (thinkingBuffer) {
                 await flushThinkingBuffer();
               }
+              if (reasoningBuffer) {
+                await flushReasoningBuffer();
+              }
               if (thinkingFlushTimer) {
                 clearTimeout(thinkingFlushTimer);
+              }
+              if (reasoningFlushTimer) {
+                clearTimeout(reasoningFlushTimer);
               }
               if (streamWriter.isConnected()) {
                 await streamWriter.sendEvent("complete", {
                   success: event.result.success,
                   output: event.result.output,
+                  reasoning: event.result.reasoning, // Pass reasoning for collapsible display
                   filesAffected: event.result.filesAffected,
                   error: event.result.error,
                   toolCallCount: event.result.toolCallCount,
@@ -201,12 +259,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               break;
 
             case "error":
-              // Flush any remaining thinking text
+              // Flush any remaining thinking/reasoning text
               if (thinkingBuffer) {
                 await flushThinkingBuffer();
               }
+              if (reasoningBuffer) {
+                await flushReasoningBuffer();
+              }
               if (thinkingFlushTimer) {
                 clearTimeout(thinkingFlushTimer);
+              }
+              if (reasoningFlushTimer) {
+                clearTimeout(reasoningFlushTimer);
               }
               if (streamWriter.isConnected()) {
                 await streamWriter.sendEvent("error", {
@@ -218,12 +282,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           }
         }
 
-        // Ensure any remaining buffer is flushed
+        // Ensure any remaining buffers are flushed
         if (thinkingFlushTimer) {
           clearTimeout(thinkingFlushTimer);
         }
+        if (reasoningFlushTimer) {
+          clearTimeout(reasoningFlushTimer);
+        }
         if (thinkingBuffer) {
           await flushThinkingBuffer();
+        }
+        if (reasoningBuffer) {
+          await flushReasoningBuffer();
         }
       } catch (error) {
         const errorMessage =

@@ -9,6 +9,10 @@ import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
+// Max duration for sandbox creation and initial prompt processing
+// Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
+export const maxDuration = 800;
+
 const SESSION_CREATE_LIMIT = {
   windowMs: 3600000,
   maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
@@ -131,13 +135,13 @@ export async function POST(request: NextRequest) {
             await streamWriter.sendEvent("tool_use", {
               tool,
               input,
-              result: result.substring(0, 500),
+              result, // Full result - no truncation!
             });
           },
           onThinking: async (text) => {
             if (!streamWriter.isConnected()) return;
             await streamWriter.sendEvent("thinking", {
-              text: text.substring(0, 1000),
+              text, // Full text - no truncation!
             });
           },
           abortSignal: abortController.signal,

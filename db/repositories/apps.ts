@@ -13,6 +13,7 @@ import {
   type AppRequest,
   type NewAppRequest,
 } from "../schemas";
+import { appDomains } from "../schemas/app-domains";
 import {
   eq,
   and,
@@ -22,6 +23,7 @@ import {
   sql,
   count,
   countDistinct,
+  or,
 } from "drizzle-orm";
 
 export type {
@@ -93,6 +95,65 @@ export class AppsRepository {
       where: eq(apps.organization_id, organizationId),
       orderBy: [desc(apps.created_at)],
     });
+  }
+
+  /**
+   * Checks if a slug is available (not used by any app or subdomain).
+   * This is used to validate app names before creation.
+   */
+  async isSlugAvailable(slug: string): Promise<boolean> {
+    // Check if slug exists in apps table
+    const existingApp = await dbRead.query.apps.findFirst({
+      where: eq(apps.slug, slug),
+    });
+
+    if (existingApp) {
+      return false;
+    }
+
+    // Check if slug is used as a subdomain in app_domains table
+    const existingDomain = await dbRead.query.appDomains.findFirst({
+      where: eq(appDomains.subdomain, slug),
+    });
+
+    return !existingDomain;
+  }
+
+  /**
+   * Checks if a name (or its generated slug) would be available.
+   * Returns availability status and the generated slug.
+   */
+  async checkNameAvailability(name: string): Promise<{
+    available: boolean;
+    slug: string;
+    conflictType?: "app" | "subdomain";
+  }> {
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .substring(0, 50);
+
+    // Check if slug exists in apps table
+    const existingApp = await dbRead.query.apps.findFirst({
+      where: eq(apps.slug, slug),
+    });
+
+    if (existingApp) {
+      return { available: false, slug, conflictType: "app" };
+    }
+
+    // Check if slug is used as a subdomain
+    const existingDomain = await dbRead.query.appDomains.findFirst({
+      where: eq(appDomains.subdomain, slug),
+    });
+
+    if (existingDomain) {
+      return { available: false, slug, conflictType: "subdomain" };
+    }
+
+    return { available: true, slug };
   }
 
   /**

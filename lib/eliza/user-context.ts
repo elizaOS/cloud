@@ -15,6 +15,7 @@ export interface UserContext {
   userId: string;
   entityId: string; // Always equals userId in your system
   organizationId: string;
+  privyUserId?: string; // Privy ID for consistent analytics tracking
 
   // Agent configuration
   agentMode: AgentMode;
@@ -116,6 +117,7 @@ export class UserContextService {
       userId: authResult.user.id,
       entityId: entityId,
       organizationId: authResult.user.organization_id,
+      privyUserId: authResult.user.privy_user_id ?? undefined,
       agentMode: authResult.agentMode,
       apiKey,
       isAnonymous: false,

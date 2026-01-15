@@ -26,6 +26,7 @@ import {
   validateAppPromptConfig,
   clientCharacterStateSchema,
 } from "@/lib/eliza/stream-validation";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -541,6 +542,18 @@ export async function POST(
           onStreamChunk,
           onReasoningChunk,
         });
+
+        // Track chat message in PostHog (non-blocking)
+        // Use internal UUID for consistent tracking
+        if (!userContext.isAnonymous && userContext.userId) {
+          trackServerEvent(userContext.userId, "agent_chat_message_sent", {
+            agent_id: characterId || "default",
+            room_id: roomId,
+            agent_mode: agentModeConfig.mode,
+            has_attachments: !!(attachments && attachments.length > 0),
+            message_length: text.length,
+          });
+        }
 
         // Extract content - the full Content object is now stored in memory
         const messageContent = result.message.content;

@@ -25,7 +25,13 @@ import {
   HistoryTab,
   SessionLoader,
   AgentPicker,
+  WebTerminal,
 } from "@/components/app-builder";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 async function fetchWithRetry(
@@ -117,6 +123,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -192,6 +204,7 @@ const ChatMessage = memo(function ChatMessage({
             {msgTime}
           </span>
         </div>
+        {/* Main content */}
         <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -200,6 +213,76 @@ const ChatMessage = memo(function ChatMessage({
             {msg.content}
           </ReactMarkdown>
         </div>
+
+        {/* Per-operation accordions with reasoning */}
+        {msg.role === "assistant" &&
+          msg.operations &&
+          msg.operations.length > 0 &&
+          !isProcessing && (
+            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
+                Completed Operations
+              </p>
+              <Accordion type="multiple" className="space-y-1">
+                {msg.operations.map((op, idx) => (
+                  <AccordionItem
+                    key={idx}
+                    value={`op-${idx}`}
+                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-3 py-2 text-[12px] hover:no-underline hover:bg-white/[0.02]">
+                      <div className="flex items-center gap-2 text-left w-full">
+                        <span className="text-emerald-400/80">✓</span>
+                        <span className="font-medium text-white/80">
+                          {op.tool}
+                        </span>
+                        <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
+                          {op.detail}
+                        </span>
+                        <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
+                          {op.timestamp}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    {op.reasoning && (
+                      <AccordionContent className="px-3 pb-3">
+                        <div className="text-[11px] leading-[1.6] text-white/50 bg-black/20 rounded-md p-3 max-h-[200px] overflow-y-auto">
+                          <pre className="whitespace-pre-wrap font-sans">
+                            {op.reasoning}
+                          </pre>
+                        </div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          )}
+
+        {/* Fallback: overall reasoning accordion if no per-operation reasoning */}
+        {msg.role === "assistant" &&
+          msg.reasoning &&
+          !msg.operations?.some((op) => op.reasoning) &&
+          !isProcessing && (
+            <Accordion type="single" collapsible className="mt-3">
+              <AccordionItem value="reasoning" className="border-white/10">
+                <AccordionTrigger className="py-2 text-[11px] xl:text-[12px] text-white/40 hover:text-white/60 hover:no-underline font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[14px]">💭</span>
+                    <span>View all reasoning</span>
+                    <span className="text-[10px] text-white/25 font-normal">
+                      ({msg.reasoning.split(/\s+/).length} words)
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="text-[12px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2 max-h-[300px] overflow-y-auto">
+                  <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
+                    {msg.reasoning}
+                  </pre>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         {i === 0 &&
           msg.role === "assistant" &&
           session?.examplePrompts &&
@@ -425,6 +508,23 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
+  // Name validation state
+  const [nameValidation, setNameValidation] = useState<{
+    isChecking: boolean;
+    isAvailable: boolean | null;
+    error: string | null;
+    suggestedName: string | null;
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
+  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Minimum description length
+  const MIN_DESCRIPTION_LENGTH = 10;
+
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
@@ -488,6 +588,84 @@ export default function AppCreatorPage() {
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
+
+  // ============================================================================
+  // DEBOUNCED APP NAME AVAILABILITY CHECK
+  // ============================================================================
+  useEffect(() => {
+    // Clear any pending timeout
+    if (nameCheckTimeoutRef.current) {
+      clearTimeout(nameCheckTimeoutRef.current);
+    }
+
+    const trimmedName = appName.trim();
+
+    // Reset validation if name is empty or too short
+    if (!trimmedName || trimmedName.length < 2) {
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
+        suggestedName: null,
+      });
+      return;
+    }
+
+    // Set checking state
+    setNameValidation((prev) => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+    }));
+
+    // Debounce the API call
+    nameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/v1/apps/check-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNameValidation({
+            isChecking: false,
+            isAvailable: data.available,
+            error: data.available
+              ? null
+              : data.conflictType === "subdomain"
+                ? "This name would create a subdomain that is already in use"
+                : "An app with this name already exists",
+            suggestedName: data.suggestedName || null,
+          });
+        } else {
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
+        }
+      } catch {
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (nameCheckTimeoutRef.current) {
+        clearTimeout(nameCheckTimeoutRef.current);
+      }
+    };
+  }, [appName]);
 
   // ============================================================================
   // FETCH USER'S AGENTS FOR APP AGENT SELECTION
@@ -1258,9 +1436,50 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog, checkGitStatus]);
 
-  // No more complex auto-restore effect needed
-  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
-  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
+  // Auto-restore ref to prevent duplicate triggers
+  const autoRestoreTriggeredRef = useRef(false);
+
+  // Auto-restore when session times out - automatically restore sandbox if possible
+  useEffect(() => {
+    // Only trigger when status becomes "timeout"
+    if (status !== "timeout") {
+      // Reset the ref when status changes away from timeout
+      autoRestoreTriggeredRef.current = false;
+      return;
+    }
+
+    // Don't trigger if already restoring or already triggered
+    if (isRestoring || autoRestoreTriggeredRef.current) return;
+
+    // Don't trigger if no session
+    if (!session) return;
+
+    // Check if we can restore - either from snapshotInfo or directly from app's github repo
+    const canAutoRestore =
+      snapshotInfo?.canRestore ||
+      !!appSnapshotInfo?.githubRepo ||
+      !!appData?.github_repo;
+
+    if (canAutoRestore) {
+      // Mark as triggered to prevent re-entry
+      autoRestoreTriggeredRef.current = true;
+
+      // Auto-trigger restore after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        restoreSession();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    status,
+    session,
+    isRestoring,
+    snapshotInfo?.canRestore,
+    appSnapshotInfo?.githubRepo,
+    appData?.github_repo,
+    restoreSession,
+  ]);
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
@@ -1678,8 +1897,12 @@ Some ideas:
                     description: "Your development environment is ready.",
                   });
                 }
-              } else if (eventType === "thinking") {
-                // Stream actual reasoning text to show chain of thought
+              } else if (
+                eventType === "thinking" ||
+                eventType === "reasoning"
+              ) {
+                // Stream reasoning/thinking text to show chain of thought
+                // "thinking" = regular text output, "reasoning" = deep CoT tokens
                 const reasoningText = data.text || "";
                 // Note: Not logging individual chunks - shown in UI only
 
@@ -1692,19 +1915,34 @@ Some ideas:
                   const thinkingId = initialThinkingIdRef.current;
                   const streamId = initialThinkingStreamIdRef.current;
 
-                  // Accumulate chunk in buffer
-                  accumulateThinkingChunk(streamId, reasoningText);
+                  // Accumulate chunk in buffer (prefix reasoning with 💭 to distinguish)
+                  const chunkText =
+                    eventType === "reasoning"
+                      ? `💭 ${reasoningText}`
+                      : reasoningText;
+                  accumulateThinkingChunk(streamId, chunkText);
 
-                  // Schedule throttled UI update
+                  // Schedule throttled UI update - show FULL reasoning text (no truncation!)
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
+                    let content = `**Setting up ${appName}**\n\n`;
+                    if (sessionActionsLogRef.current.length > 0) {
+                      sessionActionsLogRef.current.forEach((action) => {
+                        const statusMarker =
+                          action.status === "active" ? "⏳" : "✓";
+                        content += `${statusMarker} **${action.tool}**\n`;
+                        content += `> \`${action.detail}\`\n\n`;
+                      });
+                    }
+                    // Show FULL reasoning text - no truncation
+                    if (accumulatedText.trim()) {
+                      content += `${accumulatedText}\n`;
+                    }
+
                     setMessages((prev) =>
                       prev.map((m) =>
                         (m as Message & { _thinkingId?: number })
                           ._thinkingId === thinkingId
-                          ? {
-                              ...m,
-                              content: `**Setting up ${appName}**\n\n💭 ${accumulatedText}\n\n---\n\n*Thinking...*`,
-                            }
+                          ? { ...m, content }
                           : m,
                       ),
                     );
@@ -1717,23 +1955,26 @@ Some ideas:
                   data.input,
                 );
 
+                // Mark previous action as done
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
                     sessionActionsLogRef.current.length - 1
                   ].status = "done";
                 }
-                const timestamp = new Date().toLocaleTimeString("en-US", {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                });
+
+                // Add new action
                 sessionActionsLogRef.current.push({
                   tool: toolDisplay,
                   detail,
-                  timestamp,
+                  timestamp: new Date().toLocaleTimeString("en-US", {
+                    hour12: false,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
                   status: "active",
                 });
+
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
                   "info",
@@ -1741,26 +1982,15 @@ Some ideas:
 
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
-                  const streamId = initialThinkingStreamIdRef.current;
-                  const accumulatedThinking = streamId
-                    ? getThinkingText(streamId)
-                    : "";
 
+                  // Build organized content showing each action
                   let progressContent = `**Setting up ${appName}**\n\n`;
-
-                  // Include accumulated thinking text if available
-                  if (accumulatedThinking) {
-                    progressContent += `💭 ${accumulatedThinking}\n\n`;
-                  }
-
-                  progressContent += `---\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
-                    progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
+                    progressContent += `${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
-                  progressContent += `*Working...*`;
 
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -1794,10 +2024,10 @@ Some ideas:
                   }
 
                   if (sessionActionsLogRef.current.length > 0) {
-                    assistantContent += "\n\n---\n\n";
-                    assistantContent += "**Operations Completed**\n\n";
+                    assistantContent +=
+                      "\n\n---\n\n**Completed Operations**\n\n";
                     sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
+                      assistantContent += `✓ **${action.tool}**\n`;
                       assistantContent += `> \`${action.detail}\`\n\n`;
                     });
                   }
@@ -1877,7 +2107,6 @@ Some ideas:
     checkGitStatus,
     accumulateThinkingChunk,
     clearThinkingBuffer,
-    getThinkingText,
     scheduleThinkingUpdate,
   ]);
 
@@ -1912,6 +2141,7 @@ Some ideas:
   }, [
     isEditMode,
     appData,
+    
     session,
     status,
     isLoading,
@@ -1951,57 +2181,63 @@ Some ideas:
         detail: string;
         timestamp: string;
         status: "pending" | "active" | "done";
+        context?: string; // Associated thinking/reasoning text for this action
       }[] = [];
 
       // getTimeString is imported from @/lib/app-builder
 
-      // Track current reasoning text for display (used by buildLocalProgressContent)
-      let currentReasoning = "";
+      // Track current thinking preview for display during active processing
+      let currentThinkingPreview = "";
 
       // Clear any previous thinking buffer
       clearThinkingBuffer();
 
       const buildLocalProgressContent = (
-        reasoningText: string,
+        newThinkingChunk?: string,
         currentStatus?: string,
       ) => {
         let content = "";
 
-        // Show current chain-of-thought reasoning (full accumulated text)
-        if (reasoningText) {
-          // Show the full reasoning text as markdown (it may contain formatting)
-          content += reasoningText + "\n\n";
+        // Show current status when no actions have started yet
+        if (actionsLog.length === 0) {
+          if (currentStatus) {
+            content += `*${currentStatus}*`;
+          } else if (currentThinkingPreview) {
+            content += `*Thinking...*`;
+          }
         }
 
+        // Show operations list with reasoning context
         if (actionsLog.length > 0) {
-          content += "---\n\n";
           actionsLog.forEach((action) => {
-            const isActive = action.status === "active";
-            const statusMarker = isActive ? "⏳" : "✓";
-            content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
-            content += `> \`${action.detail}\`\n\n`;
-          });
-        }
+            const isActive =
+              action.status === "active" || action.status === "pending";
+            const statusIcon = isActive ? "⏳" : "✓";
 
-        if (currentStatus && !reasoningText) {
-          // Only show status if we don't have reasoning text yet
-          content += `*${currentStatus}*`;
+            // Action display with status, tool, detail, and timestamp
+            content += `${statusIcon} **${action.tool}**\n`;
+            content += `\`${action.detail}\`\n`;
+            content += `*${action.timestamp}*\n`;
+
+            // Show reasoning context if available (the "why" behind this action)
+            if (action.context) {
+              // Truncate long reasoning for cleaner display during build
+              const truncatedContext =
+                action.context.length > 200
+                  ? action.context.substring(0, 200).trim() + "..."
+                  : action.context;
+              content += `> 💭 ${truncatedContext.replace(/\n/g, " ")}\n`;
+            }
+            content += "\n";
+          });
         }
 
         return content || "**Processing your request**\n\n*Analyzing...*";
       };
 
       // Update UI with current reasoning and status (called directly for non-thinking events)
-      // Reads from throttled buffer to ensure we always have the latest accumulated text
       const updateThinking = (currentStatus?: string) => {
-        // Get latest accumulated text from throttled buffer (may be ahead of currentReasoning)
-        const latestReasoning =
-          getThinkingText(thinkingStreamId) || currentReasoning;
-        currentReasoning = latestReasoning; // Keep local in sync
-        const content = buildLocalProgressContent(
-          latestReasoning,
-          currentStatus,
-        );
+        const content = buildLocalProgressContent(undefined, currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -2019,7 +2255,9 @@ Some ideas:
 
       // Throttled update for thinking text (~30fps for smooth appearance)
       const updateThinkingThrottled = (accumulatedText: string) => {
-        currentReasoning = accumulatedText; // Keep local variable in sync
+        // Track FULL thinking text - no truncation!
+        currentThinkingPreview = accumulatedText;
+
         const content = buildLocalProgressContent(accumulatedText);
         setMessages((prev) => {
           const updated = [...prev];
@@ -2068,6 +2306,7 @@ Some ideas:
         let buffer = "";
         let finalData: {
           output?: string;
+          reasoning?: string; // Separate reasoning for collapsible display
           filesAffected?: string[];
           success?: boolean;
           error?: string;
@@ -2093,7 +2332,7 @@ Some ideas:
                   // Heartbeat received, connection is alive
                   continue;
                 } else if (eventType === "thinking") {
-                  // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
+                  // Stream the actual text output to UI
                   // Uses throttled updates (~30fps) to prevent UI flickering from rapid chunks
                   const reasoningText = data.text || "";
                   if (reasoningText) {
@@ -2106,6 +2345,22 @@ Some ideas:
                     );
                   }
                   // Note: Not logging individual chunks - shown in UI only
+                } else if (eventType === "reasoning") {
+                  // Deep reasoning / chain-of-thought tokens (internal thought process)
+                  // These are the model's internal reasoning before producing output
+                  const reasoningText = data.text || "";
+                  if (reasoningText) {
+                    // Prefix reasoning chunks with 💭 to distinguish from regular output
+                    accumulateThinkingChunk(
+                      thinkingStreamId,
+                      `💭 ${reasoningText}`,
+                    );
+                    // Schedule throttled UI update (~30fps for smooth text appearance)
+                    scheduleThinkingUpdate(
+                      thinkingStreamId,
+                      updateThinkingThrottled,
+                    );
+                  }
                 } else if (eventType === "tool_start") {
                   // Instant feedback when tool begins (before execution)
                   const toolName = data.tool;
@@ -2115,13 +2370,18 @@ Some ideas:
                     statusMessage,
                   } = formatToolDisplay(toolName, data.input);
 
-                  // Add as pending action
+                  // Add as pending action WITH reasoning context for accordion display
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
                     status: "pending",
+                    context: data.reasoningContext || undefined, // Reasoning that led to this tool
                   });
+
+                  // Clear preview - tool action now takes focus
+                  currentThinkingPreview = "";
+
                   updateThinking(`⏳ ${statusMessage}`);
                 } else if (eventType === "tool_use") {
                   // Tool completed - update status
@@ -2138,11 +2398,14 @@ Some ideas:
                   );
                   if (pendingIdx >= 0) {
                     actionsLog[pendingIdx].status = "done";
+                    // Clear thinking preview since action completed
+                    currentThinkingPreview = "";
                   } else {
                     // Fallback: mark previous as done, add this one
                     if (actionsLog.length > 0) {
                       actionsLog[actionsLog.length - 1].status = "done";
                     }
+                    // Add as completed action (no context - reasoning goes in final accordion)
                     actionsLog.push({
                       tool: toolDisplay,
                       detail,
@@ -2185,24 +2448,34 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
+              // Build clean content - NO reasoning mixed in!
               let content = "";
 
-              if (finalData.output) {
-                content += finalData.output;
+              // Final output should be a clean summary, not accumulated reasoning
+              if (finalData.output && finalData.output.trim()) {
+                content += finalData.output.trim();
+              } else {
+                // If no clean output, generate a summary based on actions
+                if (actionsLog.length > 0) {
+                  content = "I've completed your request.";
+                } else {
+                  content = "Done!";
+                }
               }
 
-              if (actionsLog.length > 0) {
-                content += "\n\n---\n\n";
-                content += "**Operations Completed**\n\n";
-                actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
-                  content += `> \`${action.detail}\`\n\n`;
-                });
-              }
+              // Build operations list with per-action reasoning for accordions
+              const operations = actionsLog.map((action) => ({
+                tool: action.tool,
+                detail: action.detail,
+                timestamp: action.timestamp, // When the operation was performed
+                reasoning: action.context, // Reasoning that led to this action
+              }));
 
               return {
                 ...rest,
                 content,
+                operations, // Per-operation data with reasoning for accordions
+                reasoning: finalData.reasoning, // Overall reasoning as fallback
                 filesAffected: finalData.filesAffected,
               };
             }
@@ -3005,39 +3278,83 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
 
                 <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
-                  {/* App Name - Premium input */}
+                  {/* App Name - Premium input with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        App Name
+                        App Name <span className="text-red-400">*</span>
                       </Label>
-                      <span
-                        className={`text-[10px] font-mono transition-colors ${
-                          appName.length > 100
-                            ? "text-red-400"
-                            : appName.length > 80
-                              ? "text-amber-400"
-                              : "text-white/25"
-                        }`}
-                      >
-                        {appName.length}/100
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {nameValidation.isChecking && (
+                          <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                        )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === true &&
+                          appName.trim().length >= 2 && (
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                              <Check className="h-3 w-3" />
+                              Available
+                            </span>
+                          )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === false && (
+                            <span className="flex items-center gap-1 text-[10px] text-red-400">
+                              <AlertCircle className="h-3 w-3" />
+                              Taken
+                            </span>
+                          )}
+                        <span
+                          className={`text-[10px] font-mono transition-colors ${
+                            appName.length > 100
+                              ? "text-red-400"
+                              : appName.length > 80
+                                ? "text-amber-400"
+                                : "text-white/25"
+                          }`}
+                        >
+                          {appName.length}/100
+                        </span>
+                      </div>
                     </div>
                     <Input
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className="h-12 bg-black/30 border-white/[0.08] text-white text-base placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl transition-all duration-300"
+                      className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
+                        nameValidation.error
+                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          : nameValidation.isAvailable === true &&
+                              appName.trim().length >= 2
+                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                       maxLength={100}
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
+                    {nameValidation.error && (
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {nameValidation.error}
+                        {nameValidation.suggestedName && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAppName(nameValidation.suggestedName!)
+                            }
+                            className="ml-1 text-[#FF5800] hover:underline"
+                          >
+                            Try &quot;{nameValidation.suggestedName}&quot;
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Description - Premium textarea */}
+                  {/* Description - Premium textarea with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        Description
+                        Description <span className="text-red-400">*</span>
                       </Label>
                       <div className="flex items-center gap-3">
                         <button
@@ -3056,9 +3373,13 @@ ANTHROPIC_API_KEY=your_key_here`}
                           className={`text-[10px] font-mono transition-colors ${
                             appDescription.length > 500
                               ? "text-red-400"
-                              : appDescription.length > 400
+                              : appDescription.length <
+                                    MIN_DESCRIPTION_LENGTH &&
+                                  appDescription.length > 0
                                 ? "text-amber-400"
-                                : "text-white/25"
+                                : appDescription.length > 400
+                                  ? "text-amber-400"
+                                  : "text-white/25"
                           }`}
                         >
                           {appDescription.length}/500
@@ -3068,9 +3389,30 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <Textarea
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
-                      placeholder="Describe what your app should do... or let AI help you write it"
-                      className="min-h-[120px] bg-black/30 border-white/[0.08] text-white text-sm placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl resize-none transition-all duration-300 leading-relaxed"
+                      placeholder="Describe what your app should do... (minimum 10 characters)"
+                      className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                        appDescription.length > 500
+                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          : appDescription.length > 0 &&
+                              appDescription.length < MIN_DESCRIPTION_LENGTH
+                            ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                              ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                              : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                     />
+                    {appDescription.length > 0 &&
+                      appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                        <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Description must be at least {
+                            MIN_DESCRIPTION_LENGTH
+                          }{" "}
+                          characters (
+                          {MIN_DESCRIPTION_LENGTH - appDescription.length} more
+                          needed)
+                        </p>
+                      )}
                     {appDescription.length > 500 && (
                       <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
                         <AlertCircle className="h-3.5 w-3.5" />
@@ -3092,15 +3434,28 @@ ANTHROPIC_API_KEY=your_key_here`}
                     onClick={() => setSetupStep(3)}
                     disabled={
                       !appName.trim() ||
+                      appName.trim().length < 2 ||
                       appName.length > 100 ||
+                      nameValidation.isChecking ||
+                      nameValidation.isAvailable === false ||
+                      appDescription.length < MIN_DESCRIPTION_LENGTH ||
                       appDescription.length > 500
                     }
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
                     style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      {nameValidation.isChecking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </>
+                      )}
                     </span>
                   </button>
                 </div>
@@ -4323,94 +4678,154 @@ ANTHROPIC_API_KEY=your_key_here`}
               </div>
             )}
 
-            {/* Console tab - Premium */}
+            {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (
-              <div
-                ref={consoleLogsRef}
-                className="h-full bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25 animate-in fade-in duration-200"
+              <ResizablePanelGroup
+                direction="vertical"
+                className="h-full animate-in fade-in duration-200"
               >
-                {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/25">
-                    <div className="text-center">
-                      <div className="relative inline-block mb-4">
-                        <Terminal className="h-10 w-10 mx-auto opacity-40" />
-                        <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                {/* Logs Panel - Top */}
+                <ResizablePanel defaultSize={60} minSize={20}>
+                  <div className="h-full flex flex-col">
+                    {/* Logs Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/20">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500/70 animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Logs
+                        </span>
+                        {consoleLogs.length > 0 && (
+                          <span className="text-[10px] text-white/30 tabular-nums">
+                            ({consoleLogs.length})
+                          </span>
+                        )}
                       </div>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ fontFamily: "var(--font-sf-pro)" }}
-                      >
-                        Console is empty
-                      </p>
-                      <p className="text-xs text-white/15 mt-1">
-                        Logs will appear here during builds
-                      </p>
+                    </div>
+                    {/* Logs Content */}
+                    <div
+                      ref={consoleLogsRef}
+                      className="flex-1 bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+                    >
+                      {consoleLogs.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-white/25">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-4">
+                              <Terminal className="h-8 w-8 mx-auto opacity-40" />
+                              <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                            </div>
+                            <p
+                              className="text-xs font-medium"
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
+                            >
+                              No logs yet
+                            </p>
+                            <p className="text-[10px] text-white/15 mt-1">
+                              Logs will appear here during builds
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-0.5">
+                          {consoleLogs.map((log, i) => {
+                            let colorClass = "text-white/60";
+                            let bgClass = "";
+
+                            if (log.includes("[info]")) {
+                              colorClass = "text-blue-400";
+                            } else if (log.includes("[success]")) {
+                              colorClass = "text-green-400";
+                            } else if (
+                              log.includes("[error]") ||
+                              log.includes("Error") ||
+                              log.includes("error")
+                            ) {
+                              colorClass = "text-red-400";
+                              bgClass = "bg-red-500/10";
+                            } else if (
+                              log.includes("[warning]") ||
+                              log.includes("Warning")
+                            ) {
+                              colorClass = "text-yellow-400";
+                              bgClass = "bg-yellow-500/5";
+                            } else if (log.includes("Progress:")) {
+                              colorClass = "text-purple-400";
+                            } else if (
+                              log.includes("GET ") ||
+                              log.includes("POST ") ||
+                              log.includes("PUT ") ||
+                              log.includes("DELETE ")
+                            ) {
+                              if (log.includes(" 2")) {
+                                colorClass = "text-green-400/70";
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                                colorClass = "text-red-400/70";
+                              } else {
+                                colorClass = "text-cyan-400/70";
+                              }
+                            } else if (
+                              log.includes("Next.js") ||
+                              log.includes("Turbopack")
+                            ) {
+                              colorClass = "text-white/80";
+                            }
+
+                            return (
+                              <div
+                                key={i}
+                                className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                              >
+                                <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
+                                  {i + 1}
+                                </span>
+                                <pre
+                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
+                                >
+                                  {log}
+                                </pre>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 space-y-1">
-                    {consoleLogs.map((log, i) => {
-                      let colorClass = "text-white/60";
-                      let bgClass = "";
+                </ResizablePanel>
 
-                      if (log.includes("[info]")) {
-                        colorClass = "text-blue-400";
-                      } else if (log.includes("[success]")) {
-                        colorClass = "text-green-400";
-                      } else if (
-                        log.includes("[error]") ||
-                        log.includes("Error") ||
-                        log.includes("error")
-                      ) {
-                        colorClass = "text-red-400";
-                        bgClass = "bg-red-500/10";
-                      } else if (
-                        log.includes("[warning]") ||
-                        log.includes("Warning")
-                      ) {
-                        colorClass = "text-yellow-400";
-                        bgClass = "bg-yellow-500/5";
-                      } else if (log.includes("Progress:")) {
-                        colorClass = "text-purple-400";
-                      } else if (
-                        log.includes("GET ") ||
-                        log.includes("POST ") ||
-                        log.includes("PUT ") ||
-                        log.includes("DELETE ")
-                      ) {
-                        if (log.includes(" 2")) {
-                          colorClass = "text-green-400/70";
-                        } else if (log.includes(" 4") || log.includes(" 5")) {
-                          colorClass = "text-red-400/70";
-                        } else {
-                          colorClass = "text-cyan-400/70";
-                        }
-                      } else if (
-                        log.includes("Next.js") ||
-                        log.includes("Turbopack")
-                      ) {
-                        colorClass = "text-white/80";
-                      }
+                {/* Resizable Handle */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-white/[0.04] hover:bg-[#FF5800]/30 transition-colors data-[resize-handle-active]:bg-[#FF5800]/50"
+                />
 
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
-                        >
-                          <span className="text-white/20 select-none w-5 text-right shrink-0">
-                            {i + 1}
-                          </span>
-                          <pre
-                            className={`whitespace-pre-wrap break-all ${colorClass}`}
-                          >
-                            {log}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                {/* Terminal Panel - Bottom */}
+                <ResizablePanel defaultSize={40} minSize={15}>
+                  <div className="h-full flex flex-col">
+                    {/* Terminal Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="h-3 w-3 text-[#FF5800]" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Terminal
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-white/20">
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                        </span>
+                      </div>
+                    </div>
+                    {/* Terminal Content */}
+                    <div className="flex-1 min-h-0">
+                      <WebTerminal
+                        sessionId={session?.id}
+                        sandboxUrl={session?.sandboxUrl}
+                        disabled={!session}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             )}
           </div>
         </div>
