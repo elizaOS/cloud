@@ -9,6 +9,10 @@ import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
+// Max duration for sandbox creation and initial prompt processing
+// Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
+export const maxDuration = 800;
+
 const SESSION_CREATE_LIMIT = {
   windowMs: 3600000,
   maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,

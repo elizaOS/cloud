@@ -7,6 +7,10 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
+// Max duration for session resume (sandbox creation + repo clone)
+// Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
+export const maxDuration = 800;
+
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
 }
