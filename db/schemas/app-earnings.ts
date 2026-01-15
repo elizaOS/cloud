@@ -57,7 +57,7 @@ export const appEarnings = pgTable(
     last_withdrawal_at: timestamp("last_withdrawal_at"),
     payout_threshold: numeric("payout_threshold", { precision: 10, scale: 2 })
       .notNull()
-      .default("10.00"),
+      .default("25.00"),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },

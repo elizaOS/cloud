@@ -561,6 +561,13 @@ export class AppCreditsService {
       }),
     });
 
+    // When enabling monetization, ensure earnings record exists
+    // This prevents null state when viewing earnings dashboard
+    if (settings.monetizationEnabled === true) {
+      await appEarningsRepository.getOrCreate(appId);
+      logger.info("[AppCredits] Initialized earnings record for app", { appId });
+    }
+
     logger.info("[AppCredits] Updated monetization settings", {
       appId,
       settings,

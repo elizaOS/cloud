@@ -196,6 +196,16 @@ export class AppEarningsService {
     logger.info("[AppEarnings] Released pending earnings", { appId });
   }
 
+  /**
+   * Request a withdrawal of app earnings.
+   *
+   * NOTE: This creates a withdrawal request that is processed manually.
+   * The actual payout happens through the creator's redeemable earnings balance,
+   * which was credited when the earnings were originally recorded.
+   *
+   * The withdrawal here tracks that the creator has requested these funds
+   * and prevents them from being withdrawn again from this app's balance.
+   */
   async requestWithdrawal(
     appId: string,
     amount: number,
@@ -221,8 +231,12 @@ export class AppEarningsService {
       app_id: appId,
       type: "withdrawal",
       amount: String(-amount),
-      description: `Withdrawal of $${amount.toFixed(2)}`,
-      metadata: { requested_at: new Date().toISOString(), status: "pending" },
+      description: `Withdrawal request: $${amount.toFixed(2)}`,
+      metadata: {
+        requested_at: new Date().toISOString(),
+        status: "processing",
+        note: "Earnings are available in your redeemable balance for redemption as elizaOS tokens",
+      },
     });
 
     logger.info("[AppEarnings] Withdrawal requested", {
@@ -233,7 +247,7 @@ export class AppEarningsService {
 
     return {
       success: true,
-      message: `Withdrawal of $${amount.toFixed(2)} requested successfully`,
+      message: `$${amount.toFixed(2)} marked as withdrawn. Check your Earnings page to redeem as elizaOS tokens.`,
       transactionId: transaction.id,
     };
   }

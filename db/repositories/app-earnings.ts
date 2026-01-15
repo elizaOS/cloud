@@ -236,6 +236,9 @@ export class AppEarningsRepository {
 
   /**
    * Atomically adds inference earnings to app earnings.
+   *
+   * Earnings go directly to withdrawable_balance for immediate availability.
+   * This provides a better developer experience for solo creators.
    */
   async addInferenceEarnings(
     appId: string,
@@ -248,7 +251,7 @@ export class AppEarningsRepository {
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
         total_inference_earnings: sql`${appEarnings.total_inference_earnings} + ${amount}`,
-        pending_balance: sql`${appEarnings.pending_balance} + ${amount}`,
+        withdrawable_balance: sql`${appEarnings.withdrawable_balance} + ${amount}`,
         updated_at: new Date(),
       })
       .where(eq(appEarnings.app_id, appId))
@@ -259,6 +262,9 @@ export class AppEarningsRepository {
 
   /**
    * Atomically adds purchase earnings to app earnings.
+   *
+   * Earnings go directly to withdrawable_balance for immediate availability.
+   * This provides a better developer experience for solo creators.
    */
   async addPurchaseEarnings(
     appId: string,
@@ -271,7 +277,7 @@ export class AppEarningsRepository {
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
         total_purchase_earnings: sql`${appEarnings.total_purchase_earnings} + ${amount}`,
-        pending_balance: sql`${appEarnings.pending_balance} + ${amount}`,
+        withdrawable_balance: sql`${appEarnings.withdrawable_balance} + ${amount}`,
         updated_at: new Date(),
       })
       .where(eq(appEarnings.app_id, appId))
