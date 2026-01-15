@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { ArrowLeft, Save, Loader2, Play } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Play, Plus, Pause, Power } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { Button } from "@/components/ui/button";
 import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
@@ -99,6 +99,8 @@ function WorkflowCanvas({
   isSaving,
   onRun,
   isRunning,
+  onToggleActive,
+  isTogglingActive,
   executionResult,
   onClearResult,
   hasUnsavedChanges,
@@ -109,6 +111,8 @@ function WorkflowCanvas({
   isSaving: boolean;
   onRun: () => void;
   isRunning: boolean;
+  onToggleActive: () => void;
+  isTogglingActive: boolean;
   executionResult: ExecutionResult | null;
   onClearResult: () => void;
   hasUnsavedChanges: boolean;
@@ -128,6 +132,7 @@ function WorkflowCanvas({
   const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
+  const [selectedNodePosition, setSelectedNodePosition] = useState<{ x: number; y: number } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -144,14 +149,24 @@ function WorkflowCanvas({
   );
 
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
       setSelectedNode(node);
+      // Calculate screen position for floating config panel
+      const nodeElement = (event.target as HTMLElement).closest('.react-flow__node');
+      if (nodeElement) {
+        const rect = nodeElement.getBoundingClientRect();
+        setSelectedNodePosition({
+          x: rect.right + 12,
+          y: rect.top,
+        });
+      }
     },
     [],
   );
 
   const handlePaneClick = useCallback(() => {
     setSelectedNode(null);
+    setSelectedNodePosition(null);
   }, []);
 
   const handleUpdateNodeData = useCallback(
@@ -240,6 +255,29 @@ function WorkflowCanvas({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Status indicator for scheduled/webhook workflows */}
+          {(workflow.trigger_config.type === "schedule" || workflow.trigger_config.type === "webhook") && (
+            <Button
+              variant="outline"
+              onClick={onToggleActive}
+              disabled={isTogglingActive}
+              className={`gap-2 ${
+                workflow.status === "active"
+                  ? "border-green-500/50 text-green-400 hover:bg-green-500/10"
+                  : "border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+              }`}
+            >
+              {isTogglingActive ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : workflow.status === "active" ? (
+                <Power className="w-4 h-4" />
+              ) : (
+                <Pause className="w-4 h-4" />
+              )}
+              {workflow.status === "active" ? "Active" : "Paused"}
+            </Button>
+          )}
+          
           <Button
             variant="outline"
             onClick={onRun}
@@ -356,6 +394,11 @@ function WorkflowCanvas({
               const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
               if (node) {
                 setSelectedNode(node);
+                // Calculate position for the floating panel based on context menu position
+                setSelectedNodePosition({
+                  x: nodeContextMenu.x + 12,
+                  y: nodeContextMenu.y,
+                });
               }
             }}
             onDelete={() => {
@@ -386,11 +429,30 @@ function WorkflowCanvas({
           }}
         />
 
+        {/* Empty Canvas State - Orange Plus Button */}
+        {nodes.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <button
+              onClick={() => {
+                setAddPosition({ x: 400, y: 200 });
+                setShowAddDialog(true);
+              }}
+              className="pointer-events-auto flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5800] hover:bg-[#FF5800]/90 shadow-lg shadow-[#FF5800]/30 transition-all hover:scale-110"
+            >
+              <Plus className="w-8 h-8 text-black" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+
         <NodeConfigPanel
           node={selectedNode}
           onUpdate={handleUpdateNodeData}
-          onClose={() => setSelectedNode(null)}
+          onClose={() => {
+            setSelectedNode(null);
+            setSelectedNodePosition(null);
+          }}
           workflowId={workflow.id}
+          position={selectedNodePosition}
         />
 
         <ExecutionResultsPanel
@@ -407,6 +469,7 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isTogglingActive, setIsTogglingActive] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
@@ -422,23 +485,50 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  const handleToggleActive = async () => {
+    setIsTogglingActive(true);
+    const newStatus = workflow.status === "active" ? "paused" : "active";
+    await updateWorkflow(workflow.id, { status: newStatus });
+    setIsTogglingActive(false);
+    router.refresh();
+  };
+
   const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
     setIsSaving(true);
 
     // Extract trigger config from trigger node
     const triggerNode = nodes.find((n) => n.type === "trigger");
     const triggerData = triggerNode?.data as Record<string, unknown> | undefined;
+    const triggerType = (triggerData?.triggerType as "manual" | "webhook" | "schedule") ?? "manual";
+    const schedule = triggerData?.schedule as string | undefined;
+    const webhookSecret = triggerData?.webhookSecret as string | undefined;
+
     const triggerConfig = {
-      type: (triggerData?.triggerType as "manual" | "webhook" | "schedule") ?? "manual",
-      schedule: triggerData?.schedule as string | undefined,
-      webhookSecret: triggerData?.webhookSecret as string | undefined,
+      type: triggerType,
+      schedule,
+      webhookSecret,
     };
+
+    // Auto-activate workflow if it has a schedule with cron expression, or webhook trigger
+    // Check both the type AND if there's actually a schedule value
+    const hasSchedule = triggerType === "schedule" && schedule;
+    const hasWebhook = triggerType === "webhook";
+    const shouldActivate = hasSchedule || hasWebhook;
+
+    console.log("[WorkflowEditor] Saving workflow:", {
+      triggerType,
+      schedule,
+      hasSchedule,
+      shouldActivate,
+      newStatus: shouldActivate ? "active" : workflow.status,
+    });
 
     await updateWorkflow(workflow.id, {
       name,
       nodes: toDbNodes(nodes),
       edges: toDbEdges(edges),
       trigger_config: triggerConfig,
+      status: shouldActivate ? "active" : workflow.status,
     });
 
     setIsSaving(false);
@@ -463,6 +553,8 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
         isSaving={isSaving}
         onRun={handleRun}
         isRunning={isRunning}
+        onToggleActive={handleToggleActive}
+        isTogglingActive={isTogglingActive}
         executionResult={executionResult}
         onClearResult={() => setExecutionResult(null)}
         hasUnsavedChanges={hasUnsavedChanges}

@@ -32,6 +32,7 @@
     "seed:credit-packs": "tsx scripts/seed-credit-packs.ts",
     "stripe:webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "cron:auto-top-up": "tsx scripts/trigger-auto-top-up.ts",
+    "cron:workflows": "bun run scripts/local-cron.ts",
     "billing:set-email": "tsx scripts/set-billing-email.ts",
     "bootstrapper:build": "cd bootstrapper && ./build.sh",
     "cache:clear": "tsx scripts/clear-cache.ts",

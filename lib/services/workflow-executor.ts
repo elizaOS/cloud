@@ -718,14 +718,23 @@ class WorkflowExecutorService {
   }
 
   /**
-   * Execute Discord node - sends message to Discord
+   * Execute Discord node - sends message to Discord via webhook
    */
   private async executeDiscordNode(
     config: Record<string, unknown>,
     context: WorkflowExecutionContext,
   ): Promise<unknown> {
-    const channelId = config.channelId as string | undefined;
+    const webhookUrl = config.webhookUrl as string | undefined;
     let message = (config.message as string) ?? "";
+
+    if (!webhookUrl) {
+      throw new Error("Discord Webhook URL is required. Get one from Discord Server Settings → Integrations → Webhooks");
+    }
+
+    // Validate webhook URL format
+    if (!webhookUrl.startsWith("https://discord.com/api/webhooks/")) {
+      throw new Error("Invalid Discord Webhook URL. It should start with https://discord.com/api/webhooks/");
+    }
 
     // Auto-compose message from previous outputs if not specified
     if (!message) {
@@ -745,21 +754,26 @@ class WorkflowExecutorService {
       message = `Workflow ${context.workflowId} completed at ${new Date().toISOString()}`;
     }
 
-    this.log(context, "info", "discord", `Sending message to Discord...`);
+    this.log(context, "info", "discord", `Sending message via Discord webhook...`);
 
-    const sent = await discordService.sendText(message, channelId);
+    // Send via Discord webhook (simple POST request)
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: message }),
+    });
 
-    this.log(
-      context,
-      sent ? "info" : "warn",
-      "discord",
-      sent ? "Message sent to Discord" : "Failed to send to Discord (check config)",
-    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
+    }
+
+    this.log(context, "info", "discord", "Message sent to Discord successfully");
 
     return {
       type: "discord",
-      channelId: channelId ?? "default",
-      messageSent: sent,
+      webhookConfigured: true,
+      messageSent: true,
       messagePreview: message.slice(0, 100),
     };
   }

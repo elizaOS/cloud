@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/workflows",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/auto-top-up",
       "schedule": "*/15 * * * *"
     },

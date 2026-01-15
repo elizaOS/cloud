@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Bot, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ interface NodeConfigPanelProps {
   onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
   onClose: () => void;
   workflowId?: string;
+  position: { x: number; y: number } | null;
 }
 
 export function NodeConfigPanel({
@@ -29,8 +30,11 @@ export function NodeConfigPanel({
   onUpdate,
   onClose,
   workflowId,
+  position,
 }: NodeConfigPanelProps) {
   const [localData, setLocalData] = useState<Record<string, unknown>>({});
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [adjustedPosition, setAdjustedPosition] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (node) {
@@ -38,7 +42,40 @@ export function NodeConfigPanel({
     }
   }, [node]);
 
-  if (!node) return null;
+  // Adjust position to stay within viewport
+  useEffect(() => {
+    if (!position || !panelRef.current) {
+      setAdjustedPosition(null);
+      return;
+    }
+
+    const panelWidth = 320;
+    const panelHeight = panelRef.current.offsetHeight || 400;
+    const padding = 16;
+
+    let x = position.x;
+    let y = position.y;
+
+    // Check right edge
+    if (x + panelWidth + padding > window.innerWidth) {
+      // Position to the left of the node instead
+      x = position.x - panelWidth - 24 - 200; // Approximate node width
+    }
+
+    // Check bottom edge
+    if (y + panelHeight + padding > window.innerHeight) {
+      y = window.innerHeight - panelHeight - padding;
+    }
+
+    // Ensure minimum top position
+    if (y < padding) {
+      y = padding;
+    }
+
+    setAdjustedPosition({ x, y });
+  }, [position]);
+
+  if (!node || !position) return null;
 
   const handleSave = () => {
     onUpdate(node.id, localData);
@@ -76,27 +113,36 @@ export function NodeConfigPanel({
     }
   };
 
+  const displayPosition = adjustedPosition ?? position;
+
   return (
-    <div className="absolute top-0 right-0 h-full w-80 bg-black/95 border-l border-white/10 p-4 overflow-y-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white">
-          Configure {node.type}
+    <div
+      ref={panelRef}
+      className="fixed w-80 bg-[#1A1A1A] border border-white/10 rounded-xl p-4 overflow-y-auto max-h-[70vh] shadow-2xl z-50"
+      style={{
+        left: displayPosition.x,
+        top: displayPosition.y,
+      }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-white capitalize">
+          {node.type}
         </h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-white/10 rounded-md transition-colors"
+          className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
         >
-          <X className="w-5 h-5 text-white/60" />
+          <X className="w-4 h-4 text-white/60" />
         </button>
       </div>
 
-      <div className="space-y-6">{renderConfig()}</div>
+      <div className="space-y-4">{renderConfig()}</div>
 
-      <div className="mt-6 flex gap-2">
-        <Button onClick={handleSave} className="flex-1 bg-[#FF5800] text-black">
+      <div className="mt-5 flex gap-2">
+        <Button onClick={handleSave} className="flex-1 bg-[#FF5800] text-black hover:bg-[#FF5800]/90 h-9">
           Save
         </Button>
-        <Button onClick={onClose} variant="outline" className="flex-1">
+        <Button onClick={onClose} variant="outline" className="flex-1 h-9">
           Cancel
         </Button>
       </div>
@@ -202,20 +248,34 @@ function TriggerConfig({
       {triggerType === "schedule" && (
         <div className="space-y-3">
           <div>
-            <Label className="text-white/80">Cron Expression</Label>
-            <Input
+            <Label className="text-white/80">Run Every</Label>
+            <Select
               value={(data.schedule as string) ?? ""}
-              onChange={(e) => onChange("schedule", e.target.value)}
-              placeholder="*/5 * * * *"
-              className="mt-1"
-            />
+              onValueChange={(v) => onChange("schedule", v)}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select interval..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="* * * * *">1 minute</SelectItem>
+                <SelectItem value="*/5 * * * *">5 minutes</SelectItem>
+                <SelectItem value="*/15 * * * *">15 minutes</SelectItem>
+                <SelectItem value="*/30 * * * *">30 minutes</SelectItem>
+                <SelectItem value="0 * * * *">1 hour</SelectItem>
+                <SelectItem value="0 */2 * * *">2 hours</SelectItem>
+                <SelectItem value="0 */6 * * *">6 hours</SelectItem>
+                <SelectItem value="0 */12 * * *">12 hours</SelectItem>
+                <SelectItem value="0 0 * * *">Daily (midnight)</SelectItem>
+                <SelectItem value="0 9 * * *">Daily (9 AM)</SelectItem>
+                <SelectItem value="0 9 * * 1">Weekly (Monday 9 AM)</SelectItem>
+                <SelectItem value="0 9 * * 1-5">Weekdays (9 AM)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="bg-white/5 rounded-lg p-3 text-xs space-y-1">
-            <div className="text-white/60 font-medium">Examples:</div>
-            <div className="text-white/40">• <code>*/5 * * * *</code> = every 5 minutes</div>
-            <div className="text-white/40">• <code>0 * * * *</code> = every hour</div>
-            <div className="text-white/40">• <code>0 9 * * *</code> = daily at 9 AM</div>
-            <div className="text-white/40">• <code>0 0 * * 1</code> = every Monday</div>
+          <div className="bg-white/5 rounded-lg p-3 text-xs">
+            <p className="text-white/60">
+              Scheduled workflows run automatically at the selected interval.
+            </p>
           </div>
         </div>
       )}
@@ -681,15 +741,15 @@ function DiscordConfig({
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-white/80">Channel ID (Optional)</Label>
+        <Label className="text-white/80">Webhook URL</Label>
         <Input
-          value={(data.channelId as string) ?? ""}
-          onChange={(e) => onChange("channelId", e.target.value)}
-          placeholder="Leave empty for default channel"
-          className="mt-1"
+          value={(data.webhookUrl as string) ?? ""}
+          onChange={(e) => onChange("webhookUrl", e.target.value)}
+          placeholder="https://discord.com/api/webhooks/..."
+          className="mt-1 font-mono text-xs"
         />
         <p className="text-xs text-white/40 mt-1">
-          Leave empty to use default webhook channel
+          Get this from Discord: Server Settings → Integrations → Webhooks
         </p>
       </div>
 
@@ -706,11 +766,14 @@ function DiscordConfig({
         </p>
       </div>
 
-      <div className="bg-indigo-500/10 rounded-lg p-3 text-xs space-y-1">
-        <p className="text-indigo-400 font-medium">Auto-compose includes:</p>
-        <p className="text-white/60">• Agent responses</p>
-        <p className="text-white/60">• Generated image URLs</p>
-        <p className="text-white/60">• Workflow completion status</p>
+      <div className="bg-indigo-500/10 rounded-lg p-3 text-xs space-y-2">
+        <p className="text-indigo-400 font-medium">How to get Webhook URL:</p>
+        <ol className="text-white/60 list-decimal list-inside space-y-1">
+          <li>Open Discord Server Settings</li>
+          <li>Go to Integrations → Webhooks</li>
+          <li>Click "New Webhook"</li>
+          <li>Copy the Webhook URL</li>
+        </ol>
       </div>
     </div>
   );

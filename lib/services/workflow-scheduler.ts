@@ -29,16 +29,13 @@ interface ScheduledRun {
 // Cron Parser (Simple Implementation)
 // ============================================================================
 
-/**
- * Parse a simple cron expression and check if it matches current time.
- * Supports: minute hour day-of-month month day-of-week
- *
- * Examples:
- * - "0 * * * *" = Every hour at minute 0
- * - "0 0 * * *" = Every day at midnight
- * - "0 9 * * 1-5" = 9am on weekdays
- * - "*/15 * * * *" = Every 15 minutes
- */
+// Parse a simple cron expression and check if it matches current time.
+// Supports: minute hour day-of-month month day-of-week
+// Examples:
+//   "0 * * * *" = Every hour at minute 0
+//   "0 0 * * *" = Every day at midnight
+//   "0 9 * * 1-5" = 9am on weekdays
+//   star/15 * * * * = Every 15 minutes (replace star with *)
 function matchesCron(cronExpression: string, date: Date): boolean {
   const parts = cronExpression.trim().split(/\s+/);
   if (parts.length !== 5) {
