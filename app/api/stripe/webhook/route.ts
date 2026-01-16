@@ -191,6 +191,17 @@ async function handleStripeWebhook(req: NextRequest) {
                 creator_earnings: result.creatorEarnings,
               });
 
+              // Also track unified checkout_completed for funnel analysis
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: "app_credits",
+                credits_added: result.creditsAdded,
+                stripe_session_id: session.id,
+              });
+
               // Also create a record in regular credit transactions for audit trail
               await creditsService.addCredits({
                 organizationId,
