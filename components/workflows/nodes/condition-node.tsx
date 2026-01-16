@@ -3,7 +3,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { GitBranch } from "lucide-react";
 
-export function ConditionNode({ selected }: NodeProps) {
+interface ConditionNodeData {
+  label?: string;
+  [key: string]: unknown;
+}
+
+export function ConditionNode({ selected, data }: NodeProps) {
+  const nodeData = data as ConditionNodeData;
+  const label = nodeData.label ?? "Condition";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,7 +29,7 @@ export function ConditionNode({ selected }: NodeProps) {
           <GitBranch className="w-5 h-5 text-pink-400" />
         </div>
         <div>
-          <div className="text-white font-medium">Condition</div>
+          <div className="text-white font-medium">{label}</div>
           <div className="text-white/40 text-xs">If/Then Branch</div>
         </div>
       </div>

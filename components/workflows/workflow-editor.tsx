@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { ArrowLeft, Save, Loader2, Play, Plus, Pause, Power } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Play, Pause, Power } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
 import { Button } from "@/components/ui/button";
 import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
@@ -39,7 +39,10 @@ import { ConditionNode } from "./nodes/condition-node";
 import { TtsNode } from "./nodes/tts-node";
 import { DiscordNode } from "./nodes/discord-node";
 import { McpNode } from "./nodes/mcp-node";
+import { AddButtonNode } from "./nodes/add-button-node";
 import type { WorkflowNodeType } from "@/db/schemas";
+
+const ADD_BUTTON_NODE_ID = "__add-button__";
 
 interface WorkflowEditorProps {
   workflow: Workflow;
@@ -56,6 +59,7 @@ const nodeTypes: NodeTypes = {
   tts: TtsNode,
   discord: DiscordNode,
   mcp: McpNode,
+  addButton: AddButtonNode,
 };
 
 function toReactFlowNodes(nodes: WorkflowNode[]): Node[] {
@@ -119,9 +123,32 @@ function WorkflowCanvas({
   setHasUnsavedChanges: (value: boolean) => void;
 }) {
   const router = useRouter();
-  const [nodes, setNodes, onNodesChange] = useNodesState(
-    toReactFlowNodes(workflow.nodes),
-  );
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
+  
+  // Create the add button click handler
+  const handleAddButtonClick = useCallback(() => {
+    setAddPosition({ x: 400, y: 200 });
+    setShowAddDialog(true);
+  }, []);
+
+  // Initialize nodes with add button if empty
+  const getInitialNodes = useCallback((): Node[] => {
+    const workflowNodes = toReactFlowNodes(workflow.nodes);
+    if (workflowNodes.length === 0) {
+      return [{
+        id: ADD_BUTTON_NODE_ID,
+        type: "addButton",
+        position: { x: 400, y: 200 },
+        data: { onClick: handleAddButtonClick },
+        draggable: false,
+        selectable: false,
+      }];
+    }
+    return workflowNodes;
+  }, [workflow.nodes, handleAddButtonClick]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(getInitialNodes());
   const [edges, setEdges, onEdgesChange] = useEdgesState(
     toReactFlowEdges(workflow.edges),
   );
@@ -130,15 +157,26 @@ function WorkflowCanvas({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowX: number; flowY: number } | null>(null);
   const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
   const [selectedNodePosition, setSelectedNodePosition] = useState<{ x: number; y: number } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
+  // Update add button callback when showAddDialog changes
   useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === ADD_BUTTON_NODE_ID
+          ? { ...node, data: { onClick: handleAddButtonClick } }
+          : node
+      )
+    );
+  }, [handleAddButtonClick, setNodes]);
+
+  useEffect(() => {
+    // Filter out add button node when checking for changes
+    const realNodes = nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID);
     const hasChanges =
       workflowName !== workflow.name ||
-      JSON.stringify(toDbNodes(nodes)) !== JSON.stringify(workflow.nodes) ||
+      JSON.stringify(toDbNodes(realNodes)) !== JSON.stringify(workflow.nodes) ||
       JSON.stringify(toDbEdges(edges)) !== JSON.stringify(workflow.edges);
     setHasUnsavedChanges(hasChanges);
   }, [nodes, edges, workflowName, workflow, setHasUnsavedChanges]);
@@ -281,7 +319,7 @@ function WorkflowCanvas({
           <Button
             variant="outline"
             onClick={onRun}
-            disabled={isRunning || nodes.length === 0}
+            disabled={isRunning || nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID).length === 0}
             className="gap-2"
           >
             {isRunning ? (
@@ -425,24 +463,11 @@ function WorkflowCanvas({
               position: addPosition,
               data: { ...initialData, label },
             };
-            setNodes((nds) => [...nds, newNode]);
+            // Remove add button and add the new node
+            setNodes((nds) => [...nds.filter((n) => n.id !== ADD_BUTTON_NODE_ID), newNode]);
           }}
         />
 
-        {/* Empty Canvas State - Orange Plus Button */}
-        {nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <button
-              onClick={() => {
-                setAddPosition({ x: 400, y: 200 });
-                setShowAddDialog(true);
-              }}
-              className="pointer-events-auto flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5800] hover:bg-[#FF5800]/90 shadow-lg shadow-[#FF5800]/30 transition-all hover:scale-110"
-            >
-              <Plus className="w-8 h-8 text-black" strokeWidth={2.5} />
-            </button>
-          </div>
-        )}
 
         <NodeConfigPanel
           node={selectedNode}
@@ -496,8 +521,11 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
   const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
     setIsSaving(true);
 
+    // Filter out add button node before saving
+    const realNodes = nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID);
+
     // Extract trigger config from trigger node
-    const triggerNode = nodes.find((n) => n.type === "trigger");
+    const triggerNode = realNodes.find((n) => n.type === "trigger");
     const triggerData = triggerNode?.data as Record<string, unknown> | undefined;
     const triggerType = (triggerData?.triggerType as "manual" | "webhook" | "schedule") ?? "manual";
     const schedule = triggerData?.schedule as string | undefined;
@@ -525,7 +553,7 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
 
     await updateWorkflow(workflow.id, {
       name,
-      nodes: toDbNodes(nodes),
+      nodes: toDbNodes(realNodes),
       edges: toDbEdges(edges),
       trigger_config: triggerConfig,
       status: shouldActivate ? "active" : workflow.status,

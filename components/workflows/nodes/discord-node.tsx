@@ -3,7 +3,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { MessageCircle } from "lucide-react";
 
-export function DiscordNode({ selected }: NodeProps) {
+interface DiscordNodeData {
+  label?: string;
+  [key: string]: unknown;
+}
+
+export function DiscordNode({ selected, data }: NodeProps) {
+  const nodeData = data as DiscordNodeData;
+  const label = nodeData.label ?? "Discord";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,7 +29,7 @@ export function DiscordNode({ selected }: NodeProps) {
           <MessageCircle className="w-5 h-5 text-indigo-400" />
         </div>
         <div>
-          <div className="text-white font-medium">Discord</div>
+          <div className="text-white font-medium">{label}</div>
           <div className="text-white/40 text-xs">Send Message</div>
         </div>
       </div>

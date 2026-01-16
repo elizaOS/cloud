@@ -3,7 +3,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Clock } from "lucide-react";
 
-export function DelayNode({ selected }: NodeProps) {
+interface DelayNodeData {
+  label?: string;
+  [key: string]: unknown;
+}
+
+export function DelayNode({ selected, data }: NodeProps) {
+  const nodeData = data as DelayNodeData;
+  const label = nodeData.label ?? "Delay";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,7 +29,7 @@ export function DelayNode({ selected }: NodeProps) {
           <Clock className="w-5 h-5 text-amber-400" />
         </div>
         <div>
-          <div className="text-white font-medium">Delay</div>
+          <div className="text-white font-medium">{label}</div>
           <div className="text-white/40 text-xs">Wait/Pause</div>
         </div>
       </div>

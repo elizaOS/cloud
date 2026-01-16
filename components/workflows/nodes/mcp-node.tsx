@@ -3,7 +3,18 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Puzzle } from "lucide-react";
 
-export function McpNode({ selected }: NodeProps) {
+interface McpNodeData {
+  label?: string;
+  toolName?: string;
+  serverName?: string;
+  [key: string]: unknown;
+}
+
+export function McpNode({ selected, data }: NodeProps) {
+  const nodeData = data as McpNodeData;
+  const label = nodeData.label ?? nodeData.toolName ?? "MCP Tool";
+  const subtitle = nodeData.serverName ?? "Call MCP Server";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,8 +32,8 @@ export function McpNode({ selected }: NodeProps) {
           <Puzzle className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <div className="text-white font-medium">MCP Tool</div>
-          <div className="text-white/40 text-xs">Call MCP Server</div>
+          <div className="text-white font-medium">{label}</div>
+          <div className="text-white/40 text-xs">{subtitle}</div>
         </div>
       </div>
 

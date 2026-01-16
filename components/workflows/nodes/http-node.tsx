@@ -3,7 +3,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Globe } from "lucide-react";
 
-export function HttpNode({ selected }: NodeProps) {
+interface HttpNodeData {
+  label?: string;
+  [key: string]: unknown;
+}
+
+export function HttpNode({ selected, data }: NodeProps) {
+  const nodeData = data as HttpNodeData;
+  const label = nodeData.label ?? "HTTP Request";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,7 +29,7 @@ export function HttpNode({ selected }: NodeProps) {
           <Globe className="w-5 h-5 text-cyan-400" />
         </div>
         <div>
-          <div className="text-white font-medium">HTTP</div>
+          <div className="text-white font-medium">{label}</div>
           <div className="text-white/40 text-xs">API Request</div>
         </div>
       </div>

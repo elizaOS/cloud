@@ -3,7 +3,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Volume2 } from "lucide-react";
 
-export function TtsNode({ selected }: NodeProps) {
+interface TtsNodeData {
+  label?: string;
+  [key: string]: unknown;
+}
+
+export function TtsNode({ selected, data }: NodeProps) {
+  const nodeData = data as TtsNodeData;
+  const label = nodeData.label ?? "Text to Speech";
+  
   return (
     <div
       className={`bg-neutral-900 border rounded-xl p-4 min-w-[180px] ${
@@ -21,7 +29,7 @@ export function TtsNode({ selected }: NodeProps) {
           <Volume2 className="w-5 h-5 text-violet-400" />
         </div>
         <div>
-          <div className="text-white font-medium">Text to Speech</div>
+          <div className="text-white font-medium">{label}</div>
           <div className="text-white/40 text-xs">Generate Audio</div>
         </div>
       </div>

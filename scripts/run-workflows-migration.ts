@@ -1,5 +1,8 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { Pool } from "pg";
+
+// Load from .env.local
+config({ path: ".env.local" });
 import { readFileSync } from "fs";
 import { join } from "path";
 
