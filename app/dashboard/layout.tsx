@@ -81,13 +81,15 @@ export default function DashboardLayout({
     );
   }
 
-  // Check if we're on the chat or build page - they have their own custom layout
+  // Check if we're on a page with custom layout - they render children directly
   const isCustomLayoutPage =
     pathname?.startsWith("/dashboard/chat") ||
     pathname?.startsWith("/dashboard/build");
 
-  // Pages that need full width without padding
-  const isFullWidthPage = pathname?.startsWith("/dashboard/apps/create");
+  // Pages that need full width without padding (but keep sidebar/header)
+  const isFullWidthPage = 
+    pathname?.startsWith("/dashboard/apps/create") ||
+    (pathname?.startsWith("/dashboard/workflows/") && pathname !== "/dashboard/workflows");
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
@@ -116,8 +118,8 @@ export default function DashboardLayout({
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <div className={isFullWidthPage ? "" : "px-2 py-3 md:px-6 md:py-6"}>{children}</div>
+            <main className={`flex-1 bg-[#0A0A0A] ${isFullWidthPage ? "overflow-hidden relative" : "overflow-y-auto"}`}>
+              <div className={isFullWidthPage ? "absolute inset-0" : "px-2 py-3 md:px-6 md:py-6"}>{children}</div>
             </main>
           </div>
         </div>

@@ -19,9 +19,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { ArrowLeft, Save, Loader2, Play, Pause, Power } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Play, Pause, Power, Plus, Terminal, ChevronUp, ChevronDown } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
-import { Button } from "@/components/ui/button";
 import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
 import type { ExecutionResult } from "@/lib/services/workflow-executor";
 import { NodeConfigPanel } from "./node-config-panel";
@@ -125,6 +124,7 @@ function WorkflowCanvas({
   const router = useRouter();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
+  const [showLogs, setShowLogs] = useState(false);
   
   // Create the add button click handler
   const handleAddButtonClick = useCallback(() => {
@@ -180,6 +180,13 @@ function WorkflowCanvas({
       JSON.stringify(toDbEdges(edges)) !== JSON.stringify(workflow.edges);
     setHasUnsavedChanges(hasChanges);
   }, [nodes, edges, workflowName, workflow, setHasUnsavedChanges]);
+
+  // Show logs automatically when there's a result
+  useEffect(() => {
+    if (executionResult) {
+      setShowLogs(true);
+    }
+  }, [executionResult]);
 
   const onConnect: OnConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -257,17 +264,74 @@ function WorkflowCanvas({
     }
   };
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="flex items-center justify-center w-10 h-10 bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-neutral-400" />
-          </button>
+  const realNodesCount = nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID).length;
 
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Full screen canvas */}
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeClick={handleNodeClick}
+        onPaneClick={(e) => {
+          handlePaneClick();
+          setContextMenu(null);
+          setNodeContextMenu(null);
+        }}
+        onPaneContextMenu={(e) => {
+          e.preventDefault();
+          setNodeContextMenu(null);
+          const reactFlowBounds = (e.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
+          if (reactFlowBounds) {
+            setContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              flowX: e.clientX - reactFlowBounds.left,
+              flowY: e.clientY - reactFlowBounds.top,
+            });
+          }
+        }}
+        onNodeContextMenu={(e, node) => {
+          e.preventDefault();
+          setContextMenu(null);
+          setNodeContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            nodeId: node.id,
+          });
+        }}
+        nodeTypes={nodeTypes}
+        fitView
+        className="bg-[#0A0A0A]"
+        proOptions={{ hideAttribution: true }}
+      >
+        <Controls className="!bg-white/10 !border-white/20 [&>button]:!bg-white/10 [&>button]:!border-white/20 [&>button]:!text-white [&>button:hover]:!bg-white/20" />
+        <MiniMap
+          className="!bg-white/5 !border-white/10"
+          nodeColor="#FF5800"
+          maskColor="rgba(0, 0, 0, 0.8)"
+        />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color="rgba(255, 255, 255, 0.1)"
+        />
+      </ReactFlow>
+
+      {/* Top left - Back button and name */}
+      <div className="absolute top-4 left-4 flex items-center gap-3 z-10">
+        <button
+          onClick={handleBack}
+          className="flex items-center justify-center w-10 h-10 bg-neutral-900/90 backdrop-blur-sm border border-white/10 hover:bg-neutral-800 rounded-xl transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-neutral-400" />
+        </button>
+
+        <div className="flex items-center gap-2 bg-neutral-900/90 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-2">
           {isEditingName ? (
             <input
               ref={nameInputRef}
@@ -276,216 +340,193 @@ function WorkflowCanvas({
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleNameBlur}
               onKeyDown={handleNameKeyDown}
-              className="text-lg font-medium text-neutral-400 bg-transparent border-b border-neutral-500 outline-none px-1"
+              className="text-sm font-medium text-white bg-transparent border-none outline-none w-40"
             />
           ) : (
             <button
               onClick={handleNameClick}
-              className="text-lg font-medium text-neutral-400 hover:text-neutral-300 transition-colors"
+              className="text-sm font-medium text-white hover:text-neutral-300 transition-colors"
             >
               {workflowName}
             </button>
           )}
-
           {hasUnsavedChanges && (
-            <span className="text-xs text-neutral-500">• Unsaved</span>
+            <span className="w-2 h-2 rounded-full bg-[#FF5800]" title="Unsaved changes" />
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Status indicator for scheduled/webhook workflows */}
-          {(workflow.trigger_config.type === "schedule" || workflow.trigger_config.type === "webhook") && (
-            <Button
-              variant="outline"
-              onClick={onToggleActive}
-              disabled={isTogglingActive}
-              className={`gap-2 ${
-                workflow.status === "active"
-                  ? "border-green-500/50 text-green-400 hover:bg-green-500/10"
-                  : "border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
-              }`}
-            >
-              {isTogglingActive ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : workflow.status === "active" ? (
-                <Power className="w-4 h-4" />
-              ) : (
-                <Pause className="w-4 h-4" />
-              )}
-              {workflow.status === "active" ? "Active" : "Paused"}
-            </Button>
-          )}
-          
-          <Button
-            variant="outline"
+        {/* Status indicator for scheduled/webhook workflows */}
+        {(workflow.trigger_config.type === "schedule" || workflow.trigger_config.type === "webhook") && (
+          <button
+            onClick={onToggleActive}
+            disabled={isTogglingActive}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm border transition-colors ${
+              workflow.status === "active"
+                ? "bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20"
+                : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20"
+            }`}
+          >
+            {isTogglingActive ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : workflow.status === "active" ? (
+              <Power className="w-4 h-4" />
+            ) : (
+              <Pause className="w-4 h-4" />
+            )}
+            <span className="text-sm font-medium">{workflow.status === "active" ? "Active" : "Paused"}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Bottom floating toolbar */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <div className="flex items-center gap-2 bg-neutral-900/95 backdrop-blur-sm border border-white/10 rounded-2xl px-3 py-2 shadow-2xl">
+          {/* Add button */}
+          <button
+            onClick={() => {
+              setAddPosition({ x: 400, y: 200 });
+              setShowAddDialog(true);
+            }}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/90 transition-colors"
+            title="Add module"
+          >
+            <Plus className="w-5 h-5 text-black" strokeWidth={2.5} />
+          </button>
+
+          <div className="w-px h-8 bg-white/10" />
+
+          {/* Play button */}
+          <button
             onClick={onRun}
-            disabled={isRunning || nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID).length === 0}
-            className="gap-2"
+            disabled={isRunning || realNodesCount === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Run workflow"
           >
             {isRunning ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Running...
-              </>
+              <Loader2 className="w-5 h-5 text-white animate-spin" />
             ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Run
-              </>
+              <Play className="w-5 h-5 text-white" fill="white" />
             )}
-          </Button>
-          <Button
+            <span className="text-sm font-medium text-white">{isRunning ? "Running..." : "Run"}</span>
+          </button>
+
+          {/* Save button */}
+          <button
             onClick={handleSave}
             disabled={isSaving}
-            className="gap-2 bg-[#FF5800] text-black hover:bg-[#FF5800]/90"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Save workflow"
           >
             {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
+              <Loader2 className="w-5 h-5 text-white animate-spin" />
             ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Save
-              </>
+              <Save className="w-5 h-5 text-white" />
             )}
-          </Button>
+            <span className="text-sm font-medium text-white">{isSaving ? "Saving..." : "Save"}</span>
+          </button>
+
+          <div className="w-px h-8 bg-white/10" />
+
+          {/* Logs toggle */}
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+              showLogs ? "bg-white/20 text-white" : "bg-white/5 hover:bg-white/10 text-white/60"
+            }`}
+            title={showLogs ? "Hide logs" : "Show logs"}
+          >
+            <Terminal className="w-5 h-5" />
+            {showLogs ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronUp className="w-4 h-4" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 relative">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={handleNodeClick}
-          onPaneClick={(e) => {
-            handlePaneClick();
-            setContextMenu(null);
-            setNodeContextMenu(null);
+      {/* Canvas Context Menu */}
+      {contextMenu && (
+        <CanvasContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onAddModule={() => {
+            setAddPosition({ x: contextMenu.flowX, y: contextMenu.flowY });
+            setShowAddDialog(true);
           }}
-          onPaneContextMenu={(e) => {
-            e.preventDefault();
-            setNodeContextMenu(null);
-            const reactFlowBounds = (e.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
-            if (reactFlowBounds) {
-              setContextMenu({
-                x: e.clientX,
-                y: e.clientY,
-                flowX: e.clientX - reactFlowBounds.left,
-                flowY: e.clientY - reactFlowBounds.top,
+        />
+      )}
+
+      {/* Node Context Menu */}
+      {nodeContextMenu && (
+        <NodeContextMenu
+          x={nodeContextMenu.x}
+          y={nodeContextMenu.y}
+          nodeId={nodeContextMenu.nodeId}
+          onClose={() => setNodeContextMenu(null)}
+          onSettings={() => {
+            const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
+            if (node) {
+              setSelectedNode(node);
+              // Calculate position for the floating panel based on context menu position
+              setSelectedNodePosition({
+                x: nodeContextMenu.x + 12,
+                y: nodeContextMenu.y,
               });
             }
           }}
-          onNodeContextMenu={(e, node) => {
-            e.preventDefault();
-            setContextMenu(null);
-            setNodeContextMenu({
-              x: e.clientX,
-              y: e.clientY,
-              nodeId: node.id,
-            });
-          }}
-          nodeTypes={nodeTypes}
-          fitView
-          className="bg-[#0A0A0A]"
-          proOptions={{ hideAttribution: true }}
-        >
-          <Controls className="!bg-white/10 !border-white/20 [&>button]:!bg-white/10 [&>button]:!border-white/20 [&>button]:!text-white [&>button:hover]:!bg-white/20" />
-          <MiniMap
-            className="!bg-white/5 !border-white/10"
-            nodeColor="#FF5800"
-            maskColor="rgba(0, 0, 0, 0.8)"
-          />
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="rgba(255, 255, 255, 0.1)"
-          />
-        </ReactFlow>
-
-        {/* Canvas Context Menu */}
-        {contextMenu && (
-          <CanvasContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            onClose={() => setContextMenu(null)}
-            onAddModule={() => {
-              setAddPosition({ x: contextMenu.flowX, y: contextMenu.flowY });
-              setShowAddDialog(true);
-            }}
-          />
-        )}
-
-        {/* Node Context Menu */}
-        {nodeContextMenu && (
-          <NodeContextMenu
-            x={nodeContextMenu.x}
-            y={nodeContextMenu.y}
-            nodeId={nodeContextMenu.nodeId}
-            onClose={() => setNodeContextMenu(null)}
-            onSettings={() => {
-              const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
-              if (node) {
-                setSelectedNode(node);
-                // Calculate position for the floating panel based on context menu position
-                setSelectedNodePosition({
-                  x: nodeContextMenu.x + 12,
-                  y: nodeContextMenu.y,
-                });
-              }
-            }}
-            onDelete={() => {
-              setNodes((nds) => nds.filter((n) => n.id !== nodeContextMenu.nodeId));
-              setEdges((eds) => eds.filter(
-                (e) => e.source !== nodeContextMenu.nodeId && e.target !== nodeContextMenu.nodeId
-              ));
-              if (selectedNode?.id === nodeContextMenu.nodeId) {
-                setSelectedNode(null);
-              }
-            }}
-          />
-        )}
-
-        {/* Add Module Dialog */}
-        <AddModuleDialog
-          open={showAddDialog}
-          onOpenChange={setShowAddDialog}
-          onAddNode={(type: WorkflowNodeType, initialData?: Record<string, unknown>) => {
-            const label = initialData?.label ?? type.charAt(0).toUpperCase() + type.slice(1);
-            const newNode: Node = {
-              id: `${type}-${Date.now()}`,
-              type,
-              position: addPosition,
-              data: { ...initialData, label },
-            };
-            // Remove add button and add the new node
-            setNodes((nds) => [...nds.filter((n) => n.id !== ADD_BUTTON_NODE_ID), newNode]);
+          onDelete={() => {
+            setNodes((nds) => nds.filter((n) => n.id !== nodeContextMenu.nodeId));
+            setEdges((eds) => eds.filter(
+              (e) => e.source !== nodeContextMenu.nodeId && e.target !== nodeContextMenu.nodeId
+            ));
+            if (selectedNode?.id === nodeContextMenu.nodeId) {
+              setSelectedNode(null);
+            }
           }}
         />
+      )}
 
+      {/* Add Module Dialog */}
+      <AddModuleDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAddNode={(type: WorkflowNodeType, initialData?: Record<string, unknown>) => {
+          const label = initialData?.label ?? type.charAt(0).toUpperCase() + type.slice(1);
+          const newNode: Node = {
+            id: `${type}-${Date.now()}`,
+            type,
+            position: addPosition,
+            data: { ...initialData, label },
+          };
+          // Remove add button and add the new node
+          setNodes((nds) => [...nds.filter((n) => n.id !== ADD_BUTTON_NODE_ID), newNode]);
+        }}
+      />
 
-        <NodeConfigPanel
-          node={selectedNode}
-          onUpdate={handleUpdateNodeData}
-          onClose={() => {
-            setSelectedNode(null);
-            setSelectedNodePosition(null);
-          }}
-          workflowId={workflow.id}
-          position={selectedNodePosition}
-        />
+      <NodeConfigPanel
+        node={selectedNode}
+        onUpdate={handleUpdateNodeData}
+        onClose={() => {
+          setSelectedNode(null);
+          setSelectedNodePosition(null);
+        }}
+        workflowId={workflow.id}
+        position={selectedNodePosition}
+      />
 
+      {/* Logs panel - slides up from bottom */}
+      {showLogs && (
         <ExecutionResultsPanel
           result={executionResult}
           isRunning={isRunning}
-          onClose={onClearResult}
+          onClose={() => {
+            setShowLogs(false);
+            onClearResult();
+          }}
         />
-      </div>
+      )}
     </div>
   );
 }
