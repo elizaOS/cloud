@@ -5,7 +5,6 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Bot, Check, Plus, Search, X, Sparkles, Users } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
 
 export interface Agent {
   id: string;
@@ -159,14 +158,31 @@ export function AgentPicker({
       )}
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search agents..."
-          className="pl-10 bg-white/5 border-white/10 focus:border-violet-500/50 text-sm"
-        />
+      <div className="relative group">
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-200",
+            "bg-white/[0.02] border-white/[0.08]",
+            "focus-within:bg-white/[0.04] focus-within:border-white/[0.15]",
+            "hover:bg-white/[0.03] hover:border-white/[0.1]"
+          )}
+        >
+          <Search className="h-4 w-4 text-white/30 flex-shrink-0" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search agents..."
+            className="flex-1 bg-transparent text-sm text-white/90 placeholder:text-white/30 focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X className="h-3.5 w-3.5 text-white/40 hover:text-white/60" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Agent Grid */}

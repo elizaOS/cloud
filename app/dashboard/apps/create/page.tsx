@@ -20,7 +20,17 @@ import type {
   SourceContext,
   PreviewTab,
 } from "@/lib/app-builder/types";
-import { ChatInput, HistoryTab } from "@/components/app-builder";
+import {
+  ChatInput,
+  HistoryTab,
+  AgentPicker,
+  WebTerminal,
+} from "@/components/app-builder";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 async function fetchWithRetry(
   url: string,
@@ -98,6 +108,7 @@ import {
   PanelLeftClose,
   PanelRightClose,
   MoreVertical,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -354,6 +365,7 @@ export default function AppCreatorPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const consoleLogsRef = useRef<HTMLDivElement>(null);
   const initializationRef = useRef(false);
   const prevAppIdRef = useRef<string | null>(null);
   const prevSessionIdRef = useRef<string | null>(null);
@@ -455,6 +467,20 @@ export default function AppCreatorPage() {
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
+
+  // Agent selection for the app
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<
+    Array<{
+      id: string;
+      name: string;
+      username?: string | null;
+      avatar_url?: string | null;
+      bio?: string | string[];
+      is_public?: boolean;
+    }>
+  >([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
 
   // Sandbox health tracking for automatic recovery
   const [sandboxHealthy, setSandboxHealthy] = useState(true);
@@ -725,6 +751,54 @@ export default function AppCreatorPage() {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+
+  // Fetch available agents when in building mode
+  useEffect(() => {
+    if (step === "building") {
+      const fetchAgents = async () => {
+        if (availableAgents.length > 0) return; // Already fetched
+        setLoadingAgents(true);
+        try {
+          const response = await fetchWithRetry(
+            "/api/my-agents/characters?limit=100"
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (
+              data.success &&
+              data.data?.characters &&
+              Array.isArray(data.data.characters)
+            ) {
+              setAvailableAgents(
+                data.data.characters.map(
+                  (agent: {
+                    id: string;
+                    name: string;
+                    username?: string | null;
+                    avatar_url?: string | null;
+                    bio?: string | string[];
+                    is_public?: boolean;
+                  }) => ({
+                    id: agent.id,
+                    name: agent.name,
+                    username: agent.username,
+                    avatar_url: agent.avatar_url,
+                    bio: agent.bio,
+                    is_public: agent.is_public,
+                  })
+                )
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch agents:", error);
+        } finally {
+          setLoadingAgents(false);
+        }
+      };
+      fetchAgents();
+    }
+  }, [step, availableAgents.length]);
 
   useEffect(() => {
     if (session?.expiresAt && !expiresAt) {
@@ -3635,46 +3709,50 @@ ANTHROPIC_API_KEY=your_key_here`}
                         : "Saved"}
                   </span>
                 </Button>
-                {/* Deploy to Production Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={deployToProduction}
-                  disabled={isDeploying || status === "recovering"}
-                  className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                  title={
-                    status === "recovering"
-                      ? "Reconnecting..."
-                      : productionUrl
-                        ? `Deploy to ${productionUrl}`
-                        : "Deploy to production"
-                  }
-                >
-                  {isDeploying ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Rocket className="h-3 w-3" />
-                  )}
-                  <span className="ml-1">
-                    {isDeploying ? "Deploying..." : "Deploy"}
-                  </span>
-                </Button>
-                {/* Production URL Link */}
-                {productionUrl && (
-                  <a
-                    href={productionUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
-                    title={`View live at ${productionUrl}`}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    <span>Live</span>
-                  </a>
-                )}
-                <div className="w-px h-4 bg-white/10" />
               </>
             )}
+          {/* Deploy Button - always visible when session ready */}
+          {(status === "ready" || status === "recovering") && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={deployToProduction}
+                disabled={isDeploying || status === "recovering"}
+                className="h-7 text-xs bg-[#FF5800]/10 text-[#FF5800] hover:bg-[#FF5800]/20 border border-[#FF5800]/20"
+                title={
+                  status === "recovering"
+                    ? "Reconnecting..."
+                    : productionUrl
+                      ? `Deploy to ${productionUrl}`
+                      : "Deploy to production"
+                }
+              >
+                {isDeploying ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Rocket className="h-3 w-3" />
+                )}
+                <span className="ml-1.5">
+                  {isDeploying ? "Deploying..." : "Deploy"}
+                </span>
+              </Button>
+              {/* Production URL Link */}
+              {productionUrl && (
+                <a
+                  href={productionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-7 px-2.5 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-md flex items-center gap-1.5 border border-emerald-500/20"
+                  title={`View live at ${productionUrl}`}
+                >
+                  <Globe className="h-3 w-3" />
+                  <span>Live</span>
+                </a>
+              )}
+              <div className="w-px h-4 bg-white/10" />
+            </>
+          )}
           {session?.sandboxUrl && (
             <>
               <button
@@ -3977,6 +4055,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setPreviewTab("agents")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "agents"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Agents
+                {selectedAgentIds.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
+                    {selectedAgentIds.length}
+                  </span>
+                )}
+              </button>
             </div>
             {/* Mobile/Tablet action buttons */}
             <div className="flex items-center gap-1 ml-auto flex-shrink-0">
@@ -4063,6 +4157,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {commitHistory.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px]">
                     {commitHistory.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setPreviewTab("agents")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "agents"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Agents
+                {selectedAgentIds.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
+                    {selectedAgentIds.length}
                   </span>
                 )}
               </button>
@@ -4155,79 +4265,176 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
               )
+            ) : previewTab === "agents" ? (
+              <div className="h-full p-4 overflow-auto animate-in fade-in duration-200">
+                <AgentPicker
+                  agents={availableAgents}
+                  selectedIds={selectedAgentIds}
+                  onSelectionChange={async (ids) => {
+                    setSelectedAgentIds(ids);
+                    // Save to app if we have an app ID
+                    if (appData?.id) {
+                      try {
+                        await fetchWithRetry(`/api/v1/apps/${appData.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ linked_character_ids: ids }),
+                        });
+                        toast.success(
+                          ids.length > 0 ? "Agents updated" : "Agents removed"
+                        );
+                      } catch (error) {
+                        console.error("Failed to update agents:", error);
+                        toast.error("Failed to update agents");
+                      }
+                    }
+                  }}
+                  maxSelection={4}
+                  loading={loadingAgents}
+                />
+              </div>
             ) : (
-              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
-                {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/30">
-                    <div className="text-center">
-                      <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No console logs yet</p>
+              <ResizablePanelGroup
+                direction="vertical"
+                className="h-full animate-in fade-in duration-200"
+              >
+                {/* Logs Panel - Top */}
+                <ResizablePanel defaultSize={60} minSize={20}>
+                  <div className="h-full flex flex-col">
+                    {/* Logs Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/20">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500/70 animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Logs
+                        </span>
+                        {consoleLogs.length > 0 && (
+                          <span className="text-[10px] text-white/30 tabular-nums">
+                            ({consoleLogs.length})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Logs Content */}
+                    <div
+                      ref={consoleLogsRef}
+                      className="flex-1 bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+                    >
+                      {consoleLogs.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-white/25">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-4">
+                              <Terminal className="h-8 w-8 mx-auto opacity-40" />
+                              <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                            </div>
+                            <p className="text-xs font-medium">No logs yet</p>
+                            <p className="text-[10px] text-white/15 mt-1">
+                              Logs will appear here during builds
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-0.5">
+                          {consoleLogs.map((log, i) => {
+                            let colorClass = "text-white/60";
+                            let bgClass = "";
+
+                            if (log.includes("[info]")) {
+                              colorClass = "text-blue-400";
+                            } else if (log.includes("[success]")) {
+                              colorClass = "text-green-400";
+                            } else if (
+                              log.includes("[error]") ||
+                              log.includes("Error") ||
+                              log.includes("error")
+                            ) {
+                              colorClass = "text-red-400";
+                              bgClass = "bg-red-500/10";
+                            } else if (
+                              log.includes("[warning]") ||
+                              log.includes("Warning")
+                            ) {
+                              colorClass = "text-yellow-400";
+                              bgClass = "bg-yellow-500/5";
+                            } else if (log.includes("Progress:")) {
+                              colorClass = "text-purple-400";
+                            } else if (
+                              log.includes("GET ") ||
+                              log.includes("POST ") ||
+                              log.includes("PUT ") ||
+                              log.includes("DELETE ")
+                            ) {
+                              if (log.includes(" 2")) {
+                                colorClass = "text-green-400/70";
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                                colorClass = "text-red-400/70";
+                              } else {
+                                colorClass = "text-cyan-400/70";
+                              }
+                            } else if (
+                              log.includes("Next.js") ||
+                              log.includes("Turbopack")
+                            ) {
+                              colorClass = "text-white/80";
+                            }
+
+                            return (
+                              <div
+                                key={i}
+                                className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                              >
+                                <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
+                                  {i + 1}
+                                </span>
+                                <pre
+                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
+                                >
+                                  {log}
+                                </pre>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-3 space-y-0.5">
-                    {consoleLogs.map((log, i) => {
-                      let colorClass = "text-white/60";
-                      let bgClass = "";
+                </ResizablePanel>
 
-                      if (log.includes("[info]")) {
-                        colorClass = "text-blue-400";
-                      } else if (log.includes("[success]")) {
-                        colorClass = "text-green-400";
-                      } else if (
-                        log.includes("[error]") ||
-                        log.includes("Error") ||
-                        log.includes("error")
-                      ) {
-                        colorClass = "text-red-400";
-                        bgClass = "bg-red-500/10";
-                      } else if (
-                        log.includes("[warning]") ||
-                        log.includes("Warning")
-                      ) {
-                        colorClass = "text-yellow-400";
-                        bgClass = "bg-yellow-500/5";
-                      } else if (log.includes("Progress:")) {
-                        colorClass = "text-purple-400";
-                      } else if (
-                        log.includes("GET ") ||
-                        log.includes("POST ") ||
-                        log.includes("PUT ") ||
-                        log.includes("DELETE ")
-                      ) {
-                        if (log.includes(" 2")) {
-                          colorClass = "text-green-400/70";
-                        } else if (log.includes(" 4") || log.includes(" 5")) {
-                          colorClass = "text-red-400/70";
-                        } else {
-                          colorClass = "text-cyan-400/70";
-                        }
-                      } else if (
-                        log.includes("Next.js") ||
-                        log.includes("Turbopack")
-                      ) {
-                        colorClass = "text-white/80";
-                      }
+                {/* Resizable Handle */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-white/[0.04] hover:bg-[#FF5800]/30 transition-colors data-[resize-handle-active]:bg-[#FF5800]/50"
+                />
 
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
-                        >
-                          <span className="text-white/20 select-none w-5 text-right shrink-0">
-                            {i + 1}
-                          </span>
-                          <pre
-                            className={`whitespace-pre-wrap break-all ${colorClass}`}
-                          >
-                            {log}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                {/* Terminal Panel - Bottom */}
+                <ResizablePanel defaultSize={40} minSize={15}>
+                  <div className="h-full flex flex-col">
+                    {/* Terminal Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="h-3 w-3 text-[#FF5800]" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Terminal
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-white/20">
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                        </span>
+                      </div>
+                    </div>
+                    {/* Terminal Content */}
+                    <div className="flex-1 min-h-0">
+                      <WebTerminal
+                        sessionId={session?.id}
+                        sandboxUrl={session?.sandboxUrl}
+                        disabled={!session}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             )}
           </div>
         </div>
