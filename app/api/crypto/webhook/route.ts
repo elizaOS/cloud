@@ -13,6 +13,7 @@ import {
   validateWebhookTimestamp,
 } from "@/lib/config/crypto";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { STRIPE_CURRENCY } from "@/lib/stripe";
 
 /**
  * Get the merchant API key for audit hashing.
@@ -343,17 +344,22 @@ async function handleWebhook(req: NextRequest) {
           : (Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0);
 
         if (creditsAdded <= 0) {
-          logger.warn("[Crypto Webhook] Invalid amount for analytics tracking", {
+          logger.warn("[Crypto Webhook] Skipping analytics - invalid amount", {
             trackId: normalizedPayload.trackId,
             webhookAmount,
             storedCredits,
+          });
+          // Skip tracking events with zero/invalid amounts
+          return new Response("ok", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
           });
         }
 
         trackServerEvent(payment.user_id, "crypto_payment_confirmed", {
           payment_method: "crypto",
           amount: creditsAdded,
-          currency: "usd",
+          currency: STRIPE_CURRENCY,
           organization_id: payment.organization_id,
           credits_added: creditsAdded,
           network: payment.network,
@@ -366,7 +372,7 @@ async function handleWebhook(req: NextRequest) {
         trackServerEvent(payment.user_id, "checkout_completed", {
           payment_method: "crypto",
           amount: creditsAdded,
-          currency: "usd",
+          currency: STRIPE_CURRENCY,
           organization_id: payment.organization_id,
           purchase_type: "custom_amount",
           credits_added: creditsAdded,
@@ -391,7 +397,7 @@ async function handleWebhook(req: NextRequest) {
         trackServerEvent(payment.user_id, "checkout_failed", {
           payment_method: "crypto",
           amount: Number(payment.expected_amount),
-          currency: "usd",
+          currency: STRIPE_CURRENCY,
           organization_id: payment.organization_id,
           purchase_type: "custom_amount",
           error_reason: normalizedPayload.status,

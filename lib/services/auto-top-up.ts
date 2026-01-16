@@ -163,7 +163,14 @@ export class AutoTopUpService {
 
     // Get user for PostHog tracking - wrapped in try-catch to prevent analytics
     // from blocking critical billing operations (database timeouts, etc.)
-    // Prefer billing email owner, fallback to first user, then org ID
+    //
+    // User Attribution Strategy:
+    // 1. Billing email owner - most likely the person responsible for billing decisions
+    // 2. First organization user - fallback when billing email not set or no match
+    // 3. Organization ID prefixed - final fallback for edge cases (no users, DB errors)
+    //
+    // Note: Consider adding configured_by_user_id to auto_top_up settings if more
+    // accurate attribution is needed (track who enabled auto top-up vs who pays)
     let trackingId = `org:${organizationId}`;
     try {
       const users = await usersRepository.listByOrganization(organizationId);
@@ -197,7 +204,7 @@ export class AutoTopUpService {
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         error_reason: "missing_stripe_customer",
-        top_up_amount: topUpAmount,
+        amount: topUpAmount,
       });
       await this.disableAutoTopUp(organizationId, "Missing Stripe customer");
       return {
@@ -214,7 +221,7 @@ export class AutoTopUpService {
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         error_reason: "missing_payment_method",
-        top_up_amount: topUpAmount,
+        amount: topUpAmount,
       });
       await this.disableAutoTopUp(
         organizationId,
@@ -235,7 +242,7 @@ export class AutoTopUpService {
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         error_reason: "invalid_amount",
-        top_up_amount: amount,
+        amount,
       });
       await this.disableAutoTopUp(organizationId, "Invalid top-up amount");
       return {

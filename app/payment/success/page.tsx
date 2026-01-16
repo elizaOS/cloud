@@ -26,9 +26,10 @@ function PaymentSuccessContent() {
 
   // Track payment success viewed (only once per trackId)
   // Use trackId as dedup key - ensures one event per crypto payment
+  // Wait for auth to be ready to ensure proper user attribution
   useEffect(() => {
     const trackId = searchParams.get("trackId");
-    if (!hasTracked.current && trackId) {
+    if (ready && authenticated && !hasTracked.current && trackId) {
       trackEvent("payment_success_viewed", {
         source: "crypto",
         track_id: trackId,
@@ -37,7 +38,7 @@ function PaymentSuccessContent() {
       });
       hasTracked.current = true;
     }
-  }, [searchParams]);
+  }, [ready, authenticated, searchParams]);
 
   useEffect(() => {
     if (!ready) return;
