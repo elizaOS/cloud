@@ -3462,8 +3462,8 @@ Browse available MCPs in the registry.
 
 Pre-configured demo MCPs for testing:
 
-| MCP     | Endpoint                 | Description   |
-| ------- | ------------------------ | ------------- |
+| MCP     | Endpoint            | Description   |
+| ------- | ------------------- | ------------- |
 | Weather | `/api/mcps/weather` | Weather data  |
 | Time    | `/api/mcps/time`    | Time zones    |
 | Crypto  | `/api/mcps/crypto`  | Crypto prices |
@@ -8411,12 +8411,16 @@ print(f'Document uploaded: {result["id"]}')
 
 | Format   | Extension | Max Size |
 | -------- | --------- | -------- |
-| PDF      | `.pdf`    | 50MB     |
-| Text     | `.txt`    | 10MB     |
-| Markdown | `.md`     | 10MB     |
-| Word     | `.docx`   | 25MB     |
-| HTML     | `.html`   | 10MB     |
-| CSV      | `.csv`    | 25MB     |
+| PDF      | `.pdf`    | 5MB      |
+| Text     | `.txt`    | 5MB      |
+| Markdown | `.md`     | 5MB      |
+| Word     | `.docx`   | 5MB      |
+| JSON     | `.json`   | 5MB      |
+| XML      | `.xml`    | 5MB      |
+| YAML     | `.yaml`   | 5MB      |
+| CSV      | `.csv`    | 5MB      |
+
+**Note:** Maximum 5MB per file and 5MB total per batch upload.
 
 ## Upload Documents
 
@@ -9283,8 +9287,8 @@ app.listen(3000);
 
 elizaOS Cloud provides demo MCP servers for testing:
 
-| Server  | URL                      | Description              |
-| ------- | ------------------------ | ------------------------ |
+| Server  | URL                 | Description              |
+| ------- | ------------------- | ------------------------ |
 | Weather | `/api/mcps/weather` | Weather data demo        |
 | Time    | `/api/mcps/time`    | Time and timezone demo   |
 | Crypto  | `/api/mcps/crypto`  | Cryptocurrency data demo |
