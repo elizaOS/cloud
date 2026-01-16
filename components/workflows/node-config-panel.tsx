@@ -108,6 +108,8 @@ export function NodeConfigPanel({
         return <DiscordConfig data={localData} onChange={updateField} />;
       case "mcp":
         return <McpConfig data={localData} onChange={updateField} />;
+      case "twitter":
+        return <TwitterConfig data={localData} onChange={updateField} />;
       default:
         return <div className="text-white/60">Unknown node type: {node.type}</div>;
     }
@@ -875,6 +877,189 @@ function McpConfig({
         <p className="text-white/60">
           The result is available as <code>response</code> for the next node.
         </p>
+      </div>
+    </div>
+  );
+}
+
+// Twitter/X Configuration
+function TwitterConfig({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const [showCredentials, setShowCredentials] = useState(false);
+  const action = (data.action as string) ?? "post";
+  const hasCredentials = !!(data.apiKey && data.apiSecret && data.accessToken && data.accessTokenSecret);
+
+  return (
+    <div className="space-y-4">
+      {/* Connection Status */}
+      <div className={`rounded-lg p-3 text-sm ${hasCredentials ? "bg-green-500/10 border border-green-500/30" : "bg-yellow-500/10 border border-yellow-500/30"}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${hasCredentials ? "bg-green-500" : "bg-yellow-500"}`} />
+            <span className={hasCredentials ? "text-green-400" : "text-yellow-400"}>
+              {hasCredentials ? "Connected" : "Not Connected"}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowCredentials(!showCredentials)}
+            className="text-xs text-white/60 hover:text-white transition-colors"
+          >
+            {showCredentials ? "Hide" : "Configure"}
+          </button>
+        </div>
+      </div>
+
+      {/* Credentials Form */}
+      {showCredentials && (
+        <div className="space-y-3 p-3 bg-white/5 rounded-lg border border-white/10">
+          <div className="text-xs text-white/60 mb-2">
+            Get these from{" "}
+            <a
+              href="https://developer.twitter.com/en/portal/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-400 hover:underline"
+            >
+              Twitter Developer Portal →
+            </a>
+          </div>
+          
+          <div>
+            <Label className="text-white/80 text-xs">API Key</Label>
+            <Input
+              type="password"
+              value={(data.apiKey as string) ?? ""}
+              onChange={(e) => onChange("apiKey", e.target.value)}
+              placeholder="Enter API Key..."
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">API Secret</Label>
+            <Input
+              type="password"
+              value={(data.apiSecret as string) ?? ""}
+              onChange={(e) => onChange("apiSecret", e.target.value)}
+              placeholder="Enter API Secret..."
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">Access Token</Label>
+            <Input
+              type="password"
+              value={(data.accessToken as string) ?? ""}
+              onChange={(e) => onChange("accessToken", e.target.value)}
+              placeholder="Enter Access Token..."
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">Access Token Secret</Label>
+            <Input
+              type="password"
+              value={(data.accessTokenSecret as string) ?? ""}
+              onChange={(e) => onChange("accessTokenSecret", e.target.value)}
+              placeholder="Enter Access Token Secret..."
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          {hasCredentials && (
+            <button
+              onClick={() => {
+                onChange("apiKey", "");
+                onChange("apiSecret", "");
+                onChange("accessToken", "");
+                onChange("accessTokenSecret", "");
+              }}
+              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            >
+              Clear credentials
+            </button>
+          )}
+        </div>
+      )}
+
+      <div>
+        <Label className="text-white/80">Action</Label>
+        <Select
+          value={action}
+          onValueChange={(v) => onChange("action", v)}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="post">Post Tweet</SelectItem>
+            <SelectItem value="reply">Reply to Tweet</SelectItem>
+            <SelectItem value="like">Like Tweet</SelectItem>
+            <SelectItem value="retweet">Retweet</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {(action === "post" || action === "reply") && (
+        <div>
+          <Label className="text-white/80">Tweet Text</Label>
+          <Textarea
+            value={(data.tweetText as string) ?? ""}
+            onChange={(e) => onChange("tweetText", e.target.value)}
+            placeholder="What's happening?"
+            className="mt-1 min-h-[100px]"
+            maxLength={280}
+          />
+          <p className="text-xs text-white/40 mt-1">
+            {((data.tweetText as string) ?? "").length}/280 characters
+          </p>
+          <p className="text-xs text-white/40">
+            Use {"{{nodeId}}"} to insert output from previous nodes
+          </p>
+        </div>
+      )}
+
+      {action === "reply" && (
+        <div>
+          <Label className="text-white/80">Reply to Tweet ID</Label>
+          <Input
+            value={(data.replyToTweetId as string) ?? ""}
+            onChange={(e) => onChange("replyToTweetId", e.target.value)}
+            placeholder="1234567890..."
+            className="mt-1 font-mono text-xs"
+          />
+          <p className="text-xs text-white/40 mt-1">
+            The ID of the tweet to reply to
+          </p>
+        </div>
+      )}
+
+      {(action === "like" || action === "retweet") && (
+        <div>
+          <Label className="text-white/80">Tweet ID</Label>
+          <Input
+            value={(data.targetTweetId as string) ?? ""}
+            onChange={(e) => onChange("targetTweetId", e.target.value)}
+            placeholder="1234567890..."
+            className="mt-1 font-mono text-xs"
+          />
+          <p className="text-xs text-white/40 mt-1">
+            The ID of the tweet to {action}
+          </p>
+        </div>
+      )}
+
+      <div className="bg-white/5 rounded-lg p-3 text-xs space-y-1">
+        <p className="text-white/60 font-medium">Output:</p>
+        <p className="text-white/40">• postId - The ID of the created tweet</p>
+        <p className="text-white/40">• postUrl - URL to the tweet</p>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Puzzle,
   Search,
+  Twitter,
 } from "lucide-react";
 import type { WorkflowNodeType } from "@/db/schemas";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,14 @@ const nodeDefinitions: NodeDefinition[] = [
     icon: MessageCircle,
     color: "indigo",
     description: "Send messages to Discord channels",
+    category: "integrations",
+  },
+  {
+    type: "twitter",
+    label: "Twitter/X",
+    icon: Twitter,
+    color: "sky",
+    description: "Post tweets, reply, like, and retweet on Twitter/X",
     category: "integrations",
   },
   {

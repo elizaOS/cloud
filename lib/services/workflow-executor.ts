@@ -15,6 +15,7 @@ import { fal } from "@fal-ai/client";
 import { ensureElizaCloudUrl, uploadToBlob } from "@/lib/blob";
 import { discordService } from "./discord";
 import { getElevenLabsService } from "./elevenlabs";
+import { twitterProvider } from "./social-media/providers/twitter";
 
 // ============================================================================
 // Types
@@ -291,6 +292,8 @@ class WorkflowExecutorService {
         return this.executeDiscordNode(config, context);
       case "mcp":
         return this.executeMcpNode(config, context);
+      case "twitter":
+        return this.executeTwitterNode(config, context);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -874,6 +877,127 @@ class WorkflowExecutorService {
       args: processedArgs,
       response: parsedContent,
       raw: result,
+    };
+  }
+
+  /**
+   * Execute Twitter node - posts to Twitter/X via API credentials
+   */
+  private async executeTwitterNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const action = (config.action as string) ?? "post";
+    let tweetText = (config.tweetText as string) ?? "";
+    const replyToTweetId = config.replyToTweetId as string | undefined;
+    const targetTweetId = config.targetTweetId as string | undefined;
+
+    // Get Twitter credentials from node config
+    const apiKey = config.apiKey as string | undefined;
+    const apiSecret = config.apiSecret as string | undefined;
+    const accessToken = config.accessToken as string | undefined;
+    const accessTokenSecret = config.accessTokenSecret as string | undefined;
+
+    if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
+      throw new Error(
+        "Twitter API credentials not configured. Click on the Twitter node and enter your API credentials.",
+      );
+    }
+
+    // Replace placeholders with previous node outputs
+    const outputs = this.collectOutputs(context);
+    for (const [nodeId, output] of Object.entries(outputs)) {
+      const data = output as Record<string, unknown>;
+      if (data?.response) {
+        tweetText = tweetText.replace(`{{${nodeId}}}`, String(data.response));
+      }
+    }
+
+    // Auto-use previous agent response if no text specified
+    if (!tweetText && (action === "post" || action === "reply")) {
+      for (const [, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+        if (data?.type === "agent" && data?.response) {
+          tweetText = String(data.response).slice(0, 280);
+          this.log(context, "info", "twitter", "Using agent response as tweet text");
+          break;
+        }
+      }
+    }
+
+    const credentials = { accessToken };
+
+    this.log(context, "info", "twitter", `Executing Twitter action: ${action}`);
+
+    let postId: string | undefined;
+    let postUrl: string | undefined;
+
+    switch (action) {
+      case "post": {
+        if (!tweetText) {
+          throw new Error("Tweet text is required for posting");
+        }
+        const postResult = await twitterProvider.createPost(credentials, { text: tweetText });
+        if (!postResult.success) {
+          throw new Error(`Twitter post failed: ${postResult.error}`);
+        }
+        postId = postResult.postId;
+        postUrl = postResult.postUrl;
+        break;
+      }
+
+      case "reply": {
+        if (!tweetText || !replyToTweetId) {
+          throw new Error("Tweet text and reply-to ID are required for replying");
+        }
+        const replyResult = await twitterProvider.createPost(credentials, { 
+          text: tweetText, 
+          replyToId: replyToTweetId,
+        });
+        if (!replyResult.success) {
+          throw new Error(`Twitter reply failed: ${replyResult.error}`);
+        }
+        postId = replyResult.postId;
+        postUrl = replyResult.postUrl;
+        break;
+      }
+
+      case "like": {
+        if (!targetTweetId) {
+          throw new Error("Target tweet ID is required for liking");
+        }
+        const likeResult = await twitterProvider.likePost!(credentials, targetTweetId);
+        if (!likeResult.success) {
+          throw new Error(`Twitter like failed: ${likeResult.error}`);
+        }
+        break;
+      }
+
+      case "retweet": {
+        if (!targetTweetId) {
+          throw new Error("Target tweet ID is required for retweeting");
+        }
+        const retweetResult = await twitterProvider.repost!(credentials, targetTweetId);
+        if (!retweetResult.success) {
+          throw new Error(`Twitter retweet failed: ${retweetResult.error}`);
+        }
+        postId = retweetResult.postId;
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown Twitter action: ${action}`);
+    }
+
+    this.log(context, "info", "twitter", `Twitter ${action} completed successfully`);
+
+    return {
+      type: "twitter",
+      action,
+      success: true,
+      postId,
+      postUrl,
+      tweetText: tweetText?.slice(0, 100),
     };
   }
 

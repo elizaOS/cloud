@@ -38,6 +38,7 @@ import { ConditionNode } from "./nodes/condition-node";
 import { TtsNode } from "./nodes/tts-node";
 import { DiscordNode } from "./nodes/discord-node";
 import { McpNode } from "./nodes/mcp-node";
+import { TwitterNode } from "./nodes/twitter-node";
 import { AddButtonNode } from "./nodes/add-button-node";
 import type { WorkflowNodeType } from "@/db/schemas";
 
@@ -58,6 +59,7 @@ const nodeTypes: NodeTypes = {
   tts: TtsNode,
   discord: DiscordNode,
   mcp: McpNode,
+  twitter: TwitterNode,
   addButton: AddButtonNode,
 };
 
