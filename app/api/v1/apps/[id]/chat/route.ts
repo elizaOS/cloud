@@ -20,6 +20,7 @@ import {
   createPreflightResponse,
   addCorsHeaders,
 } from "@/lib/middleware/cors-apps";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type {
   OpenAIChatRequest,
   OpenAIChatMessage,
@@ -35,7 +36,7 @@ const COST_SAFETY_MULTIPLIER = 1.5;
 // This is a reasonable average for chat completions
 const DEFAULT_ESTIMATED_OUTPUT_TOKENS = 500;
 
-interface RouteParams {
+interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
@@ -61,7 +62,10 @@ export async function OPTIONS(request: NextRequest) {
  *
  * @returns Streaming or non-streaming chat completion response.
  */
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function handlePOST(
+  request: NextRequest,
+  context?: RouteContext
+): Promise<Response> {
   const startTime = Date.now();
   const origin = request.headers.get("origin");
 
@@ -78,7 +82,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return addCorsHeaders(nextRes, origin, ["POST", "OPTIONS"]);
   };
 
-  const { id: appId } = await params;
+  if (!context?.params) {
+    return withCors(
+      NextResponse.json(
+        {
+          error: {
+            message: "Missing route parameters",
+            type: "invalid_request_error",
+          },
+        },
+        { status: 400 }
+      )
+    );
+  }
+
+  const { id: appId } = await context.params;
 
   // Parallelize independent operations for better performance
   const [app, authResult, chatRequest] = await Promise.all([
@@ -316,18 +334,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               const data = line.slice(6);
               if (data === "[DONE]" || !data.trim()) continue;
 
-              const parsed = JSON.parse(data);
+              try {
+                const parsed = JSON.parse(data);
 
-              // Collect content for token estimation fallback
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                fullContent += content;
-              }
+                // Collect content for token estimation fallback
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullContent += content;
+                }
 
-              // Extract usage from final chunk (if provider includes it)
-              if (parsed.usage) {
-                inputTokens = parsed.usage.prompt_tokens || 0;
-                outputTokens = parsed.usage.completion_tokens || 0;
+                // Extract usage from final chunk (if provider includes it)
+                if (parsed.usage) {
+                  inputTokens = parsed.usage.prompt_tokens || 0;
+                  outputTokens = parsed.usage.completion_tokens || 0;
+                }
+              } catch {
+                // Skip malformed SSE data chunks - provider may send non-JSON lines
+                logger.debug("[App Chat] Skipping malformed SSE chunk", {
+                  appId,
+                  data: data.slice(0, 100),
+                });
               }
             }
           }
@@ -342,14 +368,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
           const data = lineBuffer.slice(6);
           if (data !== "[DONE]" && data.trim()) {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullContent += content;
-            }
-            if (parsed.usage) {
-              inputTokens = parsed.usage.prompt_tokens || 0;
-              outputTokens = parsed.usage.completion_tokens || 0;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+              }
+              if (parsed.usage) {
+                inputTokens = parsed.usage.prompt_tokens || 0;
+                outputTokens = parsed.usage.completion_tokens || 0;
+              }
+            } catch {
+              // Skip malformed final SSE chunk
+              logger.debug("[App Chat] Skipping malformed final SSE chunk", {
+                appId,
+                data: data.slice(0, 100),
+              });
             }
           }
         }
@@ -384,6 +418,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         );
 
         // Reconcile the difference between reserved and actual costs
+        // Pass app to avoid N+1 query (app already fetched above)
         const reconciliation = await appCreditsService.reconcileCredits({
           appId,
           userId: user.id,
@@ -397,6 +432,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             outputTokens,
             streaming: true,
           },
+          app,
         });
 
         const duration = Date.now() - startTime;
@@ -476,6 +512,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   );
 
   // Reconcile the difference between reserved and actual costs
+  // Pass app to avoid N+1 query (app already fetched above)
   const reconciliation = await appCreditsService.reconcileCredits({
     appId,
     userId: user.id,
@@ -489,6 +526,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       outputTokens: actualOutputTokens,
       streaming: false,
     },
+    app,
   });
 
   const duration = Date.now() - startTime;
@@ -509,3 +547,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   return withCors(NextResponse.json(responseData));
 }
+
+// Apply rate limiting to prevent abuse
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

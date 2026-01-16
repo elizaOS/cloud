@@ -79,6 +79,8 @@ export interface AppCreditReconciliationParams {
   actualBaseCost: number;
   description: string;
   metadata?: Record<string, unknown>;
+  /** Optional: pass pre-fetched app to avoid N+1 query */
+  app?: App;
 }
 
 /**
@@ -427,6 +429,7 @@ export class AppCreditsService {
       actualBaseCost,
       description,
       metadata,
+      app: providedApp,
     } = params;
 
     const baseCostDifference = actualBaseCost - estimatedBaseCost;
@@ -446,7 +449,8 @@ export class AppCreditsService {
       };
     }
 
-    const app = await appsRepository.findById(appId);
+    // Use provided app to avoid N+1 query, or fetch if not provided
+    const app = providedApp ?? (await appsRepository.findById(appId));
     if (!app) {
       logger.error("[AppCredits] App not found during reconciliation", {
         appId,
