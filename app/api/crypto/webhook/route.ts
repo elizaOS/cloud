@@ -5,12 +5,14 @@ import { logger, redact } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
+import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
 import {
   type OxaPayWebhookPayload,
   normalizeWebhookPayload,
   extractWebhookTimestamp,
   validateWebhookTimestamp,
 } from "@/lib/config/crypto";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 /**
  * Get the merchant API key for audit hashing.
@@ -291,6 +293,11 @@ async function handleWebhook(req: NextRequest) {
       eventId,
     });
 
+    // Look up payment details for analytics tracking
+    const payment = await cryptoPaymentsRepository.findByTrackId(
+      normalizedPayload.trackId,
+    );
+
     const result = await cryptoPaymentsService.handleWebhook({
       track_id: normalizedPayload.trackId,
       status: normalizedPayload.status,
@@ -306,6 +313,67 @@ async function handleWebhook(req: NextRequest) {
       message: result.message,
       eventId,
     });
+
+    // Track PostHog events based on webhook status
+    if (payment?.user_id) {
+      const statusLower = normalizedPayload.status.toLowerCase();
+
+      if (
+        statusLower === "paid" ||
+        statusLower === "complete" ||
+        statusLower === "confirmed"
+      ) {
+        // Payment confirmed - track success events
+        const creditsAdded = normalizedPayload.amount || Number(payment.credits_to_add);
+
+        trackServerEvent(payment.user_id, "crypto_payment_confirmed", {
+          payment_method: "crypto",
+          amount: creditsAdded,
+          currency: "usd",
+          organization_id: payment.organization_id,
+          credits_added: creditsAdded,
+          network: payment.network,
+          token: payment.token,
+          track_id: normalizedPayload.trackId,
+          tx_hash: normalizedPayload.txID,
+        });
+
+        // Also track unified checkout_completed
+        trackServerEvent(payment.user_id, "checkout_completed", {
+          payment_method: "crypto",
+          amount: creditsAdded,
+          currency: "usd",
+          organization_id: payment.organization_id,
+          purchase_type: "custom_amount",
+          credits_added: creditsAdded,
+          network: payment.network,
+          token: payment.token,
+          track_id: normalizedPayload.trackId,
+        });
+      } else if (statusLower === "expired") {
+        // Payment expired
+        trackServerEvent(payment.user_id, "crypto_payment_expired", {
+          payment_id: payment.id,
+          track_id: normalizedPayload.trackId,
+          organization_id: payment.organization_id,
+          amount: Number(payment.expected_amount),
+        });
+      } else if (
+        statusLower === "failed" ||
+        statusLower === "rejected" ||
+        statusLower === "underpaid"
+      ) {
+        // Payment failed
+        trackServerEvent(payment.user_id, "checkout_failed", {
+          payment_method: "crypto",
+          amount: Number(payment.expected_amount),
+          currency: "usd",
+          organization_id: payment.organization_id,
+          purchase_type: "custom_amount",
+          error_reason: normalizedPayload.status,
+        });
+      }
+    }
 
     // OxaPay requires exactly "ok" response with HTTP 200 for successful delivery
     // Per docs: "Merchant's callback_url must return an HTTP 200 response with content 'ok'"

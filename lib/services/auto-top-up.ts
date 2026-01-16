@@ -6,6 +6,7 @@ import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
 import { emailService } from "./email";
 import { logger } from "@/lib/utils/logger";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 /**
  * Constants for auto top-up validation
@@ -160,6 +161,23 @@ export class AutoTopUpService {
       `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
     );
 
+    // Get user for PostHog tracking
+    const users = await usersRepository.listByOrganization(organizationId);
+    const userId = users.length > 0 ? users[0].id : null;
+    const currentBalance = Number(org.credit_balance);
+    const threshold = Number(org.auto_top_up_threshold);
+    const topUpAmount = Number(org.auto_top_up_amount || 0);
+
+    // Track auto top-up triggered
+    if (userId) {
+      trackServerEvent(userId, "auto_topup_triggered", {
+        organization_id: organizationId,
+        current_balance: currentBalance,
+        threshold,
+        top_up_amount: topUpAmount,
+      });
+    }
+
     // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
       logger.error(`[AutoTopUp] Org ${organizationId} missing Stripe customer`);
@@ -229,12 +247,33 @@ export class AutoTopUpService {
 
     if (paymentIntent.status === "succeeded") {
       // Credits will be added by webhook, but we can return success here
-      const currentBalance = Number(org.credit_balance);
-      const newBalance = currentBalance + amount;
+      const previousBalance = Number(org.credit_balance);
+      const newBalance = previousBalance + amount;
 
       logger.info(
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
       );
+
+      // Track auto top-up completed in PostHog
+      if (userId) {
+        trackServerEvent(userId, "auto_topup_completed", {
+          organization_id: organizationId,
+          amount,
+          previous_balance: previousBalance,
+          new_balance: newBalance,
+          payment_intent_id: paymentIntent.id,
+        });
+
+        // Also track unified checkout_completed
+        trackServerEvent(userId, "checkout_completed", {
+          payment_method: "stripe",
+          amount,
+          currency: "usd",
+          organization_id: organizationId,
+          purchase_type: "auto_top_up",
+          credits_added: amount,
+        });
+      }
 
       // Send success email notification
       logger.info(
@@ -243,7 +282,7 @@ export class AutoTopUpService {
       this.queueAutoTopUpSuccessEmail(
         org,
         amount,
-        currentBalance,
+        previousBalance,
         newBalance,
         paymentIntent.id,
       );
@@ -264,6 +303,16 @@ export class AutoTopUpService {
       logger.error(
         `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
       );
+
+      // Track auto top-up failed
+      if (userId) {
+        trackServerEvent(userId, "auto_topup_failed", {
+          organization_id: organizationId,
+          amount,
+          error_reason: `Payment ${paymentIntent.status}`,
+        });
+      }
+
       await this.disableAutoTopUp(
         organizationId,
         `Payment ${paymentIntent.status}`,
@@ -277,6 +326,16 @@ export class AutoTopUpService {
       logger.error(
         `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
       );
+
+      // Track auto top-up failed
+      if (userId) {
+        trackServerEvent(userId, "auto_topup_failed", {
+          organization_id: organizationId,
+          amount,
+          error_reason: `Payment ${paymentIntent.status}`,
+        });
+      }
+
       return {
         organizationId,
         success: false,

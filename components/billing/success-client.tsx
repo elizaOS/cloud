@@ -5,13 +5,35 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCreditBalance } from "@/app/actions/auth";
 import { Loader2 } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/posthog";
 
-export function CreditBalanceDisplay() {
+interface CreditBalanceDisplayProps {
+  sessionId?: string;
+  creditsAdded?: number;
+}
+
+export function CreditBalanceDisplay({
+  sessionId,
+  creditsAdded,
+}: CreditBalanceDisplayProps = {}) {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasTracked = useRef(false);
+
+  useEffect(() => {
+    // Track payment success viewed (only once)
+    if (!hasTracked.current) {
+      trackEvent("payment_success_viewed", {
+        source: "stripe",
+        session_id: sessionId,
+        credits_added: creditsAdded,
+      });
+      hasTracked.current = true;
+    }
+  }, [sessionId, creditsAdded]);
 
   useEffect(() => {
     async function fetchCreditBalance() {

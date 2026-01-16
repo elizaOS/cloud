@@ -181,6 +181,16 @@ async function handleStripeWebhook(req: NextRequest) {
                 },
               );
 
+              // Track app credits purchased in PostHog
+              trackServerEvent(userId, "app_credits_purchased", {
+                app_id: appId,
+                amount: credits,
+                credits_added: result.creditsAdded,
+                organization_id: organizationId,
+                platform_offset: result.platformOffset,
+                creator_earnings: result.creatorEarnings,
+              });
+
               // Also create a record in regular credit transactions for audit trail
               await creditsService.addCredits({
                 organizationId,
@@ -246,6 +256,18 @@ async function handleStripeWebhook(req: NextRequest) {
                 currency: session.currency || "usd",
                 purchase_type: purchaseType,
                 organization_id: organizationId,
+                payment_method: "stripe",
+              });
+
+              // Also track unified checkout_completed event
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: purchaseType,
+                credits_added: credits,
+                stripe_session_id: session.id,
               });
             }
 
@@ -554,7 +576,34 @@ async function handleStripeWebhook(req: NextRequest) {
         logger.warn(
           `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
         );
-        // Payment failures are expected events, acknowledge receipt
+
+        // Track payment failure in PostHog
+        const failedOrgId = paymentIntent.metadata?.organization_id;
+        const failedUserId = paymentIntent.metadata?.user_id;
+        const failedPurchaseType = paymentIntent.metadata?.type;
+        const failedAmount = paymentIntent.metadata?.credits
+          ? parseAndValidateCredits(paymentIntent.metadata.credits)
+          : null;
+
+        // Get error reason from the payment intent
+        const lastPaymentError = paymentIntent.last_payment_error;
+        const errorReason =
+          lastPaymentError?.message ||
+          lastPaymentError?.code ||
+          "Payment failed";
+
+        if (failedUserId && failedOrgId) {
+          trackServerEvent(failedUserId, "checkout_failed", {
+            payment_method: "stripe",
+            amount: failedAmount || undefined,
+            currency: paymentIntent.currency || "usd",
+            organization_id: failedOrgId,
+            purchase_type: failedPurchaseType,
+            error_reason: errorReason,
+            stripe_payment_intent_id: paymentIntent.id,
+          });
+        }
+
         break;
       }
 
