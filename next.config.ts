@@ -141,6 +141,13 @@ const nextConfig: NextConfig = {
     "electron",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
+    // Prevent Response polyfill conflicts (Next.js #58611)
+    // These packages polyfill global Response which breaks instanceof checks
+    "undici",
+    "cross-fetch",
+    // jsdom ESM dependencies break when bundled - keep external for Node.js loading
+    "jsdom",
+    "isomorphic-dompurify",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless

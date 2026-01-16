@@ -32,10 +32,36 @@ export type PostHogEvent =
   | "container_deploy_started"
   | "container_deploy_completed"
   | "container_deploy_failed"
-  // Billing & Credits
-  | "credits_purchased"
-  | "credits_purchase_started"
-  | "billing_page_viewed"
+  // Billing & Credits (Legacy - maintained for backwards compatibility)
+  // Use these for basic credit tracking without payment method details
+  | "credits_purchased" // Simple credit purchase event (use checkout_completed for detailed tracking)
+  | "credits_purchase_started" // When user starts a credit pack purchase flow
+  | "billing_page_viewed" // When billing page is viewed
+  // Payment Events (Unified - preferred for new implementations)
+  // These events include payment_method (stripe/crypto) and detailed metadata
+  // Use checkout_completed instead of credits_purchased for comprehensive funnel analysis
+  | "payment_method_selected" // User selects payment method (card/crypto)
+  | "checkout_initiated" // Checkout session created (server-side only)
+  | "checkout_completed" // Payment confirmed and credits added
+  | "checkout_failed" // Payment failed
+  // Crypto Payment Events
+  | "crypto_payment_initiated"
+  | "crypto_wallet_connected"
+  | "crypto_payment_sent"
+  | "crypto_payment_confirmed"
+  | "crypto_payment_expired"
+  // App Credits Events
+  | "app_credits_checkout_initiated"
+  | "app_credits_purchased"
+  // Auto Top-Up Events
+  | "auto_topup_triggered"
+  | "auto_topup_completed"
+  | "auto_topup_failed"
+  // Checkout Funnel Events
+  | "checkout_attempted"
+  // Success/Invoice Events
+  | "payment_success_viewed"
+  | "invoice_viewed"
   // Feature Usage
   | "api_key_created"
   | "knowledge_uploaded"
@@ -129,6 +155,170 @@ export interface CreditsPurchasedProps {
   currency: string;
   purchase_type: string;
   organization_id: string;
+  payment_method?: "stripe" | "crypto";
+}
+
+// Payment Method Types
+export type PaymentMethod = "stripe" | "crypto";
+export type PurchaseType =
+  | "credit_pack"
+  | "custom_amount"
+  | "auto_top_up"
+  | "app_credits";
+export type PaymentSourcePage = "billing" | "settings" | "app";
+
+// Payment Method Selection
+export interface PaymentMethodSelectedProps {
+  method: PaymentMethod;
+  source_page: PaymentSourcePage;
+  current_balance: number;
+}
+
+// Checkout Events
+export interface CheckoutInitiatedProps {
+  payment_method: PaymentMethod;
+  amount: number;
+  currency: string;
+  organization_id: string;
+  source_page: PaymentSourcePage;
+  purchase_type: PurchaseType | string;
+  credit_pack_id?: string;
+  credit_pack_name?: string;
+}
+
+export interface CheckoutCompletedProps {
+  payment_method: PaymentMethod;
+  amount: number;
+  currency: string;
+  organization_id: string;
+  purchase_type: PurchaseType | string;
+  credits_added: number;
+  stripe_session_id?: string;
+  credit_pack_id?: string;
+  credit_pack_name?: string;
+  network?: string;
+  token?: string;
+  track_id?: string;
+  validation_error?: boolean;
+}
+
+export interface CheckoutFailedProps {
+  payment_method: PaymentMethod;
+  amount?: number;
+  currency?: string;
+  organization_id: string;
+  purchase_type?: string;
+  error_reason: string;
+  stripe_payment_intent_id?: string;
+}
+
+// Crypto Payment Events
+export interface CryptoPaymentInitiatedProps {
+  amount: number;
+  currency: string;
+  pay_currency: string;
+  network?: string;
+  organization_id: string;
+  track_id: string;
+}
+
+export interface CryptoWalletConnectedProps {
+  wallet_type: string;
+  network: string;
+  payment_id: string;
+}
+
+export interface CryptoPaymentSentProps {
+  payment_id: string;
+  track_id: string;
+  tx_hash: string;
+  network: string;
+  token: string;
+  amount: string;
+}
+
+export interface CryptoPaymentConfirmedProps {
+  payment_method: "crypto";
+  amount: number;
+  currency: string;
+  organization_id: string;
+  credits_added: number;
+  network: string;
+  token: string;
+  track_id: string;
+  tx_hash?: string;
+  validation_error?: boolean;
+}
+
+export interface CryptoPaymentExpiredProps {
+  payment_id: string;
+  track_id: string;
+  organization_id: string;
+  amount: number;
+}
+
+// App Credits Events
+export interface AppCreditsCheckoutInitiatedProps {
+  app_id: string;
+  app_name?: string;
+  amount: number;
+  organization_id: string;
+}
+
+export interface AppCreditsPurchasedProps {
+  app_id: string;
+  app_name?: string;
+  amount: number;
+  credits_added: number;
+  organization_id: string;
+  platform_offset?: number;
+  creator_earnings?: number;
+}
+
+// Auto Top-Up Events
+export interface AutoTopupTriggeredProps {
+  organization_id: string;
+  current_balance: number;
+  threshold: number;
+  top_up_amount: number;
+}
+
+export interface AutoTopupCompletedProps {
+  organization_id: string;
+  amount: number;
+  previous_balance: number;
+  new_balance: number;
+  payment_intent_id: string;
+}
+
+export interface AutoTopupFailedProps {
+  organization_id: string;
+  amount: number;
+  error_reason: string;
+}
+
+// Checkout Funnel Events
+export interface CheckoutAttemptedProps {
+  payment_method: PaymentMethod;
+  amount?: number;
+  organization_id: string;
+}
+
+// Success/Invoice Events
+export interface PaymentSuccessViewedProps {
+  payment_method?: PaymentMethod;
+  amount?: number;
+  credits_added?: number;
+  source: "stripe" | "crypto";
+  session_id?: string;
+  track_id?: string;
+  dedup_id?: string; // Unique ID for PostHog event deduplication
+}
+
+export interface InvoiceViewedProps {
+  invoice_id: string;
+  amount: number;
+  invoice_type: string;
 }
 
 export interface AgentChatMessageSentProps {
@@ -161,7 +351,30 @@ export type EventProperties =
   | PageViewedProps
   | BillingPageViewedProps
   | CreditsPurchaseStartedProps
-  | CreditsPurchasedProps;
+  | CreditsPurchasedProps
+  // Payment Events
+  | PaymentMethodSelectedProps
+  | CheckoutInitiatedProps
+  | CheckoutCompletedProps
+  | CheckoutFailedProps
+  // Crypto Events
+  | CryptoPaymentInitiatedProps
+  | CryptoWalletConnectedProps
+  | CryptoPaymentSentProps
+  | CryptoPaymentConfirmedProps
+  | CryptoPaymentExpiredProps
+  // App Credits Events
+  | AppCreditsCheckoutInitiatedProps
+  | AppCreditsPurchasedProps
+  // Auto Top-Up Events
+  | AutoTopupTriggeredProps
+  | AutoTopupCompletedProps
+  | AutoTopupFailedProps
+  // Checkout Funnel Events
+  | CheckoutAttemptedProps
+  // Success/Invoice Events
+  | PaymentSuccessViewedProps
+  | InvoiceViewedProps;
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";

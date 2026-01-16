@@ -7,6 +7,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 const CUSTOM_AMOUNT_LIMITS = {
   MIN_AMOUNT: 1,
@@ -223,11 +224,30 @@ async function handleCheckoutSession(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: sessionMetadata,
+      // Copy metadata to PaymentIntent so checkout_failed webhook can track failures
+      // Stripe doesn't automatically copy session metadata to the PaymentIntent
+      payment_intent_data: {
+        metadata: sessionMetadata,
+      },
     });
 
     logger.debug("[Stripe Checkout] Session created", {
       sessionId: session.id,
       credits: creditsAmount,
+    });
+
+    // Track checkout initiated in PostHog
+    const purchaseType = creditPackId ? "credit_pack" : "custom_amount";
+    const sourcePage = returnUrl === "settings" ? "settings" : "billing";
+
+    trackServerEvent(user.id, "checkout_initiated", {
+      payment_method: "stripe",
+      amount: creditsAmount,
+      currency: STRIPE_CURRENCY,
+      organization_id: organizationId,
+      source_page: sourcePage,
+      purchase_type: purchaseType,
+      credit_pack_id: creditPackId,
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });

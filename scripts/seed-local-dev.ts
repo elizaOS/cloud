@@ -19,7 +19,7 @@ async function seedLocalDev() {
       .values({
         name: "Local Dev Organization",
         slug: "local-dev-org",
-        credit_balance: 1000000,
+        credit_balance: "1000000",
         is_active: true,
       })
       .onConflictDoUpdate({
@@ -36,7 +36,6 @@ async function seedLocalDev() {
     await db
       .insert(schema.users)
       .values({
-        workos_user_id: "workos-local-dev",
         email: "dev@local.test",
         email_verified: true,
         name: "Local Dev User",
@@ -54,7 +53,6 @@ async function seedLocalDev() {
       await db
         .insert(schema.users)
         .values({
-          workos_user_id: `workos-${devEmail.split("@")[0]}`,
           email: devEmail,
           email_verified: true,
           name: devEmail.split("@")[0],
@@ -110,7 +108,15 @@ async function seedLocalDev() {
     ];
 
     for (const pack of creditPacks) {
-      await db.insert(schema.creditPacks).values(pack).onConflictDoNothing({
+      await db.insert(schema.creditPacks).values({
+        name: pack.name,
+        description: pack.description,
+        credits: pack.credits.toString(),
+        price_cents: pack.price_cents,
+        stripe_price_id: pack.stripe_price_id,
+        stripe_product_id: pack.stripe_product_id,
+        sort_order: pack.sort_order,
+      }).onConflictDoNothing({
         target: schema.creditPacks.stripe_price_id,
       });
       console.log(`   ✓ ${pack.name} ready`);

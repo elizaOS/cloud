@@ -290,7 +290,10 @@ export default async function BillingSuccessPage({
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <CreditBalanceDisplay />
+          <CreditBalanceDisplay
+            sessionId={sessionId}
+            creditsAdded={verificationResult?.credits}
+          />
 
           <p className="text-sm text-muted-foreground">
             You can now use your credits for text generation, image creation,
