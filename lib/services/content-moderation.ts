@@ -220,6 +220,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
   };
 
   let response = await doRequest(backend.url, backend.apiKey);
+  let usedBackend = backend.backend;
 
   if (!response.ok) {
     // Some gateways / deployments do not support the moderations endpoint at all.
@@ -244,8 +245,12 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
         "https://api.openai.com/v1/moderations",
         process.env.OPENAI_API_KEY,
       );
+      usedBackend = "openai";
     }
+  }
 
+  // Check again after potential fallback
+  if (!response.ok) {
     // Moderation is explicitly non-blocking in this app. If the backend is not permitted
     // (common with gateways / provider accounts), avoid noisy per-request errors.
     if ([401, 403, 404, 405].includes(response.status)) {
@@ -254,7 +259,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
         logger.warn(
           "[ContentModeration] Moderation endpoint unavailable; skipping moderation checks",
           {
-            backend: backend.backend,
+            backend: usedBackend,
             status: response.status,
             statusText: response.statusText,
           },
@@ -264,7 +269,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     }
 
     throw new Error(
-      `Moderation API failed (${backend.backend}): ${response.status} ${response.statusText}`,
+      `Moderation API failed (${usedBackend}): ${response.status} ${response.statusText}`,
     );
   }
 
