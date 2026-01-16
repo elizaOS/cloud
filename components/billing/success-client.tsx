@@ -18,18 +18,21 @@ interface CreditBalanceDisplayProps {
 export function CreditBalanceDisplay({
   sessionId,
   creditsAdded,
-}: CreditBalanceDisplayProps = {}) {
+}: CreditBalanceDisplayProps) {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const hasTracked = useRef(false);
 
   useEffect(() => {
-    // Track payment success viewed (only once)
-    if (!hasTracked.current) {
+    // Track payment success viewed (only once per session)
+    // Use sessionId as dedup key - ensures one event per checkout session
+    if (!hasTracked.current && sessionId) {
       trackEvent("payment_success_viewed", {
         source: "stripe",
         session_id: sessionId,
         credits_added: creditsAdded,
+        // Include dedup_id for PostHog deduplication in case of page refresh
+        dedup_id: `stripe_success_${sessionId}`,
       });
       hasTracked.current = true;
     }

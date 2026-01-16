@@ -32,15 +32,18 @@ export type PostHogEvent =
   | "container_deploy_started"
   | "container_deploy_completed"
   | "container_deploy_failed"
-  // Billing & Credits (Legacy)
-  | "credits_purchased"
-  | "credits_purchase_started"
-  | "billing_page_viewed"
-  // Payment Events (Unified)
-  | "payment_method_selected"
-  | "checkout_initiated"
-  | "checkout_completed"
-  | "checkout_failed"
+  // Billing & Credits (Legacy - maintained for backwards compatibility)
+  // Use these for basic credit tracking without payment method details
+  | "credits_purchased" // Simple credit purchase event (use checkout_completed for detailed tracking)
+  | "credits_purchase_started" // When user starts a credit pack purchase flow
+  | "billing_page_viewed" // When billing page is viewed
+  // Payment Events (Unified - preferred for new implementations)
+  // These events include payment_method (stripe/crypto) and detailed metadata
+  // Use checkout_completed instead of credits_purchased for comprehensive funnel analysis
+  | "payment_method_selected" // User selects payment method (card/crypto)
+  | "checkout_initiated" // Checkout session created (server-side only)
+  | "checkout_completed" // Payment confirmed and credits added
+  | "checkout_failed" // Payment failed
   // Crypto Payment Events
   | "crypto_payment_initiated"
   | "crypto_wallet_connected"
@@ -298,6 +301,7 @@ export interface PaymentSuccessViewedProps {
   source: "stripe" | "crypto";
   session_id?: string;
   track_id?: string;
+  dedup_id?: string; // Unique ID for PostHog event deduplication
 }
 
 export interface InvoiceViewedProps {

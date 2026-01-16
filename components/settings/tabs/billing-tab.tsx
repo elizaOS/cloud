@@ -117,15 +117,8 @@ export function BillingTab({ user }: BillingTabProps) {
       return;
     }
 
-    // Track checkout initiated (client-side, before API call)
-    trackEvent("checkout_initiated", {
-      payment_method: paymentMethod === "crypto" ? "crypto" : "stripe",
-      amount,
-      currency: "usd",
-      organization_id: user.organization?.id || "",
-      source_page: "settings",
-      purchase_type: "custom_amount",
-    });
+    // Note: checkout_initiated is tracked server-side after successful session creation
+    // to avoid inflated metrics from failed API calls
 
     setIsProcessingCheckout(true);
 

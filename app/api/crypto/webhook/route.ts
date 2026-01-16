@@ -315,6 +315,17 @@ async function handleWebhook(req: NextRequest) {
     });
 
     // Track PostHog events based on webhook status
+    if (!payment) {
+      logger.warn("[Crypto Webhook] Cannot track analytics - payment not found", {
+        trackId: normalizedPayload.trackId,
+      });
+    } else if (!payment.user_id) {
+      logger.warn("[Crypto Webhook] Cannot track analytics - missing user_id", {
+        trackId: normalizedPayload.trackId,
+        paymentId: payment.id,
+      });
+    }
+
     if (payment?.user_id) {
       const statusLower = normalizedPayload.status.toLowerCase();
 
@@ -324,7 +335,20 @@ async function handleWebhook(req: NextRequest) {
         statusLower === "confirmed"
       ) {
         // Payment confirmed - track success events
-        const creditsAdded = normalizedPayload.amount || Number(payment.credits_to_add);
+        // Validate and parse amount - prefer webhook amount, fallback to stored credits
+        const webhookAmount = normalizedPayload.amount;
+        const storedCredits = Number(payment.credits_to_add);
+        const creditsAdded = Number.isFinite(webhookAmount) && webhookAmount > 0 
+          ? webhookAmount 
+          : (Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0);
+
+        if (creditsAdded <= 0) {
+          logger.warn("[Crypto Webhook] Invalid amount for analytics tracking", {
+            trackId: normalizedPayload.trackId,
+            webhookAmount,
+            storedCredits,
+          });
+        }
 
         trackServerEvent(payment.user_id, "crypto_payment_confirmed", {
           payment_method: "crypto",

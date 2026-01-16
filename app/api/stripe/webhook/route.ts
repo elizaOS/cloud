@@ -578,10 +578,11 @@ async function handleStripeWebhook(req: NextRequest) {
         );
 
         // Track payment failure in PostHog
-        const failedOrgId = paymentIntent.metadata?.organization_id;
-        const failedUserId = paymentIntent.metadata?.user_id;
-        const failedPurchaseType = paymentIntent.metadata?.type;
-        const failedAmount = paymentIntent.metadata?.credits
+        const orgId = paymentIntent.metadata?.organization_id;
+        const userId = paymentIntent.metadata?.user_id;
+        const purchaseType = paymentIntent.metadata?.type;
+        // The intended credits amount from metadata (not a "failed amount")
+        const intendedCredits = paymentIntent.metadata?.credits
           ? parseAndValidateCredits(paymentIntent.metadata.credits)
           : null;
 
@@ -592,16 +593,27 @@ async function handleStripeWebhook(req: NextRequest) {
           lastPaymentError?.code ||
           "Payment failed";
 
-        if (failedUserId && failedOrgId) {
-          trackServerEvent(failedUserId, "checkout_failed", {
+        if (userId && orgId) {
+          trackServerEvent(userId, "checkout_failed", {
             payment_method: "stripe",
-            amount: failedAmount || undefined,
+            amount: intendedCredits || undefined,
             currency: paymentIntent.currency || "usd",
-            organization_id: failedOrgId,
-            purchase_type: failedPurchaseType,
+            organization_id: orgId,
+            purchase_type: purchaseType,
             error_reason: errorReason,
             stripe_payment_intent_id: paymentIntent.id,
           });
+        } else {
+          // Log warning when metadata is missing - creates blind spot in failure analytics
+          logger.warn(
+            `[Stripe Webhook] Cannot track checkout_failed - missing metadata`,
+            {
+              paymentIntentId: paymentIntent.id,
+              hasUserId: !!userId,
+              hasOrgId: !!orgId,
+              errorReason,
+            },
+          );
         }
 
         break;

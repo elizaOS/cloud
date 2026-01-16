@@ -161,22 +161,35 @@ export class AutoTopUpService {
       `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
     );
 
-    // Get user for PostHog tracking
-    const users = await usersRepository.listByOrganization(organizationId);
-    const userId = users.length > 0 ? users[0].id : null;
+    // Get user for PostHog tracking - wrapped in try-catch to prevent analytics
+    // from blocking critical billing operations (database timeouts, etc.)
+    // Prefer billing email owner, fallback to first user, then org ID
+    let trackingId = `org:${organizationId}`;
+    try {
+      const users = await usersRepository.listByOrganization(organizationId);
+      const billingUser = org.billing_email 
+        ? users.find(u => u.email === org.billing_email) 
+        : null;
+      const userId = billingUser?.id || (users.length > 0 ? users[0].id : null);
+      trackingId = userId || `org:${organizationId}`;
+    } catch (userLookupError) {
+      logger.warn(`[AutoTopUp] Failed to fetch users for analytics, using org ID`, {
+        organizationId,
+        error: userLookupError instanceof Error ? userLookupError.message : "Unknown error",
+      });
+    }
+    
     const currentBalance = Number(org.credit_balance);
     const threshold = Number(org.auto_top_up_threshold);
     const topUpAmount = Number(org.auto_top_up_amount || 0);
 
     // Track auto top-up triggered
-    if (userId) {
-      trackServerEvent(userId, "auto_topup_triggered", {
-        organization_id: organizationId,
-        current_balance: currentBalance,
-        threshold,
-        top_up_amount: topUpAmount,
-      });
-    }
+    trackServerEvent(trackingId, "auto_topup_triggered", {
+      organization_id: organizationId,
+      current_balance: currentBalance,
+      threshold,
+      top_up_amount: topUpAmount,
+    });
 
     // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
@@ -255,25 +268,23 @@ export class AutoTopUpService {
       );
 
       // Track auto top-up completed in PostHog
-      if (userId) {
-        trackServerEvent(userId, "auto_topup_completed", {
-          organization_id: organizationId,
-          amount,
-          previous_balance: previousBalance,
-          new_balance: newBalance,
-          payment_intent_id: paymentIntent.id,
-        });
+      trackServerEvent(trackingId, "auto_topup_completed", {
+        organization_id: organizationId,
+        amount,
+        previous_balance: previousBalance,
+        new_balance: newBalance,
+        payment_intent_id: paymentIntent.id,
+      });
 
-        // Also track unified checkout_completed
-        trackServerEvent(userId, "checkout_completed", {
-          payment_method: "stripe",
-          amount,
-          currency: "usd",
-          organization_id: organizationId,
-          purchase_type: "auto_top_up",
-          credits_added: amount,
-        });
-      }
+      // Also track unified checkout_completed
+      trackServerEvent(trackingId, "checkout_completed", {
+        payment_method: "stripe",
+        amount,
+        currency: "usd",
+        organization_id: organizationId,
+        purchase_type: "auto_top_up",
+        credits_added: amount,
+      });
 
       // Send success email notification
       logger.info(
@@ -305,13 +316,11 @@ export class AutoTopUpService {
       );
 
       // Track auto top-up failed
-      if (userId) {
-        trackServerEvent(userId, "auto_topup_failed", {
-          organization_id: organizationId,
-          amount,
-          error_reason: `Payment ${paymentIntent.status}`,
-        });
-      }
+      trackServerEvent(trackingId, "auto_topup_failed", {
+        organization_id: organizationId,
+        amount,
+        error_reason: `Payment ${paymentIntent.status}`,
+      });
 
       await this.disableAutoTopUp(
         organizationId,
@@ -328,13 +337,11 @@ export class AutoTopUpService {
       );
 
       // Track auto top-up failed
-      if (userId) {
-        trackServerEvent(userId, "auto_topup_failed", {
-          organization_id: organizationId,
-          amount,
-          error_reason: `Payment ${paymentIntent.status}`,
-        });
-      }
+      trackServerEvent(trackingId, "auto_topup_failed", {
+        organization_id: organizationId,
+        amount,
+        error_reason: `Payment ${paymentIntent.status}`,
+      });
 
       return {
         organizationId,

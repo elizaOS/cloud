@@ -24,13 +24,16 @@ function PaymentSuccessContent() {
   const { ready, authenticated } = usePrivy();
   const hasTracked = useRef(false);
 
-  // Track payment success viewed (only once)
+  // Track payment success viewed (only once per trackId)
+  // Use trackId as dedup key - ensures one event per crypto payment
   useEffect(() => {
-    if (!hasTracked.current) {
-      const trackId = searchParams.get("trackId");
+    const trackId = searchParams.get("trackId");
+    if (!hasTracked.current && trackId) {
       trackEvent("payment_success_viewed", {
         source: "crypto",
-        track_id: trackId || undefined,
+        track_id: trackId,
+        // Include dedup_id for PostHog deduplication in case of page refresh
+        dedup_id: `crypto_success_${trackId}`,
       });
       hasTracked.current = true;
     }
