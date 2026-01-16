@@ -249,13 +249,15 @@ USER REQUEST: ${prompt}
 
 Build this app with your own creative vision.
 
-CRITICAL BUILD ORDER:
+CRITICAL RULES:
 1. install_packages for any npm dependencies FIRST
 2. Write leaf components (no local imports) FIRST
 3. Write files that import those components SECOND
-4. Write page.tsx LAST (it typically imports the most)
+4. **ALWAYS UPDATE page.tsx** - this is what the user sees! Components alone do NOTHING.
 5. NEVER import @/components/* or @/lib/* paths that don't exist yet - this breaks the build!
-6. Call check_build once at the end.`;
+6. Call check_build once at the end.
+
+⚠️ YOUR TASK IS NOT COMPLETE UNTIL page.tsx RENDERS THE UI! Writing components without updating page.tsx is a failure - the user sees a blank page.`;
 
       const finalSystemPrompt =
         systemPrompt ||
