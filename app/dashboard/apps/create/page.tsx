@@ -112,6 +112,12 @@ import {
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
+import {
+  AnimatedCheck,
+  AnimatedCheckmark,
+  AnimatedOrbit,
+  AnimatedLoadingRing,
+} from "@/components/ui/animated-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -159,10 +165,13 @@ const ChatMessage = memo(function ChatMessage({
 
   return (
     <div
-      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message animate-scale-fade`}
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+      style={{
+        animation: 'messageSlideIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+      }}
     >
       <div
-        className={`relative ${
+        className={`relative transition-all duration-500 ease-out ${
           msg.role === "user"
             ? "max-w-[90%] xl:max-w-[85%] py-3 xl:py-3.5 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/15 to-[#FF5800]/5 border border-[#FF5800]/25 rounded-2xl rounded-tr-sm shadow-lg shadow-[#FF5800]/5"
             : isProcessing
@@ -172,15 +181,15 @@ const ChatMessage = memo(function ChatMessage({
       >
         {/* Subtle glow for processing messages */}
         {isProcessing && (
-          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10 animate-pulse" />
+          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10" />
         )}
 
         <div className="flex items-center justify-between mb-2 xl:mb-2.5">
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
               <div className="relative">
-                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-white/80" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
+                <AnimatedOrbit size={14} className="text-[#FF5800]" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-lg opacity-30" />
               </div>
             )}
             <span
@@ -204,8 +213,8 @@ const ChatMessage = memo(function ChatMessage({
             {msgTime}
           </span>
         </div>
-        {/* Main content */}
-        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
+        {/* Main content with smooth text reveal */}
+        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto text-reveal">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -214,29 +223,39 @@ const ChatMessage = memo(function ChatMessage({
           </ReactMarkdown>
         </div>
 
-        {/* Per-operation accordions with reasoning */}
+        {/* Per-operation accordions with reasoning - smooth animated reveal */}
         {msg.role === "assistant" &&
           msg.operations &&
           msg.operations.length > 0 &&
           !isProcessing && (
-            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+            <div 
+              className="mt-4 pt-3 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
                 Completed Operations
               </p>
-              <Accordion type="multiple" className="space-y-1">
+              <Accordion type="multiple" className="space-y-1.5">
                 {msg.operations.map((op, idx) => (
                   <AccordionItem
                     key={idx}
                     value={`op-${idx}`}
-                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden"
+                    className="operation-item border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors duration-300"
+                    style={{ animationDelay: `${idx * 80}ms` }}
                   >
-                    <AccordionTrigger className="px-3 py-2 text-[12px] hover:no-underline hover:bg-white/[0.02]">
-                      <div className="flex items-center gap-2 text-left w-full">
-                        <span className="text-emerald-400/80">✓</span>
-                        <span className="font-medium text-white/80">
+                    <AccordionTrigger className="px-3 py-2.5 text-[12px] hover:no-underline hover:bg-white/[0.03] transition-all duration-200">
+                      <div className="flex items-center gap-2.5 text-left w-full">
+                        <AnimatedCheck 
+                          size={14} 
+                          className="text-emerald-400 flex-shrink-0" 
+                          delay={idx * 80 + 200} 
+                        />
+                        <span className="font-medium text-white/85">
                           {op.tool}
                         </span>
-                        <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
+                        <span className="text-[10px] text-white/45 font-mono truncate max-w-[200px]">
                           {op.detail}
                         </span>
                         <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
@@ -246,7 +265,7 @@ const ChatMessage = memo(function ChatMessage({
                     </AccordionTrigger>
                     {op.reasoning && (
                       <AccordionContent className="px-3 pb-3">
-                        <div className="text-[11px] leading-[1.6] text-white/50 bg-black/20 rounded-md p-3 max-h-[200px] overflow-y-auto">
+                        <div className="reasoning-reveal text-[11px] leading-[1.6] text-white/55 bg-black/25 rounded-lg p-3.5 max-h-[200px] overflow-y-auto border border-white/[0.04]">
                           <pre className="whitespace-pre-wrap font-sans">
                             {op.reasoning}
                           </pre>
@@ -264,9 +283,16 @@ const ChatMessage = memo(function ChatMessage({
           msg.reasoning &&
           !msg.operations?.some((op) => op.reasoning) &&
           !isProcessing && (
-            <Accordion type="single" collapsible className="mt-3">
-              <AccordionItem value="reasoning" className="border-white/10">
-                <AccordionTrigger className="py-2 text-[11px] xl:text-[12px] text-white/40 hover:text-white/60 hover:no-underline font-medium">
+            <Accordion 
+              type="single" 
+              collapsible 
+              className="mt-3"
+              style={{
+                animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
+              <AccordionItem value="reasoning" className="border-white/10 operation-item">
+                <AccordionTrigger className="py-2.5 text-[11px] xl:text-[12px] text-white/45 hover:text-white/70 hover:no-underline font-medium transition-colors duration-200">
                   <span className="flex items-center gap-2">
                     <span className="text-[14px]">💭</span>
                     <span>View all reasoning</span>
@@ -275,7 +301,7 @@ const ChatMessage = memo(function ChatMessage({
                     </span>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="text-[12px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2 max-h-[300px] overflow-y-auto">
+                <AccordionContent className="reasoning-reveal text-[12px] leading-[1.6] text-white/55 bg-white/[0.02] rounded-lg px-3.5 py-3 max-h-[300px] overflow-y-auto border border-white/[0.04]">
                   <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
                     {msg.reasoning}
                   </pre>
@@ -287,7 +313,14 @@ const ChatMessage = memo(function ChatMessage({
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]">
+            <div 
+              className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                animationDelay: '200ms',
+                opacity: 0,
+              }}
+            >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
                 Try asking
               </p>
@@ -297,7 +330,8 @@ const ChatMessage = memo(function ChatMessage({
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation"
+                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation operation-item"
+                    style={{ animationDelay: `${300 + idx * 60}ms` }}
                   >
                     <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">
                       {prompt}
@@ -308,15 +342,23 @@ const ChatMessage = memo(function ChatMessage({
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]">
+          <div 
+            className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]"
+            style={{
+              animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              animationDelay: '100ms',
+              opacity: 0,
+            }}
+          >
             <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
               Modified
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {msg.filesAffected.map((file) => (
+              {msg.filesAffected.map((file, idx) => (
                 <span
                   key={file}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full"
+                  className="operation-item inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full hover:bg-[#FF5800]/18 transition-colors duration-200"
+                  style={{ animationDelay: `${150 + idx * 50}ms` }}
                 >
                   <FileCode className="h-2 w-2 flex-shrink-0 text-[#FF5800]/70" />
                   {file}
