@@ -318,7 +318,6 @@ const ChatMessage = memo(function ChatMessage({
               style={{
                 animation: 'reasoningWaveIn 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 animationDelay: '200ms',
-                opacity: 0,
               }}
             >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
@@ -347,20 +346,18 @@ const ChatMessage = memo(function ChatMessage({
             style={{
               animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
               animationDelay: '100ms',
-              opacity: 0,
             }}
           >
             <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
               Modified
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 pb-1">
               {msg.filesAffected.map((file, idx) => (
                 <span
                   key={file}
-                  className="operation-item inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full hover:bg-[#FF5800]/18 transition-colors duration-200"
-                  style={{ animationDelay: `${150 + idx * 50}ms` }}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] xl:text-[11px] bg-[#FF5800]/15 border border-[#FF5800]/25 text-white/90 font-mono rounded-md hover:bg-[#FF5800]/20 transition-colors duration-200"
                 >
-                  <FileCode className="h-2 w-2 flex-shrink-0 text-[#FF5800]/70" />
+                  <FileCode className="h-2.5 w-2.5 flex-shrink-0 text-[#FF5800]/80" />
                   {file}
                 </span>
               ))}
@@ -4403,7 +4400,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 xl:p-6 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+            className="flex-1 overflow-y-auto pt-4 xl:pt-6 px-4 xl:px-6 pb-6 xl:pb-8 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -4415,7 +4412,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                 sendPrompt={sendPrompt}
               />
             ))}
-            <div ref={messagesEndRef} />
+            {/* Scroll anchor with extra space for file chips visibility */}
+            <div ref={messagesEndRef} className="h-4" />
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
