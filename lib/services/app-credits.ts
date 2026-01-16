@@ -16,6 +16,11 @@ import { usersRepository } from "@/db/repositories/users";
 import { redeemableEarningsService } from "./redeemable-earnings";
 
 /**
+ * Threshold for reconciliation - differences below this are ignored (6 decimal precision)
+ */
+const RECONCILIATION_THRESHOLD = 0.000001;
+
+/**
  * Parameters for purchasing app credits.
  */
 export interface AppCreditPurchaseParams {
@@ -416,8 +421,8 @@ export class AppCreditsService {
 
     const baseCostDifference = actualBaseCost - estimatedBaseCost;
 
-    // Skip reconciliation for negligible differences (< $0.000001)
-    if (Math.abs(baseCostDifference) < 0.000001) {
+    // Skip reconciliation for negligible differences
+    if (Math.abs(baseCostDifference) < RECONCILIATION_THRESHOLD) {
       const currentBalance = await appCreditBalancesRepository.getBalance(
         appId,
         userId
@@ -458,27 +463,26 @@ export class AppCreditsService {
     const creatorMarkupDifference =
       baseCostDifference * (markupPercentage / 100);
 
-    // Get user's organization ID
-    const user = await usersRepository.findById(userId);
-    if (!user?.organization_id) {
-      logger.error("[AppCredits] User not found during reconciliation", {
-        userId,
-      });
-      const currentBalance = await appCreditBalancesRepository.getBalance(
-        appId,
-        userId
-      );
-      return {
-        reconciled: false,
-        difference: baseCostDifference,
-        action: "none",
-        adjustedAmount: 0,
-        newBalance: currentBalance,
-      };
-    }
-
     if (baseCostDifference < 0) {
-      // REFUND: Actual was less than estimated
+      // REFUND: Actual was less than estimated - need user for org ID
+      const user = await usersRepository.findById(userId);
+      if (!user?.organization_id) {
+        logger.error("[AppCredits] User not found during reconciliation", {
+          userId,
+        });
+        const currentBalance = await appCreditBalancesRepository.getBalance(
+          appId,
+          userId
+        );
+        return {
+          reconciled: false,
+          difference: baseCostDifference,
+          action: "none",
+          adjustedAmount: 0,
+          newBalance: currentBalance,
+        };
+      }
+
       const refundAmount = Math.abs(totalCostDifference);
 
       const { newBalance } = await appCreditBalancesRepository.addCredits(
@@ -504,80 +508,80 @@ export class AppCreditsService {
         adjustedAmount: refundAmount,
         newBalance,
       };
-    } else {
-      // CHARGE: Actual was more than estimated
-      const additionalCharge = totalCostDifference;
+    }
 
-      const result = await appCreditBalancesRepository.deductCredits(
-        appId,
-        userId,
-        additionalCharge
-      );
+    // CHARGE: Actual was more than estimated
+    const additionalCharge = totalCostDifference;
 
-      if (result.success) {
-        // Also record additional creator earnings if monetization enabled
-        if (app.monetization_enabled && creatorMarkupDifference > 0) {
-          await this.recordCreatorEarnings(
-            appId,
-            userId,
-            "inference_markup",
-            creatorMarkupDifference,
-            {
-              type: "reconciliation_adjustment",
-              baseCostDifference,
-              description,
-              ...metadata,
-            }
-          );
+    const result = await appCreditBalancesRepository.deductCredits(
+      appId,
+      userId,
+      additionalCharge
+    );
 
-          await dbWrite
-            .update(apps)
-            .set({
-              total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
-              total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
-              updated_at: new Date(),
-            })
-            .where(eq(apps.id, appId));
-        }
-
-        logger.info("[AppCredits] Reconciliation: Charged additional", {
+    if (result.success) {
+      // Also record additional creator earnings if monetization enabled
+      if (app.monetization_enabled && creatorMarkupDifference > 0) {
+        await this.recordCreatorEarnings(
           appId,
           userId,
-          estimatedBaseCost,
-          actualBaseCost,
-          additionalCharge,
-          newBalance: result.newBalance,
-        });
-
-        return {
-          reconciled: true,
-          difference: baseCostDifference,
-          action: "charge",
-          adjustedAmount: additionalCharge,
-          newBalance: result.newBalance,
-        };
-      } else {
-        // Insufficient balance - log but don't fail
-        // This is a business decision: absorb the loss rather than fail the request
-        logger.warn(
-          "[AppCredits] Reconciliation: Insufficient balance for additional charge",
+          "inference_markup",
+          creatorMarkupDifference,
           {
-            appId,
-            userId,
-            additionalCharge,
-            currentBalance: result.newBalance,
+            type: "reconciliation_adjustment",
+            baseCostDifference,
+            description,
+            ...metadata,
           }
         );
 
-        return {
-          reconciled: false,
-          difference: baseCostDifference,
-          action: "charge",
-          adjustedAmount: 0,
-          newBalance: result.newBalance,
-        };
+        await dbWrite
+          .update(apps)
+          .set({
+            total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
+            total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
+            updated_at: new Date(),
+          })
+          .where(eq(apps.id, appId));
       }
+
+      logger.info("[AppCredits] Reconciliation: Charged additional", {
+        appId,
+        userId,
+        estimatedBaseCost,
+        actualBaseCost,
+        additionalCharge,
+        newBalance: result.newBalance,
+      });
+
+      return {
+        reconciled: true,
+        difference: baseCostDifference,
+        action: "charge",
+        adjustedAmount: additionalCharge,
+        newBalance: result.newBalance,
+      };
     }
+
+    // Insufficient balance - log but don't fail
+    // This is a business decision: absorb the loss rather than fail the request
+    logger.warn(
+      "[AppCredits] Reconciliation: Insufficient balance for additional charge",
+      {
+        appId,
+        userId,
+        additionalCharge,
+        currentBalance: result.newBalance,
+      }
+    );
+
+    return {
+      reconciled: false,
+      difference: baseCostDifference,
+      action: "charge",
+      adjustedAmount: 0,
+      newBalance: result.newBalance,
+    };
   }
 
   async calculateCostWithMarkup(

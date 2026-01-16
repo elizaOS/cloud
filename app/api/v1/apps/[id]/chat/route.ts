@@ -3,7 +3,8 @@
  * Uses app credits and applies creator markup for monetization.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
 import { appsService } from "@/lib/services/apps";
@@ -25,6 +26,10 @@ import type {
 } from "@/lib/providers/types";
 
 export const maxDuration = 60;
+
+// Safety multiplier for cost estimation to reduce undercharging risk
+// We charge 1.5x estimated upfront, then reconcile to actual
+const COST_SAFETY_MULTIPLIER = 1.5;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -95,6 +100,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const { user } = authResult;
 
+  // Access control: non-monetized apps are internal (same org only)
+  // Monetized apps are public (anyone with credits can use)
+  if (
+    !app.monetization_enabled &&
+    app.organization_id !== user.organization_id
+  ) {
+    return withCors(
+      NextResponse.json(
+        {
+          error: {
+            message: "Access denied to this app",
+            type: "invalid_request_error",
+            code: "access_denied",
+          },
+        },
+        { status: 403 }
+      )
+    );
+  }
+
   // Validate request
   if (!chatRequest.model || !chatRequest.messages) {
     return withCors(
@@ -150,17 +175,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     estimatedOutputTokens
   );
 
-  // Check and deduct app credits with markup
+  // Apply safety buffer to reduce undercharging risk
+  // We charge more upfront, then reconcile to actual cost
+  const reservedBaseCost = estimatedBaseCost * COST_SAFETY_MULTIPLIER;
+
+  // Check and deduct app credits with markup (using buffered amount)
   const deductionResult = await appCreditsService.deductCredits({
     appId,
     userId: user.id,
-    baseCost: estimatedBaseCost,
+    baseCost: reservedBaseCost,
     description: `Chat: ${model}`,
     metadata: {
       model,
       provider,
       estimatedInputTokens,
       estimatedOutputTokens,
+      safetyMultiplier: COST_SAFETY_MULTIPLIER,
     },
   });
 
@@ -193,6 +223,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   logger.info("[App Chat] Credits deducted", {
     appId,
     userId: user.id,
+    reservedBaseCost,
     baseCost: deductionResult.baseCost,
     creatorMarkup: deductionResult.creatorMarkup,
     totalCost: deductionResult.totalCost,
@@ -215,131 +246,155 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let outputTokens = 0;
     let fullContent = "";
 
-    // Process stream in background
+    // Process stream in background with error handling
     (async () => {
-      let lineBuffer = "";
+      try {
+        let lineBuffer = "";
 
-      const reader = providerResponse.body?.getReader();
-      if (!reader) {
-        writer.close();
-        return;
-      }
+        const reader = providerResponse.body?.getReader();
+        if (!reader) {
+          writer.close();
+          return;
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        // Forward chunk to client
-        writer.write(value);
+          // Forward chunk to client
+          writer.write(value);
 
-        // Parse chunk to extract usage info
-        lineBuffer += decoder.decode(value, { stream: true });
-        const lines = lineBuffer.split("\n");
-        lineBuffer = lines.pop() ?? "";
+          // Parse chunk to extract usage info
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split("\n");
+          lineBuffer = lines.pop() ?? "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]" || !data.trim()) continue;
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]" || !data.trim()) continue;
 
+              const parsed = JSON.parse(data);
+
+              // Collect content for token estimation fallback
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+              }
+
+              // Extract usage from final chunk (if provider includes it)
+              if (parsed.usage) {
+                inputTokens = parsed.usage.prompt_tokens || 0;
+                outputTokens = parsed.usage.completion_tokens || 0;
+              }
+            }
+          }
+        }
+
+        // Flush decoder
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          lineBuffer += finalChunk;
+        }
+
+        if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
+          const data = lineBuffer.slice(6);
+          if (data !== "[DONE]" && data.trim()) {
             const parsed = JSON.parse(data);
-
-            // Collect content for token estimation fallback
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               fullContent += content;
             }
-
-            // Extract usage from final chunk (if provider includes it)
             if (parsed.usage) {
               inputTokens = parsed.usage.prompt_tokens || 0;
               outputTokens = parsed.usage.completion_tokens || 0;
             }
           }
         }
-      }
 
-      // Flush decoder
-      const finalChunk = decoder.decode();
-      if (finalChunk) {
-        lineBuffer += finalChunk;
-      }
+        writer.close();
 
-      if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
-        const data = lineBuffer.slice(6);
-        if (data !== "[DONE]" && data.trim()) {
-          const parsed = JSON.parse(data);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            fullContent += content;
-          }
-          if (parsed.usage) {
-            inputTokens = parsed.usage.prompt_tokens || 0;
-            outputTokens = parsed.usage.completion_tokens || 0;
-          }
+        // Fallback: estimate tokens if usage not provided
+        if (inputTokens === 0 && outputTokens === 0) {
+          const inputText = chatRequest.messages
+            .map((m: OpenAIChatMessage) =>
+              typeof m.content === "string"
+                ? m.content
+                : JSON.stringify(m.content)
+            )
+            .join(" ");
+          inputTokens = estimateTokens(inputText);
+          outputTokens = estimateTokens(fullContent);
+
+          logger.warn("[App Chat] No usage data in stream, using estimates", {
+            appId,
+            inputTokens,
+            outputTokens,
+          });
         }
-      }
 
-      writer.close();
-
-      // Fallback: estimate tokens if usage not provided
-      if (inputTokens === 0 && outputTokens === 0) {
-        const inputText = chatRequest.messages
-          .map((m: OpenAIChatMessage) =>
-            typeof m.content === "string"
-              ? m.content
-              : JSON.stringify(m.content)
-          )
-          .join(" ");
-        inputTokens = estimateTokens(inputText);
-        outputTokens = estimateTokens(fullContent);
-
-        logger.warn("[App Chat] No usage data in stream, using estimates", {
-          appId,
-          inputTokens,
-          outputTokens,
-        });
-      }
-
-      // Calculate actual cost and reconcile
-      const { totalCost: actualBaseCost } = await calculateCost(
-        normalizedModel,
-        provider,
-        inputTokens,
-        outputTokens
-      );
-
-      // Reconcile the difference between estimated and actual costs
-      const reconciliation = await appCreditsService.reconcileCredits({
-        appId,
-        userId: user.id,
-        estimatedBaseCost,
-        actualBaseCost,
-        description: `Chat reconciliation: ${model}`,
-        metadata: {
-          model,
+        // Calculate actual cost and reconcile
+        const { totalCost: actualBaseCost } = await calculateCost(
+          normalizedModel,
           provider,
           inputTokens,
-          outputTokens,
-          streaming: true,
-        },
-      });
+          outputTokens
+        );
 
-      const duration = Date.now() - startTime;
-      logger.info("[App Chat] Streaming request completed", {
-        appId,
-        userId: user.id,
-        model,
-        duration,
-        inputTokens,
-        outputTokens,
-        estimatedBaseCost,
-        actualBaseCost,
-        reconciliation: {
-          action: reconciliation.action,
-          amount: reconciliation.adjustedAmount,
-        },
-      });
+        // Reconcile the difference between reserved and actual costs
+        const reconciliation = await appCreditsService.reconcileCredits({
+          appId,
+          userId: user.id,
+          estimatedBaseCost: reservedBaseCost,
+          actualBaseCost,
+          description: `Chat reconciliation: ${model}`,
+          metadata: {
+            model,
+            provider,
+            inputTokens,
+            outputTokens,
+            streaming: true,
+          },
+        });
+
+        const duration = Date.now() - startTime;
+        logger.info("[App Chat] Streaming request completed", {
+          appId,
+          userId: user.id,
+          model,
+          duration,
+          inputTokens,
+          outputTokens,
+          reservedBaseCost,
+          actualBaseCost,
+          reconciliation: {
+            action: reconciliation.action,
+            amount: reconciliation.adjustedAmount,
+          },
+        });
+      } catch (error) {
+        // Stream failed - refund the reserved charge since we don't know actual usage
+        logger.error(
+          "[App Chat] Stream processing failed, refunding reserved",
+          {
+            appId,
+            userId: user.id,
+            reservedBaseCost,
+            error: error instanceof Error ? error.message : "Unknown error",
+          }
+        );
+
+        await appCreditsService.reconcileCredits({
+          appId,
+          userId: user.id,
+          estimatedBaseCost: reservedBaseCost,
+          actualBaseCost: 0, // Refund full reserved amount
+          description: "Refund due to stream error",
+          metadata: { error: true, streaming: true },
+        });
+
+        writer.close();
+      }
     })();
 
     return withCors(
@@ -351,52 +406,52 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
       })
     );
-  } else {
-    // Non-streaming response
-    const responseData = await providerResponse.json();
+  }
 
-    // Calculate actual cost
-    const actualInputTokens = responseData.usage?.prompt_tokens || 0;
-    const actualOutputTokens = responseData.usage?.completion_tokens || 0;
-    const { totalCost: actualBaseCost } = await calculateCost(
-      normalizedModel,
-      provider,
-      actualInputTokens,
-      actualOutputTokens
-    );
+  // Non-streaming response
+  const responseData = await providerResponse.json();
 
-    // Reconcile the difference between estimated and actual costs
-    const reconciliation = await appCreditsService.reconcileCredits({
-      appId,
-      userId: user.id,
-      estimatedBaseCost,
-      actualBaseCost,
-      description: `Chat reconciliation: ${model}`,
-      metadata: {
-        model,
-        provider,
-        inputTokens: actualInputTokens,
-        outputTokens: actualOutputTokens,
-        streaming: false,
-      },
-    });
+  // Calculate actual cost
+  const actualInputTokens = responseData.usage?.prompt_tokens || 0;
+  const actualOutputTokens = responseData.usage?.completion_tokens || 0;
+  const { totalCost: actualBaseCost } = await calculateCost(
+    normalizedModel,
+    provider,
+    actualInputTokens,
+    actualOutputTokens
+  );
 
-    const duration = Date.now() - startTime;
-    logger.info("[App Chat] Request completed", {
-      appId,
-      userId: user.id,
+  // Reconcile the difference between reserved and actual costs
+  const reconciliation = await appCreditsService.reconcileCredits({
+    appId,
+    userId: user.id,
+    estimatedBaseCost: reservedBaseCost,
+    actualBaseCost,
+    description: `Chat reconciliation: ${model}`,
+    metadata: {
       model,
-      duration,
+      provider,
       inputTokens: actualInputTokens,
       outputTokens: actualOutputTokens,
-      estimatedBaseCost,
-      actualBaseCost,
-      reconciliation: {
-        action: reconciliation.action,
-        amount: reconciliation.adjustedAmount,
-      },
-    });
+      streaming: false,
+    },
+  });
 
-    return withCors(NextResponse.json(responseData));
-  }
+  const duration = Date.now() - startTime;
+  logger.info("[App Chat] Request completed", {
+    appId,
+    userId: user.id,
+    model,
+    duration,
+    inputTokens: actualInputTokens,
+    outputTokens: actualOutputTokens,
+    reservedBaseCost,
+    actualBaseCost,
+    reconciliation: {
+      action: reconciliation.action,
+      amount: reconciliation.adjustedAmount,
+    },
+  });
+
+  return withCors(NextResponse.json(responseData));
 }
