@@ -5,6 +5,9 @@ import { appEarningsService } from "@/lib/services/app-earnings";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+// Minimum payout threshold - must match database default
+const MINIMUM_PAYOUT = 25.0;
+
 const WithdrawRequestSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
 });
@@ -27,7 +30,7 @@ const WithdrawRequestSchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
@@ -37,14 +40,14 @@ export async function POST(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 },
+      { status: 404 }
     );
   }
 
   if (app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Access denied" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -55,14 +58,14 @@ export async function POST(
         success: false,
         error: "Only the app creator can withdraw earnings",
       },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
   if (!app.monetization_enabled) {
     return NextResponse.json(
       { success: false, error: "Monetization is not enabled for this app" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -76,11 +79,22 @@ export async function POST(
         error: "Invalid request data",
         details: validationResult.error.format(),
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   const { amount } = validationResult.data;
+
+  // Early validation: fail fast if amount below minimum
+  if (amount < MINIMUM_PAYOUT) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Minimum withdrawal amount is $${MINIMUM_PAYOUT.toFixed(2)}`,
+      },
+      { status: 400 }
+    );
+  }
 
   const result = await appEarningsService.requestWithdrawal(id, amount);
 
@@ -94,7 +108,7 @@ export async function POST(
 
     return NextResponse.json(
       { success: false, error: result.message },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
