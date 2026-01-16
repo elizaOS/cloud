@@ -31,6 +31,10 @@ export const maxDuration = 60;
 // We charge 1.5x estimated upfront, then reconcile to actual
 const COST_SAFETY_MULTIPLIER = 1.5;
 
+// Default estimated output tokens for cost pre-calculation
+// This is a reasonable average for chat completions
+const DEFAULT_ESTIMATED_OUTPUT_TOKENS = 500;
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -167,7 +171,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .join(" ");
 
   const estimatedInputTokens = estimateTokens(inputText);
-  const estimatedOutputTokens = 500;
+  const estimatedOutputTokens = DEFAULT_ESTIMATED_OUTPUT_TOKENS;
   const { totalCost: estimatedBaseCost } = await calculateCost(
     normalizedModel,
     provider,
@@ -180,6 +184,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const reservedBaseCost = estimatedBaseCost * COST_SAFETY_MULTIPLIER;
 
   // Check and deduct app credits with markup (using buffered amount)
+  // Pass app to avoid N+1 query (app already fetched above)
   const deductionResult = await appCreditsService.deductCredits({
     appId,
     userId: user.id,
@@ -192,6 +197,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       estimatedOutputTokens,
       safetyMultiplier: COST_SAFETY_MULTIPLIER,
     },
+    app, // Pass pre-fetched app to avoid duplicate DB query
   });
 
   if (!deductionResult.success) {
@@ -232,9 +238,45 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     monetizationEnabled: app.monetization_enabled,
   });
 
-  // Forward to provider
+  // Forward to provider - wrap in try-catch to refund on failure
   const providerInstance = getProvider();
-  const providerResponse = await providerInstance.chatCompletions(chatRequest);
+  let providerResponse: Response;
+  try {
+    providerResponse = await providerInstance.chatCompletions(chatRequest);
+  } catch (providerError) {
+    // Provider call failed - refund the reserved credits
+    logger.error("[App Chat] Provider call failed, refunding credits", {
+      appId,
+      userId: user.id,
+      reservedBaseCost,
+      error:
+        providerError instanceof Error
+          ? providerError.message
+          : "Unknown error",
+    });
+
+    await appCreditsService.reconcileCredits({
+      appId,
+      userId: user.id,
+      estimatedBaseCost: reservedBaseCost,
+      actualBaseCost: 0, // Full refund
+      description: "Refund due to provider error",
+      metadata: { error: true, providerFailure: true },
+    });
+
+    return withCors(
+      NextResponse.json(
+        {
+          error: {
+            message: "Service temporarily unavailable. Credits refunded.",
+            type: "api_error",
+            code: "provider_error",
+          },
+        },
+        { status: 503 }
+      )
+    );
+  }
 
   if (isStreaming) {
     // For streaming: wrap response to capture usage and reconcile after completion
@@ -374,13 +416,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         });
       } catch (error) {
         // Stream failed - refund the reserved charge since we don't know actual usage
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         logger.error(
           "[App Chat] Stream processing failed, refunding reserved",
           {
             appId,
             userId: user.id,
             reservedBaseCost,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: errorMessage,
           }
         );
 
@@ -393,6 +437,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           metadata: { error: true, streaming: true },
         });
 
+        // Send error event to client before closing (SSE format)
+        const errorEvent = `data: ${JSON.stringify({
+          error: {
+            message: "Stream interrupted. Credits refunded.",
+            type: "api_error",
+            code: "stream_error",
+          },
+        })}\n\ndata: [DONE]\n\n`;
+        const encoder = new TextEncoder();
+        writer.write(encoder.encode(errorEvent));
         writer.close();
       }
     })();

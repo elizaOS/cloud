@@ -52,6 +52,8 @@ export interface AppCreditDeductionParams {
   baseCost: number;
   description: string;
   metadata?: Record<string, unknown>;
+  /** Optional: pass pre-fetched app to avoid N+1 query */
+  app?: App;
 }
 
 /**
@@ -302,9 +304,17 @@ export class AppCreditsService {
   async deductCredits(
     params: AppCreditDeductionParams
   ): Promise<AppCreditDeductionResult> {
-    const { appId, userId, baseCost, description, metadata } = params;
+    const {
+      appId,
+      userId,
+      baseCost,
+      description,
+      metadata,
+      app: providedApp,
+    } = params;
 
-    const app = await appsRepository.findById(appId);
+    // Use provided app to avoid N+1 query, or fetch if not provided
+    const app = providedApp ?? (await appsRepository.findById(appId));
     if (!app) {
       return {
         success: false,
@@ -563,15 +573,35 @@ export class AppCreditsService {
       };
     }
 
-    // Insufficient balance - log but don't fail
-    // This is a business decision: absorb the loss rather than fail the request
+    /**
+     * SILENT LOSS ABSORPTION
+     *
+     * When actual cost exceeds estimated and user has insufficient balance,
+     * the platform absorbs the loss rather than failing the request.
+     *
+     * Business rationale:
+     * - The request has already completed (user received the response)
+     * - Better UX to not fail mid-stream with payment errors
+     * - Safety multiplier (1.5x) already minimizes occurrence
+     *
+     * Risk mitigation:
+     * - Logged as WARN level for monitoring
+     * - Tracked in metrics via reconciliation.action = "charge", adjustedAmount = 0
+     * - Can be monitored via: grep "Insufficient balance for additional charge"
+     *
+     * Future improvements:
+     * - Add debt tracking table to recover costs on next purchase
+     * - Add admin dashboard metrics for loss monitoring
+     * - Consider blocking users with repeated losses
+     */
     logger.warn(
-      "[AppCredits] Reconciliation: Insufficient balance for additional charge",
+      "[AppCredits] Reconciliation: Insufficient balance for additional charge (platform absorbing loss)",
       {
         appId,
         userId,
         additionalCharge,
         currentBalance: result.newBalance,
+        lossAmount: additionalCharge,
       }
     );
 
