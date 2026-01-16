@@ -21,101 +21,131 @@ function ReasoningText({ children }: { children: string }) {
 }
 
 /**
- * Inline animated checkmark SVG
+ * Animated checkmark SVG - fixed size for consistent alignment
  */
 const AnimatedCheckInline = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 16 16"
-    fill="none"
-    className="inline-block align-text-bottom mr-1"
-    style={{ marginBottom: "1px" }}
-  >
-    <style>
-      {`
-        @keyframes checkDrawInline {
-          to { stroke-dashoffset: 0; }
-        }
-        .check-inline path {
-          stroke-dasharray: 20;
-          stroke-dashoffset: 20;
-          animation: checkDrawInline 350ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-        }
-      `}
-    </style>
-    <g className="check-inline">
-      <path
-        d="M3 8.5L6.5 12L13 4"
-        stroke="#34d399"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </g>
-  </svg>
+  <span className="flex items-center justify-center w-[14px] h-[14px] flex-shrink-0 mt-[3px]">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
+      <style>
+        {`
+          @keyframes checkDrawInline {
+            to { stroke-dashoffset: 0; }
+          }
+          .check-inline path {
+            stroke-dasharray: 20;
+            stroke-dashoffset: 20;
+            animation: checkDrawInline 350ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+          }
+        `}
+      </style>
+      <g className="check-inline">
+        <path
+          d="M3 8.5L6.5 12L13 4"
+          stroke="#34d399"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  </span>
 );
 
 /**
- * Inline animated loading spinner SVG
+ * Animated loading spinner SVG - fixed size for consistent alignment
  */
 const AnimatedSpinnerInline = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    className="inline-block align-text-bottom mr-1"
-    style={{ marginBottom: "1px" }}
-  >
-    <style>
-      {`
-        @keyframes spinnerRotate {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes spinnerDash {
-          0% { stroke-dashoffset: 45; }
-          50% { stroke-dashoffset: 15; }
-          100% { stroke-dashoffset: 45; }
-        }
-        .spinner-inline {
-          animation: spinnerRotate 1s linear infinite;
-          transform-origin: center;
-        }
-        .spinner-inline .track { opacity: 0.2; }
-        .spinner-inline .spin {
-          stroke-dasharray: 60;
-          stroke-dashoffset: 45;
-          animation: spinnerDash 1.5s ease-in-out infinite;
-        }
-      `}
-    </style>
-    <g className="spinner-inline">
-      <circle
-        className="track"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="#FF5800"
-        strokeWidth="2"
-        fill="none"
-      />
-      <circle
-        className="spin"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="#FF5800"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </g>
-  </svg>
+  <span className="flex items-center justify-center w-[14px] h-[14px] flex-shrink-0 mt-[3px]">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <style>
+        {`
+          @keyframes spinnerRotate {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes spinnerDash {
+            0% { stroke-dashoffset: 45; }
+            50% { stroke-dashoffset: 15; }
+            100% { stroke-dashoffset: 45; }
+          }
+          .spinner-inline {
+            animation: spinnerRotate 1s linear infinite;
+            transform-origin: center;
+          }
+          .spinner-inline .track { opacity: 0.2; }
+          .spinner-inline .spin {
+            stroke-dasharray: 60;
+            stroke-dashoffset: 45;
+            animation: spinnerDash 1.5s ease-in-out infinite;
+          }
+        `}
+      </style>
+      <g className="spinner-inline">
+        <circle
+          className="track"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="#FF5800"
+          strokeWidth="2"
+          fill="none"
+        />
+        <circle
+          className="spin"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="#FF5800"
+          strokeWidth="2"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </g>
+    </svg>
+  </span>
 );
 
 /**
- * Transform text content to replace emoji markers with animated icons
+ * Check if content starts with a status marker
+ */
+function getStatusMarker(children: React.ReactNode): "check" | "spinner" | null {
+  if (typeof children === "string") {
+    if (children.startsWith("✓ ") || children.startsWith("✓")) return "check";
+    if (children.startsWith("⏳ ") || children.startsWith("⏳")) return "spinner";
+  }
+  if (Array.isArray(children) && children.length > 0) {
+    return getStatusMarker(children[0]);
+  }
+  return null;
+}
+
+/**
+ * Strip status marker from text content
+ */
+function stripStatusMarker(children: React.ReactNode): React.ReactNode {
+  if (typeof children === "string") {
+    return children.replace(/^[✓⏳]\s*/, "");
+  }
+  if (Array.isArray(children)) {
+    return children.map((child, i) => {
+      if (i === 0) return stripStatusMarker(child);
+      return child;
+    });
+  }
+  return children;
+}
+
+/**
+ * Transform text content to replace emoji markers with animated icons (for non-paragraph contexts)
  */
 function transformStatusMarkers(children: React.ReactNode): React.ReactNode {
   if (typeof children === "string") {
@@ -186,9 +216,21 @@ export const markdownComponents = {
         </p>
       );
     }
+    
+    // Check for status markers - use flexbox for perfect alignment
+    const marker = getStatusMarker(children);
+    if (marker) {
+      return (
+        <p className="flex items-start gap-2 text-[14px] text-white/85 mb-2 leading-[1.7]">
+          {marker === "check" ? <AnimatedCheckInline /> : <AnimatedSpinnerInline />}
+          <span className="flex-1 min-w-0">{stripStatusMarker(children)}</span>
+        </p>
+      );
+    }
+    
     return (
       <p className="text-[14px] text-white/85 mb-2 leading-[1.7]">
-        {transformStatusMarkers(children)}
+        {children}
       </p>
     );
   },
@@ -255,7 +297,7 @@ export const markdownComponents = {
     </a>
   ),
   blockquote: ({ children }: { children?: React.ReactNode }) => (
-    <blockquote className="border-l-2 border-white/20 pl-3 my-2.5 text-white/75">
+    <blockquote className="border-l-2 border-white/20 pl-3 ml-[5px] my-2.5 text-white/75">
       {children}
     </blockquote>
   ),

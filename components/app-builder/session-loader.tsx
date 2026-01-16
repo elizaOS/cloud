@@ -98,77 +98,118 @@ function LoadingSpinner({ size = "lg" }: { size?: "sm" | "lg" }) {
   );
 }
 
-// Progress step indicator
+// Progress step indicator with vertical connector line
 function StepIndicator({
-  step,
   isActive,
   isComplete,
+  isLast,
   icon: Icon,
   label,
   color,
 }: {
-  step: number;
   isActive: boolean;
   isComplete: boolean;
+  isLast: boolean;
   icon: typeof Sparkles;
   label: string;
   color: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-center gap-4 transition-all duration-500",
-        isActive && "scale-105",
-        !isActive && !isComplete && "opacity-40",
-      )}
-    >
-      <div
-        className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
-          isComplete && "bg-emerald-500/20 border border-emerald-500/30",
-          isActive && "bg-white/10 border border-white/20",
-          !isActive && !isComplete && "bg-white/5 border border-white/10",
-        )}
-      >
-        {isComplete ? (
-          <Check className="w-5 h-5 text-emerald-400" />
-        ) : (
-          <Icon
+    <div className="relative flex items-start">
+      {/* Left column: icon + vertical line */}
+      <div className="relative flex flex-col items-center">
+        {/* Icon container - fixed 40x40px for consistent sizing */}
+        <div
+          className={cn(
+            "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 flex-shrink-0",
+            isComplete && "bg-emerald-500/20 border border-emerald-500/30",
+            isActive && "bg-white/10 border border-white/20",
+            !isActive && !isComplete && "bg-white/5 border border-white/10",
+          )}
+        >
+          {isComplete ? (
+            <Check className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
+          ) : isActive ? (
+            <div className="relative w-5 h-5 flex items-center justify-center">
+              {/* Spinning ring for active state */}
+              <div
+                className="absolute inset-0 rounded-full animate-spin"
+                style={{
+                  background: `conic-gradient(from 0deg, transparent 0%, ${color === "text-orange-400" ? "#FF5800" : color === "text-cyan-400" ? "#06B6D4" : "#8B5CF6"} 50%, transparent 100%)`,
+                  animationDuration: "1.5s",
+                }}
+              />
+              <div className="absolute inset-[2px] rounded-full bg-[#0A0A0A]" />
+              <Icon
+                className={cn(
+                  "relative w-3.5 h-3.5 transition-colors duration-500",
+                  color,
+                )}
+              />
+            </div>
+          ) : (
+            <Icon
+              className={cn(
+                "w-5 h-5 transition-colors duration-500",
+                "text-white/40",
+              )}
+            />
+          )}
+        </div>
+
+        {/* Vertical connector line - bridges to next step */}
+        {!isLast && (
+          <div
             className={cn(
-              "w-5 h-5 transition-colors duration-500",
-              isActive ? color : "text-white/40",
+              "w-[2px] h-6 transition-all duration-500",
+              isComplete ? "bg-emerald-500/40" : "bg-white/10",
             )}
           />
         )}
       </div>
-      <div className="flex-1">
-        <p
-          className={cn(
-            "text-sm font-medium transition-colors duration-500",
-            isComplete && "text-emerald-400",
-            isActive && "text-white",
-            !isActive && !isComplete && "text-white/40",
-          )}
-        >
-          {label}
-        </p>
-      </div>
-      {isActive && (
-        <div className="flex gap-1">
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
-            style={{ animationDelay: "0ms" }}
-          />
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
-            style={{ animationDelay: "150ms" }}
-          />
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
-            style={{ animationDelay: "300ms" }}
-          />
+
+      {/* Right column: label and status */}
+      <div
+        className={cn(
+          "flex-1 min-w-0 ml-4 min-h-10 flex items-center transition-all duration-500",
+          isActive && "scale-[1.02] origin-left",
+          !isActive && !isComplete && "opacity-40",
+        )}
+      >
+        <div className="flex-1">
+          <p
+            className={cn(
+              "text-sm font-medium transition-colors duration-500",
+              isComplete && "text-emerald-400",
+              isActive && "text-white",
+              !isActive && !isComplete && "text-white/40",
+            )}
+          >
+            {label}
+          </p>
         </div>
-      )}
+
+        {/* Status indicator */}
+        {isActive && (
+          <div className="flex gap-1 flex-shrink-0 ml-3">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+              style={{ animationDelay: "0ms" }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+              style={{ animationDelay: "150ms" }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse"
+              style={{ animationDelay: "300ms" }}
+            />
+          </div>
+        )}
+        {isComplete && (
+          <span className="text-xs text-emerald-400/60 flex-shrink-0 ml-3">Done</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -307,13 +348,13 @@ export function SessionLoader({
 
         {/* Progress steps */}
         {showProgress && (
-          <div className="space-y-3 text-left max-w-sm mx-auto pt-4">
+          <div className="text-left max-w-sm mx-auto pt-4">
             {PHASES.map((phase, index) => (
               <StepIndicator
                 key={phase.key}
-                step={index}
                 isActive={index === currentStepIndex}
                 isComplete={index < currentStepIndex}
+                isLast={index === PHASES.length - 1}
                 icon={phase.icon}
                 label={phase.label}
                 color={phase.color}
