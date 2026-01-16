@@ -194,6 +194,11 @@ export class AutoTopUpService {
     // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
       logger.error(`[AutoTopUp] Org ${organizationId} missing Stripe customer`);
+      trackServerEvent(trackingId, "auto_topup_failed", {
+        organization_id: organizationId,
+        error_reason: "missing_stripe_customer",
+        top_up_amount: topUpAmount,
+      });
       await this.disableAutoTopUp(organizationId, "Missing Stripe customer");
       return {
         organizationId,
@@ -206,6 +211,11 @@ export class AutoTopUpService {
       logger.error(
         `[AutoTopUp] Org ${organizationId} missing default payment method`,
       );
+      trackServerEvent(trackingId, "auto_topup_failed", {
+        organization_id: organizationId,
+        error_reason: "missing_payment_method",
+        top_up_amount: topUpAmount,
+      });
       await this.disableAutoTopUp(
         organizationId,
         "Missing default payment method",
@@ -222,6 +232,11 @@ export class AutoTopUpService {
       logger.error(
         `[AutoTopUp] Org ${organizationId} has invalid top-up amount: ${amount}`,
       );
+      trackServerEvent(trackingId, "auto_topup_failed", {
+        organization_id: organizationId,
+        error_reason: "invalid_amount",
+        top_up_amount: amount,
+      });
       await this.disableAutoTopUp(organizationId, "Invalid top-up amount");
       return {
         organizationId,
