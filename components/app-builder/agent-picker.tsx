@@ -170,7 +170,7 @@ export function AgentPicker({
       </div>
 
       {/* Agent Grid */}
-      <ScrollArea className="h-[280px] pr-3">
+      <ScrollArea className="h-[400px] pr-3">
         <div className="grid gap-2">
           {filteredAgents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">

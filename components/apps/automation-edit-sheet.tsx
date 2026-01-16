@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Bot, Hash, Send, CheckCircle } from "lucide-react";
+import { Loader2, Bot, Hash, Send, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import type { Platform } from "./platform-automation-card";
@@ -150,6 +150,7 @@ export function AutomationEditSheet({
 
   // Telegram-specific state
   const [telegramChats, setTelegramChats] = useState<TelegramChat[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
   // Track the current chat name from existing config (for when chat isn't in list)
   const [existingTelegramChatName, setExistingTelegramChatName] = useState<
     string | null
@@ -180,6 +181,7 @@ export function AutomationEditSheet({
     setSelectedGuildName(null);
     setSelectedChannelName(null);
     setTelegramChats([]);
+    setIsScanning(false);
     setExistingTelegramChatName(null);
     setCharacters([]);
     setSelectedCharacterId(null);
@@ -220,13 +222,37 @@ export function AutomationEditSheet({
       let fetchedTelegramChats: TelegramChat[] = [];
 
       if (platform === "telegram") {
-        // Fetch Telegram chats
-        const chatsRes = await fetch("/api/v1/telegram/scan-chats");
+        // First try to get stored chats
+        const chatsRes = await fetch("/api/v1/telegram/scan-chats", {
+          credentials: "include",
+        });
         if (chatsRes.ok) {
           const chatsData = await chatsRes.json();
           fetchedTelegramChats = chatsData.chats || [];
-          setTelegramChats(fetchedTelegramChats);
+          console.log("[Telegram] Fetched stored chats:", fetchedTelegramChats);
+        } else {
+          const errText = await chatsRes.text().catch(() => "");
+          console.error("[Telegram] Failed to fetch chats:", chatsRes.status, errText);
         }
+
+        // If no chats found, trigger a scan to discover new chats
+        if (fetchedTelegramChats.length === 0) {
+          console.log("[Telegram] No stored chats, triggering scan...");
+          const scanRes = await fetch("/api/v1/telegram/scan-chats", {
+            method: "POST",
+            credentials: "include",
+          });
+          if (scanRes.ok) {
+            const scanData = await scanRes.json();
+            fetchedTelegramChats = scanData.chats || [];
+            console.log("[Telegram] Scan results:", scanData);
+          } else {
+            const errText = await scanRes.text().catch(() => "");
+            console.error("[Telegram] Scan failed:", scanRes.status, errText);
+          }
+        }
+
+        setTelegramChats(fetchedTelegramChats);
       }
 
       // If editing, fetch current config
@@ -334,6 +360,37 @@ export function AutomationEditSheet({
       return null;
     } finally {
       setIsLoadingChannels(false);
+    }
+  };
+
+  const scanTelegramChats = async () => {
+    setIsScanning(true);
+    try {
+      const scanRes = await fetch("/api/v1/telegram/scan-chats", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (scanRes.ok) {
+        const scanData = await scanRes.json();
+        const chats = scanData.chats || [];
+        setTelegramChats(chats);
+        console.log("[Telegram] Manual scan results:", scanData);
+        if (chats.length > 0) {
+          toast.success(`Found ${chats.length} chat(s)`);
+        } else {
+          toast.info(
+            "No chats found. Send a message in your Telegram group first, then scan again."
+          );
+        }
+      } else {
+        const errData = await scanRes.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to scan for chats");
+      }
+    } catch (error) {
+      console.error("[Telegram] Scan error:", error);
+      toast.error("Failed to scan for chats");
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -602,9 +659,26 @@ export function AutomationEditSheet({
             {/* Telegram: Channel/Group Selection */}
             {platform === "telegram" && (
               <div className="space-y-2.5">
-                <Label className="text-white/90 text-sm font-medium">
-                  Channel or Group
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-white/90 text-sm font-medium">
+                    Channel or Group
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={scanTelegramChats}
+                    disabled={isScanning}
+                    className="h-7 px-2 text-xs text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    {isScanning ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
+                    Scan
+                  </Button>
+                </div>
                 <Select
                   value={config.channelId || config.groupId || ""}
                   onValueChange={(value) => {
@@ -632,7 +706,7 @@ export function AutomationEditSheet({
                   <SelectContent className="bg-[#141414] border-white/10">
                     {telegramChats.filter((c) => c.canPost).length === 0 ? (
                       <div className="p-3 text-center text-white/40 text-sm">
-                        No channels or groups with post permissions
+                        No channels or groups found
                       </div>
                     ) : (
                       telegramChats
@@ -656,6 +730,14 @@ export function AutomationEditSheet({
                   Add your Telegram bot as admin to channels/groups where it
                   should post.
                 </p>
+                {telegramChats.length === 0 && (
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <span className="text-xs text-blue-400/90 leading-relaxed">
+                      <strong>Tip:</strong> Send a message in your Telegram
+                      group/channel first, then click &quot;Scan&quot; to discover it.
+                    </span>
+                  </div>
+                )}
                 {telegramChats.length > 0 &&
                   telegramChats.filter((c) => c.canPost).length === 0 && (
                     <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">

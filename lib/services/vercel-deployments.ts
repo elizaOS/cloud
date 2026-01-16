@@ -134,24 +134,17 @@ async function isSubdomainAvailableInDb(subdomain: string): Promise<boolean> {
 }
 
 /**
- * Check if a subdomain is available for assignment.
+ * Check if a subdomain is available
  *
- * IMPORTANT: We only check the local database, NOT Vercel's API.
- *
- * Why we removed the Vercel API check:
- * - The /v6/domains/{domain} endpoint checks TOP-LEVEL domain ownership, not subdomain availability
- * - When querying "myapp.apps.elizacloud.ai", Vercel returns info about the parent domain
- * - This caused ALL subdomains to appear "taken" (false negatives)
- * - Result: "Could not find available subdomain" error after 10 attempts
- *
- * Why local DB check is sufficient:
- * - We own the parent domain (apps.elizacloud.ai) in Vercel
- * - Subdomains are just aliases added to Vercel projects during deployment
- * - Our local DB (app_domains table) is the source of truth for subdomain assignments
- * - Vercel doesn't independently track/reserve subdomains under our wildcard domain
+ * We only check the local database because:
+ * 1. We own the parent domain (apps.elizacloud.ai) - subdomains are managed internally
+ * 2. Vercel's /v6/domains/ API checks domain registration, not project assignments
+ * 3. Subdomain assignment to Vercel projects happens later via addDomainToProject
+ * 4. The database is the source of truth for our subdomain allocations
  */
 async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
-  return isSubdomainAvailableInDb(subdomain);
+  // Only check local database - that's our source of truth for subdomain assignments
+  return await isSubdomainAvailableInDb(subdomain);
 }
 
 /**

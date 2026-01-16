@@ -91,7 +91,7 @@ export type AppBuilderEvent =
 // Constants
 // ============================================================================
 
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid compute max (800s)
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works

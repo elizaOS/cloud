@@ -14,6 +14,10 @@
  */
 
 import type { NextRequest } from "next/server";
+
+// Max duration for AI-powered code generation with tool execution
+// Fluid compute limits: Hobby 300s, Pro/Enterprise 800s
+export const maxDuration = 800;
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appBuilderAISDK } from "@/lib/services/app-builder-ai-sdk";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";

@@ -25,7 +25,13 @@ import {
   HistoryTab,
   SessionLoader,
   AgentPicker,
+  WebTerminal,
 } from "@/components/app-builder";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 async function fetchWithRetry(
@@ -106,6 +112,12 @@ import {
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
+import {
+  AnimatedCheck,
+  AnimatedCheckmark,
+  AnimatedOrbit,
+  AnimatedLoadingRing,
+} from "@/components/ui/animated-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -153,10 +165,13 @@ const ChatMessage = memo(function ChatMessage({
 
   return (
     <div
-      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message animate-scale-fade`}
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+      style={{
+        animation: 'messageSlideIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+      }}
     >
       <div
-        className={`relative ${
+        className={`relative transition-all duration-500 ease-out ${
           msg.role === "user"
             ? "max-w-[90%] xl:max-w-[85%] py-3 xl:py-3.5 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/15 to-[#FF5800]/5 border border-[#FF5800]/25 rounded-2xl rounded-tr-sm shadow-lg shadow-[#FF5800]/5"
             : isProcessing
@@ -166,23 +181,23 @@ const ChatMessage = memo(function ChatMessage({
       >
         {/* Subtle glow for processing messages */}
         {isProcessing && (
-          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10 animate-pulse" />
+          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10" />
         )}
 
         <div className="flex items-center justify-between mb-2 xl:mb-2.5">
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
               <div className="relative">
-                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-[#FF5800]" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-30" />
+                <AnimatedOrbit size={14} className="text-[#FF5800]" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-lg opacity-30" />
               </div>
             )}
             <span
               className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
                 msg.role === "user"
-                  ? "text-[#FF5800]/80"
+                  ? "text-white/70"
                   : isProcessing
-                    ? "text-[#FF5800]/70"
+                    ? "text-white/60"
                     : "text-white/40"
               }`}
               style={{ fontFamily: "var(--font-sf-pro)" }}
@@ -198,8 +213,8 @@ const ChatMessage = memo(function ChatMessage({
             {msgTime}
           </span>
         </div>
-        {/* Main content */}
-        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
+        {/* Main content with smooth text reveal */}
+        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto text-reveal">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -208,29 +223,39 @@ const ChatMessage = memo(function ChatMessage({
           </ReactMarkdown>
         </div>
 
-        {/* Per-operation accordions with reasoning */}
+        {/* Per-operation accordions with reasoning - smooth animated reveal */}
         {msg.role === "assistant" &&
           msg.operations &&
           msg.operations.length > 0 &&
           !isProcessing && (
-            <div className="mt-4 pt-3 border-t border-white/[0.06]">
+            <div 
+              className="mt-4 pt-3 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
                 Completed Operations
               </p>
-              <Accordion type="multiple" className="space-y-1">
+              <Accordion type="multiple" className="space-y-1.5">
                 {msg.operations.map((op, idx) => (
                   <AccordionItem
                     key={idx}
                     value={`op-${idx}`}
-                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden"
+                    className="operation-item border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors duration-300"
+                    style={{ animationDelay: `${idx * 80}ms` }}
                   >
-                    <AccordionTrigger className="px-3 py-2 text-[12px] hover:no-underline hover:bg-white/[0.02]">
-                      <div className="flex items-center gap-2 text-left w-full">
-                        <span className="text-emerald-400/80">✓</span>
-                        <span className="font-medium text-white/80">
+                    <AccordionTrigger className="px-3 py-2.5 text-[12px] hover:no-underline hover:bg-white/[0.03] transition-all duration-200">
+                      <div className="flex items-center gap-2.5 text-left w-full">
+                        <AnimatedCheck 
+                          size={14} 
+                          className="text-emerald-400 flex-shrink-0" 
+                          delay={idx * 80 + 200} 
+                        />
+                        <span className="font-medium text-white/85">
                           {op.tool}
                         </span>
-                        <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
+                        <span className="text-[10px] text-white/45 font-mono truncate max-w-[200px]">
                           {op.detail}
                         </span>
                         <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
@@ -240,7 +265,7 @@ const ChatMessage = memo(function ChatMessage({
                     </AccordionTrigger>
                     {op.reasoning && (
                       <AccordionContent className="px-3 pb-3">
-                        <div className="text-[11px] leading-[1.6] text-white/50 bg-black/20 rounded-md p-3 max-h-[200px] overflow-y-auto">
+                        <div className="reasoning-reveal text-[11px] leading-[1.6] text-white/55 bg-black/25 rounded-lg p-3.5 max-h-[200px] overflow-y-auto border border-white/[0.04]">
                           <pre className="whitespace-pre-wrap font-sans">
                             {op.reasoning}
                           </pre>
@@ -258,9 +283,16 @@ const ChatMessage = memo(function ChatMessage({
           msg.reasoning &&
           !msg.operations?.some((op) => op.reasoning) &&
           !isProcessing && (
-            <Accordion type="single" collapsible className="mt-3">
-              <AccordionItem value="reasoning" className="border-white/10">
-                <AccordionTrigger className="py-2 text-[11px] xl:text-[12px] text-white/40 hover:text-white/60 hover:no-underline font-medium">
+            <Accordion 
+              type="single" 
+              collapsible 
+              className="mt-3"
+              style={{
+                animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
+              <AccordionItem value="reasoning" className="border-white/10 operation-item">
+                <AccordionTrigger className="py-2.5 text-[11px] xl:text-[12px] text-white/45 hover:text-white/70 hover:no-underline font-medium transition-colors duration-200">
                   <span className="flex items-center gap-2">
                     <span className="text-[14px]">💭</span>
                     <span>View all reasoning</span>
@@ -269,7 +301,7 @@ const ChatMessage = memo(function ChatMessage({
                     </span>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="text-[12px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2 max-h-[300px] overflow-y-auto">
+                <AccordionContent className="reasoning-reveal text-[12px] leading-[1.6] text-white/55 bg-white/[0.02] rounded-lg px-3.5 py-3 max-h-[300px] overflow-y-auto border border-white/[0.04]">
                   <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
                     {msg.reasoning}
                   </pre>
@@ -281,7 +313,14 @@ const ChatMessage = memo(function ChatMessage({
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]">
+            <div 
+              className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                animationDelay: '200ms',
+                opacity: 0,
+              }}
+            >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
                 Try asking
               </p>
@@ -291,7 +330,8 @@ const ChatMessage = memo(function ChatMessage({
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation"
+                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation operation-item"
+                    style={{ animationDelay: `${300 + idx * 60}ms` }}
                   >
                     <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">
                       {prompt}
@@ -302,15 +342,23 @@ const ChatMessage = memo(function ChatMessage({
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]">
+          <div 
+            className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]"
+            style={{
+              animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              animationDelay: '100ms',
+              opacity: 0,
+            }}
+          >
             <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
               Modified
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {msg.filesAffected.map((file) => (
+              {msg.filesAffected.map((file, idx) => (
                 <span
                   key={file}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full"
+                  className="operation-item inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full hover:bg-[#FF5800]/18 transition-colors duration-200"
+                  style={{ animationDelay: `${150 + idx * 50}ms` }}
                 >
                   <FileCode className="h-2 w-2 flex-shrink-0 text-[#FF5800]/70" />
                   {file}
@@ -445,6 +493,7 @@ export default function AppCreatorPage() {
       detail: string;
       timestamp: string;
       status: "pending" | "active" | "done";
+      context?: string;
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
@@ -1430,9 +1479,50 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog, checkGitStatus]);
 
-  // No more complex auto-restore effect needed
-  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
-  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
+  // Auto-restore ref to prevent duplicate triggers
+  const autoRestoreTriggeredRef = useRef(false);
+
+  // Auto-restore when session times out - automatically restore sandbox if possible
+  useEffect(() => {
+    // Only trigger when status becomes "timeout"
+    if (status !== "timeout") {
+      // Reset the ref when status changes away from timeout
+      autoRestoreTriggeredRef.current = false;
+      return;
+    }
+
+    // Don't trigger if already restoring or already triggered
+    if (isRestoring || autoRestoreTriggeredRef.current) return;
+
+    // Don't trigger if no session
+    if (!session) return;
+
+    // Check if we can restore - either from snapshotInfo or directly from app's github repo
+    const canAutoRestore =
+      snapshotInfo?.canRestore ||
+      !!appSnapshotInfo?.githubRepo ||
+      !!appData?.github_repo;
+
+    if (canAutoRestore) {
+      // Mark as triggered to prevent re-entry
+      autoRestoreTriggeredRef.current = true;
+
+      // Auto-trigger restore after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        restoreSession();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    status,
+    session,
+    isRestoring,
+    snapshotInfo?.canRestore,
+    appSnapshotInfo?.githubRepo,
+    appData?.github_repo,
+    restoreSession,
+  ]);
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
@@ -1875,7 +1965,7 @@ Some ideas:
                       : reasoningText;
                   accumulateThinkingChunk(streamId, chunkText);
 
-                  // Schedule throttled UI update - show FULL reasoning text (no truncation!)
+                  // Schedule throttled UI update
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
                     let content = `**Setting up ${appName}**\n\n`;
                     if (sessionActionsLogRef.current.length > 0) {
@@ -1883,12 +1973,21 @@ Some ideas:
                         const statusMarker =
                           action.status === "active" ? "⏳" : "✓";
                         content += `${statusMarker} **${action.tool}**\n`;
-                        content += `> \`${action.detail}\`\n\n`;
+                        content += `> \`${action.detail}\`\n`;
+                        // Show reasoning inline with this action
+                        if (action.context) {
+                          const truncated =
+                            action.context.length > 150
+                              ? action.context.substring(0, 150).trim() + "..."
+                              : action.context;
+                          content += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                        }
+                        content += "\n";
                       });
                     }
-                    // Show FULL reasoning text - no truncation
+                    // Show current streaming reasoning (new text since last action)
                     if (accumulatedText.trim()) {
-                      content += `${accumulatedText}\n`;
+                      content += `💭 *${accumulatedText.trim()}*\n`;
                     }
 
                     setMessages((prev) =>
@@ -1915,7 +2014,13 @@ Some ideas:
                   ].status = "done";
                 }
 
-                // Add new action
+                // Capture current reasoning for this action (before clearing buffer)
+                const streamId = initialThinkingStreamIdRef.current;
+                const actionReasoning = streamId
+                  ? getThinkingText(streamId).trim()
+                  : undefined;
+
+                // Add new action WITH its reasoning context
                 sessionActionsLogRef.current.push({
                   tool: toolDisplay,
                   detail,
@@ -1926,7 +2031,11 @@ Some ideas:
                     second: "2-digit",
                   }),
                   status: "active",
+                  context: actionReasoning || undefined,
                 });
+
+                // Clear buffer - reasoning is now attached to this action
+                clearThinkingBuffer();
 
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
@@ -1936,13 +2045,22 @@ Some ideas:
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
 
-                  // Build organized content showing each action
+                  // Build organized content showing each action with its inline reasoning
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
                     progressContent += `${statusMarker} **${action.tool}**\n`;
-                    progressContent += `> \`${action.detail}\`\n\n`;
+                    progressContent += `> \`${action.detail}\`\n`;
+                    // Show reasoning inline with this action
+                    if (action.context) {
+                      const truncated =
+                        action.context.length > 150
+                          ? action.context.substring(0, 150).trim() + "..."
+                          : action.context;
+                      progressContent += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                    }
+                    progressContent += "\n";
                   });
 
                   setMessages((prev) =>
@@ -1971,19 +2089,30 @@ Some ideas:
                     action.status = "done";
                   });
 
+                  // Generate clean summary based on what was done
+                  // AI's raw output goes in reasoning accordion for transparency
+                  const result = data.session.initialPromptResult;
+                  const fileCount = result.filesAffected?.length || 0;
+                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
+
                   let assistantContent = "";
-                  if (data.session.initialPromptResult.output) {
-                    assistantContent += data.session.initialPromptResult.output;
+                  if (hasBuildErrors) {
+                    assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (fileCount > 0) {
+                    assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
+                  } else {
+                    assistantContent = `I've set up your app! Check out the preview to see it in action.`;
                   }
 
-                  if (sessionActionsLogRef.current.length > 0) {
-                    assistantContent +=
-                      "\n\n---\n\n**Completed Operations**\n\n";
-                    sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `✓ **${action.tool}**\n`;
-                      assistantContent += `> \`${action.detail}\`\n\n`;
-                    });
-                  }
+                  // Build operations array for accordion display (same format as sendPrompt)
+                  const operations = sessionActionsLogRef.current.map(
+                    (action) => ({
+                      tool: action.tool,
+                      detail: action.detail,
+                      timestamp: action.timestamp,
+                      reasoning: action.context, // Per-action reasoning
+                    }),
+                  );
 
                   setMessages((prev) =>
                     prev.map((m) => {
@@ -1997,6 +2126,9 @@ Some ideas:
                         return {
                           ...rest,
                           content: assistantContent,
+                          operations, // Operations array for accordions
+                          reasoning:
+                            data.session.initialPromptResult.reasoning, // Fallback reasoning
                           filesAffected:
                             data.session.initialPromptResult.filesAffected,
                         };
@@ -2074,6 +2206,7 @@ Some ideas:
     // - No active session
     // - Not currently loading/restoring
     // - Haven't already triggered auto-start
+    // - Initialization is complete (prevents race condition on page refresh)
     if (
       isEditMode &&
       appData &&
@@ -2081,6 +2214,7 @@ Some ideas:
       status === "idle" &&
       !isLoading &&
       !isRestoring &&
+      !isInitializing &&
       !autoStartTriggeredRef.current
     ) {
       autoStartTriggeredRef.current = true;
@@ -2098,6 +2232,7 @@ Some ideas:
     status,
     isLoading,
     isRestoring,
+    isInitializing,
     startSession,
   ]);
 
@@ -2155,21 +2290,37 @@ Some ideas:
           if (currentStatus) {
             content += `*${currentStatus}*`;
           } else if (currentThinkingPreview) {
-            content += `*Thinking...*`;
+            // Show actual reasoning text inline during planning phase
+            content += `💭 *${currentThinkingPreview}*`;
           }
         }
 
-        // Show clean operations list
+        // Show operations list with reasoning context
         if (actionsLog.length > 0) {
-          actionsLog.forEach((action) => {
+          actionsLog.forEach((action, idx) => {
             const isActive =
               action.status === "active" || action.status === "pending";
             const statusIcon = isActive ? "⏳" : "✓";
 
-            // Clean action display - just status, tool, and detail
+            // Action display with status, tool, detail, and timestamp
             content += `${statusIcon} **${action.tool}**\n`;
-            content += `> \`${action.detail}\`\n\n`;
+            content += `\`${action.detail}\`\n`;
+            content += `*${action.timestamp}*\n`;
+
+            // Show reasoning context if available (the "why" behind this action)
+            if (action.context) {
+              // Truncate long reasoning for cleaner display during build
+              const truncatedContext =
+                action.context.length > 200
+                  ? action.context.substring(0, 200).trim() + "..."
+                  : action.context;
+              content += `> 💭 ${truncatedContext.replace(/\n/g, " ")}\n`;
+            }
+            content += "\n";
           });
+
+          // Note: Reasoning is shown inline with each action via action.context
+          // We don't show a separate thinking preview blob at the bottom to avoid duplication
         }
 
         return content || "**Processing your request**\n\n*Analyzing...*";
@@ -2311,16 +2462,20 @@ Some ideas:
                   } = formatToolDisplay(toolName, data.input);
 
                   // Add as pending action WITH reasoning context for accordion display
+                  // Use server's reasoningContext, fallback to client's accumulated thinking
+                  const reasoningForAction =
+                    data.reasoningContext || currentThinkingPreview || undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
                     status: "pending",
-                    context: data.reasoningContext || undefined, // Reasoning that led to this tool
+                    context: reasoningForAction,
                   });
 
-                  // Clear preview - tool action now takes focus
+                  // Clear preview AND throttled buffer - reasoning is now attached to action
                   currentThinkingPreview = "";
+                  clearThinkingBuffer(); // Reset the accumulator so we don't duplicate
 
                   updateThinking(`⏳ ${statusMessage}`);
                 } else if (eventType === "tool_use") {
@@ -2388,19 +2543,20 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
-              // Build clean content - NO reasoning mixed in!
-              let content = "";
+              // Generate clean summary based on what was done
+              // AI's raw output goes in reasoning accordion for transparency
+              const fileCount = finalData.filesAffected?.length || 0;
+              const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
 
-              // Final output should be a clean summary, not accumulated reasoning
-              if (finalData.output && finalData.output.trim()) {
-                content += finalData.output.trim();
+              let content = "";
+              if (hasBuildErrors) {
+                content = `I've made changes but encountered some build errors.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+              } else if (fileCount > 0) {
+                content = `Done! I've updated ${fileCount} file${fileCount !== 1 ? "s" : ""}. Check out the preview to see the changes.`;
+              } else if (actionsLog.length > 0) {
+                content = "I've completed your request.";
               } else {
-                // If no clean output, generate a summary based on actions
-                if (actionsLog.length > 0) {
-                  content = "I've completed your request.";
-                } else {
-                  content = "Done!";
-                }
+                content = "Done!";
               }
 
               // Build operations list with per-action reasoning for accordions
@@ -4618,94 +4774,154 @@ ANTHROPIC_API_KEY=your_key_here`}
               </div>
             )}
 
-            {/* Console tab - Premium */}
+            {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (
-              <div
-                ref={consoleLogsRef}
-                className="h-full bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25 animate-in fade-in duration-200"
+              <ResizablePanelGroup
+                direction="vertical"
+                className="h-full animate-in fade-in duration-200"
               >
-                {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/25">
-                    <div className="text-center">
-                      <div className="relative inline-block mb-4">
-                        <Terminal className="h-10 w-10 mx-auto opacity-40" />
-                        <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                {/* Logs Panel - Top */}
+                <ResizablePanel defaultSize={60} minSize={20}>
+                  <div className="h-full flex flex-col">
+                    {/* Logs Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/20">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500/70 animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Logs
+                        </span>
+                        {consoleLogs.length > 0 && (
+                          <span className="text-[10px] text-white/30 tabular-nums">
+                            ({consoleLogs.length})
+                          </span>
+                        )}
                       </div>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ fontFamily: "var(--font-sf-pro)" }}
-                      >
-                        Console is empty
-                      </p>
-                      <p className="text-xs text-white/15 mt-1">
-                        Logs will appear here during builds
-                      </p>
+                    </div>
+                    {/* Logs Content */}
+                    <div
+                      ref={consoleLogsRef}
+                      className="flex-1 bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+                    >
+                      {consoleLogs.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-white/25">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-4">
+                              <Terminal className="h-8 w-8 mx-auto opacity-40" />
+                              <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                            </div>
+                            <p
+                              className="text-xs font-medium"
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
+                            >
+                              No logs yet
+                            </p>
+                            <p className="text-[10px] text-white/15 mt-1">
+                              Logs will appear here during builds
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-0.5">
+                          {consoleLogs.map((log, i) => {
+                            let colorClass = "text-white/60";
+                            let bgClass = "";
+
+                            if (log.includes("[info]")) {
+                              colorClass = "text-blue-400";
+                            } else if (log.includes("[success]")) {
+                              colorClass = "text-green-400";
+                            } else if (
+                              log.includes("[error]") ||
+                              log.includes("Error") ||
+                              log.includes("error")
+                            ) {
+                              colorClass = "text-red-400";
+                              bgClass = "bg-red-500/10";
+                            } else if (
+                              log.includes("[warning]") ||
+                              log.includes("Warning")
+                            ) {
+                              colorClass = "text-yellow-400";
+                              bgClass = "bg-yellow-500/5";
+                            } else if (log.includes("Progress:")) {
+                              colorClass = "text-purple-400";
+                            } else if (
+                              log.includes("GET ") ||
+                              log.includes("POST ") ||
+                              log.includes("PUT ") ||
+                              log.includes("DELETE ")
+                            ) {
+                              if (log.includes(" 2")) {
+                                colorClass = "text-green-400/70";
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                                colorClass = "text-red-400/70";
+                              } else {
+                                colorClass = "text-cyan-400/70";
+                              }
+                            } else if (
+                              log.includes("Next.js") ||
+                              log.includes("Turbopack")
+                            ) {
+                              colorClass = "text-white/80";
+                            }
+
+                            return (
+                              <div
+                                key={i}
+                                className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                              >
+                                <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
+                                  {i + 1}
+                                </span>
+                                <pre
+                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
+                                >
+                                  {log}
+                                </pre>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 space-y-1">
-                    {consoleLogs.map((log, i) => {
-                      let colorClass = "text-white/60";
-                      let bgClass = "";
+                </ResizablePanel>
 
-                      if (log.includes("[info]")) {
-                        colorClass = "text-blue-400";
-                      } else if (log.includes("[success]")) {
-                        colorClass = "text-green-400";
-                      } else if (
-                        log.includes("[error]") ||
-                        log.includes("Error") ||
-                        log.includes("error")
-                      ) {
-                        colorClass = "text-red-400";
-                        bgClass = "bg-red-500/10";
-                      } else if (
-                        log.includes("[warning]") ||
-                        log.includes("Warning")
-                      ) {
-                        colorClass = "text-yellow-400";
-                        bgClass = "bg-yellow-500/5";
-                      } else if (log.includes("Progress:")) {
-                        colorClass = "text-purple-400";
-                      } else if (
-                        log.includes("GET ") ||
-                        log.includes("POST ") ||
-                        log.includes("PUT ") ||
-                        log.includes("DELETE ")
-                      ) {
-                        if (log.includes(" 2")) {
-                          colorClass = "text-green-400/70";
-                        } else if (log.includes(" 4") || log.includes(" 5")) {
-                          colorClass = "text-red-400/70";
-                        } else {
-                          colorClass = "text-cyan-400/70";
-                        }
-                      } else if (
-                        log.includes("Next.js") ||
-                        log.includes("Turbopack")
-                      ) {
-                        colorClass = "text-white/80";
-                      }
+                {/* Resizable Handle */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-white/[0.04] hover:bg-[#FF5800]/30 transition-colors data-[resize-handle-active]:bg-[#FF5800]/50"
+                />
 
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
-                        >
-                          <span className="text-white/20 select-none w-5 text-right shrink-0">
-                            {i + 1}
-                          </span>
-                          <pre
-                            className={`whitespace-pre-wrap break-all ${colorClass}`}
-                          >
-                            {log}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                {/* Terminal Panel - Bottom */}
+                <ResizablePanel defaultSize={40} minSize={15}>
+                  <div className="h-full flex flex-col">
+                    {/* Terminal Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="h-3 w-3 text-[#FF5800]" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Terminal
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-white/20">
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                        </span>
+                      </div>
+                    </div>
+                    {/* Terminal Content */}
+                    <div className="flex-1 min-h-0">
+                      <WebTerminal
+                        sessionId={session?.id}
+                        sandboxUrl={session?.sandboxUrl}
+                        disabled={!session}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             )}
           </div>
         </div>
