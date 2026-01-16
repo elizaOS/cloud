@@ -9,8 +9,9 @@ import {
 import { appsRepository, type App } from "@/db/repositories/apps";
 import { appEarningsRepository } from "@/db/repositories/app-earnings";
 import { apps } from "@/db/schemas/apps";
+import { appCreditBalances } from "@/db/schemas/app-credit-balances";
 import { dbWrite } from "@/db/helpers";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { usersRepository } from "@/db/repositories/users";
 import { redeemableEarningsService } from "./redeemable-earnings";
@@ -525,16 +526,75 @@ export class AppCreditsService {
     }
 
     // CHARGE: Actual was more than estimated
+    // Use a single transaction with row-level locking to prevent race conditions
     const additionalCharge = totalCostDifference;
 
-    const result = await appCreditBalancesRepository.deductCredits(
-      appId,
-      userId,
-      additionalCharge
-    );
+    const result = await dbWrite.transaction(async (tx) => {
+      // Lock the balance row to prevent concurrent modifications
+      const [balance] = await tx
+        .select()
+        .from(appCreditBalances)
+        .where(
+          and(
+            eq(appCreditBalances.app_id, appId),
+            eq(appCreditBalances.user_id, userId)
+          )
+        )
+        .for("update");
+
+      if (!balance) {
+        return {
+          success: false,
+          newBalance: 0,
+        };
+      }
+
+      const currentBalance = Number(balance.credit_balance);
+
+      if (currentBalance < additionalCharge) {
+        return {
+          success: false,
+          newBalance: currentBalance,
+        };
+      }
+
+      const newBalance = currentBalance - additionalCharge;
+
+      // Deduct credits
+      await tx
+        .update(appCreditBalances)
+        .set({
+          credit_balance: String(newBalance),
+          total_spent: sql`${appCreditBalances.total_spent} + ${additionalCharge}`,
+          updated_at: new Date(),
+        })
+        .where(
+          and(
+            eq(appCreditBalances.app_id, appId),
+            eq(appCreditBalances.user_id, userId)
+          )
+        );
+
+      // Update app revenue counters atomically with credit deduction
+      if (app.monetization_enabled && creatorMarkupDifference > 0) {
+        await tx
+          .update(apps)
+          .set({
+            total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
+            total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
+            updated_at: new Date(),
+          })
+          .where(eq(apps.id, appId));
+      }
+
+      return {
+        success: true,
+        newBalance,
+      };
+    });
 
     if (result.success) {
-      // Also record additional creator earnings if monetization enabled
+      // Record earnings audit trail outside transaction (non-critical for financial consistency)
       if (app.monetization_enabled && creatorMarkupDifference > 0) {
         await this.recordCreatorEarnings(
           appId,
@@ -548,15 +608,6 @@ export class AppCreditsService {
             ...metadata,
           }
         );
-
-        await dbWrite
-          .update(apps)
-          .set({
-            total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
-            total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
-            updated_at: new Date(),
-          })
-          .where(eq(apps.id, appId));
       }
 
       logger.info("[AppCredits] Reconciliation: Charged additional", {
