@@ -186,9 +186,10 @@ export async function GET(
       ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90)
       : 30;
 
-    // Check for testData flag - only via URL parameter, not persisted
+    // Check for testData flag - ONLY allowed in development mode
     const testDataParam = request.nextUrl.searchParams.get("testData");
-    const useTestData = testDataParam === "true";
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const useTestData = isDevelopment && testDataParam === "true";
 
     const app = await appsService.getById(id);
 
