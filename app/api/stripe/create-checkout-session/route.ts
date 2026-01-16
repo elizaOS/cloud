@@ -224,6 +224,11 @@ async function handleCheckoutSession(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: sessionMetadata,
+      // Copy metadata to PaymentIntent so checkout_failed webhook can track failures
+      // Stripe doesn't automatically copy session metadata to the PaymentIntent
+      payment_intent_data: {
+        metadata: sessionMetadata,
+      },
     });
 
     logger.debug("[Stripe Checkout] Session created", {
