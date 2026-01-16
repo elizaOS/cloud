@@ -593,8 +593,11 @@ async function handleStripeWebhook(req: NextRequest) {
           lastPaymentError?.code ||
           "Payment failed";
 
-        if (userId && orgId) {
-          trackServerEvent(userId, "checkout_failed", {
+        // Use org-prefixed ID as fallback when user ID is missing (matches auto-top-up pattern)
+        const trackingId = userId || (orgId ? `org:${orgId}` : null);
+        
+        if (trackingId && orgId) {
+          trackServerEvent(trackingId, "checkout_failed", {
             payment_method: "stripe",
             amount: intendedCredits || undefined,
             currency: paymentIntent.currency || "usd",

@@ -57,6 +57,8 @@ export type PostHogEvent =
   | "auto_topup_triggered"
   | "auto_topup_completed"
   | "auto_topup_failed"
+  // Checkout Funnel Events
+  | "checkout_attempted"
   // Success/Invoice Events
   | "payment_success_viewed"
   | "invoice_viewed"
@@ -197,6 +199,7 @@ export interface CheckoutCompletedProps {
   network?: string;
   token?: string;
   track_id?: string;
+  validation_error?: boolean;
 }
 
 export interface CheckoutFailedProps {
@@ -244,6 +247,7 @@ export interface CryptoPaymentConfirmedProps {
   token: string;
   track_id: string;
   tx_hash?: string;
+  validation_error?: boolean;
 }
 
 export interface CryptoPaymentExpiredProps {
@@ -291,6 +295,13 @@ export interface AutoTopupFailedProps {
   organization_id: string;
   amount: number;
   error_reason: string;
+}
+
+// Checkout Funnel Events
+export interface CheckoutAttemptedProps {
+  payment_method: PaymentMethod;
+  amount?: number;
+  organization_id: string;
 }
 
 // Success/Invoice Events
@@ -359,6 +370,8 @@ export type EventProperties =
   | AutoTopupTriggeredProps
   | AutoTopupCompletedProps
   | AutoTopupFailedProps
+  // Checkout Funnel Events
+  | CheckoutAttemptedProps
   // Success/Invoice Events
   | PaymentSuccessViewedProps
   | InvoiceViewedProps;

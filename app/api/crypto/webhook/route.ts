@@ -75,14 +75,14 @@ function getWebhookHmacSecret(): string | null {
 function verifyOxaPaySignature(
   payload: string,
   signature: string | null,
-  ip: string,
+  ip: string
 ): boolean {
   const secret = getWebhookHmacSecret();
 
   if (!secret) {
     logger.error(
       "[Crypto Webhook] HMAC secret not configured - OXAPAY_MERCHANT_API_KEY is required for webhook verification",
-      { ip: redact.ip(ip) },
+      { ip: redact.ip(ip) }
     );
     return false;
   }
@@ -128,7 +128,7 @@ function verifyOxaPaySignature(
 function generateWebhookEventId(
   trackId: string,
   status: string,
-  payloadHash: string,
+  payloadHash: string
 ): string {
   return `oxapay_${trackId}_${status}_${payloadHash}`;
 }
@@ -144,7 +144,7 @@ async function handleWebhook(req: NextRequest) {
       {
         ip: redact.ip(ip),
         allowlistConfigured: allowedIps.length > 0,
-      },
+      }
     );
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -156,7 +156,7 @@ async function handleWebhook(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Service unavailable" },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -165,11 +165,11 @@ async function handleWebhook(req: NextRequest) {
     if (!auditHashKey) {
       logger.error(
         "[Crypto Webhook] OXAPAY_MERCHANT_API_KEY is required when crypto payments are enabled",
-        { ip: redact.ip(ip) },
+        { ip: redact.ip(ip) }
       );
       return NextResponse.json(
         { error: "Service misconfigured" },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -191,7 +191,7 @@ async function handleWebhook(req: NextRequest) {
           ip: redact.ip(ip),
           payloadHash,
           hasSignature: !!signature,
-        },
+        }
       );
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -219,14 +219,14 @@ async function handleWebhook(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     // Validate webhook timestamp to prevent replay attacks
     const webhookTimestampMs = extractWebhookTimestamp(
       timestampHeader,
-      payload,
+      payload
     );
     const timestampValidation = validateWebhookTimestamp(webhookTimestampMs);
     if (!timestampValidation.isValid) {
@@ -237,11 +237,11 @@ async function handleWebhook(req: NextRequest) {
           payloadHash,
           trackId: redact.trackId(normalizedPayload.trackId),
           error: timestampValidation.error,
-        },
+        }
       );
       return NextResponse.json(
         { error: `Webhook rejected: ${timestampValidation.error}` },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -249,7 +249,7 @@ async function handleWebhook(req: NextRequest) {
     const eventId = generateWebhookEventId(
       normalizedPayload.trackId,
       normalizedPayload.status,
-      payloadHash,
+      payloadHash
     );
 
     // Atomic deduplication: Try to insert first, handle duplicate error.
@@ -294,11 +294,7 @@ async function handleWebhook(req: NextRequest) {
       eventId,
     });
 
-    // Look up payment details for analytics tracking
-    const payment = await cryptoPaymentsRepository.findByTrackId(
-      normalizedPayload.trackId,
-    );
-
+    // Process the webhook first - this is the critical path
     const result = await cryptoPaymentsService.handleWebhook({
       track_id: normalizedPayload.trackId,
       status: normalizedPayload.status,
@@ -315,93 +311,134 @@ async function handleWebhook(req: NextRequest) {
       eventId,
     });
 
-    // Track PostHog events based on webhook status
-    if (!payment) {
-      logger.warn("[Crypto Webhook] Cannot track analytics - payment not found", {
-        trackId: normalizedPayload.trackId,
-      });
-    } else if (!payment.user_id) {
-      logger.warn("[Crypto Webhook] Cannot track analytics - missing user_id", {
-        trackId: normalizedPayload.trackId,
-        paymentId: payment.id,
-      });
-    }
+    // Analytics tracking - only fetch payment data for statuses that need it
+    // Wrapped in try-catch to prevent database issues from affecting payment response
+    const statusLower = normalizedPayload.status.toLowerCase();
+    const needsPaymentLookup = [
+      "paid",
+      "complete",
+      "confirmed",
+      "expired",
+      "failed",
+      "rejected",
+      "underpaid",
+    ].includes(statusLower);
 
-    if (payment?.user_id) {
-      const statusLower = normalizedPayload.status.toLowerCase();
+    if (needsPaymentLookup) {
+      let payment: Awaited<
+        ReturnType<typeof cryptoPaymentsRepository.findByTrackId>
+      > | null = null;
+      try {
+        payment = await cryptoPaymentsRepository.findByTrackId(
+          normalizedPayload.trackId
+        );
+      } catch (analyticsError) {
+        logger.warn("[Crypto Webhook] Failed to fetch payment for analytics", {
+          trackId: normalizedPayload.trackId,
+          error:
+            analyticsError instanceof Error
+              ? analyticsError.message
+              : "Unknown error",
+        });
+      }
 
-      if (
-        statusLower === "paid" ||
-        statusLower === "complete" ||
-        statusLower === "confirmed"
-      ) {
-        // Payment confirmed - track success events
-        // Validate and parse amount - prefer webhook amount, fallback to stored credits
-        const webhookAmount = normalizedPayload.amount;
-        const storedCredits = Number(payment.credits_to_add);
-        const creditsAdded = Number.isFinite(webhookAmount) && webhookAmount > 0 
-          ? webhookAmount 
-          : (Number.isFinite(storedCredits) && storedCredits > 0 ? storedCredits : 0);
-
-        if (creditsAdded <= 0) {
-          logger.warn("[Crypto Webhook] Skipping analytics - invalid amount", {
+      if (!payment) {
+        logger.warn(
+          "[Crypto Webhook] Cannot track analytics - payment not found",
+          {
             trackId: normalizedPayload.trackId,
-            webhookAmount,
-            storedCredits,
+          }
+        );
+      } else if (!payment.user_id) {
+        logger.warn(
+          "[Crypto Webhook] Cannot track analytics - missing user_id",
+          {
+            trackId: normalizedPayload.trackId,
+            paymentId: payment.id,
+          }
+        );
+      } else {
+        // Map crypto status to descriptive error reason for consistency with Stripe
+        const getErrorReason = (status: string): string => {
+          const errorMap: Record<string, string> = {
+            failed: "Crypto payment failed",
+            rejected: "Crypto payment rejected by network",
+            underpaid: "Insufficient payment amount received",
+          };
+          return errorMap[status] || `Crypto payment ${status}`;
+        };
+
+        if (
+          statusLower === "paid" ||
+          statusLower === "complete" ||
+          statusLower === "confirmed"
+        ) {
+          // Payment confirmed - track success events
+          const webhookAmount = normalizedPayload.amount ?? 0;
+          const storedCredits = Number(payment.credits_to_add);
+          const creditsAdded =
+            Number.isFinite(webhookAmount) && webhookAmount > 0
+              ? webhookAmount
+              : Number.isFinite(storedCredits) && storedCredits > 0
+                ? storedCredits
+                : 0;
+
+          // Track even with invalid amount, but flag it for investigation
+          const hasValidationError = creditsAdded <= 0;
+          if (hasValidationError) {
+            logger.warn("[Crypto Webhook] Tracking with invalid amount", {
+              trackId: normalizedPayload.trackId,
+              webhookAmount,
+              storedCredits,
+            });
+          }
+
+          trackServerEvent(payment.user_id, "crypto_payment_confirmed", {
+            payment_method: "crypto",
+            amount: creditsAdded,
+            currency: STRIPE_CURRENCY,
+            organization_id: payment.organization_id,
+            credits_added: creditsAdded,
+            network: payment.network,
+            token: payment.token,
+            track_id: normalizedPayload.trackId,
+            tx_hash: normalizedPayload.txID,
+            validation_error: hasValidationError || undefined,
           });
-          // Skip tracking events with zero/invalid amounts
-          return new Response("ok", {
-            status: 200,
-            headers: { "Content-Type": "text/plain" },
+
+          trackServerEvent(payment.user_id, "checkout_completed", {
+            payment_method: "crypto",
+            amount: creditsAdded,
+            currency: STRIPE_CURRENCY,
+            organization_id: payment.organization_id,
+            purchase_type: "custom_amount",
+            credits_added: creditsAdded,
+            network: payment.network,
+            token: payment.token,
+            track_id: normalizedPayload.trackId,
+            validation_error: hasValidationError || undefined,
+          });
+        } else if (statusLower === "expired") {
+          trackServerEvent(payment.user_id, "crypto_payment_expired", {
+            payment_id: payment.id,
+            track_id: normalizedPayload.trackId,
+            organization_id: payment.organization_id,
+            amount: Number(payment.expected_amount),
+          });
+        } else if (
+          statusLower === "failed" ||
+          statusLower === "rejected" ||
+          statusLower === "underpaid"
+        ) {
+          trackServerEvent(payment.user_id, "checkout_failed", {
+            payment_method: "crypto",
+            amount: Number(payment.expected_amount),
+            currency: STRIPE_CURRENCY,
+            organization_id: payment.organization_id,
+            purchase_type: "custom_amount",
+            error_reason: getErrorReason(statusLower),
           });
         }
-
-        trackServerEvent(payment.user_id, "crypto_payment_confirmed", {
-          payment_method: "crypto",
-          amount: creditsAdded,
-          currency: STRIPE_CURRENCY,
-          organization_id: payment.organization_id,
-          credits_added: creditsAdded,
-          network: payment.network,
-          token: payment.token,
-          track_id: normalizedPayload.trackId,
-          tx_hash: normalizedPayload.txID,
-        });
-
-        // Also track unified checkout_completed
-        trackServerEvent(payment.user_id, "checkout_completed", {
-          payment_method: "crypto",
-          amount: creditsAdded,
-          currency: STRIPE_CURRENCY,
-          organization_id: payment.organization_id,
-          purchase_type: "custom_amount",
-          credits_added: creditsAdded,
-          network: payment.network,
-          token: payment.token,
-          track_id: normalizedPayload.trackId,
-        });
-      } else if (statusLower === "expired") {
-        // Payment expired
-        trackServerEvent(payment.user_id, "crypto_payment_expired", {
-          payment_id: payment.id,
-          track_id: normalizedPayload.trackId,
-          organization_id: payment.organization_id,
-          amount: Number(payment.expected_amount),
-        });
-      } else if (
-        statusLower === "failed" ||
-        statusLower === "rejected" ||
-        statusLower === "underpaid"
-      ) {
-        // Payment failed
-        trackServerEvent(payment.user_id, "checkout_failed", {
-          payment_method: "crypto",
-          amount: Number(payment.expected_amount),
-          currency: STRIPE_CURRENCY,
-          organization_id: payment.organization_id,
-          purchase_type: "custom_amount",
-          error_reason: normalizedPayload.status,
-        });
       }
     }
 

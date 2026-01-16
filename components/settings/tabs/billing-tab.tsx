@@ -107,6 +107,16 @@ export function BillingTab({ user }: BillingTabProps) {
   const handleBuyCredits = async () => {
     const amount = parseFloat(purchaseAmount);
 
+    // Track checkout attempt on button click for drop-off analysis
+    // This fires before validation to capture all user intent
+    if (user.organization_id) {
+      trackEvent("checkout_attempted", {
+        payment_method: paymentMethod === "card" ? "stripe" : "crypto",
+        amount: Number.isNaN(amount) ? undefined : amount,
+        organization_id: user.organization_id,
+      });
+    }
+
     if (isNaN(amount) || amount < AMOUNT_LIMITS.MIN) {
       toast.error(`Minimum amount is $${AMOUNT_LIMITS.MIN}`);
       return;
