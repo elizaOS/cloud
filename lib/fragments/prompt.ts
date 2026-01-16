@@ -195,47 +195,81 @@ src/
 └── types/            # TypeScript types
 \`\`\`
 
-## WORKFLOW - WRITE FILES IMMEDIATELY
-**CRITICAL:** Write each file AS SOON AS it's ready. Do NOT batch files or save page.tsx for last.
-Users see live updates - make them frequent!
+## WORKFLOW - DEPENDENCY-FIRST FILE WRITING
+**CRITICAL: NEVER import files that don't exist yet!**
 
-1. \`install_packages\` for dependencies FIRST
-2. **SDK is pre-configured** - Just import from \`@/lib/eliza\` and \`@/hooks/use-eliza\`
-3. **WRITE layout.tsx IMMEDIATELY** with unique metadata (see below)
-4. **WRITE page.tsx EARLY** - even a basic version, then iterate
-5. Write each component file RIGHT AFTER planning it - don't batch!
-6. Do NOT check_build after every file - HMR auto-refreshes!
-7. **FINAL STEP (REQUIRED):** Run \`check_build\` or \`bun run build\` ONCE at the very end
+The sandbox runs a live dev server. Every file write triggers HMR. If you import a non-existent file, the build BREAKS and users see errors.
 
-**FILE ORDER - Write in this sequence for best user experience:**
-1. layout.tsx (with metadata) - users see app title immediately
-2. page.tsx (even basic) - users see content appear
-3. Components one by one - users see UI building up
-4. Styles/refinements - users see polish happening
+### MANDATORY WORKFLOW:
+1. **PLAN FIRST** - Before writing ANY file, mentally map out ALL imports it needs
+2. **INSTALL PACKAGES** - Run \`install_packages\` for any npm dependencies BEFORE importing them
+3. **WRITE LEAF DEPENDENCIES FIRST** - Components/utilities with NO local imports
+4. **WRITE INTERMEDIATE FILES** - Files that import only from already-written files
+5. **WRITE PAGE/LAYOUT LAST** - These typically import the most local files
 
-## KEEP BUILD WORKING - CRITICAL
-**NEVER leave the build in a broken state!**
-- Do NOT import files that don't exist yet
-- Write dependencies BEFORE the files that import them
-- If page.tsx imports a component, write the component FIRST
-- Each file write should result in a working build
-- HMR will auto-refresh - no need to check_build after every file!
+### CORRECT EXAMPLE - Toad Catching Game:
+\`\`\`
+Step 1: install_packages ["lucide-react", "framer-motion"]
+Step 2: Write src/components/Toad.tsx (no local imports)
+Step 3: Write src/components/GameBoard.tsx (imports Toad)
+Step 4: Write src/components/ScoreBoard.tsx (no local imports)
+Step 5: Write src/components/GameOver.tsx (no local imports)
+Step 6: Write src/app/layout.tsx (no local component imports)
+Step 7: Write src/app/page.tsx (imports GameBoard, ScoreBoard, GameOver)
+Step 8: check_build
+\`\`\`
 
-**CORRECT ORDER:**
-1. Write \`components/header.tsx\` first
-2. THEN write \`page.tsx\` that imports Header
-3. Continue building...
+### WRONG EXAMPLE (causes build errors!):
+\`\`\`
+Step 1: Write src/app/page.tsx with:
+        import GameBoard from '@/components/GameBoard';  // ❌ DOESN'T EXIST YET!
+        import ScoreBoard from '@/components/ScoreBoard'; // ❌ DOESN'T EXIST YET!
+        // BUILD BREAKS IMMEDIATELY - bad UX!
+Step 2: Write GameBoard.tsx to fix... // Too late, error already shown
+\`\`\`
 
-**WRONG ORDER (causes broken build):**
-1. Write \`page.tsx\` with \`import { Header } from '@/components/header'\`
-2. Build breaks because header.tsx doesn't exist yet!
-3. Then write header.tsx to fix - BAD UX!
+### SIMPLE RULE:
+**Before writing \`import X from '@/components/X'\`, the file \`@/components/X\` MUST already exist.**
+
+### EXCEPTIONS (pre-existing files you CAN import immediately):
+- \`@/lib/eliza\` - Eliza SDK (pre-built)
+- \`@/hooks/use-eliza\` - Eliza hooks (pre-built)
+- \`@/components/eliza\` - Eliza components (pre-built)
+- \`@/lib/utils\` - Utility functions (pre-built)
+- Any npm packages after \`install_packages\`
+
+### LAYOUT.TSX - Write Early (has no local component imports)
+layout.tsx only imports from pre-built paths and npm packages, so write it early:
+\`\`\`tsx
+import { ElizaProvider } from '@/components/eliza';  // ✅ Pre-built
+import { Analytics } from '@vercel/analytics/next';   // ✅ npm package
+import './globals.css';                               // ✅ Always exists
+\`\`\`
+
+### DO NOT:
+- Batch all files and write them at the end
+- Write page.tsx before its component dependencies
+- Import from paths you haven't written yet
+- Run check_build after every file (HMR handles it)
 
 ## BUILD CHECKS - ONLY AT THE END
 - Do NOT run \`check_build\` after every file - it's slow!
 - HMR handles hot reloading automatically
 - Only run \`check_build\` or \`bun run build\` at the VERY END when all files are written
 - Trust that writing dependencies first keeps things working
+
+## FINAL SUMMARY - REQUIRED
+After completing all file operations and the build passes, write a brief, natural summary message (1-3 sentences) that:
+- Describes what was built or changed in plain language
+- Highlights the key features or improvements made
+- Invites the user to check out the preview
+
+Examples of good summaries:
+- "I've created a sleek dating app with swipeable profiles, a match notification system, and a chat interface. The dark theme with orange accents gives it a modern feel!"
+- "Updated the footer with better navigation structure and added social media links. The layout is now more responsive on mobile devices."
+- "Built out the landing page with an animated hero section, feature grid, and contact form. Everything is styled with your brand colors."
+
+Do NOT use generic phrases like "Done!" or "Changes applied!" - be specific about what was accomplished.
 
 ## UNIQUE METADATA - REQUIRED FOR EVERY APP
 Each app MUST have custom, unique Next.js metadata in \`src/app/layout.tsx\`.
@@ -408,6 +442,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 \`\`\`
 
 ## FORBIDDEN - Never Do These:
+- **Import non-existent local files** - NEVER write \`import X from '@/components/X'\` before X.tsx exists! This is the #1 cause of build errors.
+- **Write page.tsx before its dependencies** - If page.tsx imports GameBoard, write GameBoard.tsx FIRST!
 - **Use hooks without 'use client'** - useState, useEffect, useContext, etc. REQUIRE 'use client' directive!
 - **Use event handlers without 'use client'** - onClick, onChange, onSubmit REQUIRE 'use client' directive!
 - Create or overwrite \`lib/eliza.ts\` (already exists)
@@ -420,8 +456,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 - Use Tailwind v3 syntax (@tailwind directives or @import "tailwindcss/tailwind.css")
 - Use generic metadata like "My App", "Next.js App", "Welcome" - BE CREATIVE!
 - Batch all files at the end - WRITE EACH FILE IMMEDIATELY when ready
-- Save page.tsx for last - write it EARLY so users see progress
-- Import files that don't exist yet - WRITE DEPENDENCIES FIRST
 - Leave the build broken - each file should compile successfully
 
 ## UI Rules

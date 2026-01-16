@@ -95,7 +95,7 @@ const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid 
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
 
 // ============================================================================
 // Available Models (fetched dynamically, these are suggestions)
@@ -103,15 +103,15 @@ const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-haiku-4.5",
-    name: "Claude Haiku 4.5",
-    description: "Fastest model for quick iterations",
-    isDefault: true,
-  },
-  {
     id: "anthropic/claude-sonnet-4.5",
     name: "Claude Sonnet 4.5",
     description: "Best balance of speed and capability for coding tasks",
+    isDefault: true,
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    description: "Fastest model for quick iterations",
   },
   {
     id: "openai/gpt-5.2-codex",
@@ -247,7 +247,15 @@ ${tailwindWarning}
 ---
 USER REQUEST: ${prompt}
 
-Build this app with your own creative vision. Install packages before importing them. Call check_build once at the end.`;
+Build this app with your own creative vision.
+
+CRITICAL BUILD ORDER:
+1. install_packages for any npm dependencies FIRST
+2. Write leaf components (no local imports) FIRST
+3. Write files that import those components SECOND
+4. Write page.tsx LAST (it typically imports the most)
+5. NEVER import @/components/* or @/lib/* paths that don't exist yet - this breaks the build!
+6. Call check_build once at the end.`;
 
       const finalSystemPrompt =
         systemPrompt ||
@@ -284,12 +292,12 @@ Build this app with your own creative vision. Install packages before importing 
           tools: {
             install_packages: tool({
               description:
-                "Install npm packages BEFORE writing files that import them.",
+                "Install npm packages BEFORE writing files that import them. Always install FIRST.",
               inputSchema: toolSchemas.install_packages,
             }),
             write_file: tool({
               description:
-                "Write a file. HMR auto-refreshes - no build check needed per file.",
+                "Write a file. CRITICAL: Never import local files (@/components/*, etc.) that don't exist yet - write dependencies first! HMR auto-refreshes.",
               inputSchema: toolSchemas.write_file,
             }),
             read_file: tool({

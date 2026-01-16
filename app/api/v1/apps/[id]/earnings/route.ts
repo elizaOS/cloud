@@ -36,10 +36,10 @@ function generateTestData(days: number) {
     const randomFactor = 0.5 + Math.random();
 
     const inferenceEarnings = parseFloat(
-      (dayFactor * randomFactor * 2.5 + Math.random() * 0.5).toFixed(4),
+      (dayFactor * randomFactor * 2.5 + Math.random() * 0.5).toFixed(4)
     );
     const purchaseEarnings = parseFloat(
-      (dayFactor * randomFactor * 1.2 + Math.random() * 0.3).toFixed(4),
+      (dayFactor * randomFactor * 1.2 + Math.random() * 0.3).toFixed(4)
     );
 
     chartData.push({
@@ -71,7 +71,7 @@ function generateTestData(days: number) {
   const pendingBalance = parseFloat((totalLifetime * 0.15).toFixed(2));
   const totalWithdrawn = parseFloat((totalLifetime * 0.3).toFixed(2));
   const withdrawableBalance = parseFloat(
-    (totalLifetime - pendingBalance - totalWithdrawn).toFixed(2),
+    (totalLifetime - pendingBalance - totalWithdrawn).toFixed(2)
   );
 
   const summary = {
@@ -175,7 +175,7 @@ function generateTestData(days: number) {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -186,23 +186,27 @@ export async function GET(
       ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90)
       : 30;
 
-    // Check for testData flag - only via URL parameter, not persisted
+    // Check for testData flag - ONLY allowed in development mode
+    // Double-check with VERCEL_ENV to prevent misconfigured deployments
     const testDataParam = request.nextUrl.searchParams.get("testData");
-    const useTestData = testDataParam === "true";
+    const isDevelopment =
+      process.env.NODE_ENV === "development" &&
+      process.env.VERCEL_ENV !== "production";
+    const useTestData = isDevelopment && testDataParam === "true";
 
     const app = await appsService.getById(id);
 
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     if (app.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -253,7 +257,7 @@ export async function GET(
         error:
           error instanceof Error ? error.message : "Failed to get app earnings",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
