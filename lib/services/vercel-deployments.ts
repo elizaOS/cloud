@@ -144,35 +144,14 @@ async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
     return false;
   }
 
-  // If Vercel is not configured, only check local DB
-  if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
-    return true;
-  }
-
-  // Check if domain is available in Vercel
-  const fullDomain = `${subdomain}.${APP_DOMAIN}`;
-  try {
-    // Try to get domain info from Vercel - if it exists, it's not available
-    await vercelFetch(`/v6/domains/${fullDomain}`);
-    // If we get here without error, the domain exists in Vercel
-    logger.debug("[Vercel Deployments] Subdomain exists in Vercel", {
-      subdomain,
-      fullDomain,
-    });
-    return false;
-  } catch (error) {
-    // 404 means domain doesn't exist - it's available
-    const errorMessage = error instanceof Error ? error.message : "";
-    if (errorMessage.includes("404") || errorMessage.includes("not_found")) {
-      return true;
-    }
-    // For other errors, assume available (don't block creation)
-    logger.warn("[Vercel Deployments] Error checking subdomain in Vercel", {
-      subdomain,
-      error: errorMessage,
-    });
-    return true;
-  }
+  // For subdomains of our own domain (e.g., *.apps.elizacloud.ai), we only need
+  // to check the local DB since we control the parent domain. The Vercel domains
+  // API returns the parent domain info for any subdomain query, which would
+  // incorrectly mark all subdomains as unavailable.
+  //
+  // We manage subdomain assignments through our app_domains table, so local DB
+  // check is sufficient for our owned domains.
+  return true;
 }
 
 /**
