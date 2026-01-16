@@ -24,11 +24,13 @@ function PaymentSuccessContent() {
   const { ready, authenticated } = usePrivy();
   const hasTracked = useRef(false);
 
+  // Extract trackId once to use as stable dependency
+  const trackId = searchParams.get("trackId");
+
   // Track payment success viewed (only once per trackId)
   // Use trackId as dedup key - ensures one event per crypto payment
   // Wait for auth to be ready to ensure proper user attribution
   useEffect(() => {
-    const trackId = searchParams.get("trackId");
     if (ready && authenticated && !hasTracked.current && trackId) {
       trackEvent("payment_success_viewed", {
         source: "crypto",
@@ -38,7 +40,7 @@ function PaymentSuccessContent() {
       });
       hasTracked.current = true;
     }
-  }, [ready, authenticated, searchParams]);
+  }, [ready, authenticated, trackId]);
 
   useEffect(() => {
     if (!ready) return;
