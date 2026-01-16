@@ -2543,14 +2543,24 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
-              // Generate clean summary based on what was done
-              // AI's raw output goes in reasoning accordion for transparency
+              // Use the LLM's actual final summary when available
+              // The AI produces a natural summary in finalData.output when it finishes
               const fileCount = finalData.filesAffected?.length || 0;
               const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
+              
+              // Check if we have a meaningful LLM summary (not just default/error text)
+              const llmSummary = finalData.output?.trim();
+              const hasLLMSummary = llmSummary && 
+                llmSummary !== "Changes applied!" && 
+                !llmSummary.startsWith("Error:") &&
+                !hasBuildErrors;
 
               let content = "";
               if (hasBuildErrors) {
                 content = `I've made changes but encountered some build errors.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+              } else if (hasLLMSummary) {
+                // Use the LLM's natural summary
+                content = llmSummary;
               } else if (fileCount > 0) {
                 content = `Done! I've updated ${fileCount} file${fileCount !== 1 ? "s" : ""}. Check out the preview to see the changes.`;
               } else if (actionsLog.length > 0) {

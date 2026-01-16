@@ -237,6 +237,19 @@ Users see live updates - make them frequent!
 - Only run \`check_build\` or \`bun run build\` at the VERY END when all files are written
 - Trust that writing dependencies first keeps things working
 
+## FINAL SUMMARY - REQUIRED
+After completing all file operations and the build passes, write a brief, natural summary message (1-3 sentences) that:
+- Describes what was built or changed in plain language
+- Highlights the key features or improvements made
+- Invites the user to check out the preview
+
+Examples of good summaries:
+- "I've created a sleek dating app with swipeable profiles, a match notification system, and a chat interface. The dark theme with orange accents gives it a modern feel!"
+- "Updated the footer with better navigation structure and added social media links. The layout is now more responsive on mobile devices."
+- "Built out the landing page with an animated hero section, feature grid, and contact form. Everything is styled with your brand colors."
+
+Do NOT use generic phrases like "Done!" or "Changes applied!" - be specific about what was accomplished.
+
 ## UNIQUE METADATA - REQUIRED FOR EVERY APP
 Each app MUST have custom, unique Next.js metadata in \`src/app/layout.tsx\`.
 Do NOT use generic titles like "My App" or "Next.js App".
