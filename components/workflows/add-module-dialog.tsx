@@ -31,7 +31,7 @@ interface AddModuleDialogProps {
   onAddNode: (type: WorkflowNodeType, initialData?: Record<string, unknown>) => void;
 }
 
-type NodeCategory = "triggers" | "ai" | "integrations" | "logic" | "output" | "mcps";
+type NodeCategory = "ai" | "integrations" | "logic" | "output" | "mcps";
 
 interface NodeDefinition {
   type: WorkflowNodeType;
@@ -44,14 +44,6 @@ interface NodeDefinition {
 }
 
 const nodeDefinitions: NodeDefinition[] = [
-  {
-    type: "trigger",
-    label: "Trigger",
-    icon: Webhook,
-    color: "green",
-    description: "Start your workflow with manual, webhook, or scheduled triggers",
-    category: "triggers",
-  },
   {
     type: "agent",
     label: "AI Agent",
@@ -193,7 +185,6 @@ const nodeDefinitions: NodeDefinition[] = [
 ];
 
 const categories: { id: NodeCategory; label: string }[] = [
-  { id: "triggers", label: "Triggers" },
   { id: "ai", label: "AI & Generation" },
   { id: "integrations", label: "Integrations" },
   { id: "mcps", label: "MCPs" },

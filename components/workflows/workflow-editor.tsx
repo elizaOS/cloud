@@ -134,19 +134,46 @@ function WorkflowCanvas({
     setShowAddDialog(true);
   }, []);
 
-  // Initialize nodes with add button if empty
+  // Initialize nodes - always include a trigger node
   const getInitialNodes = useCallback((): Node[] => {
     const workflowNodes = toReactFlowNodes(workflow.nodes);
+    
+    // Check if there's already a trigger node
+    const hasTrigger = workflowNodes.some((n) => n.type === "trigger");
+    
     if (workflowNodes.length === 0) {
-      return [{
-        id: ADD_BUTTON_NODE_ID,
-        type: "addButton",
-        position: { x: 400, y: 200 },
-        data: { onClick: handleAddButtonClick },
-        draggable: false,
-        selectable: false,
-      }];
+      // Empty workflow: show trigger node + add button
+      return [
+        {
+          id: "trigger-default",
+          type: "trigger",
+          position: { x: 400, y: 100 },
+          data: { label: "Trigger", triggerType: "manual" },
+        },
+        {
+          id: ADD_BUTTON_NODE_ID,
+          type: "addButton",
+          position: { x: 400, y: 250 },
+          data: { onClick: handleAddButtonClick },
+          draggable: false,
+          selectable: false,
+        },
+      ];
     }
+    
+    // If workflow has nodes but no trigger, prepend one
+    if (!hasTrigger) {
+      return [
+        {
+          id: "trigger-default",
+          type: "trigger",
+          position: { x: 400, y: 50 },
+          data: { label: "Trigger", triggerType: "manual" },
+        },
+        ...workflowNodes,
+      ];
+    }
+    
     return workflowNodes;
   }, [workflow.nodes, handleAddButtonClick]);
 
@@ -325,10 +352,13 @@ function WorkflowCanvas({
       </ReactFlow>
 
       {/* Top left - Back button and name */}
-      <div className="absolute top-4 left-4 flex items-center gap-3 z-10">
+      <div className="absolute top-4 left-4 flex items-center gap-3 z-50">
         <button
-          onClick={handleBack}
-          className="flex items-center justify-center w-10 h-10 bg-neutral-900/90 backdrop-blur-sm border border-white/10 hover:bg-neutral-800 rounded-xl transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBack();
+          }}
+          className="flex items-center justify-center w-10 h-10 bg-neutral-900/90 backdrop-blur-sm border border-white/10 hover:bg-neutral-800 rounded-xl transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5 text-neutral-400" />
         </button>
@@ -580,26 +610,18 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
       webhookSecret,
     };
 
-    // Auto-activate workflow if it has a schedule with cron expression, or webhook trigger
-    // Check both the type AND if there's actually a schedule value
-    const hasSchedule = triggerType === "schedule" && schedule;
-    const hasWebhook = triggerType === "webhook";
-    const shouldActivate = hasSchedule || hasWebhook;
-
-    console.log("[WorkflowEditor] Saving workflow:", {
-      triggerType,
-      schedule,
-      hasSchedule,
-      shouldActivate,
-      newStatus: shouldActivate ? "active" : workflow.status,
-    });
+    // Determine workflow status:
+    // - "active" if workflow has nodes (ready to run)
+    // - "draft" if workflow is empty
+    const hasNodes = realNodes.length > 0;
+    const newStatus = hasNodes ? "active" : "draft";
 
     await updateWorkflow(workflow.id, {
       name,
       nodes: toDbNodes(realNodes),
       edges: toDbEdges(edges),
       trigger_config: triggerConfig,
-      status: shouldActivate ? "active" : workflow.status,
+      status: newStatus,
     });
 
     setIsSaving(false);
