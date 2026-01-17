@@ -285,7 +285,7 @@ function TriggerConfig({
   );
 }
 
-// Agent Configuration
+// Agent Configuration - Only allows selecting user's own agents
 function AgentConfig({
   data,
   onChange,
@@ -294,75 +294,59 @@ function AgentConfig({
   onChange: (key: string, value: unknown) => void;
 }) {
   const [showAgentPicker, setShowAgentPicker] = useState(false);
-  const mode = (data.mode as string) ?? "generic";
   const agentName = data.agentName as string;
   const agentAvatarUrl = data.agentAvatarUrl as string | undefined;
+
+  // Ensure mode is always "my-agent"
+  useEffect(() => {
+    if (data.mode !== "my-agent") {
+      onChange("mode", "my-agent");
+    }
+  }, [data.mode, onChange]);
 
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-white/80">Mode</Label>
-        <Select
-          value={mode}
-          onValueChange={(v) => {
-            onChange("mode", v);
-            if (v === "my-agent") {
-              setShowAgentPicker(true);
-            } else {
-              onChange("agentId", "");
-              onChange("agentName", "");
-              onChange("agentAvatarUrl", "");
-            }
-          }}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="generic">Generic AI Completion</SelectItem>
-            <SelectItem value="my-agent">Use My Agent</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {mode === "my-agent" && (
-        <div>
-          <Label className="text-white/80">Selected Agent</Label>
-          {agentName ? (
-            <button
-              onClick={() => setShowAgentPicker(true)}
-              className="mt-2 flex items-center gap-3 w-full p-3 rounded-lg border border-[#FF5800] bg-[#FF5800]/10 text-left hover:bg-[#FF5800]/20 transition-colors"
-            >
-              {agentAvatarUrl ? (
-                <Image
-                  src={agentAvatarUrl}
-                  alt={agentName}
-                  width={40}
-                  height={40}
-                  className="rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-blue-400" />
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="font-medium text-white">{agentName}</div>
-                <div className="text-xs text-white/40">Click to change</div>
+        <Label className="text-white/80">Select Agent</Label>
+        {agentName ? (
+          <button
+            onClick={() => setShowAgentPicker(true)}
+            className="mt-2 flex items-center gap-3 w-full p-3 rounded-lg border border-[#FF5800] bg-[#FF5800]/10 text-left hover:bg-[#FF5800]/20 transition-colors"
+          >
+            {agentAvatarUrl ? (
+              <Image
+                src={agentAvatarUrl}
+                alt={agentName}
+                width={40}
+                height={40}
+                className="rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Bot className="w-5 h-5 text-blue-400" />
               </div>
-            </button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => setShowAgentPicker(true)}
-              className="mt-2 w-full"
-            >
-              <Bot className="w-4 h-4 mr-2" />
-              Select Agent
-            </Button>
-          )}
-        </div>
-      )}
+            )}
+            <div className="flex-1">
+              <div className="font-medium text-white">{agentName}</div>
+              <div className="text-xs text-white/40">Click to change</div>
+            </div>
+          </button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => setShowAgentPicker(true)}
+            className="mt-2 w-full border-dashed border-white/20 hover:border-[#FF5800] hover:bg-[#FF5800]/5"
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Select one of your agents
+          </Button>
+        )}
+        {!agentName && (
+          <p className="text-xs text-yellow-400 mt-2">
+            ⚠️ You must select an agent before running this workflow
+          </p>
+        )}
+      </div>
 
       <AgentPickerDialog
         open={showAgentPicker}
@@ -371,6 +355,7 @@ function AgentConfig({
           onChange("agentId", agent.id);
           onChange("agentName", agent.name);
           onChange("agentAvatarUrl", agent.avatarUrl ?? "");
+          onChange("mode", "my-agent");
         }}
       />
 
@@ -379,7 +364,7 @@ function AgentConfig({
         <Textarea
           value={(data.prompt as string) ?? ""}
           onChange={(e) => onChange("prompt", e.target.value)}
-          placeholder="Enter your prompt..."
+          placeholder="Enter your prompt for the agent..."
           className="mt-1 min-h-[100px]"
         />
         <p className="text-xs text-white/40 mt-1">
@@ -387,25 +372,11 @@ function AgentConfig({
         </p>
       </div>
 
-      {mode === "generic" && (
-        <div>
-          <Label className="text-white/80">Model</Label>
-          <Select
-            value={(data.model as string) ?? "gpt-4o-mini"}
-            onValueChange={(v) => onChange("model", v)}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
-              <SelectItem value="gpt-4o">GPT-4o (Powerful)</SelectItem>
-              <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
-              <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <div className="bg-blue-500/10 rounded-lg p-3 text-xs">
+        <p className="text-blue-400">
+          Your agent will process the prompt and return a response that can be used by the next node.
+        </p>
+      </div>
     </div>
   );
 }

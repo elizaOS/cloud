@@ -314,15 +314,20 @@ class WorkflowExecutorService {
   }
 
   /**
-   * Execute agent node - calls AI agent
+   * Execute agent node - calls user's agent
    */
   private async executeAgentNode(
     config: Record<string, unknown>,
     context: WorkflowExecutionContext,
   ): Promise<unknown> {
-    const mode = (config.mode as string) ?? "generic";
-    const prompt = (config.prompt as string) ?? "Hello";
-    const model = (config.model as string) ?? "gpt-4o-mini";
+    const agentId = config.agentId as string;
+    const agentName = config.agentName as string;
+    const prompt = (config.prompt as string) ?? "";
+
+    // Require agent selection
+    if (!agentId) {
+      throw new Error("No agent selected. Please configure the agent node and select one of your agents.");
+    }
 
     // Build context from trigger and previous nodes
     let contextData = "";
@@ -342,37 +347,39 @@ class WorkflowExecutorService {
       ? `${prompt}\n\nContext:\n${contextData}`
       : prompt;
 
-    if (mode === "my-agent") {
-      const agentId = config.agentId as string;
-      if (!agentId) {
-        throw new Error("Agent ID required for my-agent mode");
-      }
+    this.log(
+      context,
+      "info",
+      "agent",
+      `Calling agent: ${agentName ?? agentId}`,
+    );
 
-      // For my-agent mode, we'd call the agent's chat endpoint
-      // For demo, use generic AI with a note
-      this.log(
-        context,
-        "info",
-        "agent",
-        `Using agent: ${agentId} (demo mode)`,
-      );
+    // Call the agent's chat endpoint
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const response = await fetch(`${baseUrl}/api/agents/${agentId}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: finalPrompt,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Agent call failed: ${response.status} - ${errorText}`);
     }
 
-    // Call AI using Vercel AI SDK
-    this.log(context, "info", "agent", `Calling ${model}...`);
-
-    const result = await generateText({
-      model: openai(model),
-      prompt: finalPrompt,
-    });
+    const result = await response.json();
+    const agentResponse = result.response ?? result.text ?? result.message ?? "";
 
     return {
       type: "agent",
-      mode,
-      model,
+      agentId,
+      agentName,
       prompt: finalPrompt,
-      response: result.text,
-      usage: result.usage,
+      response: agentResponse,
     };
   }
 
@@ -722,6 +729,7 @@ class WorkflowExecutorService {
 
   /**
    * Execute Discord node - sends message to Discord via webhook
+   * Supports text messages, images, and audio attachments
    */
   private async executeDiscordNode(
     config: Record<string, unknown>,
@@ -739,6 +747,20 @@ class WorkflowExecutorService {
       throw new Error("Invalid Discord Webhook URL. It should start with https://discord.com/api/webhooks/");
     }
 
+    // Auto-detect media from previous nodes (audio from TTS, images from image node)
+    let audioUrl: string | undefined;
+    let imageUrl: string | undefined;
+    
+    for (const [, output] of context.nodeOutputs) {
+      const data = output.output as Record<string, unknown>;
+      if (data?.type === "tts" && data?.audioUrl) {
+        audioUrl = data.audioUrl as string;
+      }
+      if (data?.type === "image" && data?.imageUrl) {
+        imageUrl = data.imageUrl as string;
+      }
+    }
+
     // Auto-compose message from previous outputs if not specified
     if (!message) {
       const outputs = this.collectOutputs(context);
@@ -747,28 +769,68 @@ class WorkflowExecutorService {
         if (data?.response) {
           message += `**${nodeId}:**\n${data.response}\n\n`;
         }
-        if (data?.imageUrl) {
-          message += `**Image:** ${data.imageUrl}\n`;
-        }
       }
     }
 
-    if (!message) {
+    if (!message && !audioUrl && !imageUrl) {
       message = `Workflow ${context.workflowId} completed at ${new Date().toISOString()}`;
     }
 
     this.log(context, "info", "discord", `Sending message via Discord webhook...`);
 
-    // Send via Discord webhook (simple POST request)
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: message }),
-    });
+    let attachedFiles: string[] = [];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
+    // If we have audio or images, send as multipart/form-data with file attachment
+    if (audioUrl || imageUrl) {
+      const formData = new FormData();
+      
+      // Add message content
+      const payload: Record<string, unknown> = {};
+      if (message) {
+        payload.content = message;
+      }
+      formData.append("payload_json", JSON.stringify(payload));
+
+      // Attach audio file if present
+      if (audioUrl) {
+        this.log(context, "info", "discord", "Attaching audio file...");
+        const audioResponse = await fetch(audioUrl);
+        const audioBuffer = await audioResponse.arrayBuffer();
+        formData.append("files[0]", new Blob([audioBuffer], { type: "audio/mpeg" }), "audio.mp3");
+        attachedFiles.push("audio.mp3");
+      }
+
+      // Attach image file if present (as second file if audio exists)
+      if (imageUrl) {
+        this.log(context, "info", "discord", "Attaching image file...");
+        const imageResponse = await fetch(imageUrl);
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const fileIndex = audioUrl ? 1 : 0;
+        formData.append(`files[${fileIndex}]`, new Blob([imageBuffer], { type: "image/jpeg" }), "image.jpg");
+        attachedFiles.push("image.jpg");
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
+      }
+    } else {
+      // Simple text-only message (most common case - fast path)
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: message }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Discord webhook failed: ${response.status} - ${errorText}`);
+      }
     }
 
     this.log(context, "info", "discord", "Message sent to Discord successfully");
@@ -777,7 +839,8 @@ class WorkflowExecutorService {
       type: "discord",
       webhookConfigured: true,
       messageSent: true,
-      messagePreview: message.slice(0, 100),
+      messagePreview: message?.slice(0, 100) ?? "",
+      attachedFiles,
     };
   }
 

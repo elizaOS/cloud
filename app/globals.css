@@ -1002,8 +1002,24 @@ button:not(:disabled),
 
 /* Edge styling */
 .react-flow__edge-path {
-  stroke: #FF5800 !important;
+  stroke: rgba(255, 255, 255, 0.4) !important;
   stroke-width: 2 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+/* Edge hover effect with red glow to indicate deletion */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #ef4444 !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5)) !important;
+}
+
+/* Edge interaction target - makes edges easier to click */
+.react-flow__edge-interaction {
+  stroke-width: 20 !important;
+  stroke: transparent !important;
+  cursor: pointer !important;
 }
 
 /* Connection line */
@@ -1016,8 +1032,11 @@ button:not(:disabled),
 .react-flow__handle {
   background: #FF5800 !important;
   border: 2px solid #FF8C00 !important;
+  transition: all 0.2s ease !important;
 }
 
 .react-flow__handle:hover {
   background: #FF8C00 !important;
+  transform: scale(1.3) !important;
+  box-shadow: 0 0 8px #FF5800 !important;
 }

@@ -100,9 +100,8 @@ function toDbEdges(edges: Edge[]): WorkflowEdge[] {
 
 function WorkflowCanvas({
   workflow,
-  onSave,
+  onSaveAndRun,
   isSaving,
-  onRun,
   isRunning,
   onToggleActive,
   isTogglingActive,
@@ -112,9 +111,8 @@ function WorkflowCanvas({
   setHasUnsavedChanges,
 }: {
   workflow: Workflow;
-  onSave: (name: string, nodes: Node[], edges: Edge[]) => void;
+  onSaveAndRun: (name: string, nodes: Node[], edges: Edge[], runAfterSave: boolean) => void;
   isSaving: boolean;
-  onRun: () => void;
   isRunning: boolean;
   onToggleActive: () => void;
   isTogglingActive: boolean;
@@ -181,6 +179,7 @@ function WorkflowCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState(
     toReactFlowEdges(workflow.edges),
   );
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState(workflow.name);
   const [isEditingName, setIsEditingName] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -241,7 +240,36 @@ function WorkflowCanvas({
   const handlePaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedNodePosition(null);
+    setSelectedEdgeId(null);
   }, []);
+
+  // Handle edge click - select or delete edge
+  const handleEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.stopPropagation();
+      // If edge is already selected, delete it; otherwise select it
+      if (selectedEdgeId === edge.id) {
+        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+        setSelectedEdgeId(null);
+      } else {
+        setSelectedEdgeId(edge.id);
+      }
+    },
+    [selectedEdgeId, setEdges],
+  );
+
+  // Handle keyboard events for deleting selected edge
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedEdgeId) {
+        setEdges((eds) => eds.filter((e) => e.id !== selectedEdgeId));
+        setSelectedEdgeId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEdgeId, setEdges]);
 
   const handleUpdateNodeData = useCallback(
     (nodeId: string, data: Record<string, unknown>) => {
@@ -255,7 +283,11 @@ function WorkflowCanvas({
   );
 
   const handleSave = () => {
-    onSave(workflowName, nodes, edges);
+    onSaveAndRun(workflowName, nodes, edges, false);
+  };
+
+  const handleRun = () => {
+    onSaveAndRun(workflowName, nodes, edges, true);
   };
 
   const handleBack = () => {
@@ -300,11 +332,18 @@ function WorkflowCanvas({
       {/* Full screen canvas */}
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={edges.map((edge) => ({
+          ...edge,
+          style: selectedEdgeId === edge.id
+            ? { stroke: "#FF5800", strokeWidth: 3 }
+            : undefined,
+        }))}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
+        deleteKeyCode={["Backspace", "Delete"]}
         onPaneClick={(e) => {
           handlePaneClick();
           setContextMenu(null);
@@ -429,8 +468,8 @@ function WorkflowCanvas({
 
           {/* Play button */}
           <button
-            onClick={onRun}
-            disabled={isRunning || realNodesCount === 0}
+            onClick={handleRun}
+            disabled={isRunning || isSaving || realNodesCount === 0}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Run workflow"
           >
@@ -591,8 +630,13 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
     router.refresh();
   };
 
-  const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
+  // Combined save and run handler - always saves before running
+  const handleSaveAndRun = async (name: string, nodes: Node[], edges: Edge[], runAfterSave: boolean) => {
     setIsSaving(true);
+    if (runAfterSave) {
+      setIsRunning(true);
+      setExecutionResult(null);
+    }
 
     // Filter out add button node before saving
     const realNodes = nodes.filter((n) => n.id !== ADD_BUTTON_NODE_ID);
@@ -626,25 +670,23 @@ export function WorkflowEditor({ workflow }: WorkflowEditorProps) {
 
     setIsSaving(false);
     setHasUnsavedChanges(false);
+
+    // Run the workflow after saving if requested
+    if (runAfterSave) {
+      const result = await runWorkflow(workflow.id);
+      setExecutionResult(result);
+      setIsRunning(false);
+    }
+
     router.refresh();
-  };
-
-  const handleRun = async () => {
-    setIsRunning(true);
-    setExecutionResult(null);
-
-    const result = await runWorkflow(workflow.id);
-    setExecutionResult(result);
-    setIsRunning(false);
   };
 
   return (
     <ReactFlowProvider>
       <WorkflowCanvas
         workflow={workflow}
-        onSave={handleSave}
+        onSaveAndRun={handleSaveAndRun}
         isSaving={isSaving}
-        onRun={handleRun}
         isRunning={isRunning}
         onToggleActive={handleToggleActive}
         isTogglingActive={isTogglingActive}
