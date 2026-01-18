@@ -75,13 +75,13 @@ export const redact = {
     if (ip.includes(".")) {
       const parts = ip.split(".");
       if (parts.length === 4) {
-        return \`\${parts[0]}.\${parts[1]}.xxx.xxx\`;
+        return `${parts[0]}.${parts[1]}.xxx.xxx`;
       }
     }
     // IPv6: show first segment only
     if (ip.includes(":")) {
       const firstSegment = ip.split(":")[0];
-      return \`\${firstSegment}:xxxx::\`;
+      return `${firstSegment}:xxxx::`;
     }
     return "[masked-ip]";
   },
@@ -93,7 +93,7 @@ export const redact = {
   address: (addr: string | null | undefined): string => {
     if (!addr) return "[no-address]";
     if (addr.length < 12) return addr;
-    return \`\${addr.slice(0, 6)}...\${addr.slice(-4)}\`;
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   },
 
   /**
@@ -182,7 +182,7 @@ export const logger = {
 
   /**
    * Warning-level logs - shown except during build phase
-   * Build phase warnings are suppressed to reduce noise in \`next build\` output
+   * Build phase warnings are suppressed to reduce noise in `next build` output
    */
   warn: (...args: unknown[]) => {
     if (!isBuildPhase) {
