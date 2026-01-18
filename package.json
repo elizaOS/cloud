@@ -11,7 +11,7 @@
     "dev:x402": "bun run scripts/dev-x402.ts",
     "dev:full": "bun run setup:check && bun run dev:quick",
     "generate:llms": "tsx scripts/generate-llms-txt.ts",
-    "build": "bun run generate:llms && next build",
+    "build": "bun run generate:llms && LOG_LEVEL=error NODE_NO_WARNINGS=1 next build",
     "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "eslint",

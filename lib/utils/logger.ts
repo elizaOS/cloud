@@ -7,6 +7,8 @@
 const isDev = process.env.NODE_ENV === "development";
 // Only show debug/info logs when explicitly enabled via VERBOSE_LOGGING=true
 const isVerbose = process.env.VERBOSE_LOGGING === "true";
+// Detect Next.js build phase to suppress non-critical logs during build
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 /**
  * Redaction utilities for sensitive data in logs
@@ -73,13 +75,13 @@ export const redact = {
     if (ip.includes(".")) {
       const parts = ip.split(".");
       if (parts.length === 4) {
-        return `${parts[0]}.${parts[1]}.xxx.xxx`;
+        return \`\${parts[0]}.\${parts[1]}.xxx.xxx\`;
       }
     }
     // IPv6: show first segment only
     if (ip.includes(":")) {
       const firstSegment = ip.split(":")[0];
-      return `${firstSegment}:xxxx::`;
+      return \`\${firstSegment}:xxxx::\`;
     }
     return "[masked-ip]";
   },
@@ -91,7 +93,7 @@ export const redact = {
   address: (addr: string | null | undefined): string => {
     if (!addr) return "[no-address]";
     if (addr.length < 12) return addr;
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    return \`\${addr.slice(0, 6)}...\${addr.slice(-4)}\`;
   },
 
   /**
@@ -179,10 +181,13 @@ export const logger = {
   },
 
   /**
-   * Warning-level logs - always shown
+   * Warning-level logs - shown except during build phase
+   * Build phase warnings are suppressed to reduce noise in \`next build\` output
    */
   warn: (...args: unknown[]) => {
-    console.warn(...args);
+    if (!isBuildPhase) {
+      console.warn(...args);
+    }
   },
 
   /**
