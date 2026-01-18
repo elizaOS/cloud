@@ -143,7 +143,7 @@ export async function DELETE(
       // Non-critical - continue with cleanup
     }
 
-    // Step 4: Calculate prorated refund if container was running
+    // Step 4: Calculate prorated refund if container was running (daily billing model)
     let refundAmount = 0;
 
     if (container.status === "running" && container.created_at) {
@@ -152,8 +152,9 @@ export async function DELETE(
         const now = Date.now();
         const createdAt = new Date(container.created_at).getTime();
         const runtimeHours = (now - createdAt) / (1000 * 60 * 60);
+        const runtimeDays = runtimeHours / 24;
 
-        // Calculate deployment cost
+        // Calculate deployment cost (one-time fee)
         const deploymentCost = calculateDeploymentCost({
           desiredCount: container.desired_count || 1,
           cpu: container.cpu || 1792,
@@ -161,9 +162,13 @@ export async function DELETE(
           includeUpload: false,
         });
 
-        // Prorated refund: if container ran less than 1 hour, refund 50%
+        // Prorated refund for daily billing:
+        // - If deleted within 2 hours of deployment, refund 75% of deployment cost
+        // - If deleted same day (before first daily billing), refund 50% of deployment cost
         // This is generous to users but prevents abuse
-        if (runtimeHours < 1) {
+        if (runtimeHours < 2) {
+          refundAmount = Math.floor(deploymentCost * 0.75);
+        } else if (runtimeDays < 1) {
           refundAmount = Math.floor(deploymentCost * 0.5);
         }
 
@@ -176,6 +181,7 @@ export async function DELETE(
               type: "refund",
               containerId,
               runtimeHours: runtimeHours.toFixed(2),
+              runtimeDays: runtimeDays.toFixed(2),
             },
           });
         }

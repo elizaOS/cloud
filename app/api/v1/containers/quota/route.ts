@@ -7,6 +7,7 @@ import {
   CONTAINER_LIMITS,
   getMaxContainersForOrg,
   calculateDeploymentCost,
+  calculateDailyContainerCost,
 } from "@/lib/constants/pricing";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +34,38 @@ export async function GET(request: NextRequest) {
       user.organization.settings as Record<string, unknown> | undefined,
     );
 
-    // Calculate costs (base container: 1 instance, 256 CPU, 512 MB RAM)
+    // Calculate costs (base container: 1 instance, default CPU/memory)
     const baseCost = calculateDeploymentCost({
       desiredCount: 1,
       cpu: 1792, // Default: 1.75 vCPU (87.5% of t3g.small)
       memory: 1792, // Default: 1.75 GB (87.5% of t3g.small)
       includeUpload: false,
     });
+
+    // Calculate daily running cost
+    const dailyRunningCost = calculateDailyContainerCost({
+      desiredCount: 1,
+      cpu: 1792,
+      memory: 1792,
+    });
+
+    // Calculate current daily costs for all running containers
+    const runningContainers = existingContainers.filter(
+      (c) => c.status === "running",
+    );
+    const currentDailyBurn = runningContainers.reduce((total, container) => {
+      return total + calculateDailyContainerCost({
+        desiredCount: container.desired_count,
+        cpu: container.cpu,
+        memory: container.memory,
+      });
+    }, 0);
+
+    // Calculate days of runway
+    const currentBalance = Number(user.organization.credit_balance);
+    const daysOfRunway = currentDailyBurn > 0 
+      ? Math.floor(currentBalance / currentDailyBurn)
+      : Infinity;
 
     return NextResponse.json({
       success: true,
@@ -51,15 +77,26 @@ export async function GET(request: NextRequest) {
           percentage: (currentCount / maxContainers) * 100,
         },
         credits: {
-          balance: Number(user.organization.credit_balance),
-          canDeploy: Number(user.organization.credit_balance) >= baseCost,
+          balance: currentBalance,
+          canDeploy: currentBalance >= baseCost,
+        },
+        billing: {
+          // Daily billing information
+          model: "daily",
+          dailyCostPerContainer: dailyRunningCost,
+          monthlyEquivalent: CONTAINER_PRICING.MONTHLY_BASE_COST,
+          currentDailyBurn: Math.round(currentDailyBurn * 100) / 100,
+          runningContainers: runningContainers.length,
+          daysOfRunway: daysOfRunway === Infinity ? null : daysOfRunway,
+          warningThreshold: CONTAINER_PRICING.LOW_CREDITS_WARNING_THRESHOLD,
+          shutdownWarningHours: CONTAINER_PRICING.SHUTDOWN_WARNING_HOURS,
         },
         pricing: {
           imageUpload: CONTAINER_PRICING.IMAGE_UPLOAD,
           deployment: baseCost,
           totalForNewContainer: baseCost + CONTAINER_PRICING.IMAGE_UPLOAD,
-          perHour: CONTAINER_PRICING.RUNNING_COST_PER_HOUR,
-          perDay: CONTAINER_PRICING.RUNNING_COST_PER_DAY,
+          perDay: dailyRunningCost,
+          perMonth: CONTAINER_PRICING.MONTHLY_BASE_COST,
           perAdditionalInstance: CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE,
         },
         limits: {

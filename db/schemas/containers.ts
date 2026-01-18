@@ -2,15 +2,18 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apiKeys } from "./api-keys";
 import { userCharacters } from "./user-characters";
+import { creditTransactions } from "./credit-transactions";
 
 /**
  * Containers table schema.
@@ -68,6 +71,15 @@ export const containers = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
+    // Billing tracking fields
+    last_billed_at: timestamp("last_billed_at"),
+    next_billing_at: timestamp("next_billing_at"),
+    billing_status: text("billing_status").default("active").notNull(), // active, warning, suspended, shutdown_pending
+    shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at"),
+    scheduled_shutdown_at: timestamp("scheduled_shutdown_at"),
+    total_billed: numeric("total_billed", { precision: 10, scale: 2 })
+      .default("0.00")
+      .notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -91,5 +103,64 @@ export const containers = pgTable(
       table.user_id,
       table.project_name,
     ),
+    billing_status_idx: index("containers_billing_status_idx").on(
+      table.billing_status,
+    ),
+    next_billing_idx: index("containers_next_billing_idx").on(
+      table.next_billing_at,
+    ),
+    scheduled_shutdown_idx: index("containers_scheduled_shutdown_idx").on(
+      table.scheduled_shutdown_at,
+    ),
   }),
 );
+
+/**
+ * Container billing records table schema.
+ *
+ * Audit trail for daily container billing charges.
+ */
+export const containerBillingRecords = pgTable(
+  "container_billing_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    container_id: uuid("container_id")
+      .notNull()
+      .references(() => containers.id, { onDelete: "cascade" }),
+    organization_id: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+    billing_period_start: timestamp("billing_period_start").notNull(),
+    billing_period_end: timestamp("billing_period_end").notNull(),
+    status: text("status").default("success").notNull(), // success, failed, insufficient_credits
+    credit_transaction_id: uuid("credit_transaction_id").references(
+      () => creditTransactions.id,
+      { onDelete: "set null" },
+    ),
+    error_message: text("error_message"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    container_idx: index("container_billing_records_container_idx").on(
+      table.container_id,
+    ),
+    org_idx: index("container_billing_records_org_idx").on(
+      table.organization_id,
+    ),
+    created_idx: index("container_billing_records_created_idx").on(
+      table.created_at,
+    ),
+    status_idx: index("container_billing_records_status_idx").on(table.status),
+  }),
+);
+
+// Type inference
+export type Container = InferSelectModel<typeof containers>;
+export type NewContainer = InferInsertModel<typeof containers>;
+export type ContainerBillingRecord = InferSelectModel<
+  typeof containerBillingRecords
+>;
+export type NewContainerBillingRecord = InferInsertModel<
+  typeof containerBillingRecords
+>;

@@ -1041,7 +1041,8 @@ curl https://your-app.com/api/v1/chat \
 - **Text Chat**: Token-based (varies by model)
 - **Image Generation**: $0.01 per image
 - **Video Generation**: $0.05 per video
-- **Container Deployment**: 50 credits base + instance hours
+- **Container Running**: $0.67/day (~$20/month) - billed daily
+- **Container Deployment**: $0.50 one-time per deployment
 - **Voice Clone (Instant)**: 50 credits
 - **Voice Clone (Professional)**: $2.00
 
@@ -1857,24 +1858,27 @@ curl https://elizacloud.ai/api/v1/containers \
 
 ### Cost & Billing
 
-Container deployments are billed based on:
+Container deployments are billed **daily**:
 
-- **Deployment**: 50 credits (one-time per deployment)
-- **Running Costs**: Charged per hour based on resources
-  - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
-  - Higher CPU/memory allocations: Additional charges
+- **Deployment**: $0.50 one-time per deployment
+- **Running Costs**: $0.67/day per container (~$20/month)
+  - Billed automatically at midnight UTC
+  - 48-hour warning email sent when credits are low
+  - Container shut down after 48 hours if no credits added
 
-**AWS Infrastructure Costs** (billed directly by AWS, not through credits):
+**Infrastructure** (managed by elizaOS Cloud):
 
-- **EC2 Instances**:
-  - ARM64 (t4g.small): $12.26/month compute + $3.50 storage/monitoring = $15.76/month per container
-  - x86_64 (t3.small): $15.18/month compute + $3.50 storage/monitoring = $18.68/month per container
-- **ECR Storage**: First 50 GB free, then $0.10/GB/month
-- **Data Transfer**: First 100 GB free per month
-- **Application Load Balancer**: ~$16/month (shared across all users)
+- t4g.small (1.75 vCPU + 1.75 GB RAM) default instance type
+- ECR image storage included
+- Load balancing included
+- Auto-scaling available for additional instances
 
-**Total**: $15.76-18.68/month per active container (varies by architecture)
-ARM64 saves $2.92/month (15.6%) per container on compute costs.
+**Daily Billing Behavior**:
+
+1. CRON runs daily at midnight UTC
+2. Charges $0.67 per running container
+3. If insufficient credits: 48-hour shutdown warning email
+4. If still insufficient after 48 hours: container stopped
 
 ---
 

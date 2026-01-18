@@ -1,6 +1,9 @@
 /**
  * Pricing constants for container deployments and operations
  * All costs are in USD stored as decimal values in credit_balance
+ *
+ * BILLING MODEL: Daily billing for running containers
+ * Base cost: $20/month = $0.67/day (rounded)
  */
 
 export const CONTAINER_PRICING = {
@@ -8,9 +11,10 @@ export const CONTAINER_PRICING = {
   DEPLOYMENT: 0.5, // $0.50 (50 credits) per deployment
   IMAGE_UPLOAD: 0.25, // $0.25 per image upload
 
-  // Recurring costs (per hour, charged daily)
-  RUNNING_COST_PER_HOUR: 0.01, // $0.01/hour
-  RUNNING_COST_PER_DAY: 0.24, // $0.24/day
+  // Recurring costs - DAILY BILLING
+  // $20/month base = $20/30 = $0.6667/day
+  MONTHLY_BASE_COST: 20.0, // $20/month reference
+  DAILY_RUNNING_COST: 0.67, // $0.67/day per container ($20/30, rounded up)
 
   // Resource-based costs
   COST_PER_GB_STORAGE: 0.1, // $0.10/GB/month
@@ -18,7 +22,45 @@ export const CONTAINER_PRICING = {
 
   // Scaling costs
   COST_PER_ADDITIONAL_INSTANCE: 0.05, // $0.05 per instance per hour
+
+  // Warning thresholds
+  LOW_CREDITS_WARNING_THRESHOLD: 2.0, // Warn when < 3 days of credit ($0.67 * 3)
+  SHUTDOWN_WARNING_HOURS: 48, // Hours before shutdown warning
 } as const;
+
+/**
+ * Calculate daily container cost based on configuration
+ */
+export function calculateDailyContainerCost(config?: {
+  desiredCount?: number;
+  cpu?: number;
+  memory?: number;
+}): number {
+  const baseCost = CONTAINER_PRICING.DAILY_RUNNING_COST;
+  const instanceCount = config?.desiredCount || 1;
+
+  // Base cost for first instance
+  let totalCost = baseCost;
+
+  // Additional instances cost the same daily rate
+  if (instanceCount > 1) {
+    totalCost += (instanceCount - 1) * baseCost;
+  }
+
+  // Premium for higher CPU (>1 vCPU = 1024 units)
+  if (config?.cpu && config.cpu > 1024) {
+    const cpuMultiplier = config.cpu / 1024;
+    totalCost *= cpuMultiplier;
+  }
+
+  // Premium for higher memory (>2GB = 2048 MB)
+  if (config?.memory && config.memory > 2048) {
+    const memoryMultiplier = config.memory / 2048;
+    totalCost *= Math.sqrt(memoryMultiplier); // Sub-linear scaling for memory
+  }
+
+  return Math.round(totalCost * 100) / 100; // Round to 2 decimal places
+}
 
 export const CONTAINER_LIMITS = {
   // Free tier

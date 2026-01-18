@@ -5261,11 +5261,13 @@ elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 
 ### Infrastructure
 
-| Resource                       | Cost         |
-| ------------------------------ | ------------ |
-| Container CPU (per core/hour)  | 0.05 credits |
-| Container Memory (per GB/hour) | 0.01 credits |
-| Knowledge storage (per GB/day) | 0.01 credits |
+| Resource                       | Cost                  |
+| ------------------------------ | --------------------- |
+| Container (per day)            | 0.67 credits (~$20/mo)|
+| Container deployment (one-time)| 0.50 credits          |
+| Knowledge storage (per GB/day) | 0.01 credits          |
+
+  Containers are billed **daily**. If credits run low, you'll receive a 48-hour warning before shutdown.
 
 ## Credit Packs
 
