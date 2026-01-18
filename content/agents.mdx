@@ -57,21 +57,12 @@ Click "Deploy" to launch your agent.
 ### Using the API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/my-agents/characters" \
+curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Research Assistant",
-    "bio": ["Expert in scientific research and data analysis"],
-    "style": {
-      "all": ["Professional", "Thorough", "Evidence-based"],
-      "chat": ["Concise responses", "Cite sources when available"]
-    },
-    "modelProvider": "openai",
-    "settings": {
-      "model": "gpt-4o",
-      "temperature": 0.7
-    }
+    "bio": "Expert in scientific research and data analysis"
   }'
 ```
 
@@ -79,10 +70,14 @@ Response:
 
 ```json
 {
-  "id": "agent_abc123",
-  "name": "Research Assistant",
-  "status": "active",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "agent": {
+    "id": "uuid-abc123",
+    "name": "Research Assistant",
+    "username": "research-assistant",
+    "bio": ["Expert in scientific research and data analysis"],
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -160,35 +155,21 @@ The character JSON defines your agent's personality and behavior.
 ### List Agents
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters" \
+curl -X GET "https://elizacloud.ai/api/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Get Agent Details
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X GET "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
-```
-
-### Update Agent
-
-```bash
-curl -X PUT "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Updated Agent Name",
-    "settings": {
-      "temperature": 0.8
-    }
-  }'
 ```
 
 ### Delete Agent
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X DELETE "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

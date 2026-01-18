@@ -36,7 +36,9 @@ curl -X POST "https://elizacloud.ai/api/v1/apps" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Integration",
-    "description": "Custom integration for my product"
+    "app_url": "https://myapp.example.com",
+    "description": "Custom integration for my product",
+    "website_url": "https://example.com"
   }'
 ```
 
@@ -48,9 +50,10 @@ Go to [Dashboard → Apps](/dashboard/apps) and click "Create App".
 
 ### Configure App
 
-- **Name**: Display name for your app
+- **Name**: Display name for your app (required)
+- **App URL**: Your app's callback/webhook URL (required)
 - **Description**: What your app does
-- **Website**: (Optional) Your app's website
+- **Website URL**: (Optional) Your public website
 
 ### Get API Key
 
@@ -66,10 +69,14 @@ Use the API key to make requests on behalf of your app.
 
 ```json
 {
-  "id": "app_abc123",
-  "name": "My Integration",
-  "apiKey": "ak_live_xxxxxxxxxxxx",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "app": {
+    "id": "uuid-abc123",
+    "name": "My Integration",
+    "app_url": "https://myapp.example.com",
+    "api_key": "ek_xxx...",
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 

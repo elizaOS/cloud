@@ -15,27 +15,48 @@ Create, configure, and manage your AI agents (characters).
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters</span>
+  <span className="path">/api/my-agents/characters</span>
 </div>
 
-Get all your agents.
+Get all your agents with optional filtering and pagination.
+
+### Query Parameters
+
+| Parameter  | Type   | Description                           |
+| ---------- | ------ | ------------------------------------- |
+| `search`   | string | Search by name or bio                 |
+| `category` | string | Filter by category                    |
+| `sortBy`   | string | `newest`, `updated`, or `name`        |
+| `order`    | string | `asc` or `desc`                       |
+| `page`     | number | Page number (default: 1)              |
+| `limit`    | number | Items per page (default: 30, max: 1000) |
 
 ### Response
 
 ```json
 {
-  "characters": [
-    {
-      "id": "char_abc123",
-      "name": "Customer Support Bot",
-      "bio": ["Expert in customer support"],
-      "modelProvider": "openai",
-      "settings": {
-        "model": "gpt-4o"
-      },
-      "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "data": {
+    "characters": [
+      {
+        "id": "uuid-abc123",
+        "name": "Customer Support Bot",
+        "bio": ["Expert in customer support"],
+        "avatarUrl": "https://...",
+        "category": "support",
+        "isPublic": false,
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 30,
+      "totalPages": 1,
+      "totalCount": 1,
+      "hasMore": false
     }
-  ]
+  }
 }
 ```
 
@@ -45,52 +66,45 @@ Get all your agents.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters</span>
+  <span className="path">/api/v1/app/agents</span>
 </div>
 
-Create a new agent.
+Create a new agent with a name and optional bio.
 
 ### Request
 
 ```json
 {
   "name": "My Assistant",
-  "bio": ["Expert in customer support", "Friendly and helpful"],
-  "modelProvider": "openai",
-  "settings": {
-    "model": "gpt-4o"
-  },
-  "system": "You are a helpful customer support assistant.",
-  "style": {
-    "all": ["professional", "friendly"],
-    "chat": ["concise"],
-    "post": ["engaging"]
-  }
+  "bio": "A helpful customer support assistant"
 }
 ```
 
 ### Parameters
 
-| Parameter        | Type   | Required | Description                 |
-| ---------------- | ------ | -------- | --------------------------- |
-| `name`           | string | ✓        | Agent name                  |
-| `bio`            | array  |          | Array of bio lines          |
-| `modelProvider`  | string |          | `openai`, `anthropic`, etc. |
-| `settings.model` | string |          | Model to use                |
-| `system`         | string |          | System prompt               |
-| `style`          | object |          | Communication styles        |
+| Parameter | Type   | Required | Description                        |
+| --------- | ------ | -------- | ---------------------------------- |
+| `name`    | string | ✓        | Agent name (max 100 characters)    |
+| `bio`     | string |          | Agent bio/description              |
 
 ### Response
 
 ```json
 {
-  "id": "char_abc123",
-  "name": "My Assistant",
-  "bio": ["Expert in customer support", "Friendly and helpful"],
-  "modelProvider": "openai",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "agent": {
+    "id": "uuid-abc123",
+    "name": "My Assistant",
+    "username": "my-assistant",
+    "bio": ["A helpful customer support assistant"],
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
+
+<Callout type="info">
+  Agent creation is rate limited and subject to organization quotas based on credit balance.
+</Callout>
 
 ---
 
@@ -98,30 +112,26 @@ Create a new agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}</span>
 </div>
 
 Get details about a specific agent.
 
----
-
-## Update Agent
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
-</div>
-
-Update an agent's configuration.
-
-### Request
+### Response
 
 ```json
 {
-  "name": "Updated Assistant",
-  "bio": ["New bio line"],
-  "settings": {
-    "model": "gpt-4o-mini"
+  "success": true,
+  "data": {
+    "character": {
+      "id": "uuid-abc123",
+      "name": "My Assistant",
+      "bio": ["A helpful assistant"],
+      "avatarUrl": null,
+      "category": null,
+      "isPublic": false,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
   }
 }
 ```
@@ -132,10 +142,21 @@ Update an agent's configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}</span>
 </div>
 
-Delete an agent.
+Delete an agent you own.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Character deleted successfully"
+  }
+}
+```
 
 ---
 
@@ -143,7 +164,7 @@ Delete an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}/clone</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}/clone</span>
 </div>
 
 Create a copy of an existing agent.
@@ -154,7 +175,7 @@ Create a copy of an existing agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}/stats</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}/stats</span>
 </div>
 
 Get usage statistics for an agent.
@@ -163,10 +184,12 @@ Get usage statistics for an agent.
 
 ```json
 {
-  "totalMessages": 1500,
-  "totalTokens": 125000,
-  "views": 500,
-  "interactions": 1200
+  "success": true,
+  "data": {
+    "views": 500,
+    "interactions": 1200,
+    "messageCount": 1500
+  }
 }
 ```
 
