@@ -18,17 +18,33 @@ Upload documents and query your knowledge base for RAG applications.
   <span className="path">/api/v1/knowledge/upload-file</span>
 </div>
 
-Upload a document to your knowledge base.
+Upload one or more documents to your knowledge base using multipart form data.
 
 ### Request
 
-Use `multipart/form-data`:
+Use `multipart/form-data` with the `files` field:
 
 ```bash
 curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "file=@document.pdf"
+  -F "files=@document.pdf" \
+  -F "characterId=optional_agent_id"
 ```
+
+### Parameters
+
+| Parameter     | Type   | Required | Description                               |
+| ------------- | ------ | -------- | ----------------------------------------- |
+| `files`       | file[] | ✓        | One or more files to upload (max 10)      |
+| `characterId` | string |          | Associate with a specific agent           |
+
+### Upload Limits
+
+| Limit                | Value                          |
+| -------------------- | ------------------------------ |
+| Max file size        | 5 MB per file                  |
+| Max files per batch  | 10 files                       |
+| Max total batch size | 10 MB                          |
 
 ### Supported Formats
 
@@ -44,11 +60,22 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
 
 ```json
 {
-  "id": "doc_abc123",
-  "name": "document.pdf",
-  "size": 1048576,
-  "chunks": 42,
-  "status": "processed"
+  "success": true,
+  "data": [
+    {
+      "id": "doc_abc123",
+      "filename": "document.pdf",
+      "type": "application/pdf",
+      "size": 1048576,
+      "uploadedAt": 1705312800000,
+      "fragmentCount": 42,
+      "status": "success"
+    }
+  ],
+  "message": "Successfully uploaded 1 file(s)",
+  "successCount": 1,
+  "failedCount": 0,
+  "totalCount": 1
 }
 ```
 

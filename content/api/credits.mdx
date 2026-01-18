@@ -20,13 +20,17 @@ Manage your credits and view usage.
 
 Get your current credit balance.
 
+### Query Parameters
+
+| Parameter | Type    | Description                                                |
+| --------- | ------- | ---------------------------------------------------------- |
+| `fresh`   | boolean | Set to `true` to bypass cache (use after payment confirmation) |
+
 ### Response
 
 ```json
 {
-  "success": true,
-  "balance": 50.00,
-  "currency": "USD"
+  "balance": 50.00
 }
 ```
 
@@ -39,19 +43,84 @@ Get your current credit balance.
   <span className="path">/api/v1/credits/summary</span>
 </div>
 
-Get credit balance with usage summary.
+Get comprehensive credit status including organization balance, agent budgets, app earnings, and redeemable earnings.
 
 ### Response
 
 ```json
 {
   "success": true,
-  "balance": 50.00,
-  "currency": "USD",
-  "usage": {
-    "today": 2.50,
-    "thisWeek": 15.00,
-    "thisMonth": 45.00
+  "organization": {
+    "id": "org_abc123",
+    "name": "My Organization",
+    "creditBalance": 50.00,
+    "autoTopUpEnabled": false,
+    "autoTopUpThreshold": null,
+    "autoTopUpAmount": null,
+    "hasPaymentMethod": true
+  },
+  "agents": [
+    {
+      "id": "agent_xyz789",
+      "name": "My Assistant",
+      "isPublic": false,
+      "monetizationEnabled": false,
+      "hasBudget": true,
+      "allocated": 10.00,
+      "spent": 2.50,
+      "available": 7.50,
+      "dailyLimit": 5.00,
+      "dailySpent": 1.00,
+      "dailyRemaining": 4.00,
+      "isPaused": false,
+      "pauseReason": null,
+      "totalEarnings": 0,
+      "totalRequests": 150
+    }
+  ],
+  "agentsSummary": {
+    "total": 3,
+    "withBudget": 2,
+    "paused": 0,
+    "totalAllocated": 20.00,
+    "totalSpent": 5.00,
+    "totalAvailable": 15.00
+  },
+  "apps": [
+    {
+      "id": "app_def456",
+      "name": "Customer Portal",
+      "slug": "customer-portal",
+      "monetizationEnabled": true,
+      "inferenceMarkupPercentage": 20,
+      "totalCreatorEarnings": 125.50,
+      "totalPlatformRevenue": 31.38
+    }
+  ],
+  "earnings": {
+    "availableBalance": 125.50,
+    "totalEarned": 200.00,
+    "totalRedeemed": 74.50,
+    "totalPending": 0,
+    "breakdown": {
+      "miniapps": 100.00,
+      "agents": 75.00,
+      "mcps": 25.00
+    }
+  },
+  "recentTransactions": [
+    {
+      "id": "txn_abc123",
+      "type": "usage",
+      "amount": -0.05,
+      "description": "Chat completion (gpt-4o)",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "pricing": {
+    "creditsPerDollar": 100,
+    "minimumTopUp": 5.0,
+    "x402Enabled": true
   }
 }
 ```
@@ -126,6 +195,10 @@ Verify a completed payment and add credits.
 </div>
 
 Get credit transaction history.
+
+<Callout type="info">
+  This endpoint uses `/api/credits/` rather than `/api/v1/credits/`.
+</Callout>
 
 ### Query Parameters
 

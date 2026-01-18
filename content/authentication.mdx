@@ -91,17 +91,22 @@ Restrict keys to specific endpoints:
 
 ### Available Permissions
 
-| Permission        | Description             |
-| ----------------- | ----------------------- |
-| `chat:read`       | Read chat history       |
-| `chat:write`      | Create chat completions |
-| `embeddings:read` | Create embeddings       |
-| `agents:read`     | List agents             |
-| `agents:write`    | Create/modify agents    |
-| `knowledge:read`  | Query knowledge         |
-| `knowledge:write` | Upload documents        |
-| `images:write`    | Generate images         |
-| `videos:write`    | Generate videos         |
+Permissions can be used to restrict what operations an API key can perform.
+
+| Permission   | Description         |
+| ------------ | ------------------- |
+| `chat`       | Chat completions    |
+| `embeddings` | Generate embeddings |
+| `images`     | Image generation    |
+| `video`      | Video generation    |
+| `voice`      | Voice/TTS           |
+| `knowledge`  | Knowledge base      |
+| `agents`     | Agent management    |
+| `apps`       | App management      |
+
+<Callout type="info">
+  If no permissions are specified when creating an API key, the key has access to all endpoints by default. Use permissions to create restricted keys for specific use cases.
+</Callout>
 
 ## API Key Management
 

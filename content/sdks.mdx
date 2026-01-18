@@ -183,12 +183,12 @@ const response = await fetch("https://elizacloud.ai/api/v1/generate-video", {
   },
   body: JSON.stringify({
     prompt: "A cat playing piano",
-    duration: 5,
+    model: "fal-ai/veo3",
   }),
 });
 
 const data = await response.json();
-console.log(data.video_url);
+console.log(data.video.url);
 ```
 
 ## Framework Integrations
