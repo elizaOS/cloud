@@ -4,8 +4,9 @@
  */
 
 /**
- * UUID v4 regex pattern for validation.
- * Matches standard UUID format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+ * UUID regex pattern for validation (versions 1-5).
+ * Matches standard UUID format: xxxxxxxx-xxxx-Vxxx-Nxxx-xxxxxxxxxxxx
+ * where V = version (1-5) and N = variant (8, 9, a, b)
  */
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,7 +42,10 @@ export function isValidUUID(value: string): boolean {
 export function sanitizeUUID(value: string | undefined | null): string | undefined {
   if (!value) return undefined;
 
-  // Trim whitespace and remove common trailing garbage
+  // Remove URL-encoded garbage that commonly appends to UUIDs:
+  // - %5C decodes to backslash (\)
+  // - Trailing slashes from malformed URL paths
+  // - Trailing whitespace from copy/paste errors
   const cleaned = value.trim().replace(/[\\\/\s]+$/, '');
 
   return isValidUUID(cleaned) ? cleaned : undefined;
