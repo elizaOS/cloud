@@ -4,13 +4,10 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { isValidUUID } from "@/lib/utils/validation";
 
-/**
- * UUID v4 regex pattern for validation.
- * Matches standard UUID format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
- */
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Re-export for backward compatibility
+export { isValidUUID } from "@/lib/utils/validation";
 
 /**
  * Structured log marker for orphaned blobs.
@@ -81,15 +78,6 @@ export function trackOrphanedBlobBatch(
   for (const blob of blobs) {
     trackOrphanedBlob(blob);
   }
-}
-
-/**
- * Validates that a string is a valid UUID format.
- * @param str - The string to validate.
- * @returns True if the string is a valid UUID.
- */
-export function isValidUUID(str: string): boolean {
-  return UUID_REGEX.test(str);
 }
 
 /**
