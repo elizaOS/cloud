@@ -110,6 +110,10 @@ export function NodeConfigPanel({
         return <McpConfig data={localData} onChange={updateField} />;
       case "twitter":
         return <TwitterConfig data={localData} onChange={updateField} />;
+      case "telegram":
+        return <TelegramConfig data={localData} onChange={updateField} />;
+      case "email":
+        return <EmailConfig data={localData} onChange={updateField} />;
       default:
         return <div className="text-white/60">Unknown node type: {node.type}</div>;
     }
@@ -1031,6 +1035,244 @@ function TwitterConfig({
         <p className="text-white/60 font-medium">Output:</p>
         <p className="text-white/40">• postId - The ID of the created tweet</p>
         <p className="text-white/40">• postUrl - URL to the tweet</p>
+      </div>
+    </div>
+  );
+}
+
+// Telegram Configuration
+function TelegramConfig({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const hasCredentials = !!(data.botToken && data.chatId);
+
+  return (
+    <div className="space-y-4">
+      {/* Connection Status */}
+      <div className={`rounded-lg p-3 text-sm ${hasCredentials ? "bg-green-500/10 border border-green-500/30" : "bg-yellow-500/10 border border-yellow-500/30"}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${hasCredentials ? "bg-green-500" : "bg-yellow-500"}`} />
+          <span className={hasCredentials ? "text-green-400" : "text-yellow-400"}>
+            {hasCredentials ? "Configured" : "Not Configured"}
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-white/80">Bot Token</Label>
+        <Input
+          type="password"
+          value={(data.botToken as string) ?? ""}
+          onChange={(e) => onChange("botToken", e.target.value)}
+          placeholder="123456:ABC-DEF1234..."
+          className="mt-1 font-mono text-xs"
+        />
+        <p className="text-xs text-white/40 mt-1">
+          Get this from @BotFather on Telegram
+        </p>
+      </div>
+
+      <div>
+        <Label className="text-white/80">Chat ID</Label>
+        <Input
+          value={(data.chatId as string) ?? ""}
+          onChange={(e) => onChange("chatId", e.target.value)}
+          placeholder="-1001234567890 or @channelname"
+          className="mt-1 font-mono text-xs"
+        />
+        <p className="text-xs text-white/40 mt-1">
+          Channel/group ID or @username
+        </p>
+      </div>
+
+      <div>
+        <Label className="text-white/80">Message (Optional)</Label>
+        <Textarea
+          value={(data.message as string) ?? ""}
+          onChange={(e) => onChange("message", e.target.value)}
+          placeholder="Custom message..."
+          className="mt-1 min-h-[80px]"
+        />
+        <p className="text-xs text-white/40 mt-1">
+          Leave empty to use previous agent response
+        </p>
+      </div>
+
+      <div className="bg-cyan-500/10 rounded-lg p-3 text-xs space-y-2">
+        <p className="text-cyan-400 font-medium">How to get Bot Token:</p>
+        <ol className="text-white/60 list-decimal list-inside space-y-1">
+          <li>Message @BotFather on Telegram</li>
+          <li>Send /newbot and follow prompts</li>
+          <li>Copy the token provided</li>
+        </ol>
+        <p className="text-cyan-400 font-medium mt-3">How to get Chat ID:</p>
+        <ol className="text-white/60 list-decimal list-inside space-y-1">
+          <li>Add your bot to the channel/group</li>
+          <li>Send a message in the chat</li>
+          <li>Visit: api.telegram.org/bot[TOKEN]/getUpdates</li>
+          <li>Find "chat":{"{"}"id": in the response</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// Email Configuration
+function EmailConfig({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const [showCredentials, setShowCredentials] = useState(false);
+  const toEmail = (data.toEmail as string) ?? "";
+  const isValidEmail = toEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail);
+  const hasSmtpConfig = !!(data.smtpHost && data.smtpPort && data.smtpPassword);
+
+  return (
+    <div className="space-y-4">
+      {/* Connection Status */}
+      <div className={`rounded-lg p-3 text-sm ${hasSmtpConfig ? "bg-green-500/10 border border-green-500/30" : "bg-yellow-500/10 border border-yellow-500/30"}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${hasSmtpConfig ? "bg-green-500" : "bg-yellow-500"}`} />
+            <span className={hasSmtpConfig ? "text-green-400" : "text-yellow-400"}>
+              {hasSmtpConfig ? "SMTP Configured" : "SMTP Not Configured"}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowCredentials(!showCredentials)}
+            className="text-xs text-white/60 hover:text-white transition-colors"
+          >
+            {showCredentials ? "Hide" : "Configure"}
+          </button>
+        </div>
+      </div>
+
+      {/* SMTP Credentials */}
+      {showCredentials && (
+        <div className="space-y-3 p-3 bg-white/5 rounded-lg border border-white/10">
+          <div className="text-xs text-white/60 mb-2">
+            Use your own SMTP server (Gmail, SendGrid, Mailgun, etc.)
+          </div>
+          
+          <div>
+            <Label className="text-white/80 text-xs">SMTP Host</Label>
+            <Input
+              value={(data.smtpHost as string) ?? ""}
+              onChange={(e) => onChange("smtpHost", e.target.value)}
+              placeholder="smtp.gmail.com"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">SMTP Port</Label>
+            <Input
+              type="number"
+              value={(data.smtpPort as number) ?? 587}
+              onChange={(e) => onChange("smtpPort", parseInt(e.target.value))}
+              placeholder="587"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">Username / Email</Label>
+            <Input
+              value={(data.smtpUser as string) ?? ""}
+              onChange={(e) => onChange("smtpUser", e.target.value)}
+              placeholder="you@gmail.com"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">Password / App Password</Label>
+            <Input
+              type="password"
+              value={(data.smtpPassword as string) ?? ""}
+              onChange={(e) => onChange("smtpPassword", e.target.value)}
+              placeholder="Enter password or app password..."
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          <div>
+            <Label className="text-white/80 text-xs">From Email</Label>
+            <Input
+              type="email"
+              value={(data.fromEmail as string) ?? ""}
+              onChange={(e) => onChange("fromEmail", e.target.value)}
+              placeholder="you@gmail.com"
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          {hasSmtpConfig && (
+            <button
+              onClick={() => {
+                onChange("smtpHost", "");
+                onChange("smtpPort", 587);
+                onChange("smtpUser", "");
+                onChange("smtpPassword", "");
+                onChange("fromEmail", "");
+              }}
+              className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            >
+              Clear SMTP config
+            </button>
+          )}
+
+          <div className="bg-emerald-500/10 rounded-lg p-2 text-xs space-y-1 mt-2">
+            <p className="text-emerald-400 font-medium">Gmail Setup:</p>
+            <ol className="text-white/60 list-decimal list-inside space-y-0.5">
+              <li>Enable 2FA on your Google account</li>
+              <li>Go to Google Account → Security → App Passwords</li>
+              <li>Create an app password for "Mail"</li>
+              <li>Host: smtp.gmail.com, Port: 587</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <Label className="text-white/80">To Email</Label>
+        <Input
+          type="email"
+          value={toEmail}
+          onChange={(e) => onChange("toEmail", e.target.value)}
+          placeholder="recipient@example.com"
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <Label className="text-white/80">Subject</Label>
+        <Input
+          value={(data.subject as string) ?? ""}
+          onChange={(e) => onChange("subject", e.target.value)}
+          placeholder="Workflow Notification"
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <Label className="text-white/80">Body (Optional)</Label>
+        <Textarea
+          value={(data.body as string) ?? ""}
+          onChange={(e) => onChange("body", e.target.value)}
+          placeholder="Email content..."
+          className="mt-1 min-h-[80px]"
+        />
+        <p className="text-xs text-white/40 mt-1">
+          Leave empty to use previous agent response
+        </p>
       </div>
     </div>
   );

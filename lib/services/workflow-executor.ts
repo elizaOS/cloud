@@ -16,6 +16,8 @@ import { ensureElizaCloudUrl, uploadToBlob } from "@/lib/blob";
 import { discordService } from "./discord";
 import { getElevenLabsService } from "./elevenlabs";
 import { twitterProvider } from "./social-media/providers/twitter";
+import { telegramProvider } from "./social-media/providers/telegram";
+import nodemailer from "nodemailer";
 
 // ============================================================================
 // Types
@@ -294,6 +296,10 @@ class WorkflowExecutorService {
         return this.executeMcpNode(config, context);
       case "twitter":
         return this.executeTwitterNode(config, context);
+      case "telegram":
+        return this.executeTelegramNode(config, context);
+      case "email":
+        return this.executeEmailNode(config, context);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -1061,6 +1067,183 @@ class WorkflowExecutorService {
       postId,
       postUrl,
       tweetText: tweetText?.slice(0, 100),
+    };
+  }
+
+  /**
+   * Execute Telegram node - sends message to Telegram via bot
+   * Requires: Bot Token (from @BotFather) and Chat ID
+   */
+  private async executeTelegramNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const botToken = config.botToken as string | undefined;
+    const chatId = config.chatId as string | undefined;
+    let message = (config.message as string) ?? "";
+
+    if (!botToken) {
+      throw new Error("Telegram Bot Token is required. Get one from @BotFather on Telegram.");
+    }
+
+    if (!chatId) {
+      throw new Error("Telegram Chat ID is required. This is the channel/group/user ID to send messages to.");
+    }
+
+    // Auto-compose message from previous outputs if not specified
+    if (!message) {
+      for (const [, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+        if (data?.type === "agent" && data?.response) {
+          message = String(data.response);
+          this.log(context, "info", "telegram", "Using agent response as message");
+          break;
+        }
+      }
+    }
+
+    if (!message) {
+      message = `Workflow completed at ${new Date().toISOString()}`;
+    }
+
+    // Check for image from previous nodes
+    let imageUrl: string | undefined;
+    for (const [, output] of context.nodeOutputs) {
+      const data = output.output as Record<string, unknown>;
+      if (data?.type === "image" && data?.imageUrl) {
+        imageUrl = data.imageUrl as string;
+      }
+    }
+
+    this.log(context, "info", "telegram", `Sending message to Telegram chat ${chatId}...`);
+
+    const credentials = { botToken };
+    
+    const result = await telegramProvider.createPost(
+      credentials,
+      { 
+        text: message,
+        media: imageUrl ? [{ url: imageUrl, type: "image" as const, mimeType: "image/jpeg" }] : undefined,
+      },
+      { telegram: { chatId } }
+    );
+
+    if (!result.success) {
+      throw new Error(`Telegram send failed: ${result.error}`);
+    }
+
+    this.log(context, "info", "telegram", "Message sent to Telegram successfully");
+
+    return {
+      type: "telegram",
+      success: true,
+      chatId,
+      messageId: result.postId,
+      messagePreview: message.slice(0, 100),
+      hasImage: !!imageUrl,
+    };
+  }
+
+  /**
+   * Execute Email node - sends email via user's SMTP credentials
+   */
+  private async executeEmailNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const toEmail = config.toEmail as string | undefined;
+    const subject = (config.subject as string) ?? "Workflow Notification";
+    let body = (config.body as string) ?? "";
+
+    // SMTP credentials from node config
+    const smtpHost = config.smtpHost as string | undefined;
+    const smtpPort = (config.smtpPort as number) ?? 587;
+    const smtpUser = config.smtpUser as string | undefined;
+    const smtpPassword = config.smtpPassword as string | undefined;
+    const fromEmail = (config.fromEmail as string) ?? smtpUser;
+
+    if (!smtpHost || !smtpPassword) {
+      throw new Error("SMTP credentials are required. Click Configure in the Email node to set up your SMTP server (Gmail, SendGrid, etc.).");
+    }
+
+    if (!toEmail) {
+      throw new Error("Recipient email address is required.");
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(toEmail)) {
+      throw new Error("Invalid recipient email address format.");
+    }
+
+    if (!fromEmail || !emailRegex.test(fromEmail)) {
+      throw new Error("Invalid or missing 'From Email' address.");
+    }
+
+    // Auto-compose body from previous outputs if not specified
+    if (!body) {
+      for (const [, output] of context.nodeOutputs) {
+        const data = output.output as Record<string, unknown>;
+        if (data?.type === "agent" && data?.response) {
+          body = String(data.response);
+          this.log(context, "info", "email", "Using agent response as email body");
+          break;
+        }
+      }
+    }
+
+    if (!body) {
+      // Build summary from all outputs
+      const outputs = this.collectOutputs(context);
+      body = `Workflow completed.\n\n`;
+      for (const [nodeId, output] of Object.entries(outputs)) {
+        const data = output as Record<string, unknown>;
+        if (data?.response) {
+          body += `${nodeId}: ${String(data.response).slice(0, 500)}\n\n`;
+        }
+      }
+    }
+
+    this.log(context, "info", "email", `Sending email via ${smtpHost} to ${toEmail}...`);
+
+    // Build HTML email
+    const htmlBody = `
+      <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #FF5800;">Workflow Notification</h2>
+        <div style="white-space: pre-wrap; color: #333;">${body}</div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="color: #999; font-size: 12px;">Sent via Eliza Cloud Workflows</p>
+      </div>
+    `;
+
+    // Create transporter with user's SMTP credentials
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser ?? "apikey",
+        pass: smtpPassword,
+      },
+    });
+
+    await transporter.sendMail({
+      from: fromEmail,
+      to: toEmail,
+      subject,
+      text: body,
+      html: htmlBody,
+    });
+
+    this.log(context, "info", "email", "Email sent successfully");
+
+    return {
+      type: "email",
+      success: true,
+      from: fromEmail,
+      to: toEmail,
+      subject,
+      bodyPreview: body.slice(0, 100),
     };
   }
 

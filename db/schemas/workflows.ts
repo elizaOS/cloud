@@ -53,6 +53,8 @@ export const workflowNodeTypeEnum = pgEnum("workflow_node_type", [
   "discord", // Send to Discord
   "mcp", // Call MCP tool
   "twitter", // Post to Twitter/X
+  "telegram", // Send to Telegram
+  "email", // Send email
 ]);
 
 export type WorkflowNodeType =
@@ -66,7 +68,9 @@ export type WorkflowNodeType =
   | "tts"
   | "discord"
   | "mcp"
-  | "twitter";
+  | "twitter"
+  | "telegram"
+  | "email";
 
 /**
  * Workflow node definition.

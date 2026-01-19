@@ -21,6 +21,8 @@ import {
   Puzzle,
   Search,
   Twitter,
+  Send,
+  Mail,
 } from "lucide-react";
 import type { WorkflowNodeType } from "@/db/schemas";
 import { cn } from "@/lib/utils";
@@ -90,6 +92,22 @@ const nodeDefinitions: NodeDefinition[] = [
     icon: Twitter,
     color: "sky",
     description: "Post tweets, reply, like, and retweet on Twitter/X",
+    category: "integrations",
+  },
+  {
+    type: "telegram",
+    label: "Telegram",
+    icon: Send,
+    color: "cyan",
+    description: "Send messages to Telegram channels or groups via bot",
+    category: "integrations",
+  },
+  {
+    type: "email",
+    label: "Email",
+    icon: Mail,
+    color: "emerald",
+    description: "Send emails to any address",
     category: "integrations",
   },
   {

@@ -39,6 +39,8 @@ import { TtsNode } from "./nodes/tts-node";
 import { DiscordNode } from "./nodes/discord-node";
 import { McpNode } from "./nodes/mcp-node";
 import { TwitterNode } from "./nodes/twitter-node";
+import { TelegramNode } from "./nodes/telegram-node";
+import { EmailNode } from "./nodes/email-node";
 import { AddButtonNode } from "./nodes/add-button-node";
 import type { WorkflowNodeType } from "@/db/schemas";
 
@@ -60,6 +62,8 @@ const nodeTypes: NodeTypes = {
   discord: DiscordNode,
   mcp: McpNode,
   twitter: TwitterNode,
+  telegram: TelegramNode,
+  email: EmailNode,
   addButton: AddButtonNode,
 };
 
