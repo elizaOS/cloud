@@ -852,7 +852,8 @@ class WorkflowExecutorService {
   }
 
   /**
-   * Execute MCP node - calls an MCP tool
+   * Execute MCP node - calls an MCP tool directly using the tool implementation
+   * Instead of going through HTTP, we call the tool functions directly
    */
   private async executeMcpNode(
     config: Record<string, unknown>,
@@ -864,18 +865,6 @@ class WorkflowExecutorService {
 
     if (!mcpServer || !toolName) {
       throw new Error("MCP server and tool name are required");
-    }
-
-    // Map MCP server IDs to their endpoints
-    const mcpEndpoints: Record<string, string> = {
-      crypto: "/api/mcps/crypto/mcp",
-      time: "/api/mcps/time/mcp",
-      weather: "/api/mcps/weather/mcp",
-    };
-
-    const endpoint = mcpEndpoints[mcpServer];
-    if (!endpoint) {
-      throw new Error(`Unknown MCP server: ${mcpServer}`);
     }
 
     // Substitute placeholders in tool arguments with previous node outputs
@@ -897,57 +886,301 @@ class WorkflowExecutorService {
 
     this.log(context, "info", "mcp", `Calling ${mcpServer}/${toolName}...`);
 
-    // Build JSON-RPC request
-    const mcpRequest = {
-      jsonrpc: "2.0",
-      method: "tools/call",
-      params: {
-        name: toolName,
-        arguments: processedArgs,
-      },
-      id: `workflow-${context.workflowId}-${Date.now()}`,
-    };
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(mcpRequest),
-    });
-
-    if (!response.ok) {
-      throw new Error(`MCP call failed: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-
-    if (result.error) {
-      throw new Error(`MCP error: ${result.error.message ?? JSON.stringify(result.error)}`);
+    // Call the tool directly instead of going through HTTP to avoid transport issues
+    let result: unknown;
+    
+    switch (mcpServer) {
+      case "crypto":
+        result = await this.callCryptoTool(toolName, processedArgs, context);
+        break;
+      case "time":
+        result = await this.callTimeTool(toolName, processedArgs, context);
+        break;
+      case "weather":
+        result = await this.callWeatherTool(toolName, processedArgs, context);
+        break;
+      default:
+        throw new Error(`Unknown MCP server: ${mcpServer}`);
     }
 
     this.log(context, "info", "mcp", `MCP tool ${toolName} completed`);
-
-    // Extract the actual content from MCP response
-    const content = result.result?.content?.[0]?.text;
-    let parsedContent: unknown = content;
-    if (content) {
-      try {
-        parsedContent = JSON.parse(content);
-      } catch {
-        parsedContent = content;
-      }
-    }
 
     return {
       type: "mcp",
       mcpServer,
       toolName,
       args: processedArgs,
-      response: parsedContent,
-      raw: result,
+      response: result,
     };
+  }
+
+  /**
+   * Call crypto MCP tools directly
+   */
+  private async callCryptoTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const COINGECKO_API = "https://api.coingecko.com/api/v3";
+    
+    const COIN_ALIASES: Record<string, string> = {
+      btc: "bitcoin", eth: "ethereum", sol: "solana", doge: "dogecoin",
+      xrp: "ripple", ada: "cardano", dot: "polkadot", matic: "matic-network",
+      link: "chainlink", uni: "uniswap", avax: "avalanche-2", atom: "cosmos",
+      near: "near", apt: "aptos", arb: "arbitrum", op: "optimism",
+      sui: "sui", sei: "sei-network", inj: "injective-protocol",
+      usdt: "tether", usdc: "usd-coin", bnb: "binancecoin",
+      shib: "shiba-inu", pepe: "pepe", bonk: "bonk", wif: "dogwifcoin",
+    };
+
+    const resolveCoinId = (input: string): string => {
+      const normalized = input.toLowerCase().trim();
+      return COIN_ALIASES[normalized] || normalized;
+    };
+
+    switch (toolName) {
+      case "get_price": {
+        const coin = (args.coin as string) ?? "bitcoin";
+        const currency = (args.currency as string) ?? "usd";
+        const coinId = resolveCoinId(coin);
+        
+        const url = `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true`;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        
+        if (!response.ok) {
+          throw new Error(`CoinGecko API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (!data[coinId]) {
+          throw new Error(`Cryptocurrency "${coin}" not found`);
+        }
+        
+        return {
+          coin: coinId,
+          price: data[coinId][currency],
+          change24h: data[coinId][`${currency}_24h_change`],
+          marketCap: data[coinId][`${currency}_market_cap`],
+          currency: currency.toUpperCase(),
+        };
+      }
+      
+      case "get_market_data": {
+        const coin = (args.coin as string) ?? "bitcoin";
+        const coinId = resolveCoinId(coin);
+        
+        const url = `${COINGECKO_API}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        
+        if (!response.ok) {
+          throw new Error(`CoinGecko API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const md = data.market_data;
+        
+        return {
+          coin: { id: data.id, symbol: data.symbol?.toUpperCase(), name: data.name },
+          price: md?.current_price?.usd,
+          change24h: md?.price_change_percentage_24h,
+          change7d: md?.price_change_percentage_7d,
+          change30d: md?.price_change_percentage_30d,
+          marketCap: md?.market_cap?.usd,
+          marketCapRank: md?.market_cap_rank,
+          volume24h: md?.total_volume?.usd,
+          ath: md?.ath?.usd,
+          athDate: md?.ath_date?.usd,
+        };
+      }
+      
+      case "list_trending": {
+        const url = `${COINGECKO_API}/search/trending`;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        
+        if (!response.ok) {
+          throw new Error(`CoinGecko API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return {
+          trending: data.coins?.slice(0, 10).map((c: { item: { id: string; name: string; symbol: string; market_cap_rank: number } }, i: number) => ({
+            rank: i + 1,
+            id: c.item.id,
+            name: c.item.name,
+            symbol: c.item.symbol?.toUpperCase(),
+            marketCapRank: c.item.market_cap_rank,
+          })) ?? [],
+        };
+      }
+      
+      default:
+        throw new Error(`Unknown crypto tool: ${toolName}`);
+    }
+  }
+
+  /**
+   * Call time MCP tools directly
+   */
+  private async callTimeTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const TIMEZONE_ALIASES: Record<string, string> = {
+      EST: "America/New_York", EDT: "America/New_York",
+      CST: "America/Chicago", CDT: "America/Chicago",
+      MST: "America/Denver", MDT: "America/Denver",
+      PST: "America/Los_Angeles", PDT: "America/Los_Angeles",
+      GMT: "Etc/GMT", BST: "Europe/London",
+      CET: "Europe/Paris", CEST: "Europe/Paris",
+      JST: "Asia/Tokyo", KST: "Asia/Seoul",
+      IST: "Asia/Kolkata", AEST: "Australia/Sydney",
+    };
+
+    const resolveTimezone = (tz: string): string => {
+      const upper = tz.toUpperCase().replace(/[- ]/g, "_");
+      return TIMEZONE_ALIASES[upper] || tz;
+    };
+
+    switch (toolName) {
+      case "get_current_time": {
+        const timezone = (args.timezone as string) ?? "UTC";
+        const tz = resolveTimezone(timezone);
+        const now = new Date();
+        
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: tz,
+          dateStyle: "full",
+          timeStyle: "long",
+        });
+        
+        return {
+          timezone: tz,
+          datetime: formatter.format(now),
+          iso: now.toISOString(),
+          unix: Math.floor(now.getTime() / 1000),
+        };
+      }
+      
+      case "convert_timezone": {
+        const time = (args.time as string) ?? "now";
+        const fromTimezone = (args.fromTimezone as string) ?? "UTC";
+        const toTimezone = (args.toTimezone as string) ?? "UTC";
+        
+        const fromTz = resolveTimezone(fromTimezone);
+        const toTz = resolveTimezone(toTimezone);
+        const date = time.toLowerCase() === "now" ? new Date() : new Date(time);
+        
+        const fromFormatter = new Intl.DateTimeFormat("en-US", { timeZone: fromTz, dateStyle: "full", timeStyle: "long" });
+        const toFormatter = new Intl.DateTimeFormat("en-US", { timeZone: toTz, dateStyle: "full", timeStyle: "long" });
+        
+        return {
+          original: { timezone: fromTz, formatted: fromFormatter.format(date) },
+          converted: { timezone: toTz, formatted: toFormatter.format(date) },
+          iso: date.toISOString(),
+        };
+      }
+      
+      default:
+        throw new Error(`Unknown time tool: ${toolName}`);
+    }
+  }
+
+  /**
+   * Call weather MCP tools directly
+   */
+  private async callWeatherTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1";
+    const WEATHER_BASE = "https://api.open-meteo.com/v1";
+
+    const geocodeCity = async (city: string) => {
+      const url = `${GEOCODING_BASE}/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Geocoding failed: ${response.statusText}`);
+      const data = await response.json();
+      return data.results?.[0];
+    };
+
+    switch (toolName) {
+      case "get_current_weather": {
+        const city = (args.city as string) ?? "New York";
+        const units = (args.units as string) ?? "fahrenheit";
+        
+        const location = await geocodeCity(city);
+        if (!location) throw new Error(`City '${city}' not found`);
+        
+        const tempUnit = units === "celsius" ? "celsius" : "fahrenheit";
+        const windUnit = units === "celsius" ? "kmh" : "mph";
+        
+        const params = new URLSearchParams({
+          latitude: location.latitude.toString(),
+          longitude: location.longitude.toString(),
+          current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover",
+          temperature_unit: tempUnit,
+          wind_speed_unit: windUnit,
+          timezone: "auto",
+        });
+        
+        const url = `${WEATHER_BASE}/forecast?${params}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Weather API failed: ${response.statusText}`);
+        const data = await response.json();
+        
+        return {
+          location: { name: `${location.name}, ${location.country}`, lat: location.latitude, lon: location.longitude },
+          temperature: Math.round(data.current.temperature_2m),
+          feelsLike: Math.round(data.current.apparent_temperature),
+          humidity: data.current.relative_humidity_2m,
+          windSpeed: Math.round(data.current.wind_speed_10m),
+          cloudCover: data.current.cloud_cover,
+          units: { temperature: units === "celsius" ? "°C" : "°F", wind: windUnit },
+        };
+      }
+      
+      case "get_weather_forecast": {
+        const city = (args.city as string) ?? "New York";
+        const days = (args.days as number) ?? 7;
+        const units = (args.units as string) ?? "fahrenheit";
+        
+        const location = await geocodeCity(city);
+        if (!location) throw new Error(`City '${city}' not found`);
+        
+        const tempUnit = units === "celsius" ? "celsius" : "fahrenheit";
+        
+        const params = new URLSearchParams({
+          latitude: location.latitude.toString(),
+          longitude: location.longitude.toString(),
+          daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+          temperature_unit: tempUnit,
+          timezone: "auto",
+          forecast_days: days.toString(),
+        });
+        
+        const url = `${WEATHER_BASE}/forecast?${params}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Forecast API failed: ${response.statusText}`);
+        const data = await response.json();
+        
+        return {
+          location: { name: `${location.name}, ${location.country}` },
+          forecast: data.daily.time.map((date: string, i: number) => ({
+            date,
+            high: Math.round(data.daily.temperature_2m_max[i]),
+            low: Math.round(data.daily.temperature_2m_min[i]),
+            precipitationChance: data.daily.precipitation_probability_max[i],
+          })),
+          units: { temperature: units === "celsius" ? "°C" : "°F" },
+        };
+      }
+      
+      default:
+        throw new Error(`Unknown weather tool: ${toolName}`);
+    }
   }
 
   /**
@@ -1093,11 +1326,22 @@ class WorkflowExecutorService {
 
     // Auto-compose message from previous outputs if not specified
     if (!message) {
-      for (const [, output] of context.nodeOutputs) {
+      // Look for agent response first, then MCP response, then any response
+      for (const [nodeId, output] of context.nodeOutputs) {
         const data = output.output as Record<string, unknown>;
+        
+        // Agent response
         if (data?.type === "agent" && data?.response) {
           message = String(data.response);
-          this.log(context, "info", "telegram", "Using agent response as message");
+          this.log(context, "info", "telegram", `Using agent response as message`);
+          break;
+        }
+        
+        // MCP response - format it nicely
+        if (data?.type === "mcp" && data?.response) {
+          const mcpData = data.response as Record<string, unknown>;
+          message = this.formatMcpResponseForMessage(mcpData, data.toolName as string);
+          this.log(context, "info", "telegram", `Using MCP ${data.toolName} response as message`);
           break;
         }
       }
@@ -1421,6 +1665,60 @@ class WorkflowExecutorService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Format MCP response for human-readable message
+   */
+  private formatMcpResponseForMessage(data: Record<string, unknown>, toolName: string): string {
+    // Handle crypto price response
+    if (toolName === "get_price" && data.coin) {
+      const price = data.price as number;
+      const change = data.change24h as number;
+      const changeEmoji = change >= 0 ? "📈" : "📉";
+      const changeSign = change >= 0 ? "+" : "";
+      return `💰 ${(data.coin as string).toUpperCase()} Price\n\n` +
+        `Price: $${price?.toLocaleString()}\n` +
+        `24h Change: ${changeEmoji} ${changeSign}${change?.toFixed(2)}%\n` +
+        `Market Cap: $${((data.marketCap as number) / 1e9)?.toFixed(2)}B`;
+    }
+
+    // Handle market data response
+    if (toolName === "get_market_data" && data.coin) {
+      const coin = data.coin as Record<string, unknown>;
+      const changeEmoji = (data.change24h as number) >= 0 ? "📈" : "📉";
+      return `📊 ${coin.name} (${coin.symbol}) Market Data\n\n` +
+        `Price: $${(data.price as number)?.toLocaleString()}\n` +
+        `24h: ${changeEmoji} ${(data.change24h as number)?.toFixed(2)}%\n` +
+        `7d: ${(data.change7d as number)?.toFixed(2)}%\n` +
+        `Rank: #${data.marketCapRank}`;
+    }
+
+    // Handle trending response
+    if (toolName === "list_trending" && data.trending) {
+      const trending = data.trending as Array<{ rank: number; name: string; symbol: string }>;
+      const list = trending.slice(0, 5).map(c => `${c.rank}. ${c.name} (${c.symbol})`).join("\n");
+      return `🔥 Trending Cryptocurrencies\n\n${list}`;
+    }
+
+    // Handle time response
+    if (toolName === "get_current_time" && data.datetime) {
+      return `🕐 Current Time\n\n${data.datetime}\n\nTimezone: ${data.timezone}`;
+    }
+
+    // Handle weather response
+    if (toolName === "get_current_weather" && data.temperature) {
+      const loc = data.location as Record<string, unknown>;
+      const units = data.units as Record<string, string>;
+      return `🌤️ Weather in ${loc?.name}\n\n` +
+        `Temperature: ${data.temperature}${units?.temperature}\n` +
+        `Feels like: ${data.feelsLike}${units?.temperature}\n` +
+        `Humidity: ${data.humidity}%\n` +
+        `Wind: ${data.windSpeed} ${units?.wind}`;
+    }
+
+    // Default: JSON stringify
+    return JSON.stringify(data, null, 2);
   }
 }
 

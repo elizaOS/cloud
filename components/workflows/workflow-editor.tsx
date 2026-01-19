@@ -694,17 +694,19 @@ export function WorkflowEditor({ workflow: initialWorkflow }: WorkflowEditorProp
   }, [hasUnsavedChanges]);
 
   const handleToggleActive = async () => {
+    // Prevent double-clicks
+    if (isTogglingActive) return;
+    
     const newStatus = workflowStatus === "active" ? "paused" : "active";
     
     // Optimistic update - update UI immediately
     setWorkflowStatus(newStatus);
     setIsTogglingActive(true);
     
-    // Update database
-    await updateWorkflow(initialWorkflow.id, { status: newStatus });
-    
-    setIsTogglingActive(false);
-    // Don't need router.refresh() since we're tracking state locally
+    // Update database (fire and forget for speed, errors will show on next load)
+    updateWorkflow(initialWorkflow.id, { status: newStatus })
+      .catch(console.error)
+      .finally(() => setIsTogglingActive(false));
   };
 
   // Combined save and run handler - always saves before running
@@ -731,22 +733,18 @@ export function WorkflowEditor({ workflow: initialWorkflow }: WorkflowEditorProp
       webhookSecret,
     };
 
-    // Determine workflow status:
-    // - Keep current status if paused (don't override user's pause)
-    // - "active" if workflow has nodes (ready to run)
-    // - "draft" if workflow is empty
+    // Determine workflow status
     const hasNodes = realNodes.length > 0;
     let newStatus = workflowStatus;
     if (!hasNodes) {
       newStatus = "draft";
     } else if (workflowStatus === "draft") {
-      // Only promote from draft to active, don't override paused
       newStatus = "active";
     }
-    // Update local state to match
     setWorkflowStatus(newStatus);
 
-    await updateWorkflow(initialWorkflow.id, {
+    // Save with timeout to prevent infinite spinner
+    const savePromise = updateWorkflow(initialWorkflow.id, {
       name,
       nodes: toDbNodes(realNodes),
       edges: toDbEdges(edges),
@@ -754,17 +752,41 @@ export function WorkflowEditor({ workflow: initialWorkflow }: WorkflowEditorProp
       status: newStatus,
     });
 
-    setIsSaving(false);
-    setHasUnsavedChanges(false);
+    // 10 second timeout for save operation
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("Save timed out")), 10000)
+    );
+
+    try {
+      await Promise.race([savePromise, timeoutPromise]);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error("Save error:", error);
+      // Still mark as saved locally even if DB save failed - user can try again
+    } finally {
+      setIsSaving(false);
+    }
 
     // Run the workflow after saving if requested
     if (runAfterSave) {
-      const result = await runWorkflow(workflow.id);
-      setExecutionResult(result);
-      setIsRunning(false);
+      try {
+        const result = await runWorkflow(workflow.id);
+        setExecutionResult(result);
+      } catch (error) {
+        console.error("Run error:", error);
+        setExecutionResult({
+          success: false,
+          workflowId: workflow.id,
+          outputs: {},
+          logs: [],
+          totalDurationMs: 0,
+          creditsCharged: 0,
+          error: error instanceof Error ? error.message : "Failed to run workflow",
+        });
+      } finally {
+        setIsRunning(false);
+      }
     }
-
-    router.refresh();
   };
 
   return (
