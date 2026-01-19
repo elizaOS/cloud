@@ -5,13 +5,13 @@
 ```
 tests/
 ├── unit/                    # Pure logic, no external dependencies
-├── integration/             # With DB, multi-component tests
+├── integration/             # With DB, NO server needed
 │   ├── services/           # Service layer tests (credits, budgets, etc.)
-│   ├── financial/          # Cross-service financial flows
-│   └── runtime/            # Runtime/agent tests
-│       └── scenarios/      # Complex runtime scenarios
+│   └── financial/          # Cross-service financial flows
 ├── e2e/                     # Server required
 │   ├── api/                # HTTP API tests
+│   ├── runtime/            # Runtime/agent tests (requires server)
+│   │   └── scenarios/      # Complex runtime scenarios
 │   └── browser/            # Playwright browser tests
 ├── properties/              # Property-based tests (fast-check)
 ├── builders/                # Test data builders (fluent API)
@@ -43,6 +43,9 @@ bun test tests/properties --timeout 300000
 # E2E API tests (requires running server)
 bun test tests/e2e/api
 
+# E2E runtime tests (requires running server)
+bun test tests/e2e/runtime
+
 # Playwright browser tests
 bunx playwright test tests/e2e/browser
 ```
@@ -70,7 +73,9 @@ const org = await new OrgBuilder()
 ## CI
 
 Tests run automatically on PR/push to `dev` and `main`:
-- `integration-tests`: All integration tests with PostgreSQL
-- `unit-tests`: Fast unit tests
+- `unit-tests`: Fast unit tests (no DB)
+- `integration-tests`: Service tests with PostgreSQL
 - `property-tests`: Property-based invariant tests
 - `lint`: ESLint + TypeScript checks
+- `e2e-api`: API + runtime tests (requires server)
+- `e2e-browser`: Playwright browser tests

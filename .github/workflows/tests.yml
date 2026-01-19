@@ -70,7 +70,12 @@ jobs:
         run: |
           bun run dev &
           sleep 10
-      - run: bun test tests/e2e/api --timeout 120000
+      - name: Run API tests
+        run: bun test tests/e2e/api --timeout 120000
+        env:
+          TEST_BASE_URL: http://localhost:3000
+      - name: Run runtime tests
+        run: bun test tests/e2e/runtime --timeout 120000
         env:
           TEST_BASE_URL: http://localhost:3000
 
