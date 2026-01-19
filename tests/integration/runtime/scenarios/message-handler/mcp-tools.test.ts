@@ -39,7 +39,7 @@ import {
   renderDebugTrace,
   clearDebugTraces,
 } from "@/tests/helpers/test-runtime";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
+import { mcpTestCharacter } from "@/tests/fixtures/mcp-test-character";
 
 // ============================================================================
 // MCP Plugin Loading Tests

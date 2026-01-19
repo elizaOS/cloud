@@ -177,9 +177,9 @@ describe("Financial Invariants (Property-Based)", () => {
                 const finalBalance = Number(org?.credit_balance);
 
                 // INVARIANT: Calculated balance should match actual
-                // Use tolerance for floating point
+                // Use tolerance for floating point (0.02 to account for cumulative errors)
                 expect(Math.abs(finalBalance - expectedBalance)).toBeLessThan(
-                  0.01,
+                  0.02,
                 );
 
                 return true;

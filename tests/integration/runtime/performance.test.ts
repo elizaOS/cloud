@@ -21,7 +21,7 @@ import { Timer, TimingCollector, HRTimer } from "@/tests/helpers/timing";
 import {
   simpleTestCharacter,
   miraCharacter,
-} from "../fixtures/mcp-test-character";
+} from "@/tests/fixtures/mcp-test-character";
 import { AgentMode } from "@/tests/helpers";
 import { v4 as uuidv4 } from "uuid";
 import type { UUID } from "@elizaos/core";

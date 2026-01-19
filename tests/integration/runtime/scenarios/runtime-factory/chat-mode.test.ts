@@ -32,7 +32,7 @@ import {
   endTimer,
   logTimings,
 } from "@/tests/helpers";
-import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
+import { mcpTestCharacter } from "@/tests/fixtures/mcp-test-character";
 
 // ============================================================================
 // Local Test State (isolated to this file)
