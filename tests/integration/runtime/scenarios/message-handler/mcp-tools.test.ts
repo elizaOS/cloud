@@ -32,13 +32,13 @@ import {
   startTimer,
   endTimer,
   logTimings,
-} from "../../../infrastructure";
+} from "@/tests/helpers";
 import {
   isDebugTracingEnabled,
   getLatestDebugTrace,
   renderDebugTrace,
   clearDebugTraces,
-} from "../../../infrastructure/test-runtime";
+} from "@/tests/helpers/test-runtime";
 import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================

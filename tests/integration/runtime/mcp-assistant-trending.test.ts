@@ -27,13 +27,13 @@ import {
   type TestRuntimeResult,
   type TestUserContext,
   type TestDataSet,
-} from "../infrastructure";
+} from "@/tests/helpers";
 import {
   isDebugTracingEnabled,
   getLatestDebugTrace,
   renderDebugTrace,
   clearDebugTraces,
-} from "../infrastructure/test-runtime";
+} from "@/tests/helpers/test-runtime";
 import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 
 // Test state

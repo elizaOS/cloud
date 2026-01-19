@@ -31,7 +31,7 @@ import {
   startTimer,
   endTimer,
   logTimings,
-} from "../../../infrastructure";
+} from "@/tests/helpers";
 import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================

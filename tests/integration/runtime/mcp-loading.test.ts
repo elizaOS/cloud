@@ -22,7 +22,7 @@ import {
   type TestRuntimeResult,
   type TestUserContext,
   type TestDataSet,
-} from "../infrastructure";
+} from "@/tests/helpers";
 import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 
 // Test state

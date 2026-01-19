@@ -8,12 +8,12 @@
 import {
   getConnectionString,
   verifyConnection,
-} from "./infrastructure/local-database";
+} from "./helpers/local-database";
 import {
   createTestDataSet,
   cleanupTestData,
   type TestDataSet,
-} from "./infrastructure/test-data-factory";
+} from "./helpers/test-data-factory";
 
 // Global test state
 let globalTestData: TestDataSet | null = null;
@@ -137,5 +137,5 @@ export async function cleanupTestEnvironment(): Promise<void> {
 export {
   getConnectionString,
   verifyConnection,
-} from "./infrastructure/local-database";
-export type { TestDataSet } from "./infrastructure/test-data-factory";
+} from "./helpers/local-database";
+export type { TestDataSet } from "./helpers/test-data-factory";

@@ -21,9 +21,9 @@ import {
   createTestUser,
   type TestRuntimeResult,
   type TestUserContext,
-} from "../../../infrastructure";
-import { TimingCollector, HRTimer } from "../../../infrastructure/timing";
-import { AgentMode } from "../../../infrastructure";
+} from "@/tests/helpers";
+import { TimingCollector, HRTimer } from "@/tests/helpers/timing";
+import { AgentMode } from "@/tests/helpers";
 import { v4 as uuidv4 } from "uuid";
 import type { UUID } from "@elizaos/core";
 

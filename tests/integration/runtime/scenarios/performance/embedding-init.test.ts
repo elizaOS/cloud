@@ -17,7 +17,7 @@ import {
   AgentMode,
   type TestDataSet,
   type TestRuntimeResult,
-} from "../../../infrastructure";
+} from "@/tests/helpers";
 
 describe("Embedding Initialization Performance", () => {
   let connectionString: string;

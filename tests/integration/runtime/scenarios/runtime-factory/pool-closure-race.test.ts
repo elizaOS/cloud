@@ -42,7 +42,7 @@ import {
   type TestRuntime,
   // Test internals for race condition testing
   _testing,
-} from "../../../infrastructure";
+} from "@/tests/helpers";
 import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================

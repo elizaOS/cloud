@@ -31,7 +31,7 @@ import {
   sendTestMessage,
   type TestRuntime,
   _testing,
-} from "../../../infrastructure";
+} from "@/tests/helpers";
 import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 
 // ============================================================================
