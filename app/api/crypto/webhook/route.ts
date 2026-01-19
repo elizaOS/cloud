@@ -123,14 +123,26 @@ function verifyOxaPaySignature(
 
 /**
  * Generates a unique event ID for webhook deduplication.
- * Combines track_id, status, and payload hash to create a unique identifier.
+ *
+ * IMPORTANT: We normalize confirmation statuses ("paid" and "confirmed") to a single
+ * "confirmation" status because OxaPay may send multiple webhooks for the same payment
+ * (e.g., first "Paid" then "Confirmed"), and both should be treated as the same event.
+ *
+ * We intentionally exclude payloadHash from the key because:
+ * - OxaPay retries may have slightly different payloads (timestamps, etc.)
+ * - The trackId + normalized status is sufficient to uniquely identify a payment event
  */
-function generateWebhookEventId(
-  trackId: string,
-  status: string,
-  payloadHash: string
-): string {
-  return `oxapay_${trackId}_${status}_${payloadHash}`;
+function generateWebhookEventId(trackId: string, status: string): string {
+  const normalizedStatus = status.toLowerCase();
+
+  // Treat "paid" and "confirmed" as the same confirmation event
+  // This prevents duplicate processing when OxaPay sends both statuses
+  const dedupeStatus =
+    normalizedStatus === "paid" || normalizedStatus === "confirmed"
+      ? "confirmation"
+      : normalizedStatus;
+
+  return `oxapay_${trackId}_${dedupeStatus}`;
 }
 
 async function handleWebhook(req: NextRequest) {
@@ -246,10 +258,10 @@ async function handleWebhook(req: NextRequest) {
     }
 
     // Generate unique event ID for deduplication
+    // Note: payloadHash is still logged for audit but not used in eventId
     const eventId = generateWebhookEventId(
       normalizedPayload.trackId,
-      normalizedPayload.status,
-      payloadHash
+      normalizedPayload.status
     );
 
     // Atomic deduplication: Try to insert first, handle duplicate error.

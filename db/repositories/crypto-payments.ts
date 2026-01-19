@@ -51,6 +51,21 @@ export class CryptoPaymentsRepository {
     return payment;
   }
 
+  /**
+   * Find payment by OxaPay track ID using the write database.
+   * Use this for webhook processing to avoid read replica lag issues.
+   */
+  async findByTrackIdForWrite(
+    trackId: string,
+  ): Promise<CryptoPayment | undefined> {
+    const [payment] = await dbWrite
+      .select()
+      .from(cryptoPayments)
+      .where(sql`${cryptoPayments.metadata}->>'oxapay_track_id' = ${trackId}`)
+      .limit(1);
+    return payment;
+  }
+
   async findPendingByAddress(
     address: string,
   ): Promise<CryptoPayment | undefined> {

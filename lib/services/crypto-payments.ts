@@ -784,7 +784,11 @@ class CryptoPaymentsService {
       webhookPayAmount,
     });
 
-    const payment = await cryptoPaymentsRepository.findByTrackId(track_id);
+    // Use write database to avoid read replica lag issues
+    // This ensures we see the latest payment status and prevents race conditions
+    const payment = await cryptoPaymentsRepository.findByTrackIdForWrite(
+      track_id,
+    );
 
     if (!payment) {
       logger.warn("[Crypto Payments] Payment not found for webhook", {
