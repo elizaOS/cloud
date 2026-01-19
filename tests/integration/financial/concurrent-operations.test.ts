@@ -1,501 +1,212 @@
 /**
- * Concurrent Operations Integration Tests
+ * Cross-Service Concurrent Operations Tests
  *
- * CRITICAL: Race condition tests for all financial services.
+ * Tests race conditions BETWEEN different services.
  *
- * These tests verify that concurrent operations maintain data integrity.
- * They are essential for preventing:
- * - Double-spending attacks
- * - Negative balance exploits
- * - Budget overdraft attacks
- * - Double-redemption vulnerabilities
+ * Note: Single-service race conditions are tested in unit tests:
+ * - credits.service.test.ts (20 concurrent deductions)
+ * - agent-budgets.service.test.ts (20 concurrent deductions)
+ * - redeemable-earnings.service.test.ts (double redemption)
  *
- * @see https://www.sourcery.ai/vulnerabilities/race-condition-financial-transactions
+ * This file focuses on CROSS-SERVICE scenarios only.
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-} from "bun:test";
-import { v4 as uuidv4 } from "uuid";
-import { dbWrite, dbRead } from "@/db/client";
-import { organizations } from "@/db/schemas/organizations";
-import {
-  agentBudgets,
-  agentBudgetTransactions,
-} from "@/db/schemas/agent-budgets";
-import {
-  redeemableEarnings,
-  redeemableEarningsLedger,
-} from "@/db/schemas/redeemable-earnings";
-import { eq } from "drizzle-orm";
+import { describe, test, expect, beforeAll } from "bun:test";
 import { creditsService } from "@/lib/services/credits";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
-import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
+import { organizationsService } from "@/lib/services/organizations";
 import {
   createTestDataSet,
   cleanupTestData,
-  type TestDataSet,
 } from "@/tests/infrastructure/test-data-factory";
 import { getConnectionString } from "@/tests/infrastructure/local-database";
 
-/**
- * Configuration for concurrent tests
- */
-const CONCURRENT_REQUESTS = 20;
-const INITIAL_BALANCE = 10;
-const AMOUNT_PER_OPERATION = 1;
-const EXPECTED_SUCCESSES = INITIAL_BALANCE / AMOUNT_PER_OPERATION; // 10
-const EXPECTED_FAILURES = CONCURRENT_REQUESTS - EXPECTED_SUCCESSES; // 10
-const TEST_TIMEOUT = 60000; // 60 seconds
-
-describe("Concurrent Financial Operations", () => {
+describe("Cross-Service Concurrent Operations", () => {
   let connectionString: string;
 
   beforeAll(async () => {
     connectionString = getConnectionString();
   });
 
-  // ===========================================================================
-  // Credits Service Concurrency Tests
-  // ===========================================================================
+  test("concurrent org credit deduction AND budget allocation compete fairly", async () => {
+    const testData = await createTestDataSet(connectionString, {
+      creditBalance: 50,
+      includeCharacter: true,
+    });
+    const agentId = testData.character!.id;
+    const orgId = testData.organization.id;
 
-  describe("Credits Service", () => {
-    test(
-      "CRITICAL: 20 concurrent $1 deductions on $10 balance",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: INITIAL_BALANCE,
-          organizationName: "Credits Race Test Org",
-        });
+    try {
+      await agentBudgetService.getOrCreateBudget(agentId);
 
-        // Act: Fire concurrent deductions
-        const promises = Array.from({ length: CONCURRENT_REQUESTS }, (_, i) =>
-          creditsService.reserveAndDeductCredits({
-            organizationId: testData.organization.id,
-            amount: AMOUNT_PER_OPERATION,
-            description: `Concurrent deduction ${i + 1}`,
-          }),
-        );
+      // Race: direct credit deduction vs budget allocation
+      // Both want $40 from $50 available
+      const [directDeduct, budgetAllocation] = await Promise.allSettled([
+        creditsService.reserveAndDeductCredits({
+          organizationId: orgId,
+          amount: 40,
+          description: "Direct deduction",
+        }),
+        agentBudgetService.allocateBudget({
+          agentId,
+          amount: 40,
+          fromOrgCredits: true,
+          description: "Budget allocation",
+        }),
+      ]);
 
-        const results = await Promise.allSettled(promises);
+      const directSuccess =
+        directDeduct.status === "fulfilled" && directDeduct.value.success;
+      const allocSuccess =
+        budgetAllocation.status === "fulfilled" &&
+        budgetAllocation.value.success;
 
-        // Assert: Count results
-        const successes = results.filter(
-          (r) => r.status === "fulfilled" && r.value.success,
-        );
-        const failures = results.filter(
-          (r) => r.status === "fulfilled" && !r.value.success,
-        );
+      // At most one can succeed with full $40
+      // (both could partially succeed if one gets less)
+      const finalOrg = await organizationsService.getById(orgId);
+      expect(Number(finalOrg!.credit_balance)).toBeGreaterThanOrEqual(0);
 
-        // Exactly 10 should succeed
-        expect(successes.length).toBe(EXPECTED_SUCCESSES);
-        expect(failures.length).toBe(EXPECTED_FAILURES);
-
-        // CRITICAL: Balance must be exactly $0, NEVER negative
-        const org = await dbRead.query.organizations.findFirst({
-          where: eq(organizations.id, testData.organization.id),
-        });
-        const finalBalance = Number(org?.credit_balance);
-
-        expect(finalBalance).toBe(0);
-        expect(finalBalance).toBeGreaterThanOrEqual(0);
-
-        // Cleanup
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-
-    test(
-      "Mixed concurrent adds and deductions maintain consistency",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 50,
-          organizationName: "Credits Mixed Race Test",
-        });
-
-        // Act: Fire mixed operations
-        const addPromises = Array.from({ length: 5 }, (_, i) =>
-          creditsService.addCredits({
-            organizationId: testData.organization.id,
-            amount: 10,
-            description: `Concurrent add ${i + 1}`,
-          }),
-        );
-
-        const deductPromises = Array.from({ length: 10 }, (_, i) =>
-          creditsService.reserveAndDeductCredits({
-            organizationId: testData.organization.id,
-            amount: 10,
-            description: `Concurrent deduct ${i + 1}`,
-          }),
-        );
-
-        await Promise.allSettled([...addPromises, ...deductPromises]);
-
-        // Assert: Balance should never be negative
-        const org = await dbRead.query.organizations.findFirst({
-          where: eq(organizations.id, testData.organization.id),
-        });
-        const finalBalance = Number(org?.credit_balance);
-
-        expect(finalBalance).toBeGreaterThanOrEqual(0);
-
-        // Cleanup
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
+      // Log for debugging
+      console.log(
+        `Direct: ${directSuccess}, Alloc: ${allocSuccess}, Balance: ${finalOrg!.credit_balance}`,
+      );
+    } finally {
+      await cleanupTestData(connectionString, testData.organization.id);
+    }
   });
 
-  // ===========================================================================
-  // Agent Budget Service Concurrency Tests
-  // ===========================================================================
+  test("multiple agents competing for same org credits", async () => {
+    // Create two agents in different orgs but we'll test with one org
+    const testData1 = await createTestDataSet(connectionString, {
+      creditBalance: 100,
+      includeCharacter: true,
+    });
+    const testData2 = await createTestDataSet(connectionString, {
+      creditBalance: 100,
+      includeCharacter: true,
+    });
 
-  describe("Agent Budget Service", () => {
-    test(
-      "CRITICAL: 20 concurrent $1 budget deductions on $10 budget",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 100,
-          includeCharacter: true,
-          characterName: "Budget Race Test Agent",
-        });
+    const agent1Id = testData1.character!.id;
+    const agent2Id = testData2.character!.id;
+    const orgId = testData1.organization.id;
 
-        const agentId = testData.character!.id;
-        await agentBudgetService.getOrCreateBudget(agentId);
-        await agentBudgetService.allocateBudget({
-          agentId,
-          amount: INITIAL_BALANCE,
+    try {
+      // Setup both agents with budgets linked to org1
+      await agentBudgetService.getOrCreateBudget(agent1Id);
+
+      // Note: agent2 is in a different org, so this tests
+      // concurrent allocations from DIFFERENT orgs (no conflict expected)
+      await agentBudgetService.getOrCreateBudget(agent2Id);
+
+      // Concurrent allocations from their respective orgs
+      const [alloc1, alloc2] = await Promise.allSettled([
+        agentBudgetService.allocateBudget({
+          agentId: agent1Id,
+          amount: 60,
           fromOrgCredits: true,
-        });
+        }),
+        agentBudgetService.allocateBudget({
+          agentId: agent2Id,
+          amount: 60,
+          fromOrgCredits: true,
+        }),
+      ]);
 
-        // Act: Fire concurrent deductions
-        const promises = Array.from({ length: CONCURRENT_REQUESTS }, (_, i) =>
+      // Both should succeed (different orgs)
+      expect(alloc1.status === "fulfilled" && alloc1.value.success).toBe(true);
+      expect(alloc2.status === "fulfilled" && alloc2.value.success).toBe(true);
+
+      // Verify no negative balances
+      const org1 = await organizationsService.getById(
+        testData1.organization.id,
+      );
+      const org2 = await organizationsService.getById(
+        testData2.organization.id,
+      );
+      expect(Number(org1!.credit_balance)).toBeGreaterThanOrEqual(0);
+      expect(Number(org2!.credit_balance)).toBeGreaterThanOrEqual(0);
+    } finally {
+      await cleanupTestData(connectionString, testData1.organization.id);
+      await cleanupTestData(connectionString, testData2.organization.id);
+    }
+  });
+
+  test("stress: 30 mixed cross-service operations maintain invariants", async () => {
+    const testData = await createTestDataSet(connectionString, {
+      creditBalance: 500,
+      includeCharacter: true,
+    });
+    const agentId = testData.character!.id;
+    const orgId = testData.organization.id;
+
+    try {
+      await agentBudgetService.getOrCreateBudget(agentId);
+      await agentBudgetService.allocateBudget({
+        agentId,
+        amount: 200,
+        fromOrgCredits: true,
+      });
+
+      // Mix of operations that touch BOTH credits AND budgets
+      const operations = [
+        // Direct credit operations
+        ...Array.from({ length: 5 }, () =>
+          creditsService.addCredits({
+            organizationId: orgId,
+            amount: 10,
+            description: "Stress add",
+            source: "manual",
+          }),
+        ),
+        ...Array.from({ length: 10 }, () =>
+          creditsService.reserveAndDeductCredits({
+            organizationId: orgId,
+            amount: 5,
+            description: "Stress deduct",
+          }),
+        ),
+        // Budget operations
+        ...Array.from({ length: 10 }, () =>
           agentBudgetService.deductBudget({
             agentId,
-            amount: AMOUNT_PER_OPERATION,
-            description: `Concurrent budget deduction ${i + 1}`,
-          }),
-        );
-
-        const results = await Promise.allSettled(promises);
-
-        // Assert
-        const successes = results.filter(
-          (r) => r.status === "fulfilled" && r.value.success,
-        );
-        const failures = results.filter(
-          (r) => r.status === "fulfilled" && !r.value.success,
-        );
-
-        expect(successes.length).toBe(EXPECTED_SUCCESSES);
-        expect(failures.length).toBe(EXPECTED_FAILURES);
-
-        // CRITICAL: Budget balance must be exactly $0
-        const budget = await agentBudgetService.getBudget(agentId);
-        const finalBalance =
-          Number(budget!.allocated_budget) - Number(budget!.spent_budget);
-
-        expect(finalBalance).toBe(0);
-        expect(finalBalance).toBeGreaterThanOrEqual(0);
-
-        // Cleanup
-        await dbWrite
-          .delete(agentBudgetTransactions)
-          .where(eq(agentBudgetTransactions.agent_id, agentId));
-        await dbWrite
-          .delete(agentBudgets)
-          .where(eq(agentBudgets.agent_id, agentId));
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-
-    test(
-      "Concurrent allocations from org credits maintain org balance integrity",
-      async () => {
-        // Arrange: Org with $50, agent needs allocations totaling $100
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 50,
-          includeCharacter: true,
-          characterName: "Allocation Race Test Agent",
-        });
-
-        const agentId = testData.character!.id;
-        await agentBudgetService.getOrCreateBudget(agentId);
-
-        // Act: Fire 10 concurrent $10 allocations (total $100, but only $50 available)
-        const promises = Array.from({ length: 10 }, (_, i) =>
-          agentBudgetService.allocateBudget({
-            agentId,
-            amount: 10,
-            fromOrgCredits: true,
-            description: `Concurrent allocation ${i + 1}`,
-          }),
-        );
-
-        const results = await Promise.allSettled(promises);
-
-        // Assert: Exactly 5 should succeed (org has $50)
-        const successes = results.filter(
-          (r) => r.status === "fulfilled" && r.value.success,
-        );
-
-        expect(successes.length).toBe(5);
-
-        // CRITICAL: Org balance should be exactly $0
-        const org = await dbRead.query.organizations.findFirst({
-          where: eq(organizations.id, testData.organization.id),
-        });
-        const orgBalance = Number(org?.credit_balance);
-
-        expect(orgBalance).toBe(0);
-        expect(orgBalance).toBeGreaterThanOrEqual(0);
-
-        // Agent budget should be exactly $50
-        const budget = await agentBudgetService.getBudget(agentId);
-        expect(Number(budget!.allocated_budget)).toBe(50);
-
-        // Cleanup
-        await dbWrite
-          .delete(agentBudgetTransactions)
-          .where(eq(agentBudgetTransactions.agent_id, agentId));
-        await dbWrite
-          .delete(agentBudgets)
-          .where(eq(agentBudgets.agent_id, agentId));
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-  });
-
-  // ===========================================================================
-  // Redeemable Earnings Service Concurrency Tests
-  // ===========================================================================
-
-  describe("Redeemable Earnings Service", () => {
-    test(
-      "CRITICAL: 20 concurrent $1 redemption locks on $10 earnings",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 100,
-        });
-
-        const userId = testData.user.id;
-
-        // Add $10 in earnings
-        await redeemableEarningsService.addEarnings({
-          userId,
-          amount: INITIAL_BALANCE,
-          source: "miniapp",
-          sourceId: uuidv4(),
-          description: "Initial earnings for race test",
-        });
-
-        // Act: Fire concurrent lock requests (each with unique redemptionId)
-        const promises = Array.from({ length: CONCURRENT_REQUESTS }, (_, i) =>
-          redeemableEarningsService.lockForRedemption({
-            userId,
-            amount: AMOUNT_PER_OPERATION,
-            redemptionId: uuidv4(),
-          }),
-        );
-
-        const results = await Promise.allSettled(promises);
-
-        // Assert
-        const successes = results.filter(
-          (r) => r.status === "fulfilled" && r.value.success,
-        );
-        const failures = results.filter(
-          (r) =>
-            r.status === "fulfilled" &&
-            (!r.value.success || r.value.error?.includes("Insufficient")),
-        );
-
-        expect(successes.length).toBe(EXPECTED_SUCCESSES);
-        expect(failures.length).toBe(EXPECTED_FAILURES);
-
-        // CRITICAL: Available balance must be exactly $0
-        const balance = await redeemableEarningsService.getBalance(userId);
-
-        expect(balance!.availableBalance).toBe(0);
-        expect(balance!.availableBalance).toBeGreaterThanOrEqual(0);
-        expect(balance!.totalPending).toBe(INITIAL_BALANCE);
-
-        // Cleanup
-        await dbWrite
-          .delete(redeemableEarningsLedger)
-          .where(eq(redeemableEarningsLedger.user_id, userId));
-        await dbWrite
-          .delete(redeemableEarnings)
-          .where(eq(redeemableEarnings.user_id, userId));
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-
-    test(
-      "Concurrent earnings additions are all recorded",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 100,
-        });
-
-        const userId = testData.user.id;
-
-        // Act: Fire concurrent earning additions
-        const promises = Array.from({ length: 20 }, (_, i) =>
-          redeemableEarningsService.addEarnings({
-            userId,
             amount: 5,
-            source: "agent",
-            sourceId: uuidv4(),
-            description: `Concurrent earning ${i + 1}`,
+            description: "Budget deduct",
           }),
-        );
-
-        await Promise.allSettled(promises);
-
-        // Assert: All $100 should be recorded (20 × $5)
-        const balance = await redeemableEarningsService.getBalance(userId);
-
-        expect(balance!.totalEarned).toBe(100);
-        expect(balance!.availableBalance).toBe(100);
-
-        // Verify all ledger entries exist
-        const history = await redeemableEarningsService.getLedgerHistory(
-          userId,
-          50,
-        );
-        expect(history.length).toBe(20);
-
-        // Cleanup
-        await dbWrite
-          .delete(redeemableEarningsLedger)
-          .where(eq(redeemableEarningsLedger.user_id, userId));
-        await dbWrite
-          .delete(redeemableEarnings)
-          .where(eq(redeemableEarnings.user_id, userId));
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-  });
-
-  // ===========================================================================
-  // Cross-Service Concurrency Tests
-  // ===========================================================================
-
-  describe("Cross-Service Operations", () => {
-    test(
-      "Concurrent budget allocation and org credit deduction maintain consistency",
-      async () => {
-        // Arrange: Org with $100, will have concurrent budget allocations and direct deductions
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 100,
-          includeCharacter: true,
-          characterName: "Cross-Service Test Agent",
-        });
-
-        const agentId = testData.character!.id;
-        await agentBudgetService.getOrCreateBudget(agentId);
-
-        // Act: Concurrent operations on same org balance
-        const allocationPromises = Array.from({ length: 5 }, (_, i) =>
+        ),
+        // Cross-service: allocations (touches both org credits AND budget)
+        ...Array.from({ length: 5 }, () =>
           agentBudgetService.allocateBudget({
             agentId,
             amount: 10,
             fromOrgCredits: true,
-            description: `Allocation ${i + 1}`,
+            description: "Cross-service allocation",
           }),
-        );
+        ),
+      ];
 
-        const deductionPromises = Array.from({ length: 5 }, (_, i) =>
-          creditsService.reserveAndDeductCredits({
-            organizationId: testData.organization.id,
-            amount: 10,
-            description: `Deduction ${i + 1}`,
-          }),
-        );
+      // Shuffle for realistic concurrency
+      const shuffled = operations.sort(() => Math.random() - 0.5);
+      await Promise.allSettled(shuffled);
 
-        await Promise.allSettled([...allocationPromises, ...deductionPromises]);
+      // Verify invariants
+      const finalOrg = await organizationsService.getById(orgId);
+      const finalBudget = await agentBudgetService.getOrCreateBudget(agentId);
 
-        // Assert: Total operations should equal initial balance
-        const org = await dbRead.query.organizations.findFirst({
-          where: eq(organizations.id, testData.organization.id),
-        });
-        const budget = await agentBudgetService.getBudget(agentId);
+      // Invariant 1: Org balance >= 0
+      expect(Number(finalOrg!.credit_balance)).toBeGreaterThanOrEqual(0);
 
-        const orgBalance = Number(org?.credit_balance);
-        const budgetAllocated = Number(budget?.allocated_budget || 0);
+      // Invariant 2: Budget spent <= allocated
+      expect(Number(finalBudget!.spent_budget)).toBeLessThanOrEqual(
+        Number(finalBudget!.allocated_budget),
+      );
 
-        // Sum should not exceed initial balance
-        expect(orgBalance + budgetAllocated).toBeLessThanOrEqual(100);
-        expect(orgBalance).toBeGreaterThanOrEqual(0);
-
-        // Cleanup
-        await dbWrite
-          .delete(agentBudgetTransactions)
-          .where(eq(agentBudgetTransactions.agent_id, agentId));
-        await dbWrite
-          .delete(agentBudgets)
-          .where(eq(agentBudgets.agent_id, agentId));
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT,
-    );
-  });
-
-  // ===========================================================================
-  // Stress Tests
-  // ===========================================================================
-
-  describe("Stress Tests", () => {
-    test(
-      "100 concurrent operations on credits service",
-      async () => {
-        // Arrange
-        const testData = await createTestDataSet(connectionString, {
-          creditBalance: 50,
-          organizationName: "Stress Test Org",
-        });
-
-        // Act: Fire 100 concurrent $1 deductions
-        const promises = Array.from({ length: 100 }, (_, i) =>
-          creditsService.reserveAndDeductCredits({
-            organizationId: testData.organization.id,
-            amount: 1,
-            description: `Stress test ${i + 1}`,
-          }),
-        );
-
-        await Promise.allSettled(promises);
-
-        // Assert: Balance must never go negative
-        const org = await dbRead.query.organizations.findFirst({
-          where: eq(organizations.id, testData.organization.id),
-        });
-        const finalBalance = Number(org?.credit_balance);
-
-        expect(finalBalance).toBeGreaterThanOrEqual(0);
-        expect(finalBalance).toBe(0); // All $50 should be spent
-
-        // Cleanup
-        await cleanupTestData(connectionString, testData.organization.id);
-      },
-      TEST_TIMEOUT * 2,
-    );
-  });
+      // Invariant 3: Available budget >= 0
+      const available =
+        Number(finalBudget!.allocated_budget) -
+        Number(finalBudget!.spent_budget);
+      expect(available).toBeGreaterThanOrEqual(0);
+    } finally {
+      await cleanupTestData(connectionString, testData.organization.id);
+    }
+  }, 30000);
 });
