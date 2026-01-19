@@ -18,8 +18,8 @@ import { organizationsService } from "@/lib/services/organizations";
 import {
   createTestDataSet,
   cleanupTestData,
-} from "@/tests/infrastructure/test-data-factory";
-import { getConnectionString } from "@/tests/infrastructure/local-database";
+} from "@/tests/helpers/test-data-factory";
+import { getConnectionString } from "@/tests/helpers/local-database";
 
 describe("Cross-Service Concurrent Operations", () => {
   let connectionString: string;

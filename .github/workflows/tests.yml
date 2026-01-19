@@ -1,6 +1,5 @@
 name: Tests
 
-# Cancel previous runs for the same PR/branch
 concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -11,65 +10,87 @@ on:
   push:
     branches: [dev, main]
 
+env:
+  DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+  REDIS_URL: redis://localhost:6379
+  NODE_ENV: test
+
 jobs:
-  service-tests:
+  integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_USER: eliza_dev
-          POSTGRES_PASSWORD: local_dev_password
-          POSTGRES_DB: eliza_dev
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U eliza_dev"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: 'true'
+      - run: bun test tests/integration --timeout 60000
 
-      - uses: oven-sh/setup-bun@v2
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+      - run: bun test tests/unit --timeout 30000
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Setup test database
-        env:
-          PGPASSWORD: local_dev_password
-        run: |
-          psql -h localhost -U eliza_dev -d eliza_dev -c "CREATE EXTENSION IF NOT EXISTS vector;"
-
-      - name: Run database migrations
-        env:
-          DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
-        run: bun run db:push
-
-      - name: Run service tests
-        env:
-          DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
-          NODE_ENV: test
-        run: bun test tests/services --timeout 60000
+  property-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: 'true'
+      - run: bun test tests/properties --timeout 300000
 
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+      - run: bun run lint
+      - run: bun run check-types
 
-      - uses: oven-sh/setup-bun@v2
+  e2e-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [integration-tests, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: 'true'
+      - name: Start server
+        run: |
+          bun run dev &
+          sleep 10
+      - run: bun test tests/e2e/api --timeout 120000
+        env:
+          TEST_BASE_URL: http://localhost:3000
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Type check
-        run: bun run check-types
+  e2e-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [integration-tests, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-test-env
+        with:
+          setup-db: 'true'
+          install-playwright: 'true'
+      - name: Start server
+        run: |
+          bun run dev &
+          sleep 10
+      - run: bunx playwright test tests/e2e/browser
+        env:
+          BASE_URL: http://localhost:3000
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

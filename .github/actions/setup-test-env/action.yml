@@ -1,0 +1,49 @@
+name: Setup Test Environment
+description: Common setup for test jobs (bun, deps, DB via docker-compose)
+
+inputs:
+  setup-db:
+    description: Whether to setup the database
+    required: false
+    default: 'false'
+  install-playwright:
+    description: Whether to install Playwright browsers
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install
+
+    - name: Start services (postgres + redis)
+      if: inputs.setup-db == 'true'
+      shell: bash
+      run: |
+        docker compose up -d
+        sleep 5
+        docker compose exec -T postgres pg_isready -U eliza_dev
+
+    - name: Setup test database
+      if: inputs.setup-db == 'true'
+      shell: bash
+      env:
+        PGPASSWORD: local_dev_password
+      run: |
+        docker compose exec -T postgres psql -U eliza_dev -d eliza_dev -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+    - name: Run database migrations
+      if: inputs.setup-db == 'true'
+      shell: bash
+      env:
+        DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+      run: bun run db:push
+
+    - name: Install Playwright browsers
+      if: inputs.install-playwright == 'true'
+      shell: bash
+      run: bunx playwright install --with-deps chromium

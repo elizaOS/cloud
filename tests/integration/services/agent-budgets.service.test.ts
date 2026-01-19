@@ -33,8 +33,8 @@ import {
   createTestDataSet,
   cleanupTestData,
   type TestDataSet,
-} from "@/tests/infrastructure/test-data-factory";
-import { getConnectionString } from "@/tests/infrastructure/local-database";
+} from "@/tests/helpers/test-data-factory";
+import { getConnectionString } from "@/tests/helpers/local-database";
 import { OrgBuilder, UserBuilder, CharacterBuilder } from "@/tests/builders";
 
 describe("AgentBudgetService", () => {
