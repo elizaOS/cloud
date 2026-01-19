@@ -15,6 +15,7 @@ import type {
   AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
   PurchaseConfirmationEmailData,
+  ContainerShutdownWarningEmailData,
 } from "@/lib/email/types";
 
 /**
@@ -241,6 +242,27 @@ class EmailService {
     return this.send({
       to: data.email,
       subject: "✓ Purchase Confirmed - Credits Added to Your Account",
+      html,
+      text,
+    });
+  }
+
+  /**
+   * Sends a container shutdown warning email (48 hour notice).
+   *
+   * @param data - Container shutdown warning email data.
+   * @returns True if sent successfully.
+   */
+  async sendContainerShutdownWarningEmail(
+    data: ContainerShutdownWarningEmailData,
+  ): Promise<boolean> {
+    const { renderContainerShutdownWarningTemplate } =
+      await import("@/lib/email/utils/template-renderer");
+    const { html, text } = renderContainerShutdownWarningTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: `🚨 URGENT: Container "${data.containerName}" will be shut down in 48 hours`,
       html,
       text,
     });

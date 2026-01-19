@@ -251,6 +251,38 @@ import './globals.css';                               // ✅ Always exists
 - Write page.tsx before its component dependencies
 - Import from paths you haven't written yet
 - Run check_build after every file (HMR handles it)
+- **STOP BEFORE WRITING PAGE.TSX** - Components alone do NOTHING!
+
+## CRITICAL: YOU MUST COMPLETE THE APP
+**Writing components without updating page.tsx is INCOMPLETE WORK!**
+
+The user sees the preview LIVE. If you only write helper files/components but never update \`src/app/page.tsx\`, the user sees NOTHING - just a blank or unchanged page. This is a failure.
+
+**EVERY task MUST end with:**
+1. A working \`src/app/page.tsx\` that renders the UI
+2. The preview showing the actual app functionality
+3. \`check_build\` passing
+
+**Example of INCOMPLETE work (DO NOT DO THIS):**
+\`\`\`
+✅ install_packages ["framer-motion"]
+✅ Write src/components/GamePiece.tsx
+✅ Write src/lib/gameLogic.ts
+❌ STOPPED HERE - page.tsx never updated!
+   User sees: NOTHING (blank page)
+   This is a FAILURE!
+\`\`\`
+
+**Example of COMPLETE work:**
+\`\`\`
+✅ install_packages ["framer-motion"]
+✅ Write src/components/GamePiece.tsx
+✅ Write src/lib/gameLogic.ts
+✅ Write src/app/page.tsx (imports and renders GamePiece)
+✅ check_build
+   User sees: Working game in preview!
+   This is SUCCESS!
+\`\`\`
 
 ## BUILD CHECKS - ONLY AT THE END
 - Do NOT run \`check_build\` after every file - it's slow!

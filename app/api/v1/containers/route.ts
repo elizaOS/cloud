@@ -194,7 +194,7 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      console.warn(
+      logger.warn(
         "Proceeding with deployment despite image verification failure",
       );
     }
@@ -255,7 +255,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       // Reserve credits BEFORE update deployment
@@ -326,7 +325,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       let createReservation: CreditReservation;
@@ -402,7 +400,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       // NOTE: is_successful is FALSE initially - deployment monitor will mark it
