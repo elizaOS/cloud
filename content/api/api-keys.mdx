@@ -74,16 +74,22 @@ Create a new API key.
 
 ```json
 {
-  "id": "key_abc123",
-  "name": "Production Key",
-  "key": "ek_live_abc123xyz...",
-  "permissions": ["chat", "embeddings", "images"],
-  "createdAt": "2024-01-15T10:30:00Z"
+  "apiKey": {
+    "id": "key_abc123",
+    "name": "Production Key",
+    "description": null,
+    "key_prefix": "ek_live_abc...",
+    "created_at": "2024-01-15T10:30:00Z",
+    "permissions": ["chat", "embeddings", "images"],
+    "rate_limit": 1000,
+    "expires_at": null
+  },
+  "plainKey": "ek_live_abc123xyz..."
 }
 ```
 
 <Callout type="warning">
-  The full API key is only shown once. Store it securely.
+  The `plainKey` field contains the full API key and is only returned once at creation time. Store it securely.
 </Callout>
 
 ---

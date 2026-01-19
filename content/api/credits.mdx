@@ -9,88 +9,106 @@ import { Callout, Tabs } from "nextra/components";
 
 <div className="status-badge status-stable">Stable</div>
 
-Manage your credits, top up, and view usage.
+Manage your credits and view usage.
 
 ## Get Credit Balance
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/credits/balance</span>
+</div>
+
+Get your current credit balance.
+
+### Query Parameters
+
+| Parameter | Type    | Description                                                |
+| --------- | ------- | ---------------------------------------------------------- |
+| `fresh`   | boolean | Set to `true` to bypass cache (use after payment confirmation) |
+
+### Response
+
+```json
+{
+  "balance": 50.00
+}
+```
+
+---
+
+## Get Credit Summary
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
   <span className="path">/api/v1/credits/summary</span>
 </div>
 
-Get your current credit balance.
-
-### Response
-
-```json
-{
-  "balance": 50.0,
-  "currency": "USD",
-  "usage": {
-    "today": 2.5,
-    "thisMonth": 45.0
-  }
-}
-```
-
----
-
-## Top Up Credits (x402)
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/credits/topup</span>
-</div>
-
-Add credits using x402 payment.
-
-### Request
-
-```json
-{
-  "amount": 100.0,
-  "paymentMethod": "x402"
-}
-```
+Get comprehensive credit status including organization balance, agent budgets, app earnings, and redeemable earnings.
 
 ### Response
 
 ```json
 {
   "success": true,
-  "newBalance": 150.0,
-  "transaction": {
-    "id": "txn_abc123",
-    "amount": 100.0,
-    "createdAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
----
-
-## Get Transactions
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/credits/transactions</span>
-</div>
-
-Get transaction history.
-
-### Query Parameters
-
-| Parameter | Type    | Description                    |
-| --------- | ------- | ------------------------------ |
-| `limit`   | integer | Results per page (default: 20) |
-| `offset`  | integer | Pagination offset              |
-| `type`    | string  | `topup`, `usage`, `refund`     |
-
-### Response
-
-```json
-{
-  "transactions": [
+  "organization": {
+    "id": "org_abc123",
+    "name": "My Organization",
+    "creditBalance": 50.00,
+    "autoTopUpEnabled": false,
+    "autoTopUpThreshold": null,
+    "autoTopUpAmount": null,
+    "hasPaymentMethod": true
+  },
+  "agents": [
+    {
+      "id": "agent_xyz789",
+      "name": "My Assistant",
+      "isPublic": false,
+      "monetizationEnabled": false,
+      "hasBudget": true,
+      "allocated": 10.00,
+      "spent": 2.50,
+      "available": 7.50,
+      "dailyLimit": 5.00,
+      "dailySpent": 1.00,
+      "dailyRemaining": 4.00,
+      "isPaused": false,
+      "pauseReason": null,
+      "totalEarnings": 0,
+      "totalRequests": 150
+    }
+  ],
+  "agentsSummary": {
+    "total": 3,
+    "withBudget": 2,
+    "paused": 0,
+    "totalAllocated": 20.00,
+    "totalSpent": 5.00,
+    "totalAvailable": 15.00
+  },
+  "apps": [
+    {
+      "id": "app_def456",
+      "name": "Customer Portal",
+      "slug": "customer-portal",
+      "monetizationEnabled": true,
+      "inferenceMarkupPercentage": 20,
+      "totalCreatorEarnings": 125.50,
+      "totalPlatformRevenue": 31.38
+    }
+  ],
+  "earnings": {
+    "availableBalance": 125.50,
+    "totalEarned": 200.00,
+    "totalRedeemed": 74.50,
+    "totalPending": 0,
+    "breakdown": {
+      "miniapps": 100.00,
+      "agents": 75.00,
+      "mcps": 25.00
+    }
+  },
+  "recentTransactions": [
     {
       "id": "txn_abc123",
       "type": "usage",
@@ -99,90 +117,157 @@ Get transaction history.
       "createdAt": "2024-01-15T10:30:00Z"
     }
   ],
+  "pricing": {
+    "creditsPerDollar": 100,
+    "minimumTopUp": 5.0,
+    "x402Enabled": true
+  }
+}
+```
+
+---
+
+## Create Checkout Session
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/credits/checkout</span>
+</div>
+
+Create a Stripe checkout session to purchase credits.
+
+### Request
+
+```json
+{
+  "amount": 50.00
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_xxx...",
+  "sessionId": "cs_xxx..."
+}
+```
+
+Redirect the user to `checkoutUrl` to complete the payment.
+
+---
+
+## Verify Payment
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/credits/verify</span>
+</div>
+
+Verify a completed payment and add credits.
+
+### Request
+
+```json
+{
+  "sessionId": "cs_xxx..."
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "creditsAdded": 50.00,
+  "newBalance": 100.00
+}
+```
+
+---
+
+## Get Transaction History
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/credits/transactions</span>
+</div>
+
+Get credit transaction history.
+
+<Callout type="info">
+  This endpoint uses `/api/credits/` rather than `/api/v1/credits/`.
+</Callout>
+
+### Query Parameters
+
+| Parameter | Type    | Description                    |
+| --------- | ------- | ------------------------------ |
+| `limit`   | integer | Results per page (default: 20) |
+| `offset`  | integer | Pagination offset              |
+
+### Response
+
+```json
+{
+  "success": true,
+  "transactions": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "usage",
+      "amount": -0.05,
+      "description": "Chat completion (gpt-4o)",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "type": "topup",
+      "amount": 50.00,
+      "description": "Stripe payment",
+      "created_at": "2024-01-14T08:00:00Z"
+    }
+  ],
   "total": 150
 }
 ```
 
 ---
 
-## Get Usage Breakdown
+## Crypto Payments
+
+For cryptocurrency payments, use the crypto payment endpoints:
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/crypto/payments</span>
+</div>
+
+Create a crypto payment request.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/billing/usage</span>
+  <span className="path">/api/crypto/status</span>
 </div>
 
-Get detailed usage breakdown.
-
-### Response
-
-```json
-{
-  "period": "2024-01",
-  "usage": {
-    "chat": {
-      "requests": 5000,
-      "tokens": 2500000,
-      "cost": 25.0
-    },
-    "embeddings": {
-      "requests": 10000,
-      "tokens": 1000000,
-      "cost": 2.0
-    },
-    "images": {
-      "count": 100,
-      "cost": 5.0
-    }
-  },
-  "total": 32.0
-}
-```
+Check crypto payment status.
 
 ---
 
-## Auto Top-Up Settings
+## Pricing Reference
 
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/auto-top-up/settings</span>
-</div>
-
-Get auto top-up configuration.
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/auto-top-up/settings</span>
-</div>
-
-Configure auto top-up.
-
-### Request
-
-```json
-{
-  "enabled": true,
-  "threshold": 10.0,
-  "amount": 50.0
-}
-```
-
-<Callout type="info">
-  Auto top-up automatically adds credits when your balance falls below the
-  threshold.
-</Callout>
-
----
-
-## Pricing
-
-| Service           | Unit       | Price          |
-| ----------------- | ---------- | -------------- |
-| GPT-4o            | 1M tokens  | $5.00 / $15.00 |
-| GPT-4o-mini       | 1M tokens  | $0.15 / $0.60  |
-| Claude 3.5 Sonnet | 1M tokens  | $3.00 / $15.00 |
-| Embeddings        | 1M tokens  | $0.02          |
-| Image (Flux)      | per image  | $0.01 - $0.05  |
-| Video             | per second | $0.10          |
+| Service                  | Unit       | Price          |
+| ------------------------ | ---------- | -------------- |
+| GPT-4o                   | 1M tokens  | $2.50 / $10.00 |
+| GPT-4o-mini              | 1M tokens  | $0.15 / $0.60  |
+| Claude 3.5 Sonnet        | 1M tokens  | $3.00 / $15.00 |
+| Claude 3.5 Haiku         | 1M tokens  | $1.00 / $5.00  |
+| Embeddings (3-small)     | 1M tokens  | $0.02          |
+| Image Generation         | per image  | ~$0.02         |
+| Container Deployment     | per deploy | ~$0.50         |
 
 _Input / Output token pricing shown for chat models_
+
+<Callout type="info">
+  Actual pricing is calculated based on model and token usage. Check the [Dashboard](/dashboard/billing) for real-time pricing.
+</Callout>

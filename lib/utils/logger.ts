@@ -7,6 +7,8 @@
 const isDev = process.env.NODE_ENV === "development";
 // Only show debug/info logs when explicitly enabled via VERBOSE_LOGGING=true
 const isVerbose = process.env.VERBOSE_LOGGING === "true";
+// Detect Next.js build phase to suppress non-critical logs during build
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 /**
  * Redaction utilities for sensitive data in logs
@@ -179,10 +181,13 @@ export const logger = {
   },
 
   /**
-   * Warning-level logs - always shown
+   * Warning-level logs - shown except during build phase
+   * Build phase warnings are suppressed to reduce noise in `next build` output
    */
   warn: (...args: unknown[]) => {
-    console.warn(...args);
+    if (!isBuildPhase) {
+      console.warn(...args);
+    }
   },
 
   /**
