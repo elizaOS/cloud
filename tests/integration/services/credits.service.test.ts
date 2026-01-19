@@ -340,9 +340,8 @@ describe("CreditsService", () => {
       const debitTransactions = transactions.filter((t) => t.type === "debit");
       expect(debitTransactions.length).toBe(10);
 
-      // Cleanup
+      // Cleanup (only raceTestData - testData is cleaned in afterAll)
       await cleanupTestData(connectionString, raceTestData.organization.id);
-      await cleanupTestData(connectionString, testData.organization.id);
     }, 30000); // Extended timeout for concurrent test
   });
 
