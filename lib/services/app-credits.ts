@@ -499,6 +499,7 @@ export class AppCreditsService {
       }
 
       const refundAmount = Math.abs(totalCostDifference);
+      const creatorEarningsReduction = Math.abs(creatorMarkupDifference);
 
       const { newBalance } = await appCreditBalancesRepository.addCredits(
         appId,
@@ -507,12 +508,35 @@ export class AppCreditsService {
         refundAmount
       );
 
+      // Reverse creator earnings if monetization is enabled and there was markup
+      if (app.monetization_enabled && creatorEarningsReduction > 0) {
+        await this.reverseCreatorEarnings(appId, userId, creatorEarningsReduction, {
+          type: "reconciliation_refund",
+          baseCostDifference,
+          estimatedBaseCost,
+          actualBaseCost,
+          description,
+          ...metadata,
+        });
+
+        // Update app revenue counters
+        await dbWrite
+          .update(apps)
+          .set({
+            total_creator_earnings: sql`GREATEST(0, ${apps.total_creator_earnings} - ${creatorEarningsReduction})`,
+            total_platform_revenue: sql`GREATEST(0, ${apps.total_platform_revenue} - ${Math.abs(baseCostDifference)})`,
+            updated_at: new Date(),
+          })
+          .where(eq(apps.id, appId));
+      }
+
       logger.info("[AppCredits] Reconciliation: Refunded overcharge", {
         appId,
         userId,
         estimatedBaseCost,
         actualBaseCost,
         refundAmount,
+        creatorEarningsReduction,
         newBalance,
       });
 
@@ -779,6 +803,69 @@ export class AppCreditsService {
         });
       } else {
         logger.info("[AppCredits] Credited redeemable earnings to creator", {
+          appId,
+          creatorId: app.created_by_user_id,
+          amount,
+          newBalance: result.newBalance,
+        });
+      }
+    }
+  }
+
+  /**
+   * Reverse creator earnings during reconciliation refunds.
+   *
+   * When actual cost is less than estimated, users get a refund.
+   * This method reduces the creator's earnings proportionally.
+   */
+  private async reverseCreatorEarnings(
+    appId: string,
+    userId: string,
+    amount: number,
+    metadata: Record<string, unknown>
+  ): Promise<void> {
+    // Reduce app-level inference earnings (use negative value)
+    await appEarningsRepository.addInferenceEarnings(appId, -amount);
+
+    // Create transaction record for audit trail
+    await appEarningsRepository.createTransaction({
+      app_id: appId,
+      user_id: userId,
+      type: "inference_markup",
+      amount: String(-amount), // Negative to indicate reduction
+      description: "Reconciliation adjustment (refund)",
+      metadata: {
+        ...metadata,
+        type: "reconciliation_refund",
+      },
+    });
+
+    // Reduce the app creator's redeemable_earnings balance
+    const app = await appsRepository.findById(appId);
+    if (app?.created_by_user_id) {
+      const result = await redeemableEarningsService.reduceEarnings({
+        userId: app.created_by_user_id,
+        amount,
+        source: "miniapp",
+        sourceId: appId,
+        description: `Reconciliation adjustment for app: ${app.name || appId}`,
+        metadata: {
+          appId,
+          earningsType: "inference_markup",
+          transactionUserId: userId,
+          ...metadata,
+        },
+      });
+
+      if (!result.success) {
+        logger.error("[AppCredits] Failed to reduce redeemable earnings", {
+          appId,
+          creatorId: app.created_by_user_id,
+          amount,
+          error: result.error,
+        });
+      } else {
+        logger.info("[AppCredits] Reduced redeemable earnings for creator", {
           appId,
           creatorId: app.created_by_user_id,
           amount,
