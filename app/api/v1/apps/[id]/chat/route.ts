@@ -313,6 +313,33 @@ async function handlePOST(
 
         const reader = providerResponse.body?.getReader();
         if (!reader) {
+          // No response body - refund credits and close stream
+          logger.error("[App Chat] No response body from provider, refunding credits", {
+            appId,
+            userId: user.id,
+            reservedBaseCost,
+          });
+
+          await appCreditsService.reconcileCredits({
+            appId,
+            userId: user.id,
+            estimatedBaseCost: reservedBaseCost,
+            actualBaseCost: 0, // Full refund
+            description: "Refund due to empty provider response",
+            metadata: { error: true, noBody: true },
+            app,
+          });
+
+          // Send error event to client before closing
+          const encoder = new TextEncoder();
+          const errorEvent = `data: ${JSON.stringify({
+            error: {
+              message: "No response from provider. Credits refunded.",
+              type: "api_error",
+              code: "empty_response",
+            },
+          })}\n\ndata: [DONE]\n\n`;
+          writer.write(encoder.encode(errorEvent));
           writer.close();
           return;
         }
