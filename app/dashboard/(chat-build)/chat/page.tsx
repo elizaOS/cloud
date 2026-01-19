@@ -16,6 +16,7 @@ import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
 import { charactersService } from "@/lib/services/characters";
+import { sanitizeUUID } from "@/lib/utils/validation";
 
 interface PageProps {
   searchParams: Promise<{
@@ -39,9 +40,10 @@ export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
   const params = (await searchParams) ?? {};
-  const characterId = params.characterId;
+  // Sanitize UUID to handle malformed input (e.g., trailing backslashes from URL encoding)
+  const characterId = sanitizeUUID(params.characterId);
 
-  // If no characterId, use default metadata
+  // If no characterId or invalid UUID, use default metadata
   if (!characterId) {
     return generatePageMetadata({
       ...ROUTE_METADATA.eliza,
@@ -138,10 +140,10 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   // Load available characters for authenticated users only
   const characters = isAnonymous ? [] : await listCharacters();
 
-  // Get URL params
+  // Get URL params - sanitize UUIDs to handle malformed input
   const params = (await searchParams) ?? {};
-  const initialRoomId = params.roomId;
-  let initialCharacterId = params.characterId;
+  const initialRoomId = sanitizeUUID(params.roomId);
+  let initialCharacterId = sanitizeUUID(params.characterId);
   let errorType = params.error;
   let errorCharacterName = params.name;
 

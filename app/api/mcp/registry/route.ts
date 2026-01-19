@@ -187,12 +187,12 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     id: "eliza-platform",
     name: "ElizaOS Platform",
     description:
-      "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
+      "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
     category: "platform",
     endpoint: "/api/mcp",
     type: "http",
     version: "1.0.0",
-    status: "live",
+    status: "coming_soon", // Requires auth that MCP plugin doesn't yet support
     icon: "puzzle",
     color: "#FF5800",
     toolCount: 25,
@@ -206,7 +206,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     ],
     pricing: {
       type: "credits",
-      description: "Uses your credit balance (requires authentication)",
+      description: "Uses your credit balance (requires API key authentication)",
     },
     x402Enabled: false,
     documentation: "https://docs.elizaos.ai/mcps/platform",
