@@ -306,6 +306,7 @@ async function handlePOST(
     let inputTokens = 0;
     let outputTokens = 0;
     let fullContent = "";
+    let writerClosed = false;
 
     // Process stream in background with error handling
     (async () => {
@@ -416,6 +417,7 @@ async function handlePOST(
           }
         }
 
+        writerClosed = true;
         writer.close();
 
         // Fallback: estimate tokens if usage not provided
@@ -501,17 +503,19 @@ async function handlePOST(
           metadata: { error: true, streaming: true },
         });
 
-        // Send error event to client before closing (SSE format)
-        const errorEvent = `data: ${JSON.stringify({
-          error: {
-            message: "Stream interrupted. Credits refunded.",
-            type: "api_error",
-            code: "stream_error",
-          },
-        })}\n\ndata: [DONE]\n\n`;
-        const encoder = new TextEncoder();
-        writer.write(encoder.encode(errorEvent));
-        writer.close();
+        // Send error event to client if writer is still open
+        if (!writerClosed) {
+          const errorEvent = `data: ${JSON.stringify({
+            error: {
+              message: "Stream interrupted. Credits refunded.",
+              type: "api_error",
+              code: "stream_error",
+            },
+          })}\n\ndata: [DONE]\n\n`;
+          const encoder = new TextEncoder();
+          writer.write(encoder.encode(errorEvent));
+          writer.close();
+        }
       }
     })();
 
@@ -529,9 +533,23 @@ async function handlePOST(
   // Non-streaming response
   const responseData = await providerResponse.json();
 
-  // Calculate actual cost
-  const actualInputTokens = responseData.usage?.prompt_tokens || 0;
-  const actualOutputTokens = responseData.usage?.completion_tokens || 0;
+  // Calculate actual cost - use fallback estimation if provider doesn't return usage
+  let actualInputTokens = responseData.usage?.prompt_tokens || 0;
+  let actualOutputTokens = responseData.usage?.completion_tokens || 0;
+
+  // Fallback: estimate tokens if usage not provided (matching streaming behavior)
+  if (actualInputTokens === 0 && actualOutputTokens === 0) {
+    const outputContent = responseData.choices?.[0]?.message?.content || "";
+    actualInputTokens = estimatedInputTokens; // Use pre-calculated estimate
+    actualOutputTokens = estimateTokens(outputContent);
+
+    logger.warn("[App Chat] No usage data in response, using estimates", {
+      appId,
+      actualInputTokens,
+      actualOutputTokens,
+    });
+  }
+
   const { totalCost: actualBaseCost } = await calculateCost(
     normalizedModel,
     provider,

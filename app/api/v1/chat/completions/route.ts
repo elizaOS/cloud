@@ -475,7 +475,7 @@ async function handlePOST(req: NextRequest) {
         ipAddress,
         userAgent,
         reservation ?? undefined,
-        useAppCredits ? { appId: appId!, estimatedBaseCost } : undefined
+        useAppCredits ? { appId: appId!, estimatedBaseCost, app: monetizedApp ?? undefined } : undefined
       );
     } else {
       return withCors(
@@ -490,7 +490,7 @@ async function handlePOST(req: NextRequest) {
           ipAddress,
           userAgent,
           reservation ?? undefined,
-          useAppCredits ? { appId: appId!, estimatedBaseCost } : undefined
+          useAppCredits ? { appId: appId!, estimatedBaseCost, app: monetizedApp ?? undefined } : undefined
         )
       );
     }
@@ -550,7 +550,7 @@ async function handleNonStreamingResponse(
   ipAddress?: string,
   userAgent?: string,
   reservation?: CreditReservation,
-  appCreditsInfo?: { appId: string; estimatedBaseCost: number }
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number; app?: Awaited<ReturnType<typeof appsService.getById>> }
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -573,7 +573,7 @@ async function handleNonStreamingResponse(
       await reservation.reconcile(totalCost);
     }
 
-    // Reconcile app credits
+    // Reconcile app credits (pass pre-fetched app to avoid N+1 query)
     if (appCreditsInfo) {
       await appCreditsService.reconcileCredits({
         appId: appCreditsInfo.appId,
@@ -588,6 +588,7 @@ async function handleNonStreamingResponse(
           outputTokens: usage.completion_tokens,
           streaming: false,
         },
+        app: appCreditsInfo.app,
       });
     }
 
@@ -678,7 +679,7 @@ function handleStreamingResponse(
   ipAddress?: string,
   userAgent?: string,
   reservation?: CreditReservation,
-  appCreditsInfo?: { appId: string; estimatedBaseCost: number }
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number; app?: Awaited<ReturnType<typeof appsService.getById>> }
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -806,7 +807,7 @@ function handleStreamingResponse(
           await reservation.reconcile(totalCost);
         }
 
-        // Reconcile app credits
+        // Reconcile app credits (pass pre-fetched app to avoid N+1 query)
         if (appCreditsInfo) {
           await appCreditsService.reconcileCredits({
             appId: appCreditsInfo.appId,
@@ -821,6 +822,7 @@ function handleStreamingResponse(
               outputTokens,
               streaming: true,
             },
+            app: appCreditsInfo.app,
           });
         }
 

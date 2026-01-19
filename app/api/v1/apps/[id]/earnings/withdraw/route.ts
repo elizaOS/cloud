@@ -1,16 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { appEarningsService } from "@/lib/services/app-earnings";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 // Minimum payout threshold - must match database default
 const MINIMUM_PAYOUT = 25.0;
 
+// Maximum withdrawal per request to prevent numeric overflow/abuse
+const MAXIMUM_WITHDRAWAL = 1000000.0;
+
 const WithdrawRequestSchema = z.object({
-  amount: z.number().positive("Amount must be positive"),
+  amount: z
+    .number()
+    .positive("Amount must be positive")
+    .max(MAXIMUM_WITHDRAWAL, `Maximum withdrawal is $${MAXIMUM_WITHDRAWAL.toLocaleString()}`),
 });
+
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
 
 /**
  * POST /api/v1/apps/[id]/earnings/withdraw
@@ -28,12 +40,19 @@ const WithdrawRequestSchema = z.object({
  *
  * @returns Success status, transaction ID, and new balance
  */
-export async function POST(
+async function handlePOST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context?: RouteContext
 ) {
+  if (!context?.params) {
+    return NextResponse.json(
+      { success: false, error: "Missing route parameters" },
+      { status: 400 }
+    );
+  }
+
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { id } = await params;
+  const { id } = await context.params;
 
   const app = await appsService.getById(id);
 
@@ -129,3 +148,6 @@ export async function POST(
     newBalance: summary?.withdrawableBalance ?? 0,
   });
 }
+
+// Apply rate limiting to prevent abuse
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
