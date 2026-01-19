@@ -18,6 +18,11 @@ const WithdrawRequestSchema = z.object({
     .number()
     .positive("Amount must be positive")
     .max(MAXIMUM_WITHDRAWAL, `Maximum withdrawal is $${MAXIMUM_WITHDRAWAL.toLocaleString()}`),
+  idempotency_key: z
+    .string()
+    .min(16, "Idempotency key must be at least 16 characters")
+    .max(64, "Idempotency key must be at most 64 characters")
+    .optional(),
 });
 
 interface RouteContext {
@@ -102,7 +107,7 @@ async function handlePOST(
     );
   }
 
-  const { amount } = validationResult.data;
+  const { amount, idempotency_key } = validationResult.data;
 
   // Early validation: fail fast if amount below minimum
   if (amount < MINIMUM_PAYOUT) {
@@ -115,7 +120,7 @@ async function handlePOST(
     );
   }
 
-  const result = await appEarningsService.requestWithdrawal(id, amount);
+  const result = await appEarningsService.requestWithdrawal(id, amount, idempotency_key);
 
   if (!result.success) {
     logger.warn("[Withdrawal] Request failed", {
@@ -149,5 +154,5 @@ async function handlePOST(
   });
 }
 
-// Apply rate limiting to prevent abuse
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+// Apply strict rate limiting for financial operations (5 requests per 5 minutes)
+export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);

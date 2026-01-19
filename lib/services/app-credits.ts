@@ -22,6 +22,52 @@ import { redeemableEarningsService } from "./redeemable-earnings";
 const RECONCILIATION_THRESHOLD = 0.000001;
 
 /**
+ * Maximum metadata size in bytes (10KB) to prevent storage bloat and DOS attacks
+ */
+const MAX_METADATA_SIZE_BYTES = 10240;
+
+/**
+ * Maximum nesting depth for metadata objects to prevent stack overflow
+ */
+const MAX_METADATA_DEPTH = 5;
+
+/**
+ * Validates metadata object for size and depth constraints.
+ * Returns sanitized metadata or throws on violation.
+ */
+function validateMetadata(
+  metadata: Record<string, unknown> | undefined,
+  context: string
+): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+
+  // Check serialized size
+  const serialized = JSON.stringify(metadata);
+  if (serialized.length > MAX_METADATA_SIZE_BYTES) {
+    throw new Error(
+      `${context}: Metadata exceeds maximum size of ${MAX_METADATA_SIZE_BYTES} bytes`
+    );
+  }
+
+  // Check nesting depth
+  const checkDepth = (obj: unknown, depth: number): void => {
+    if (depth > MAX_METADATA_DEPTH) {
+      throw new Error(
+        `${context}: Metadata exceeds maximum nesting depth of ${MAX_METADATA_DEPTH}`
+      );
+    }
+    if (obj && typeof obj === "object") {
+      for (const value of Object.values(obj)) {
+        checkDepth(value, depth + 1);
+      }
+    }
+  };
+  checkDepth(metadata, 1);
+
+  return metadata;
+}
+
+/**
  * Parameters for purchasing app credits.
  */
 export interface AppCreditPurchaseParams {
@@ -266,7 +312,8 @@ export class AppCreditsService {
           platformOffset,
           creatorSharePercentage: Number(app.purchase_share_percentage),
           ...(stripePaymentIntentId && { stripePaymentIntentId }),
-        }
+        },
+        app // Pass app to avoid N+1 query
       );
 
       await dbWrite
@@ -312,9 +359,12 @@ export class AppCreditsService {
       userId,
       baseCost,
       description,
-      metadata,
+      metadata: rawMetadata,
       app: providedApp,
     } = params;
+
+    // Validate metadata size and depth
+    const metadata = validateMetadata(rawMetadata, "deductCredits");
 
     // Use provided app to avoid N+1 query, or fetch if not provided
     const app = providedApp ?? (await appsRepository.findById(appId));
@@ -378,7 +428,8 @@ export class AppCreditsService {
           totalCost,
           description,
           ...metadata,
-        }
+        },
+        app // Pass app to avoid N+1 query
       );
 
       await dbWrite
@@ -429,9 +480,12 @@ export class AppCreditsService {
       estimatedBaseCost,
       actualBaseCost,
       description,
-      metadata,
+      metadata: rawMetadata,
       app: providedApp,
     } = params;
+
+    // Validate metadata size and depth
+    const metadata = validateMetadata(rawMetadata, "reconcileCredits");
 
     const baseCostDifference = actualBaseCost - estimatedBaseCost;
 
@@ -630,7 +684,8 @@ export class AppCreditsService {
             baseCostDifference,
             description,
             ...metadata,
-          }
+          },
+          app // Pass app to avoid N+1 query
         );
       }
 
@@ -751,7 +806,8 @@ export class AppCreditsService {
     userId: string,
     type: "inference_markup" | "purchase_share",
     amount: number,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
+    providedApp?: App
   ): Promise<void> {
     // Update app-level earnings tracking
     if (type === "inference_markup") {
@@ -775,7 +831,8 @@ export class AppCreditsService {
 
     // CRITICAL: Credit the app creator's redeemable_earnings balance
     // This allows them to redeem earnings as elizaOS tokens
-    const app = await appsRepository.findById(appId);
+    // Use provided app to avoid N+1 query, or fetch if not provided
+    const app = providedApp ?? (await appsRepository.findById(appId));
     if (app?.created_by_user_id) {
       const result = await redeemableEarningsService.addEarnings({
         userId: app.created_by_user_id,

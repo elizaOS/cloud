@@ -94,6 +94,31 @@ export class AppEarningsRepository {
   }
 
   /**
+   * Finds an earnings transaction by idempotency key.
+   *
+   * Used for withdrawal deduplication when clients retry failed requests.
+   * Uses JSONB containment query for efficient lookup (covered by GIN index).
+   */
+  async findTransactionByIdempotencyKey(
+    appId: string,
+    idempotencyKey: string,
+  ): Promise<AppEarningsTransaction | undefined> {
+    const result = await dbRead
+      .select()
+      .from(appEarningsTransactions)
+      .where(
+        and(
+          eq(appEarningsTransactions.app_id, appId),
+          eq(appEarningsTransactions.type, "withdrawal"),
+          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ idempotencyKey })}::jsonb`,
+        ),
+      )
+      .limit(1);
+
+    return result[0];
+  }
+
+  /**
    * Gets transaction totals grouped by type within a date range.
    */
   async getTransactionTotalsByType(
