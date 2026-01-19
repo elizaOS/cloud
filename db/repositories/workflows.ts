@@ -1,13 +1,18 @@
 import { dbRead, dbWrite } from "../helpers";
 import {
   workflows,
+  workflowRuns,
   type Workflow,
   type NewWorkflow,
   type WorkflowStatus,
+  type WorkflowRun,
+  type NewWorkflowRun,
+  type NodeExecutionResult,
+  type WorkflowRunTriggerSource,
 } from "../schemas";
 import { eq, and, desc } from "drizzle-orm";
 
-export type { Workflow, NewWorkflow };
+export type { Workflow, NewWorkflow, WorkflowRun, NewWorkflowRun };
 
 /**
  * Repository for workflow database operations.
@@ -192,3 +197,121 @@ export class WorkflowsRepository {
  * Singleton instance of WorkflowsRepository.
  */
 export const workflowsRepository = new WorkflowsRepository();
+
+/**
+ * Repository for workflow run database operations.
+ *
+ * Handles CRUD operations for workflow execution history.
+ */
+export class WorkflowRunsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
+  /**
+   * Finds a workflow run by ID.
+   */
+  async findById(id: string): Promise<WorkflowRun | undefined> {
+    return await dbRead.query.workflowRuns.findFirst({
+      where: eq(workflowRuns.id, id),
+    });
+  }
+
+  /**
+   * Lists recent runs for a workflow, ordered by creation date (most recent first).
+   */
+  async listByWorkflow(
+    workflowId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+    },
+  ): Promise<WorkflowRun[]> {
+    return await dbRead.query.workflowRuns.findMany({
+      where: eq(workflowRuns.workflow_id, workflowId),
+      orderBy: [desc(workflowRuns.created_at)],
+      limit: options?.limit ?? 20,
+      offset: options?.offset,
+    });
+  }
+
+  /**
+   * Gets the most recent run for a workflow.
+   */
+  async getLatestRun(workflowId: string): Promise<WorkflowRun | undefined> {
+    return await dbRead.query.workflowRuns.findFirst({
+      where: eq(workflowRuns.workflow_id, workflowId),
+      orderBy: [desc(workflowRuns.created_at)],
+    });
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new workflow run record.
+   */
+  async create(data: {
+    workflowId: string;
+    triggerSource: WorkflowRunTriggerSource;
+  }): Promise<WorkflowRun> {
+    const [run] = await dbWrite
+      .insert(workflowRuns)
+      .values({
+        workflow_id: data.workflowId,
+        trigger_source: data.triggerSource,
+        status: "running",
+        started_at: new Date(),
+      })
+      .returning();
+    return run;
+  }
+
+  /**
+   * Updates a workflow run with execution results.
+   */
+  async complete(
+    id: string,
+    data: {
+      status: "success" | "error";
+      nodeResults: NodeExecutionResult[];
+      error?: string;
+    },
+  ): Promise<WorkflowRun | undefined> {
+    const [updated] = await dbWrite
+      .update(workflowRuns)
+      .set({
+        status: data.status,
+        node_results: data.nodeResults,
+        error: data.error,
+        completed_at: new Date(),
+      })
+      .where(eq(workflowRuns.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Deletes old runs for a workflow, keeping only the most recent N runs.
+   */
+  async pruneOldRuns(workflowId: string, keepCount: number = 50): Promise<void> {
+    const allRuns = await dbRead.query.workflowRuns.findMany({
+      where: eq(workflowRuns.workflow_id, workflowId),
+      orderBy: [desc(workflowRuns.created_at)],
+      columns: { id: true },
+    });
+
+    if (allRuns.length > keepCount) {
+      const idsToDelete = allRuns.slice(keepCount).map((r) => r.id);
+      for (const id of idsToDelete) {
+        await dbWrite.delete(workflowRuns).where(eq(workflowRuns.id, id));
+      }
+    }
+  }
+}
+
+/**
+ * Singleton instance of WorkflowRunsRepository.
+ */
+export const workflowRunsRepository = new WorkflowRunsRepository();

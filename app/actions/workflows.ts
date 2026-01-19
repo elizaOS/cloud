@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
-import { workflowsRepository } from "@/db/repositories";
+import { workflowsRepository, workflowRunsRepository } from "@/db/repositories";
 import type {
   NewWorkflow,
   WorkflowStatus,
@@ -146,4 +146,46 @@ export async function getWorkflow(workflowId: string) {
   }
 
   return workflow;
+}
+
+/**
+ * Gets recent execution runs for a workflow.
+ */
+export async function getWorkflowRuns(workflowId: string, limit = 20) {
+  const user = await requireAuthWithOrg();
+
+  // Verify workflow belongs to user's org
+  const workflow = await workflowsRepository.findByIdAndOrganization(
+    workflowId,
+    user.organization_id,
+  );
+
+  if (!workflow) {
+    throw new Error("Workflow not found");
+  }
+
+  const runs = await workflowRunsRepository.listByWorkflow(workflowId, { limit });
+
+  return runs;
+}
+
+/**
+ * Gets the most recent run for a workflow.
+ */
+export async function getLatestWorkflowRun(workflowId: string) {
+  const user = await requireAuthWithOrg();
+
+  // Verify workflow belongs to user's org
+  const workflow = await workflowsRepository.findByIdAndOrganization(
+    workflowId,
+    user.organization_id,
+  );
+
+  if (!workflow) {
+    throw new Error("Workflow not found");
+  }
+
+  const run = await workflowRunsRepository.getLatestRun(workflowId);
+
+  return run;
 }

@@ -162,3 +162,95 @@ export const workflows = pgTable(
 // Type inference
 export type Workflow = InferSelectModel<typeof workflows>;
 export type NewWorkflow = InferInsertModel<typeof workflows>;
+
+/**
+ * Workflow run status enum.
+ * Tracks the status of a workflow execution.
+ */
+export const workflowRunStatusEnum = pgEnum("workflow_run_status", [
+  "pending", // Execution queued
+  "running", // Currently executing
+  "success", // Completed successfully
+  "error", // Failed with error
+]);
+
+export type WorkflowRunStatus = "pending" | "running" | "success" | "error";
+
+/**
+ * Workflow run trigger source enum.
+ * How the workflow run was initiated.
+ */
+export const workflowRunTriggerSourceEnum = pgEnum(
+  "workflow_run_trigger_source",
+  [
+    "manual", // Manually triggered by user
+    "schedule", // Triggered by cron schedule
+    "webhook", // Triggered by webhook
+  ],
+);
+
+export type WorkflowRunTriggerSource = "manual" | "schedule" | "webhook";
+
+/**
+ * Node execution result.
+ */
+export interface NodeExecutionResult {
+  nodeId: string;
+  nodeType: string;
+  status: "success" | "error" | "skipped";
+  output?: unknown;
+  error?: string;
+  startedAt: string;
+  completedAt: string;
+  duration: number;
+}
+
+/**
+ * Workflow runs table schema.
+ *
+ * Stores execution history for workflows including results from each node.
+ */
+export const workflowRuns = pgTable(
+  "workflow_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    // Reference to the workflow
+    workflow_id: uuid("workflow_id")
+      .notNull()
+      .references(() => workflows.id, { onDelete: "cascade" }),
+
+    // Run status
+    status: workflowRunStatusEnum("status").notNull().default("pending"),
+
+    // How was this run triggered
+    trigger_source: workflowRunTriggerSourceEnum("trigger_source")
+      .notNull()
+      .default("manual"),
+
+    // Execution results - array of node results
+    node_results: jsonb("node_results")
+      .$type<NodeExecutionResult[]>()
+      .notNull()
+      .default([]),
+
+    // Overall execution error if any
+    error: text("error"),
+
+    // Timing
+    started_at: timestamp("started_at"),
+    completed_at: timestamp("completed_at"),
+
+    // Timestamps
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    workflow_idx: index("workflow_runs_workflow_idx").on(table.workflow_id),
+    status_idx: index("workflow_runs_status_idx").on(table.status),
+    created_at_idx: index("workflow_runs_created_at_idx").on(table.created_at),
+  }),
+);
+
+// Type inference
+export type WorkflowRun = InferSelectModel<typeof workflowRuns>;
+export type NewWorkflowRun = InferInsertModel<typeof workflowRuns>;

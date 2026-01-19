@@ -5,10 +5,10 @@
  * This service checks for workflows that need to run based on their schedule.
  */
 
-import { workflowsRepository } from "@/db/repositories";
+import { workflowsRepository, workflowRunsRepository } from "@/db/repositories";
 import { workflowExecutorService } from "./workflow-executor";
 import { logger } from "@/lib/utils/logger";
-import type { Workflow } from "@/db/schemas";
+import type { Workflow, NodeExecutionResult } from "@/db/schemas";
 
 // ============================================================================
 // Types
@@ -138,6 +138,12 @@ class WorkflowSchedulerService {
           executed: true,
         };
 
+        // Create a run record in the database
+        const dbRun = await workflowRunsRepository.create({
+          workflowId: workflow.id,
+          triggerSource: "schedule",
+        });
+
         try {
           const result = await workflowExecutorService.execute(
             workflow.id,
@@ -157,8 +163,34 @@ class WorkflowSchedulerService {
             error: result.error,
           };
 
+          // Build node results from the outputs map
+          const nodeResults: NodeExecutionResult[] = Object.entries(result.outputs).map(
+            ([nodeId, output]) => {
+              const outputData = output as Record<string, unknown>;
+              return {
+                nodeId,
+                nodeType: (outputData?.type as string) ?? "unknown",
+                status: "success" as const,
+                output: outputData,
+                startedAt: new Date().toISOString(),
+                completedAt: new Date().toISOString(),
+                duration: 0,
+              };
+            },
+          );
+
+          await workflowRunsRepository.complete(dbRun.id, {
+            status: result.success ? "success" : "error",
+            nodeResults,
+            error: result.error,
+          });
+
+          // Prune old runs (keep last 50)
+          await workflowRunsRepository.pruneOldRuns(workflow.id, 50);
+
           logger.info("[Scheduler] Workflow execution completed", {
             workflowId: workflow.id,
+            runId: dbRun.id,
             success: result.success,
           });
         } catch (error) {
@@ -169,8 +201,16 @@ class WorkflowSchedulerService {
             error: errorMessage,
           };
 
+          // Save the error to the database
+          await workflowRunsRepository.complete(dbRun.id, {
+            status: "error",
+            nodeResults: [],
+            error: errorMessage,
+          });
+
           logger.error("[Scheduler] Workflow execution failed", {
             workflowId: workflow.id,
+            runId: dbRun.id,
             error: errorMessage,
           });
         }
