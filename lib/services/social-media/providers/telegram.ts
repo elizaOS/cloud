@@ -5,7 +5,6 @@
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
-import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
   SocialCredentials,
@@ -37,17 +36,32 @@ interface TelegramMessage {
 }
 
 // Use shared telegramBotApiRequest from @/lib/utils/telegram-api
-// Wrapped with retry logic for social media provider
+// Simple retry wrapper for transient failures
 async function telegramApiRequest<T>(
   token: string,
   method: string,
   params?: Record<string, unknown>,
 ): Promise<T> {
-  return withRetry<T>(
-    () => telegramBotApiRequest<T>(token, method, params),
-    async (data) => data,
-    { platform: "telegram", maxRetries: 3 },
-  );
+  const maxRetries = 3;
+  let lastError: Error | undefined;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await telegramBotApiRequest<T>(token, method, params);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // Only retry on transient errors, not auth/validation errors
+      const message = lastError.message.toLowerCase();
+      if (message.includes("rate") || message.includes("timeout") || message.includes("429")) {
+        const delayMs = 1000 * Math.pow(2, attempt);
+        logger.warn(`[Telegram] Retry ${attempt + 1}/${maxRetries} after ${delayMs}ms: ${lastError.message}`);
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      throw lastError;
+    }
+  }
+  throw lastError ?? new Error("Telegram request failed");
 }
 
 async function sendMediaGroup(
@@ -179,10 +193,11 @@ export const telegramProvider: SocialMediaProvider = {
           reply_to_message_id: options?.telegram?.replyToMessageId,
         };
 
-        // Add inline keyboard if provided
-        if (options?.telegram?.inlineKeyboard) {
+        // Add inline keyboard if provided (advanced feature)
+        const telegramOpts = options?.telegram as Record<string, unknown> | undefined;
+        if (telegramOpts?.inlineKeyboard) {
           params.reply_markup = {
-            inline_keyboard: options.telegram.inlineKeyboard,
+            inline_keyboard: telegramOpts.inlineKeyboard,
           };
         }
 

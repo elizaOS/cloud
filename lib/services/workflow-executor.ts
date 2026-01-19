@@ -320,7 +320,7 @@ class WorkflowExecutorService {
   }
 
   /**
-   * Execute agent node - calls user's agent
+   * Execute agent node - calls AI with user's agent character
    */
   private async executeAgentNode(
     config: Record<string, unknown>,
@@ -330,7 +330,6 @@ class WorkflowExecutorService {
     const agentName = config.agentName as string;
     const prompt = (config.prompt as string) ?? "";
 
-    // Require agent selection
     if (!agentId) {
       throw new Error("No agent selected. Please configure the agent node and select one of your agents.");
     }
@@ -341,7 +340,6 @@ class WorkflowExecutorService {
       contextData += `Trigger Input: ${JSON.stringify(context.triggerInput)}\n`;
     }
 
-    // Get context from previous nodes
     for (const [nodeId, output] of context.nodeOutputs) {
       const data = output.output as Record<string, unknown>;
       if (data?.response) {
@@ -353,39 +351,40 @@ class WorkflowExecutorService {
       ? `${prompt}\n\nContext:\n${contextData}`
       : prompt;
 
-    this.log(
-      context,
-      "info",
-      "agent",
-      `Calling agent: ${agentName ?? agentId}`,
-    );
+    this.log(context, "info", "agent", `Calling agent: ${agentName ?? agentId}`);
 
-    // Call the agent's chat endpoint
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const response = await fetch(`${baseUrl}/api/agents/${agentId}/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: finalPrompt,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Agent call failed: ${response.status} - ${errorText}`);
+    // Fetch character data to build system prompt
+    const { charactersService } = await import("@/lib/services/characters/characters");
+    const character = await charactersService.getById(agentId);
+    
+    if (!character) {
+      throw new Error(`Agent "${agentName}" not found. It may have been deleted.`);
     }
 
-    const result = await response.json();
-    const agentResponse = result.response ?? result.text ?? result.message ?? "";
+    // Build system prompt from character
+    const bioText = Array.isArray(character.bio)
+      ? character.bio.join("\n")
+      : character.bio ?? "";
+    const systemPrompt = character.system ?? `You are ${character.name}. ${bioText}`;
+
+    // Call AI directly using Vercel AI SDK
+    const result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      prompt: finalPrompt,
+    });
+
+    const agentResponse = result.text;
+
+    this.log(context, "info", "agent", `Agent responded (${agentResponse.length} chars)`);
 
     return {
       type: "agent",
       agentId,
-      agentName,
+      agentName: character.name,
       prompt: finalPrompt,
       response: agentResponse,
+      usage: result.usage,
     };
   }
 
