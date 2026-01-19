@@ -12,6 +12,7 @@ import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl, buildElevenLabsSettings } from "./config";
+import { logger } from "@/lib/utils/logger";
 import {
   AgentMode,
   AGENT_MODE_PLUGINS,
@@ -42,11 +43,11 @@ async function preloadPlugins(): Promise<void> {
     // Load both plugins in parallel
     const [knowledgeModule, webSearchModule] = await Promise.all([
       import("@elizaos/plugin-knowledge").catch((e) => {
-        console.warn("[AgentLoader] Failed to preload knowledge plugin:", e);
+        logger.warn("[AgentLoader] Failed to preload knowledge plugin:", e);
         return null;
       }),
       import("@elizaos/plugin-web-search").catch((e) => {
-        console.warn("[AgentLoader] Failed to preload web-search plugin:", e);
+        logger.warn("[AgentLoader] Failed to preload web-search plugin:", e);
         return null;
       }),
     ]);
@@ -58,9 +59,9 @@ async function preloadPlugins(): Promise<void> {
       _webSearchPlugin = webSearchModule.webSearchPlugin;
     }
 
-    console.log("[AgentLoader] ⚡ Plugins preloaded successfully");
+    logger.info("[AgentLoader] ⚡ Plugins preloaded successfully");
   } catch (e) {
-    console.error("[AgentLoader] Plugin preload failed:", e);
+    logger.error("[AgentLoader] Plugin preload failed:", e);
   }
 }
 

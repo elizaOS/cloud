@@ -111,14 +111,14 @@ export async function DELETE(
     // Step 2: Delete CloudFormation stack
     try {
       await cloudFormationService.deleteUserStack(
-        containerId,
+        container.organization_id,
         container.project_name,
       );
 
       // Wait for deletion with timeout
       const DELETION_TIMEOUT_MINUTES = 15;
       await cloudFormationService.waitForStackDeletion(
-        containerId,
+        container.organization_id,
         container.project_name,
         DELETION_TIMEOUT_MINUTES,
       );
@@ -135,7 +135,7 @@ export async function DELETE(
     // Step 3: Release ALB priority
     try {
       await dbPriorityManager.releasePriority(
-        containerId,
+        container.organization_id,
         container.project_name,
       );
     } catch (priorityError) {
@@ -143,7 +143,7 @@ export async function DELETE(
       // Non-critical - continue with cleanup
     }
 
-    // Step 4: Calculate prorated refund if container was running
+    // Step 4: Calculate prorated refund if container was running (daily billing model)
     let refundAmount = 0;
 
     if (container.status === "running" && container.created_at) {
@@ -152,18 +152,22 @@ export async function DELETE(
         const now = Date.now();
         const createdAt = new Date(container.created_at).getTime();
         const runtimeHours = (now - createdAt) / (1000 * 60 * 60);
+        const runtimeDays = runtimeHours / 24;
 
-        // Calculate deployment cost
+        // Calculate deployment cost (one-time fee)
         const deploymentCost = calculateDeploymentCost({
           desiredCount: container.desired_count || 1,
           cpu: container.cpu || 1792,
           memory: container.memory || 1792,
-          includeUpload: false,
         });
 
-        // Prorated refund: if container ran less than 1 hour, refund 50%
+        // Prorated refund for daily billing:
+        // - If deleted within 2 hours of deployment, refund 75% of deployment cost
+        // - If deleted same day (before first daily billing), refund 50% of deployment cost
         // This is generous to users but prevents abuse
-        if (runtimeHours < 1) {
+        if (runtimeHours < 2) {
+          refundAmount = Math.floor(deploymentCost * 0.75);
+        } else if (runtimeDays < 1) {
           refundAmount = Math.floor(deploymentCost * 0.5);
         }
 
@@ -176,6 +180,7 @@ export async function DELETE(
               type: "refund",
               containerId,
               runtimeHours: runtimeHours.toFixed(2),
+              runtimeDays: runtimeDays.toFixed(2),
             },
           });
         }
@@ -352,7 +357,7 @@ export async function PATCH(
     try {
       // Build the update config
       const updateConfig = {
-        userId: containerId,
+        userId: container.organization_id,
         projectName: container.project_name,
         userEmail: container.name,
         containerImage:
@@ -368,7 +373,7 @@ export async function PATCH(
 
       // Wait for update to complete (with timeout)
       await cloudFormationService.waitForStackUpdate(
-        containerId,
+        container.organization_id,
         container.project_name,
         15,
       );

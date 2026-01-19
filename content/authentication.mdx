@@ -91,17 +91,22 @@ Restrict keys to specific endpoints:
 
 ### Available Permissions
 
-| Permission        | Description             |
-| ----------------- | ----------------------- |
-| `chat:read`       | Read chat history       |
-| `chat:write`      | Create chat completions |
-| `embeddings:read` | Create embeddings       |
-| `agents:read`     | List agents             |
-| `agents:write`    | Create/modify agents    |
-| `knowledge:read`  | Query knowledge         |
-| `knowledge:write` | Upload documents        |
-| `images:write`    | Generate images         |
-| `videos:write`    | Generate videos         |
+Permissions can be used to restrict what operations an API key can perform.
+
+| Permission   | Description         |
+| ------------ | ------------------- |
+| `chat`       | Chat completions    |
+| `embeddings` | Generate embeddings |
+| `images`     | Image generation    |
+| `video`      | Video generation    |
+| `voice`      | Voice/TTS           |
+| `knowledge`  | Knowledge base      |
+| `agents`     | Agent management    |
+| `apps`       | App management      |
+
+<Callout type="info">
+  If no permissions are specified when creating an API key, the key has access to all endpoints by default. Use permissions to create restricted keys for specific use cases.
+</Callout>
 
 ## API Key Management
 
@@ -161,7 +166,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 ```
 
 <Callout type="info">
-  See [x402 Payments](/docs/x402) for detailed crypto payment setup.
+  See the crypto payments section below for details.
 </Callout>
 
 ## Security Best Practices
@@ -253,8 +258,8 @@ X-RateLimit-Reset: 1705312860
   <Cards.Card title="API Reference" href="/docs/api">
     Complete API documentation
   </Cards.Card>
-  <Cards.Card title="x402 Payments" href="/docs/x402">
-    Crypto payment authentication
+  <Cards.Card title="Billing" href="/docs/billing">
+    Manage credits and payments
   </Cards.Card>
   <Cards.Card title="Rate Limits" href="/docs/rate-limits">
     Understand rate limiting

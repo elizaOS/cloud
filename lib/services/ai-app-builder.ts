@@ -16,7 +16,7 @@ import {
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc, and } from "drizzle-orm";
-import { appsService } from "./apps";
+import { appsService, AppNameConflictError } from "./apps";
 import { appFactoryService } from "./app-factory";
 import { gitSyncService } from "./git-sync";
 import { githubReposService } from "./github-repos";
@@ -129,40 +129,78 @@ export class AIAppBuilderService {
     let githubRepo: string | null = null;
 
     if (!appId && appName) {
-      // Use AppFactoryService to create app WITH GitHub repo
-      const result = await appFactoryService.createApp(
-        {
-          name: appName,
-          description:
-            appDescription || `AI-built app (template: ${templateType})`,
-          organization_id: organizationId,
-          created_by_user_id: userId,
-          app_url: "https://placeholder.local",
-          allowed_origins: ["*"],
-        },
-        {
-          createGitHubRepo: true,
-          repoPrivate: true,
-          assignSubdomain: true,
-        },
-      );
-      appId = result.app.id;
-      appApiKey = result.apiKey;
-      githubRepo = result.githubRepo || null;
+      // Try to create app, but handle case where user already owns an app with this name
+      // (can happen if previous sandbox creation failed after app was created)
+      try {
+        // Use AppFactoryService to create app WITH GitHub repo
+        const result = await appFactoryService.createApp(
+          {
+            name: appName,
+            description:
+              appDescription || `AI-built app (template: ${templateType})`,
+            organization_id: organizationId,
+            created_by_user_id: userId,
+            app_url: "https://placeholder.local",
+            allowed_origins: ["*"],
+          },
+          {
+            createGitHubRepo: true,
+            repoPrivate: true,
+            assignSubdomain: true,
+          },
+        );
+        appId = result.app.id;
+        appApiKey = result.apiKey;
+        githubRepo = result.githubRepo || null;
 
-      logger.info("Created app for AI builder session with GitHub repo", {
-        appId,
-        appName,
-        githubRepo,
-        githubRepoCreated: result.githubRepoCreated,
-      });
+        logger.info("Created app for AI builder session with GitHub repo", {
+          appId,
+          appName,
+          githubRepo,
+          githubRepoCreated: result.githubRepoCreated,
+        });
 
-      if (result.errors.length > 0) {
-        logger.warn("App creation had warnings", { warnings: result.errors });
+        if (result.errors.length > 0) {
+          logger.warn("App creation had warnings", { warnings: result.errors });
+        }
+      } catch (error) {
+        // Check if this is a name conflict AND user owns an app with this name
+        if (error instanceof AppNameConflictError) {
+          // Generate the slug that would be created from this name
+          const slug = appName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .substring(0, 50);
+
+          // Check if user's organization owns an app with this slug
+          const existingApp = await appsService.getBySlug(slug);
+
+          if (existingApp && existingApp.organization_id === organizationId) {
+            // User owns this app - reuse it instead of failing
+            logger.info(
+              "Reusing existing app owned by user (previous session may have failed)",
+              {
+                appId: existingApp.id,
+                appName,
+                slug,
+              },
+            );
+
+            appId = existingApp.id;
+            appApiKey = await appsService.regenerateApiKey(appId);
+            githubRepo = existingApp.github_repo || null;
+          } else {
+            // App exists but belongs to someone else - rethrow
+            throw error;
+          }
+        } else {
+          throw error;
+        }
       }
 
       // Update app with linked agent IDs if provided
-      if (linkedAgentIds && linkedAgentIds.length > 0) {
+      if (linkedAgentIds && linkedAgentIds.length > 0 && appId) {
         await appsService.update(appId, {
           linked_character_ids: linkedAgentIds,
         });

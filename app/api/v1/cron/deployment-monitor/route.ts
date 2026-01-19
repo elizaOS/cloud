@@ -8,6 +8,7 @@ import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { calculateDeploymentCost } from "@/lib/constants/pricing";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute max
@@ -124,7 +125,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
           // Refund credits
           try {
-            const deploymentCost = 15;
+            const deploymentCost = calculateDeploymentCost({ desiredCount: container.desired_count, cpu: container.cpu, memory: container.memory });
             await creditsService.addCredits({
               organizationId: container.organization_id,
               amount: deploymentCost,
@@ -235,7 +236,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
           // Refund credits for the failed deployment
           try {
-            const deploymentCost = 15; // Default cost - ideally retrieve from container metadata
+            const deploymentCost = calculateDeploymentCost({ desiredCount: container.desired_count, cpu: container.cpu, memory: container.memory });
 
             await creditsService.addCredits({
               organizationId: container.organization_id,
@@ -404,7 +405,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
           // Refund credits
           try {
             // Calculate deployment cost (should match what was charged)
-            const deploymentCost = 15; // Default cost - ideally retrieve from container metadata
+            const deploymentCost = calculateDeploymentCost({ desiredCount: container.desired_count, cpu: container.cpu, memory: container.memory });
 
             await creditsService.addCredits({
               organizationId: container.organization_id,

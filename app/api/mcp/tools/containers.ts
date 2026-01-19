@@ -168,7 +168,7 @@ export function registerContainerTools(server: McpServer): void {
   server.registerTool(
     "create_container",
     {
-      description: "Create and deploy a container. Cost: $10 per deployment",
+      description: "Create and deploy a container. Cost: $0.50 deployment + $0.67/day running (~$20/month)",
       inputSchema: {
         name: z.string().min(1).max(100).describe("Container name"),
         ecrImageUri: z.string().describe("ECR image URI"),

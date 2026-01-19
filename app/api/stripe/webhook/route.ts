@@ -181,6 +181,27 @@ async function handleStripeWebhook(req: NextRequest) {
                 },
               );
 
+              // Track app credits purchased in PostHog
+              trackServerEvent(userId, "app_credits_purchased", {
+                app_id: appId,
+                amount: credits,
+                credits_added: result.creditsAdded,
+                organization_id: organizationId,
+                platform_offset: result.platformOffset,
+                creator_earnings: result.creatorEarnings,
+              });
+
+              // Also track unified checkout_completed for funnel analysis
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: "app_credits",
+                credits_added: result.creditsAdded,
+                stripe_session_id: session.id,
+              });
+
               // Also create a record in regular credit transactions for audit trail
               await creditsService.addCredits({
                 organizationId,
@@ -246,6 +267,18 @@ async function handleStripeWebhook(req: NextRequest) {
                 currency: session.currency || "usd",
                 purchase_type: purchaseType,
                 organization_id: organizationId,
+                payment_method: "stripe",
+              });
+
+              // Also track unified checkout_completed event
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: purchaseType,
+                credits_added: credits,
+                stripe_session_id: session.id,
               });
             }
 
@@ -554,7 +587,49 @@ async function handleStripeWebhook(req: NextRequest) {
         logger.warn(
           `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
         );
-        // Payment failures are expected events, acknowledge receipt
+
+        // Track payment failure in PostHog
+        const orgId = paymentIntent.metadata?.organization_id;
+        const userId = paymentIntent.metadata?.user_id;
+        const purchaseType = paymentIntent.metadata?.type;
+        // The intended credits amount from metadata (not a "failed amount")
+        const intendedCredits = paymentIntent.metadata?.credits
+          ? parseAndValidateCredits(paymentIntent.metadata.credits)
+          : null;
+
+        // Get error reason from the payment intent
+        const lastPaymentError = paymentIntent.last_payment_error;
+        const errorReason =
+          lastPaymentError?.message ||
+          lastPaymentError?.code ||
+          "Payment failed";
+
+        // Use org-prefixed ID as fallback when user ID is missing (matches auto-top-up pattern)
+        const trackingId = userId || (orgId ? `org:${orgId}` : null);
+        
+        if (trackingId && orgId) {
+          trackServerEvent(trackingId, "checkout_failed", {
+            payment_method: "stripe",
+            amount: intendedCredits || undefined,
+            currency: paymentIntent.currency || "usd",
+            organization_id: orgId,
+            purchase_type: purchaseType,
+            error_reason: errorReason,
+            stripe_payment_intent_id: paymentIntent.id,
+          });
+        } else {
+          // Log warning when metadata is missing - creates blind spot in failure analytics
+          logger.warn(
+            `[Stripe Webhook] Cannot track checkout_failed - missing metadata`,
+            {
+              paymentIntentId: paymentIntent.id,
+              hasUserId: !!userId,
+              hasOrgId: !!orgId,
+              errorReason,
+            },
+          );
+        }
+
         break;
       }
 
