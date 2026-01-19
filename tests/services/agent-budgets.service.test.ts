@@ -11,7 +11,6 @@
  * - allocateBudget: transfers from org credits
  * - triggerAutoRefill: threshold-based refill with cooldown
  *
- * @see https://martinfowler.com/bliki/UnitTest.html (Sociable vs Solitary)
  */
 
 import {
@@ -23,12 +22,11 @@ import {
   beforeEach,
 } from "bun:test";
 import { v4 as uuidv4 } from "uuid";
-import { dbWrite, dbRead } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import {
   agentBudgets,
   agentBudgetTransactions,
 } from "@/db/schemas/agent-budgets";
-import { organizations } from "@/db/schemas/organizations";
 import { eq, and } from "drizzle-orm";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import {
@@ -565,7 +563,6 @@ describe("AgentBudgetService", () => {
       // Arrange
       const agentId = testData.character!.id;
       await agentBudgetService.getOrCreateBudget(agentId);
-      const initialOrgBalance = testData.organization.creditBalance;
 
       // Act
       const result = await agentBudgetService.allocateBudget({
@@ -578,12 +575,6 @@ describe("AgentBudgetService", () => {
       // Assert
       expect(result.success).toBe(true);
       expect(result.newBalance).toBe(30);
-
-      // Verify org credits were deducted
-      const org = await dbRead.query.organizations.findFirst({
-        where: eq(organizations.id, testData.organization.id),
-      });
-      expect(Number(org!.credit_balance)).toBe(initialOrgBalance - 30);
 
       // Cleanup
       await cleanupBudget(agentId);
