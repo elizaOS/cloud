@@ -435,7 +435,31 @@ async function handlePOST(req: NextRequest) {
 
     // 5. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
-    const providerResponse = await providerInstance.chatCompletions(request);
+    let providerResponse: Response;
+
+    try {
+      providerResponse = await providerInstance.chatCompletions(request);
+    } catch (providerError) {
+      // Refund app credits if provider call fails
+      if (useAppCredits && appId && appCreditDeduction?.success) {
+        logger.error("[Chat Completions] Provider failed, refunding app credits", {
+          appId,
+          userId: user.id,
+          estimatedBaseCost,
+          error: providerError instanceof Error ? providerError.message : "Unknown error",
+        });
+
+        await appCreditsService.reconcileCredits({
+          appId,
+          userId: user.id,
+          estimatedBaseCost,
+          actualBaseCost: 0, // Full refund
+          description: "Refund due to provider error",
+          metadata: { error: true, providerFailure: true },
+        });
+      }
+      throw providerError; // Re-throw to be handled by outer catch
+    }
 
     // 6. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -447,11 +471,11 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
-        session_token,
         origin,
         ipAddress,
         userAgent,
-        reservation
+        reservation ?? undefined,
+        useAppCredits ? { appId: appId!, estimatedBaseCost } : undefined
       );
     } else {
       return withCors(
@@ -465,7 +489,8 @@ async function handlePOST(req: NextRequest) {
           origin,
           ipAddress,
           userAgent,
-          reservation
+          reservation ?? undefined,
+          useAppCredits ? { appId: appId!, estimatedBaseCost } : undefined
         )
       );
     }
@@ -524,7 +549,8 @@ async function handleNonStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservation?: CreditReservation
+  reservation?: CreditReservation,
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number }
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -534,7 +560,7 @@ async function handleNonStreamingResponse(
   const content = data.choices[0]?.message?.content || "";
 
   // Reconcile credits: refund difference if actual < reserved
-  if (usage && reservation) {
+  if (usage) {
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -542,7 +568,28 @@ async function handleNonStreamingResponse(
       usage.completion_tokens
     );
 
-    await reservation.reconcile(totalCost);
+    // Reconcile org credits (reservation pattern)
+    if (reservation) {
+      await reservation.reconcile(totalCost);
+    }
+
+    // Reconcile app credits
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: totalCost,
+        description: `Chat reconciliation: ${model}`,
+        metadata: {
+          model,
+          provider,
+          inputTokens: usage.prompt_tokens,
+          outputTokens: usage.completion_tokens,
+          streaming: false,
+        },
+      });
+    }
 
     // Background analytics (usage records, generation records)
     // These are not critical for billing, so can be async
@@ -630,7 +677,8 @@ function handleStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservation?: CreditReservation
+  reservation?: CreditReservation,
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number }
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -753,9 +801,27 @@ function handleStreamingResponse(
           outputTokens
         );
 
-        // Reconcile credits: refund difference if actual < reserved
+        // Reconcile org credits (reservation pattern)
         if (reservation) {
           await reservation.reconcile(totalCost);
+        }
+
+        // Reconcile app credits
+        if (appCreditsInfo) {
+          await appCreditsService.reconcileCredits({
+            appId: appCreditsInfo.appId,
+            userId: user.id,
+            estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+            actualBaseCost: totalCost,
+            description: `Chat reconciliation: ${model}`,
+            metadata: {
+              model,
+              provider,
+              inputTokens,
+              outputTokens,
+              streaming: true,
+            },
+          });
         }
 
         const usageRecord = await usageService.create({
@@ -820,14 +886,34 @@ function handleStreamingResponse(
     } catch (error) {
       logger.error("[Chat Completions] Streaming error:", error);
 
-      // Refund reserved credits if streaming failed (reconcile with 0 cost)
+      // Refund reserved org credits if streaming failed (reconcile with 0 cost)
       if (reservation) {
         await reservation.reconcile(0);
         logger.info(
-          "[Chat Completions] Refunded credits after streaming error",
+          "[Chat Completions] Refunded org credits after streaming error",
           {
             organizationId: user.organization_id,
             refundedAmount: reservation.reservedAmount,
+          }
+        );
+      }
+
+      // Refund app credits if streaming failed
+      if (appCreditsInfo) {
+        await appCreditsService.reconcileCredits({
+          appId: appCreditsInfo.appId,
+          userId: user.id,
+          estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+          actualBaseCost: 0, // Full refund
+          description: "Refund due to streaming error",
+          metadata: { error: true, streaming: true },
+        });
+        logger.info(
+          "[Chat Completions] Refunded app credits after streaming error",
+          {
+            appId: appCreditsInfo.appId,
+            userId: user.id,
+            refundedAmount: appCreditsInfo.estimatedBaseCost,
           }
         );
       }

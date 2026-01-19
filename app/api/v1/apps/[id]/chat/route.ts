@@ -82,28 +82,29 @@ async function handlePOST(
     return addCorsHeaders(nextRes, origin, ["POST", "OPTIONS"]);
   };
 
-  if (!context?.params) {
-    return withCors(
-      NextResponse.json(
-        {
-          error: {
-            message: "Missing route parameters",
-            type: "invalid_request_error",
+  try {
+    if (!context?.params) {
+      return withCors(
+        NextResponse.json(
+          {
+            error: {
+              message: "Missing route parameters",
+              type: "invalid_request_error",
+            },
           },
-        },
-        { status: 400 }
-      )
-    );
-  }
+          { status: 400 }
+        )
+      );
+    }
 
-  const { id: appId } = await context.params;
+    const { id: appId } = await context.params;
 
-  // Parallelize independent operations for better performance
-  const [app, authResult, chatRequest] = await Promise.all([
-    appsService.getById(appId),
-    requireAuthOrApiKeyWithOrg(request),
-    request.json() as Promise<OpenAIChatRequest>,
-  ]);
+    // Parallelize independent operations for better performance
+    const [app, authResult, chatRequest] = await Promise.all([
+      appsService.getById(appId),
+      requireAuthOrApiKeyWithOrg(request),
+      request.json() as Promise<OpenAIChatRequest>,
+    ]);
 
   if (!app) {
     return withCors(
@@ -573,6 +574,24 @@ async function handlePOST(
   });
 
   return withCors(NextResponse.json(responseData));
+  } catch (error) {
+    logger.error("[App Chat] Error:", error);
+
+    // Return proper error response with CORS headers
+    return withCors(
+      NextResponse.json(
+        {
+          error: {
+            message:
+              error instanceof Error ? error.message : "Internal server error",
+            type: "api_error",
+            code: "internal_server_error",
+          },
+        },
+        { status: 500 }
+      )
+    );
+  }
 }
 
 // Apply rate limiting to prevent abuse
