@@ -9,10 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  Webhook,
   Bot,
   ImageIcon,
-  FolderOutput,
   Clock,
   Globe,
   GitBranch,
@@ -23,6 +21,8 @@ import {
   Twitter,
   Send,
   Mail,
+  Database,
+  type LucideIcon,
 } from "lucide-react";
 import type { WorkflowNodeType } from "@/db/schemas";
 import { cn } from "@/lib/utils";
@@ -33,12 +33,12 @@ interface AddModuleDialogProps {
   onAddNode: (type: WorkflowNodeType, initialData?: Record<string, unknown>) => void;
 }
 
-type NodeCategory = "ai" | "integrations" | "logic" | "output" | "mcps";
+type NodeCategory = "ai" | "integrations" | "logic" | "mcps";
 
 interface NodeDefinition {
   type: WorkflowNodeType;
   label: string;
-  icon: typeof Webhook;
+  icon: LucideIcon;
   color: string;
   description: string;
   category: NodeCategory;
@@ -111,6 +111,14 @@ const nodeDefinitions: NodeDefinition[] = [
     category: "integrations",
   },
   {
+    type: "app-query",
+    label: "App Query",
+    icon: Database,
+    color: "purple",
+    description: "Query your app data: users, stats, requests, analytics",
+    category: "integrations",
+  },
+  {
     type: "condition",
     label: "Condition",
     icon: GitBranch,
@@ -125,14 +133,6 @@ const nodeDefinitions: NodeDefinition[] = [
     color: "amber",
     description: "Pause workflow execution for a set time",
     category: "logic",
-  },
-  {
-    type: "output",
-    label: "Output",
-    icon: FolderOutput,
-    color: "orange",
-    description: "Save results to gallery or send to webhooks",
-    category: "output",
   },
   // MCP Tools - Crypto
   {
@@ -207,7 +207,6 @@ const categories: { id: NodeCategory; label: string }[] = [
   { id: "integrations", label: "Integrations" },
   { id: "mcps", label: "MCPs" },
   { id: "logic", label: "Logic & Flow" },
-  { id: "output", label: "Output" },
 ];
 
 const colorClasses: Record<string, { bg: string; border: string; text: string }> = {

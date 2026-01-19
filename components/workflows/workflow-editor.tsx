@@ -41,6 +41,7 @@ import { McpNode } from "./nodes/mcp-node";
 import { TwitterNode } from "./nodes/twitter-node";
 import { TelegramNode } from "./nodes/telegram-node";
 import { EmailNode } from "./nodes/email-node";
+import { AppQueryNode } from "./nodes/app-query-node";
 import { AddButtonNode } from "./nodes/add-button-node";
 import type { WorkflowNodeType } from "@/db/schemas";
 
@@ -64,6 +65,7 @@ const nodeTypes: NodeTypes = {
   twitter: TwitterNode,
   telegram: TelegramNode,
   email: EmailNode,
+  "app-query": AppQueryNode,
   addButton: AddButtonNode,
 };
 

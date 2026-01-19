@@ -300,6 +300,8 @@ class WorkflowExecutorService {
         return this.executeTelegramNode(config, context);
       case "email":
         return this.executeEmailNode(config, context);
+      case "app-query":
+        return this.executeAppQueryNode(config, context);
       default:
         throw new Error(`Unknown node type: ${node.type}`);
     }
@@ -1243,6 +1245,87 @@ class WorkflowExecutorService {
       to: toEmail,
       subject,
       bodyPreview: body.slice(0, 100),
+    };
+  }
+
+  /**
+   * Execute App Query node - queries app data (users, stats, requests, analytics)
+   * Returns data that can be used by subsequent nodes (e.g., agent to summarize)
+   */
+  private async executeAppQueryNode(
+    config: Record<string, unknown>,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown> {
+    const appId = config.appId as string | undefined;
+    const appName = config.appName as string | undefined;
+    const queryType = (config.queryType as string) ?? "stats";
+    const limit = (config.limit as number) ?? 50;
+    const periodType = (config.periodType as string) ?? "daily";
+
+    if (!appId) {
+      throw new Error("No app selected. Configure the App Query node and select one of your apps.");
+    }
+
+    this.log(context, "info", "app-query", `Querying ${queryType} for app: ${appName ?? appId}`);
+
+    const { appsRepository } = await import("@/db/repositories");
+
+    let data: unknown;
+    let summary: string;
+
+    switch (queryType) {
+      case "stats": {
+        const stats = await appsRepository.getRequestStats(appId);
+        data = stats;
+        summary = `App Stats: ${stats.totalRequests} total requests, ${stats.uniqueUsers} unique users, ${stats.totalCredits} credits used, avg ${stats.avgResponseTime ?? 0}ms response time`;
+        break;
+      }
+
+      case "users": {
+        const users = await appsRepository.listAppUsers(appId, limit);
+        data = users;
+        summary = `Found ${users.length} app users`;
+        break;
+      }
+
+      case "requests": {
+        const { requests, total } = await appsRepository.getRecentRequests(appId, { limit });
+        data = { requests, total };
+        summary = `Retrieved ${requests.length} of ${total} recent requests`;
+        break;
+      }
+
+      case "top-visitors": {
+        const visitors = await appsRepository.getTopVisitors(appId, limit);
+        data = visitors;
+        summary = `Top ${visitors.length} visitors by request count`;
+        break;
+      }
+
+      case "analytics": {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30); // Last 30 days
+        const analytics = await appsRepository.getAnalytics(appId, periodType, startDate, endDate);
+        data = analytics;
+        summary = `${analytics.length} ${periodType} analytics periods for last 30 days`;
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown query type: ${queryType}`);
+    }
+
+    this.log(context, "info", "app-query", summary);
+
+    return {
+      type: "app-query",
+      appId,
+      appName,
+      queryType,
+      summary,
+      data,
+      response: JSON.stringify(data, null, 2), // For agent nodes to consume
     };
   }
 

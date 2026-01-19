@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Bot } from "lucide-react";
+import { X, Bot, Database, AppWindow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
 import type { Node } from "@xyflow/react";
 import Image from "next/image";
 import { AgentPickerDialog } from "./agent-picker-dialog";
+import { AppPickerDialog } from "./app-picker-dialog";
 
 interface NodeConfigPanelProps {
   node: Node | null;
@@ -114,6 +115,8 @@ export function NodeConfigPanel({
         return <TelegramConfig data={localData} onChange={updateField} />;
       case "email":
         return <EmailConfig data={localData} onChange={updateField} />;
+      case "app-query":
+        return <AppQueryConfig data={localData} onChange={updateField} />;
       default:
         return <div className="text-white/60">Unknown node type: {node.type}</div>;
     }
@@ -1272,6 +1275,126 @@ function EmailConfig({
         />
         <p className="text-xs text-white/40 mt-1">
           Leave empty to use previous agent response
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// App Query Configuration
+function AppQueryConfig({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  const [showAppPicker, setShowAppPicker] = useState(false);
+  const appName = data.appName as string;
+  const queryType = (data.queryType as string) ?? "stats";
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label className="text-white/80">Select App</Label>
+        {appName ? (
+          <button
+            onClick={() => setShowAppPicker(true)}
+            className="mt-2 flex items-center gap-3 w-full p-3 rounded-lg border border-purple-500 bg-purple-500/10 text-left hover:bg-purple-500/20 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+              <AppWindow className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-white">{appName}</div>
+              <div className="text-xs text-white/40">Click to change</div>
+            </div>
+          </button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => setShowAppPicker(true)}
+            className="mt-2 w-full border-dashed border-white/20 hover:border-purple-500 hover:bg-purple-500/5"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Select one of your apps
+          </Button>
+        )}
+        {!appName && (
+          <p className="text-xs text-yellow-400 mt-2">
+            ⚠️ You must select an app before running this workflow
+          </p>
+        )}
+      </div>
+
+      <AppPickerDialog
+        open={showAppPicker}
+        onOpenChange={setShowAppPicker}
+        onSelect={(app) => {
+          onChange("appId", app.id);
+          onChange("appName", app.name);
+        }}
+      />
+
+      <div>
+        <Label className="text-white/80">Query Type</Label>
+        <Select
+          value={queryType}
+          onValueChange={(v) => onChange("queryType", v)}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="stats">Request Stats</SelectItem>
+            <SelectItem value="users">App Users</SelectItem>
+            <SelectItem value="requests">Recent Requests</SelectItem>
+            <SelectItem value="top-visitors">Top Visitors</SelectItem>
+            <SelectItem value="analytics">Analytics</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {(queryType === "users" || queryType === "requests" || queryType === "top-visitors") && (
+        <div>
+          <Label className="text-white/80">Limit</Label>
+          <Input
+            type="number"
+            min="1"
+            max="100"
+            value={(data.limit as number) ?? 50}
+            onChange={(e) => onChange("limit", parseInt(e.target.value))}
+            className="mt-1"
+          />
+        </div>
+      )}
+
+      {queryType === "analytics" && (
+        <div>
+          <Label className="text-white/80">Period Type</Label>
+          <Select
+            value={(data.periodType as string) ?? "daily"}
+            onValueChange={(v) => onChange("periodType", v)}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hourly">Hourly</SelectItem>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="bg-purple-500/10 rounded-lg p-3 text-xs space-y-1">
+        <p className="text-purple-400 font-medium">Output:</p>
+        <p className="text-white/60">
+          Query results are available as <code>response</code> for use by Agent or other nodes.
+        </p>
+        <p className="text-white/40 mt-2">
+          Example: Use an Agent node after this to summarize or analyze the data.
         </p>
       </div>
     </div>
