@@ -119,13 +119,9 @@ export function calculateDeploymentCost(config: {
   desiredCount?: number;
   cpu?: number; // CPU units (256 = 0.25 vCPU)
   memory?: number; // Memory in MB
-  includeUpload?: boolean;
 }): number {
   let totalCost = CONTAINER_PRICING.DEPLOYMENT;
 
-  if (config.includeUpload) {
-    totalCost += CONTAINER_PRICING.IMAGE_UPLOAD;
-  }
 
   const instanceCount = config.desiredCount || 1;
 

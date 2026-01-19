@@ -111,14 +111,14 @@ export async function DELETE(
     // Step 2: Delete CloudFormation stack
     try {
       await cloudFormationService.deleteUserStack(
-        containerId,
+        container.organization_id,
         container.project_name,
       );
 
       // Wait for deletion with timeout
       const DELETION_TIMEOUT_MINUTES = 15;
       await cloudFormationService.waitForStackDeletion(
-        containerId,
+        container.organization_id,
         container.project_name,
         DELETION_TIMEOUT_MINUTES,
       );
@@ -135,7 +135,7 @@ export async function DELETE(
     // Step 3: Release ALB priority
     try {
       await dbPriorityManager.releasePriority(
-        containerId,
+        container.organization_id,
         container.project_name,
       );
     } catch (priorityError) {
@@ -159,7 +159,6 @@ export async function DELETE(
           desiredCount: container.desired_count || 1,
           cpu: container.cpu || 1792,
           memory: container.memory || 1792,
-          includeUpload: false,
         });
 
         // Prorated refund for daily billing:
@@ -358,7 +357,7 @@ export async function PATCH(
     try {
       // Build the update config
       const updateConfig = {
-        userId: containerId,
+        userId: container.organization_id,
         projectName: container.project_name,
         userEmail: container.name,
         containerImage:
@@ -374,7 +373,7 @@ export async function PATCH(
 
       // Wait for update to complete (with timeout)
       await cloudFormationService.waitForStackUpdate(
-        containerId,
+        container.organization_id,
         container.project_name,
         15,
       );

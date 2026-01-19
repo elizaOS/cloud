@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
       desiredCount: 1,
       cpu: 1792, // Default: 1.75 vCPU (87.5% of t3g.small)
       memory: 1792, // Default: 1.75 GB (87.5% of t3g.small)
-      includeUpload: false,
     });
 
     // Calculate daily running cost

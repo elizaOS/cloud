@@ -308,7 +308,7 @@ curl https://elizacloud.ai/api/v1/chat/completions \
   }'
 ```
 
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
   <a href="/docs/api" className="docs-api-card no-underline group">
     <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
       REST API
@@ -324,11 +324,7 @@ curl https://elizacloud.ai/api/v1/chat/completions \
       MCP Protocol
     </div>
   </a>
-  <a href="/docs/x402" className="docs-api-card no-underline group">
-    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
-      x402 Payments
-    </div>
-  </a>
+
 </div>
 
 </div>
@@ -1010,21 +1006,12 @@ Click "Deploy" to launch your agent.
 ### Using the API
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/my-agents/characters" \
+curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Research Assistant",
-    "bio": ["Expert in scientific research and data analysis"],
-    "style": {
-      "all": ["Professional", "Thorough", "Evidence-based"],
-      "chat": ["Concise responses", "Cite sources when available"]
-    },
-    "modelProvider": "openai",
-    "settings": {
-      "model": "gpt-4o",
-      "temperature": 0.7
-    }
+    "bio": "Expert in scientific research and data analysis"
   }'
 ```
 
@@ -1032,10 +1019,14 @@ Response:
 
 ```json
 {
-  "id": "agent_abc123",
-  "name": "Research Assistant",
-  "status": "active",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "agent": {
+    "id": "uuid-abc123",
+    "name": "Research Assistant",
+    "username": "research-assistant",
+    "bio": ["Expert in scientific research and data analysis"],
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -1112,35 +1103,21 @@ The character JSON defines your agent's personality and behavior.
 ### List Agents
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters" \
+curl -X GET "https://elizacloud.ai/api/my-agents/characters" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Get Agent Details
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X GET "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
-```
-
-### Update Agent
-
-```bash
-curl -X PUT "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Updated Agent Name",
-    "settings": {
-      "temperature": 0.8
-    }
-  }'
 ```
 
 ### Delete Agent
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
+curl -X DELETE "https://elizacloud.ai/api/my-agents/characters/{agentId}" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -1327,31 +1304,54 @@ Summary: Create and manage AI agents on elizaOS Cloud.
 
 Create, configure, and manage your AI agents (characters).
 
+  Agents API has two endpoint patterns: dashboard routes under `/api/my-agents/` and programmatic API under `/api/v1/app/agents`. Both require authentication.
+
 ## List Agents
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters</span>
+  <span className="path">/api/my-agents/characters</span>
 </div>
 
-Get all your agents.
+Get all your agents with optional filtering and pagination.
+
+### Query Parameters
+
+| Parameter  | Type   | Description                           |
+| ---------- | ------ | ------------------------------------- |
+| `search`   | string | Search by name or bio                 |
+| `category` | string | Filter by category                    |
+| `sortBy`   | string | `newest`, `updated`, or `name`        |
+| `order`    | string | `asc` or `desc`                       |
+| `page`     | number | Page number (default: 1)              |
+| `limit`    | number | Items per page (default: 30, max: 1000) |
 
 ### Response
 
 ```json
 {
-  "characters": [
-    {
-      "id": "char_abc123",
-      "name": "Customer Support Bot",
-      "bio": ["Expert in customer support"],
-      "modelProvider": "openai",
-      "settings": {
-        "model": "gpt-4o"
-      },
-      "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "data": {
+    "characters": [
+      {
+        "id": "uuid-abc123",
+        "name": "Customer Support Bot",
+        "bio": ["Expert in customer support"],
+        "avatarUrl": "https://...",
+        "category": "support",
+        "isPublic": false,
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 30,
+      "totalPages": 1,
+      "totalCount": 1,
+      "hasMore": false
     }
-  ]
+  }
 }
 ```
 
@@ -1361,52 +1361,43 @@ Get all your agents.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters</span>
+  <span className="path">/api/v1/app/agents</span>
 </div>
 
-Create a new agent.
+Create a new agent with a name and optional bio.
 
 ### Request
 
 ```json
 {
   "name": "My Assistant",
-  "bio": ["Expert in customer support", "Friendly and helpful"],
-  "modelProvider": "openai",
-  "settings": {
-    "model": "gpt-4o"
-  },
-  "system": "You are a helpful customer support assistant.",
-  "style": {
-    "all": ["professional", "friendly"],
-    "chat": ["concise"],
-    "post": ["engaging"]
-  }
+  "bio": "A helpful customer support assistant"
 }
 ```
 
 ### Parameters
 
-| Parameter        | Type   | Required | Description                 |
-| ---------------- | ------ | -------- | --------------------------- |
-| `name`           | string | ✓        | Agent name                  |
-| `bio`            | array  |          | Array of bio lines          |
-| `modelProvider`  | string |          | `openai`, `anthropic`, etc. |
-| `settings.model` | string |          | Model to use                |
-| `system`         | string |          | System prompt               |
-| `style`          | object |          | Communication styles        |
+| Parameter | Type   | Required | Description                        |
+| --------- | ------ | -------- | ---------------------------------- |
+| `name`    | string | ✓        | Agent name (max 100 characters)    |
+| `bio`     | string |          | Agent bio/description              |
 
 ### Response
 
 ```json
 {
-  "id": "char_abc123",
-  "name": "My Assistant",
-  "bio": ["Expert in customer support", "Friendly and helpful"],
-  "modelProvider": "openai",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "agent": {
+    "id": "uuid-abc123",
+    "name": "My Assistant",
+    "username": "my-assistant",
+    "bio": ["A helpful customer support assistant"],
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
+
+  Agent creation is rate limited and subject to organization quotas based on credit balance.
 
 ---
 
@@ -1414,30 +1405,26 @@ Create a new agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}</span>
 </div>
 
 Get details about a specific agent.
 
----
-
-## Update Agent
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
-</div>
-
-Update an agent's configuration.
-
-### Request
+### Response
 
 ```json
 {
-  "name": "Updated Assistant",
-  "bio": ["New bio line"],
-  "settings": {
-    "model": "gpt-4o-mini"
+  "success": true,
+  "data": {
+    "character": {
+      "id": "uuid-abc123",
+      "name": "My Assistant",
+      "bio": ["A helpful assistant"],
+      "avatarUrl": null,
+      "category": null,
+      "isPublic": false,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
   }
 }
 ```
@@ -1448,10 +1435,21 @@ Update an agent's configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}</span>
 </div>
 
-Delete an agent.
+Delete an agent you own.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Character deleted successfully"
+  }
+}
+```
 
 ---
 
@@ -1459,7 +1457,7 @@ Delete an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}/clone</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}/clone</span>
 </div>
 
 Create a copy of an existing agent.
@@ -1470,7 +1468,7 @@ Create a copy of an existing agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{"{id}"}/stats</span>
+  <span className="path">/api/my-agents/characters/{"{id}"}/stats</span>
 </div>
 
 Get usage statistics for an agent.
@@ -1479,10 +1477,12 @@ Get usage statistics for an agent.
 
 ```json
 {
-  "totalMessages": 1500,
-  "totalTokens": 125000,
-  "views": 500,
-  "interactions": 1200
+  "success": true,
+  "data": {
+    "views": 500,
+    "interactions": 1200,
+    "messageCount": 1500
+  }
 }
 ```
 
@@ -1576,15 +1576,21 @@ Create a new API key.
 
 ```json
 {
-  "id": "key_abc123",
-  "name": "Production Key",
-  "key": "ek_live_abc123xyz...",
-  "permissions": ["chat", "embeddings", "images"],
-  "createdAt": "2024-01-15T10:30:00Z"
+  "apiKey": {
+    "id": "key_abc123",
+    "name": "Production Key",
+    "description": null,
+    "key_prefix": "ek_live_abc...",
+    "created_at": "2024-01-15T10:30:00Z",
+    "permissions": ["chat", "embeddings", "images"],
+    "rate_limit": 1000,
+    "expires_at": null
+  },
+  "plainKey": "ek_live_abc123xyz..."
 }
 ```
 
-  The full API key is only shown once. Store it securely.
+  The `plainKey` field contains the full API key and is only returned once at creation time. Store it securely.
 
 ---
 
@@ -1717,12 +1723,10 @@ Create a new application.
 ```json
 {
   "name": "My App",
+  "app_url": "https://myapp.example.com",
   "description": "Customer support chatbot",
-  "agentId": "char_abc123",
-  "settings": {
-    "allowAnonymous": true,
-    "rateLimit": 100
-  }
+  "website_url": "https://example.com",
+  "contact_email": "support@example.com"
 }
 ```
 
@@ -1730,10 +1734,14 @@ Create a new application.
 
 ```json
 {
-  "id": "app_abc123",
-  "name": "My App",
-  "apiKey": "ak_live_xxx...",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "app": {
+    "id": "uuid-abc123",
+    "name": "My App",
+    "app_url": "https://myapp.example.com",
+    "api_key": "ek_xxx...",
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -2252,7 +2260,46 @@ Summary: Deploy and manage containers on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-Deploy and manage containerized applications.
+Deploy and manage containerized applications on AWS ECS.
+
+  Container deployments use AWS CloudFormation to provision dedicated EC2 instances. Deployments typically take 8-12 minutes to complete.
+
+## Prerequisites
+
+Before deploying a container, you need to:
+1. Build and push your Docker image to ECR
+2. Get ECR credentials from `/api/v1/containers/credentials`
+
+---
+
+## Get ECR Credentials
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/credentials</span>
+</div>
+
+Get temporary ECR credentials to push your Docker image.
+
+### Response
+
+```json
+{
+  "success": true,
+  "credentials": {
+    "username": "AWS",
+    "password": "eyJwYXlsb2FkIjoiLi4uIiwiZGF0YWtleSI6Ii4uLiJ9",
+    "proxyEndpoint": "https://123456789.dkr.ecr.us-east-1.amazonaws.com",
+    "expiresAt": "2024-01-15T22:30:00Z"
+  },
+  "repository": {
+    "uri": "123456789.dkr.ecr.us-east-1.amazonaws.com/eliza-user-images",
+    "name": "eliza-user-images"
+  }
+}
+```
+
+---
 
 ## List Containers
 
@@ -2261,19 +2308,25 @@ Deploy and manage containerized applications.
   <span className="path">/api/v1/containers</span>
 </div>
 
-Get all your containers.
+Get all containers for your organization.
 
 ### Response
 
 ```json
 {
-  "containers": [
+  "success": true,
+  "data": [
     {
-      "id": "cnt_abc123",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "my-agent-runtime",
+      "project_name": "my-project",
       "status": "running",
-      "url": "https://my-agent.elizacloud.ai",
-      "createdAt": "2024-01-15T10:30:00Z"
+      "url": "https://my-project.containers.elizacloud.ai",
+      "cpu": 1792,
+      "memory": 1792,
+      "port": 3000,
+      "architecture": "arm64",
+      "created_at": "2024-01-15T10:30:00Z"
     }
   ]
 }
@@ -2288,30 +2341,67 @@ Get all your containers.
   <span className="path">/api/v1/containers</span>
 </div>
 
-Deploy a new container.
+Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted status while deployment proceeds asynchronously.
 
 ### Request
 
 ```json
 {
-  "name": "my-agent-runtime",
-  "characterId": "char_abc123",
-  "environment": {
-    "NODE_ENV": "production"
+  "name": "My Agent Runtime",
+  "project_name": "my-project",
+  "ecr_image_uri": "123456789.dkr.ecr.us-east-1.amazonaws.com/eliza-user-images:my-tag",
+  "port": 3000,
+  "cpu": 1792,
+  "memory": 1792,
+  "desired_count": 1,
+  "architecture": "arm64",
+  "health_check_path": "/health",
+  "environment_vars": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info"
   }
 }
 ```
 
-### Response
+### Parameters
+
+| Parameter           | Type    | Required | Description                                            |
+| ------------------- | ------- | -------- | ------------------------------------------------------ |
+| `name`              | string  | ✓        | Display name (max 100 chars)                           |
+| `project_name`      | string  | ✓        | Project identifier (max 50 chars, used in URL)         |
+| `ecr_image_uri`     | string  | ✓        | Full ECR image URI with tag                            |
+| `port`              | integer |          | Container port. Default: 3000                          |
+| `cpu`               | integer |          | CPU units (256-2048). Default: 1792                    |
+| `memory`            | integer |          | Memory in MB (256-2048). Default: 1792                 |
+| `desired_count`     | integer |          | Number of instances (1-10). Default: 1                 |
+| `architecture`      | string  |          | `arm64` or `x86_64`. Default: `arm64`                  |
+| `health_check_path` | string  |          | Health check endpoint. Default: `/health`              |
+| `environment_vars`  | object  |          | Environment variables (max 50 vars, 32KB per value)    |
+
+### Response (202 Accepted)
 
 ```json
 {
-  "id": "cnt_abc123",
-  "name": "my-agent-runtime",
-  "status": "deploying",
-  "url": "https://my-agent.elizacloud.ai"
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "My Agent Runtime",
+    "project_name": "my-project",
+    "status": "pending"
+  },
+  "message": "Container deployment started. Poll GET /api/v1/containers/:id to check status.",
+  "creditsDeducted": 0.50,
+  "creditsRemaining": 49.50,
+  "stackName": "eliza-user-abc123-my-project",
+  "polling": {
+    "endpoint": "/api/v1/containers/550e8400-e29b-41d4-a716-446655440000",
+    "intervalMs": 10000,
+    "expectedDurationMs": 600000
+  }
 }
 ```
+
+  Container deployments require sufficient credits and are subject to organization quotas.
 
 ---
 
@@ -2322,7 +2412,18 @@ Deploy a new container.
   <span className="path">/api/v1/containers/{"{id}"}</span>
 </div>
 
-Get container details.
+Get container details and deployment status.
+
+### Container Status Values
+
+| Status      | Description                              |
+| ----------- | ---------------------------------------- |
+| `pending`   | Deployment initiated                     |
+| `building`  | Provisioning EC2 instance                |
+| `deploying` | CloudFormation stack creating            |
+| `running`   | Container is healthy and accessible      |
+| `failed`    | Deployment failed (check error message)  |
+| `stopped`   | Container manually stopped               |
 
 ---
 
@@ -2333,7 +2434,7 @@ Get container details.
   <span className="path">/api/v1/containers/{"{id}"}</span>
 </div>
 
-Stop and delete a container.
+Stop and delete a container. This terminates the EC2 instance and deletes the CloudFormation stack.
 
 ---
 
@@ -2344,7 +2445,7 @@ Stop and delete a container.
   <span className="path">/api/v1/containers/{"{id}"}/logs</span>
 </div>
 
-Get container logs.
+Get container logs from CloudWatch.
 
 ### Query Parameters
 
@@ -2365,6 +2466,17 @@ Get container logs.
   ]
 }
 ```
+
+---
+
+## Stream Logs
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{"{id}"}/logs/stream</span>
+</div>
+
+Stream logs in real-time using Server-Sent Events.
 
 ---
 
@@ -2423,16 +2535,15 @@ Get container health status.
 
 ---
 
-## Stream Logs
+## Deployment Workflow
 
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{"{id}"}/logs/stream</span>
-</div>
+1. **Get ECR Credentials**: `GET /api/v1/containers/credentials`
+2. **Push Docker Image**: Use Docker CLI to push to ECR
+3. **Create Container**: `POST /api/v1/containers` with ECR image URI
+4. **Poll for Status**: `GET /api/v1/containers/:id` every 10 seconds
+5. **Access Your App**: Once status is `running`, use the provided URL
 
-Stream logs in real-time using Server-Sent Events.
-
-Container logs are retained for 7 days.
+  Container logs are retained for 7 days. For production workloads, consider setting up external log aggregation.
 
 ---
 
@@ -2446,88 +2557,106 @@ Summary: Manage credits and billing on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-Manage your credits, top up, and view usage.
+Manage your credits and view usage.
 
 ## Get Credit Balance
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/credits/balance</span>
+</div>
+
+Get your current credit balance.
+
+### Query Parameters
+
+| Parameter | Type    | Description                                                |
+| --------- | ------- | ---------------------------------------------------------- |
+| `fresh`   | boolean | Set to `true` to bypass cache (use after payment confirmation) |
+
+### Response
+
+```json
+{
+  "balance": 50.00
+}
+```
+
+---
+
+## Get Credit Summary
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
   <span className="path">/api/v1/credits/summary</span>
 </div>
 
-Get your current credit balance.
-
-### Response
-
-```json
-{
-  "balance": 50.0,
-  "currency": "USD",
-  "usage": {
-    "today": 2.5,
-    "thisMonth": 45.0
-  }
-}
-```
-
----
-
-## Top Up Credits (x402)
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/credits/topup</span>
-</div>
-
-Add credits using x402 payment.
-
-### Request
-
-```json
-{
-  "amount": 100.0,
-  "paymentMethod": "x402"
-}
-```
+Get comprehensive credit status including organization balance, agent budgets, app earnings, and redeemable earnings.
 
 ### Response
 
 ```json
 {
   "success": true,
-  "newBalance": 150.0,
-  "transaction": {
-    "id": "txn_abc123",
-    "amount": 100.0,
-    "createdAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
----
-
-## Get Transactions
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/credits/transactions</span>
-</div>
-
-Get transaction history.
-
-### Query Parameters
-
-| Parameter | Type    | Description                    |
-| --------- | ------- | ------------------------------ |
-| `limit`   | integer | Results per page (default: 20) |
-| `offset`  | integer | Pagination offset              |
-| `type`    | string  | `topup`, `usage`, `refund`     |
-
-### Response
-
-```json
-{
-  "transactions": [
+  "organization": {
+    "id": "org_abc123",
+    "name": "My Organization",
+    "creditBalance": 50.00,
+    "autoTopUpEnabled": false,
+    "autoTopUpThreshold": null,
+    "autoTopUpAmount": null,
+    "hasPaymentMethod": true
+  },
+  "agents": [
+    {
+      "id": "agent_xyz789",
+      "name": "My Assistant",
+      "isPublic": false,
+      "monetizationEnabled": false,
+      "hasBudget": true,
+      "allocated": 10.00,
+      "spent": 2.50,
+      "available": 7.50,
+      "dailyLimit": 5.00,
+      "dailySpent": 1.00,
+      "dailyRemaining": 4.00,
+      "isPaused": false,
+      "pauseReason": null,
+      "totalEarnings": 0,
+      "totalRequests": 150
+    }
+  ],
+  "agentsSummary": {
+    "total": 3,
+    "withBudget": 2,
+    "paused": 0,
+    "totalAllocated": 20.00,
+    "totalSpent": 5.00,
+    "totalAvailable": 15.00
+  },
+  "apps": [
+    {
+      "id": "app_def456",
+      "name": "Customer Portal",
+      "slug": "customer-portal",
+      "monetizationEnabled": true,
+      "inferenceMarkupPercentage": 20,
+      "totalCreatorEarnings": 125.50,
+      "totalPlatformRevenue": 31.38
+    }
+  ],
+  "earnings": {
+    "availableBalance": 125.50,
+    "totalEarned": 200.00,
+    "totalRedeemed": 74.50,
+    "totalPending": 0,
+    "breakdown": {
+      "miniapps": 100.00,
+      "agents": 75.00,
+      "mcps": 25.00
+    }
+  },
+  "recentTransactions": [
     {
       "id": "txn_abc123",
       "type": "usage",
@@ -2536,91 +2665,156 @@ Get transaction history.
       "createdAt": "2024-01-15T10:30:00Z"
     }
   ],
+  "pricing": {
+    "creditsPerDollar": 100,
+    "minimumTopUp": 5.0,
+    "x402Enabled": true
+  }
+}
+```
+
+---
+
+## Create Checkout Session
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/credits/checkout</span>
+</div>
+
+Create a Stripe checkout session to purchase credits.
+
+### Request
+
+```json
+{
+  "amount": 50.00
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_xxx...",
+  "sessionId": "cs_xxx..."
+}
+```
+
+Redirect the user to `checkoutUrl` to complete the payment.
+
+---
+
+## Verify Payment
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/credits/verify</span>
+</div>
+
+Verify a completed payment and add credits.
+
+### Request
+
+```json
+{
+  "sessionId": "cs_xxx..."
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "creditsAdded": 50.00,
+  "newBalance": 100.00
+}
+```
+
+---
+
+## Get Transaction History
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/credits/transactions</span>
+</div>
+
+Get credit transaction history.
+
+  This endpoint uses `/api/credits/` rather than `/api/v1/credits/`.
+
+### Query Parameters
+
+| Parameter | Type    | Description                    |
+| --------- | ------- | ------------------------------ |
+| `limit`   | integer | Results per page (default: 20) |
+| `offset`  | integer | Pagination offset              |
+
+### Response
+
+```json
+{
+  "success": true,
+  "transactions": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "usage",
+      "amount": -0.05,
+      "description": "Chat completion (gpt-4o)",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "type": "topup",
+      "amount": 50.00,
+      "description": "Stripe payment",
+      "created_at": "2024-01-14T08:00:00Z"
+    }
+  ],
   "total": 150
 }
 ```
 
 ---
 
-## Get Usage Breakdown
+## Crypto Payments
+
+For cryptocurrency payments, use the crypto payment endpoints:
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/crypto/payments</span>
+</div>
+
+Create a crypto payment request.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/billing/usage</span>
+  <span className="path">/api/crypto/status</span>
 </div>
 
-Get detailed usage breakdown.
-
-### Response
-
-```json
-{
-  "period": "2024-01",
-  "usage": {
-    "chat": {
-      "requests": 5000,
-      "tokens": 2500000,
-      "cost": 25.0
-    },
-    "embeddings": {
-      "requests": 10000,
-      "tokens": 1000000,
-      "cost": 2.0
-    },
-    "images": {
-      "count": 100,
-      "cost": 5.0
-    }
-  },
-  "total": 32.0
-}
-```
+Check crypto payment status.
 
 ---
 
-## Auto Top-Up Settings
+## Pricing Reference
 
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/auto-top-up/settings</span>
-</div>
-
-Get auto top-up configuration.
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/auto-top-up/settings</span>
-</div>
-
-Configure auto top-up.
-
-### Request
-
-```json
-{
-  "enabled": true,
-  "threshold": 10.0,
-  "amount": 50.0
-}
-```
-
-  Auto top-up automatically adds credits when your balance falls below the
-  threshold.
-
----
-
-## Pricing
-
-| Service           | Unit       | Price          |
-| ----------------- | ---------- | -------------- |
-| GPT-4o            | 1M tokens  | $5.00 / $15.00 |
-| GPT-4o-mini       | 1M tokens  | $0.15 / $0.60  |
-| Claude 3.5 Sonnet | 1M tokens  | $3.00 / $15.00 |
-| Embeddings        | 1M tokens  | $0.02          |
-| Image (Flux)      | per image  | $0.01 - $0.05  |
-| Video             | per second | $0.10          |
+| Service                  | Unit       | Price          |
+| ------------------------ | ---------- | -------------- |
+| GPT-4o                   | 1M tokens  | $2.50 / $10.00 |
+| GPT-4o-mini              | 1M tokens  | $0.15 / $0.60  |
+| Claude 3.5 Sonnet        | 1M tokens  | $3.00 / $15.00 |
+| Claude 3.5 Haiku         | 1M tokens  | $1.00 / $5.00  |
+| Embeddings (3-small)     | 1M tokens  | $0.02          |
+| Image Generation         | per image  | ~$0.02         |
+| Container Deployment     | per deploy | ~$0.50         |
 
 _Input / Output token pricing shown for chat models_
+
+  Actual pricing is calculated based on model and token usage. Check the [Dashboard](/dashboard/billing) for real-time pricing.
 
 ---
 
@@ -2830,9 +3024,9 @@ Get all items in your gallery.
     {
       "id": "gal_abc123",
       "type": "image",
-      "url": "https://storage.eliza.ai/images/abc123.png",
+      "url": "https://your-storage.vercel-storage.com/images/abc123.png",
       "prompt": "A mountain landscape at sunset",
-      "model": "fal-ai/flux/schnell",
+      "model": "google/gemini-2.5-flash-image",
       "width": 1024,
       "height": 1024,
       "createdAt": "2024-01-15T10:30:00Z"
@@ -2859,10 +3053,10 @@ Get details about a specific item.
 {
   "id": "gal_abc123",
   "type": "image",
-  "url": "https://storage.eliza.ai/images/abc123.png",
+  "url": "https://your-storage.vercel-storage.com/images/abc123.png",
   "prompt": "A mountain landscape at sunset",
   "negativePrompt": "blurry, low quality",
-  "model": "fal-ai/flux/schnell",
+  "model": "google/gemini-2.5-flash-image",
   "width": 1024,
   "height": 1024,
   "seed": 12345,
@@ -2928,9 +3122,9 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A serene mountain landscape at sunset",
-    "model": "fal-ai/flux/schnell",
-    "size": "square_hd",
-    "num_images": 1
+    "model": "google/gemini-2.5-flash-image",
+    "aspectRatio": "1:1",
+    "numImages": 1
   }'
 ```
   
@@ -2944,16 +3138,15 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
   },
   body: JSON.stringify({
     prompt: 'A serene mountain landscape at sunset',
-    model: 'fal-ai/flux/schnell',
-    size: 'square_hd',
-    num_images: 1,
+    model: 'google/gemini-2.5-flash-image',
+    aspectRatio: '1:1',
+    numImages: 1,
   }),
 });
 
 const data = await response.json();
 console.log(data.images[0].url);
-
-````
+```
   
   
 ```python
@@ -2966,40 +3159,57 @@ response = requests.post(
     },
     json={
         'prompt': 'A serene mountain landscape at sunset',
-        'model': 'fal-ai/flux/schnell',
-        'size': 'square_hd',
-        'num_images': 1,
+        'model': 'google/gemini-2.5-flash-image',
+        'aspectRatio': '1:1',
+        'numImages': 1,
     }
 )
 
 data = response.json()
 print(data['images'][0]['url'])
-````
-
+```
   
 
 ### Parameters
 
-| Parameter         | Type    | Required | Description                                  |
-| ----------------- | ------- | -------- | -------------------------------------------- |
-| `prompt`          | string  | ✓        | Description of the image to generate         |
-| `model`           | string  |          | Model to use. Default: `fal-ai/flux/schnell` |
-| `size`            | string  |          | Output size                                  |
-| `num_images`      | integer |          | Number of images (1-4). Default: 1           |
-| `negative_prompt` | string  |          | What to avoid in the image                   |
-| `seed`            | integer |          | Random seed for reproducibility              |
-| `guidance_scale`  | number  |          | Prompt adherence (1-20)                      |
+| Parameter     | Type    | Required | Description                                            |
+| ------------- | ------- | -------- | ------------------------------------------------------ |
+| `prompt`      | string  | ✓        | Description of the image to generate                   |
+| `model`       | string  |          | Model to use. Default: `google/gemini-2.5-flash-image` |
+| `aspectRatio` | string  |          | Output aspect ratio. Default: `1:1`                    |
+| `numImages`   | integer |          | Number of images (1-4). Default: 1                     |
+| `stylePreset` | string  |          | Style preset to apply (see below)                      |
+| `sourceImage` | string  |          | Base64 data URL for image-to-image generation          |
 
-### Available Sizes
+### Available Aspect Ratios
 
-| Size             | Dimensions |
-| ---------------- | ---------- |
-| `square`         | 512×512    |
-| `square_hd`      | 1024×1024  |
-| `portrait_4_3`   | 768×1024   |
-| `portrait_16_9`  | 576×1024   |
-| `landscape_4_3`  | 1024×768   |
-| `landscape_16_9` | 1024×576   |
+| Aspect Ratio | Description          |
+| ------------ | -------------------- |
+| `1:1`        | Square (default)     |
+| `16:9`       | Wide landscape       |
+| `9:16`       | Tall portrait        |
+| `4:3`        | Standard landscape   |
+| `3:4`        | Standard portrait    |
+| `21:9`       | Ultra-wide cinematic |
+| `9:21`       | Ultra-tall vertical  |
+
+### Style Presets
+
+| Preset         | Description                         |
+| -------------- | ----------------------------------- |
+| `none`         | No style modification (default)     |
+| `photographic` | Realistic lighting and details      |
+| `digital-art`  | Vibrant colors, modern aesthetics   |
+| `comic-book`   | Bold lines, dramatic shading        |
+| `fantasy-art`  | Magical and ethereal elements       |
+| `analog-film`  | Film grain and vintage tones        |
+| `neon-punk`    | Cyberpunk style with neon colors    |
+| `isometric`    | Isometric perspective               |
+| `low-poly`     | Low-poly 3D style                   |
+| `origami`      | Paper-folding style                 |
+| `line-art`     | Clean line art with minimal shading |
+| `cinematic`    | Dramatic lighting and composition   |
+| `3d-model`     | High-quality 3D rendered appearance |
 
 ### Response
 
@@ -3007,33 +3217,54 @@ print(data['images'][0]['url'])
 {
   "images": [
     {
-      "url": "https://storage.eliza.ai/images/abc123.png",
-      "width": 1024,
-      "height": 1024,
-      "content_type": "image/png"
+      "url": "https://your-storage.vercel-storage.com/images/abc123.webp",
+      "text": "Optional text response from the model",
+      "mimeType": "image/webp",
+      "fileSize": 102400
     }
   ],
-  "cost": 0.02,
-  "model": "fal-ai/flux/schnell",
-  "seed": 12345
+  "numImages": 1
 }
 ```
+
+  The `url` field contains a permanent link to the generated image. The `image` field (base64) is only included as a fallback if blob storage upload fails.
 
 ---
 
 ## Available Models
 
-| Model                               | Quality        | Speed | Credits | Best For                  |
-| ----------------------------------- | -------------- | ----- | ------- | ------------------------- |
-| `fal-ai/flux/schnell`               | High           | ~2s   | 2       | General use, prototyping  |
-| `fal-ai/flux/dev`                   | Higher         | ~8s   | 5       | Detailed images, fine art |
-| `fal-ai/flux-pro`                   | Highest        | ~15s  | 10      | Professional, production  |
-| `fal-ai/flux-pro/v1.1`              | Highest        | ~12s  | 12      | Latest pro model          |
-| `fal-ai/flux-realism`               | Photorealistic | ~10s  | 8       | Photo-realistic images    |
-| `fal-ai/stable-diffusion-v3-medium` | High           | ~5s   | 3       | Stable Diffusion 3        |
+| Model                                   | Provider | Speed  | Best For                 |
+| --------------------------------------- | -------- | ------ | ------------------------ |
+| `google/gemini-2.5-flash-image`         | Google   | Fast   | General use (default)    |
+| `google/gemini-2.5-flash-image-preview` | Google   | Fast   | Preview/testing          |
+| `google/gemini-3-pro-image`             | Google   | Medium | Higher quality           |
+| `openai/gpt-5-nano`                     | OpenAI   | Medium | OpenAI image generation  |
+| `bfl/flux-kontext-max`                  | BFL      | Medium | Context-aware generation |
 
-  **Tip:** Start with `flux/schnell` for quick iterations, then switch to
-  `flux-pro` for final production images.
+  **Tip:** Start with `google/gemini-2.5-flash-image` for quick iterations.
+
+---
+
+## Image-to-Image Generation
+
+Transform existing images by providing a `sourceImage` parameter:
+
+```javascript
+const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'Transform this into a watercolor painting',
+    sourceImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+    model: 'google/gemini-2.5-flash-image',
+  }),
+});
+```
+
+The `sourceImage` must be a base64-encoded data URL with the format `data:{mimeType};base64,{base64Data}`.
 
 ---
 
@@ -3045,18 +3276,19 @@ Good prompts include subject, style, lighting, and composition details:
 
 ```json
 {
-  "prompt": "A golden retriever puppy playing in autumn leaves, golden hour lighting, shallow depth of field, professional photography, Canon EOS R5"
+  "prompt": "A golden retriever puppy playing in autumn leaves, golden hour lighting, shallow depth of field, professional photography"
 }
 ```
 
-### Use Negative Prompts
+### Use Style Presets
 
-Exclude unwanted elements from your generation:
+Apply consistent styling using the `stylePreset` parameter:
 
 ```json
 {
-  "prompt": "Portrait of a woman, natural lighting, studio photography",
-  "negative_prompt": "blurry, distorted, low quality, watermark, text, oversaturated"
+  "prompt": "Portrait of a woman in natural lighting",
+  "stylePreset": "photographic",
+  "aspectRatio": "3:4"
 }
 ```
 
@@ -3087,12 +3319,8 @@ Enhance your prompts with these style modifiers:
 
 ```json
 {
-  "error": {
-    "code": "INSUFFICIENT_CREDITS",
-    "message": "You need at least 2 credits for this request",
-    "required": 2,
-    "available": 0
-  }
+  "error": "Insufficient credits for image generation",
+  "required": 0.02
 }
 ```
 
@@ -3108,37 +3336,13 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Cyberpunk cityscape at night",
-    "model": "fal-ai/flux/schnell",
-    "num_images": 4,
-    "seed": 42
+    "model": "google/gemini-2.5-flash-image",
+    "numImages": 4,
+    "aspectRatio": "16:9"
   }'
 ```
 
-Using the same `seed` with `num_images > 1` generates variations on the same concept.
-
----
-
-## Webhook Notifications
-
-For long-running generations, use webhooks instead of polling:
-
-```json
-{
-  "prompt": "Complex detailed scene...",
-  "model": "fal-ai/flux-pro",
-  "webhook_url": "https://your-server.com/webhook/image-ready"
-}
-```
-
-Your webhook receives:
-
-```json
-{
-  "event": "image.completed",
-  "request_id": "req_abc123",
-  "images": [{ "url": "https://..." }]
-}
-```
+Each image in the batch is generated with the style preset applied.
 
 ---
 
@@ -3161,17 +3365,33 @@ Upload documents and query your knowledge base for RAG applications.
   <span className="path">/api/v1/knowledge/upload-file</span>
 </div>
 
-Upload a document to your knowledge base.
+Upload one or more documents to your knowledge base using multipart form data.
 
 ### Request
 
-Use `multipart/form-data`:
+Use `multipart/form-data` with the `files` field:
 
 ```bash
 curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "file=@document.pdf"
+  -F "files=@document.pdf" \
+  -F "characterId=optional_agent_id"
 ```
+
+### Parameters
+
+| Parameter     | Type   | Required | Description                               |
+| ------------- | ------ | -------- | ----------------------------------------- |
+| `files`       | file[] | ✓        | One or more files to upload (max 10)      |
+| `characterId` | string |          | Associate with a specific agent           |
+
+### Upload Limits
+
+| Limit                | Value                          |
+| -------------------- | ------------------------------ |
+| Max file size        | 5 MB per file                  |
+| Max files per batch  | 10 files                       |
+| Max total batch size | 10 MB                          |
 
 ### Supported Formats
 
@@ -3187,11 +3407,22 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
 
 ```json
 {
-  "id": "doc_abc123",
-  "name": "document.pdf",
-  "size": 1048576,
-  "chunks": 42,
-  "status": "processed"
+  "success": true,
+  "data": [
+    {
+      "id": "doc_abc123",
+      "filename": "document.pdf",
+      "type": "application/pdf",
+      "size": 1048576,
+      "uploadedAt": 1705312800000,
+      "fragmentCount": 42,
+      "status": "success"
+    }
+  ],
+  "message": "Successfully uploaded 1 file(s)",
+  "successCount": 1,
+  "failedCount": 0,
+  "totalCount": 1
 }
 ```
 
@@ -3563,11 +3794,13 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ## Image Models
 
-| Model                 | Resolution | Speed  |
-| --------------------- | ---------- | ------ |
-| `fal-ai/flux/schnell` | 1024²      | Fast   |
-| `fal-ai/flux/dev`     | 1024²      | Medium |
-| `fal-ai/flux-pro`     | 2048²      | Slow   |
+| Model                                   | Provider | Speed  | Best For                 |
+| --------------------------------------- | -------- | ------ | ------------------------ |
+| `google/gemini-2.5-flash-image`         | Google   | Fast   | General use (default)    |
+| `google/gemini-2.5-flash-image-preview` | Google   | Fast   | Preview/testing          |
+| `google/gemini-3-pro-image`             | Google   | Medium | Higher quality           |
+| `openai/gpt-5-nano`                     | OpenAI   | Medium | OpenAI image generation  |
+| `bfl/flux-kontext-max`                  | BFL      | Medium | Context-aware generation |
 
 ---
 
@@ -3824,7 +4057,7 @@ Summary: Generate videos from text prompts using elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-Generate AI-powered videos from text descriptions.
+Generate AI-powered videos from text descriptions using Fal.ai models.
 
 ## Generate Video
 
@@ -3844,8 +4077,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A butterfly flying through a colorful garden",
-    "model": "minimax/video-01",
-    "duration": 5
+    "model": "fal-ai/veo3"
   }'
 ```
   
@@ -3859,15 +4091,13 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
   },
   body: JSON.stringify({
     prompt: 'A butterfly flying through a colorful garden',
-    model: 'minimax/video-01',
-    duration: 5,
+    model: 'fal-ai/veo3',
   }),
 });
 
 const data = await response.json();
 console.log(data.video.url);
-
-````
+```
   
   
 ```python
@@ -3880,39 +4110,31 @@ response = requests.post(
     },
     json={
         'prompt': 'A butterfly flying through a colorful garden',
-        'model': 'minimax/video-01',
-        'duration': 5,
+        'model': 'fal-ai/veo3',
     }
 )
 
 data = response.json()
 print(data['video']['url'])
-````
-
+```
   
 
 ### Parameters
 
-| Parameter         | Type    | Required | Description                               |
-| ----------------- | ------- | -------- | ----------------------------------------- |
-| `prompt`          | string  | ✓        | Description of the video                  |
-| `model`           | string  |          | Model to use. Default: `minimax/video-01` |
-| `duration`        | integer |          | Duration in seconds (2-10)                |
-| `aspect_ratio`    | string  |          | `16:9`, `9:16`, or `1:1`                  |
-| `negative_prompt` | string  |          | What to avoid                             |
+| Parameter | Type   | Required | Description                            |
+| --------- | ------ | -------- | -------------------------------------- |
+| `prompt`  | string | ✓        | Description of the video to generate   |
+| `model`   | string |          | Model to use. Default: `fal-ai/veo3`   |
 
 ### Response
 
 ```json
 {
+  "success": true,
   "video": {
-    "url": "https://storage.eliza.ai/videos/abc123.mp4",
-    "duration": 5,
-    "width": 1280,
-    "height": 720
+    "url": "https://your-storage.vercel-storage.com/videos/abc123.mp4"
   },
-  "cost": 0.5,
-  "model": "minimax/video-01"
+  "model": "fal-ai/veo3"
 }
 ```
 
@@ -3920,15 +4142,21 @@ print(data['video']['url'])
 
 ## Available Models
 
-| Model                   | Quality | Duration |
-| ----------------------- | ------- | -------- |
-| `minimax/video-01`      | High    | 2-10s    |
-| `runway/gen-3`          | Highest | 2-10s    |
-| `haiper/haiper-video-2` | Medium  | 2-8s     |
+| Model                                            | Provider | Quality  | Speed  |
+| ------------------------------------------------ | -------- | -------- | ------ |
+| `fal-ai/veo3`                                    | Google   | Highest  | Slow   |
+| `fal-ai/veo3/fast`                               | Google   | High     | Fast   |
+| `fal-ai/kling-video/v2.1/master/text-to-video`   | Kling    | Highest  | Slow   |
+| `fal-ai/kling-video/v2.1/pro/text-to-video`      | Kling    | High     | Medium |
+| `fal-ai/kling-video/v2.1/standard/text-to-video` | Kling    | Good     | Fast   |
+| `fal-ai/minimax/hailuo-02/pro/text-to-video`     | MiniMax  | High     | Medium |
+| `fal-ai/minimax/hailuo-02/standard/text-to-video`| MiniMax  | Good     | Fast   |
 
 ---
 
-## Camera Movements
+## Prompt Tips
+
+### Camera Movements
 
 Include camera direction in prompts:
 
@@ -3938,8 +4166,29 @@ Include camera direction in prompts:
 - `tracking shot`
 - `aerial view`
 
-  Video generation typically takes 30-120 seconds depending on model and
-  duration.
+### Scene Description
+
+Be specific about the scene:
+
+```json
+{
+  "prompt": "A golden retriever running through autumn leaves in a park, slow motion, cinematic lighting, tracking shot following the dog"
+}
+```
+
+  Video generation typically takes 30-180 seconds depending on model and complexity.
+
+---
+
+## Error Handling
+
+| Code | Error                | Solution                                  |
+| ---- | -------------------- | ----------------------------------------- |
+| 400  | Invalid prompt       | Check prompt is non-empty string          |
+| 400  | Invalid model        | Use a supported model from the list above |
+| 402  | Insufficient credits | Add credits to your account               |
+| 429  | Rate limited         | Wait and retry with exponential backoff   |
+| 500  | Generation failed    | Retry, or try a different model           |
 
 ---
 
@@ -4696,7 +4945,9 @@ curl -X POST "https://elizacloud.ai/api/v1/apps" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Integration",
-    "description": "Custom integration for my product"
+    "app_url": "https://myapp.example.com",
+    "description": "Custom integration for my product",
+    "website_url": "https://example.com"
   }'
 ```
 
@@ -4707,9 +4958,10 @@ Go to [Dashboard → Apps](/dashboard/apps) and click "Create App".
 
 ### Configure App
 
-- **Name**: Display name for your app
+- **Name**: Display name for your app (required)
+- **App URL**: Your app's callback/webhook URL (required)
 - **Description**: What your app does
-- **Website**: (Optional) Your app's website
+- **Website URL**: (Optional) Your public website
 
 ### Get API Key
 
@@ -4723,10 +4975,14 @@ Use the API key to make requests on behalf of your app.
 
 ```json
 {
-  "id": "app_abc123",
-  "name": "My Integration",
-  "apiKey": "ak_live_xxxxxxxxxxxx",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "app": {
+    "id": "uuid-abc123",
+    "name": "My Integration",
+    "app_url": "https://myapp.example.com",
+    "api_key": "ek_xxx...",
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -5027,17 +5283,20 @@ Restrict keys to specific endpoints:
 
 ### Available Permissions
 
-| Permission        | Description             |
-| ----------------- | ----------------------- |
-| `chat:read`       | Read chat history       |
-| `chat:write`      | Create chat completions |
-| `embeddings:read` | Create embeddings       |
-| `agents:read`     | List agents             |
-| `agents:write`    | Create/modify agents    |
-| `knowledge:read`  | Query knowledge         |
-| `knowledge:write` | Upload documents        |
-| `images:write`    | Generate images         |
-| `videos:write`    | Generate videos         |
+Permissions can be used to restrict what operations an API key can perform.
+
+| Permission   | Description         |
+| ------------ | ------------------- |
+| `chat`       | Chat completions    |
+| `embeddings` | Generate embeddings |
+| `images`     | Image generation    |
+| `video`      | Video generation    |
+| `voice`      | Voice/TTS           |
+| `knowledge`  | Knowledge base      |
+| `agents`     | Agent management    |
+| `apps`       | App management      |
+
+  If no permissions are specified when creating an API key, the key has access to all endpoints by default. Use permissions to create restricted keys for specific use cases.
 
 ## API Key Management
 
@@ -5095,7 +5354,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   -d '{"model": "gpt-4o", "messages": [...]}'
 ```
 
-  See [x402 Payments](/docs/x402) for detailed crypto payment setup.
+  See the crypto payments section below for details.
 
 ## Security Best Practices
 
@@ -5186,7 +5445,7 @@ X-RateLimit-Reset: 1705312860
     Complete API documentation
   
   
-    Crypto payment authentication
+    Manage credits and payments
   
   
     Understand rate limiting
@@ -5329,7 +5588,7 @@ curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
   -H "X-PAYMENT: <x402-payment-header>"
 ```
 
-  See [x402 Payments](/docs/x402) for details on crypto payments.
+  See crypto payment documentation for details.
 
 ## Auto Top-Up
 
@@ -5354,30 +5613,14 @@ curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
 
 ## Usage Analytics
 
-Track your spending:
+Track your spending via the credits summary endpoint:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
+curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-```json
-{
-  "period": "2024-01",
-  "total": 1250.5,
-  "breakdown": {
-    "chat": 800.0,
-    "embeddings": 150.0,
-    "images": 200.0,
-    "videos": 50.0,
-    "containers": 50.5
-  },
-  "daily": [
-    { "date": "2024-01-01", "usage": 42.5 },
-    { "date": "2024-01-02", "usage": 38.0 }
-  ]
-}
-```
+See the [Credits API](/docs/api/credits) for the complete response format including usage breakdown by agents and apps.
 
 ## Invoices
 
@@ -5397,43 +5640,16 @@ curl -X GET "https://elizacloud.ai/api/invoices/{id}" \
 
 ## Payment Methods
 
-### Add Card
+Payment methods are managed through the Stripe checkout flow. When you create a checkout session via `/api/v1/credits/checkout`, Stripe handles payment method collection securely.
 
-```bash
-curl -X POST "https://elizacloud.ai/api/payment-methods/attach" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paymentMethodId": "pm_xxx"
-  }'
-```
-
-### Set Default
-
-```bash
-curl -X POST "https://elizacloud.ai/api/payment-methods/set-default" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paymentMethodId": "pm_xxx"
-  }'
-```
+  Saved payment methods and auto top-up can be configured in your [Dashboard → Billing](/dashboard/billing) settings.
 
 ## Cost Alerts
 
-Set up alerts for spending thresholds:
+Cost alerts can be configured in your [Dashboard → Billing](/dashboard/billing) settings. You can set:
 
-```bash
-curl -X POST "https://elizacloud.ai/api/analytics/config" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "alerts": [
-      { "threshold": 100, "email": true },
-      { "threshold": 500, "email": true, "webhook": "https://..." }
-    ]
-  }'
-```
+- **Email notifications** when balance drops below a threshold
+- **Auto top-up** to automatically add credits when balance is low
 
 ## Free Tier
 
@@ -5467,697 +5683,6 @@ Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
   
   
     Usage tracking APIs
-
----
-
-## The Future of AI Agents in 2025
-
-URL: https://elizacloud.ai/docs/blog/ai-agents-future
-
-Summary: Exploring the trends and innovations shaping the AI agent landscape this year.
-
-# The Future of AI Agents in 2025
-
-The AI agent ecosystem is evolving at an unprecedented pace. As we enter 2025, we're witnessing a fundamental shift in how artificial intelligence interacts with humans and systems. This comprehensive analysis explores the key trends, technological breakthroughs, and practical implications that will define the AI agent landscape this year.
-
-The journey from simple chatbots to sophisticated autonomous agents has been remarkable. What once required extensive engineering teams and months of development can now be accomplished in hours with the right tools and platforms. This democratization of AI agent development is opening doors for businesses of all sizes to leverage intelligent automation.
-
-![AI Evolution](https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=600&fit=crop)
-
-## The Current State of AI Agents
-
-Before diving into future trends, it's important to understand where we stand today. The AI agent market has matured significantly over the past two years, with several key developments shaping the current landscape.
-
-Enterprise adoption has accelerated dramatically. According to recent industry reports, over 67% of Fortune 500 companies now deploy some form of AI agent technology in their operations. This represents a threefold increase from just 18 months ago, demonstrating the growing confidence in AI-driven solutions.
-
-The technology stack has also evolved. Modern AI agents leverage a combination of large language models, retrieval-augmented generation (RAG), and sophisticated orchestration frameworks. This multi-layered approach enables more reliable, contextual, and accurate responses than ever before.
-
-Consumer expectations have risen accordingly. Users now expect AI agents to understand nuance, remember context across conversations, and provide genuinely helpful assistance rather than scripted responses. Meeting these expectations requires continuous innovation and improvement.
-
-## Key Trends Shaping 2025
-
-### 1. Autonomous Decision Making
-
-AI agents are becoming increasingly capable of making complex decisions without human intervention. This shift from reactive to proactive systems represents one of the most significant developments in the field.
-
-Modern autonomous agents can:
-
-- Execute multi-step reasoning chains that span dozens of intermediate steps
-- Maintain context across extended conversations and multiple sessions
-- Self-correct when they detect errors or inconsistencies in their responses
-- Learn from feedback and improve their performance over time
-- Coordinate with other agents to accomplish complex tasks
-
-The implications are profound. Businesses can now automate workflows that previously required constant human oversight. Customer service teams can handle higher volumes without sacrificing quality. Research and analysis tasks that took days can be completed in minutes.
-
-> The transition to truly autonomous agents isn't just about efficiency—it's about unlocking entirely new possibilities that weren't feasible with human-only workflows.
-
-However, autonomy comes with responsibility. As agents make more decisions independently, the importance of alignment, safety guardrails, and transparency increases proportionally. The industry is actively developing frameworks and best practices to ensure autonomous agents remain beneficial and aligned with human values.
-
-### 2. Enhanced Personalization
-
-Generic, one-size-fits-all AI interactions are becoming a thing of the past. In 2025, personalization has evolved from a nice-to-have feature to a core expectation.
-
-Advanced personalization manifests in several ways:
-
-**Adaptive Communication Styles**: Agents now adjust their tone, vocabulary, and level of detail based on individual user preferences. A technical expert receives detailed explanations with appropriate jargon, while a casual user gets simplified, accessible responses.
-
-**Contextual Memory**: Modern agents remember not just what you said, but the context around it. They understand your goals, preferences, and patterns, using this knowledge to provide increasingly relevant assistance over time.
-
-**Predictive Assistance**: Rather than waiting for requests, sophisticated agents anticipate needs based on patterns and proactively offer help. This shift from reactive to proactive assistance fundamentally changes the user experience.
-
-**Cultural Sensitivity**: Global deployments require agents that understand and respect cultural nuances. From communication styles to business practices, top-tier agents adapt their behavior based on cultural context.
-
-The technical infrastructure supporting this personalization has also matured. Vector databases, embedding models, and efficient retrieval systems enable agents to access and utilize vast amounts of contextual information in real-time without sacrificing response speed.
-
-### 3. Multi-Modal Capabilities
-
-The integration of text, image, audio, and video capabilities is no longer experimental—it's becoming standard. Multi-modal agents can now:
-
-- Analyze images and documents to extract relevant information
-- Generate visualizations to explain complex concepts
-- Process and respond to voice inputs naturally
-- Create and edit multimedia content on demand
-- Interpret charts, graphs, and diagrams in context
-
-This convergence of modalities enables richer, more natural interactions. Users can share screenshots for troubleshooting, request visual explanations of concepts, or engage in voice-based conversations—all within the same agent interaction.
-
-![Multi-Modal AI](https://images.unsplash.com/photo-1555255707-c07966088b7b?w=1200&h=600&fit=crop)
-
-### 4. Agent-to-Agent Communication
-
-Perhaps the most transformative trend is the emergence of agent ecosystems where multiple AI agents collaborate to accomplish complex tasks. This paradigm shift moves us from individual agents to coordinated agent networks.
-
-In these ecosystems:
-
-- Specialized agents handle specific domains or tasks
-- Orchestration layers coordinate multi-agent workflows
-- Agents can delegate subtasks to more specialized counterparts
-- Results are synthesized and presented coherently to users
-
-Consider a complex business scenario: analyzing market trends, generating a strategic report, and preparing a presentation. Rather than a single agent attempting all tasks, a network of specialized agents—research, analysis, writing, and design—collaborate seamlessly.
-
-This approach offers several advantages:
-
-1. **Improved Accuracy**: Specialized agents excel in their domains
-2. **Faster Execution**: Parallel processing across multiple agents
-3. **Easier Maintenance**: Update individual agents without system-wide changes
-4. **Scalability**: Add new specialized agents as needs evolve
-
-### 5. Enterprise Integration
-
-AI agents are moving from standalone tools to deeply integrated components of enterprise infrastructure. This integration spans:
-
-**Data Systems**: Direct connections to databases, data warehouses, and analytics platforms enable agents to access and analyze enterprise data in real-time.
-
-**Business Applications**: Integration with CRM, ERP, and productivity suites allows agents to take actions within existing workflows.
-
-**Communication Platforms**: Native integration with Slack, Teams, email, and other channels meets users where they already work.
-
-**Security Infrastructure**: Enterprise-grade authentication, authorization, and audit logging ensure agents meet compliance requirements.
-
-This deep integration transforms agents from helpful tools into essential business infrastructure. They become the intelligent layer that connects and orchestrates existing systems.
-
-## Technical Innovations Driving Progress
-
-The trends we're seeing aren't happening in isolation—they're enabled by significant technical innovations:
-
-### Improved Model Architectures
-
-New model architectures are pushing the boundaries of what's possible:
-
-- Mixture of Experts (MoE) models offer better performance with lower computational costs
-- Longer context windows enable more comprehensive understanding
-- Improved reasoning capabilities through chain-of-thought techniques
-- Better instruction following through advanced fine-tuning methods
-
-### Infrastructure Advances
-
-The infrastructure supporting AI agents has also evolved:
-
-```
-Cloud-Native Architecture
-├── Serverless inference for cost efficiency
-├── Edge deployment for low-latency responses
-├── Hybrid approaches for optimal performance
-└── Global distribution for reliability
-```
-
-### Development Tooling
-
-Building AI agents has never been easier thanks to improved tooling:
-
-- Visual builders for non-technical users
-- Comprehensive SDKs for developers
-- Testing and evaluation frameworks
-- Monitoring and observability solutions
-
-## Challenges and Considerations
-
-Despite the exciting progress, significant challenges remain:
-
-### Reliability and Consistency
-
-AI agents can still produce inconsistent or incorrect outputs. Ensuring reliability at scale requires:
-
-- Robust testing and evaluation pipelines
-- Fallback mechanisms for edge cases
-- Human-in-the-loop workflows for critical decisions
-- Continuous monitoring and improvement
-
-### Privacy and Security
-
-As agents access more data and take more actions, privacy and security concerns intensify:
-
-- Data handling must comply with regulations like GDPR and CCPA
-- Access controls must prevent unauthorized actions
-- Audit trails must enable accountability
-- User consent must be obtained and respected
-
-### Ethical Considerations
-
-The increasing autonomy of AI agents raises important ethical questions:
-
-- How do we ensure agents act in users' best interests?
-- What happens when agent recommendations conflict with human judgment?
-- How do we prevent bias from affecting agent decisions?
-- Who is responsible when agents make mistakes?
-
-## What This Means for Developers
-
-Building AI agents is more accessible than ever. With platforms like Eliza Cloud, you can:
-
-- Deploy production-ready agents in minutes rather than months
-- Scale automatically based on demand without infrastructure management
-- Access cutting-edge models without building ML infrastructure
-- Focus on user experience rather than underlying technology
-
-The democratization of agent development is creating opportunities for developers at all skill levels. Whether you're building a simple customer service bot or a complex autonomous workflow, the tools and platforms available today make it possible.
-
-### Getting Started
-
-For developers new to AI agents, the path forward is clearer than ever:
-
-1. **Start Small**: Begin with a focused use case rather than trying to build everything at once
-2. **Iterate Quickly**: Use rapid prototyping to test ideas and gather feedback
-3. **Leverage Platforms**: Don't reinvent the wheel—use existing infrastructure
-4. **Focus on Users**: The best agents solve real problems for real people
-5. **Plan for Scale**: Design with growth in mind from the beginning
-
-## Industry Perspectives
-
-We reached out to leaders across the industry for their perspectives on where AI agents are headed.
-
-> "The agents we're building today will seem primitive in five years, but they're already transforming how businesses operate. The key is to start now and learn as the technology evolves." — Tech Industry Executive
-
-> "What excites me most is the democratization. Small teams can now build agents that rival what only large companies could create before." — Startup Founder
-
-> "We're moving from 'AI can help with that' to 'AI handles that.' It's a fundamental shift in how we think about work." — Enterprise Customer
-
-## Looking Ahead
-
-We're excited about the possibilities that 2025 holds for AI agents. The convergence of improved models, better infrastructure, and mature tooling is creating unprecedented opportunities.
-
-Key developments to watch:
-
-- **Q1 2025**: Major model improvements from leading AI labs
-- **Q2 2025**: Enterprise adoption acceleration
-- **Q3 2025**: Multi-agent systems go mainstream
-- **Q4 2025**: New interaction paradigms emerge
-
-The future of AI agents isn't just about better technology—it's about better experiences, more efficient operations, and new possibilities we haven't yet imagined. We're committed to being at the forefront of this transformation, and we invite you to join us on this journey.
-
-Stay tuned for more updates as we continue to push the boundaries of what's possible with AI agents. The best is yet to come.
-
----
-
-## Community Spotlight: January 2025
-
-URL: https://elizacloud.ai/docs/blog/community-spotlight-january
-
-Summary: Highlighting amazing projects and contributions from the Eliza community this month.
-
-# Community Spotlight: January 2025
-
-Every month, we highlight the incredible work being done by our community. Here are this month's standouts!
-
-## Featured Projects
-
-### AI Customer Service Bot by TechStartup Inc.
-
-A sophisticated support agent that handles 80% of customer inquiries automatically.
-
-**Key Stats:**
-
-- 10,000+ conversations handled
-- 4.8/5 customer satisfaction rating
-- 60% reduction in support tickets
-
-### Educational Tutor by LearnAI
-
-An interactive tutoring agent that helps students with math and science.
-
-> "The agent adapts to each student's learning pace and style. It's like having a personal tutor available 24/7." - Teacher feedback
-
-### Content Creator Assistant
-
-A multi-modal agent that helps content creators with:
-
-- Script writing
-- Thumbnail ideas
-- SEO optimization
-- Engagement analysis
-
-## Community Contributions
-
-### Open Source Plugins
-
-- Discord Rich Presence integration
-- Slack notification system
-- Analytics export tools
-
-### Documentation Improvements
-
-Thanks to everyone who contributed to our docs this month!
-
-## Join the Community
-
-Want to be featured? Share your projects:
-
-- [Discord](https://discord.gg/eliza)
-- [GitHub](https://github.com/elizaos)
-- [Twitter](https://twitter.com/elizaos)
-
-We can't wait to see what you build next!
-
----
-
-## Customizing Your Agent's Personality
-
-URL: https://elizacloud.ai/docs/blog/customizing-agent-personality
-
-Summary: Learn how to create unique and engaging personalities for your AI agents.
-
-# Customizing Your Agent's Personality
-
-One of the most powerful features of Eliza Cloud is the ability to create agents with distinct personalities. This guide will show you how.
-
-## Understanding Personality Parameters
-
-Your agent's personality is defined by several key factors:
-
-### Tone
-
-- Formal vs. Casual
-- Serious vs. Playful
-- Direct vs. Elaborate
-
-### Knowledge Domain
-
-Define what your agent specializes in:
-
-```json
-{
-  "expertise": ["technology", "customer support", "sales"],
-  "depth": "expert",
-  "style": "conversational"
-}
-```
-
-### Response Patterns
-
-Control how your agent structures responses:
-
-- **Concise**: Short, direct answers
-- **Detailed**: Comprehensive explanations
-- **Interactive**: Asks follow-up questions
-
-## Best Practices
-
-1. **Be Consistent**: Maintain the same personality across all interactions
-2. **Match Your Brand**: Align the agent's voice with your company's tone
-3. **Test Extensively**: Try various scenarios to ensure natural responses
-4. **Iterate**: Refine based on user feedback
-
-## Example Configuration
-
-Here's a complete personality configuration:
-
-```javascript
-const personality = {
-  name: "Alex",
-  role: "Technical Support Specialist",
-  traits: ["helpful", "patient", "knowledgeable"],
-  tone: "friendly but professional",
-  greeting: "Hi there! I'm Alex, here to help with any technical questions.",
-};
-```
-
-Start experimenting with these settings to create the perfect agent for your needs!
-
----
-
-## Getting Started with AI Agents
-
-URL: https://elizacloud.ai/docs/blog/getting-started-guide
-
-Summary: A comprehensive guide to creating and deploying your first AI agent on Eliza Cloud.
-
-# Getting Started with AI Agents
-
-This tutorial will walk you through creating your first AI agent on Eliza Cloud. By the end, you'll have a fully functional agent ready to interact with users.
-
-![Getting Started Banner](https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=500&fit=crop)
-
-## Prerequisites
-
-Before you begin, make sure you have:
-
-- An Eliza Cloud account
-- Basic understanding of AI concepts
-- A clear idea of what you want your agent to do
-
-> **Pro Tip:** Start with a simple use case and expand from there. It's easier to add complexity than to simplify an overengineered solution.
-
----
-
-## Video Tutorial
-
-Watch our quick start video to see the process in action:
-
-<iframe
-  width="100%"
-  height="400"
-  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-  title="Getting Started with Eliza Cloud"
-  frameBorder="0"
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-  allowFullScreen
-  style={{ borderRadius: "12px", marginTop: "16px", marginBottom: "16px" }}
-/>
-
----
-
-## What Others Are Building
-
-Check out what the community is creating with AI agents:
-
----
-
-## Step 1: Create Your Agent
-
-Navigate to the dashboard and click "Create Agent". You'll be prompted to configure the following:
-
-| Setting            | Description                               | Required |
-| ------------------ | ----------------------------------------- | -------- |
-| **Name**           | Your agent's display name                 | Yes      |
-| **Model**          | The AI model to use (GPT-4, Claude, etc.) | Yes      |
-| **Personality**    | Tone and behavior style                   | No       |
-| **Knowledge Base** | Custom documents for context              | No       |
-| **Integrations**   | Connected services (Discord, Slack)       | No       |
-
-### Model Comparison
-
-Here's a comparison of available models:
-
-| Model           | Speed    | Quality    | Cost | Best For             |
-| --------------- | -------- | ---------- | ---- | -------------------- |
-| GPT-4 Turbo     | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Complex reasoning    |
-| Claude 3 Opus   | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Long-form content    |
-| Claude 3 Sonnet | ⚡⚡⚡   | ⭐⭐⭐⭐   | $$   | Balanced performance |
-| GPT-3.5 Turbo   | ⚡⚡⚡⚡ | ⭐⭐⭐     | $    | Quick responses      |
-
----
-
-## Step 2: Configure Capabilities
-
-Next, configure what your agent can do. Here's a complete configuration example:
-
-```javascript
-const agentConfig = {
-  name: "My First Agent",
-  model: "claude-3-sonnet",
-  capabilities: ["chat", "search", "summarize"],
-  personality: {
-    tone: "friendly",
-    formality: "casual",
-    verbosity: "concise",
-  },
-  settings: {
-    maxTokens: 2048,
-    temperature: 0.7,
-    streamResponses: true,
-  },
-};
-```
-
-### TypeScript Types
-
-For TypeScript users, here are the type definitions:
-
-```typescript
-interface AgentConfig {
-  name: string;
-  model: "gpt-4" | "claude-3-opus" | "claude-3-sonnet";
-  capabilities: Capability[];
-  personality?: PersonalityConfig;
-  settings?: AgentSettings;
-}
-
-type Capability =
-  | "chat"
-  | "search"
-  | "summarize"
-  | "code-generation"
-  | "image-analysis";
-```
-
----
-
-## Step 3: Test Your Agent
-
-Before deploying, test your agent using our playground:
-
-![Playground Interface](https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=1200&h=600&fit=crop)
-
-### Sample Conversations
-
-Here are some example prompts to test:
-
-1. **Basic greeting**: "Hello, who are you?"
-2. **Task completion**: "Summarize the latest news about AI"
-3. **Error handling**: "asdkjhasd" (gibberish input)
-4. **Edge cases**: Very long messages, special characters
-
-> 💡 **Note:** Always test edge cases before deploying to production!
-
----
-
-## Step 4: Deploy
-
-Once configured, click "Deploy" and your agent will be live within seconds.
-
-### Deployment Checklist
-
-- Agent name is appropriate
-- Model is selected
-- Personality is configured
-- Test conversations completed
-- Error handling verified
-- Rate limits set
-
----
-
-## API Integration
-
-You can also interact with your agent programmatically:
-
-```bash
-curl -X POST https://api.eliza.cloud/v1/agents/your-agent-id/chat \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Hello, how are you?",
-    "conversationId": "optional-conversation-id"
-  }'
-```
-
-### Response Format
-
-```json
-{
-  "id": "msg_abc123",
-  "content": "Hello! I'm doing great, thanks for asking. How can I help you today?",
-  "role": "assistant",
-  "timestamp": "2025-01-10T12:00:00Z",
-  "usage": {
-    "promptTokens": 12,
-    "completionTokens": 18,
-    "totalTokens": 30
-  }
-}
-```
-
----
-
-## Pricing Tiers
-
-| Tier           | Messages/Month | Price  | Features           |
-| -------------- | -------------- | ------ | ------------------ |
-| **Free**       | 1,000          | $0     | Basic features     |
-| **Starter**    | 10,000         | $29/mo | + Analytics        |
-| **Pro**        | 100,000        | $99/mo | + Priority support |
-| **Enterprise** | Unlimited      | Custom | + Custom models    |
-
----
-
-## Keyboard Shortcuts
-
-Master these shortcuts to work faster:
-
-| Shortcut       | Action         |
-| -------------- | -------------- |
-| `Ctrl + Enter` | Send message   |
-| `Ctrl + /`     | Toggle sidebar |
-| `Ctrl + K`     | Quick search   |
-| `Esc`          | Close modal    |
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-<details>
-<summary><strong>Agent not responding</strong></summary>
-
-Check the following:
-
-1. Verify your API key is valid
-2. Ensure you have available credits
-3. Check the agent status in dashboard
-
-</details>
-
-<details>
-<summary><strong>Slow response times</strong></summary>
-
-Try these solutions:
-
-1. Switch to a faster model (e.g., GPT-3.5)
-2. Reduce max token limit
-3. Enable streaming responses
-
-</details>
-
-<details>
-<summary><strong>Unexpected responses</strong></summary>
-
-Consider:
-
-1. Adjusting the temperature setting
-2. Refining the personality prompt
-3. Adding more context to the knowledge base
-
-</details>
-
----
-
-## Next Steps
-
-Now that your agent is running:
-
-- 📊 **Explore analytics** - Monitor performance in the dashboard
-- 🔗 **Set up webhooks** - Integrate with external services
-- 🎨 **Customize appearance** - Brand your chat widget
-- 📚 **Add knowledge** - Upload documents for context
-
----
-
-## Additional Resources
-
-- [API Documentation](/docs/api)
-- [Best Practices Guide](/docs/best-practices)
-- [Community Discord](https://discord.gg/eliza)
-- [GitHub Examples](https://github.com/elizaos/examples)
-
----
-
-_Have questions? Join our [Discord community](https://discord.gg/eliza) or reach out to support@eliza.cloud_
-
----
-
-## Integrating AI Agents with Discord
-
-URL: https://elizacloud.ai/docs/blog/integrating-with-discord
-
-Summary: Step-by-step guide to connecting your Eliza Cloud agent to Discord servers.
-
-# Integrating AI Agents with Discord
-
-Discord is one of the most popular platforms for community engagement. Here's how to connect your Eliza Cloud agent to Discord.
-
-## Prerequisites
-
-- An Eliza Cloud account with an active agent
-- A Discord account with server admin permissions
-- Basic familiarity with Discord bots
-
-## Step 1: Create a Discord Application
-
-1. Go to the [Discord Developer Portal](https://discord.com/developers)
-2. Click "New Application"
-3. Name your application and save
-
-## Step 2: Configure Bot Settings
-
-Enable the following intents:
-
-- Message Content Intent
-- Server Members Intent
-- Presence Intent
-
-## Step 3: Get Your Bot Token
-
-```bash
-# Store this securely - never commit to version control!
-DISCORD_BOT_TOKEN=your_token_here
-```
-
-## Step 4: Connect to Eliza Cloud
-
-In your Eliza Cloud dashboard:
-
-1. Navigate to Integrations
-2. Select Discord
-3. Paste your bot token
-4. Configure response settings
-
-## Step 5: Invite to Your Server
-
-Generate an invite link with these permissions:
-
-- Read Messages
-- Send Messages
-- Embed Links
-- Attach Files
-
-## Testing Your Integration
-
-Once connected, try mentioning your bot:
-
-```
-@YourBot Hello! Can you help me?
-```
-
-Your agent should respond based on its configured personality and capabilities.
-
-## Best Practices
-
-- Set up rate limiting to prevent spam
-- Configure channel restrictions
-- Monitor usage in the analytics dashboard
-- Regularly review conversation logs
 
 ---
 
@@ -6250,116 +5775,9 @@ Whether you're coding from scratch or using our visual builder, we'll help you g
 
 ---
 
-**Ready to build?** [Get started with Eliza Cloud →](https://www.dev.elizacloud.ai)
+**Ready to build?** [Get started with Eliza Cloud →](https://elizacloud.ai)
 
-_Questions? Find us in the elizaOS Discord:_ https://discord.gg/mPsBnEXJuA
-
----
-
-## Eliza Cloud v2.0 Released
-
-URL: https://elizacloud.ai/docs/blog/v2-release
-
-Summary: Major update brings new features, improved performance, and enhanced developer experience.
-
-# Eliza Cloud v2.0 Released
-
-We're thrilled to announce the release of Eliza Cloud v2.0, our biggest update yet!
-
-## What's New
-
-### Performance Improvements
-
-- **50% faster response times** across all models
-- Reduced cold start latency
-- Optimized memory usage
-
-### New Features
-
-#### Multi-Agent Orchestration
-
-Create workflows that involve multiple agents working together:
-
-```javascript
-const workflow = {
-  agents: ["researcher", "writer", "editor"],
-  flow: "sequential",
-  handoff: "automatic",
-};
-```
-
-#### Enhanced Analytics Dashboard
-
-- Real-time usage metrics
-- Conversation quality scores
-- Cost optimization insights
-
-#### Improved API
-
-- Streaming responses
-- Batch processing
-- Webhook support
-
-### Developer Experience
-
-- New CLI tools
-- Better error messages
-- Comprehensive documentation
-
-## Migration Guide
-
-Upgrading from v1.x is straightforward. Most changes are backward compatible, but we recommend reviewing the [migration guide](/docs/migration) for detailed instructions.
-
-## Thank You
-
-This release wouldn't be possible without our amazing community. Thank you for your feedback, bug reports, and feature requests!
-
----
-
-## Welcome to Eliza Cloud
-
-URL: https://elizacloud.ai/docs/blog/welcome-to-eliza
-
-Summary: Introducing Eliza Cloud - the easiest way to deploy and manage AI agents.
-
-# Welcome to Eliza Cloud
-
-We're excited to announce the launch of Eliza Cloud, a platform designed to make deploying and managing AI agents easier than ever.
-
-![AI Technology Dashboard](https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=600&fit=crop)
-
-## What is Eliza Cloud?
-
-Eliza Cloud provides a seamless experience for:
-
-- **Deploying AI agents** with just a few clicks
-- **Managing your agents** through an intuitive dashboard
-- **Scaling automatically** based on demand
-- **Monitoring performance** in real-time
-
-![Cloud Infrastructure](https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=1200&h=600&fit=crop)
-
-## Getting Started
-
-Getting started with Eliza Cloud is simple:
-
-1. Sign up for an account
-2. Create your first agent
-3. Configure your agent's personality and capabilities
-4. Deploy and start chatting
-
-## What's Next?
-
-We have exciting features planned for the coming months, including:
-
-- Enhanced customization options
-- New integrations
-- Improved analytics
-- And much more!
-
-![Future of AI](https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1200&h=600&fit=crop)
-
-Stay tuned for updates and follow us on [Twitter](https://twitter.com/elizaOS) for the latest news.
+_Questions? Find us in the elizaOS Discord:_ https://discord.gg/elizaos
 
 ---
 
@@ -6660,7 +6078,7 @@ For social media interactions:
 | ----------- | -------------------------------- |
 | `openai`    | gpt-4o, gpt-4o-mini, gpt-4-turbo |
 | `anthropic` | claude-3-5-sonnet, claude-3-opus |
-| `google`    | gemini-pro, gemini-flash         |
+| `google`    | gemini-1.5-pro, gemini-1.5-flash         |
 
 ### Provider Settings
 
@@ -7631,7 +7049,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 
 1. Check your balance at [Dashboard → Billing](/dashboard/billing)
 2. Enable auto top-up to avoid interruptions
-3. Top up credits via Stripe or [x402 crypto payments](/docs/x402)
+3. Top up credits via Stripe or crypto payments
 
 ### Streaming not working
 
@@ -7708,9 +7126,9 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery?type=image&limit=20" \
     {
       "id": "gal_abc123",
       "type": "image",
-      "url": "https://storage.eliza.ai/images/abc123.png",
+      "url": "https://your-storage.vercel-storage.com/images/abc123.png",
       "prompt": "A sunset over mountains",
-      "model": "fal-ai/flux/schnell",
+      "model": "google/gemini-2.5-flash-image",
       "width": 1024,
       "height": 1024,
       "createdAt": "2024-01-15T10:30:00Z",
@@ -7951,7 +7369,7 @@ console.log(image.galleryId); // gal_abc123
 
 URL: https://elizacloud.ai/docs/image-generation
 
-Summary: Generate images with AI on elizaOS Cloud using FLUX, Stable Diffusion, and other models via Fal.ai integration.
+Summary: Generate images with AI on elizaOS Cloud using Google Gemini, OpenAI, and other models.
 
 # Image Generation
 
@@ -7961,12 +7379,11 @@ Generate high-quality images from text prompts using state-of-the-art AI models.
 
 ## Overview
 
-elizaOS Cloud provides image generation through Fal.ai, supporting multiple models:
+elizaOS Cloud provides image generation through multiple providers:
 
-- **FLUX Schnell**: Fast, high-quality generation
-- **FLUX Pro**: Premium quality with more detail
-- **Stable Diffusion XL**: Versatile, customizable
-- **Stable Diffusion 3**: Latest SD architecture
+- **Google Gemini**: Fast, high-quality multimodal generation (default)
+- **OpenAI**: GPT-powered image generation
+- **BFL Flux Kontext**: Context-aware generation
 
 ## Quick Start
 
@@ -7983,9 +7400,9 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A futuristic cityscape at sunset, cyberpunk style",
-    "model": "fal-ai/flux/schnell",
-    "size": "square_hd",
-    "num_images": 1
+    "model": "google/gemini-2.5-flash-image",
+    "aspectRatio": "16:9",
+    "numImages": 1
   }'
 ```
   
@@ -7999,16 +7416,15 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
   },
   body: JSON.stringify({
     prompt: 'A futuristic cityscape at sunset, cyberpunk style',
-    model: 'fal-ai/flux/schnell',
-    size: 'square_hd',
-    num_images: 1,
+    model: 'google/gemini-2.5-flash-image',
+    aspectRatio: '16:9',
+    numImages: 1,
   }),
 });
 
 const result = await response.json();
 console.log(result.images[0].url);
-
-````
+```
   
   
 ```python
@@ -8021,16 +7437,15 @@ response = requests.post(
     },
     json={
         'prompt': 'A futuristic cityscape at sunset, cyberpunk style',
-        'model': 'fal-ai/flux/schnell',
-        'size': 'square_hd',
-        'num_images': 1,
+        'model': 'google/gemini-2.5-flash-image',
+        'aspectRatio': '16:9',
+        'numImages': 1,
     },
 )
 
 result = response.json()
 print(result['images'][0]['url'])
-````
-
+```
   
 
 ### Response
@@ -8039,47 +7454,79 @@ print(result['images'][0]['url'])
 {
   "images": [
     {
-      "url": "https://storage.eliza.ai/images/abc123.png",
-      "width": 1024,
-      "height": 1024
+      "url": "https://your-storage.vercel-storage.com/images/abc123.webp",
+      "text": "Optional model response text",
+      "mimeType": "image/webp",
+      "fileSize": 102400
     }
   ],
-  "cost": 0.02,
-  "model": "fal-ai/flux/schnell"
+  "numImages": 1
 }
 ```
 
 ## Available Models
 
-| Model                        | Speed   | Quality | Best For                           |
-| ---------------------------- | ------- | ------- | ---------------------------------- |
-| `fal-ai/flux/schnell`        | ⚡ Fast | High    | Quick iterations, prototyping      |
-| `fal-ai/flux/pro`            | Medium  | Highest | Final production images            |
-| `fal-ai/flux/dev`            | Medium  | High    | Development and testing            |
-| `fal-ai/stable-diffusion-v3` | Medium  | High    | Versatile, good for most use cases |
+| Model                                   | Provider | Speed  | Best For                 |
+| --------------------------------------- | -------- | ------ | ------------------------ |
+| \`google/gemini-2.5-flash-image\`         | Google   | Fast   | General use (default)    |
+| \`google/gemini-2.5-flash-image-preview\` | Google   | Fast   | Preview/testing          |
+| \`google/gemini-3-pro-image\`             | Google   | Medium | Higher quality           |
+| \`openai/gpt-5-nano\`                     | OpenAI   | Medium | OpenAI image generation  |
+| \`bfl/flux-kontext-max\`                  | BFL      | Medium | Context-aware generation |
 
 ## Request Parameters
 
-| Parameter         | Type    | Required | Description                                   |
-| ----------------- | ------- | -------- | --------------------------------------------- |
-| `prompt`          | string  | ✓        | Text description of the image                 |
-| `model`           | string  |          | Model to use (default: `fal-ai/flux/schnell`) |
-| `size`            | string  |          | Output size (see sizes below)                 |
-| `num_images`      | integer |          | Number of images (1-4, default: 1)            |
-| `seed`            | integer |          | Random seed for reproducibility               |
-| `guidance_scale`  | number  |          | How closely to follow the prompt (1-20)       |
-| `negative_prompt` | string  |          | What to avoid in the image                    |
+| Parameter     | Type    | Required | Description                                            |
+| ------------- | ------- | -------- | ------------------------------------------------------ |
+| \`prompt\`      | string  | ✓        | Text description of the image                          |
+| \`model\`       | string  |          | Model to use (default: \`google/gemini-2.5-flash-image\`) |
+| \`aspectRatio\` | string  |          | Output aspect ratio (default: \`1:1\`)                   |
+| \`numImages\`   | integer |          | Number of images (1-4, default: 1)                     |
+| \`stylePreset\` | string  |          | Style preset to apply                                  |
+| \`sourceImage\` | string  |          | Base64 data URL for image-to-image                     |
 
-### Available Sizes
+### Available Aspect Ratios
 
-| Size             | Dimensions | Aspect Ratio |
-| ---------------- | ---------- | ------------ |
-| `square`         | 512x512    | 1:1          |
-| `square_hd`      | 1024x1024  | 1:1          |
-| `portrait_4_3`   | 768x1024   | 3:4          |
-| `portrait_16_9`  | 576x1024   | 9:16         |
-| `landscape_4_3`  | 1024x768   | 4:3          |
-| `landscape_16_9` | 1024x576   | 16:9         |
+| Aspect Ratio | Description          |
+| ------------ | -------------------- |
+| \`1:1\`        | Square (default)     |
+| \`16:9\`       | Wide landscape       |
+| \`9:16\`       | Tall portrait        |
+| \`4:3\`        | Standard landscape   |
+| \`3:4\`        | Standard portrait    |
+| \`21:9\`       | Ultra-wide cinematic |
+| \`9:21\`       | Ultra-tall vertical  |
+
+### Style Presets
+
+| Preset         | Description                         |
+| -------------- | ----------------------------------- |
+| \`none\`         | No style modification (default)     |
+| \`photographic\` | Realistic lighting and details      |
+| \`digital-art\`  | Vibrant colors, modern aesthetics   |
+| \`comic-book\`   | Bold lines, dramatic shading        |
+| \`fantasy-art\`  | Magical and ethereal elements       |
+| \`analog-film\`  | Film grain and vintage tones        |
+| \`neon-punk\`    | Cyberpunk style with neon colors    |
+| \`cinematic\`    | Dramatic lighting and composition   |
+
+## Image-to-Image Generation
+
+Transform existing images by providing a \`sourceImage\` parameter:
+
+```javascript
+const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'Transform this into a watercolor painting',
+    sourceImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+  }),
+});
+```
 
 ## Prompt Engineering
 
@@ -8093,127 +7540,58 @@ print(result['images'][0]['url'])
 
 **Photorealistic:**
 
-```
-Portrait of a woman with silver hair, professional photography,
-soft studio lighting, shallow depth of field, 8k quality
+```json
+{
+  "prompt": "Professional headshot of a business executive, studio lighting, neutral background, sharp focus",
+  "stylePreset": "photographic"
+}
 ```
 
 **Artistic:**
 
-```
-Abstract painting of ocean waves, impressionist style,
-vibrant blues and teals, textured brushstrokes
+```json
+{
+  "prompt": "Enchanted forest with glowing mushrooms, magical atmosphere, soft moonlight filtering through trees",
+  "stylePreset": "fantasy-art"
+}
 ```
 
 **Product:**
 
-```
-Minimalist product shot of a smartwatch on white marble,
-clean lighting, commercial photography, high detail
-```
-
-### Negative Prompts
-
-Use negative prompts to exclude unwanted elements:
-
 ```json
 {
-  "prompt": "Professional headshot of a businessman",
-  "negative_prompt": "blurry, distorted, low quality, cartoon"
-}
-```
-
-## Advanced Usage
-
-### Batch Generation
-
-Generate multiple variations:
-
-```javascript
-const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
-  method: "POST",
-  headers: {
-    Authorization: "Bearer YOUR_API_KEY",
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    prompt: "A serene mountain landscape",
-    num_images: 4,
-    seed: 42, // Same seed for consistency
-  }),
-});
-```
-
-### Reproducible Results
-
-Use a seed for consistent outputs:
-
-```json
-{
-  "prompt": "A red sports car",
-  "seed": 12345,
-  "guidance_scale": 7.5
-}
-```
-
-  Using the same prompt, seed, and parameters will produce identical results.
-
-## Gallery
-
-Generated images are automatically saved to your [Gallery](/dashboard/gallery) for easy access and management.
-
-### Organize Images
-
-- **Collections**: Group related images
-- **Tags**: Add searchable tags
-- **Download**: High-quality PNG/JPG export
-
-## Pricing
-
-See [Billing & Credits](/docs/billing) for current pricing. Image generation costs range from 0.02-0.05 credits per image depending on model.
-
-  Monitor your usage in the [billing dashboard](/dashboard/billing).
-
-## Error Handling
-
-### Common Errors
-
-| Error                  | Cause                          | Solution                    |
-| ---------------------- | ------------------------------ | --------------------------- |
-| `CONTENT_POLICY`       | Prompt violates content policy | Modify prompt to comply     |
-| `RATE_LIMITED`         | Too many requests              | Wait and retry with backoff |
-| `INSUFFICIENT_CREDITS` | Not enough credits             | Top up your account         |
-| `INVALID_MODEL`        | Model not available            | Use a supported model       |
-
-### Error Response
-
-```json
-{
-  "error": {
-    "code": "CONTENT_POLICY",
-    "message": "The prompt violates our content policy",
-    "details": "Please modify your prompt"
-  }
+  "prompt": "Modern smartphone on white background, professional product photography, soft shadows",
+  "aspectRatio": "4:3"
 }
 ```
 
 ## Best Practices
 
-- **Be Specific** — Detailed prompts with style, lighting, and mood produce better results
-- **Use Negative Prompts** — Exclude unwanted elements like "blurry, distorted, low quality"
-- **Iterate** — Generate multiple variations with `num_images: 4` and refine your prompt
-- **Consistent Seeds** — Use the same `seed` value to reproduce and iterate on good results
+- **Be specific**: Include details about style, lighting, composition
+- **Use style presets**: For consistent results across generations
+- **Iterate**: Generate multiple images and refine your prompt
+- **Aspect ratio matters**: Choose based on your use case
+
+## Error Handling
+
+| Code | Error                | Solution                         |
+| ---- | -------------------- | -------------------------------- |
+| 400  | Invalid prompt       | Ensure prompt is non-empty       |
+| 400  | Invalid model        | Use a supported model            |
+| 402  | Insufficient credits | Add credits to your account      |
+| 429  | Rate limited         | Wait and retry                   |
+| 500  | Generation failed    | Retry or try a different model   |
 
 ## Next Steps
 
   
-    Create videos from prompts
-  
-  
-    Manage your generated images
-  
-  
     Complete API documentation
+  
+  
+    View and manage your images
+  
+  
+    Generate videos from text
 
 ---
 
@@ -8234,13 +7612,19 @@ Set up your development environment for elizaOS Cloud integration.
 Install the official elizaOS packages:
 
   
-    ```bash bun add @elizaos/core @elizaos/plugin-elizacloud ```
+```bash
+bun add @elizaos/core @elizaos/plugin-elizacloud
+```
   
   
-    ```bash pnpm add @elizaos/core @elizaos/plugin-elizacloud ```
+```bash
+pnpm add @elizaos/core @elizaos/plugin-elizacloud
+```
   
   
-    ```bash yarn add @elizaos/core @elizaos/plugin-elizacloud ```
+```bash
+yarn add @elizaos/core @elizaos/plugin-elizacloud
+```
   
 
 ## CLI Installation
@@ -9495,23 +8879,18 @@ ELIZA_API_KEY=ek_live_xxxxxxxxxxxxxxxxxxxx
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/v1/agents" \
+curl -X POST "https://elizacloud.ai/api/v1/app/agents" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Assistant",
-    "description": "A helpful AI assistant",
-    "modelProvider": "openai",
-    "settings": {
-      "model": "gpt-4o",
-      "temperature": 0.7
-    }
+    "bio": "A helpful AI assistant"
   }'
 ```
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/agents', {
+const response = await fetch('https://elizacloud.ai/api/v1/app/agents', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_KEY',
@@ -9519,43 +8898,33 @@ const response = await fetch('https://elizacloud.ai/api/v1/agents', {
   },
   body: JSON.stringify({
     name: 'My Assistant',
-    description: 'A helpful AI assistant',
-    modelProvider: 'openai',
-    settings: {
-      model: 'gpt-4o',
-      temperature: 0.7,
-    },
+    bio: 'A helpful AI assistant',
   }),
 });
 
 const agent = await response.json();
-console.log('Created agent:', agent.id);
+console.log('Created agent:', agent.agent.id);
 
-````
+```
   
   
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/v1/agents',
+    'https://elizacloud.ai/api/v1/app/agents',
     headers={
         'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json',
     },
     json={
         'name': 'My Assistant',
-        'description': 'A helpful AI assistant',
-        'modelProvider': 'openai',
-        'settings': {
-            'model': 'gpt-4o',
-            'temperature': 0.7,
-        },
+        'bio': 'A helpful AI assistant',
     },
 )
 
 agent = response.json()
-print(f'Created agent: {agent["id"]}')
-````
+print(f'Created agent: {agent["agent"]["id"]}')
+```
 
   
 
@@ -9593,7 +8962,7 @@ const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
 const completion = await response.json();
 console.log(completion.choices[0].message.content);
 
-````
+```
   
   
 ```python
@@ -9613,7 +8982,7 @@ response = requests.post(
 
 completion = response.json()
 print(completion['choices'][0]['message']['content'])
-````
+```
 
   
 
@@ -10128,7 +9497,7 @@ const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
   },
   body: JSON.stringify({
     prompt: "A sunset over mountains",
-    model: "fal-ai/flux/schnell",
+    model: "google/gemini-2.5-flash-image",
   }),
 });
 
@@ -10147,12 +9516,12 @@ const response = await fetch("https://elizacloud.ai/api/v1/generate-video", {
   },
   body: JSON.stringify({
     prompt: "A cat playing piano",
-    duration: 5,
+    model: "fal-ai/veo3",
   }),
 });
 
 const data = await response.json();
-console.log(data.video_url);
+console.log(data.video.url);
 ```
 
 ## Framework Integrations
@@ -10273,21 +9642,21 @@ We welcome SDK contributions! See our [GitHub](https://github.com/elizaOS/eliza)
 
 URL: https://elizacloud.ai/docs/video-generation
 
-Summary: Generate AI videos from text prompts on elizaOS Cloud using MiniMax and other cutting-edge video models.
+Summary: Generate AI videos from text prompts on elizaOS Cloud using Google Veo, Kling, and MiniMax video models.
 
 # Video Generation
 
-Create AI-generated videos from text prompts or input images.
+Create AI-generated videos from text prompts.
 
-<div className="status-badge status-beta">Beta</div>
+<div className="status-badge status-stable">Stable</div>
 
 ## Overview
 
-elizaOS Cloud provides video generation through multiple providers:
+elizaOS Cloud provides video generation through Fal.ai, supporting multiple models:
 
-- **MiniMax Video-01**: High-quality, realistic videos
-- **Runway Gen-3**: Creative and artistic styles
-- **Kling**: Fast generation, good for iterations
+- **Google Veo 3**: Highest quality, latest model
+- **Kling Video**: Multiple tiers from standard to master
+- **MiniMax Hailuo**: Fast and affordable
 
 ## Quick Start
 
@@ -10304,7 +9673,7 @@ curl -X POST "https://elizacloud.ai/api/v1/generate-video" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "A butterfly emerging from a cocoon in slow motion",
-    "model": "minimax/video-01"
+    "model": "fal-ai/veo3"
   }'
 ```
   
@@ -10318,14 +9687,13 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
   },
   body: JSON.stringify({
     prompt: 'A butterfly emerging from a cocoon in slow motion',
-    model: 'minimax/video-01',
+    model: 'fal-ai/veo3',
   }),
 });
 
 const result = await response.json();
 console.log(result.video.url);
-
-````
+```
   
   
 ```python
@@ -10338,202 +9706,105 @@ response = requests.post(
     },
     json={
         'prompt': 'A butterfly emerging from a cocoon in slow motion',
-        'model': 'minimax/video-01',
+        'model': 'fal-ai/veo3',
     },
 )
 
 result = response.json()
 print(result['video']['url'])
-````
-
+```
   
 
 ### Response
 
 ```json
 {
+  "success": true,
   "video": {
-    "url": "https://storage.eliza.ai/videos/abc123.mp4",
-    "duration": 5,
-    "width": 1280,
-    "height": 720
+    "url": "https://your-storage.vercel-storage.com/videos/abc123.mp4"
   },
-  "cost": 0.5,
-  "model": "minimax/video-01"
+  "model": "fal-ai/veo3"
 }
 ```
 
 ## Available Models
 
-| Model                | Duration | Quality | Best For                         |
-| -------------------- | -------- | ------- | -------------------------------- |
-| `minimax/video-01`   | 5-10s    | High    | Realistic scenes, product videos |
-| `fal-ai/runway-gen3` | 5s       | High    | Creative, artistic content       |
-| `fal-ai/kling-video` | 5s       | Medium  | Fast iterations                  |
+| Model                                            | Provider | Quality  | Speed  |
+| ------------------------------------------------ | -------- | -------- | ------ |
+| \`fal-ai/veo3\`                                    | Google   | Highest  | Slow   |
+| \`fal-ai/veo3/fast\`                               | Google   | High     | Fast   |
+| \`fal-ai/kling-video/v2.1/master/text-to-video\`   | Kling    | Highest  | Slow   |
+| \`fal-ai/kling-video/v2.1/pro/text-to-video\`      | Kling    | High     | Medium |
+| \`fal-ai/kling-video/v2.1/standard/text-to-video\` | Kling    | Good     | Fast   |
+| \`fal-ai/minimax/hailuo-02/pro/text-to-video\`     | MiniMax  | High     | Medium |
+| \`fal-ai/minimax/hailuo-02/standard/text-to-video\`| MiniMax  | Good     | Fast   |
 
 ## Request Parameters
 
-| Parameter      | Type    | Required | Description                                |
-| -------------- | ------- | -------- | ------------------------------------------ |
-| `prompt`       | string  | ✓        | Text description of the video              |
-| `model`        | string  |          | Model to use (default: `minimax/video-01`) |
-| `image_url`    | string  |          | Source image for image-to-video            |
-| `duration`     | integer |          | Video length in seconds                    |
-| `aspect_ratio` | string  |          | Output aspect ratio                        |
-| `seed`         | integer |          | Random seed for reproducibility            |
+| Parameter | Type   | Required | Description                            |
+| --------- | ------ | -------- | -------------------------------------- |
+| \`prompt\`  | string | ✓        | Text description of the video          |
+| \`model\`   | string |          | Model to use (default: \`fal-ai/veo3\`)  |
 
-### Aspect Ratios
+## Prompt Tips
 
-| Ratio  | Dimensions | Use Case                |
-| ------ | ---------- | ----------------------- |
-| `16:9` | 1280x720   | Standard video, YouTube |
-| `9:16` | 720x1280   | Vertical video, TikTok  |
-| `1:1`  | 1024x1024  | Square video, Instagram |
-| `4:3`  | 1024x768   | Classic aspect          |
+### Camera Movements
 
-## Image-to-Video
+Include camera direction for dynamic videos:
 
-Generate videos from a source image:
+- \`camera pan left/right\` - Horizontal movement
+- \`zoom in/out\` - Focal adjustment
+- \`dolly forward/backward\` - Physical camera movement
+- \`tracking shot\` - Following subject
+- \`aerial view\` - Bird's eye perspective
+
+### Scene Description
+
+Be specific about motion and timing:
 
 ```json
 {
-  "prompt": "The woman slowly turns her head and smiles",
-  "image_url": "https://example.com/portrait.jpg",
-  "model": "minimax/video-01"
+  "prompt": "A golden retriever running through autumn leaves in a park, slow motion, cinematic lighting, tracking shot following the dog"
 }
 ```
 
-  Image-to-video maintains consistency with the source image while adding
-  motion.
+### Style Modifiers
 
-## Prompt Engineering
-
-### Effective Video Prompts
-
-**Be specific about motion:**
-
-```
-A golden retriever running through autumn leaves,
-slow motion, leaves flying in the air
-```
-
-**Describe camera movement:**
-
-```
-Drone shot flying over a tropical beach,
-golden hour lighting, waves crashing on shore
-```
-
-**Include temporal progression:**
-
-```
-Time lapse of a flower blooming, from bud to full bloom,
-soft natural lighting
-```
-
-### Example Prompts
-
-| Category      | Example                                                      |
-| ------------- | ------------------------------------------------------------ |
-| **Nature**    | A waterfall cascading into a crystal clear pool, mist rising |
-| **Product**   | A luxury watch rotating on a dark surface, dramatic lighting |
-| **Abstract**  | Colorful paint swirling in water, macro shot, slow motion    |
-| **Character** | A knight drawing a sword, dramatic pose, cinematic lighting  |
-
-## Gallery
-
-Generated videos are saved to your [Gallery](/dashboard/gallery) for management:
-
-- **Preview**: Watch videos in the browser
-- **Download**: Export as MP4
-- **Share**: Generate shareable links
-- **Organize**: Add to collections
-
-## Pricing
-
-See [Billing & Credits](/docs/billing) for current pricing. Video generation costs range from 0.30-0.75 credits per video depending on model.
-
-  Video generation costs more than images due to computational requirements.
-  Monitor usage in the [billing dashboard](/dashboard/billing).
-
-## Generation Time
-
-Video generation takes longer than images:
-
-| Model            | Typical Time |
-| ---------------- | ------------ |
-| MiniMax Video-01 | 2-5 minutes  |
-| Runway Gen-3     | 1-3 minutes  |
-| Kling Video      | 1-2 minutes  |
-
-  Use webhooks or polling to check generation status for longer operations.
-
-## Polling for Status
-
-For longer generations, poll the status endpoint:
-
-```javascript
-async function generateVideo(prompt) {
-  // Start generation
-  const startResponse = await fetch(
-    "https://elizacloud.ai/api/v1/generate-video",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer YOUR_API_KEY",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt }),
-    },
-  );
-
-  const { jobId } = await startResponse.json();
-
-  // Poll for completion
-  while (true) {
-    const statusResponse = await fetch(
-      `https://elizacloud.ai/api/v1/generate-video/${jobId}`,
-      { headers: { Authorization: "Bearer YOUR_API_KEY" } },
-    );
-
-    const { status, video } = await statusResponse.json();
-
-    if (status === "completed") return video;
-    if (status === "failed") throw new Error("Generation failed");
-
-    await new Promise((r) => setTimeout(r, 5000)); // Wait 5s
-  }
-}
-```
-
-## Error Handling
-
-### Common Errors
-
-| Error                  | Cause                    | Solution                    |
-| ---------------------- | ------------------------ | --------------------------- |
-| `CONTENT_POLICY`       | Prompt violates policy   | Modify prompt content       |
-| `GENERATION_FAILED`    | Model failed to generate | Retry with different prompt |
-| `TIMEOUT`              | Generation took too long | Use a faster model          |
-| `INSUFFICIENT_CREDITS` | Not enough credits       | Top up account              |
+- \`slow motion\` - Dramatic effect
+- \`timelapse\` - Accelerated time
+- \`cinematic\` - Movie-like quality
+- \`handheld\` - Organic movement
+- \`steady cam\` - Smooth, professional
 
 ## Best Practices
 
-- **Describe Motion** — Be explicit about movement: "slow motion", "camera pans left", "time lapse"
-- **Keep it Simple** — Focus on one main action per video for best results
-- **Use Image-to-Video** — Start from a generated image for better consistency and control
-- **Iterate** — Generate multiple versions with different prompts and refine
+1. **Be specific about motion**: Describe what moves and how
+2. **Include timing cues**: Slow motion, timelapse, etc.
+3. **Specify camera work**: Pan, zoom, tracking shots
+4. **Set the mood**: Cinematic, documentary, etc.
+
+  Video generation typically takes 30-180 seconds depending on model and complexity.
+
+## Error Handling
+
+| Code | Error                | Solution                         |
+| ---- | -------------------- | -------------------------------- |
+| 400  | Invalid prompt       | Ensure prompt is non-empty       |
+| 400  | Invalid model        | Use a supported model            |
+| 402  | Insufficient credits | Add credits to your account      |
+| 429  | Rate limited         | Wait and retry                   |
+| 500  | Generation failed    | Retry or try a different model   |
 
 ## Next Steps
 
   
-    Create source images for video
+    Complete API documentation
   
   
-    Add voiceovers to your videos
+    View and manage your videos
   
   
-    Manage your generated content
+    Generate images from text
 
 ---
 
