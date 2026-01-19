@@ -4,7 +4,8 @@
  */
 
 /**
- * UUID regex pattern for validation (versions 1-5).
+ * UUID regex pattern for validation (versions 1-5 only).
+ * Note: UUID v6/v7/v8 are not supported as they use different version digits.
  * Matches standard UUID format: xxxxxxxx-xxxx-Vxxx-Nxxx-xxxxxxxxxxxx
  * where V = version (1-5) and N = variant (8, 9, a, b)
  */
@@ -33,6 +34,9 @@ export function isValidUUID(value: string): boolean {
 /**
  * Sanitizes a potential UUID string by removing invalid trailing characters.
  * Returns undefined if the result is not a valid UUID.
+ *
+ * Only trailing garbage is removed. UUIDs with embedded invalid characters
+ * will be rejected entirely (fail-fast approach).
  *
  * Common issue: URL-encoded backslashes (%5C) decode to '\' and append to UUIDs.
  *

@@ -125,4 +125,34 @@ describe("sanitizeUUID", () => {
     expect(sanitized).toBe("17c8b876-86a0-465d-9794-2aea244f4239");
     expect(isValidUUID(sanitized!)).toBe(true);
   });
+
+  test("handles multiple types of trailing garbage", () => {
+    // Combination of backslash, slash, and whitespace
+    expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\\ /")).toBe(
+      "17c8b876-86a0-465d-9794-2aea244f4239"
+    );
+    expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239/\\")).toBe(
+      "17c8b876-86a0-465d-9794-2aea244f4239"
+    );
+    expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239 \\")).toBe(
+      "17c8b876-86a0-465d-9794-2aea244f4239"
+    );
+  });
+
+  test("handles multiple whitespace types", () => {
+    // Tab, newline, space combinations
+    expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\t\n ")).toBe(
+      "17c8b876-86a0-465d-9794-2aea244f4239"
+    );
+    expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239  \t")).toBe(
+      "17c8b876-86a0-465d-9794-2aea244f4239"
+    );
+  });
+
+  test("rejects UUIDs with embedded invalid characters (fail-fast)", () => {
+    // Embedded invalid chars should cause rejection, not sanitization
+    expect(sanitizeUUID("550e8400-e29b-INVALID-446655440000")).toBeUndefined();
+    expect(sanitizeUUID("550e8400\\e29b-41d4-a716-446655440000")).toBeUndefined();
+    expect(sanitizeUUID("550e8400-e29b-41d4-a716-446655440000\x00")).toBeUndefined();
+  });
 });
