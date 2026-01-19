@@ -10,6 +10,7 @@ import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { appsService } from "@/lib/services/apps";
+import { appCreditsService } from "@/lib/services/app-credits";
 import {
   calculateCost,
   getProviderFromModel,
@@ -57,7 +58,7 @@ async function handlePOST(req: NextRequest) {
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID"
     );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
@@ -81,16 +82,29 @@ async function handlePOST(req: NextRequest) {
       "unknown";
     const userAgent = req.headers.get("user-agent") || "unknown";
 
+    // Check for app monetization
+    const appId = req.headers.get("X-App-Id");
+    let useAppCredits = false;
+    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null =
+      null;
+
+    if (appId) {
+      monetizedApp = await appsService.getById(appId);
+      if (monetizedApp?.monetization_enabled) {
+        useAppCredits = true;
+      }
+    }
+
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system",
+      (msg) => msg.role === "system"
     );
     const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant",
+      (msg) => msg.role === "assistant"
     );
     const toolMessages = request.messages.filter((msg) => msg.role === "tool");
 
@@ -137,7 +151,7 @@ async function handlePOST(req: NextRequest) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -151,7 +165,7 @@ async function handlePOST(req: NextRequest) {
             code: "invalid_value",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -169,7 +183,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -189,7 +203,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -206,7 +220,7 @@ async function handlePOST(req: NextRequest) {
               if (!hasNonEmptyText) {
                 logger.debug(
                   "[Chat Completions API] Filtering out empty text content block",
-                  { messageIndex: i, role: msg.role },
+                  { messageIndex: i, role: msg.role }
                 );
               }
               return hasNonEmptyText;
@@ -225,7 +239,7 @@ async function handlePOST(req: NextRequest) {
               role: msg.role,
               originalParts: msg.content.length,
               remainingParts: filteredContent.length,
-            },
+            }
           );
           msg.content = filteredContent;
         }
@@ -239,7 +253,7 @@ async function handlePOST(req: NextRequest) {
         ) {
           logger.warn(
             "[Chat Completions API] Content array has no valid content",
-            { messageIndex: i, role: msg.role },
+            { messageIndex: i, role: msg.role }
           );
           return Response.json(
             {
@@ -251,7 +265,7 @@ async function handlePOST(req: NextRequest) {
                 code: "invalid_value",
               },
             },
-            { status: 400 },
+            { status: 400 }
           );
         }
       }
@@ -263,7 +277,7 @@ async function handlePOST(req: NextRequest) {
         "[Chat Completions API] User blocked due to moderation violations",
         {
           userId: user.id,
-        },
+        }
       );
       return Response.json(
         {
@@ -274,7 +288,7 @@ async function handlePOST(req: NextRequest) {
             code: "moderation_violation",
           },
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -300,9 +314,9 @@ async function handlePOST(req: NextRequest) {
                 userId: user.id,
                 categories: result.flaggedCategories,
                 action: result.action,
-              },
+              }
             );
-          },
+          }
         );
       }
     }
@@ -312,42 +326,98 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 4. RESERVE credits BEFORE making API call (prevents TOCTOU race condition)
+    // 4. RESERVE/DEDUCT credits BEFORE making API call
     const inputText = request.messages
       .map((m) =>
-        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content)
       )
       .join(" ");
 
-    let reservation: CreditReservation;
-    try {
-      reservation = await creditsService.reserve({
-        organizationId: user.organization_id!!,
-        model,
-        provider,
-        estimatedInputTokens: estimateTokens(inputText),
-        estimatedOutputTokens: 500,
+    // Estimate cost for pre-flight check
+    const estimatedInputTokens = estimateTokens(inputText);
+    const estimatedOutputTokens = 500;
+    const { totalCost: estimatedBaseCost } = await calculateCost(
+      normalizedModel,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens
+    );
+
+    let reservation: CreditReservation | null = null;
+    let appCreditDeduction: Awaited<
+      ReturnType<typeof appCreditsService.deductCredits>
+    > | null = null;
+
+    if (useAppCredits && appId) {
+      // App credits: deduct upfront (simpler model for monetized apps)
+      appCreditDeduction = await appCreditsService.deductCredits({
+        appId,
         userId: user.id,
-        description: `Chat Completions: ${model}`,
+        baseCost: estimatedBaseCost,
+        description: `Chat: ${model}`,
+        metadata: {
+          model,
+          provider,
+          estimatedInputTokens,
+          estimatedOutputTokens,
+        },
       });
-    } catch (error) {
-      if (error instanceof InsufficientCreditsError) {
-        logger.warn("[Chat Completions] Insufficient credits", {
-          organizationId: user.organization_id!!,
-          required: error.required,
+
+      if (!appCreditDeduction.success) {
+        logger.warn("[Chat Completions] Insufficient app credits", {
+          appId,
+          userId: user.id,
+          required: appCreditDeduction.totalCost,
+          message: appCreditDeduction.message,
         });
-        return Response.json(
-          {
-            error: {
-              message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
-              type: "insufficient_quota",
-              code: "insufficient_balance",
+        return withCors(
+          Response.json(
+            {
+              error: {
+                message:
+                  appCreditDeduction.message ||
+                  `Insufficient app credits. Required: $${appCreditDeduction.totalCost.toFixed(4)}`,
+                type: "insufficient_quota",
+                code: "insufficient_app_credits",
+              },
             },
-          },
-          { status: 402 },
+            { status: 402 }
+          )
         );
       }
-      throw error;
+    } else {
+      // Org credits: reserve and reconcile (standard flow)
+      try {
+        reservation = await creditsService.reserve({
+          organizationId: user.organization_id!!,
+          model,
+          provider,
+          estimatedInputTokens,
+          estimatedOutputTokens,
+          userId: user.id,
+          description: `Chat Completions: ${model}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          logger.warn("[Chat Completions] Insufficient credits", {
+            organizationId: user.organization_id!!,
+            required: error.required,
+          });
+          return withCors(
+            Response.json(
+              {
+                error: {
+                  message: `Insufficient balance. Required: $${error.required.toFixed(4)}`,
+                  type: "insufficient_quota",
+                  code: "insufficient_balance",
+                },
+              },
+              { status: 402 }
+            )
+          );
+        }
+        throw error;
+      }
     }
 
     logger.info("[Chat Completions] Request started", {
@@ -357,12 +427,52 @@ async function handlePOST(req: NextRequest) {
       provider,
       streaming: isStreaming,
       messageCount: request.messages.length,
-      reservedAmount: reservation.reservedAmount,
+      reservedAmount:
+        reservation?.reservedAmount ?? appCreditDeduction?.totalCost ?? 0,
+      useAppCredits,
+      appId: appId ?? undefined,
     });
 
     // 5. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
-    const providerResponse = await providerInstance.chatCompletions(request);
+    let providerResponse: Response;
+
+    try {
+      providerResponse = await providerInstance.chatCompletions(request);
+    } catch (providerError) {
+      const errorMessage = providerError instanceof Error ? providerError.message : "Unknown error";
+
+      // Refund org credits if provider call fails
+      if (reservation) {
+        logger.error("[Chat Completions] Provider failed, refunding org credits", {
+          organizationId: user.organization_id,
+          userId: user.id,
+          reservedAmount: reservation.reservedAmount,
+          error: errorMessage,
+        });
+        await reservation.reconcile(0); // Full refund
+      }
+
+      // Refund app credits if provider call fails
+      if (useAppCredits && appId && appCreditDeduction?.success) {
+        logger.error("[Chat Completions] Provider failed, refunding app credits", {
+          appId,
+          userId: user.id,
+          estimatedBaseCost,
+          error: errorMessage,
+        });
+
+        await appCreditsService.reconcileCredits({
+          appId,
+          userId: user.id,
+          estimatedBaseCost,
+          actualBaseCost: 0, // Full refund
+          description: "Refund due to provider error",
+          metadata: { error: true, providerFailure: true },
+        });
+      }
+      throw providerError; // Re-throw to be handled by outer catch
+    }
 
     // 6. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -374,11 +484,11 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
-        session_token,
         origin,
         ipAddress,
         userAgent,
-        reservation,
+        reservation ?? undefined,
+        useAppCredits ? { appId: appId!, estimatedBaseCost, app: monetizedApp ?? undefined } : undefined
       );
     } else {
       return withCors(
@@ -392,8 +502,9 @@ async function handlePOST(req: NextRequest) {
           origin,
           ipAddress,
           userAgent,
-          reservation,
-        ),
+          reservation ?? undefined,
+          useAppCredits ? { appId: appId!, estimatedBaseCost, app: monetizedApp ?? undefined } : undefined
+        )
       );
     }
   } catch (error) {
@@ -417,8 +528,8 @@ async function handlePOST(req: NextRequest) {
         return withCors(
           Response.json(
             { error: gatewayError.error },
-            { status: gatewayError.status },
-          ),
+            { status: gatewayError.status }
+          )
         );
       }
     }
@@ -434,8 +545,8 @@ async function handlePOST(req: NextRequest) {
             code: "internal_server_error",
           },
         },
-        { status: 500 },
-      ),
+        { status: 500 }
+      )
     );
   }
 }
@@ -452,6 +563,7 @@ async function handleNonStreamingResponse(
   ipAddress?: string,
   userAgent?: string,
   reservation?: CreditReservation,
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number; app?: Awaited<ReturnType<typeof appsService.getById>> }
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -461,15 +573,37 @@ async function handleNonStreamingResponse(
   const content = data.choices[0]?.message?.content || "";
 
   // Reconcile credits: refund difference if actual < reserved
-  if (usage && reservation) {
+  if (usage) {
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
       usage.prompt_tokens,
-      usage.completion_tokens,
+      usage.completion_tokens
     );
 
-    await reservation.reconcile(totalCost);
+    // Reconcile org credits (reservation pattern)
+    if (reservation) {
+      await reservation.reconcile(totalCost);
+    }
+
+    // Reconcile app credits (pass pre-fetched app to avoid N+1 query)
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: totalCost,
+        description: `Chat reconciliation: ${model}`,
+        metadata: {
+          model,
+          provider,
+          inputTokens: usage.prompt_tokens,
+          outputTokens: usage.completion_tokens,
+          streaming: false,
+        },
+        app: appCreditsInfo.app,
+      });
+    }
 
     // Background analytics (usage records, generation records)
     // These are not critical for billing, so can be async
@@ -539,6 +673,48 @@ async function handleNonStreamingResponse(
     })().catch((err) => {
       logger.error("[OpenAI Proxy] Background analytics failed:", err);
     });
+  } else {
+    // Fallback: No usage data from provider - estimate tokens and reconcile
+    // This prevents users from being overcharged (they paid 1.5x safety buffer upfront)
+    logger.warn("[OpenAI Proxy] No usage data in non-streaming response, using fallback estimation", {
+      model,
+      contentLength: content.length,
+    });
+
+    // Estimate output tokens from response content
+    const estimatedOutputTokens = estimateTokens(content);
+    // Use the reserved amount as basis (already includes safety multiplier)
+    const fallbackCost = reservation?.reservedAmount ?? appCreditsInfo?.estimatedBaseCost ?? 0;
+
+    // Reconcile org credits with estimated cost (no refund, but no additional charge)
+    if (reservation) {
+      await reservation.reconcile(fallbackCost);
+    }
+
+    // Reconcile app credits with estimated cost
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: appCreditsInfo.estimatedBaseCost, // Use estimated as actual (no additional charge)
+        description: `Chat reconciliation (no usage data): ${model}`,
+        metadata: {
+          model,
+          provider,
+          estimatedOutputTokens,
+          streaming: false,
+          fallbackEstimation: true,
+        },
+        app: appCreditsInfo.app,
+      });
+    }
+
+    logger.info("[OpenAI Proxy] Chat completion completed (fallback)", {
+      durationMs: Date.now() - startTime,
+      estimatedOutputTokens,
+      fallbackCost,
+    });
   }
 
   // Return response after credits are deducted
@@ -558,6 +734,7 @@ function handleStreamingResponse(
   ipAddress?: string,
   userAgent?: string,
   reservation?: CreditReservation,
+  appCreditsInfo?: { appId: string; estimatedBaseCost: number; app?: Awaited<ReturnType<typeof appsService.getById>> }
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -656,7 +833,7 @@ function handleStreamingResponse(
           {
             model,
             contentLength: fullContent.length,
-          },
+          }
         );
 
         // Estimate tokens from content
@@ -664,7 +841,7 @@ function handleStreamingResponse(
           .map((m) =>
             typeof m.content === "string"
               ? m.content
-              : JSON.stringify(m.content),
+              : JSON.stringify(m.content)
           )
           .join(" ");
         inputTokens = estimateTokens(messageText);
@@ -677,12 +854,31 @@ function handleStreamingResponse(
           model,
           provider,
           inputTokens,
-          outputTokens,
+          outputTokens
         );
 
-        // Reconcile credits: refund difference if actual < reserved
+        // Reconcile org credits (reservation pattern)
         if (reservation) {
           await reservation.reconcile(totalCost);
+        }
+
+        // Reconcile app credits (pass pre-fetched app to avoid N+1 query)
+        if (appCreditsInfo) {
+          await appCreditsService.reconcileCredits({
+            appId: appCreditsInfo.appId,
+            userId: user.id,
+            estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+            actualBaseCost: totalCost,
+            description: `Chat reconciliation: ${model}`,
+            metadata: {
+              model,
+              provider,
+              inputTokens,
+              outputTokens,
+              streaming: true,
+            },
+            app: appCreditsInfo.app,
+          });
         }
 
         const usageRecord = await usageService.create({
@@ -747,15 +943,35 @@ function handleStreamingResponse(
     } catch (error) {
       logger.error("[Chat Completions] Streaming error:", error);
 
-      // Refund reserved credits if streaming failed (reconcile with 0 cost)
+      // Refund reserved org credits if streaming failed (reconcile with 0 cost)
       if (reservation) {
         await reservation.reconcile(0);
         logger.info(
-          "[Chat Completions] Refunded credits after streaming error",
+          "[Chat Completions] Refunded org credits after streaming error",
           {
             organizationId: user.organization_id,
             refundedAmount: reservation.reservedAmount,
-          },
+          }
+        );
+      }
+
+      // Refund app credits if streaming failed
+      if (appCreditsInfo) {
+        await appCreditsService.reconcileCredits({
+          appId: appCreditsInfo.appId,
+          userId: user.id,
+          estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+          actualBaseCost: 0, // Full refund
+          description: "Refund due to streaming error",
+          metadata: { error: true, streaming: true },
+        });
+        logger.info(
+          "[Chat Completions] Refunded app credits after streaming error",
+          {
+            appId: appCreditsInfo.appId,
+            userId: user.id,
+            refundedAmount: appCreditsInfo.estimatedBaseCost,
+          }
         );
       }
 
