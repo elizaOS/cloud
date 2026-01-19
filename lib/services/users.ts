@@ -28,6 +28,16 @@ export class UsersService {
     return await usersRepository.findByPrivyIdWithOrganization(privyUserId);
   }
 
+  /**
+   * Get user by Privy ID using write database.
+   * Use this for webhook processing to avoid read replica lag.
+   */
+  async getByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    return await usersRepository.findByPrivyIdForWrite(privyUserId);
+  }
+
   async getWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {

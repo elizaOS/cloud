@@ -11,6 +11,31 @@ import {
   identifyServerUser,
 } from "@/lib/analytics/posthog-server";
 import { getSignupMethod } from "@/lib/analytics/posthog";
+import { webhookEventsRepository } from "@/db/repositories/webhook-events";
+
+/**
+ * Generates a unique event ID for webhook deduplication.
+ *
+ * IMPORTANT: We normalize user-related events (created, authenticated, linked_account)
+ * to a single "user_sync" event because Privy may send multiple webhooks for the same
+ * signup (e.g., user.created + user.authenticated simultaneously).
+ *
+ * This prevents duplicate Discord notifications for the same user signup.
+ */
+function generatePrivyWebhookEventId(
+  eventType: string,
+  privyUserId: string,
+): string {
+  // Normalize user sync events to prevent duplicates from simultaneous webhooks
+  const normalizedType =
+    eventType === "user.created" ||
+    eventType === "user.authenticated" ||
+    eventType === "user.linked_account"
+      ? "user_sync"
+      : eventType;
+
+  return `privy_${privyUserId}_${normalizedType}`;
+}
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -107,6 +132,38 @@ async function handlePrivyWebhook(request: NextRequest) {
       case "user.created":
       case "user.linked_account":
       case "user.authenticated": {
+        // Deduplicate webhook events to prevent duplicate processing
+        // Privy may send multiple webhooks for the same signup (e.g., user.created + user.authenticated)
+        const eventId = generatePrivyWebhookEventId(
+          payload.type,
+          payload.user.id,
+        );
+
+        const insertResult = await webhookEventsRepository.tryCreate({
+          event_id: eventId,
+          provider: "privy",
+          event_type: payload.type,
+          payload_hash: crypto
+            .createHash("sha256")
+            .update(body)
+            .digest("hex")
+            .slice(0, 16),
+          source_ip: ipAddress || null,
+        });
+
+        if (!insertResult.created) {
+          // Duplicate webhook - already processed or being processed
+          logger.info("[Privy Webhook] Duplicate webhook detected - skipping", {
+            eventId,
+            eventType: payload.type,
+            privyUserId: payload.user.id,
+          });
+          return NextResponse.json({
+            success: true,
+            message: "Webhook already processed",
+          });
+        }
+
         // Build sync options with signup context
         const syncOptions: SyncOptions = {
           signupContext: {

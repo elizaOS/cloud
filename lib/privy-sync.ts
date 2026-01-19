@@ -187,7 +187,8 @@ export async function syncUserFromPrivy(
   }
 
   // Check if user already exists
-  let user = await usersService.getByPrivyId(privyUserId);
+  // Use write database to avoid read replica lag issues during concurrent webhook processing
+  let user = await usersService.getByPrivyIdForWrite(privyUserId);
 
   if (user) {
     // Update user if needed
@@ -209,8 +210,8 @@ export async function syncUserFromPrivy(
         updated_at: new Date(),
       });
 
-      // Refresh user with organization
-      user = (await usersService.getByPrivyId(privyUserId))!;
+      // Refresh user with organization (use write DB for consistency)
+      user = (await usersService.getByPrivyIdForWrite(privyUserId))!;
     }
 
     return user;
@@ -240,7 +241,8 @@ export async function syncUserFromPrivy(
         newUser.id,
       );
 
-      const userWithOrg = await usersService.getByPrivyId(privyUserId);
+      // Use write DB to ensure we see the just-created user
+      const userWithOrg = await usersService.getByPrivyIdForWrite(privyUserId);
 
       if (!userWithOrg) {
         throw new Error(
@@ -398,7 +400,8 @@ export async function syncUserFromPrivy(
         }
 
         // Try to find by Privy ID first (most common race condition)
-        existingUser = await usersService.getByPrivyId(privyUserId);
+        // Use write database to avoid read replica lag
+        existingUser = await usersService.getByPrivyIdForWrite(privyUserId);
 
         if (existingUser) {
           break;
@@ -446,8 +449,8 @@ export async function syncUserFromPrivy(
     throw error;
   }
 
-  // Return user with organization
-  const userWithOrg = await usersService.getByPrivyId(privyUserId);
+  // Return user with organization (use write DB to ensure we see the just-created user)
+  const userWithOrg = await usersService.getByPrivyIdForWrite(privyUserId);
 
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);

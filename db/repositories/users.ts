@@ -58,6 +58,23 @@ export class UsersRepository {
   }
 
   /**
+   * Finds a user by Privy user ID using the write database.
+   * Use this for webhook processing to avoid read replica lag issues.
+   */
+  async findByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbWrite.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
    * Finds a user by ID with organization data.
    */
   async findWithOrganization(
