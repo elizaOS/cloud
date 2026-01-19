@@ -7,8 +7,8 @@ import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
-// Minimum payout threshold - must match database default
-const MINIMUM_PAYOUT = 25.0;
+// Default minimum payout threshold (used as fallback if DB value unavailable)
+const DEFAULT_MINIMUM_PAYOUT = 25.0;
 
 // Maximum withdrawal per request to prevent numeric overflow/abuse
 const MAXIMUM_WITHDRAWAL = 1000000.0;
@@ -49,109 +49,143 @@ async function handlePOST(
   request: NextRequest,
   context?: RouteContext
 ) {
-  if (!context?.params) {
-    return NextResponse.json(
-      { success: false, error: "Missing route parameters" },
-      { status: 400 }
-    );
-  }
+  try {
+    if (!context?.params) {
+      return NextResponse.json(
+        { success: false, error: "Missing route parameters" },
+        { status: 400 }
+      );
+    }
 
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { id } = await context.params;
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { id } = await context.params;
 
-  const app = await appsService.getById(id);
+    const app = await appsService.getById(id);
 
-  if (!app) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 }
-    );
-  }
+    if (!app) {
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 }
+      );
+    }
 
-  if (app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "Access denied" },
-      { status: 403 }
-    );
-  }
+    if (app.organization_id !== user.organization_id) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 }
+      );
+    }
 
-  // CRITICAL: Only the app creator can withdraw earnings
-  if (app.created_by_user_id !== user.id) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Only the app creator can withdraw earnings",
-      },
-      { status: 403 }
-    );
-  }
+    // CRITICAL: Only the app creator can withdraw earnings
+    if (app.created_by_user_id !== user.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Only the app creator can withdraw earnings",
+        },
+        { status: 403 }
+      );
+    }
 
-  if (!app.monetization_enabled) {
-    return NextResponse.json(
-      { success: false, error: "Monetization is not enabled for this app" },
-      { status: 400 }
-    );
-  }
+    if (!app.monetization_enabled) {
+      return NextResponse.json(
+        { success: false, error: "Monetization is not enabled for this app" },
+        { status: 400 }
+      );
+    }
 
-  const body = await request.json();
-  const validationResult = WithdrawRequestSchema.safeParse(body);
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
 
-  if (!validationResult.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Invalid request data",
-        details: validationResult.error.format(),
-      },
-      { status: 400 }
-    );
-  }
+    const validationResult = WithdrawRequestSchema.safeParse(body);
 
-  const { amount, idempotency_key } = validationResult.data;
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 }
+      );
+    }
 
-  // Early validation: fail fast if amount below minimum
-  if (amount < MINIMUM_PAYOUT) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Minimum withdrawal amount is $${MINIMUM_PAYOUT.toFixed(2)}`,
-      },
-      { status: 400 }
-    );
-  }
+    const { amount, idempotency_key } = validationResult.data;
 
-  const result = await appEarningsService.requestWithdrawal(id, amount, idempotency_key);
+    // Get earnings summary to read the actual payout threshold from database
+    const earningsSummary = await appEarningsService.getEarningsSummary(id);
+    const minimumPayout = earningsSummary?.payoutThreshold ?? DEFAULT_MINIMUM_PAYOUT;
 
-  if (!result.success) {
-    logger.warn("[Withdrawal] Request failed", {
+    // Early validation: fail fast if amount below minimum (using database value)
+    if (amount < minimumPayout) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Minimum withdrawal amount is $${minimumPayout.toFixed(2)}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const result = await appEarningsService.requestWithdrawal(id, amount, idempotency_key);
+
+    if (!result.success) {
+      logger.warn("[Withdrawal] Request failed", {
+        appId: id,
+        userId: user.id,
+        amount,
+        error: result.message,
+      });
+
+      return NextResponse.json(
+        { success: false, error: result.message },
+        { status: 400 }
+      );
+    }
+
+    logger.info("[Withdrawal] Request successful", {
       appId: id,
       userId: user.id,
       amount,
-      error: result.message,
+      transactionId: result.transactionId,
     });
 
+    // Get updated summary to return new balance
+    const updatedSummary = await appEarningsService.getEarningsSummary(id);
+
+    return NextResponse.json({
+      success: true,
+      message: result.message,
+      transactionId: result.transactionId,
+      newBalance: updatedSummary?.withdrawableBalance ?? 0,
+    });
+  } catch (error) {
+    logger.error("[Withdrawal] Unexpected error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // Check for auth errors (they have specific status codes)
+    if (error instanceof Error && error.message.includes("Unauthorized")) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
-      { success: false, error: result.message },
-      { status: 400 }
+      { success: false, error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  logger.info("[Withdrawal] Request successful", {
-    appId: id,
-    userId: user.id,
-    amount,
-    transactionId: result.transactionId,
-  });
-
-  // Get updated summary to return new balance
-  const summary = await appEarningsService.getEarningsSummary(id);
-
-  return NextResponse.json({
-    success: true,
-    message: result.message,
-    transactionId: result.transactionId,
-    newBalance: summary?.withdrawableBalance ?? 0,
-  });
 }
 
 // Apply strict rate limiting for financial operations (5 requests per 5 minutes)

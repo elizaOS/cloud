@@ -440,13 +440,26 @@ async function handlePOST(req: NextRequest) {
     try {
       providerResponse = await providerInstance.chatCompletions(request);
     } catch (providerError) {
+      const errorMessage = providerError instanceof Error ? providerError.message : "Unknown error";
+
+      // Refund org credits if provider call fails
+      if (reservation) {
+        logger.error("[Chat Completions] Provider failed, refunding org credits", {
+          organizationId: user.organization_id,
+          userId: user.id,
+          reservedAmount: reservation.reservedAmount,
+          error: errorMessage,
+        });
+        await reservation.reconcile(0); // Full refund
+      }
+
       // Refund app credits if provider call fails
       if (useAppCredits && appId && appCreditDeduction?.success) {
         logger.error("[Chat Completions] Provider failed, refunding app credits", {
           appId,
           userId: user.id,
           estimatedBaseCost,
-          error: providerError instanceof Error ? providerError.message : "Unknown error",
+          error: errorMessage,
         });
 
         await appCreditsService.reconcileCredits({
@@ -659,6 +672,48 @@ async function handleNonStreamingResponse(
       }
     })().catch((err) => {
       logger.error("[OpenAI Proxy] Background analytics failed:", err);
+    });
+  } else {
+    // Fallback: No usage data from provider - estimate tokens and reconcile
+    // This prevents users from being overcharged (they paid 1.5x safety buffer upfront)
+    logger.warn("[OpenAI Proxy] No usage data in non-streaming response, using fallback estimation", {
+      model,
+      contentLength: content.length,
+    });
+
+    // Estimate output tokens from response content
+    const estimatedOutputTokens = estimateTokens(content);
+    // Use the reserved amount as basis (already includes safety multiplier)
+    const fallbackCost = reservation?.reservedAmount ?? appCreditsInfo?.estimatedBaseCost ?? 0;
+
+    // Reconcile org credits with estimated cost (no refund, but no additional charge)
+    if (reservation) {
+      await reservation.reconcile(fallbackCost);
+    }
+
+    // Reconcile app credits with estimated cost
+    if (appCreditsInfo) {
+      await appCreditsService.reconcileCredits({
+        appId: appCreditsInfo.appId,
+        userId: user.id,
+        estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
+        actualBaseCost: appCreditsInfo.estimatedBaseCost, // Use estimated as actual (no additional charge)
+        description: `Chat reconciliation (no usage data): ${model}`,
+        metadata: {
+          model,
+          provider,
+          estimatedOutputTokens,
+          streaming: false,
+          fallbackEstimation: true,
+        },
+        app: appCreditsInfo.app,
+      });
+    }
+
+    logger.info("[OpenAI Proxy] Chat completion completed (fallback)", {
+      durationMs: Date.now() - startTime,
+      estimatedOutputTokens,
+      fallbackCost,
     });
   }
 
