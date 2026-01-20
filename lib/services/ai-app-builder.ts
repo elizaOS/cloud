@@ -21,10 +21,7 @@ import { appFactoryService } from "./app-factory";
 import { gitSyncService } from "./git-sync";
 import { githubReposService } from "./github-repos";
 import { userDatabaseService } from "./user-database";
-import {
-  requiresDatabase,
-  getDetailedAnalysis,
-} from "./stateful-detection";
+import { getDetailedAnalysis } from "./stateful-detection";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -36,7 +33,6 @@ const EXAMPLE_PROMPTS = {
   "a2a-agent": getExamplePrompts("a2a-agent"),
   "saas-starter": getExamplePrompts("saas-starter"),
   "ai-tool": getExamplePrompts("ai-tool"),
-  fullstack: getExamplePrompts("fullstack"),
 };
 
 export interface BuilderSessionConfig {
@@ -51,7 +47,6 @@ export interface BuilderSessionConfig {
     | "agent-dashboard"
     | "landing-page"
     | "analytics"
-    | "fullstack"
     | "blank"
     | "mcp-service"
     | "a2a-agent"
@@ -59,6 +54,8 @@ export interface BuilderSessionConfig {
     | "ai-tool";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  /** User explicitly requested persistent storage (PostgreSQL database) */
+  includePersistentStorage?: boolean;
   linkedAgentIds?: string[];
   onProgress?: (progress: SandboxProgress) => void;
   onSandboxReady?: (session: BuilderSession) => void;
@@ -123,6 +120,7 @@ export class AIAppBuilderService {
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      includePersistentStorage = false,
       linkedAgentIds,
       onProgress,
       onSandboxReady,
@@ -333,28 +331,26 @@ export class AIAppBuilderService {
     }
 
     // Detect if the app needs a database based on:
-    // 1. Template type (fullstack always gets a database)
-    // 2. Prompt analysis (detects stateful keywords/phrases)
+    // 1. User explicitly requested persistent storage
+    // 2. Prompt analysis (detects stateful keywords/phrases) as fallback
     let includeDatabase = false;
     const promptToAnalyze = initialPrompt || appDescription || "";
 
-    // Fullstack template always gets a database
-    const isFullstackTemplate = templateType === "fullstack";
-
-    // Analyze prompt for stateful indicators
+    // Analyze prompt for stateful indicators (fallback if user didn't explicitly choose)
     const detectionResult = promptToAnalyze
       ? getDetailedAnalysis(promptToAnalyze)
       : null;
 
+    // Provision database if user explicitly requested OR if prompt analysis detects need
     const shouldProvisionDatabase =
-      isFullstackTemplate ||
+      includePersistentStorage ||
       (detectionResult?.requiresDatabase && appId);
 
     if (shouldProvisionDatabase && appId) {
       logger.info("Database required, provisioning", {
         appId,
-        reason: isFullstackTemplate
-          ? "fullstack template"
+        reason: includePersistentStorage
+          ? "user requested persistent storage"
           : `prompt analysis: ${detectionResult?.summary}`,
         confidence: detectionResult?.confidence,
       });
@@ -385,10 +381,11 @@ export class AIAppBuilderService {
         });
       }
     } else if (!shouldProvisionDatabase) {
-      logger.info("Stateless app, no database provisioning needed", {
+      logger.info("No database provisioning needed", {
         appId,
         templateType,
-        confidence: detectionResult?.confidence,
+        includePersistentStorage,
+        promptAnalysisConfidence: detectionResult?.confidence,
       });
     }
 

@@ -29,7 +29,6 @@ const CreateSessionSchema = z.object({
       "agent-dashboard",
       "landing-page",
       "analytics",
-      "fullstack",
       "blank",
       "mcp-service",
       "a2a-agent",
@@ -39,6 +38,7 @@ const CreateSessionSchema = z.object({
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
+  includePersistentStorage: z.boolean().default(false),
   linkedAgentIds: z.array(z.string().uuid()).max(4).optional(),
 });
 
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
           templateType: data.templateType,
           includeMonetization: data.includeMonetization,
           includeAnalytics: data.includeAnalytics,
+          includePersistentStorage: data.includePersistentStorage,
           linkedAgentIds: data.linkedAgentIds,
           onProgress: async (progress: SandboxProgress) => {
             if (!streamWriter.isConnected()) return;

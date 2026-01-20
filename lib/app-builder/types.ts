@@ -10,10 +10,12 @@ export type TemplateType =
   | "chat"
   | "agent-dashboard"
   | "landing-page"
-  | "fullstack"
+  | "analytics"
   | "blank"
   | "mcp-service"
-  | "a2a-agent";
+  | "a2a-agent"
+  | "saas-starter"
+  | "ai-tool";
 
 export type SessionStatus =
   | "idle"

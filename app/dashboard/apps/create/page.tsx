@@ -397,18 +397,6 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     techStack: ["Next.js", "OpenAI", "Vercel AI SDK"],
   },
   {
-    value: "fullstack",
-    label: "Full Stack App",
-    description: "With database persistence",
-    longDescription:
-      "Build full-stack applications with a PostgreSQL database, Drizzle ORM, and server actions. Perfect for trackers, dashboards, and data-driven apps.",
-    icon: Database,
-    color: "#10B981",
-    gradient: "from-emerald-500 to-teal-600",
-    features: ["PostgreSQL database", "Drizzle ORM", "Server Actions"],
-    techStack: ["Next.js", "Drizzle", "Neon DB"],
-  },
-  {
     value: "landing-page",
     label: "Landing Page",
     description: "Marketing & conversion",
@@ -587,6 +575,7 @@ export default function AppCreatorPage() {
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
+  const [includePersistentStorage, setIncludePersistentStorage] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [templatePage, setTemplatePage] = useState(0);
   const TEMPLATES_PER_PAGE = 4;
@@ -1823,6 +1812,7 @@ export default function AppCreatorPage() {
           templateType,
           includeMonetization,
           includeAnalytics,
+          includePersistentStorage,
           linkedAgentIds:
             selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
           sourceContext: sourceContext
@@ -3699,7 +3689,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                   {/* Monetization - Premium toggle card */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
@@ -3823,9 +3813,69 @@ ANTHROPIC_API_KEY=your_key_here`}
                       </span>
                     </div>
                   </button>
+
+                  {/* Persistent Storage - Premium toggle card */}
+                  <button
+                    onClick={() => setIncludePersistentStorage(!includePersistentStorage)}
+                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-4 col-span-2 md:col-span-1 ${
+                      includePersistentStorage
+                        ? "bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-500/30 shadow-lg shadow-violet-500/10"
+                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
+                    }`}
+                  >
+                    {includePersistentStorage && (
+                      <div className="absolute inset-0 rounded-2xl bg-violet-500/5 blur-xl -z-10" />
+                    )}
+                    <div className="flex items-center justify-between mb-3">
+                      <div
+                        className={`p-2.5 rounded-xl transition-all duration-300 ${
+                          includePersistentStorage
+                            ? "bg-violet-500/20 shadow-lg shadow-violet-500/20"
+                            : "bg-white/[0.04]"
+                        }`}
+                      >
+                        <Database
+                          className={`h-5 w-5 transition-colors ${
+                            includePersistentStorage ? "text-violet-400" : "text-white/40"
+                          }`}
+                        />
+                      </div>
+                      {/* Premium toggle switch */}
+                      <div
+                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
+                          includePersistentStorage
+                            ? "bg-gradient-to-r from-violet-500 to-violet-400 shadow-lg shadow-violet-500/30"
+                            : "bg-white/10"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                            includePersistentStorage ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                    <h3
+                      className="text-sm md:text-base font-semibold text-white"
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                    >
+                      Persistent Storage
+                    </h3>
+                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                      Save data with PostgreSQL database
+                    </p>
+                    <div className="hidden md:flex gap-1.5 mt-3">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                        PostgreSQL
+                      </span>
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                        Drizzle ORM
+                      </span>
+                    </div>
+                  </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
+                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-5">
                   <button
                     onClick={() => setSetupStep(2)}
                     className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"

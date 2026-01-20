@@ -43,10 +43,16 @@ export const items = pgTable('items', {
   name: text('name').notNull(),
   description: text('description'),
   completed: boolean('completed').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  // IMPORTANT: Always use { withTimezone: true } for timestamps to avoid timezone issues
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date()),
 });
 \`\`\`
+
+**Critical: Drizzle timestamps and dates**
+- **Always** use \`{ withTimezone: true }\` - Without it, timestamps have timezone confusion between JS and PostgreSQL
+- Use \`$onUpdate(() => new Date())\` on updatedAt columns - This auto-updates on any row change
+- If you need string dates instead of Date objects, use \`{ mode: 'string', withTimezone: true }\`
 
 4. **Create \`db/index.ts\`** for the database client:
 \`\`\`typescript
@@ -104,8 +110,9 @@ export async function createItem(name: string, description?: string) {
 }
 
 export async function updateItem(id: string, data: { name?: string; completed?: boolean }) {
+  // Note: updatedAt auto-updates via $onUpdate in schema - no need to set it manually
   const result = await db.update(items)
-    .set({ ...data, updatedAt: new Date() })
+    .set(data)
     .where(eq(items.id, id))
     .returning();
   revalidatePath('/');
