@@ -36,7 +36,7 @@ export default function LandingHeader() {
               {/* Authenticated user - show Dashboard + UserMenu */}
               <Button
                 size="sm"
-                className="rounded-md bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+                className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90"
               >
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
@@ -49,7 +49,7 @@ export default function LandingHeader() {
                 variant="ghost"
                 size="sm"
                 disabled={!ready}
-                className="rounded-md text-base text-white hover:text-white hover:bg-white/5 font-[family-name:var(--font-inter)]"
+                className="text-base text-white hover:text-white hover:bg-white/5"
               >
                 <Link href="/login">Log in</Link>
               </Button>
@@ -57,9 +57,9 @@ export default function LandingHeader() {
                 size="sm"
                 onClick={handleGetStarted}
                 disabled={!ready}
-                className="rounded-md bg-[#FF5800] text-white hover:bg-[#FF5800]/90 font-[family-name:var(--font-inter)]"
+                className="bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
               >
-                Get started
+                Get Started
               </Button>
             </>
           )}
