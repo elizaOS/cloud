@@ -41,11 +41,12 @@ import { getConnectionString } from "@/tests/helpers/local-database";
 /**
  * Property test configuration
  *
- * Keep runs low - each run creates a full test data set in the DB.
+ * Keep runs moderate - each run creates a full test data set in the DB.
+ * 10 runs × 7 tests = ~70 test data sets total
  */
-const PROPERTY_TEST_RUNS = 5;
-const MAX_OPERATIONS = 10;
-const TEST_TIMEOUT = 120000;
+const PROPERTY_TEST_RUNS = 10;
+const MAX_OPERATIONS = 15;
+const TEST_TIMEOUT = 180000;
 
 describe("Financial Invariants (Property-Based)", () => {
   let connectionString: string;
