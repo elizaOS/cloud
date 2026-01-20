@@ -115,7 +115,7 @@ export default function Footer() {
               </svg>
             </div>
             <p className="text-sm text-white/60 whitespace-nowrap">
-              © 2025 Eliza AI · USA
+              © 2026 Eliza AI · USA
             </p>
           </div>
 

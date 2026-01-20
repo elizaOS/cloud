@@ -62,7 +62,7 @@ export const ALLOWED_CHAT_MODELS = [
   "openai/gpt-5",
   "openai/gpt-5-mini",
   // Anthropic Claude Models
-  "anthropic/claude-haiku-4.5",
+  "anthropic/claude-opus-4.5",
   "anthropic/claude-sonnet-4.5",
   "anthropic/claude-opus-4.1",
   // Google Gemini Models

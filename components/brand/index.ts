@@ -21,3 +21,4 @@ export { SectionHeader, SectionLabel } from "./section-header";
 export { HUDContainer } from "./hud-container";
 export { BrandCard, AgentCard } from "./brand-card";
 export { PromptCard, PromptCardGrid } from "./prompt-card";
+export { ElizaLogo } from "./eliza-logo";

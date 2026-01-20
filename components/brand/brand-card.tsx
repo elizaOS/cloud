@@ -21,6 +21,7 @@ interface BrandCardProps extends React.HTMLAttributes<HTMLDivElement> {
   cornerSize?: "sm" | "md" | "lg" | "xl";
   cornerColor?: string;
   asChild?: boolean;
+  variant?: "default" | "rounded";
 }
 
 export function BrandCard({
@@ -31,20 +32,23 @@ export function BrandCard({
   cornerSize = "md",
   cornerColor = "#E1E1E1",
   asChild = false,
+  variant = "default",
   ...props
 }: BrandCardProps) {
   const Component = asChild ? "div" : "div";
+  const isRounded = variant === "rounded";
 
   return (
     <Component
       className={cn(
-        "relative bg-black/40 border border-white/10 p-4 md:p-6",
+        "relative border border-white/10 p-4 md:p-6",
+        isRounded ? "bg-neutral-900 rounded-2xl" : "bg-black/40",
         hover && "group hover:border-white/30 transition-all duration-300",
         className,
       )}
       {...props}
     >
-      {corners && <CornerBrackets size={cornerSize} color={cornerColor} />}
+      {corners && !isRounded && <CornerBrackets size={cornerSize} color={cornerColor} />}
       {children}
     </Component>
   );

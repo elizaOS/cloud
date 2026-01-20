@@ -616,6 +616,7 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(null);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
@@ -1256,13 +1257,15 @@ export default function AppCreatorPage() {
   const deployToProduction = useCallback(async () => {
     if (!appData?.id || isDeploying) return;
 
+    setIsDeploying(true);
     // First save any uncommitted changes
     if (gitStatus?.hasChanges) {
+      setDeployPhase("saving");
       addLog("Saving changes before deploy...", "info");
       await saveToGitHub();
     }
 
-    setIsDeploying(true);
+    setDeployPhase("deploying");
     try {
       const response = await fetchWithRetry(
         `/api/v1/apps/${appData.id}/deploy`,
@@ -1307,6 +1310,7 @@ export default function AppCreatorPage() {
       );
     } finally {
       setIsDeploying(false);
+      setDeployPhase(null);
     }
   }, [appData?.id, isDeploying, gitStatus?.hasChanges, saveToGitHub, addLog]);
 
@@ -2733,7 +2737,11 @@ Some ideas:
     if (generationAbortControllerRef.current) {
       generationAbortControllerRef.current.abort();
       generationAbortControllerRef.current = null;
-      addLog("Stopping generation...", "info");
+      // Immediately update UI state for responsive feedback
+      setStatus("ready");
+      setIsLoading(false);
+      addLog("Generation stopped", "info");
+      toast.info("Generation stopped");
     }
   }, [addLog]);
 
@@ -3555,18 +3563,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </button>
                         <span
                           className={`text-[10px] font-mono transition-colors ${
-                            appDescription.length > 500
-                              ? "text-red-400"
-                              : appDescription.length <
-                                    MIN_DESCRIPTION_LENGTH &&
-                                  appDescription.length > 0
-                                ? "text-amber-400"
-                                : appDescription.length > 400
-                                  ? "text-amber-400"
-                                  : "text-white/25"
+                            appDescription.length <
+                                  MIN_DESCRIPTION_LENGTH &&
+                                appDescription.length > 0
+                              ? "text-amber-400"
+                              : "text-white/25"
                           }`}
                         >
-                          {appDescription.length}/500
+                          {appDescription.length} chars
                         </span>
                       </div>
                     </div>
@@ -3575,14 +3579,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                       onChange={(e) => setAppDescription(e.target.value)}
                       placeholder="Describe what your app should do... (minimum 10 characters)"
                       className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
-                        appDescription.length > 500
-                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
-                          : appDescription.length > 0 &&
-                              appDescription.length < MIN_DESCRIPTION_LENGTH
-                            ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
-                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
-                              ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
-                              : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                        appDescription.length > 0 &&
+                            appDescription.length < MIN_DESCRIPTION_LENGTH
+                          ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                          : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
                       }`}
                     />
                     {appDescription.length > 0 &&
@@ -3597,12 +3599,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                           needed)
                         </p>
                       )}
-                    {appDescription.length > 500 && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Description exceeds 500 character limit
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -3622,8 +3618,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appName.length > 100 ||
                       nameValidation.isChecking ||
                       nameValidation.isAvailable === false ||
-                      appDescription.length < MIN_DESCRIPTION_LENGTH ||
-                      appDescription.length > 500
+                      appDescription.length < MIN_DESCRIPTION_LENGTH
                     }
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
                     style={{ fontFamily: "var(--font-sf-pro)" }}
@@ -4183,7 +4178,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ) : (
                       <Rocket className="h-4 w-4" />
                     )}
-                    {isDeploying ? "Deploying..." : "Deploy"}
+                    {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                   </DropdownMenuItem>
                   {productionUrl && (
                     <DropdownMenuItem asChild>
@@ -4379,7 +4374,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Rocket className="h-3 w-3" />
                 )}
                 <span className="ml-1.5">
-                  {isDeploying ? "Deploying..." : "Deploy"}
+                  {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                 </span>
               </Button>
               {productionUrl && (
