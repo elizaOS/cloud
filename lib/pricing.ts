@@ -7,7 +7,14 @@ export {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
   MONTHLY_CREDIT_CAP,
+  PLATFORM_MARKUP_MULTIPLIER,
+  TTS_COST_PER_1K_CHARS,
+  STT_COST_PER_MINUTE,
+  TTS_MINIMUM_COST,
+  STT_MINIMUM_COST,
 } from "@/lib/pricing-constants";
+
+import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
 
 // =============================================================================
 // COST CALCULATION INTERFACES & FUNCTIONS
@@ -17,22 +24,23 @@ export {
  * Breakdown of costs for a model request.
  */
 export interface CostBreakdown {
-  /** Cost for input tokens in USD. */
+  /** Cost for input tokens in USD (includes 20% platform markup). */
   inputCost: number;
-  /** Cost for output tokens in USD. */
+  /** Cost for output tokens in USD (includes 20% platform markup). */
   outputCost: number;
-  /** Total cost (input + output) in USD. */
+  /** Total cost (input + output) in USD (includes 20% platform markup). */
   totalCost: number;
 }
 
 /**
  * Calculates the cost for a model request based on token usage.
+ * Includes 20% platform markup on top of provider costs.
  *
  * @param model - Model identifier (e.g., "gpt-4o-mini").
  * @param provider - Provider name (e.g., "openai").
  * @param inputTokens - Number of input tokens.
  * @param outputTokens - Number of output tokens.
- * @returns Cost breakdown with input, output, and total costs.
+ * @returns Cost breakdown with input, output, and total costs (with 20% markup).
  */
 export async function calculateCost(
   model: string,
@@ -50,16 +58,21 @@ export async function calculateCost(
     return fallbackCosts;
   }
 
-  const inputCostCents = Math.ceil(
+  // Calculate base provider costs in cents
+  const baseInputCostCents = Math.ceil(
     (inputTokens / 1000) *
       parseFloat(pricing.input_cost_per_1k.toString()) *
       100,
   );
-  const outputCostCents = Math.ceil(
+  const baseOutputCostCents = Math.ceil(
     (outputTokens / 1000) *
       parseFloat(pricing.output_cost_per_1k.toString()) *
       100,
   );
+
+  // Apply 20% platform markup
+  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;
@@ -73,18 +86,19 @@ export async function calculateCost(
 
 /**
  * Gets fallback pricing when model pricing is not found in database.
+ * Includes 20% platform markup.
  *
  * @param model - Model identifier.
  * @param inputTokens - Number of input tokens.
  * @param outputTokens - Number of output tokens.
- * @returns Cost breakdown using fallback pricing.
+ * @returns Cost breakdown using fallback pricing (with 20% markup).
  */
 function getFallbackPricing(
   model: string,
   inputTokens: number,
   outputTokens: number,
 ): CostBreakdown {
-  // Pricing per 1k tokens (to match database pricing format)
+  // Base provider pricing per 1k tokens (before markup)
   const pricingMap: Record<string, { input: number; output: number }> = {
     "gpt-4o": { input: 0.0025, output: 0.01 },
     "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
@@ -96,10 +110,13 @@ function getFallbackPricing(
 
   const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
 
-  const inputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
-  const outputCostCents = Math.ceil(
-    (outputTokens / 1000) * pricing.output * 100,
-  );
+  // Calculate base costs in cents
+  const baseInputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
+  const baseOutputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
+
+  // Apply 20% platform markup
+  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;
@@ -162,12 +179,13 @@ export function estimateTokens(text: string): number {
 
 /**
  * Estimates the cost for a chat request before making the API call.
+ * Includes 20% platform markup.
  *
  * Used for pre-flight credit checking. Handles both string and multimodal content.
  *
  * @param model - Model identifier.
  * @param messages - Array of messages with role and content (string or multimodal object).
- * @returns Estimated cost in USD with a 50% safety buffer.
+ * @returns Estimated cost in USD with a 50% safety buffer (includes 20% markup).
  */
 export async function estimateRequestCost(
   model: string,
@@ -207,4 +225,30 @@ export async function estimateRequestCost(
   // Round to nearest cent (2 decimal places), minimum $0.01
   const bufferedCost = totalCost * 1.5;
   return Math.max(0.01, Math.ceil(bufferedCost * 100) / 100);
+}
+
+/**
+ * Calculates TTS cost based on character count.
+ * Includes 20% platform markup.
+ *
+ * @param characterCount - Number of characters in the text.
+ * @returns Cost in USD (with 20% markup).
+ */
+export function calculateTTSCost(characterCount: number): number {
+  const { TTS_COST_PER_1K_CHARS, TTS_MINIMUM_COST } = require("@/lib/pricing-constants");
+  const cost = (characterCount / 1000) * TTS_COST_PER_1K_CHARS;
+  return Math.max(TTS_MINIMUM_COST, Math.round(cost * 10000) / 10000);
+}
+
+/**
+ * Calculates STT cost based on audio duration.
+ * Includes 20% platform markup.
+ *
+ * @param durationMinutes - Duration of audio in minutes.
+ * @returns Cost in USD (with 20% markup).
+ */
+export function calculateSTTCost(durationMinutes: number): number {
+  const { STT_COST_PER_MINUTE, STT_MINIMUM_COST } = require("@/lib/pricing-constants");
+  const cost = durationMinutes * STT_COST_PER_MINUTE;
+  return Math.max(STT_MINIMUM_COST, Math.round(cost * 10000) / 10000);
 }

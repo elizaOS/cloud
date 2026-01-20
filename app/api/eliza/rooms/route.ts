@@ -75,7 +75,15 @@ export async function GET(request: NextRequest) {
  * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  let body: { characterId?: string; sessionToken?: string; name?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
   const { characterId, sessionToken: bodySessionToken, name: roomName } = body;
 
   // Also check header for session token (anonymous users)
