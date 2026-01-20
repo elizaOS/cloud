@@ -70,10 +70,10 @@ function SidebarComponent({
         className={cn(
           "flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-72 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
               ? "w-14 p-1.5"
-              : "w-80 p-1.5",
+              : "w-72 p-1.5",
           className
         )}
       >

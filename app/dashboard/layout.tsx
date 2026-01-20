@@ -65,6 +65,13 @@ export default function DashboardLayout({
     }
   }, [ready, authenticated, isFreeModePath, router, pathname]);
 
+  // Auto-collapse sidebar on app builder page
+  useEffect(() => {
+    if (pathname === "/dashboard/apps/create") {
+      setSidebarCollapsed(true);
+    }
+  }, [pathname]);
+
   // Show loading state while checking authentication
   if (!ready) {
     return (
