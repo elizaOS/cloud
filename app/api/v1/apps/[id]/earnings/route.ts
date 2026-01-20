@@ -81,7 +81,7 @@ function generateTestData(days: number) {
     pendingBalance,
     withdrawableBalance,
     totalWithdrawn,
-    payoutThreshold: 10.0,
+    payoutThreshold: 25.0,
   };
 
   const breakdown = {

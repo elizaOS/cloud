@@ -232,6 +232,138 @@ class RedeemableEarningsService {
   }
 
   /**
+   * Reduce earnings due to reconciliation adjustment (e.g., refund scenarios)
+   *
+   * This is used when actual costs are less than estimated and creator earnings
+   * need to be adjusted downward to reflect the actual earnings.
+   *
+   * SECURITY: Only reduces available_balance, never goes negative (uses GREATEST).
+   */
+  async reduceEarnings(params: {
+    userId: string;
+    amount: number;
+    source: EarningsSource;
+    sourceId: string;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{
+    success: boolean;
+    newBalance: number;
+    ledgerEntryId: string;
+    error?: string;
+  }> {
+    const { userId, amount, source, sourceId, description, metadata = {} } = params;
+
+    if (amount <= 0) {
+      return {
+        success: false,
+        newBalance: 0,
+        ledgerEntryId: "",
+        error: "Amount must be positive",
+      };
+    }
+
+    const amountDecimal = new Decimal(amount).toFixed(4);
+
+    const result = await dbWrite.transaction(async (tx) => {
+      // Get earnings with row lock
+      const [earnings] = await tx
+        .select()
+        .from(redeemableEarnings)
+        .where(eq(redeemableEarnings.user_id, userId))
+        .for("update");
+
+      if (!earnings) {
+        // No earnings to reduce - this is fine, just log and return
+        return {
+          earnings: null,
+          ledgerEntryId: "",
+          skipped: true,
+        };
+      }
+
+      // Determine the source column
+      const sourceColumn =
+        source === "miniapp"
+          ? redeemableEarnings.earned_from_miniapps
+          : source === "agent"
+            ? redeemableEarnings.earned_from_agents
+            : redeemableEarnings.earned_from_mcps;
+
+      // Reduce balances - use GREATEST to prevent going negative
+      const [updated] = await tx
+        .update(redeemableEarnings)
+        .set({
+          total_earned: sql`GREATEST(0, ${redeemableEarnings.total_earned} - ${amountDecimal})`,
+          available_balance: sql`GREATEST(0, ${redeemableEarnings.available_balance} - ${amountDecimal})`,
+          [sourceColumn.name]: sql`GREATEST(0, ${sourceColumn} - ${amountDecimal})`,
+          version: sql`${redeemableEarnings.version} + 1`,
+          updated_at: new Date(),
+        })
+        .where(eq(redeemableEarnings.user_id, userId))
+        .returning();
+
+      // Create ledger entry for audit trail
+      const [ledgerEntry] = await tx
+        .insert(redeemableEarningsLedger)
+        .values({
+          user_id: userId,
+          entry_type: "adjustment",
+          amount: `-${amountDecimal}`, // Negative for reduction
+          balance_after: updated.available_balance,
+          earnings_source: source,
+          source_id: sourceId,
+          description,
+          metadata: { ...metadata, type: "reconciliation_reduction" },
+        })
+        .returning();
+
+      return {
+        earnings: updated,
+        ledgerEntryId: ledgerEntry.id,
+        skipped: false,
+      };
+    });
+
+    if (result.skipped) {
+      logger.info("[RedeemableEarnings] No earnings to reduce (user has no record)", {
+        userId: `${userId.slice(0, 8)}...`,
+        amount,
+        source,
+      });
+
+      return {
+        success: true,
+        newBalance: 0,
+        ledgerEntryId: "",
+      };
+    }
+
+    const updatedEarnings = result.earnings;
+    if (!updatedEarnings) {
+      return {
+        success: true,
+        newBalance: 0,
+        ledgerEntryId: result.ledgerEntryId,
+      };
+    }
+
+    logger.info("[RedeemableEarnings] Reduced earnings (reconciliation)", {
+      userId: `${userId.slice(0, 8)}...`,
+      amount,
+      source,
+      sourceId: `${sourceId.slice(0, 8)}...`,
+      newBalance: Number(updatedEarnings.available_balance),
+    });
+
+    return {
+      success: true,
+      newBalance: Number(updatedEarnings.available_balance),
+      ledgerEntryId: result.ledgerEntryId,
+    };
+  }
+
+  /**
    * Lock earnings for a pending redemption
    *
    * CRITICAL: This moves earnings from available to pending.

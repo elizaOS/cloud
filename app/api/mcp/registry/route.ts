@@ -91,7 +91,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Real-time cryptocurrency price data from major exchanges. Get current prices, 24h changes, market cap, and volume for thousands of cryptocurrencies.",
     category: "finance",
-    endpoint: "/api/mcps/crypto/sse",
+    endpoint: "/api/mcps/crypto/streamable-http",
     type: "streamable-http",
     version: "2.0.0",
     status: "live",
@@ -108,8 +108,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "crypto-prices": {
-          type: "sse",
-          url: "/api/mcps/crypto/sse",
+          type: "streamable-http",
+          url: "/api/mcps/crypto/streamable-http",
         },
       },
     },
@@ -120,7 +120,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Get current time, convert between timezones, and perform date calculations. Perfect for scheduling and time-aware agents.",
     category: "utilities",
-    endpoint: "/api/mcps/time/sse",
+    endpoint: "/api/mcps/time/streamable-http",
     type: "streamable-http",
     version: "2.0.0",
     status: "live",
@@ -143,8 +143,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "time-server": {
-          type: "sse",
-          url: "/api/mcps/time/sse",
+          type: "streamable-http",
+          url: "/api/mcps/time/streamable-http",
         },
       },
     },
@@ -155,7 +155,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
     category: "utilities",
-    endpoint: "/api/mcps/weather/sse",
+    endpoint: "/api/mcps/weather/streamable-http",
     type: "streamable-http",
     version: "2.0.0",
     status: "live",
@@ -177,8 +177,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         weather: {
-          type: "sse",
-          url: "/api/mcps/weather/sse",
+          type: "streamable-http",
+          url: "/api/mcps/weather/streamable-http",
         },
       },
     },
@@ -187,12 +187,12 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     id: "eliza-platform",
     name: "ElizaOS Platform",
     description:
-      "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
+      "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
     category: "platform",
     endpoint: "/api/mcp",
     type: "http",
     version: "1.0.0",
-    status: "live",
+    status: "coming_soon", // Requires auth that MCP plugin doesn't yet support
     icon: "puzzle",
     color: "#FF5800",
     toolCount: 25,
@@ -206,7 +206,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     ],
     pricing: {
       type: "credits",
-      description: "Uses your credit balance (requires authentication)",
+      description: "Uses your credit balance (requires API key authentication)",
     },
     x402Enabled: false,
     documentation: "https://docs.elizaos.ai/mcps/platform",

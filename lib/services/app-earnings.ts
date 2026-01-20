@@ -196,10 +196,43 @@ export class AppEarningsService {
     logger.info("[AppEarnings] Released pending earnings", { appId });
   }
 
+  /**
+   * Request a withdrawal of app earnings.
+   *
+   * NOTE: This creates a withdrawal request that is processed manually.
+   * The actual payout happens through the creator's redeemable earnings balance,
+   * which was credited when the earnings were originally recorded.
+   *
+   * The withdrawal here tracks that the creator has requested these funds
+   * and prevents them from being withdrawn again from this app's balance.
+   *
+   * @param idempotencyKey - Optional client-provided key for request deduplication
+   */
   async requestWithdrawal(
     appId: string,
     amount: number,
+    idempotencyKey?: string,
   ): Promise<{ success: boolean; message: string; transactionId?: string }> {
+    // Idempotency check: return existing transaction if key was already used
+    if (idempotencyKey) {
+      const existing = await appEarningsRepository.findTransactionByIdempotencyKey(
+        appId,
+        idempotencyKey,
+      );
+      if (existing) {
+        logger.info("[AppEarnings] Idempotent withdrawal request (duplicate)", {
+          appId,
+          idempotencyKey,
+          existingTransactionId: existing.id,
+        });
+        return {
+          success: true,
+          message: `$${Math.abs(Number(existing.amount)).toFixed(2)} marked as withdrawn. Check your Earnings page to redeem as elizaOS tokens.`,
+          transactionId: existing.id,
+        };
+      }
+    }
+
     const app = await appsRepository.findById(appId);
     if (!app) {
       return { success: false, message: "App not found" };
@@ -221,19 +254,25 @@ export class AppEarningsService {
       app_id: appId,
       type: "withdrawal",
       amount: String(-amount),
-      description: `Withdrawal of $${amount.toFixed(2)}`,
-      metadata: { requested_at: new Date().toISOString(), status: "pending" },
+      description: `Withdrawal request: $${amount.toFixed(2)}`,
+      metadata: {
+        requested_at: new Date().toISOString(),
+        status: "processing",
+        note: "Earnings are available in your redeemable balance for redemption as elizaOS tokens",
+        ...(idempotencyKey && { idempotencyKey }),
+      },
     });
 
     logger.info("[AppEarnings] Withdrawal requested", {
       appId,
       amount,
       transactionId: transaction.id,
+      idempotencyKey,
     });
 
     return {
       success: true,
-      message: `Withdrawal of $${amount.toFixed(2)} requested successfully`,
+      message: `$${amount.toFixed(2)} marked as withdrawn. Check your Earnings page to redeem as elizaOS tokens.`,
       transactionId: transaction.id,
     };
   }

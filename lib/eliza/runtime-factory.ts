@@ -37,7 +37,7 @@ interface GlobalWithEliza {
 }
 
 interface RuntimeSettings {
-  ELIZAOS_CLOUD_API_KEY?: string;
+  ELIZAOS_API_KEY?: string;
   USER_ID?: string;
   ENTITY_ID?: string;
   ORGANIZATION_ID?: string;
@@ -536,7 +536,7 @@ export class RuntimeFactory {
 
     const runtimeSecrets = {
       ...(baseSettings.secrets as Record<string, unknown> | undefined),
-      ELIZAOS_CLOUD_API_KEY: context.apiKey,
+      ELIZAOS_API_KEY: context.apiKey,
     };
 
     const runtime = new AgentRuntime({
@@ -575,7 +575,7 @@ export class RuntimeFactory {
 
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
     const settings = (runtime.character.settings || {}) as RuntimeSettings;
-    settings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
+    settings.ELIZAOS_API_KEY = context.apiKey;
     settings.USER_ID = context.userId;
     settings.ENTITY_ID = context.entityId;
     settings.ORGANIZATION_ID = context.organizationId;
@@ -645,7 +645,7 @@ export class RuntimeFactory {
       DATABASE_URL: process.env.DATABASE_URL!,
       // Pass embedding dimension to runtime so it skips the embedding API call
       EMBEDDING_DIMENSION: String(embeddingDimension),
-      ELIZAOS_CLOUD_API_KEY: context.apiKey,
+      ELIZAOS_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
         context.modelPreferences?.smallModel ||
