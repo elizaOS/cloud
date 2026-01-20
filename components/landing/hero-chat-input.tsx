@@ -33,39 +33,29 @@ interface HeroChatInputProps {
 }
 
 const appQuickPrompts = [
-  {
-    label: "Task Manager",
-    prompt: "Build a task manager app",
-    icon: Zap,
-  },
-  {
-    label: "AI Chatbot",
-    prompt: "Create a customer support chatbot",
-    icon: MessageSquare,
-  },
-  {
-    label: "Marketplace",
-    prompt: "Build a marketplace for digital products",
-    icon: Rocket,
-  },
+  { label: "Task Manager", prompt: "Build a task manager app", icon: Zap },
+  { label: "AI Chatbot", prompt: "Build an AI chatbot app", icon: MessageSquare },
+  { label: "Marketplace", prompt: "Build a marketplace app", icon: Rocket },
+  { label: "Social Feed", prompt: "Build a social feed app", icon: Globe },
+  { label: "Dashboard", prompt: "Build a dashboard app", icon: Lightbulb },
+  { label: "E-commerce", prompt: "Build an e-commerce app", icon: Sparkles },
+  { label: "Portfolio", prompt: "Build a portfolio app", icon: Bot },
+  { label: "Blog Site", prompt: "Build a blog site app", icon: FileText },
+  { label: "Quiz Game", prompt: "Build a quiz game app", icon: Zap },
+  { label: "Weather App", prompt: "Build a weather app", icon: Globe },
 ];
 
 const agentQuickPrompts = [
-  {
-    label: "Creative Writer",
-    prompt: "Create a writing assistant for stories",
-    icon: Sparkles,
-  },
-  {
-    label: "Code Assistant",
-    prompt: "Build a coding helper that explains code",
-    icon: Bot,
-  },
-  {
-    label: "Research Helper",
-    prompt: "Create an assistant that summarizes articles",
-    icon: Lightbulb,
-  },
+  { label: "Writer", prompt: "Create a creative writer", icon: Sparkles },
+  { label: "Coder", prompt: "Create a coding helper", icon: Bot },
+  { label: "Researcher", prompt: "Create a research agent", icon: Lightbulb },
+  { label: "Translator", prompt: "Create a translator bot", icon: Globe },
+  { label: "Tutor", prompt: "Create a learning tutor", icon: MessageSquare },
+  { label: "Analyst", prompt: "Create a data analyst", icon: Zap },
+  { label: "Chef", prompt: "Create a recipe helper", icon: Rocket },
+  { label: "Fitness", prompt: "Create a fitness coach", icon: Zap },
+  { label: "Therapist", prompt: "Create a wellness guide", icon: Lightbulb },
+  { label: "Planner", prompt: "Create a travel planner", icon: Globe },
 ];
 
 const STORAGE_KEY = "hero-chat-input";
@@ -80,7 +70,11 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
   const handleSubmit = () => {
     if (!prompt.trim() || !onSubmit) return;
     // Save to localStorage before navigating to signup
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ prompt, mode }));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ prompt, mode }));
+    } catch {
+      // Ignore - private browsing or storage full, continue with signup anyway
+    }
     onSubmit();
   };
 
@@ -107,11 +101,54 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
           className="text-3xl sm:text-5xl md:text-6xl font-bold text-white leading-tight whitespace-nowrap"
           style={{ fontFamily: "var(--font-inter)" }}
         >
-          Make it agentic
+          Build something real
         </h1>
         <p className="text-lg sm:text-xl md:text-2xl text-white/70 mt-2">
-          Build apps and agents with AI
+          Create apps and agents by chatting with AI
         </p>
+
+        {/* App/Agent Toggle Switch */}
+        <div className="flex justify-center items-center gap-3 mt-8 mb-[-24px]">
+          <span
+            className={`text-sm transition-colors ${
+              mode === "app" ? "text-white" : "text-white/50"
+            }`}
+          >
+            App
+          </span>
+          <button
+            type="button"
+            onClick={() => setMode(mode === "app" ? "agent" : "app")}
+            className="relative w-14 h-[22px] bg-neutral-900/70 backdrop-blur-xl rounded-full transition-colors"
+            aria-label="Toggle between App and Agent"
+          >
+            {/* Left dot (visible when agent is active) */}
+            <span
+              className={`absolute top-[7px] left-[7px] w-2 h-2 rounded-full transition-opacity duration-200 ${
+                mode === "agent" ? "bg-white/40" : "opacity-0"
+              }`}
+            />
+            {/* Right dot (visible when app is active) */}
+            <span
+              className={`absolute top-[7px] right-[7px] w-2 h-2 rounded-full transition-opacity duration-200 ${
+                mode === "app" ? "bg-white/40" : "opacity-0"
+              }`}
+            />
+            {/* Main toggle circle */}
+            <span
+              className={`absolute top-[3px] w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${
+                mode === "agent" ? "left-[34px]" : "left-[3px]"
+              }`}
+            />
+          </button>
+          <span
+            className={`text-sm transition-colors ${
+              mode === "agent" ? "text-white" : "text-white/50"
+            }`}
+          >
+            Agent
+          </span>
+        </div>
       </div>
 
       <div className="bg-neutral-900/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
@@ -181,33 +218,6 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Agent/App Switch */}
-            <div className="flex items-center gap-1 text-sm">
-              <button
-                type="button"
-                onClick={() => setMode("app")}
-                className={`px-2 py-1 transition-all ${
-                  mode === "app"
-                    ? "text-white"
-                    : "text-white/40 hover:text-white/60"
-                }`}
-              >
-                App
-              </button>
-              <span className="text-white/20">|</span>
-              <button
-                type="button"
-                onClick={() => setMode("agent")}
-                className={`px-2 py-1 transition-all ${
-                  mode === "agent"
-                    ? "text-white"
-                    : "text-white/40 hover:text-white/60"
-                }`}
-              >
-                Agent
-              </button>
-            </div>
           </div>
 
           {/* Submit Button */}
@@ -222,18 +232,40 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
         </div>
       </div>
 
-      {/* Quick Prompt Tabs */}
-      <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
-        {quickPrompts.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => setPrompt(item.prompt)}
-            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 hover:border-white/40 transition-all text-xs sm:text-sm text-white/70 hover:text-white"
-          >
-            <item.icon className="w-3.5 h-3.5" />
-            <span>{item.label}</span>
-          </button>
-        ))}
+      {/* Quick Prompt Tabs - Marquee */}
+      <div className="mt-4 overflow-hidden" style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}>
+        <div className="flex w-max hover:[animation-play-state:paused]" style={{ animation: 'marquee 30s linear infinite' }}>
+          <div className="flex gap-2 pr-2">
+            {quickPrompts.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => setPrompt(item.prompt)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 hover:border-white/40 transition-all text-xs sm:text-sm text-white/70 hover:text-white whitespace-nowrap flex-shrink-0"
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 pr-2">
+            {quickPrompts.map((item) => (
+              <button
+                key={`${item.label}-dup`}
+                onClick={() => setPrompt(item.prompt)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 hover:border-white/40 transition-all text-xs sm:text-sm text-white/70 hover:text-white whitespace-nowrap flex-shrink-0"
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <style>{`
+          @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        `}</style>
       </div>
     </div>
   );

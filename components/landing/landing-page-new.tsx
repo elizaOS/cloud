@@ -13,8 +13,8 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import HeroChatInput from "./hero-chat-input";
-import DiscoverApps from "./discover-apps";
-import DiscoverAgents from "./discover-agents";
+// import DiscoverApps from "./discover-apps";
+// import DiscoverAgents from "./discover-agents";
 import { toast } from "sonner";
 
 interface LandingPageProps {
@@ -102,7 +102,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
         />
       </div>
 
-      <div className="relative z-30 flex w-full flex-col overflow-y-scroll sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
+      <div className="relative z-30 flex w-full flex-col overflow-y-scroll sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black sm:scrollbar-thumb-rounded-full sm:scrollbar-track-rounded-full">
         <LandingHeader />
 
         {/* Hero Chat Input - Full screen height section */}
@@ -111,8 +111,8 @@ export function LandingPage({ accessError }: LandingPageProps) {
         </div>
 
         {/* Discover Sections */}
-        <DiscoverApps />
-        <DiscoverAgents />
+        {/* <DiscoverApps /> */}
+        {/* <DiscoverAgents /> */}
 
         <Footer />
       </div>

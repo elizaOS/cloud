@@ -6,8 +6,8 @@
 
 "use client";
 
-import LandingHeader from "@/components/layout/landing-header";
-import TopHero from "@/components/landing/TopHero";
+import LandingHeader from "@/components/layout/landing-header-old";
+import TopHero from "@/components/landing/TopHero-old";
 import OnChainTrust from "@/components/landing/OnChainTrust";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
