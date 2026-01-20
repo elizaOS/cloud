@@ -3,33 +3,54 @@
  * All costs are in USD stored as decimal values in credit_balance
  *
  * BILLING MODEL: Daily billing for running containers
- * Base cost: $20/month = $0.67/day (rounded)
+ * All costs include 20% platform markup.
  */
 
-export const CONTAINER_PRICING = {
+import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
+
+// Base provider costs (before 20% markup)
+const BASE_CONTAINER_PRICING = {
   // One-time costs
-  DEPLOYMENT: 0.5, // $0.50 (50 credits) per deployment
-  IMAGE_UPLOAD: 0.25, // $0.25 per image upload
+  DEPLOYMENT: 0.42, // ~$0.42 base cost
+  IMAGE_UPLOAD: 0.21, // ~$0.21 base cost
 
   // Recurring costs - DAILY BILLING
-  // $20/month base = $20/30 = $0.6667/day
-  MONTHLY_BASE_COST: 20.0, // $20/month reference
-  DAILY_RUNNING_COST: 0.67, // $0.67/day per container ($20/30, rounded up)
+  // AWS ECS Fargate costs roughly $16.67/month, we add margin
+  MONTHLY_BASE_COST: 16.67, // ~$16.67/month reference (AWS cost)
+  DAILY_RUNNING_COST: 0.56, // ~$0.56/day per container (AWS cost)
 
   // Resource-based costs
-  COST_PER_GB_STORAGE: 0.1, // $0.10/GB/month
-  COST_PER_GB_BANDWIDTH: 0.05, // $0.05/GB outbound
+  COST_PER_GB_STORAGE: 0.083, // ~$0.083/GB/month (S3/EBS cost)
+  COST_PER_GB_BANDWIDTH: 0.042, // ~$0.042/GB outbound (AWS cost)
 
   // Scaling costs
-  COST_PER_ADDITIONAL_INSTANCE: 0.05, // $0.05 per instance per hour
+  COST_PER_ADDITIONAL_INSTANCE: 0.042, // ~$0.042 per instance per hour
+} as const;
 
-  // Warning thresholds
+export const CONTAINER_PRICING = {
+  // One-time costs (with 20% markup)
+  DEPLOYMENT: Math.round(BASE_CONTAINER_PRICING.DEPLOYMENT * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.50 per deployment
+  IMAGE_UPLOAD: Math.round(BASE_CONTAINER_PRICING.IMAGE_UPLOAD * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.25 per image upload
+
+  // Recurring costs - DAILY BILLING (with 20% markup)
+  MONTHLY_BASE_COST: Math.round(BASE_CONTAINER_PRICING.MONTHLY_BASE_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $20/month
+  DAILY_RUNNING_COST: Math.round(BASE_CONTAINER_PRICING.DAILY_RUNNING_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.67/day per container
+
+  // Resource-based costs (with 20% markup)
+  COST_PER_GB_STORAGE: Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_STORAGE * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.10/GB/month
+  COST_PER_GB_BANDWIDTH: Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_BANDWIDTH * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.05/GB outbound
+
+  // Scaling costs (with 20% markup)
+  COST_PER_ADDITIONAL_INSTANCE: Math.round(BASE_CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.05 per instance per hour
+
+  // Warning thresholds (not pricing, keep as-is)
   LOW_CREDITS_WARNING_THRESHOLD: 2.0, // Warn when < 3 days of credit ($0.67 * 3)
   SHUTDOWN_WARNING_HOURS: 48, // Hours before shutdown warning
 } as const;
 
 /**
  * Calculate daily container cost based on configuration
+ * Cost includes 20% platform markup.
  */
 export function calculateDailyContainerCost(config?: {
   desiredCount?: number;
@@ -113,6 +134,7 @@ export function getMaxContainersForOrg(
 
 /**
  * Calculate total deployment cost for AWS ECS containers
+ * Cost includes 20% platform markup.
  */
 export function calculateDeploymentCost(config: {
   imageSize?: number;
@@ -121,7 +143,6 @@ export function calculateDeploymentCost(config: {
   memory?: number; // Memory in MB
 }): number {
   let totalCost = CONTAINER_PRICING.DEPLOYMENT;
-
 
   const instanceCount = config.desiredCount || 1;
 

@@ -88,10 +88,9 @@ export async function GET(req: NextRequest) {
       logger.error("[Balance API] Error:", error);
     }
 
-    return new globalThis.Response(JSON.stringify(body), {
+    return NextResponse.json(body, {
       status,
       headers: {
-        "Content-Type": "application/json",
         ...corsHeaders,
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         Pragma: "no-cache",

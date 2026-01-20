@@ -3,6 +3,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { usageService } from "@/lib/services/usage";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
+import { calculateTTSCost } from "@/lib/pricing";
+import { CUSTOM_VOICE_TTS_MARKUP } from "@/lib/pricing-constants";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";
@@ -14,11 +21,14 @@ const MAX_TEXT_LENGTH = 5000;
  * POST /api/elevenlabs/tts
  * Converts text to speech using ElevenLabs TTS API.
  * Supports custom user voices and tracks usage statistics.
+ * Includes 20% platform markup on all TTS costs.
  *
  * @param request - Request body with text, voiceId, and optional modelId.
  * @returns Streaming audio response (audio/mpeg).
  */
 export async function POST(request: NextRequest) {
+  let reservation: CreditReservation | undefined;
+
   try {
     // Authenticate user
     const user = await requireAuthWithOrg();
@@ -54,6 +64,7 @@ export async function POST(request: NextRequest) {
     // Track custom voice usage (async, non-blocking)
     let userVoiceId: string | null = null;
     let voiceName: string | null = null;
+    let isCustomVoice = false;
 
     if (voiceId) {
       // Check if this is a custom user voice (not default ElevenLabs voice)
@@ -70,6 +81,7 @@ export async function POST(request: NextRequest) {
       if (voice && voice.organizationId === user.organization_id!) {
         userVoiceId = voice.id;
         voiceName = voice.name;
+        isCustomVoice = true;
 
         // Increment voice usage count (fire-and-forget for zero latency)
         voiceCloningService.incrementUsageCount(voice.id).catch((err) =>
@@ -87,6 +99,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calculate estimated cost (includes 20% platform markup)
+    let estimatedCost = calculateTTSCost(text.length);
+    
+    // Apply additional custom voice markup if using a custom cloned voice
+    if (isCustomVoice) {
+      estimatedCost = Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
+    }
+
+    // Reserve credits BEFORE generation
+    try {
+      reservation = await creditsService.reserve({
+        organizationId: user.organization_id!,
+        amount: estimatedCost,
+        userId: user.id,
+        description: `TTS generation: ${text.length} chars${isCustomVoice ? " (custom voice)" : ""}`,
+      });
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        return NextResponse.json(
+          {
+            error: "Insufficient credits for text-to-speech",
+            required: error.required,
+          },
+          { status: 402 },
+        );
+      }
+      throw error;
+    }
+
     // Get ElevenLabs service
     const elevenlabs = getElevenLabsService();
 
@@ -101,8 +142,10 @@ export async function POST(request: NextRequest) {
 
     logger.info(`[TTS API] Stream started in ${duration}ms`);
 
+    // Reconcile with actual cost (same as estimated for TTS - character-based pricing)
+    await reservation.reconcile(estimatedCost);
+
     // Track usage in usage_records table (background, non-blocking)
-    // This follows the same pattern as other APIs in the codebase for analytics
     (async () => {
       try {
         await usageService.create({
@@ -114,7 +157,7 @@ export async function POST(request: NextRequest) {
           provider: "elevenlabs",
           input_tokens: Math.ceil(text.length / 4), // Approximate character to token conversion
           output_tokens: 0,
-          input_cost: String(0), // Free for now, can add pricing later
+          input_cost: String(estimatedCost),
           output_cost: String(0),
           duration_ms: duration,
           is_successful: true,
@@ -124,12 +167,14 @@ export async function POST(request: NextRequest) {
             voiceName: voiceName,
             textLength: text.length,
             characterCount: text.length,
+            isCustomVoice,
           },
         });
 
         logger.debug("[TTS API] Usage record created successfully", {
           userVoiceId,
           textLength: text.length,
+          cost: estimatedCost,
         });
       } catch (error) {
         logger.error("[TTS API] Failed to create usage record", {
@@ -149,6 +194,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[TTS API] Error:", error);
+
+    // Refund reserved credits if TTS failed
+    if (reservation) {
+      await reservation.reconcile(0);
+      logger.info("[TTS API] Refunded credits after error");
+    }
 
     if (error instanceof Error) {
       if (error.message.includes("rate limit")) {

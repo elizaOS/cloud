@@ -17,7 +17,7 @@ const character: Character = {
     ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
     ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
     ELIZAOS_CLOUD_LARGE_MODEL: getDefaultModels().large,
-    // Note: ELIZAOS_CLOUD_API_KEY will be set at runtime with user's auto-generated key
+    // Note: ELIZAOS_API_KEY will be set at runtime with user's auto-generated key
     // ElevenLabs Voice Configuration
     ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
     ELEVENLABS_VOICE_ID:

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { appCreditsService } from "@/lib/services/app-credits";
 import Stripe from "stripe";
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: "session_id is required" },
-        { status: 400, headers: corsHeaders },
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404, headers: corsHeaders },
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
           error: "Payment not completed",
           status: session.payment_status,
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
@@ -90,14 +91,14 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Invalid session type",
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
     const appId = metadata.app_id;
     const userId = metadata.user_id;
     const organizationId = metadata.organization_id;
-    const amount = parseFloat(metadata.amount || "0");
+    const amount = Number.parseFloat(metadata.amount || "0");
 
     if (!appId || !userId || !organizationId || !amount) {
       return NextResponse.json(
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Invalid session metadata",
         },
-        { headers: corsHeaders },
+        { headers: corsHeaders }
       );
     }
 
@@ -117,9 +118,8 @@ export async function GET(request: NextRequest) {
         appId,
         userId,
         organizationId,
-        amount,
-        stripeSessionId: sessionId,
-        description: "Credit purchase via checkout",
+        purchaseAmount: amount,
+        stripePaymentIntentId: sessionId,
       });
 
       logger.info("Verified and processed app credit purchase", {
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
         amount,
         message: "Credits added successfully",
       },
-      { headers: corsHeaders },
+      { headers: corsHeaders }
     );
   } catch (error) {
     logger.error("Failed to verify purchase:", error);
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Verification failed",
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) }
     );
   }
 }
