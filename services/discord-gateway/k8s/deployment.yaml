@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discord-gateway
+  namespace: discord-gateway
+  labels:
+    app: discord-gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: discord-gateway
+  template:
+    metadata:
+      labels:
+        app: discord-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: gateway
+          image: ghcr.io/elizacloud/eliza-cloud/discord-gateway:latest
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: ELIZA_CLOUD_URL
+              valueFrom:
+                secretKeyRef:
+                  name: discord-gateway-secrets
+                  key: eliza-cloud-url
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: discord-gateway-secrets
+                  key: internal-api-key
+            - name: KV_REST_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: discord-gateway-secrets
+                  key: redis-url
+            - name: KV_REST_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-gateway-secrets
+                  key: redis-token
+            - name: BLOB_READ_WRITE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-gateway-secrets
+                  key: blob-token
+                  optional: true
+            - name: MAX_BOTS_PER_POD
+              value: "100"
+            - name: FAILOVER_CHECK_INTERVAL_MS
+              value: "60000"
+            - name: DEAD_POD_THRESHOLD_MS
+              value: "120000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discord-gateway
+  namespace: discord-gateway
+  labels:
+    app: discord-gateway
+spec:
+  selector:
+    app: discord-gateway
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  type: ClusterIP
