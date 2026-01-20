@@ -495,6 +495,8 @@ export default function AppCreatorPage() {
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
   const initialThinkingStreamIdRef = useRef<string | null>(null);
+  // AbortController for cancelling ongoing AI generation
+  const generationAbortControllerRef = useRef<AbortController | null>(null);
 
   // Throttled streaming for smooth thinking text updates (~30fps instead of every chunk)
   const {
@@ -2372,6 +2374,9 @@ Some ideas:
         } as Message,
       ]);
 
+      // Create AbortController for this generation request
+      generationAbortControllerRef.current = new AbortController();
+
       try {
         const response = await fetchWithRetry(
           `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
@@ -2379,6 +2384,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text, model: selectedModel }),
+            signal: generationAbortControllerRef.current.signal,
           },
         );
 
@@ -2602,44 +2608,89 @@ Some ideas:
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
       } catch (error) {
-        setMessages((prev) => {
-          return prev.map((m) => {
-            if (m._thinkingId === thinkingId) {
-              const { _thinkingId: _, ...rest } = m;
-
-              let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
-              content +=
-                "The operation could not be completed. Please try again or modify your request.";
-
-              if (actionsLog.length > 0) {
-                content += "\n\n---\n\n";
-                content += "**Attempted Actions**\n\n";
-                actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
-                  content += `> \`${action.detail}\`\n\n`;
-                });
-              }
-
-              return {
-                ...rest,
-                content,
-              };
-            }
-            return m;
-          });
-        });
-
-        setStatus("ready");
-        addLog(
-          `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error",
+        // Check if this was an abort/cancel
+        const isAborted = error instanceof Error && (
+          error.name === "AbortError" ||
+          error.message.includes("aborted") ||
+          error.message.includes("cancelled")
         );
-        toast.error("Failed to process prompt", {
-          description:
-            error instanceof Error ? error.message : "Please try again",
-        });
+
+        if (isAborted) {
+          // Handle cancellation gracefully
+          setMessages((prev) => {
+            return prev.map((m) => {
+              if (m._thinkingId === thinkingId) {
+                const { _thinkingId: _, ...rest } = m;
+
+                let content = "**Generation stopped**\n\n";
+                content += "The operation was cancelled. You can start a new request when ready.";
+
+                if (actionsLog.length > 0) {
+                  content += "\n\n---\n\n";
+                  content += "**Completed Actions**\n\n";
+                  actionsLog.forEach((action) => {
+                    if (action.status === "done") {
+                      content += `\u2713 **${action.tool}**\n`;
+                      content += `> \`${action.detail}\`\n\n`;
+                    }
+                  });
+                }
+
+                return {
+                  ...rest,
+                  content,
+                };
+              }
+              return m;
+            });
+          });
+
+          setStatus("ready");
+          addLog("Generation stopped by user", "info");
+          toast.info("Generation stopped");
+        } else {
+          // Handle other errors
+          setMessages((prev) => {
+            return prev.map((m) => {
+              if (m._thinkingId === thinkingId) {
+                const { _thinkingId: _, ...rest } = m;
+
+                let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
+                content +=
+                  "The operation could not be completed. Please try again or modify your request.";
+
+                if (actionsLog.length > 0) {
+                  content += "\n\n---\n\n";
+                  content += "**Attempted Actions**\n\n";
+                  actionsLog.forEach((action) => {
+                    content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                    content += `> \`${action.detail}\`\n\n`;
+                  });
+                }
+
+                return {
+                  ...rest,
+                  content,
+                };
+              }
+              return m;
+            });
+          });
+
+          setStatus("ready");
+          addLog(
+            `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            "error",
+          );
+          toast.error("Failed to process prompt", {
+            description:
+              error instanceof Error ? error.message : "Please try again",
+          });
+        }
       } finally {
         setIsLoading(false);
+        // Clean up AbortController
+        generationAbortControllerRef.current = null;
         // Always clean up throttled streaming buffer
         clearThinkingBuffer();
       }
@@ -2655,6 +2706,15 @@ Some ideas:
       getThinkingText,
     ],
   );
+
+  // Stop the current AI generation (abort in-flight request)
+  const stopGeneration = useCallback(() => {
+    if (generationAbortControllerRef.current) {
+      generationAbortControllerRef.current.abort();
+      generationAbortControllerRef.current = null;
+      addLog("Stopping generation...", "info");
+    }
+  }, [addLog]);
 
   const stopSession = useCallback(async () => {
     if (!session) return;
@@ -4417,7 +4477,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
-          <ChatInput onSendPrompt={sendPrompt} status={status} />
+          <ChatInput onSendPrompt={sendPrompt} onStopGeneration={stopGeneration} status={status} />
         </div>
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
