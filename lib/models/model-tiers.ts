@@ -55,7 +55,7 @@ function extractProvider(modelId: string): string {
 }
 
 const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
-const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-haiku-4.5");
+const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-opus-4.5");
 const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
