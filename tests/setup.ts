@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Test Environment Setup (Preload)
  *
@@ -43,6 +44,32 @@ process.env.ELIZAOS_CLOUD_BASE_URL = `${LOCAL_SERVER_URL}/api/v1`;
 process.env.TEST_BLOCK_ANONYMOUS = "true";
 
 /**
+ * Verify database is available before any tests execute
+ * This is a WARNING only - unit tests don't need the database
+ */
+async function verifyDatabaseRunning(): Promise<void> {
+  console.log("\n[Test Setup] Checking database status...");
+
+  try {
+    // Dynamic import to avoid loading pg at module scope
+    const { Pool } = await import("pg");
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const client = await pool.connect();
+    await client.query("SELECT 1");
+    client.release();
+    await pool.end();
+    console.log("  ✅ Database is running and accessible");
+  } catch (error) {
+    console.log("  ⚠️  Database is NOT running or not accessible");
+    console.log("     Integration/service/property tests require:");
+    console.log("       bun run db:local:start");
+    console.log(
+      `     Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
+}
+
+/**
  * Verify local server is running before any tests execute
  * This is a WARNING only - service tests don't need the server
  *
@@ -74,20 +101,20 @@ async function verifyLocalServerRunning(): Promise<void> {
     // Not an error - service tests don't need the server
     console.log(`  ⚠️  Local server not running at ${LOCAL_SERVER_URL}`);
     console.log(
-      `     Service tests will work. Runtime tests require: bun run dev`,
+      "     Service tests will work. Runtime tests require: bun run dev",
     );
   }
 }
-
-// Run verification synchronously at module load time
-// This ensures tests don't even start if server is down
-const serverCheck = verifyLocalServerRunning();
-
-// Export the promise so tests can await it if needed
-export { serverCheck };
 
 // Log confirmation that test environment is configured
 console.log("[Test Setup] Environment configured for LOCAL testing:");
 console.log(`  NODE_ENV: ${process.env.NODE_ENV}`);
 console.log(`  ELIZAOS_CLOUD_BASE_URL: ${process.env.ELIZAOS_CLOUD_BASE_URL}`);
 console.log(`  TEST_BLOCK_ANONYMOUS: ${process.env.TEST_BLOCK_ANONYMOUS}`);
+
+// Run verification at module load time (warnings only, non-blocking)
+const dbCheck = verifyDatabaseRunning();
+const serverCheck = verifyLocalServerRunning();
+
+// Export the promises so tests can await them if needed
+export { dbCheck, serverCheck };
