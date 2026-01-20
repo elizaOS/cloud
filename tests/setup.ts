@@ -1,17 +1,39 @@
 /**
- * Test Setup - MUST RUN BEFORE ANY TEST CODE
+ * Test Environment Setup (Preload)
  *
- * CRITICAL: This ensures tests run against local endpoints, NOT production!
- * Without this, tests would hit https://www.elizacloud.ai which is VERY BAD.
+ * This file is loaded BEFORE any test code via bunfig.toml preload.
+ * It configures environment variables for all test types.
  *
- * Environment variables:
- * - SKIP_SERVER_CHECK=true: Skip the local server check (for unit tests in CI)
+ * What it does:
+ *   - Sets NODE_ENV=test
+ *   - Sets DATABASE_URL to local postgres (if not already set)
+ *   - Disables Upstash cache (CACHE_ENABLED=false)
+ *   - Points API calls to localhost (safety against hitting prod)
+ *
+ * Prerequisites:
+ *   - docker-compose up -d (for tests that need DB)
+ *
+ * Related files:
+ *   - bunfig.toml: Uses this preload for unit/integration/property tests
+ *   - bunfig.e2e.toml: Uses this + e2e/setup-server.ts for e2e tests
  */
 
 const LOCAL_SERVER_URL = "http://localhost:3000";
 
 // Set NODE_ENV to test - this makes getElizaCloudApiUrl() return localhost
 process.env.NODE_ENV = "test";
+
+// Database URL for local tests (only set if not already defined)
+// This allows CI to override via env vars if needed
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL =
+    "postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev";
+}
+
+// Disable Upstash cache in tests (uses in-memory fallback)
+if (!process.env.CACHE_ENABLED) {
+  process.env.CACHE_ENABLED = "false";
+}
 
 // Explicitly set the cloud base URL to localhost for safety
 // This is a belt-and-suspenders approach - getElizaCloudApiUrl() checks this first

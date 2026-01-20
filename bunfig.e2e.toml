@@ -1,0 +1,21 @@
+# E2E Test Config (auto-starts server)
+#
+# Used for: e2e/api, e2e/runtime tests
+# Prerequisites: docker-compose up -d
+#
+# What it does:
+#   1. Loads setup.ts (env vars, just like unit/integration)
+#   2. Loads e2e/setup-server.ts which:
+#      - Checks if server already running → reuses it
+#      - If not → spawns "bun run dev" and waits for /api/health
+#      - Shuts down server after all tests
+#
+# Inspired by Playwright's webServer config.
+#
+# Usage:
+#   bun test --config bunfig.e2e.toml tests/e2e/api
+#   bun test --config bunfig.e2e.toml tests/e2e/runtime
+
+[test]
+preload = ["./tests/setup.ts", "./tests/e2e/setup-server.ts"]
+timeout = 120000

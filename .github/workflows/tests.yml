@@ -66,16 +66,8 @@ jobs:
       - uses: ./.github/actions/setup-test-env
         with:
           setup-db: 'true'
-      - name: Start server
-        run: |
-          bun run dev &
-          sleep 10
-      - name: Run API tests
-        run: bun test tests/e2e/api --timeout 120000
-        env:
-          TEST_BASE_URL: http://localhost:3000
-      - name: Run runtime tests
-        run: bun test tests/e2e/runtime --timeout 120000
+      - name: Run E2E tests (auto-starts server)
+        run: bun test --config bunfig.e2e.toml tests/e2e/api tests/e2e/runtime
         env:
           TEST_BASE_URL: http://localhost:3000
 
@@ -89,10 +81,12 @@ jobs:
         with:
           setup-db: 'true'
           install-playwright: 'true'
-      - name: Start server
+      - name: Start server for Playwright
+        run: bun run dev &
+      - name: Wait for server
         run: |
-          bun run dev &
-          sleep 10
+          timeout 60 bash -c 'until curl -s http://localhost:3000/api/health > /dev/null; do sleep 1; done'
+          echo "Server ready"
       - run: bunx playwright test tests/e2e/browser
         env:
           BASE_URL: http://localhost:3000

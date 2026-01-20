@@ -1,3 +1,17 @@
+# Default Bun Test Config
+#
+# Used for: unit, integration, property tests
+# Prerequisites: docker-compose up -d (for DB tests)
+#
+# The preload sets up:
+#   - NODE_ENV=test
+#   - DATABASE_URL (local postgres)
+#   - CACHE_ENABLED=false (no Upstash needed)
+#
+# Usage:
+#   bun test tests/unit
+#   bun test tests/integration
+#   bun test tests/properties
+
 [test]
 preload = ["./tests/setup.ts"]
-

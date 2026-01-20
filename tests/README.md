@@ -1,81 +1,118 @@
 # Tests
 
+## Quick Start
+
+```bash
+# 1. Start local services (postgres + redis)
+docker-compose up -d
+
+# 2. Run tests
+bun test:integration          # Services tests
+bun test:e2e                  # E2E tests (auto-starts server!)
+bun test:properties           # Property-based tests
+```
+
 ## Structure
 
 ```
 tests/
+├── setup.ts                 # 🔧 Preload: env vars (NODE_ENV, DATABASE_URL, etc.)
 ├── unit/                    # Pure logic, no external dependencies
 ├── integration/             # With DB, NO server needed
 │   ├── services/           # Service layer tests (credits, budgets, etc.)
 │   └── financial/          # Cross-service financial flows
-├── e2e/                     # Server required
+├── e2e/                     # Server required (auto-started!)
+│   ├── setup-server.ts     # 🔧 Preload: auto-starts Next.js server
 │   ├── api/                # HTTP API tests
-│   ├── runtime/            # Runtime/agent tests (requires server)
-│   │   └── scenarios/      # Complex runtime scenarios
+│   ├── runtime/            # Runtime/agent tests
 │   └── browser/            # Playwright browser tests
 ├── properties/              # Property-based tests (fast-check)
 ├── builders/                # Test data builders (fluent API)
-├── helpers/                 # Test utilities (factories, DB setup, etc.)
-└── fixtures/                # Static test data
+├── helpers/                 # Test utilities (factories, DB, HTTP client)
+└── fixtures/                # Static test data (characters, etc.)
 ```
+
+## Config Files
+
+| File | Used for | Server |
+|------|----------|--------|
+| `bunfig.toml` | unit, integration, properties | ❌ Not needed |
+| `bunfig.e2e.toml` | e2e/api, e2e/runtime | ✅ Auto-started |
+
+The e2e config automatically starts the Next.js server before tests and shuts it down after (like Playwright's `webServer`).
 
 ## Test Categories
 
-| Category | DB | Server | Description |
-|----------|----|---------| ------------|
-| `unit/` | No | No | Pure functions, isolated logic |
-| `integration/` | Yes | No | Service interactions, DB operations |
-| `e2e/` | Yes | Yes | Full HTTP flows, browser automation |
-| `properties/` | Yes | No | Invariant testing with random inputs |
+| Category | DB | Server | Config |
+|----------|----|---------| -------|
+| `unit/` | No | No | default |
+| `integration/` | Yes | No | default |
+| `properties/` | Yes | No | default |
+| `e2e/api` | Yes | Yes | `bunfig.e2e.toml` |
+| `e2e/runtime` | Yes | Yes | `bunfig.e2e.toml` |
+| `e2e/browser` | Yes | Yes | Playwright config |
 
 ## Running Tests
 
 ```bash
-# All integration tests (requires local DB)
-bun test tests/integration --timeout 60000
+# Unit tests (no deps)
+bun test tests/unit
 
-# Unit tests only (fast, no deps)
-bun test tests/unit --timeout 30000
+# Integration tests (needs DB)
+bun test:integration
 
-# Property-based tests (slow, thorough)
-bun test tests/properties --timeout 300000
+# E2E tests (needs DB, server auto-started)
+bun test:e2e              # All e2e
+bun test:e2e:api          # Just API tests
+bun test:e2e:runtime      # Just runtime tests
 
-# E2E API tests (requires running server)
-bun test tests/e2e/api
-
-# E2E runtime tests (requires running server)
-bun test tests/e2e/runtime
+# Property-based tests (slow)
+bun test:properties
 
 # Playwright browser tests
 bunx playwright test tests/e2e/browser
 ```
 
-## Test Philosophy
+## Philosophy
 
 - **Sociable tests**: Real dependencies (DB, services), minimal mocks
 - **Mock only**: External APIs (Discord, Blockchain, Email)
 - **Race conditions**: Explicit concurrency tests for financial operations
 - **Invariants**: Property-based tests for `balance >= 0` guarantees
 
-## Builders
+## Helpers
 
-Use builders for flexible test data setup:
+All test utilities are available via `@/tests/helpers`:
 
 ```typescript
-import { OrgBuilder, AgentBudgetBuilder } from "@/tests/builders";
+import {
+  // DB connection
+  getConnectionString,
+  verifyConnection,
 
-const org = await new OrgBuilder()
-  .withCredits(100)
-  .withAutoTopUp(10, 50)
-  .build(connectionString);
+  // Test data factory
+  createTestDataSet,
+  cleanupTestData,
+
+  // Runtime helpers
+  createTestRuntime,
+  sendTestMessage,
+
+  // HTTP/SSE
+  createTestApiClient,
+  parseSSEStream,
+} from "@/tests/helpers";
 ```
 
 ## CI
 
-Tests run automatically on PR/push to `dev` and `main`:
-- `unit-tests`: Fast unit tests (no DB)
-- `integration-tests`: Service tests with PostgreSQL
-- `property-tests`: Property-based invariant tests
-- `lint`: ESLint + TypeScript checks
-- `e2e-api`: API + runtime tests (requires server)
-- `e2e-browser`: Playwright browser tests
+Tests run on PR/push to `dev` and `main`:
+
+| Job | Tests | DB | Server |
+|-----|-------|----| -------|
+| `unit-tests` | unit/ | ❌ | ❌ |
+| `integration-tests` | integration/ | ✅ | ❌ |
+| `property-tests` | properties/ | ✅ | ❌ |
+| `e2e-api` | e2e/api, e2e/runtime | ✅ | ✅ |
+| `e2e-browser` | e2e/browser | ✅ | ✅ |
+| `lint` | ESLint + TypeScript | ❌ | ❌ |
