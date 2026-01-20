@@ -1,13 +1,13 @@
 /**
  * Main landing page component.
  *
- * Web: Shows landing page for anonymous users, redirects authenticated to dashboard.
+ * Shows landing page for anonymous users, redirects authenticated to dashboard.
  */
 
 "use client";
 
-import LandingHeader from "@/components/layout/landing-header";
-import TopHero from "@/components/landing/TopHero";
+import LandingHeader from "@/components/layout/landing-header-old";
+import TopHero from "@/components/landing/TopHero-old";
 import OnChainTrust from "@/components/landing/OnChainTrust";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
@@ -53,7 +53,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
   useEffect(() => {
     if (!ready || hasRedirectedRef.current) return;
 
-    // Web: Redirect authenticated users to dashboard
+    // Redirect authenticated users to dashboard
     if (authenticated) {
       hasRedirectedRef.current = true;
       router.replace("/dashboard");
@@ -63,7 +63,7 @@ export function LandingPage({ accessError }: LandingPageProps) {
   // Still loading
   if (!ready) return null;
 
-  // Web: Show loading while redirecting authenticated users
+  // Show loading while redirecting authenticated users
   if (authenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center flex-col gap-2">

@@ -19,7 +19,7 @@ const TopHero = () => {
   const [deployingDots, setDeployingDots] = useState(0);
   const [isDeploying, setIsDeploying] = useState(true);
   const [cursorLine, setCursorLine] = useState<"deploy" | "deploying" | "url">(
-    "deploy"
+    "deploy",
   );
   const [status, setStatus] = useState<"create" | "deploy">("create");
   const router = useRouter();
@@ -164,7 +164,7 @@ const TopHero = () => {
   ];
 
   return (
-    <section className="w-full flex items-center shrink-0 py-24 lg:py-36 relative overflow-hidden">
+    <section className="w-full flex items-center shrink-0 py-24 lg:py-36 relative overflow-hidden min-h-screen">
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-5xl text-center">
           {/* Headline */}
@@ -339,7 +339,7 @@ const TopHero = () => {
               variant="primary"
               size="lg"
               onClick={handleGetStarted}
-              className="w-full md:w-auto min-w-[176px] text-base group border border-[#FF5800] bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+              className="w-full md:w-auto min-w-[176px] text-base group border border-[#FF5800] bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
             >
               Start Building
               <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
