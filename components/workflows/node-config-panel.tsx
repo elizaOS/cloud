@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, Bot, Database, AppWindow } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, Bot, Database, AppWindow, GripHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,9 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   const [localData, setLocalData] = useState<Record<string, unknown>>({});
   const panelRef = useRef<HTMLDivElement>(null);
-  const [adjustedPosition, setAdjustedPosition] = useState<{ x: number; y: number } | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; panelX: number; panelY: number } | null>(null);
 
   useEffect(() => {
     if (node) {
@@ -43,12 +45,14 @@ export function NodeConfigPanel({
     }
   }, [node]);
 
-  // Adjust position to stay within viewport
+  // Reset drag position when node changes
   useEffect(() => {
-    if (!position || !panelRef.current) {
-      setAdjustedPosition(null);
-      return;
-    }
+    setDragPosition(null);
+  }, [node?.id]);
+
+  // Calculate initial position
+  const getInitialPosition = useCallback(() => {
+    if (!position || !panelRef.current) return position;
 
     const panelWidth = 320;
     const panelHeight = panelRef.current.offsetHeight || 400;
@@ -59,8 +63,7 @@ export function NodeConfigPanel({
 
     // Check right edge
     if (x + panelWidth + padding > window.innerWidth) {
-      // Position to the left of the node instead
-      x = position.x - panelWidth - 24 - 200; // Approximate node width
+      x = position.x - panelWidth - 24 - 200;
     }
 
     // Check bottom edge
@@ -73,8 +76,52 @@ export function NodeConfigPanel({
       y = padding;
     }
 
-    setAdjustedPosition({ x, y });
+    return { x, y };
   }, [position]);
+
+  // Mouse event handlers for dragging
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const currentPos = dragPosition ?? getInitialPosition();
+    if (currentPos) {
+      dragStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        panelX: currentPos.x,
+        panelY: currentPos.y,
+      };
+    }
+  }, [dragPosition, getInitialPosition]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !dragStartRef.current) return;
+
+      const deltaX = e.clientX - dragStartRef.current.x;
+      const deltaY = e.clientY - dragStartRef.current.y;
+
+      setDragPosition({
+        x: dragStartRef.current.panelX + deltaX,
+        y: dragStartRef.current.panelY + deltaY,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
 
   if (!node || !position) return null;
 
@@ -122,38 +169,51 @@ export function NodeConfigPanel({
     }
   };
 
-  const displayPosition = adjustedPosition ?? position;
+  const displayPosition = dragPosition ?? getInitialPosition() ?? position;
 
   return (
     <div
       ref={panelRef}
-      className="fixed w-80 bg-[#1A1A1A] border border-white/10 rounded-xl p-4 overflow-y-auto max-h-[70vh] shadow-2xl z-50"
+      className="fixed w-80 bg-[#1A1A1A] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50"
       style={{
         left: displayPosition.x,
         top: displayPosition.y,
       }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-white capitalize">
-          {node.type}
-        </h3>
+      {/* Draggable header */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={`flex items-center justify-between px-4 py-3 border-b border-white/10 ${
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        } select-none bg-white/[0.02]`}
+      >
+        <div className="flex items-center gap-2">
+          <GripHorizontal className="w-4 h-4 text-white/30" />
+          <h3 className="text-base font-semibold text-white capitalize">
+            {node.type}
+          </h3>
+        </div>
         <button
           onClick={onClose}
+          onMouseDown={(e) => e.stopPropagation()}
           className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
         >
           <X className="w-4 h-4 text-white/60" />
         </button>
       </div>
 
-      <div className="space-y-4">{renderConfig()}</div>
+      {/* Content */}
+      <div className="p-4 overflow-y-auto max-h-[60vh]">
+        <div className="space-y-4">{renderConfig()}</div>
 
-      <div className="mt-5 flex gap-2">
-        <Button onClick={handleSave} className="flex-1 bg-[#FF5800] text-black hover:bg-[#FF5800]/90 h-9">
-          Save
-        </Button>
-        <Button onClick={onClose} variant="outline" className="flex-1 h-9">
-          Cancel
-        </Button>
+        <div className="mt-5 flex gap-2">
+          <Button onClick={handleSave} className="flex-1 bg-[#FF5800] text-black hover:bg-[#FF5800]/90 h-9">
+            Save
+          </Button>
+          <Button onClick={onClose} variant="outline" className="flex-1 h-9">
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );

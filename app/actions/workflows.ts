@@ -53,12 +53,46 @@ export async function runWorkflow(
 ): Promise<ExecutionResult> {
   const user = await requireAuthWithOrg();
 
+  // Create run record first (marks as "running")
+  const run = await workflowRunsRepository.create({
+    workflowId,
+    triggerSource: "manual",
+  });
+
   const result = await workflowExecutorService.execute(
     workflowId,
     user.organization_id,
     user.id,
     triggerInput,
   );
+
+  // Build node results from outputs
+  const nodeResults = Object.entries(result.outputs).map(([nodeId, output]) => {
+    const outputData = output as Record<string, unknown>;
+    const hasError = result.logs.some(
+      (log) => log.nodeId === nodeId && log.level === "error",
+    );
+    return {
+      nodeId,
+      nodeType: (outputData?.type as string) ?? "unknown",
+      status: hasError ? "error" as const : "success" as const,
+      output,
+      error: hasError
+        ? result.logs.find((l) => l.nodeId === nodeId && l.level === "error")
+            ?.message
+        : undefined,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      duration: 0,
+    };
+  });
+
+  // Update run record with results
+  await workflowRunsRepository.complete(run.id, {
+    status: result.success ? "success" : "error",
+    nodeResults,
+    error: result.error,
+  });
 
   return result;
 }
