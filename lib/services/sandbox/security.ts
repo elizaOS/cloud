@@ -47,7 +47,7 @@ export const BLOCKED_COMMAND_PATTERNS = [
   /exec\s/i,
   /\|\s*(bash|sh|zsh)/i, // Piping to shell
   />\s*\/etc\//i, // Writing to system dirs
-  /\.env(?!\.(example|sample|template)\b)/i, // Env files (except examples)
+  /\.env(?!\.(example|sample|template|local)\b)/i, // Env files (except examples and .env.local)
   /process\.env/i,
   /export\s+\w+=/i,
 ];
@@ -74,6 +74,9 @@ export const ALLOWED_DIRECTORIES = [
   "modules/",
   "assets/",
   "config/",
+  // Database directories for stateful apps
+  "db/",
+  "drizzle/",
 ];
 
 // Root-level file patterns that can be written
@@ -99,6 +102,8 @@ export const ALLOWED_ROOT_PATTERNS = [
   /^\.nvmrc$/,
   /^\.node-version$/,
   /^\.env(\.[a-z]+)?\.example$/,
+  // Database config for stateful apps
+  /^drizzle\.config\.(ts|js)$/,
 ];
 
 /**

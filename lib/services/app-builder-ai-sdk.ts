@@ -55,10 +55,14 @@ export interface AppBuilderStreamCallbacks {
 export interface AppBuilderConfig {
   sandbox?: SandboxInstance;
   sandboxId?: string;
+  /** App ID for tools that need to interact with app-specific resources (e.g., database) */
+  appId?: string;
   systemPrompt?: string;
   templateType?: FullAppTemplateType;
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
+  /** Include database setup instructions (for stateful apps) */
+  includeDatabase?: boolean;
   model?: string;
   timeoutMs?: number;
   abortSignal?: AbortSignal;
@@ -95,7 +99,7 @@ const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid 
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
+const DEFAULT_MODEL = "anthropic/claude-opus-4.5";
 
 // ============================================================================
 // Available Models (fetched dynamically, these are suggestions)
@@ -162,10 +166,12 @@ export class AppBuilderAISDK {
     const {
       sandbox,
       sandboxId,
+      appId,
       systemPrompt,
       templateType = "blank",
       includeMonetization = false,
       includeAnalytics = true,
+      includeDatabase = false,
       model = DEFAULT_MODEL,
       timeoutMs = DEFAULT_TIMEOUT_MS,
       abortSignal,
@@ -265,6 +271,7 @@ CRITICAL RULES:
           templateType,
           includeMonetization,
           includeAnalytics,
+          includeDatabase,
         });
 
       logger.info("Starting AI execution", {
@@ -316,7 +323,8 @@ CRITICAL RULES:
               inputSchema: toolSchemas.list_files,
             }),
             run_command: tool({
-              description: "Run a shell command.",
+              description:
+                "Run a shell command. Database commands (drizzle-kit) automatically have DATABASE_URL injected.",
               inputSchema: toolSchemas.run_command,
             }),
           },
@@ -452,6 +460,7 @@ CRITICAL RULES:
           const { result: toolResult, filesAffected: affected } =
             await sharedExecuteToolCall(sandbox, tc.toolName, toolArgs, {
               sandboxId,
+              appId,
             });
 
           if (affected) {

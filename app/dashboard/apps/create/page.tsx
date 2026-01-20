@@ -107,6 +107,7 @@ import {
   X,
   MoreVertical,
   Users,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -394,6 +395,18 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     gradient: "from-cyan-500 to-blue-600",
     features: ["Real-time streaming", "Message history", "Model switching"],
     techStack: ["Next.js", "OpenAI", "Vercel AI SDK"],
+  },
+  {
+    value: "fullstack",
+    label: "Full Stack App",
+    description: "With database persistence",
+    longDescription:
+      "Build full-stack applications with a PostgreSQL database, Drizzle ORM, and server actions. Perfect for trackers, dashboards, and data-driven apps.",
+    icon: Database,
+    color: "#10B981",
+    gradient: "from-emerald-500 to-teal-600",
+    features: ["PostgreSQL database", "Drizzle ORM", "Server Actions"],
+    techStack: ["Next.js", "Drizzle", "Neon DB"],
   },
   {
     value: "landing-page",

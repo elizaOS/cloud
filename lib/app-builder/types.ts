@@ -10,6 +10,7 @@ export type TemplateType =
   | "chat"
   | "agent-dashboard"
   | "landing-page"
+  | "fullstack"
   | "blank"
   | "mcp-service"
   | "a2a-agent";

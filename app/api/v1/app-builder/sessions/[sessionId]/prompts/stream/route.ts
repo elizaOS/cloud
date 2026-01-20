@@ -168,6 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         for await (const event of appBuilderAISDK.executeStream(prompt, {
           sandbox,
           sandboxId: session.sandboxId,
+          appId: session.appId,
           model,
           abortSignal: abortController.signal,
         })) {

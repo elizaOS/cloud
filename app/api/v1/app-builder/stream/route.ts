@@ -29,6 +29,7 @@ const CreateSessionSchema = z.object({
       "agent-dashboard",
       "landing-page",
       "analytics",
+      "fullstack",
       "blank",
       "mcp-service",
       "a2a-agent",

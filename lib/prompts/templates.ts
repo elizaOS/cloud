@@ -14,6 +14,7 @@ export type TemplateType =
   | 'ai-tool'
   | 'mcp-service'
   | 'a2a-agent'
+  | 'fullstack'
   | 'blank';
 
 export const TEMPLATE_PROMPTS: Record<TemplateType, string> = {
@@ -158,6 +159,86 @@ Build an MCP server. Advanced template.
 Build an A2A endpoint. Advanced template.
 `,
 
+  fullstack: `## Full Stack App (with Database)
+
+Build a complete full-stack application with database persistence.
+
+**IMPORTANT: A PostgreSQL database is already provisioned and available via \`DATABASE_URL\`.**
+
+**Setup Steps (FOLLOW IN ORDER):**
+
+1. **Install database dependencies FIRST:**
+\`\`\`bash
+npm install drizzle-orm @neondatabase/serverless
+npm install -D drizzle-kit dotenv-cli
+\`\`\`
+
+2. **Create \`drizzle.config.ts\` in project root:**
+\`\`\`typescript
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  schema: './db/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+\`\`\`
+
+3. **Create \`db/schema.ts\` with your tables:**
+\`\`\`typescript
+import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core';
+
+export const items = pgTable('items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  completed: boolean('completed').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+\`\`\`
+
+4. **Create \`db/index.ts\` for the database client:**
+\`\`\`typescript
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { neon } from '@neondatabase/serverless';
+import * as schema from './schema';
+
+const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql, { schema });
+\`\`\`
+
+5. **Push schema to database** (use dotenv-cli to load .env.local):
+\`\`\`bash
+npx dotenv -e .env.local -- npx drizzle-kit push
+\`\`\`
+
+6. **Create Server Actions in \`app/actions/\` for CRUD operations:**
+\`\`\`typescript
+'use server';
+import { db } from '@/db';
+import { items } from '@/db/schema';
+import { revalidatePath } from 'next/cache';
+
+export async function getItems() {
+  return db.select().from(items);
+}
+
+export async function createItem(name: string) {
+  await db.insert(items).values({ name });
+  revalidatePath('/');
+}
+\`\`\`
+
+**CRITICAL RULES:**
+- NEVER expose DATABASE_URL to client code
+- ALL database operations must be in Server Actions or API routes
+- Run \`npx dotenv -e .env.local -- npx drizzle-kit push\` after schema changes
+- **page.tsx MUST render the UI with data from the database**
+`,
+
   blank: `## Custom App
 Build what the user requests. **page.tsx MUST render the UI.**
 `,
@@ -211,6 +292,14 @@ export const TEMPLATE_EXAMPLES: Record<TemplateType, string[]> = {
     'Add task handler',
     'Add discovery',
     'Create router',
+  ],
+  fullstack: [
+    'Build a fitness tracker with workout logs',
+    'Create a personal finance app with transactions',
+    'Build a recipe collection app',
+    'Create a habit tracker with streaks',
+    'Build a notes app with folders',
+    'Create a bookmark manager',
   ],
   blank: [
     'Create dashboard',

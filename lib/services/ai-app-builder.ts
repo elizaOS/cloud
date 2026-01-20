@@ -20,6 +20,11 @@ import { appsService, AppNameConflictError } from "./apps";
 import { appFactoryService } from "./app-factory";
 import { gitSyncService } from "./git-sync";
 import { githubReposService } from "./github-repos";
+import { userDatabaseService } from "./user-database";
+import {
+  requiresDatabase,
+  getDetailedAnalysis,
+} from "./stateful-detection";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -31,6 +36,7 @@ const EXAMPLE_PROMPTS = {
   "a2a-agent": getExamplePrompts("a2a-agent"),
   "saas-starter": getExamplePrompts("saas-starter"),
   "ai-tool": getExamplePrompts("ai-tool"),
+  fullstack: getExamplePrompts("fullstack"),
 };
 
 export interface BuilderSessionConfig {
@@ -45,7 +51,12 @@ export interface BuilderSessionConfig {
     | "agent-dashboard"
     | "landing-page"
     | "analytics"
-    | "blank";
+    | "fullstack"
+    | "blank"
+    | "mcp-service"
+    | "a2a-agent"
+    | "saas-starter"
+    | "ai-tool";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
   linkedAgentIds?: string[];
@@ -73,6 +84,8 @@ export interface BuilderSession {
   initialPromptResult?: PromptResult;
   appId?: string;
   githubRepo?: string | null;
+  /** Whether this app has a provisioned database */
+  hasDatabase?: boolean;
 }
 
 export interface PromptResult {
@@ -319,6 +332,66 @@ export class AIAppBuilderService {
       sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = appId;
     }
 
+    // Detect if the app needs a database based on:
+    // 1. Template type (fullstack always gets a database)
+    // 2. Prompt analysis (detects stateful keywords/phrases)
+    let includeDatabase = false;
+    const promptToAnalyze = initialPrompt || appDescription || "";
+
+    // Fullstack template always gets a database
+    const isFullstackTemplate = templateType === "fullstack";
+
+    // Analyze prompt for stateful indicators
+    const detectionResult = promptToAnalyze
+      ? getDetailedAnalysis(promptToAnalyze)
+      : null;
+
+    const shouldProvisionDatabase =
+      isFullstackTemplate ||
+      (detectionResult?.requiresDatabase && appId);
+
+    if (shouldProvisionDatabase && appId) {
+      logger.info("Database required, provisioning", {
+        appId,
+        reason: isFullstackTemplate
+          ? "fullstack template"
+          : `prompt analysis: ${detectionResult?.summary}`,
+        confidence: detectionResult?.confidence,
+      });
+
+      // Provision database for the app
+      const dbResult = await userDatabaseService.provisionDatabase(
+        appId,
+        appName || "app",
+      );
+
+      if (dbResult.success && dbResult.connectionUri) {
+        // NOTE: We intentionally do NOT inject DATABASE_URL into the sandbox globally.
+        // DATABASE_URL is injected per-command when the AI runs drizzle-kit commands
+        // via run_command - credentials are fetched from our backend and never persist.
+        includeDatabase = true;
+
+        logger.info("Database provisioned successfully", {
+          appId,
+          projectId: dbResult.projectId,
+          region: dbResult.region,
+        });
+      } else {
+        // Log warning but continue without database (graceful degradation)
+        logger.warn("Database provisioning failed, continuing without database", {
+          appId,
+          error: dbResult.error,
+          errorCode: dbResult.errorCode,
+        });
+      }
+    } else if (!shouldProvisionDatabase) {
+      logger.info("Stateless app, no database provisioning needed", {
+        appId,
+        templateType,
+        confidence: detectionResult?.confidence,
+      });
+    }
+
     const sandboxData = await sandboxService.create({
       templateUrl,
       timeout: 30 * 60 * 1000,
@@ -333,6 +406,7 @@ export class AIAppBuilderService {
       templateType: templateType as FullAppTemplateType,
       includeMonetization,
       includeAnalytics,
+      includeDatabase,
       customInstructions: appDescription
         ? `Build an app with the following requirements:\n${appDescription}`
         : initialPrompt
@@ -355,7 +429,7 @@ export class AIAppBuilderService {
         app_description: appDescription,
         initial_prompt: initialPrompt,
         template_type: templateType,
-        build_config: { features: [], includeMonetization, includeAnalytics },
+        build_config: { features: [], includeMonetization, includeAnalytics, includeDatabase },
         claude_messages: [],
         started_at: new Date(),
         expires_at: expiresAt,
@@ -389,6 +463,7 @@ export class AIAppBuilderService {
       expiresAt: expiresAt.toISOString(),
       appId,
       githubRepo,
+      hasDatabase: includeDatabase,
     };
 
     if (onSandboxReady) {
@@ -446,6 +521,7 @@ export class AIAppBuilderService {
       initialPromptResult,
       appId,
       githubRepo,
+      hasDatabase: includeDatabase,
     };
   }
 
@@ -506,6 +582,7 @@ export class AIAppBuilderService {
       {
         sandbox,
         sandboxId: session.sandbox_id,
+        appId: session.app_id || undefined,
         systemPrompt: systemPromptRecord?.content,
         abortSignal: options.abortSignal,
       },
