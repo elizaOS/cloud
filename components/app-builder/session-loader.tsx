@@ -34,7 +34,7 @@ const PHASES = [
     key: "creating",
     label: "Initializing sandbox",
     icon: Sparkles,
-    color: "text-orange-400",
+    color: "text-[#FF5800]",
   },
   {
     key: "installing",
@@ -121,7 +121,7 @@ function StepIndicator({
         {/* Icon container */}
         <div
           className={cn(
-            "relative z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-500 flex-shrink-0",
+            "relative z-10 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500 flex-shrink-0",
             isComplete && "bg-emerald-500/20 border border-emerald-500/30",
             isActive && "bg-white/10 border border-white/20",
             !isActive && !isComplete && "bg-white/5 border border-white/10",
@@ -135,7 +135,7 @@ function StepIndicator({
               <div
                 className="absolute inset-0 rounded-full animate-spin"
                 style={{
-                  background: `conic-gradient(from 0deg, transparent 0%, ${color === "text-orange-400" ? "#FF5800" : color === "text-cyan-400" ? "#06B6D4" : "#8B5CF6"} 50%, transparent 100%)`,
+                  background: `conic-gradient(from 0deg, transparent 0%, ${color === "text-[#FF5800]" ? "#FF5800" : color === "text-cyan-400" ? "#06B6D4" : "#8B5CF6"} 50%, transparent 100%)`,
                   animationDuration: "1.5s",
                 }}
               />

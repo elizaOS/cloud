@@ -95,7 +95,7 @@ export function AgentPicker({
       {/* Header with selection count */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-cyan-500/20 border border-violet-500/20">
+          <div className="p-2 rounded-xl bg-violet-500/5 border border-violet-500/20">
             <Users className="h-4 w-4 text-violet-400" />
           </div>
           <div>
@@ -105,8 +105,8 @@ export function AgentPicker({
             </p>
           </div>
         </div>
-        <div className="px-2 py-1 rounded-full bg-white/5 border border-white/10">
-          <span className="text-xs font-mono text-white/60">
+        <div className="min-w-[3rem] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-center">
+          <span className="text-xs font-mono tabular-nums tracking-wide text-white/60">
             {selectedIds.length}/{maxSelection}
           </span>
         </div>
@@ -120,14 +120,14 @@ export function AgentPicker({
               key={agent.id}
               className={cn(
                 "flex items-center gap-2 pl-1 pr-2 py-1 rounded-full",
-                "bg-gradient-to-r border transition-all duration-300",
+                "border transition-all duration-300",
                 index === 0
-                  ? "from-violet-500/20 to-violet-500/10 border-violet-500/30"
+                  ? "bg-violet-500/5 border-violet-500/30"
                   : index === 1
-                    ? "from-cyan-500/20 to-cyan-500/10 border-cyan-500/30"
+                    ? "bg-cyan-500/5 border-cyan-500/30"
                     : index === 2
-                      ? "from-amber-500/20 to-amber-500/10 border-amber-500/30"
-                      : "from-pink-500/20 to-pink-500/10 border-pink-500/30",
+                      ? "bg-amber-500/5 border-amber-500/30"
+                      : "bg-pink-500/5 border-pink-500/30",
               )}
             >
               {agent.avatar_url ? (
@@ -177,7 +177,7 @@ export function AgentPicker({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+              className="p-1 rounded-xl hover:bg-white/10 transition-colors"
             >
               <X className="h-3.5 w-3.5 text-white/40 hover:text-white/60" />
             </button>
@@ -217,7 +217,7 @@ export function AgentPicker({
                     "group relative flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-300",
                     "border touch-manipulation",
                     isSelected
-                      ? "bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border-violet-500/30 ring-1 ring-violet-500/20"
+                      ? "bg-violet-500/5 border-violet-500/30 ring-1 ring-violet-500/20"
                       : isDisabled
                         ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
                         : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20",
@@ -234,7 +234,7 @@ export function AgentPicker({
                         className="rounded-xl object-cover ring-2 ring-white/5"
                       />
                     ) : (
-                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center">
+                      <div className="w-11 h-11 rounded-xl bg-violet-500/5 border border-white/10 flex items-center justify-center">
                         <Bot className="h-5 w-5 text-white/60" />
                       </div>
                     )}
@@ -324,7 +324,7 @@ export function CompactAgentPicker({
         {selectedAgents.map((agent) => (
           <div
             key={agent.id}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-violet-500/5 border border-violet-500/20"
           >
             {agent.avatar_url ? (
               <Image
@@ -340,7 +340,7 @@ export function CompactAgentPicker({
             <span className="text-xs font-medium text-white">{agent.name}</span>
             <button
               onClick={() => removeAgent(agent.id)}
-              className="p-0.5 rounded hover:bg-white/10"
+              className="p-0.5 rounded-xl hover:bg-white/10"
             >
               <X className="h-3 w-3 text-white/50" />
             </button>
@@ -356,7 +356,7 @@ export function CompactAgentPicker({
                 e.target.value = "";
               }
             }}
-            className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
+            className="px-2 py-1.5 rounded-xl bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
           >
             <option value="">+ Add agent</option>
             {availableAgents.map((agent) => (

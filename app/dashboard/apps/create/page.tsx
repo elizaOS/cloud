@@ -218,7 +218,7 @@ const ChatMessage = memo(function ChatMessage({
                   <AccordionItem
                     key={idx}
                     value={`op-${idx}`}
-                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors"
+                    className="border border-white/[0.06] rounded-xl bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors"
                   >
                     <AccordionTrigger className="px-2.5 py-2 text-[11px] hover:no-underline hover:bg-white/[0.03] transition-colors">
                       <div className="flex items-center gap-2 text-left w-full">
@@ -236,7 +236,7 @@ const ChatMessage = memo(function ChatMessage({
                     </AccordionTrigger>
                     {op.reasoning && (
                       <AccordionContent className="px-2.5 pb-2.5">
-                        <div className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg p-3 max-h-[200px] overflow-y-auto border border-white/[0.04]">
+                        <div className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-xl p-3 max-h-[200px] overflow-y-auto border border-white/[0.04]">
                           <pre className="whitespace-pre-wrap font-sans">
                             {op.reasoning}
                           </pre>
@@ -265,7 +265,7 @@ const ChatMessage = memo(function ChatMessage({
                     </span>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2.5 max-h-[300px] overflow-y-auto border border-white/[0.04]">
+                <AccordionContent className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-xl px-3 py-2.5 max-h-[300px] overflow-y-auto border border-white/[0.04]">
                   <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
                     {msg.reasoning}
                   </pre>
@@ -287,7 +287,7 @@ const ChatMessage = memo(function ChatMessage({
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
+                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
                   >
                     {prompt}
                   </button>
@@ -2770,7 +2770,7 @@ Some ideas:
                 development environments.
               </p>
 
-              <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-left mb-6">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-left mb-6">
                 <h3 className="font-semibold text-white mb-3">
                   Setup Instructions:
                 </h3>
@@ -2927,7 +2927,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="flex items-center gap-2 md:gap-3">
               <Link
                 href={backLink}
-                className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
+                className="p-1.5 md:p-2 hover:bg-white/10 rounded-xl transition-all duration-300 border border-white/5 hover:border-white/20"
               >
                 <ArrowLeft className="h-4 w-4 text-white/60" />
               </Link>
@@ -3022,7 +3022,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
           {sourceContext && (
             <div
-              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
+              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-xl border-l-2 bg-black/30 border border-white/5"
               style={{
                 borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
               }}
@@ -3170,7 +3170,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                             {/* Selection indicator - Premium checkbox */}
                             {!isDisabled && (
                               <div
-                                className={`absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-lg transition-all duration-300 flex items-center justify-center ${
+                                className={`absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-xl transition-all duration-300 flex items-center justify-center ${
                                   isSelected
                                     ? "bg-gradient-to-br from-[#FF5800] to-amber-500 shadow-lg shadow-[#FF5800]/30"
                                     : "border-2 border-white/15 group-hover:border-white/30 bg-white/[0.02]"
@@ -3229,7 +3229,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                               {template.features.map((feature) => (
                                 <span
                                   key={feature}
-                                  className="px-2.5 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/50 transition-colors group-hover:text-white/70 group-hover:border-white/15"
+                                  className="px-2.5 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/50 transition-colors group-hover:text-white/70 group-hover:border-white/15"
                                 >
                                   {feature}
                                 </span>
@@ -3269,7 +3269,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-4 pt-4 animate-stagger-fade stagger-5">
                       <div className="text-center md:text-left">
                         {selectedTemplate ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-xl border border-white/[0.06]">
                             <selectedTemplate.icon
                               className="h-3.5 w-3.5"
                               style={{ color: selectedTemplate.color }}
@@ -3331,7 +3331,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {selectedTemplate && (
                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                       <div
-                        className="p-1.5 rounded-lg"
+                        className="p-1.5 rounded-xl"
                         style={{
                           backgroundColor: `${selectedTemplate.color}20`,
                         }}
@@ -3437,7 +3437,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <button
                           onClick={generateAIDescription}
                           disabled={isGeneratingDescription || !appName.trim()}
-                          className="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#FF5800]/15 to-amber-500/10 border border-[#FF5800]/25 rounded-lg text-[#FF5800] hover:text-amber-400 transition-all hover:scale-105 hover:border-[#FF5800]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          className="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#FF5800]/15 to-amber-500/10 border border-[#FF5800]/25 rounded-xl text-[#FF5800] hover:text-amber-400 transition-all hover:scale-105 hover:border-[#FF5800]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                           {isGeneratingDescription ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -3502,7 +3502,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-3">
                   <button
                     onClick={() => setSetupStep(1)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/[0.03]"
                   >
                     <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
@@ -3562,7 +3562,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
                       <div
-                        className="p-1.5 rounded-lg"
+                        className="p-1.5 rounded-xl"
                         style={{
                           backgroundColor: `${selectedTemplate.color}20`,
                         }}
@@ -3635,10 +3635,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Accept payments & subscriptions
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/40">
                         Stripe
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/40">
                         Billing
                       </span>
                     </div>
@@ -3695,10 +3695,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Track users & events in real-time
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/40">
                         Real-time
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/40">
                         Events
                       </span>
                     </div>
@@ -3708,7 +3708,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/[0.03]"
                   >
                     <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
@@ -3750,7 +3750,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
                       <div
-                        className="p-1.5 rounded-lg"
+                        className="p-1.5 rounded-xl"
                         style={{
                           backgroundColor: `${selectedTemplate.color}20`,
                         }}
@@ -3792,7 +3792,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
                   <button
                     onClick={() => setSetupStep(3)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/[0.03]"
                   >
                     <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     Back
@@ -3937,7 +3937,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         <div className="flex items-center gap-1 mx-2">
           <button
             onClick={() => setMobilePanel("chat")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
               mobilePanel === "chat"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
                 : "text-white/50 hover:text-white/70 hover:bg-white/5"
@@ -3948,7 +3948,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           </button>
           <button
             onClick={() => setMobilePanel("preview")}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
               mobilePanel === "preview"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
                 : "text-white/50 hover:text-white/70 hover:bg-white/5"
@@ -4414,7 +4414,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Terminal className="h-3.5 w-3.5" />
                 Console
                 {consoleLogs.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
+                  <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
                     {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
                   </span>
                 )}
@@ -4520,7 +4520,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Terminal className="h-3.5 w-3.5" />
                 Console
                 {consoleLogs.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
+                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px]">
                     {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
                   </span>
                 )}
@@ -4598,7 +4598,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-gradient-to-br from-white/[0.03] to-transparent overflow-hidden relative">
+          <div className="flex-1 bg-[#0a0a0b] overflow-hidden relative">
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
               <div
@@ -4611,31 +4611,66 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {/* Loading overlay - Premium */}
                 <div
                   className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0b] to-[#080809] flex items-center justify-center transition-opacity duration-500 ${
-                    iframeLoaded && previewTab === "preview"
+                    iframeLoaded && previewTab === "preview" && sandboxHealthy
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
                   }`}
                 >
                   <div className="text-center">
-                    <div className="relative inline-block mb-5">
-                      <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
-                      <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
-                    </div>
-                    <p
-                      className="text-white/60 text-sm font-medium"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
-                      Loading preview...
-                    </p>
-                    <p className="text-white/25 text-xs mt-1">
-                      Your app is starting up
-                    </p>
+                    {!sandboxHealthy ? (
+                      <>
+                        <div className="relative inline-block mb-5">
+                          <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
+                            <AlertCircle className="h-7 w-7 text-red-400" />
+                          </div>
+                        </div>
+                        <p
+                          className="text-white/80 text-sm font-medium mb-1"
+                          style={{ fontFamily: "var(--font-sf-pro)" }}
+                        >
+                          Preview Unavailable
+                        </p>
+                        <p className="text-white/40 text-xs mb-4 max-w-[240px] mx-auto">
+                          The sandbox is not responding. This can happen after inactivity.
+                        </p>
+                        <Button
+                          onClick={() => {
+                            if (iframeRef.current && session?.sandboxUrl) {
+                              setIframeLoaded(false);
+                              setSandboxHealthy(true);
+                              iframeRef.current.src = session.sandboxUrl;
+                            }
+                          }}
+                          size="sm"
+                          className="h-8 px-4 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                          Retry
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="relative inline-block mb-5">
+                          <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
+                          <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                        </div>
+                        <p
+                          className="text-white/60 text-sm font-medium"
+                          style={{ fontFamily: "var(--font-sf-pro)" }}
+                        >
+                          Loading preview...
+                        </p>
+                        <p className="text-white/25 text-xs mt-1">
+                          Your app is starting up
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <iframe
                   ref={iframeRef}
                   src={session.sandboxUrl}
-                  className="w-full h-full border-0"
+                  className="absolute inset-0 w-full h-full border-0 bg-white block"
                   title="App Preview"
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                   onError={handleIframeError}
