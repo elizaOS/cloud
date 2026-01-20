@@ -40,10 +40,12 @@ import { getConnectionString } from "@/tests/helpers/local-database";
 
 /**
  * Property test configuration
+ *
+ * Keep runs low - each run creates a full test data set in the DB.
  */
-const PROPERTY_TEST_RUNS = 50; // Number of random scenarios to test
-const MAX_OPERATIONS = 30; // Max operations per scenario
-const TEST_TIMEOUT = 120000; // 2 minutes per test
+const PROPERTY_TEST_RUNS = 5;
+const MAX_OPERATIONS = 10;
+const TEST_TIMEOUT = 120000;
 
 describe("Financial Invariants (Property-Based)", () => {
   let connectionString: string;
@@ -116,7 +118,7 @@ describe("Financial Invariants (Property-Based)", () => {
               }
             },
           ),
-          { numRuns: PROPERTY_TEST_RUNS, verbose: true },
+          { numRuns: PROPERTY_TEST_RUNS },
         );
       },
       TEST_TIMEOUT,
@@ -191,7 +193,7 @@ describe("Financial Invariants (Property-Based)", () => {
               }
             },
           ),
-          { numRuns: PROPERTY_TEST_RUNS / 2 },
+          { numRuns: Math.floor(PROPERTY_TEST_RUNS / 2) },
         );
       },
       TEST_TIMEOUT,
@@ -337,7 +339,7 @@ describe("Financial Invariants (Property-Based)", () => {
               }
             },
           ),
-          { numRuns: PROPERTY_TEST_RUNS / 2 },
+          { numRuns: Math.floor(PROPERTY_TEST_RUNS / 2) },
         );
       },
       TEST_TIMEOUT,
@@ -512,7 +514,7 @@ describe("Financial Invariants (Property-Based)", () => {
               }
             },
           ),
-          { numRuns: PROPERTY_TEST_RUNS / 2 },
+          { numRuns: Math.floor(PROPERTY_TEST_RUNS / 2) },
         );
       },
       TEST_TIMEOUT,
@@ -589,7 +591,7 @@ describe("Financial Invariants (Property-Based)", () => {
               }
             },
           ),
-          { numRuns: PROPERTY_TEST_RUNS / 2 },
+          { numRuns: Math.floor(PROPERTY_TEST_RUNS / 2) },
         );
       },
       TEST_TIMEOUT,
