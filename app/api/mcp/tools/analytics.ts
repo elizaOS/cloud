@@ -1,10 +1,9 @@
-// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Analytics and discovery tools
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
+import { z } from "zod3";
 import { analyticsService } from "@/lib/services/analytics";
 import { charactersService } from "@/lib/services/characters/characters";
 import { userMcpsService } from "@/lib/services/user-mcps";
@@ -27,19 +26,9 @@ export function registerAnalyticsTools(server: McpServer): void {
     async ({ period }) => {
       try {
         const { user } = getAuthContext();
-        const now = new Date();
-        const startDate = new Date(now);
-        if (period === "day") {
-          startDate.setDate(now.getDate() - 1);
-        } else if (period === "week") {
-          startDate.setDate(now.getDate() - 7);
-        } else {
-          startDate.setMonth(now.getMonth() - 1);
-        }
-
-        const analytics = await analyticsService.getUsageStats(
+        const analytics = await analyticsService.getOrganizationAnalytics(
           user.organization_id,
-          { startDate, endDate: now },
+          period,
         );
 
         return jsonResponse({ success: true, analytics });

@@ -1,11 +1,10 @@
-// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Agent MCP tools
  * Tools for managing and interacting with ElizaOS agents
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
+import { z } from "zod3";
 import { logger } from "@/lib/utils/logger";
 import {
   creditsService,
@@ -64,9 +63,11 @@ export function registerAgentTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        contentModerationService.moderateInBackground(
+        const agentId = `org:${user.organization_id}`;
+        contentModerationService.moderateAgentInBackground(
           message,
           user.id,
+          agentId,
           roomId,
           (result) => {
             logger.warn("[MCP] chat_with_agent moderation violation", {
@@ -188,7 +189,7 @@ export function registerAgentTools(server: McpServer): void {
       try {
         const { user } = getAuthContext();
 
-        const result = await agentDiscoveryService.listCharacters(
+        const result = await agentDiscoveryService.listAgents(
           user.organization_id,
           user.id,
           filters,
@@ -197,7 +198,7 @@ export function registerAgentTools(server: McpServer): void {
 
         return jsonResponse({
           success: true,
-          agents: result.characters,
+          agents: result.agents,
           total: result.total,
           cached: result.cached,
         });
@@ -273,7 +274,6 @@ export function registerAgentTools(server: McpServer): void {
           system: system || null,
           category: category || "assistant",
           tags: tags || [],
-          character_data: {},
           source: "mcp",
         });
 

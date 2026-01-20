@@ -1,10 +1,9 @@
-// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Room management tools
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
+import { z } from "zod3";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { charactersService } from "@/lib/services/characters/characters";
 import { getAuthContext } from "../lib/context";
@@ -26,8 +25,8 @@ export function registerRoomTools(server: McpServer): void {
           success: true,
           rooms: rooms.map((r) => ({
             id: r.id,
-            characterId: r.characterId,
-            lastMessage: r.lastText,
+            characterId: r.character_id,
+            lastMessage: r.last_message_preview,
           })),
           total: rooms.length,
         });

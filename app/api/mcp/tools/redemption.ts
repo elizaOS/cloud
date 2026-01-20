@@ -1,12 +1,10 @@
-// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Token redemption tools
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v3";
-import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
-import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
+import { z } from "zod3";
+import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
 
@@ -20,12 +18,14 @@ export function registerRedemptionTools(server: McpServer): void {
     async () => {
       try {
         const { user } = getAuthContext();
-        const balance = await redeemableEarningsService.getBalance(user.id);
+        const balance = await secureTokenRedemptionService.getEarnedBalance(
+          user.organization_id,
+        );
 
         return jsonResponse({
           success: true,
           balance,
-          userId: user.id,
+          organizationId: user.organization_id,
         });
       } catch (error) {
         return errorResponse(
@@ -53,18 +53,11 @@ export function registerRedemptionTools(server: McpServer): void {
     },
     async ({ pointsAmount, network }) => {
       try {
-        const { user } = getAuthContext();
-        const quoteResult = await twapPriceOracle.getRedemptionQuote(
-          network,
+        const quote = await secureTokenRedemptionService.getRedemptionQuote(
           pointsAmount,
-          user.id,
+          network,
         );
-        if (!quoteResult.success) {
-          return errorResponse(
-            quoteResult.error || "Failed to get redemption quote",
-          );
-        }
-        return jsonResponse({ success: true, quote: quoteResult.quote });
+        return jsonResponse({ success: true, quote });
       } catch (error) {
         return errorResponse(
           error instanceof Error
