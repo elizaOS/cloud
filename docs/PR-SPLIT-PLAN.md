@@ -14,9 +14,6 @@
 | Modified | 63 files |
 | Deleted | 3 files |
 
-### Uncommitted Changes
-- `bun.lock` - from adding `canvas-confetti` package
-
 ---
 
 ## Complete File Inventory
@@ -74,14 +71,15 @@
 
 ---
 
-## Recommended PR Split (10 PRs)
+## Recommended PR Split (8 PRs)
 
-### PR #1: Foundation (Merge First)
-**Branch:** `ui/foundation`
+### PR #1: Foundation + Auth + Landing (Merge First)
+**Branch:** `ui/foundation-auth-landing`
 
-Core shared components and styles that other PRs depend on.
+Core UI components, auth pages, and new landing page - all foundational changes.
 
 ```
+# Foundation
 components/brand/eliza-logo.tsx (A)
 components/brand/brand-button.tsx (M)
 components/brand/brand-card.tsx (M)
@@ -90,55 +88,36 @@ components/ui/dialog.tsx (M)
 components/ui/select.tsx (M)
 app/globals.css (M)
 lib/hooks/use-typing-placeholder.ts (A)
-```
 
----
-
-### PR #2: Auth/Login Pages
-**Branch:** `ui/auth-pages` | **Depends on:** #1
-
-Updated auth pages (new designs are now default, old archived).
-
-```
-app/login/page.tsx (M) - now the new design
-app/login/page-old.tsx (A) - archived old design
+# Auth Pages
+app/login/page.tsx (M)
+app/login/page-old.tsx (A)
 app/auth/cli-login/page.tsx (M)
 app/auth/cli-login/page-old.tsx (A)
 app/auth/error/page.tsx (M)
 app/auth/error/page-old.tsx (A)
 app/app-auth/authorize/page.tsx (M)
-```
 
----
-
-### PR #3: New Landing Page
-**Branch:** `ui/new-landing` | **Depends on:** #1
-
-New landing page design (now served at `/`, old at `/oldlanding`).
-
-```
-app/page.tsx (M) - now uses landing-page-new
-app/oldlanding/page.tsx (A) - archived old landing
-
-components/landing/landing-page-new.tsx (A) - new main landing
-components/landing/landing-page.tsx (M) - imports -old components
+# Landing Page
+app/page.tsx (M)
+app/oldlanding/page.tsx (A)
+components/landing/landing-page-new.tsx (A)
+components/landing/landing-page.tsx (M)
 components/landing/hero-chat-input.tsx (A)
 components/landing/discover-agents.tsx (A)
 components/landing/discover-apps.tsx (A)
 components/landing/bottom-chat-bar.tsx (A)
 components/landing/chat-message.tsx (A)
-
-components/landing/TopHero.tsx (M) - now the new version
-components/landing/TopHero-old.tsx (A) - archived
+components/landing/TopHero.tsx (M)
+components/landing/TopHero-old.tsx (A)
 components/landing/Footer.tsx (M)
-
-components/layout/landing-header.tsx (M) - now the new version
-components/layout/landing-header-old.tsx (A) - archived
+components/layout/landing-header.tsx (M)
+components/layout/landing-header-old.tsx (A)
 ```
 
 ---
 
-### PR #4: Sidebar & Layout
+### PR #2: Sidebar & Layout
 **Branch:** `ui/sidebar-layout` | **Depends on:** #1
 
 Dashboard layout, sidebar, and header updates.
@@ -161,8 +140,8 @@ components/layout/user-menu.tsx (M)
 
 ---
 
-### PR #5: Dashboard Home
-**Branch:** `ui/dashboard-home` | **Depends on:** #1, #4
+### PR #3: Dashboard Home
+**Branch:** `ui/dashboard-home` | **Depends on:** #1, #2
 
 Dashboard home page and sections.
 
@@ -178,8 +157,8 @@ lib/actions/dashboard.ts (M)
 
 ---
 
-### PR #6: Apps Pages & Components
-**Branch:** `ui/apps-pages` | **Depends on:** #1, #4
+### PR #4: Apps Pages & Components
+**Branch:** `ui/apps-pages` | **Depends on:** #1, #2
 
 Apps management pages and components.
 
@@ -206,7 +185,7 @@ db/repositories/apps.ts (M)
 
 ---
 
-### PR #7: App Builder UI
+### PR #5: App Builder UI
 **Branch:** `ui/app-builder` | **Depends on:** #1
 
 App builder/create page updates.
@@ -221,8 +200,8 @@ lib/app-builder/markdown-components.tsx (M)
 
 ---
 
-### PR #8: Containers & MCPs Pages
-**Branch:** `ui/containers-mcps` | **Depends on:** #1, #4
+### PR #6: Containers & MCPs Pages
+**Branch:** `ui/containers-mcps` | **Depends on:** #1, #2
 
 Containers and MCPs pages.
 
@@ -242,8 +221,8 @@ components/mcps/mcps-page-client.tsx (D)
 
 ---
 
-### PR #9: Agents & My Agents
-**Branch:** `ui/agents` | **Depends on:** #1, #4
+### PR #7: Agents & My Agents
+**Branch:** `ui/agents` | **Depends on:** #1, #2
 
 Agent components and my-agents page.
 
@@ -259,7 +238,7 @@ components/my-agents/empty-state.tsx (M)
 
 ---
 
-### PR #10: Misc Components
+### PR #8: Misc Components
 **Branch:** `ui/misc` | **Depends on:** #1
 
 Miscellaneous component updates.
@@ -286,25 +265,17 @@ docs/PENDING-FEATURES.md (A)
 ## Merge Order Diagram
 
 ```
-#1 Foundation ──────────┬── #2 Auth Pages
-                        ├── #3 New Landing
-                        ├── #4 Sidebar/Layout ──┬── #5 Dashboard Home
-                        │                       ├── #6 Apps Pages
-                        │                       ├── #8 Containers & MCPs
-                        │                       └── #9 Agents
-                        ├── #7 App Builder
-                        └── #10 Misc
+#1 Foundation+Auth+Landing ─┬── #2 Sidebar/Layout ──┬── #3 Dashboard Home
+                            │                       ├── #4 Apps Pages
+                            │                       ├── #6 Containers & MCPs
+                            │                       └── #7 Agents
+                            ├── #5 App Builder
+                            └── #8 Misc
 ```
 
 ---
 
 ## Execution Steps
-
-### Step 0: Commit uncommitted changes
-```bash
-git add bun.lock
-git commit -m "Add canvas-confetti dependency"
-```
 
 ### Step 1: Create each PR branch
 ```bash
