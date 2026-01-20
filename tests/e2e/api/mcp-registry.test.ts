@@ -103,24 +103,24 @@ describe("MCP Registry API", () => {
     );
 
     expect(elizaPlatform).toBeDefined();
-    expect(elizaPlatform!.status).toBe("live");
+    expect(elizaPlatform!.status).toBe("coming_soon");
     expect(elizaPlatform!.type).toBe("http");
     expect(elizaPlatform!.category).toBe("platform");
   });
 
-  test("filters by status=live includes eliza-platform", async () => {
-    const res = await fetchRegistry({ status: "live" });
+  test("filters by status=coming_soon includes eliza-platform", async () => {
+    const res = await fetchRegistry({ status: "coming_soon" });
     const data: McpRegistryResponse = await res.json();
 
-    // eliza-platform should be in live results
+    // eliza-platform should be in coming_soon results
     const elizaPlatform = data.registry.find(
       (entry) => entry.id === "eliza-platform",
     );
     expect(elizaPlatform).toBeDefined();
 
-    // All returned entries should be live
+    // All returned entries should be coming_soon
     data.registry.forEach((entry) => {
-      expect(entry.status).toBe("live");
+      expect(entry.status).toBe("coming_soon");
     });
   });
 
