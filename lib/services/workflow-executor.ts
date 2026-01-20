@@ -884,6 +884,16 @@ class WorkflowExecutorService {
       }
     }
 
+    // Auto-detect inputs from previous agent output if not specified
+    // This allows: Agent says "ETH" → Crypto node automatically uses "ETH" as coin
+    if (mcpServer === "crypto" && !processedArgs.coin) {
+      const extractedCoin = this.extractCryptoTickerFromPreviousOutput(context);
+      if (extractedCoin) {
+        processedArgs.coin = extractedCoin;
+        this.log(context, "info", "mcp", `Auto-detected coin from agent: ${extractedCoin}`);
+      }
+    }
+
     this.log(context, "info", "mcp", `Calling ${mcpServer}/${toolName}...`);
 
     // Call the tool directly instead of going through HTTP to avoid transport issues
@@ -905,12 +915,19 @@ class WorkflowExecutorService {
 
     this.log(context, "info", "mcp", `MCP tool ${toolName} completed`);
 
+    // Format the result as a readable string for downstream nodes
+    const formattedResponse = this.formatMcpResponseForMessage(
+      result as Record<string, unknown>, 
+      toolName
+    );
+
     return {
       type: "mcp",
       mcpServer,
       toolName,
       args: processedArgs,
-      response: result,
+      response: formattedResponse,  // String for downstream nodes (agent, telegram, etc)
+      data: result,                  // Raw data object
     };
   }
 
@@ -1325,23 +1342,24 @@ class WorkflowExecutorService {
     }
 
     // Auto-compose message from previous outputs if not specified
+    // Iterate in REVERSE order so we get the most recent output first (MCP comes after Agent)
     if (!message) {
-      // Look for agent response first, then MCP response, then any response
-      for (const [nodeId, output] of context.nodeOutputs) {
+      const outputsArray = Array.from(context.nodeOutputs.entries()).reverse();
+      
+      for (const [nodeId, output] of outputsArray) {
         const data = output.output as Record<string, unknown>;
+        
+        // MCP response - already formatted as string, highest priority
+        if (data?.type === "mcp" && data?.response) {
+          message = String(data.response);
+          this.log(context, "info", "telegram", `Using MCP response as message`);
+          break;
+        }
         
         // Agent response
         if (data?.type === "agent" && data?.response) {
           message = String(data.response);
           this.log(context, "info", "telegram", `Using agent response as message`);
-          break;
-        }
-        
-        // MCP response - format it nicely
-        if (data?.type === "mcp" && data?.response) {
-          const mcpData = data.response as Record<string, unknown>;
-          message = this.formatMcpResponseForMessage(mcpData, data.toolName as string);
-          this.log(context, "info", "telegram", `Using MCP ${data.toolName} response as message`);
           break;
         }
       }
@@ -1665,6 +1683,31 @@ class WorkflowExecutorService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Extract crypto ticker from previous agent output
+   * Looks for common patterns like "BTC", "ETH", "Bitcoin", etc.
+   */
+  private extractCryptoTickerFromPreviousOutput(context: WorkflowExecutionContext): string | null {
+    const CRYPTO_PATTERNS = [
+      /\b(BTC|ETH|SOL|DOGE|XRP|ADA|DOT|MATIC|LINK|UNI|AVAX|ATOM|NEAR|APT|ARB|OP|SUI|SEI|INJ|USDT|USDC|BNB|SHIB|PEPE|BONK|WIF|LTC|BCH|ETC|XLM|FIL|HBAR|VET|ALGO)\b/i,
+      /\b(bitcoin|ethereum|solana|dogecoin|ripple|cardano|polkadot|polygon|chainlink|uniswap|avalanche|cosmos|litecoin|binance|shiba)\b/i,
+    ];
+
+    for (const [, output] of context.nodeOutputs) {
+      const data = output.output as Record<string, unknown>;
+      if (data?.type === "agent" && data?.response) {
+        const text = String(data.response);
+        for (const pattern of CRYPTO_PATTERNS) {
+          const match = text.match(pattern);
+          if (match) {
+            return match[1].toLowerCase();
+          }
+        }
+      }
+    }
+    return null;
   }
 
   /**
