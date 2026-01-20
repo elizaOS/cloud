@@ -857,6 +857,54 @@ export class AIAppBuilderService {
 
     const session = await this.verifyOwnership(sessionId, userId);
 
+    // If session is already ready, just return it (no action needed)
+    // This prevents infinite loops when client tries to resume an already-ready session
+    if (session.status === "ready") {
+      logger.info("Session is already ready, returning current state", {
+        sessionId,
+        sandboxId: session.sandbox_id,
+      });
+
+      // Get messages from the session
+      const prompts = await dbRead.query.appBuilderPrompts.findMany({
+        where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
+        orderBy: [desc(appBuilderPrompts.created_at)],
+      });
+
+      const messages = prompts
+        .filter((p) => p.role !== "system")
+        .map((p) => ({
+          role: p.role as "user" | "assistant",
+          content: p.content,
+          timestamp: p.created_at.toISOString(),
+        }))
+        .reverse();
+
+      const templateType =
+        (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+      const examplePrompts =
+        EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+
+      // Get the app's github repo if available
+      let githubRepo: string | null = null;
+      if (session.app_id) {
+        const app = await appsService.getById(session.app_id);
+        githubRepo = app?.github_repo || null;
+      }
+
+      return {
+        id: session.id,
+        sandboxId: session.sandbox_id,
+        sandboxUrl: session.sandbox_url,
+        status: session.status,
+        messages,
+        examplePrompts,
+        expiresAt: session.expires_at ? session.expires_at.toISOString() : null,
+        appId: session.app_id || undefined,
+        githubRepo,
+      };
+    }
+
     // Check if session can be resumed (must be timeout or stopped)
     if (session.status !== "timeout" && session.status !== "stopped") {
       throw new Error(

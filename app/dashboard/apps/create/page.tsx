@@ -1406,6 +1406,15 @@ export default function AppCreatorPage() {
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "Restoration failed";
+
+      // If the error indicates session is already ready, just set status to ready
+      // This prevents infinite loops when trying to resume an already-ready session
+      if (errorMsg.includes("Current status: ready")) {
+        addLog("Session is already ready", "info");
+        setStatus("ready");
+        return;
+      }
+
       addLog(`Restoration failed: ${errorMsg}`, "error");
 
       // Set status to show "Start New Session" option
@@ -1554,6 +1563,18 @@ export default function AppCreatorPage() {
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "Recovery failed";
+
+      // If the error indicates session is already ready, just set status to ready
+      // This prevents infinite loops when trying to recover an already-ready session
+      if (errorMsg.includes("Current status: ready")) {
+        addLog("Session is already ready", "info");
+        setStatus("ready");
+        setSandboxHealthy(true);
+        healthCheckFailCountRef.current = 0;
+        toast.dismiss(toastId);
+        return;
+      }
+
       addLog(`Auto-recovery failed: ${errorMsg}`, "error");
 
       // Only show timeout status if recovery truly failed
