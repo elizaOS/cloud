@@ -373,11 +373,10 @@ function AgentCard({ agent }: { agent: Agent }) {
     e.stopPropagation();
     setDropdownOpen(false);
 
-    if (!agent.username) {
-      toast.error("Set a username first to share this agent");
-      return;
-    }
-    const shareUrl = `${window.location.origin}/chat/@${agent.username}`;
+    // Use username if available, otherwise fall back to character ID
+    const shareUrl = agent.username
+      ? `${window.location.origin}/chat/@${agent.username}`
+      : `${window.location.origin}/chat/${agent.id}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");
