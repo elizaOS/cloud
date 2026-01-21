@@ -100,9 +100,29 @@ export class UserDatabaseService {
       };
     }
 
-    // Currently provisioning?
-    if (app.user_database_status === "provisioning") {
-      logger.warn("Database provisioning already in progress", { appId });
+    // Atomically try to set status to "provisioning"
+    // This prevents race conditions - only one request can win
+    const updatedApp = await appsRepository.trySetDatabaseProvisioning(
+      appId,
+      region,
+    );
+
+    if (!updatedApp) {
+      // Another request won the race, or status was already "provisioning" or "ready"
+      // Re-fetch to get current state
+      const currentApp = await appsRepository.findById(appId);
+      if (currentApp?.user_database_status === "ready" && currentApp.user_database_uri) {
+        logger.info("Database was provisioned by concurrent request", { appId });
+        return {
+          success: true,
+          connectionUri: currentApp.user_database_uri,
+          projectId: currentApp.user_database_project_id || undefined,
+          branchId: currentApp.user_database_branch_id || undefined,
+          region: currentApp.user_database_region || region,
+        };
+      }
+
+      logger.warn("Database provisioning already in progress (lost race)", { appId });
       return {
         success: false,
         error: "Database provisioning already in progress",
@@ -110,12 +130,8 @@ export class UserDatabaseService {
       };
     }
 
-    // Update status to provisioning
-    await appsRepository.update(appId, {
-      user_database_status: "provisioning",
-      user_database_error: null,
-      user_database_region: region,
-    });
+    // Track created project for cleanup if subsequent operations fail
+    let createdProjectId: string | null = null;
 
     try {
       // Create Neon project
@@ -125,6 +141,9 @@ export class UserDatabaseService {
         name: projectName,
         region,
       });
+
+      // Track the project ID for potential cleanup
+      createdProjectId = result.projectId;
 
       // Store credentials
       await appsRepository.update(appId, {
@@ -167,6 +186,25 @@ export class UserDatabaseService {
         error: errorMessage,
         errorCode,
       });
+
+      // Clean up orphaned Neon project if it was created but subsequent operations failed
+      if (createdProjectId) {
+        try {
+          const neonClient = getNeonClient();
+          await neonClient.deleteProject(createdProjectId);
+          logger.info("Cleaned up orphaned Neon project after failure", {
+            appId,
+            projectId: createdProjectId,
+          });
+        } catch (cleanupError) {
+          // Log but don't fail - the main error is more important
+          logger.error("Failed to clean up orphaned Neon project", {
+            appId,
+            projectId: createdProjectId,
+            error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
+          });
+        }
+      }
 
       // Update status to error
       await appsRepository.update(appId, {
