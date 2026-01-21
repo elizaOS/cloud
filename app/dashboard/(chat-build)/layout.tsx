@@ -41,7 +41,7 @@ export default function ChatBuildLayout({
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-[#191919] overflow-hidden">
+    <div className="flex h-screen w-full bg-neutral-900 x  overflow-hidden">
       {/* Chat Sidebar - hidden in build mode */}
       {!isBuildPage && (
         <ChatSidebar

@@ -8,7 +8,7 @@
 
 "use client";
 
-import { BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandButton } from "@/components/brand";
 import { Plus } from "lucide-react";
 
 interface EmptyStateProps {
@@ -18,14 +18,13 @@ interface EmptyStateProps {
 export function EmptyState({ onCreateNew }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-4">
-      <CornerBrackets size="md" color="#E1E1E1" />
       <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
       <BrandButton
         onClick={() => (window.location.href = "/dashboard/build")}
-        className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+        className="bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
       >
         <Plus className="h-4 w-4" />
-        Create New Agent
+        Create Agent
       </BrandButton>
     </div>
   );

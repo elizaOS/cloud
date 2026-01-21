@@ -95,7 +95,7 @@ const AnimatedSpinnerInline = () => (
           cx="12"
           cy="12"
           r="10"
-          stroke="#FF5800"
+          stroke="#8B5CF6"
           strokeWidth="2"
           fill="none"
         />
@@ -104,7 +104,7 @@ const AnimatedSpinnerInline = () => (
           cx="12"
           cy="12"
           r="10"
-          stroke="#FF5800"
+          stroke="#8B5CF6"
           strokeWidth="2"
           strokeLinecap="round"
           fill="none"

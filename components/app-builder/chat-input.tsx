@@ -11,7 +11,7 @@
  */
 
 import { memo, useCallback, useRef, useEffect, useState } from "react";
-import { Loader2, Send, Mic, Square, X } from "lucide-react";
+import { Loader2, ArrowUp, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
@@ -276,7 +276,7 @@ const ChatInputInner = memo(function ChatInputInner({
   const isMicDisabled = status !== "ready" && status !== "idle";
 
   return (
-    <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.04] bg-[#0a0a0b]">
+    <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.06] bg-[#0a0a0b]">
       {/* Visor Scanner Animation Styles */}
       <style jsx global>{`
         @keyframes visor-scan {
@@ -301,10 +301,10 @@ const ChatInputInner = memo(function ChatInputInner({
 
       <div
         className={cn(
-          "relative rounded-xl border bg-white/[0.015] overflow-hidden transition-all",
+          "relative rounded-xl border bg-black/40 overflow-hidden transition-all duration-300",
           stt.isRecording
-            ? "border-red-500/30 bg-red-500/[0.02]"
-            : "border-white/[0.06] focus-within:border-white/[0.12] focus-within:bg-white/[0.025]",
+            ? "border-red-500/30 bg-red-500/5"
+            : "border-white/10 focus-within:border-white/20",
         )}
       >
         {/* Subtle scanning animation for generating state */}
@@ -399,7 +399,7 @@ const ChatInputInner = memo(function ChatInputInner({
                   type="button"
                   onClick={onStopGeneration}
                   size="icon"
-                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 hover:text-red-300 transition-all touch-manipulation animate-pulse"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 hover:text-red-300 transition-all touch-manipulation animate-pulse"
                   title="Stop generation"
                 >
                   <Square className="h-3.5 w-3.5 xl:h-3 xl:w-3 fill-current" />
@@ -410,9 +410,9 @@ const ChatInputInner = memo(function ChatInputInner({
                   onClick={handleSend}
                   disabled={!input.trim() || status !== "ready"}
                   size="icon"
-                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-[#FF5800] hover:bg-[#e54e00] disabled:bg-white/10 transition-all touch-manipulation group"
                 >
-                  <Send className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white/60" />
+                  <ArrowUp className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white group-disabled:text-neutral-400" />
                 </Button>
               )
             )}

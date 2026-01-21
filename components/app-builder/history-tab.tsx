@@ -163,7 +163,7 @@ export function HistoryTab({
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-3"
           >
-            <Loader2 className="h-7 w-7 animate-spin text-emerald-500/60" />
+            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
             <p className="text-sm text-white/50">Loading history...</p>
           </motion.div>
         </div>
@@ -181,10 +181,12 @@ export function HistoryTab({
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4 text-center px-6"
           >
-            <AlertCircle className="h-8 w-8 text-red-400/70" />
+            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+              <AlertCircle className="h-6 w-6 text-red-400" />
+            </div>
             <div>
-              <p className="text-sm text-white/70 font-medium mb-1">{error}</p>
-              <p className="text-sm text-white/40">
+              <p className="text-sm text-white font-medium mb-1">{error}</p>
+              <p className="text-sm text-white/50">
                 Check your connection and try again
               </p>
             </div>
@@ -192,7 +194,7 @@ export function HistoryTab({
               variant="ghost"
               size="sm"
               onClick={fetchCommits}
-              className="mt-1 h-8 text-sm text-white/60 hover:text-white hover:bg-white/10"
+              className="mt-1 h-8 text-sm text-white/60 hover:text-white hover:bg-white/5 border border-white/10 rounded-xl"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
@@ -213,12 +215,14 @@ export function HistoryTab({
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4 max-w-[280px] text-center px-6"
           >
-            <History className="h-10 w-10 text-white/25" />
+            <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+              <History className="h-6 w-6 text-white/40" />
+            </div>
             <div>
-              <p className="text-sm text-white/70 font-medium mb-1">
+              <p className="text-sm text-white font-medium mb-1">
                 No history yet
               </p>
-              <p className="text-sm text-white/40 leading-relaxed">
+              <p className="text-sm text-white/50 leading-relaxed">
                 Save your work to create version checkpoints you can restore
                 later
               </p>
@@ -232,10 +236,10 @@ export function HistoryTab({
   return (
     <div className={cn("flex flex-col h-full bg-[#0a0a0b]", className)}>
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-emerald-500/70" />
-          <span className="text-sm font-medium text-white/70">
+          <History className="h-4 w-4 text-white/60" />
+          <span className="text-sm font-medium text-white/60">
             {commits.length} version{commits.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -243,7 +247,7 @@ export function HistoryTab({
           variant="ghost"
           size="icon"
           onClick={fetchCommits}
-          className="h-7 w-7 text-white/40 hover:text-white/70 hover:bg-white/5"
+          className="h-7 w-7 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg"
           title="Refresh"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -275,11 +279,11 @@ export function HistoryTab({
                   <CollapsibleTrigger asChild>
                     <div
                       className={cn(
-                        "group relative px-4 py-3 cursor-pointer transition-colors",
+                        "group relative px-4 py-3 cursor-pointer transition-all duration-300",
                         "border-l-2 border-transparent",
-                        isExpanded && "bg-white/[0.04]",
-                        isFirst && "border-l-emerald-500",
-                        isCurrent && !isFirst && "border-l-emerald-500/50",
+                        isExpanded && "bg-white/5",
+                        isFirst && "border-l-[#FF5800]",
+                        isCurrent && !isFirst && "border-l-[#FF5800]/50",
                         !isFirst && !isCurrent && "hover:bg-white/[0.03]",
                       )}
                     >
@@ -288,11 +292,11 @@ export function HistoryTab({
                         {/* Timeline dot */}
                         <div className="flex-shrink-0 mt-1.5">
                           {isFirst ? (
-                            <Circle className="h-3 w-3 fill-emerald-500 text-emerald-500" />
+                            <Circle className="h-3 w-3 fill-[#FF5800] text-[#FF5800]" />
                           ) : isCurrent ? (
-                            <Check className="h-3 w-3 text-emerald-500" />
+                            <Check className="h-3 w-3 text-[#FF5800]" />
                           ) : (
-                            <GitCommit className="h-3 w-3 text-white/25" />
+                            <GitCommit className="h-3 w-3 text-white/30" />
                           )}
                         </div>
 
@@ -303,8 +307,8 @@ export function HistoryTab({
                             className={cn(
                               "text-sm leading-snug line-clamp-2 mb-1.5",
                               isFirst
-                                ? "text-white/90 font-medium"
-                                : "text-white/75",
+                                ? "text-white font-medium"
+                                : "text-white/70",
                             )}
                           >
                             {commit.message.split("\n")[0]}
@@ -320,12 +324,12 @@ export function HistoryTab({
                               {formatDate(commit.date)}
                             </span>
                             {isFirst && (
-                              <span className="text-emerald-400 font-medium">
+                              <span className="text-[#FF5800] font-medium">
                                 Latest
                               </span>
                             )}
                             {isCurrent && !isFirst && (
-                              <span className="text-emerald-400 font-medium">
+                              <span className="text-[#FF5800] font-medium">
                                 Active
                               </span>
                             )}
@@ -338,7 +342,7 @@ export function HistoryTab({
                           transition={{ duration: 0.15 }}
                           className="flex-shrink-0 mt-1"
                         >
-                          <ChevronRight className="h-4 w-4 text-white/25" />
+                          <ChevronRight className="h-4 w-4 text-white/30" />
                         </motion.div>
                       </div>
 
@@ -353,7 +357,7 @@ export function HistoryTab({
                               handleRollback(commit.sha);
                             }}
                             disabled={isRollingBack}
-                            className="h-7 px-2.5 text-xs text-white/60 hover:text-white hover:bg-white/10"
+                            className="h-7 px-2.5 text-xs text-white/60 hover:text-white hover:bg-white/5 border border-white/10 rounded-lg"
                           >
                             {isRollingBack ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -380,9 +384,9 @@ export function HistoryTab({
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <div className="px-4 pb-4 pt-2 ml-6 border-l-2 border-white/[0.06]">
+                          <div className="px-4 pb-4 pt-2 ml-6 border-l-2 border-white/10">
                             {/* Full SHA */}
-                            <div className="mb-4 p-3 bg-black/30 rounded-lg">
+                            <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl">
                               <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
                                 Commit SHA
                               </p>
@@ -404,7 +408,7 @@ export function HistoryTab({
 
                             {/* Extended message */}
                             {commit.message.includes("\n") && (
-                              <div className="mb-4 p-3 bg-black/30 rounded-lg">
+                              <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl">
                                 <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
                                   Details
                                 </p>
@@ -419,13 +423,13 @@ export function HistoryTab({
                             )}
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end pt-3 border-t border-white/[0.06]">
+                            <div className="flex items-center justify-end pt-3 border-t border-white/10">
                               {isFirst ? (
-                                <span className="text-sm text-emerald-400/70">
+                                <span className="text-sm text-[#FF5800]/70">
                                   This is the latest version
                                 </span>
                               ) : isCurrent ? (
-                                <span className="text-sm text-emerald-400/70">
+                                <span className="text-sm text-[#FF5800]/70">
                                   Currently active version
                                 </span>
                               ) : (
@@ -436,7 +440,7 @@ export function HistoryTab({
                                     handleRollback(commit.sha);
                                   }}
                                   disabled={isRollingBack}
-                                  className="h-8 px-4 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+                                  className="h-8 px-4 text-sm bg-[#FF5800] hover:bg-[#FF5800]/90 text-white font-medium rounded-xl"
                                 >
                                   {isRollingBack ? (
                                     <>

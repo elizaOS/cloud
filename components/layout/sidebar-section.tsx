@@ -24,10 +24,12 @@ import { useAdmin } from "@/lib/hooks/use-admin";
 
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
+  isCollapsed?: boolean;
 }
 
 export function SidebarNavigationSection({
   section,
+  isCollapsed = false,
 }: SidebarNavigationSectionProps) {
   // Use the centralized admin hook with request deduplication
   const { isAdmin } = useAdmin();
@@ -80,6 +82,22 @@ export function SidebarNavigationSection({
     section.title?.toLowerCase() === "monetization" ||
     section.title?.toLowerCase() === "admin";
 
+  // Hide coming soon sections when collapsed
+  if (isCollapsed && isComingSoon) {
+    return null;
+  }
+
+  // If collapsed, render just icons
+  if (isCollapsed) {
+    return (
+      <nav className="space-y-1">
+        {filteredItems.map((item) => (
+          <SidebarNavigationItem key={item.id} item={item} isCollapsed />
+        ))}
+      </nav>
+    );
+  }
+
   // If there's no title, render without collapsible (e.g., Dashboard section)
   if (!section.title) {
     return (
@@ -95,7 +113,7 @@ export function SidebarNavigationSection({
   if (isComingSoon) {
     return (
       <div className="w-full mb-3 px-3 flex items-center opacity-50 select-none cursor-default">
-        <h3 className="flex-1 text-sm font-mono text-white/50 text-left">
+        <h3 className="flex-1 text-sm font-mono text-white/50 text-left whitespace-nowrap">
           {section.title}
         </h3>
         <span
@@ -113,7 +131,7 @@ export function SidebarNavigationSection({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger className="group w-full mb-3 px-3 flex items-center hover:opacity-80 transition-opacity">
-        <h3 className="flex-1 text-sm font-mono text-white/50 text-left">
+        <h3 className="flex-1 text-sm font-mono text-white/50 text-left whitespace-nowrap">
           {section.title}
         </h3>
         <ChevronDown

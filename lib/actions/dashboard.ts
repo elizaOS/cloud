@@ -80,6 +80,7 @@ export interface DashboardData {
     total_requests: number;
     last_used_at: Date | null;
     created_at: Date;
+    updated_at: Date;
   }>;
 }
 
@@ -204,6 +205,7 @@ async function fetchDashboardDataInternal(
       total_requests: a.total_requests,
       last_used_at: a.last_used_at,
       created_at: a.created_at,
+      updated_at: a.updated_at,
     })),
   };
 }
@@ -247,6 +249,7 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
       total_requests: a.total_requests,
       last_used_at: a.last_used_at,
       created_at: a.created_at,
+      updated_at: a.updated_at,
     }));
   }
 
