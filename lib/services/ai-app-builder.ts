@@ -800,6 +800,7 @@ export class AIAppBuilderService {
       messages,
       examplePrompts,
       expiresAt: session.expires_at?.toISOString() || null,
+      appId: session.app_id || undefined,
     };
   }
 
