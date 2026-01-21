@@ -152,9 +152,9 @@ export interface AppBuilderModel {
  */
 export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   {
-    id: "anthropic/claude-haiku-4.5",
-    name: "Claude Haiku 4.5",
-    description: "Fast and capable for most coding tasks",
+    id: "anthropic/claude-opus-4.5",
+    name: "Claude Opus 4.5",
+    description: "Most capable model for complex coding tasks",
     provider: "Anthropic",
   },
   {
@@ -195,4 +195,4 @@ export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   },
 ];
 
-export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-haiku-4.5";
+export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-opus-4.5";

@@ -18,12 +18,14 @@ export interface ToolExecutionResult {
 }
 
 /**
- * Execute a tool call with timeout protection.
+ * Execute a tool call with timeout and abort signal protection.
+ * Races the promise against both a timeout and an optional abort signal.
  */
-async function withTimeout<T>(
+async function withTimeoutAndAbort<T>(
   promise: Promise<T>,
   timeoutMs: number,
   toolName: string,
+  abortSignal?: AbortSignal,
 ): Promise<T> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
@@ -34,12 +36,35 @@ async function withTimeout<T>(
       timeoutMs,
     );
   });
-  return Promise.race([promise, timeoutPromise]);
+
+  // If we have an abort signal, add it to the race
+  const abortPromise = abortSignal
+    ? new Promise<never>((_, reject) => {
+        if (abortSignal.aborted) {
+          reject(new Error("Operation aborted by client"));
+        }
+        abortSignal.addEventListener("abort", () => {
+          reject(new Error("Operation aborted by client"));
+        });
+      })
+    : null;
+
+  const racers: Promise<T | never>[] = [promise, timeoutPromise];
+  if (abortPromise) {
+    racers.push(abortPromise);
+  }
+
+  return Promise.race(racers);
 }
 
 /**
  * Execute a tool call from the AI.
  * Returns the result string and any affected files.
+ *
+ * @param sandbox - The sandbox instance to execute commands in
+ * @param toolName - Name of the tool to execute
+ * @param args - Arguments for the tool
+ * @param options - Optional settings including sandboxId and abortSignal
  */
 export async function executeToolCall(
   sandbox: SandboxInstance,
@@ -47,11 +72,20 @@ export async function executeToolCall(
   args: Record<string, unknown>,
   options: {
     sandboxId?: string;
+    abortSignal?: AbortSignal;
   } = {},
 ): Promise<ToolExecutionResult> {
-  const { sandboxId } = options;
+  const { sandboxId, abortSignal } = options;
   const filesAffected: string[] = [];
   let result: string;
+
+  // Check for abort before starting
+  if (abortSignal?.aborted) {
+    return {
+      result: "Operation aborted by client",
+      filesAffected: [],
+    };
+  }
 
   try {
     const execution = async (): Promise<string> => {
@@ -134,16 +168,30 @@ export async function executeToolCall(
       }
     };
 
-    // Execute with timeout
-    result = await withTimeout(execution(), TOOL_TIMEOUT_MS, toolName);
+    // Execute with timeout and abort signal support
+    result = await withTimeoutAndAbort(
+      execution(),
+      TOOL_TIMEOUT_MS,
+      toolName,
+      abortSignal,
+    );
   } catch (toolError) {
     const toolErrorMsg =
       toolError instanceof Error ? toolError.message : String(toolError);
-    logger.error("Tool execution error", {
-      sandboxId,
-      tool: toolName,
-      error: toolErrorMsg,
-    });
+
+    // Log abort errors at info level, others at error level
+    if (toolErrorMsg.includes("aborted")) {
+      logger.info("Tool execution aborted", {
+        sandboxId,
+        tool: toolName,
+      });
+    } else {
+      logger.error("Tool execution error", {
+        sandboxId,
+        tool: toolName,
+        error: toolErrorMsg,
+      });
+    }
     result = `Error executing ${toolName}: ${toolErrorMsg}`;
   }
 
