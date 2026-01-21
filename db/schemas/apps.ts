@@ -35,6 +35,19 @@ export type AppDeploymentStatus =
   | "failed";
 
 /**
+ * User database provisioning status enum.
+ * Tracks the provisioning lifecycle of a user's Neon database.
+ */
+export const userDatabaseStatusEnum = pgEnum("user_database_status", [
+  "none", // No database requested/provisioned
+  "provisioning", // Database creation in progress
+  "ready", // Database ready for use
+  "error", // Provisioning failed
+]);
+
+export type UserDatabaseStatus = "none" | "provisioning" | "ready" | "error";
+
+/**
  * Apps table schema.
  *
  * Represents third-party applications that integrate with the Eliza Cloud platform.
@@ -260,6 +273,47 @@ export const apps = pgTable(
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process
 
+    // === User Database (Neon Serverless Postgres for Stateful Apps) ===
+
+    /**
+     * Encrypted connection URI to the user's provisioned Neon database.
+     * Format: postgres://user:password@host/database?sslmode=require
+     * SENSITIVE: Never expose to client code or logs.
+     */
+    user_database_uri: text("user_database_uri"),
+
+    /**
+     * Neon project ID for API operations (delete, status checks).
+     * Format: "proj_xxxxxxxxxxxx"
+     */
+    user_database_project_id: text("user_database_project_id"),
+
+    /**
+     * Neon branch ID (primary branch created with project).
+     * Format: "br_xxxxxxxxxxxx"
+     */
+    user_database_branch_id: text("user_database_branch_id"),
+
+    /**
+     * AWS region where the database is provisioned.
+     * Default: "aws-us-east-1" (matches our primary infrastructure)
+     */
+    user_database_region: text("user_database_region").default("aws-us-east-1"),
+
+    /**
+     * Current provisioning status of the database.
+     * State machine: none → provisioning → ready | error
+     */
+    user_database_status: userDatabaseStatusEnum("user_database_status")
+      .notNull()
+      .default("none"),
+
+    /**
+     * Error message if provisioning failed.
+     * Cleared when retrying provisioning.
+     */
+    user_database_error: text("user_database_error"),
+
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -274,6 +328,10 @@ export const apps = pgTable(
     ),
     is_active_idx: index("apps_is_active_idx").on(table.is_active),
     created_at_idx: index("apps_created_at_idx").on(table.created_at),
+    // Index for querying apps with databases (exclude 'none' status)
+    user_database_status_idx: index("apps_user_database_status_idx").on(
+      table.user_database_status,
+    ),
   }),
 );
 

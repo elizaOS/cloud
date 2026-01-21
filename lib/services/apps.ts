@@ -219,6 +219,21 @@ export class AppsService {
       await this.invalidateCache(id, app.api_key_id ?? undefined);
     }
 
+    // Clean up user database if provisioned
+    if (app?.user_database_project_id) {
+      try {
+        const { userDatabaseService } = await import("./user-database");
+        await userDatabaseService.cleanupDatabase(id);
+        logger.info("Cleaned up user database for app", { appId: id });
+      } catch (error) {
+        // Log but don't fail deletion - database might already be gone
+        logger.warn("Failed to clean up user database (continuing with deletion)", {
+          appId: id,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
+      }
+    }
+
     if (app?.api_key_id) {
       await apiKeysService.delete(app.api_key_id);
     }

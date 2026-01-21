@@ -13,6 +13,7 @@ import {
   TEMPLATE_EXAMPLES,
   type TemplateType,
 } from "./templates";
+import { DATABASE_SETUP_PROMPT, DATABASE_SECURITY_RULES } from "./database";
 
 export type { TemplateType };
 
@@ -23,6 +24,8 @@ export interface PromptConfig {
   includeMonetization?: boolean;
   /** Include analytics guidance */
   includeAnalytics?: boolean;
+  /** Include database setup instructions (for stateful apps) */
+  includeDatabase?: boolean;
   /** Custom instructions to append */
   customInstructions?: string;
 }
@@ -36,6 +39,7 @@ export function buildSystemPrompt(config: PromptConfig = {}): string {
     templateType = "blank",
     includeMonetization = true,
     includeAnalytics = true,
+    includeDatabase = false,
     customInstructions,
   } = config;
 
@@ -54,6 +58,12 @@ export function buildSystemPrompt(config: PromptConfig = {}): string {
 
   if (includeAnalytics) {
     sections.push(ANALYTICS_GUIDANCE);
+  }
+
+  // Include database setup instructions for stateful apps
+  if (includeDatabase) {
+    sections.push(DATABASE_SETUP_PROMPT);
+    sections.push(DATABASE_SECURITY_RULES);
   }
 
   if (customInstructions) {
@@ -107,3 +117,4 @@ export { BASE_SYSTEM_PROMPT } from "./base";
 export { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
 export { BUILD_RULES, WORKFLOW_RULES } from "./rules";
 export { TEMPLATE_PROMPTS, TEMPLATE_EXAMPLES } from "./templates";
+export { DATABASE_SETUP_PROMPT, DATABASE_SECURITY_RULES } from "./database";
