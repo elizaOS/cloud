@@ -91,6 +91,7 @@ export function hasVoiceAttachments(
  */
 export class VoiceMessageHandler {
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private deferredCleanupTimeout: NodeJS.Timeout | null = null;
 
   /**
    * Process a voice message attachment.
@@ -384,13 +385,20 @@ export class VoiceMessageHandler {
     this.cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 
     // Defer initial cleanup to avoid blocking startup (run after 30 seconds)
-    setTimeout(runCleanup, 30_000);
+    this.deferredCleanupTimeout = setTimeout(() => {
+      this.deferredCleanupTimeout = null;
+      runCleanup();
+    }, 30_000);
   }
 
   /**
    * Stop the cleanup job.
    */
   stopCleanupJob(): void {
+    if (this.deferredCleanupTimeout) {
+      clearTimeout(this.deferredCleanupTimeout);
+      this.deferredCleanupTimeout = null;
+    }
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
