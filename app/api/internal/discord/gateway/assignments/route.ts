@@ -24,10 +24,25 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  logger.info("[Gateway Assignments] Fetching assignments", { podName });
+  // Current and max connection counts to prevent over-claiming
+  const currentCount = parseInt(
+    request.nextUrl.searchParams.get("current") ?? "0",
+    10,
+  );
+  const maxCount = parseInt(
+    request.nextUrl.searchParams.get("max") ?? "100",
+    10,
+  );
+
+  logger.info("[Gateway Assignments] Fetching assignments", {
+    podName,
+    currentCount,
+    maxCount,
+  });
 
   const assignments = await discordConnectionsRepository.getAssignmentsForPod(
     podName,
+    currentCount < maxCount, // Only claim new if we have capacity
   );
 
   logger.info("[Gateway Assignments] Returning assignments", {

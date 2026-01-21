@@ -341,13 +341,22 @@ export const discordConnectionsRepository = {
 
   /**
    * Get assignments for a pod with decrypted bot tokens.
-   * Attempts to assign one unassigned connection to this pod if available.
+   * Optionally claims one unassigned connection for this pod.
+   *
+   * @param podName - The pod requesting assignments
+   * @param claimNew - Whether to claim a new unassigned connection (default: true)
+   *                   Set to false when pod is at capacity to prevent stuck assignments
    */
-  async getAssignmentsForPod(podName: string): Promise<DecryptedAssignment[]> {
+  async getAssignmentsForPod(
+    podName: string,
+    claimNew = true,
+  ): Promise<DecryptedAssignment[]> {
     const encryption = getEncryptionService();
 
-    // Try to claim an unassigned connection atomically
-    await this.assignUnassignedToPod(podName);
+    // Only try to claim new connections if pod has capacity
+    if (claimNew) {
+      await this.assignUnassignedToPod(podName);
+    }
 
     // Get all connections assigned to this pod
     const connections = await this.findByAssignedPod(podName);

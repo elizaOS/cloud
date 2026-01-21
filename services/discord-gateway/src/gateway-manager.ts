@@ -290,14 +290,20 @@ export class GatewayManager {
 
   private async pollForBots(): Promise<void> {
     try {
-      const response = await fetchWithTimeout(
-        `${this.config.elizaCloudUrl}/api/internal/discord/gateway/assignments?pod=${this.config.podName}`,
-        {
-          headers: {
-            "X-Internal-API-Key": this.config.internalApiKey,
-          },
-        },
+      // Include current/max counts so backend only claims new connections if we have capacity
+      const currentCount = this.connections.size;
+      const url = new URL(
+        `${this.config.elizaCloudUrl}/api/internal/discord/gateway/assignments`,
       );
+      url.searchParams.set("pod", this.config.podName);
+      url.searchParams.set("current", currentCount.toString());
+      url.searchParams.set("max", MAX_BOTS_PER_POD.toString());
+
+      const response = await fetchWithTimeout(url.toString(), {
+        headers: {
+          "X-Internal-API-Key": this.config.internalApiKey,
+        },
+      });
 
       if (!response.ok) {
         this.consecutivePollFailures++;
