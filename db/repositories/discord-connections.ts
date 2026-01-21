@@ -147,6 +147,7 @@ export const discordConnectionsRepository = {
   async updateStatus(
     connectionId: string,
     status: ConnectionStatus,
+    podName: string,
     errorMessage?: string,
     botUserId?: string,
   ): Promise<DiscordConnection | null> {
@@ -159,11 +160,15 @@ export const discordConnectionsRepository = {
       updates.error_message = errorMessage;
     }
 
-    if (status === "connected") {
-      updates.connected_at = new Date();
-      // Store bot user ID for mention detection (different from application_id)
-      if (botUserId) {
-        updates.bot_user_id = botUserId;
+    if (status === "connected" || status === "connecting") {
+      // Restore/maintain pod assignment on connect/reconnect
+      updates.assigned_pod = podName;
+      if (status === "connected") {
+        updates.connected_at = new Date();
+        // Store bot user ID for mention detection (different from application_id)
+        if (botUserId) {
+          updates.bot_user_id = botUserId;
+        }
       }
     }
 

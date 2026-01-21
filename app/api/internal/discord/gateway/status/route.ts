@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
   const updated = await discordConnectionsRepository.updateStatus(
     connection_id,
     status,
+    pod_name,
     error_message,
     bot_user_id,
   );
