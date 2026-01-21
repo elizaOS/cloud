@@ -283,6 +283,7 @@ export class VoiceMessageHandler {
     const now = Date.now();
     const expiredBlobs: Array<{ url: string; uploadedAt: Date }> = [];
     let cursor: string | undefined;
+    let totalFilesScanned = 0;
 
     // Paginate through all blobs
     do {
@@ -291,6 +292,8 @@ export class VoiceMessageHandler {
         limit: 1000,
         cursor,
       });
+
+      totalFilesScanned += response.blobs.length;
 
       for (const blob of response.blobs) {
         const ageSeconds = (now - blob.uploadedAt.getTime()) / 1000;
@@ -346,7 +349,7 @@ export class VoiceMessageHandler {
     }
 
     logger.info("Voice audio cleanup completed", {
-      totalFiles: blobs.blobs.length,
+      totalFilesScanned,
       expiredCount: expiredBlobs.length,
       deletedCount,
       failedCount: failed.length,

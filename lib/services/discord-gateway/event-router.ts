@@ -423,6 +423,15 @@ async function sendToRuntime(
     },
   };
 
+  // Save user message to maintain conversation history
+  try {
+    await runtime.createMemory(userMessage, "messages");
+  } catch (error) {
+    logger.error("[DiscordRouter] Failed to save user message memory", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   let responseText: string | undefined;
 
   // Emit message event and capture response

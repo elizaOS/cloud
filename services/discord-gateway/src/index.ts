@@ -14,12 +14,14 @@ import { logger } from "./logger";
 const app = new Hono();
 
 // Pod name is critical for connection tracking and failover.
-// In K8s: Set via POD_NAME from metadata.name
-// Locally: Falls back to hostname for stable identity across restarts
+// MUST be set in production via POD_NAME env var (K8s injects from metadata.name).
+// Fallback to hostname is for local development only - hostname may change in K8s
+// if pod is rescheduled, causing orphaned connections.
 const podName = process.env.POD_NAME ?? `gateway-${hostname()}`;
 if (!process.env.POD_NAME) {
   logger.warn(
-    "POD_NAME not set - using hostname. Set POD_NAME in production for proper failover.",
+    "POD_NAME not set - using hostname fallback. This is only suitable for local development. " +
+      "In production, set POD_NAME via K8s downward API to ensure proper failover.",
     { podName },
   );
 }

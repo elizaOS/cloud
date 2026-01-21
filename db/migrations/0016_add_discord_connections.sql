@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS "discord_connections" (
   "connected_at" timestamp with time zone,
   
   -- Configuration (default Discord intents: GUILDS | GUILD_MESSAGES | GUILD_MESSAGE_REACTIONS | DIRECT_MESSAGES | MESSAGE_CONTENT)
-  "intents" integer DEFAULT 34305,
+  -- Value: (1<<0) | (1<<9) | (1<<10) | (1<<12) | (1<<15) = 38401
+  "intents" integer DEFAULT 38401,
   "is_active" boolean NOT NULL DEFAULT true,
   "metadata" jsonb,
   

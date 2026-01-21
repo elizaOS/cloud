@@ -2,6 +2,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discordConnections,
+  DISCORD_DEFAULT_INTENTS,
   type DiscordConnection,
   type NewDiscordConnection,
 } from "@/db/schemas/discord-connections";
@@ -294,7 +295,7 @@ export const discordConnectionsRepository = {
             organizationId: conn.organization_id,
             applicationId: conn.application_id,
             botToken,
-            intents: conn.intents ?? 3276799,
+            intents: conn.intents ?? DISCORD_DEFAULT_INTENTS,
           };
         } catch (error) {
           logger.error("[DiscordConnections] Failed to decrypt bot token", {

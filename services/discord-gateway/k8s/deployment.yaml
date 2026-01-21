@@ -63,10 +63,12 @@ spec:
                   optional: true
             - name: MAX_BOTS_PER_POD
               value: "100"
+            # Failover timing: max latency = DEAD_POD_THRESHOLD + FAILOVER_CHECK_INTERVAL
+            # With these defaults: 45s + 30s = 75s max failover time
             - name: FAILOVER_CHECK_INTERVAL_MS
-              value: "60000"
+              value: "30000"
             - name: DEAD_POD_THRESHOLD_MS
-              value: "120000"
+              value: "45000"
           resources:
             requests:
               memory: "256Mi"
