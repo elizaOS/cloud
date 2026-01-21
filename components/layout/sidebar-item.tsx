@@ -29,10 +29,11 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
   const pathname = usePathname();
   const router = useRouter();
   const { authenticated } = usePrivy();
-  // Use exact match for dashboard, startsWith for other routes
+  // Use exact match for dashboard, startsWith for other routes (excluding /create sub-paths)
   const isActive = item.href === "/dashboard"
     ? pathname === item.href
-    : pathname?.startsWith(item.href);
+    : pathname === item.href ||
+      (pathname?.startsWith(item.href + "/") && !pathname?.startsWith(item.href + "/create"));
   const Icon = item.icon;
 
   // Check if this item is coming soon (disabled)

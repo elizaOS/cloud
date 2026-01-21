@@ -55,6 +55,13 @@ export const sidebarSections: SidebarSection[] = [
     title: "Apps",
     items: [
       {
+        id: "app-creator",
+        label: "App Creator",
+        href: "/dashboard/apps/create",
+        icon: Sparkles,
+        freeAllowed: false,
+      },
+      {
         id: "my-apps",
         label: "My Apps",
         href: "/dashboard/apps",

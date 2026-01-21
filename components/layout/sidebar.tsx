@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useState, useEffect, memo, useCallback } from "react";
 import { X, PanelLeft, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
@@ -119,16 +120,18 @@ function SidebarComponent({
         </div>
 
         {/* Navigation Content */}
-        <nav className={cn(
-          "flex-1 overflow-y-auto py-6",
-          isCollapsed ? "px-1" : "px-4"
-        )}>
-          <div className={isCollapsed ? "space-y-2" : "space-y-8"}>
-            {sidebarSections.map((section, index) => (
-              <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
-            ))}
-          </div>
-        </nav>
+        <ScrollArea className="flex-1">
+          <nav className={cn(
+            "py-6",
+            isCollapsed ? "px-1" : "px-4"
+          )}>
+            <div className={isCollapsed ? "space-y-2" : "space-y-8"}>
+              {sidebarSections.map((section, index) => (
+                <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
+              ))}
+            </div>
+          </nav>
+        </ScrollArea>
 
         {/* Bottom Panel with User Info and Settings - hidden when collapsed */}
         {!isCollapsed && <SidebarBottomPanel />}

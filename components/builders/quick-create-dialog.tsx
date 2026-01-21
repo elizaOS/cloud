@@ -131,6 +131,11 @@ export function QuickCreateDialog({
       onOpenChange(false);
       return;
     }
+    if (type === "app") {
+      router.push("/dashboard/apps/create");
+      onOpenChange(false);
+      return;
+    }
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
