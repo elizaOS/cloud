@@ -461,8 +461,8 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = agents
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
+  // Setup wizard steps: 1 = template, 2 = details, 3 = agents
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection for the app
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
@@ -476,7 +476,7 @@ export default function AppCreatorPage() {
       is_public?: boolean;
     }>
   >([]);
-  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [loadingAgents, setLoadingAgents] = useState(true);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -507,9 +507,9 @@ export default function AppCreatorPage() {
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
       : "blank",
   );
-  const [includeMonetization, setIncludeMonetization] = useState(false);
+  const [includeMonetization, setIncludeMonetization] = useState(true);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(true);
   const [templatePage, setTemplatePage] = useState(0);
   const TEMPLATES_PER_PAGE = 4;
 
@@ -517,9 +517,9 @@ export default function AppCreatorPage() {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   // Input is managed by Zustand for isolated re-renders - see useChatInput
-  const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [copied, setCopied] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -527,16 +527,16 @@ export default function AppCreatorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(true);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [isExtending, setIsExtending] = useState(false);
+  const [isExtending, setIsExtending] = useState(true);
   const [snapshotInfo, setSnapshotInfo] = useState<{
     canRestore: boolean;
     githubRepo: string | null;
     lastBackup: string | null;
   } | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [restoreProgress, setRestoreProgress] = useState<{
     current: number;
     total: number;
@@ -549,8 +549,8 @@ export default function AppCreatorPage() {
 
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeploying, setIsDeploying] = useState(false);
+  const [isSaving, setIsSaving] = useState(true);
+  const [isDeploying, setIsDeploying] = useState(true);
   const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
     null,
   );
@@ -651,8 +651,8 @@ export default function AppCreatorPage() {
   // FETCH USER'S AGENTS FOR APP AGENT SELECTION
   // ============================================================================
   useEffect(() => {
-    // Only fetch when we reach the agents step (step 4) or when in building mode
-    if (setupStep === 4 || step === "building") {
+    // Only fetch when we reach the agents step (step 3) or when in building mode
+    if (setupStep === 3 || step === "building") {
       const fetchAgents = async () => {
         if (availableAgents.length > 0) return; // Already fetched
         setLoadingAgents(true);
@@ -2928,7 +2928,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           <div className="flex items-center justify-center mb-6">
             {/* Mobile step indicator */}
             <div className="flex md:hidden items-center gap-1.5">
-              {[1, 2, 3, 4].map((num) => (
+              {[1, 2, 3].map((num) => (
                 <div
                   key={num}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -2947,8 +2947,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               {[
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
-                { num: 3, label: "Features" },
-                { num: 4, label: "Agents" },
+                { num: 3, label: "Agents" },
               ].map((s, i) => (
                 <div key={s.num} className="flex items-center">
                   <button
@@ -2956,10 +2955,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       if (
                         s.num === 1 ||
                         (s.num === 2 && templateType) ||
-                        (s.num === 3 && appName.trim()) ||
-                        (s.num === 4 && appName.trim())
+                        (s.num === 3 && appName.trim())
                       ) {
-                        setSetupStep(s.num as 1 | 2 | 3 | 4);
+                        setSetupStep(s.num as 1 | 2 | 3);
                       }
                     }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
@@ -2992,7 +2990,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {s.label}
                     </span>
                   </button>
-                  {i < 3 && (
+                  {i < 2 && (
                     <div
                       className={`w-3 h-px ml-1 transition-colors duration-300 ${
                         setupStep > s.num ? "bg-white/30" : "bg-white/10"
@@ -3315,168 +3313,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          {/* STEP 3: Features */}
+
+          {/* STEP 3: Agent Selection */}
           <div
             className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      Power-ups
-                    </h2>
-                    {/* App summary */}
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
-                      {selectedTemplate && (
-                        <selectedTemplate.icon
-                          className="h-3 w-3 md:h-3.5 md:w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      )}
-                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
-                        {appName || "Your App"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Add optional integrations
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                  {/* Monetization - Premium toggle card */}
-                  <button
-                    onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeMonetization
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeMonetization ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <DollarSign
-                          className={`h-5 w-5 transition-colors ${
-                            includeMonetization
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeMonetization ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeMonetization
-                              ? "translate-x-4"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Monetization
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Accept payments & subscriptions
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Stripe
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Billing
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Analytics toggle card */}
-                  <button
-                    onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeAnalytics
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <LineChart
-                          className={`h-5 w-5 transition-colors ${
-                            includeAnalytics
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeAnalytics ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeAnalytics ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Analytics
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Track users & events in real-time
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Real-time
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Events
-                      </span>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
-                  >
-                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(4)}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium transition-all duration-300"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* STEP 4: Agent Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 4 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -3527,7 +3369,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                 <div className="flex items-center justify-between pt-4">
                   <button
-                    onClick={() => setSetupStep(3)}
+                    onClick={() => setSetupStep(2)}
                     className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
                     <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
