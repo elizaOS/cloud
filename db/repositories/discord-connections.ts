@@ -210,6 +210,29 @@ export const discordConnectionsRepository = {
       .where(eq(discordConnections.id, connectionId));
   },
 
+  /**
+   * Check if a pod has any connections with a recent heartbeat.
+   * Used to prevent false failover claims against healthy pods.
+   */
+  async hasRecentHeartbeat(
+    podName: string,
+    thresholdMs: number,
+  ): Promise<boolean> {
+    const cutoffTime = new Date(Date.now() - thresholdMs);
+    const connections = await db
+      .select({ id: discordConnections.id })
+      .from(discordConnections)
+      .where(
+        and(
+          eq(discordConnections.assigned_pod, podName),
+          eq(discordConnections.is_active, true),
+          sql`${discordConnections.last_heartbeat} > ${cutoffTime}`,
+        ),
+      )
+      .limit(1);
+    return connections.length > 0;
+  },
+
   async reassignFromDeadPod(
     deadPodName: string,
     newPodName: string,

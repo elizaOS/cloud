@@ -157,9 +157,11 @@ export class VoiceMessageHandler {
 
     const contentType =
       attachment.contentType ?? "audio/ogg; codecs=opus";
-    const filename = attachment.name ?? `voice-${attachment.id}.ogg`;
+    // Sanitize filename to prevent path traversal attacks
+    const rawFilename = attachment.name ?? `voice-${attachment.id}.ogg`;
+    const safeFilename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
     const timestamp = Date.now();
-    const pathname = `${VOICE_STORAGE_PATH_PREFIX}/${connectionId}/${messageId}/${timestamp}-${filename}`;
+    const pathname = `${VOICE_STORAGE_PATH_PREFIX}/${connectionId}/${messageId}/${timestamp}-${safeFilename}`;
 
     const uploadStart = Date.now();
     const blob = await put(pathname, audioBuffer, {

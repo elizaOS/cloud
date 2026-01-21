@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS "discord_connections" (
   
   -- Gateway assignment
   "assigned_pod" text,
-  "status" text NOT NULL DEFAULT 'pending',
+  "status" text NOT NULL DEFAULT 'pending' 
+    CHECK (status IN ('pending', 'connecting', 'connected', 'disconnected', 'error')),
   "error_message" text,
   
   -- Connection stats

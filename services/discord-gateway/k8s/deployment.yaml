@@ -95,7 +95,9 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "sleep 10"]
+                # Allow time for graceful shutdown (save state, close connections)
+                # Should be less than terminationGracePeriodSeconds (60s)
+                command: ["/bin/sh", "-c", "sleep 45"]
 ---
 apiVersion: v1
 kind: Service

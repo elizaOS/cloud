@@ -68,6 +68,12 @@ const DEAD_POD_THRESHOLD_MS = parseInt(
   10,
 );
 
+/** Maximum bots per pod - prevents resource exhaustion */
+const MAX_BOTS_PER_POD = parseInt(
+  process.env.MAX_BOTS_PER_POD ?? "100",
+  10,
+);
+
 // ============================================
 // Types
 // ============================================
@@ -200,8 +206,14 @@ export class GatewayManager {
   async start(): Promise<void> {
     logger.info("Starting gateway manager", { podName: this.config.podName });
 
-    // Start polling for assigned bots
-    await this.pollForBots();
+    // Start polling for assigned bots (with retry on startup failure)
+    try {
+      await this.pollForBots();
+    } catch (error) {
+      logger.error("Initial pollForBots failed, will retry on interval", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     this.pollInterval = setInterval(() => {
       this.pollForBots().catch((error) => {
         logger.error("Error in pollForBots interval", {
@@ -313,6 +325,15 @@ export class GatewayManager {
 
       for (const assignment of data.assignments) {
         if (!this.connections.has(assignment.connectionId)) {
+          // Enforce MAX_BOTS_PER_POD limit
+          if (this.connections.size >= MAX_BOTS_PER_POD) {
+            logger.warn("MAX_BOTS_PER_POD limit reached, skipping new assignment", {
+              currentBots: this.connections.size,
+              maxBots: MAX_BOTS_PER_POD,
+              skippedConnectionId: assignment.connectionId,
+            });
+            break;
+          }
           await this.connectBot(assignment);
         }
       }

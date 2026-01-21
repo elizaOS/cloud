@@ -47,6 +47,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Verify the dead pod hasn't had a recent heartbeat (prevent false failovers)
+  const DEAD_POD_THRESHOLD_MS = 45_000; // Should match gateway-manager constant
+  const recentHeartbeat =
+    await discordConnectionsRepository.hasRecentHeartbeat(
+      dead_pod,
+      DEAD_POD_THRESHOLD_MS,
+    );
+
+  if (recentHeartbeat) {
+    logger.warn("[Gateway Failover] Rejected claim - pod has recent heartbeat", {
+      claimingPod: claiming_pod,
+      deadPod: dead_pod,
+    });
+    return NextResponse.json(
+      { error: "Pod is not dead - has recent heartbeat" },
+      { status: 400 },
+    );
+  }
+
   logger.warn("[Gateway Failover] Processing failover request", {
     claimingPod: claiming_pod,
     deadPod: dead_pod,
