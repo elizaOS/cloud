@@ -24,7 +24,7 @@ export const toolSchemas = {
     path: z.string().default(".").describe("Directory path"),
   }),
   run_command: z.object({
-    command: z.string().describe("Command to run"),
+    command: z.string().describe("Command to run (drizzle-kit commands auto-inject DATABASE_URL)"),
   }),
 };
 
