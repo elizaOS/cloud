@@ -1,5 +1,7 @@
 "use server";
 
+import { workflowAIGeneratorService, type ReactFlowWorkflow } from "@/lib/services/workflow-ai-generator";
+
 import { requireAuthWithOrg } from "@/lib/auth";
 import { workflowsRepository, workflowRunsRepository } from "@/db/repositories";
 import type {
@@ -8,6 +10,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   WorkflowTriggerConfig,
+  WorkflowNodeType,
 } from "@/db/schemas";
 import { revalidatePath } from "next/cache";
 import {
@@ -222,4 +225,42 @@ export async function getLatestWorkflowRun(workflowId: string) {
   const run = await workflowRunsRepository.getLatestRun(workflowId);
 
   return run;
+}
+
+/**
+ * Generates a workflow using AI from a natural language description.
+ * Returns ReactFlow-compatible nodes and edges ready to apply to the canvas.
+ * @param prompt The user's request
+ * @param currentNodes Optional - current workflow nodes for modification requests
+ */
+export async function generateWorkflowWithAI(
+  prompt: string,
+  currentNodes?: Array<{ type: string; data: Record<string, unknown> }>
+): Promise<{
+  workflow: ReactFlowWorkflow;
+  description: string;
+  missingCredentials: string[];
+}> {
+  await requireAuthWithOrg();
+
+  // Convert current nodes to GeneratedWorkflow format if provided
+  const currentWorkflow = currentNodes && currentNodes.length > 0 
+    ? {
+        nodes: currentNodes.map(n => ({
+          type: n.type as WorkflowNodeType,
+          data: n.data,
+        })),
+        description: "",
+        missingCredentials: [],
+      }
+    : undefined;
+
+  const generatedWorkflow = await workflowAIGeneratorService.generate(prompt, currentWorkflow);
+  const reactFlowWorkflow = workflowAIGeneratorService.convertToReactFlow(generatedWorkflow);
+
+  return {
+    workflow: reactFlowWorkflow,
+    description: generatedWorkflow.description,
+    missingCredentials: generatedWorkflow.missingCredentials,
+  };
 }

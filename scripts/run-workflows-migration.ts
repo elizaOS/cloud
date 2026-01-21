@@ -11,6 +11,7 @@ const migrations = [
   "0014_add_twitter_workflow_node.sql",
   "0015_add_telegram_email_workflow_nodes.sql",
   "0016_add_app_query_workflow_node.sql",
+  "0017_add_workflow_runs_table.sql",
 ];
 
 async function runMigration() {

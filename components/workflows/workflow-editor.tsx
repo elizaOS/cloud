@@ -19,9 +19,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { ArrowLeft, Save, Loader2, Play, Pause, Plus, Terminal, ChevronUp, ChevronDown, Square, Clock } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Play, Pause, Plus, Terminal, ChevronUp, ChevronDown, Square, Clock, Sparkles, Send, X, MessageSquare } from "lucide-react";
 import type { Workflow, WorkflowNode, WorkflowEdge } from "@/db/schemas";
-import { updateWorkflow, runWorkflow } from "@/app/actions/workflows";
+import { updateWorkflow, runWorkflow, generateWorkflowWithAI } from "@/app/actions/workflows";
 import type { ExecutionResult } from "@/lib/services/workflow-executor";
 import { NodeConfigPanel } from "./node-config-panel";
 import { ExecutionResultsPanel } from "./execution-results-panel";
@@ -131,6 +131,85 @@ function WorkflowCanvas({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPosition, setAddPosition] = useState({ x: 100, y: 100 });
   const [showLogs, setShowLogs] = useState(false);
+  const [showAiSidebar, setShowAiSidebar] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [autoApply, setAutoApply] = useState(true);
+  const [aiMessages, setAiMessages] = useState<Array<{
+    role: "user" | "assistant";
+    content: string;
+    workflow?: { nodes: Node[]; edges: Edge[] };
+    description?: string;
+    missingCredentials?: string[];
+  }>>([]);
+  const aiChatRef = useRef<HTMLDivElement>(null);
+
+  // Handle AI workflow generation
+  const handleGenerateWorkflow = async (prompt: string) => {
+    if (!prompt.trim() || isGenerating) return;
+
+    // Add user message
+    setAiMessages((prev) => [...prev, { role: "user", content: prompt }]);
+    setAiPrompt("");
+    setIsGenerating(true);
+
+    // Scroll to bottom
+    setTimeout(() => aiChatRef.current?.scrollTo({ top: aiChatRef.current.scrollHeight, behavior: "smooth" }), 100);
+
+    try {
+      // Get current nodes to provide context for modifications
+      const currentNodes = nodes
+        .filter((n) => n.id !== ADD_BUTTON_NODE_ID)
+        .map((n) => ({ type: n.type ?? "unknown", data: (n.data ?? {}) as Record<string, unknown> }));
+      
+      const result = await generateWorkflowWithAI(prompt, currentNodes.length > 0 ? currentNodes : undefined);
+      
+      // Convert to Node[] with animated: true for edges
+      const flowNodes: Node[] = result.workflow.nodes.map((n) => ({
+        ...n,
+        position: n.position,
+      }));
+      const flowEdges: Edge[] = result.workflow.edges.map((e) => ({
+        ...e,
+        animated: true,
+      }));
+
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: result.description,
+          workflow: { nodes: flowNodes, edges: flowEdges },
+          description: result.description,
+          missingCredentials: result.missingCredentials,
+        },
+      ]);
+
+      // Auto-apply the workflow if enabled
+      if (autoApply) {
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+      }
+    } catch (error) {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        },
+      ]);
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => aiChatRef.current?.scrollTo({ top: aiChatRef.current.scrollHeight, behavior: "smooth" }), 100);
+    }
+  };
+
+  // Apply generated workflow to canvas
+  const handleApplyWorkflow = (workflow: { nodes: Node[]; edges: Edge[] }) => {
+    setNodes(workflow.nodes);
+    setEdges(workflow.edges);
+    setShowAiSidebar(false);
+  };
   
   // Create the add button click handler
   const handleAddButtonClick = useCallback(() => {
@@ -544,6 +623,17 @@ function WorkflowCanvas({
               <ChevronUp className="w-4 h-4" />
             )}
           </button>
+
+          {/* AI Builder toggle button */}
+          <button
+            onClick={() => setShowAiSidebar(!showAiSidebar)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+              showAiSidebar ? "bg-[#FF5800]/20 text-[#FF5800]" : "bg-white/5 hover:bg-white/10 text-white/60"
+            }`}
+            title={showAiSidebar ? "Hide AI builder" : "AI workflow builder"}
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Schedule info bar - shows when workflow has a schedule */}
@@ -572,6 +662,7 @@ function WorkflowCanvas({
             </div>
           </div>
         )}
+
       </div>
 
       {/* Canvas Context Menu */}
@@ -658,6 +749,170 @@ function WorkflowCanvas({
           isScheduleActive={workflow.trigger_config.type === "schedule" && workflow.status === "active"}
         />
       )}
+
+      {/* AI Builder Sidebar - slides in from right */}
+      <div
+        className={`absolute top-0 right-0 h-full w-[400px] bg-neutral-900/95 backdrop-blur-xl border-l border-white/10 z-50 transform transition-transform duration-300 ease-out ${
+          showAiSidebar ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#FF5800]/10">
+                <Sparkles className="w-4 h-4 text-[#FF5800]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">AI Workflow Builder</h3>
+                <p className="text-xs text-white/50">Describe what you want to automate</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAiSidebar(false)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
+
+          {/* Chat Messages Area */}
+          <div ref={aiChatRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Welcome message - only show if no messages */}
+            {aiMessages.length === 0 && (
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#FF5800]/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-[#FF5800]" />
+                </div>
+                <div className="flex-1 bg-white/5 rounded-2xl rounded-tl-md px-4 py-3">
+                  <p className="text-sm text-white/80">
+                    Hi! I can help you build workflows. Describe what you want to automate and I&apos;ll create it for you.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-white/40">Try something like:</p>
+                    <div className="space-y-1.5">
+                      <button 
+                        onClick={() => handleGenerateWorkflow("Every morning at 9am, get BTC price and post it to Telegram")}
+                        className="w-full text-left text-xs text-white/60 hover:text-white/80 bg-white/5 hover:bg-white/10 rounded-lg px-3 py-2 transition-colors"
+                      >
+                        &quot;Every morning, get BTC price and post it to Telegram&quot;
+                      </button>
+                      <button 
+                        onClick={() => handleGenerateWorkflow("When triggered, generate an image of a cosmic landscape and save it to gallery")}
+                        className="w-full text-left text-xs text-white/60 hover:text-white/80 bg-white/5 hover:bg-white/10 rounded-lg px-3 py-2 transition-colors"
+                      >
+                        &quot;When triggered, generate an image and save to gallery&quot;
+                      </button>
+                      <button 
+                        onClick={() => handleGenerateWorkflow("Have my agent analyze the current weather in New York and send the analysis to Discord")}
+                        className="w-full text-left text-xs text-white/60 hover:text-white/80 bg-white/5 hover:bg-white/10 rounded-lg px-3 py-2 transition-colors"
+                      >
+                        &quot;Have my agent analyze the weather and send to Discord&quot;
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chat messages */}
+            {aiMessages.map((message, index) => (
+              <div key={index} className="flex gap-3">
+                {message.role === "user" ? (
+                  <>
+                    <div className="flex-1" />
+                    <div className="max-w-[85%] bg-[#FF5800]/20 text-white rounded-2xl rounded-tr-md px-4 py-3">
+                      <p className="text-sm">{message.content}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#FF5800]/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-[#FF5800]" />
+                    </div>
+                    <div className="flex-1 bg-white/5 rounded-2xl rounded-tl-md px-4 py-3">
+                      <p className="text-sm text-white/80">{message.content}</p>
+                      
+                      {/* Show workflow preview and apply button */}
+                      {message.workflow && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-white/50">
+                            <span className="w-2 h-2 rounded-full bg-green-400" />
+                            <span>{message.workflow.nodes.length} nodes ready</span>
+                          </div>
+                          
+                          {/* Missing credentials warning */}
+                          {message.missingCredentials && message.missingCredentials.length > 0 && (
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+                              <p className="text-xs text-yellow-400">
+                                ⚠️ You&apos;ll need to configure: {message.missingCredentials.join(", ")}
+                              </p>
+                            </div>
+                          )}
+                          
+                          <button
+                            onClick={() => handleApplyWorkflow(message.workflow!)}
+                            className="w-full flex items-center justify-center gap-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-black font-medium text-sm rounded-xl px-4 py-2.5 transition-colors"
+                          >
+                            <Play className="w-4 h-4" />
+                            Apply to Canvas
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+
+            {/* Loading indicator */}
+            {isGenerating && (
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#FF5800]/10 flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 text-[#FF5800] animate-spin" />
+                </div>
+                <div className="flex-1 bg-white/5 rounded-2xl rounded-tl-md px-4 py-3">
+                  <p className="text-sm text-white/50">Building your workflow...</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="p-4 border-t border-white/10">
+            <div className="relative">
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerateWorkflow(aiPrompt);
+                  }
+                }}
+                placeholder="Describe your workflow..."
+                rows={3}
+                disabled={isGenerating}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 pr-12 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF5800]/50 focus:ring-1 focus:ring-[#FF5800]/20 transition-all resize-none disabled:opacity-50"
+              />
+              <button
+                onClick={() => handleGenerateWorkflow(aiPrompt)}
+                disabled={!aiPrompt.trim() || isGenerating}
+                className="absolute right-3 bottom-3 flex items-center justify-center w-8 h-8 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 text-black animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 text-black" />
+                )}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-white/30 text-center">
+              Press Enter to send • Shift+Enter for new line
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
