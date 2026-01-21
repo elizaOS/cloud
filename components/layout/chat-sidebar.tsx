@@ -91,7 +91,11 @@ export function ChatSidebar({
     deleteRoom,
     selectedCharacterId,
     availableCharacters,
+    viewerState,
   } = useChatStore();
+
+  // Check if user is the owner
+  const isOwner = viewerState === "owner";
 
   const [operationState, setOperationState] = useState<OperationState>({
     deletingRoomId: null,
@@ -202,11 +206,10 @@ export function ChatSidebar({
     const character = availableCharacters.find(
       (c) => c.id === selectedCharacterId,
     );
-    if (!character?.username) {
-      toast.error("Set a username first to share this agent");
-      return;
-    }
-    const shareUrl = `${window.location.origin}/chat/@${character.username}`;
+    // Use username if available, otherwise fall back to character ID
+    const shareUrl = character?.username
+      ? `${window.location.origin}/chat/@${character.username}`
+      : `${window.location.origin}/chat/${selectedCharacterId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");
@@ -389,8 +392,8 @@ export function ChatSidebar({
             isCollapsed ? "justify-center" : "gap-3 px-3",
           )}
         >
-          {/* Avatar - wrapped in dropdown when collapsed */}
-          {isCollapsed && selectedCharacter ? (
+          {/* Avatar - wrapped in dropdown when collapsed (only for owners) */}
+          {isCollapsed && selectedCharacter && isOwner ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="rounded-full hover:ring-2 hover:ring-white/20 transition-all">
@@ -450,6 +453,15 @@ export function ChatSidebar({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : isCollapsed && selectedCharacter ? (
+            // Non-owner collapsed view - just avatar, no dropdown
+            <ElizaAvatar
+              avatarUrl={selectedCharacter.avatarUrl}
+              name={selectedCharacter.name}
+              className="w-6 h-6 shrink-0"
+              iconClassName="h-3 w-3"
+              fallbackClassName="bg-[#FF5800]/10"
+            />
           ) : selectedCharacter ? (
             <ElizaAvatar
               avatarUrl={selectedCharacter.avatarUrl}
@@ -465,11 +477,19 @@ export function ChatSidebar({
           )}
           {!isCollapsed && (
             <>
-              <div className="text-sm font-medium text-white truncate flex-1">
-                {selectedCharacter?.name || "Create New Agent"}
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="text-sm font-medium text-white truncate">
+                  {selectedCharacter?.name || "Create New Agent"}
+                </div>
+                {/* Creator attribution for non-owners */}
+                {selectedCharacter && !isOwner && selectedCharacter.creatorUsername && (
+                  <span className="text-[10px] text-white/40 truncate">
+                    by @{selectedCharacter.creatorUsername}
+                  </span>
+                )}
               </div>
-              {/* Settings Dropdown */}
-              {selectedCharacter && (
+              {/* Settings Dropdown - Owner only */}
+              {selectedCharacter && isOwner && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
@@ -523,6 +543,16 @@ export function ChatSidebar({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              )}
+              {/* Non-owner: Copy share link button only */}
+              {selectedCharacter && !isOwner && selectedCharacter.username && (
+                <button
+                  onClick={handleCopyShareLink}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Copy share link"
+                >
+                  <LinkIcon className="h-4 w-4 text-neutral-300" />
+                </button>
               )}
             </>
           )}
