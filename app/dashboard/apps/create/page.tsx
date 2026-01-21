@@ -38,7 +38,7 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1,
+  maxRetries = 1
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -166,38 +166,20 @@ const ChatMessage = memo(function ChatMessage({
       <div
         className={`${
           msg.role === "user"
-            ? "max-w-[90%] xl:max-w-[85%] py-2 xl:py-2.5 px-3 xl:px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
-            : isProcessing
-              ? "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
-              : "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
+            ? "w-fit max-w-full py-2 xl:py-2.5 px-3 xl:px-4 bg-white/[0.04] border border-white/[0.08] rounded-2xl"
+            : "w-fit max-w-full py-2.5 xl:py-3 px-3 xl:px-4 rounded-2xl"
         }`}
       >
-        <div className="flex items-center justify-between mb-1 xl:mb-1.5">
-          <div className="flex items-center gap-1.5 xl:gap-2">
-            {isProcessing && (
-              <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-violet-400" />
-            )}
-            <span
-              className={`text-[10px] xl:text-[11px] ${
-                msg.role === "user"
-                  ? "text-[#FF5800]/70"
-                  : isProcessing
-                    ? "text-violet-300/70"
-                    : "text-white/35"
-              }`}
-            >
-              {msg.role === "user"
-                ? "You"
-                : isProcessing
-                  ? "Building"
-                  : "Assistant"}
+        {/* Header - only show for processing state */}
+        {isProcessing && (
+          <div className="flex items-center gap-1.5 xl:gap-2 mb-1 xl:mb-1.5">
+            <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-[#FF8C42]" />
+            <span className="text-[10px] xl:text-[11px] text-[#FF8C42]">
+              Building
             </span>
           </div>
-          <span className="text-[9px] xl:text-[10px] text-white/20 font-mono opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity">
-            {msgTime}
-          </span>
-        </div>
-        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto">
+        )}
+        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -222,7 +204,7 @@ const ChatMessage = memo(function ChatMessage({
                     value={`op-${idx}`}
                     className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors"
                   >
-                    <AccordionTrigger className="px-2.5 py-2 text-[11px] hover:no-underline hover:bg-white/[0.03] transition-colors">
+                    <AccordionTrigger className="px-2.5 py-2 text-[11px] hover:no-underline hover:bg-white/[0.03] data-[state=open]:bg-white/[0.03] data-[state=open]:hover:bg-white/[0.05] transition-colors">
                       <div className="flex items-center gap-2 text-left w-full">
                         <Check className="h-3 w-3 text-emerald-400 flex-shrink-0" />
                         <span className="font-medium text-white/80">
@@ -237,8 +219,8 @@ const ChatMessage = memo(function ChatMessage({
                       </div>
                     </AccordionTrigger>
                     {op.reasoning && (
-                      <AccordionContent className="px-2.5 pb-2.5">
-                        <div className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg p-3 max-h-[200px] overflow-y-auto border border-white/[0.04]">
+                      <AccordionContent className="p-2.5">
+                        <div className="text-[11px] leading-[1.6] text-white/50 pr-0.5 rounded-lg max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 scrollbar-thumb-rounded">
                           <pre className="whitespace-pre-wrap font-sans">
                             {op.reasoning}
                           </pre>
@@ -302,11 +284,11 @@ const ChatMessage = memo(function ChatMessage({
             <p className="text-[9px] xl:text-[10px] text-white/30 mb-1 xl:mb-1.5 uppercase tracking-wider">
               Changed
             </p>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 xl:gap-1.5">
               {msg.filesAffected.map((file) => (
                 <span
                   key={file}
-                  className="px-1.5 xl:px-2 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded truncate max-w-full"
+                  className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/90 font-mono rounded-lg truncate max-w-full"
                 >
                   {file}
                 </span>
@@ -474,10 +456,10 @@ export default function AppCreatorPage() {
   }, [searchParams]);
 
   const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl,
+    isEditMode || !!sessionIdFromUrl
   );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup",
+    isEditMode ? "building" : "setup"
   );
   // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = agents
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
@@ -496,12 +478,12 @@ export default function AppCreatorPage() {
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : "",
+    sourceContext ? `${sourceContext.name} App` : ""
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : "",
+      : ""
   );
   // Name validation state
   const [nameValidation, setNameValidation] = useState<{
@@ -523,7 +505,7 @@ export default function AppCreatorPage() {
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank",
+      : "blank"
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -673,7 +655,7 @@ export default function AppCreatorPage() {
         setLoadingAgents(true);
         try {
           const response = await fetchWithRetry(
-            "/api/my-agents/characters?limit=100",
+            "/api/my-agents/characters?limit=100"
           );
           if (response.ok) {
             const data = await response.json();
@@ -698,8 +680,8 @@ export default function AppCreatorPage() {
                     avatar_url: agent.avatar_url,
                     bio: agent.bio,
                     is_public: agent.is_public,
-                  }),
-                ),
+                  })
+                )
               );
             }
           }
@@ -754,7 +736,7 @@ export default function AppCreatorPage() {
         if (sessionIdFromUrl && appIdFromUrl) {
           const connected = await connectToSession(
             sessionIdFromUrl,
-            appIdFromUrl,
+            appIdFromUrl
           );
           if (connected) {
             setIsInitializing(false);
@@ -779,7 +761,7 @@ export default function AppCreatorPage() {
         setIsInitializing(false);
         setStatus("error");
         setErrorMessage(
-          error instanceof Error ? error.message : "Initialization failed",
+          error instanceof Error ? error.message : "Initialization failed"
         );
       }
     };
@@ -787,7 +769,7 @@ export default function AppCreatorPage() {
     // Connect to existing session - returns true if successful
     const connectToSession = async (
       sessionId: string,
-      appId: string,
+      appId: string
     ): Promise<boolean> => {
       // Fetch session and app data together
       const [sessionRes, appRes] = await Promise.all([
@@ -885,7 +867,7 @@ export default function AppCreatorPage() {
 
       // Check for existing active session
       const sessionRes = await fetchWithRetry(
-        `/api/v1/app-builder?appId=${appId}&limit=1`,
+        `/api/v1/app-builder?appId=${appId}&limit=1`
       );
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
@@ -893,7 +875,7 @@ export default function AppCreatorPage() {
           // Found active session - redirect to it
           router.replace(
             `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-            { scroll: false },
+            { scroll: false }
           );
           initializationRef.current = false;
           return;
@@ -1059,7 +1041,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -1087,7 +1069,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`
       );
       if (response.ok) {
         const data = await response.json();
@@ -1110,7 +1092,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`,
+        `/api/v1/app-builder/sessions/${session.id}/commit`
       );
       if (response.ok) {
         const data = await response.json();
@@ -1135,7 +1117,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`,
+        `/api/v1/app-builder/sessions/${session.id}/history`
       );
       if (response.ok) {
         const data = await response.json();
@@ -1162,7 +1144,7 @@ export default function AppCreatorPage() {
           body: JSON.stringify({
             message: `Manual save at ${new Date().toLocaleString()}`,
           }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -1179,7 +1161,7 @@ export default function AppCreatorPage() {
           });
           addLog(
             `Saved to GitHub: ${data.commitSha.substring(0, 7)} (${data.filesCommitted} files)`,
-            "success",
+            "success"
           );
         } else {
           toast.info("No changes to save", {
@@ -1198,7 +1180,7 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
+        "error"
       );
     } finally {
       setIsSaving(false);
@@ -1223,7 +1205,7 @@ export default function AppCreatorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ target: "production" }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -1256,7 +1238,7 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error",
+        "error"
       );
     } finally {
       setIsDeploying(false);
@@ -1270,7 +1252,7 @@ export default function AppCreatorPage() {
     const fetchDeploymentInfo = async () => {
       try {
         const response = await fetchWithRetry(
-          `/api/v1/apps/${appData.id}/deploy`,
+          `/api/v1/apps/${appData.id}/deploy`
         );
         if (response.ok) {
           const data = await response.json();
@@ -1282,7 +1264,7 @@ export default function AppCreatorPage() {
         // Not critical but log for debugging
         console.warn(
           "[AppBuilder] Deployment info fetch failed:",
-          deployInfoError,
+          deployInfoError
         );
       }
     };
@@ -1325,7 +1307,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" },
+        { method: "POST" }
       );
 
       if (!response.ok) {
@@ -1370,7 +1352,7 @@ export default function AppCreatorPage() {
                 });
                 addLog(
                   `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info",
+                  "info"
                 );
               } else if (eventType === "complete") {
                 setSession({
@@ -1502,7 +1484,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" },
+        { method: "POST" }
       );
 
       if (!response.ok) {
@@ -1633,7 +1615,7 @@ export default function AppCreatorPage() {
           setSandboxHealthy(false);
           addLog(
             `Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`,
-            "warning",
+            "warning"
           );
           autoRecoverSession();
         }
@@ -1693,7 +1675,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -1711,7 +1693,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`,
+                (log: string) => `[${timestamp}] ${log}`
               );
               return [...prev, ...formatted];
             });
@@ -1863,7 +1845,7 @@ export default function AppCreatorPage() {
 
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success",
+                  "success"
                 );
 
                 if (data.hasInitialPrompt) {
@@ -1898,13 +1880,7 @@ export default function AppCreatorPage() {
 
 I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is loading on the right.${contextMessage}
 
-**What would you like to ${isEditMode ? "add or change" : "build"}?**
-
-Some ideas:
-- Add a new page or feature
-- Improve the UI design
-- Add analytics tracking
-- Integrate more APIs`,
+**What would you like to ${isEditMode ? "add or change" : "build"}?**`,
                       timestamp: new Date().toISOString(),
                     },
                   ]);
@@ -1968,8 +1944,8 @@ Some ideas:
                         (m as Message & { _thinkingId?: number })
                           ._thinkingId === thinkingId
                           ? { ...m, content }
-                          : m,
-                      ),
+                          : m
+                      )
                     );
                   });
                 }
@@ -1977,7 +1953,7 @@ Some ideas:
                 const toolName = data.tool;
                 const { display: toolDisplay, detail } = formatToolDisplay(
                   toolName,
-                  data.input,
+                  data.input
                 );
 
                 // Mark previous action as done
@@ -2012,7 +1988,7 @@ Some ideas:
 
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                  "info",
+                  "info"
                 );
 
                 if (initialThinkingIdRef.current) {
@@ -2041,8 +2017,8 @@ Some ideas:
                       (m as Message & { _thinkingId?: number })._thinkingId ===
                       thinkingId
                         ? { ...m, content: progressContent }
-                        : m,
-                    ),
+                        : m
+                    )
                   );
                 }
               } else if (eventType === "complete") {
@@ -2066,7 +2042,8 @@ Some ideas:
                   // AI's raw output goes in reasoning accordion for transparency
                   const result = data.session.initialPromptResult;
                   const fileCount = result.filesAffected?.length || 0;
-                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
+                  const hasBuildErrors =
+                    result.output?.includes("BUILD ERRORS");
 
                   let assistantContent = "";
                   if (hasBuildErrors) {
@@ -2084,7 +2061,7 @@ Some ideas:
                       detail: action.detail,
                       timestamp: action.timestamp,
                       reasoning: action.context, // Per-action reasoning
-                    }),
+                    })
                   );
 
                   setMessages((prev) =>
@@ -2100,14 +2077,13 @@ Some ideas:
                           ...rest,
                           content: assistantContent,
                           operations, // Operations array for accordions
-                          reasoning:
-                            data.session.initialPromptResult.reasoning, // Fallback reasoning
+                          reasoning: data.session.initialPromptResult.reasoning, // Fallback reasoning
                           filesAffected:
                             data.session.initialPromptResult.filesAffected,
                         };
                       }
                       return m;
-                    }),
+                    })
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
@@ -2222,7 +2198,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info",
+        "info"
       );
 
       const userMessage: Message = {
@@ -2254,7 +2230,7 @@ Some ideas:
 
       const buildLocalProgressContent = (
         newThinkingChunk?: string,
-        currentStatus?: string,
+        currentStatus?: string
       ) => {
         let content = "";
 
@@ -2305,7 +2281,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -2326,7 +2302,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -2359,7 +2335,7 @@ Some ideas:
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text, model: selectedModel }),
             signal: generationAbortControllerRef.current.signal,
-          },
+          }
         );
 
         if (!response.ok) {
@@ -2409,7 +2385,7 @@ Some ideas:
                     // Schedule throttled UI update (~30fps for smooth text appearance)
                     scheduleThinkingUpdate(
                       thinkingStreamId,
-                      updateThinkingThrottled,
+                      updateThinkingThrottled
                     );
                   }
                   // Note: Not logging individual chunks - shown in UI only
@@ -2421,12 +2397,12 @@ Some ideas:
                     // Prefix reasoning chunks with 💭 to distinguish from regular output
                     accumulateThinkingChunk(
                       thinkingStreamId,
-                      `💭 ${reasoningText}`,
+                      `💭 ${reasoningText}`
                     );
                     // Schedule throttled UI update (~30fps for smooth text appearance)
                     scheduleThinkingUpdate(
                       thinkingStreamId,
-                      updateThinkingThrottled,
+                      updateThinkingThrottled
                     );
                   }
                 } else if (eventType === "tool_start") {
@@ -2441,7 +2417,9 @@ Some ideas:
                   // Add as pending action WITH reasoning context for accordion display
                   // Use server's reasoningContext, fallback to client's accumulated thinking
                   const reasoningForAction =
-                    data.reasoningContext || currentThinkingPreview || undefined;
+                    data.reasoningContext ||
+                    currentThinkingPreview ||
+                    undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
@@ -2466,7 +2444,7 @@ Some ideas:
 
                   // Find and update the pending action, or add new one if not found
                   const pendingIdx = actionsLog.findIndex(
-                    (a) => a.status === "pending" && a.tool === toolDisplay,
+                    (a) => a.status === "pending" && a.tool === toolDisplay
                   );
                   if (pendingIdx >= 0) {
                     actionsLog[pendingIdx].status = "done";
@@ -2489,7 +2467,7 @@ Some ideas:
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info",
+                    "info"
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -2524,11 +2502,12 @@ Some ideas:
               // The AI produces a natural summary in finalData.output when it finishes
               const fileCount = finalData.filesAffected?.length || 0;
               const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
-              
+
               // Check if we have a meaningful LLM summary (not just default/error text)
               const llmSummary = finalData.output?.trim();
-              const hasLLMSummary = llmSummary && 
-                llmSummary !== "Changes applied!" && 
+              const hasLLMSummary =
+                llmSummary &&
+                llmSummary !== "Changes applied!" &&
                 !llmSummary.startsWith("Error:") &&
                 !hasBuildErrors;
 
@@ -2583,11 +2562,11 @@ Some ideas:
         checkGitStatus();
       } catch (error) {
         // Check if this was an abort/cancel
-        const isAborted = error instanceof Error && (
-          error.name === "AbortError" ||
-          error.message.includes("aborted") ||
-          error.message.includes("cancelled")
-        );
+        const isAborted =
+          error instanceof Error &&
+          (error.name === "AbortError" ||
+            error.message.includes("aborted") ||
+            error.message.includes("cancelled"));
 
         if (isAborted) {
           // Handle cancellation gracefully
@@ -2597,7 +2576,8 @@ Some ideas:
                 const { _thinkingId: _, ...rest } = m;
 
                 let content = "**Generation stopped**\n\n";
-                content += "The operation was cancelled. You can start a new request when ready.";
+                content +=
+                  "The operation was cancelled. You can start a new request when ready.";
 
                 if (actionsLog.length > 0) {
                   content += "\n\n---\n\n";
@@ -2654,7 +2634,7 @@ Some ideas:
           setStatus("ready");
           addLog(
             `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            "error",
+            "error"
           );
           toast.error("Failed to process prompt", {
             description:
@@ -2678,7 +2658,7 @@ Some ideas:
       accumulateThinkingChunk,
       scheduleThinkingUpdate,
       getThinkingText,
-    ],
+    ]
   );
 
   // Stop the current AI generation (abort in-flight request)
@@ -2851,7 +2831,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onClick={() =>
                     window.open(
                       "https://vercel.com/docs/vercel-sandbox",
-                      "_blank",
+                      "_blank"
                     )
                   }
                 >
@@ -2883,7 +2863,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
     setIsGeneratingDescription(true);
     const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
-      (t) => t.value === templateType,
+      (t) => t.value === templateType
     );
 
     try {
@@ -2918,7 +2898,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
       };
       setAppDescription(
-        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
+        fallbackDescriptions[templateType] || fallbackDescriptions.blank
       );
     } finally {
       setIsGeneratingDescription(false);
@@ -2927,7 +2907,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   // Get the selected template data
   const selectedTemplate = TEMPLATE_OPTIONS.find(
-    (t) => t.value === templateType,
+    (t) => t.value === templateType
   );
 
   if (viewState === "setup") {
@@ -3239,8 +3219,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                         className={`text-[10px] font-mono ${
                           appDescription.length > 500
                             ? "text-red-400"
-                            : appDescription.length <
-                                  MIN_DESCRIPTION_LENGTH &&
+                            : appDescription.length < MIN_DESCRIPTION_LENGTH &&
                                 appDescription.length > 0
                               ? "text-amber-400"
                               : "text-white/40"
@@ -3380,7 +3359,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       >
                         <DollarSign
                           className={`h-5 w-5 transition-colors ${
-                            includeMonetization ? "text-[#FF5800]" : "text-neutral-500"
+                            includeMonetization
+                              ? "text-[#FF5800]"
+                              : "text-neutral-500"
                           }`}
                         />
                       </div>
@@ -3392,7 +3373,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       >
                         <div
                           className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeMonetization ? "translate-x-4" : "translate-x-0"
+                            includeMonetization
+                              ? "translate-x-4"
+                              : "translate-x-0"
                           }`}
                         />
                       </div>
@@ -3430,7 +3413,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       >
                         <LineChart
                           className={`h-5 w-5 transition-colors ${
-                            includeAnalytics ? "text-[#FF5800]" : "text-neutral-500"
+                            includeAnalytics
+                              ? "text-[#FF5800]"
+                              : "text-neutral-500"
                           }`}
                         />
                       </div>
@@ -3528,9 +3513,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {availableAgents.length === 0 && !loadingAgents && (
                   <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                     <p className="text-sm text-white/60">
-                      <span className="font-medium text-white/80">No agents yet?</span> No
-                      worries — you can skip this step and add agents later from
-                      the app builder.
+                      <span className="font-medium text-white/80">
+                        No agents yet?
+                      </span>{" "}
+                      No worries — you can skip this step and add agents later
+                      from the app builder.
                     </p>
                   </div>
                 )}
@@ -4091,7 +4078,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30"
+            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 scrollbar-thumb-rounded"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -4107,7 +4094,11 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
-          <ChatInput onSendPrompt={sendPrompt} onStopGeneration={stopGeneration} status={status} />
+          <ChatInput
+            onSendPrompt={sendPrompt}
+            onStopGeneration={stopGeneration}
+            status={status}
+          />
         </div>
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
@@ -4188,7 +4179,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Users className="h-3.5 w-3.5" />
                 Agents
                 {selectedAgentIds.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
+                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
                     {selectedAgentIds.length}
                   </span>
                 )}
@@ -4294,7 +4285,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Users className="h-3.5 w-3.5" />
                 Agents
                 {selectedAgentIds.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px]">
+                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
                     {selectedAgentIds.length}
                   </span>
                 )}
@@ -4329,7 +4320,9 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-gradient-to-br from-white/[0.03] to-transparent overflow-hidden relative">
+          <div
+            className={`flex-1 overflow-hidden relative ${previewTab === "preview" ? "bg-white" : "bg-[#0a0a0b]"}`}
+          >
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
               <div
@@ -4458,7 +4451,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                           body: JSON.stringify({ linked_character_ids: ids }),
                         });
                         toast.success(
-                          ids.length > 0 ? "Agents updated" : "Agents removed",
+                          ids.length > 0 ? "Agents updated" : "Agents removed"
                         );
                       } catch (error) {
                         console.error("Failed to update agents:", error);
@@ -4551,7 +4544,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ) {
                               if (log.includes(" 2")) {
                                 colorClass = "text-green-400/70";
-                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                              } else if (
+                                log.includes(" 4") ||
+                                log.includes(" 5")
+                              ) {
                                 colorClass = "text-red-400/70";
                               } else {
                                 colorClass = "text-cyan-400/70";
@@ -4604,7 +4600,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-white/20">
-                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                          Type <code className="text-[#FF5800]/70">help</code>{" "}
+                          for commands
                         </span>
                       </div>
                     </div>

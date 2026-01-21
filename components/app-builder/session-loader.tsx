@@ -14,12 +14,11 @@ import {
   AlertCircle,
   Timer,
   Sparkles,
-  ArrowLeft,
   GitBranch,
   Rocket,
   Cloud,
+  Loader2,
 } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type {
   ProgressStep,
@@ -130,23 +129,12 @@ function StepIndicator({
           {isComplete ? (
             <Check className="w-4 h-4 text-emerald-400" strokeWidth={2.5} />
           ) : isActive ? (
-            <div className="relative w-4 h-4 flex items-center justify-center">
-              {/* Spinning ring for active state */}
-              <div
-                className="absolute inset-0 rounded-full animate-spin"
-                style={{
-                  background: `conic-gradient(from 0deg, transparent 0%, ${color === "text-[#FF5800]" ? "#FF5800" : color === "text-cyan-400" ? "#06B6D4" : "#8B5CF6"} 50%, transparent 100%)`,
-                  animationDuration: "1.5s",
-                }}
-              />
-              <div className="absolute inset-[2px] rounded-full bg-[#0A0A0A]" />
-              <Icon
-                className={cn(
-                  "relative w-3 h-3 transition-colors duration-500",
-                  color,
-                )}
-              />
-            </div>
+            <Loader2
+              className={cn(
+                "w-4 h-4 animate-spin",
+                color === "text-[#FF5800]" ? "text-[#FF5800]" : color === "text-cyan-400" ? "text-cyan-400" : "text-violet-400"
+              )}
+            />
           ) : (
             <Icon
               className={cn(
@@ -290,17 +278,6 @@ export function SessionLoader({
 
   return (
     <div className="w-full max-w-lg mx-auto px-6">
-      {/* Back link - top left */}
-      <div className="mb-4">
-        <Link
-          href={backLink}
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to apps</span>
-        </Link>
-      </div>
-
       {/* Main content */}
       <div className="text-center space-y-5">
         {/* Spinner or mode icon */}
