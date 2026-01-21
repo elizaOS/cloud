@@ -37,7 +37,7 @@ export interface PromptConfig {
 export function buildSystemPrompt(config: PromptConfig = {}): string {
   const {
     templateType = "blank",
-    includeMonetization = false,
+    includeMonetization = true,
     includeAnalytics = true,
     includeDatabase = false,
     customInstructions,

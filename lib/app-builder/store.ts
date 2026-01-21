@@ -236,7 +236,7 @@ export const useApp = create<AppSlice>()((set) => ({
   appDescription: "",
   templateType: "blank",
   templatePage: 0,
-  includeMonetization: false,
+  includeMonetization: true,
   includeAnalytics: true,
   isGeneratingDescription: false,
 
@@ -260,7 +260,7 @@ export const useApp = create<AppSlice>()((set) => ({
       appDescription: "",
       templateType: "blank",
       templatePage: 0,
-      includeMonetization: false,
+      includeMonetization: true,
       includeAnalytics: true,
       isGeneratingDescription: false,
     }),

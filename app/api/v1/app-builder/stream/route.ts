@@ -36,7 +36,7 @@ const CreateSessionSchema = z.object({
       "ai-tool",
     ])
     .default("blank"),
-  includeMonetization: z.boolean().default(false),
+  includeMonetization: z.boolean().default(true),
   includeAnalytics: z.boolean().default(true),
   includePersistentStorage: z.boolean().default(false),
   linkedAgentIds: z.array(z.string().uuid()).max(4).optional(),

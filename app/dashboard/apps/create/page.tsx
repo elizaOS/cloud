@@ -462,8 +462,8 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = agents
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
+  // Setup wizard steps: 1 = template, 2 = details, 3 = agents
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection for the app
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
@@ -477,7 +477,7 @@ export default function AppCreatorPage() {
       is_public?: boolean;
     }>
   >([]);
-  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [loadingAgents, setLoadingAgents] = useState(true);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -508,10 +508,10 @@ export default function AppCreatorPage() {
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
       : "blank",
   );
-  const [includeMonetization, setIncludeMonetization] = useState(false);
+  const [includeMonetization, setIncludeMonetization] = useState(true);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
   const [includePersistentStorage, setIncludePersistentStorage] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(true);
   const [templatePage, setTemplatePage] = useState(0);
   const TEMPLATES_PER_PAGE = 4;
 
@@ -519,9 +519,9 @@ export default function AppCreatorPage() {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   // Input is managed by Zustand for isolated re-renders - see useChatInput
-  const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [copied, setCopied] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -529,16 +529,16 @@ export default function AppCreatorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(true);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [isExtending, setIsExtending] = useState(false);
+  const [isExtending, setIsExtending] = useState(true);
   const [snapshotInfo, setSnapshotInfo] = useState<{
     canRestore: boolean;
     githubRepo: string | null;
     lastBackup: string | null;
   } | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [restoreProgress, setRestoreProgress] = useState<{
     current: number;
     total: number;
@@ -551,8 +551,8 @@ export default function AppCreatorPage() {
 
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeploying, setIsDeploying] = useState(false);
+  const [isSaving, setIsSaving] = useState(true);
+  const [isDeploying, setIsDeploying] = useState(true);
   const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
     null,
   );
@@ -653,8 +653,8 @@ export default function AppCreatorPage() {
   // FETCH USER'S AGENTS FOR APP AGENT SELECTION
   // ============================================================================
   useEffect(() => {
-    // Only fetch when we reach the agents step (step 4) or when in building mode
-    if (setupStep === 4 || step === "building") {
+    // Only fetch when we reach the agents step (step 3) or when in building mode
+    if (setupStep === 3 || step === "building") {
       const fetchAgents = async () => {
         if (availableAgents.length > 0) return; // Already fetched
         setLoadingAgents(true);
@@ -2931,7 +2931,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           <div className="flex items-center justify-center mb-6">
             {/* Mobile step indicator */}
             <div className="flex md:hidden items-center gap-1.5">
-              {[1, 2, 3, 4].map((num) => (
+              {[1, 2, 3].map((num) => (
                 <div
                   key={num}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -2950,8 +2950,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               {[
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
-                { num: 3, label: "Features" },
-                { num: 4, label: "Agents" },
+                { num: 3, label: "Agents" },
               ].map((s, i) => (
                 <div key={s.num} className="flex items-center">
                   <button
@@ -2959,10 +2958,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       if (
                         s.num === 1 ||
                         (s.num === 2 && templateType) ||
-                        (s.num === 3 && appName.trim()) ||
-                        (s.num === 4 && appName.trim())
+                        (s.num === 3 && appName.trim())
                       ) {
-                        setSetupStep(s.num as 1 | 2 | 3 | 4);
+                        setSetupStep(s.num as 1 | 2 | 3);
                       }
                     }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
@@ -2995,7 +2993,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {s.label}
                     </span>
                   </button>
-                  {i < 3 && (
+                  {i < 2 && (
                     <div
                       className={`w-3 h-px ml-1 transition-colors duration-300 ${
                         setupStep > s.num ? "bg-white/30" : "bg-white/10"
@@ -3318,7 +3316,8 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          {/* STEP 3: Features */}
+
+          {/* STEP 3: Agent Selection */}
           <div
             className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
@@ -3590,7 +3589,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                 <div className="flex items-center justify-between pt-4">
                   <button
-                    onClick={() => setSetupStep(3)}
+                    onClick={() => setSetupStep(2)}
                     className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
                     <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />

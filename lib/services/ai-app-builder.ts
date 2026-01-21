@@ -118,7 +118,7 @@ export class AIAppBuilderService {
       appDescription,
       initialPrompt,
       templateType = "blank",
-      includeMonetization = false,
+      includeMonetization = true,
       includeAnalytics = true,
       includePersistentStorage = false,
       linkedAgentIds,
