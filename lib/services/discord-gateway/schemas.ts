@@ -105,6 +105,9 @@ export const ConnectionStatusUpdateSchema = z.object({
   pod_name: z.string().min(1),
   status: z.enum(["connecting", "connected", "disconnected", "error"]),
   error_message: z.string().optional(),
+  // Bot user ID - sent when status is "connected" for mention detection
+  // Discord Application ID ≠ Bot User ID - mentions use user ID
+  bot_user_id: z.string().optional(),
 });
 
 // Failover request schema

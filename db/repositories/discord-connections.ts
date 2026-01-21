@@ -26,6 +26,14 @@ interface DecryptedAssignment {
   intents: number;
 }
 
+/** Valid connection status values (matches migration CHECK constraint) */
+type ConnectionStatus =
+  | "pending"
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "error";
+
 export const discordConnectionsRepository = {
   async create(input: CreateConnectionInput): Promise<DiscordConnection> {
     const encryption = getEncryptionService();
@@ -138,10 +146,11 @@ export const discordConnectionsRepository = {
 
   async updateStatus(
     connectionId: string,
-    status: string,
+    status: ConnectionStatus,
     errorMessage?: string,
+    botUserId?: string,
   ): Promise<DiscordConnection | null> {
-    const updates: Record<string, unknown> = {
+    const updates: Partial<typeof discordConnections.$inferInsert> = {
       status,
       updated_at: new Date(),
     };
@@ -152,6 +161,10 @@ export const discordConnectionsRepository = {
 
     if (status === "connected") {
       updates.connected_at = new Date();
+      // Store bot user ID for mention detection (different from application_id)
+      if (botUserId) {
+        updates.bot_user_id = botUserId;
+      }
     }
 
     // Clear error message for non-error states
@@ -180,6 +193,33 @@ export const discordConnectionsRepository = {
         updated_at: new Date(),
       })
       .where(eq(discordConnections.id, connectionId));
+  },
+
+  /**
+   * Batch update heartbeats for all connections assigned to a pod.
+   * Returns the number of connections updated.
+   */
+  async updateHeartbeatBatch(
+    podName: string,
+    connectionIds: string[],
+  ): Promise<number> {
+    if (connectionIds.length === 0) return 0;
+
+    const result = await db
+      .update(discordConnections)
+      .set({
+        last_heartbeat: new Date(),
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(discordConnections.assigned_pod, podName),
+          sql`${discordConnections.id} = ANY(${connectionIds})`,
+        ),
+      )
+      .returning({ id: discordConnections.id });
+
+    return result.length;
   },
 
   async updateStats(
@@ -233,10 +273,19 @@ export const discordConnectionsRepository = {
     return connections.length > 0;
   },
 
+  /**
+   * Atomically reassign connections from a dead pod to a new pod.
+   * Only reassigns connections with stale heartbeats to prevent TOCTOU race conditions.
+   */
   async reassignFromDeadPod(
     deadPodName: string,
     newPodName: string,
+    heartbeatThresholdMs: number = 45_000,
   ): Promise<number> {
+    const cutoffTime = new Date(Date.now() - heartbeatThresholdMs);
+
+    // Atomic update - only reassign if heartbeat is stale
+    // This prevents race conditions where a "dead" pod comes back online
     const result = await db
       .update(discordConnections)
       .set({
@@ -248,6 +297,7 @@ export const discordConnectionsRepository = {
         and(
           eq(discordConnections.assigned_pod, deadPodName),
           eq(discordConnections.is_active, true),
+          sql`(${discordConnections.last_heartbeat} IS NULL OR ${discordConnections.last_heartbeat} < ${cutoffTime})`,
         ),
       )
       .returning();
@@ -321,10 +371,25 @@ export const discordConnectionsRepository = {
             intents: conn.intents ?? DISCORD_DEFAULT_INTENTS,
           };
         } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           logger.error("[DiscordConnections] Failed to decrypt bot token", {
             connectionId: conn.id,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage,
           });
+
+          // Mark connection as error so it's not silently skipped
+          // This makes decryption failures visible in monitoring
+          await db
+            .update(discordConnections)
+            .set({
+              status: "error",
+              error_message: `Token decryption failed: ${errorMessage}`,
+              assigned_pod: null, // Release for retry after key issue resolved
+              updated_at: new Date(),
+            })
+            .where(eq(discordConnections.id, conn.id));
+
           return null;
         }
       }),

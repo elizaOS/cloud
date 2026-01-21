@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS "discord_connections" (
   "organization_id" uuid NOT NULL REFERENCES "organizations"("id") ON DELETE CASCADE,
   "app_id" uuid REFERENCES "apps"("id") ON DELETE SET NULL,
   "application_id" text NOT NULL,
+  "bot_user_id" text, -- Set when bot connects, used for mention detection
   
   -- Encrypted bot token (envelope encryption with KMS)
   "bot_token_encrypted" text NOT NULL,

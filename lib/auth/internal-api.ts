@@ -10,6 +10,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
+// Log config issues once at startup, not on every request
+if (!INTERNAL_API_KEY && process.env.NODE_ENV !== "test") {
+  console.error(
+    "[CRITICAL] INTERNAL_API_KEY not configured - internal API authentication will fail",
+  );
+}
+
 /**
  * Validates that the request has a valid internal API key.
  * Uses constant-time comparison to prevent timing attacks.
@@ -18,11 +25,9 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 export function validateInternalApiKey(
   request: NextRequest,
 ): NextResponse | null {
+  // Don't reveal whether the key is configured - always return 401 for auth failures
   if (!INTERNAL_API_KEY) {
-    return NextResponse.json(
-      { error: "Internal API not configured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const providedKey = request.headers.get("X-Internal-API-Key");

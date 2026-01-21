@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Verify the dead pod hasn't had a recent heartbeat (prevent false failovers)
   const DEAD_POD_THRESHOLD_MS = 45_000; // Should match gateway-manager constant
+
+  // Quick check - reject if pod has any recent heartbeat (optimization)
   const recentHeartbeat =
     await discordConnectionsRepository.hasRecentHeartbeat(
       dead_pod,
@@ -71,9 +72,12 @@ export async function POST(request: NextRequest) {
     deadPod: dead_pod,
   });
 
+  // Atomic reassignment - only reassigns connections with stale heartbeats
+  // This prevents TOCTOU race conditions if pod comes back between check and reassign
   const claimed = await discordConnectionsRepository.reassignFromDeadPod(
     dead_pod,
     claiming_pod,
+    DEAD_POD_THRESHOLD_MS,
   );
 
   logger.info("[Gateway Failover] Failover completed", {

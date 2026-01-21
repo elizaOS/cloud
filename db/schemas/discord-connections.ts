@@ -78,6 +78,9 @@ export const discordConnections = pgTable(
 
     // Discord application info - one connection per application
     application_id: text("application_id").notNull(),
+    // Bot user ID (different from application_id) - set when bot connects
+    // Used for mention detection since Discord mentions use user ID, not app ID
+    bot_user_id: text("bot_user_id"),
 
     // Encrypted bot token (AES-256-GCM envelope encryption)
     bot_token_encrypted: text("bot_token_encrypted").notNull(),

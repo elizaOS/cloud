@@ -429,8 +429,15 @@ export class GatewayManager {
           connectionId: assignment.connectionId,
           guildCount: conn.guildCount,
           username: client.user?.username,
+          botUserId: client.user?.id,
         });
-        await this.updateConnectionStatus(assignment.connectionId, "connected");
+        // Pass bot user ID for mention detection (different from application_id)
+        await this.updateConnectionStatus(
+          assignment.connectionId,
+          "connected",
+          undefined,
+          client.user?.id,
+        );
       }),
     );
 
@@ -814,6 +821,7 @@ export class GatewayManager {
     connectionId: string,
     status: string,
     errorMessage?: string,
+    botUserId?: string,
   ): Promise<void> {
     try {
       await fetchWithTimeout(
@@ -829,6 +837,8 @@ export class GatewayManager {
             pod_name: this.config.podName,
             status,
             error_message: errorMessage,
+            // Bot user ID for mention detection (different from application_id)
+            bot_user_id: botUserId,
           }),
         },
       );
@@ -873,10 +883,36 @@ export class GatewayManager {
   }
 
   private async sendHeartbeat(): Promise<void> {
+    const now = new Date();
     for (const [, conn] of this.connections) {
-      conn.lastHeartbeat = new Date();
+      conn.lastHeartbeat = now;
     }
 
+    // Update database heartbeat for failover detection
+    if (this.connections.size > 0) {
+      try {
+        await fetchWithTimeout(
+          `${this.config.elizaCloudUrl}/api/internal/discord/gateway/heartbeat`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Internal-API-Key": this.config.internalApiKey,
+            },
+            body: JSON.stringify({
+              pod_name: this.config.podName,
+              connection_ids: Array.from(this.connections.keys()),
+            }),
+          },
+        );
+      } catch (error) {
+        logger.error("Failed to update database heartbeat", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Update Redis for fast failover detection
     if (this.redis) {
       try {
         const podState = {
@@ -891,7 +927,7 @@ export class GatewayManager {
         );
         await this.redis.sadd("discord:active_pods", this.config.podName);
       } catch (error) {
-        logger.error("Failed to send heartbeat", {
+        logger.error("Failed to send Redis heartbeat", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -959,16 +995,19 @@ export class GatewayManager {
           deadPodId,
           claimed: data.claimed,
         });
+
+        // Only clean up Redis state if failover was approved
+        // Don't clean up if rejected (pod might still be alive)
+        await this.redis.srem("discord:active_pods", deadPodId);
+        await this.redis.del(`discord:pod:${deadPodId}`);
       } else {
-        logger.error("Failed to claim orphaned connections", {
+        // Don't clean up Redis - pod might still be alive
+        // Other pods will retry failover check on next interval
+        logger.warn("Failover claim rejected", {
           deadPodId,
           status: response.status,
         });
       }
-
-      // Clean up dead pod's Redis state
-      await this.redis.srem("discord:active_pods", deadPodId);
-      await this.redis.del(`discord:pod:${deadPodId}`);
     } catch (error) {
       logger.error("Error claiming orphaned connections", {
         deadPodId,

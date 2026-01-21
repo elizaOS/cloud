@@ -175,10 +175,16 @@ async function handleMessageCreate(
 
     // Check response mode
     if (metadata.responseMode === "mention") {
-      // Only respond if THIS bot is mentioned (application_id === bot user id in Discord)
-      const botMentioned = data.mentions?.some(
-        (m) => m.id === connection.application_id,
-      );
+      // Only respond if THIS bot is mentioned
+      // Note: bot_user_id is the actual Discord user ID, different from application_id
+      const botUserId = connection.bot_user_id;
+      if (!botUserId) {
+        logger.warn("[Discord Event Router] Bot user ID not set, skipping mention check", {
+          connectionId: connection.id,
+        });
+        return { processed: true };
+      }
+      const botMentioned = data.mentions?.some((m) => m.id === botUserId);
       if (!botMentioned) {
         return { processed: true };
       }
