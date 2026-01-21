@@ -466,17 +466,17 @@ export function VideoPageClient({
       )}
 
       {/* Desktop Tab Navigation */}
-      <TabsList className="hidden md:flex w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
+      <TabsList className="hidden md:flex w-full rounded-lg border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
         <TabsTrigger
           value="generate"
-          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+          className="rounded-lg data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
         >
           <Sparkles className="h-3.5 w-3.5 mr-2" />
           Generate
         </TabsTrigger>
         <TabsTrigger
           value="activity"
-          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+          className="rounded-lg data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
         >
           <BarChart3 className="h-3.5 w-3.5 mr-2" />
           Activity
@@ -533,10 +533,10 @@ export function VideoPageClient({
                 <div
                   key={video.id}
                   onClick={() => handleHistoryItemClick(video)}
-                  className="flex gap-3 md:gap-4 border border-white/10 bg-black/40 p-3 md:p-4 transition-colors hover:border-[#FF5800]/50 cursor-pointer group"
+                  className="flex gap-3 md:gap-4 border border-white/10 bg-black/40 p-3 md:p-4 rounded-lg transition-colors hover:border-[#FF5800]/50 cursor-pointer group"
                 >
                   {/* Thumbnail/Preview */}
-                  <div className="relative flex-shrink-0 w-24 md:w-32 aspect-video bg-black/60 border border-white/10 overflow-hidden">
+                  <div className="relative flex-shrink-0 w-24 md:w-32 aspect-video bg-black/60 border border-white/10 rounded-lg overflow-hidden">
                     {video.videoUrl ? (
                       <video
                         src={video.videoUrl}
@@ -648,7 +648,7 @@ export function VideoPageClient({
               <button
                 type="button"
                 onClick={navigateToGallery}
-                className="w-full px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <span className="font-mono text-sm">View full history</span>
                 <ExternalLink className="h-4 w-4" />
@@ -716,7 +716,7 @@ export function VideoPageClient({
               </div>
 
               {/* Close button */}
-              <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
+              <DialogClose className="absolute top-4 right-4 z-50 rounded-lg border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
                 <X className="h-5 w-5 text-white" />
               </DialogClose>
 

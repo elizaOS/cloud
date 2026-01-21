@@ -1,16 +1,6 @@
-/**
- * App analytics component displaying usage statistics and charts.
- * Supports hourly, daily, and monthly period views with request and user metrics.
- * Includes detailed request logs, top visitors, and source breakdowns.
- *
- * @param props - App analytics configuration
- * @param props.appId - App ID to fetch analytics for
- */
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
   TrendingUp,
@@ -28,10 +17,10 @@ import {
   DollarSign,
   Globe,
   Clock,
-  Monitor,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
 } from "lucide-react";
 import {
   LineChart,
@@ -48,6 +37,7 @@ import {
   Cell,
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AppAnalyticsProps {
   appId: string;
@@ -122,10 +112,12 @@ const TYPE_LABELS: Record<string, string> = {
   agent: "Agent",
 };
 
+type TabValue = "overview" | "requests" | "visitors" | "logs";
+
 export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"hourly" | "daily" | "monthly">("daily");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<TabValue>("overview");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [analytics, setAnalytics] = useState<
     Array<{
@@ -152,6 +144,13 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
 
   const LOGS_PER_PAGE = 20;
   const AUTO_REFRESH_INTERVAL = 30000;
+
+  const tabs: { value: TabValue; label: string; icon: typeof TrendingUp }[] = [
+    { value: "overview", label: "Overview", icon: TrendingUp },
+    { value: "requests", label: "Requests", icon: Activity },
+    { value: "visitors", label: "Visitors", icon: Globe },
+    { value: "logs", label: "Logs", icon: Clock },
+  ];
 
   const fetchAnalytics = useCallback(
     async (showLoading = true) => {
@@ -266,7 +265,6 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     );
   }
 
-  // Transform analytics data for charts
   const chartData = analytics.map((item) => ({
     date: new Date(item.period_start).toLocaleDateString(),
     requests: item.total_requests,
@@ -286,484 +284,220 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const totalPages = Math.ceil(logsTotal / LOGS_PER_PAGE);
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-white/5">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline">Requests</span>
-            </TabsTrigger>
-            <TabsTrigger value="visitors" className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              <span className="hidden sm:inline">Visitors</span>
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Logs</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {activeTab === "overview" && (
-            <div className="flex items-center gap-2">
-              <Select
-                value={period}
-                onValueChange={(v: "hourly" | "daily" | "monthly") =>
-                  setPeriod(v)
-                }
+    <div className="space-y-4">
+      {/* Tab Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1 p-1 bg-neutral-900 rounded-lg w-fit overflow-x-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
+                  activeTab === tab.value
+                    ? "bg-white/10 text-white"
+                    : "text-neutral-400 hover:text-white"
+                )}
               >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hourly">Hourly</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => fetchAnalytics()}
-                disabled={isLoading}
-                title="Refresh analytics"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-                />
-              </Button>
-              {lastUpdated && (
-                <span className="text-xs text-white/40 hidden sm:inline">
-                  Updated{" "}
-                  {formatDistanceToNow(lastUpdated, { addSuffix: true })}
-                </span>
-              )}
-            </div>
-          )}
+                <Icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        <TabsContent value="overview" className="space-y-6">
+        {activeTab === "overview" && (
+          <div className="flex items-center gap-2">
+            <Select
+              value={period}
+              onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}
+            >
+              <SelectTrigger className="w-[130px] h-9 bg-neutral-900 border-white/10 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-800 border-white/10 rounded-lg">
+                <SelectItem value="hourly">Hourly</SelectItem>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchAnalytics()}
+              disabled={isLoading}
+              className="h-9 w-9 p-0"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
+            {lastUpdated && (
+              <span className="text-xs text-neutral-500 hidden sm:inline">
+                Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === "overview" && (
+        <div className="space-y-4">
           {totalStats && (
-            <div className="grid gap-4 md:grid-cols-3">
-              <BrandCard>
-                <CornerBrackets size="sm" className="opacity-20" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/60">Total Requests</p>
-                      <p className="text-2xl font-bold text-white mt-1">
-                        {totalStats.totalRequests?.toLocaleString() || 0}
-                      </p>
-                    </div>
-                    <Activity className="h-8 w-8 text-purple-500" />
-                  </div>
-                </div>
-              </BrandCard>
-
-              <BrandCard>
-                <CornerBrackets size="sm" className="opacity-20" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/60">Total Users</p>
-                      <p className="text-2xl font-bold text-white mt-1">
-                        {totalStats.totalUsers?.toLocaleString() || 0}
-                      </p>
-                    </div>
-                    <Users className="h-8 w-8 text-blue-500" />
-                  </div>
-                </div>
-              </BrandCard>
-
-              <BrandCard>
-                <CornerBrackets size="sm" className="opacity-20" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-white/60">Credits Used</p>
-                      <p className="text-2xl font-bold text-white mt-1">
-                        $
-                        {parseFloat(totalStats.totalCreditsUsed || "0").toFixed(
-                          2,
-                        )}
-                      </p>
-                    </div>
-                    <DollarSign className="h-8 w-8 text-green-500" />
-                  </div>
-                </div>
-              </BrandCard>
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+              <StatCard
+                label="Total Requests"
+                value={totalStats.totalRequests?.toLocaleString() || "0"}
+                icon={<Activity className="h-5 w-5 text-purple-400" />}
+              />
+              <StatCard
+                label="Total Users"
+                value={totalStats.totalUsers?.toLocaleString() || "0"}
+                icon={<Users className="h-5 w-5 text-blue-400" />}
+              />
+              <StatCard
+                label="Credits Used"
+                value={`$${parseFloat(totalStats.totalCreditsUsed || "0").toFixed(2)}`}
+                icon={<DollarSign className="h-5 w-5 text-green-400" />}
+              />
             </div>
           )}
 
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Requests Over Time
-              </h3>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.1)"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <YAxis
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(0,0,0,0.9)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "8px",
-                        color: "white",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="requests"
-                      stroke="#FF5800"
-                      strokeWidth={2}
-                      dot={{ fill: "#FF5800" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-white/60 py-12">
-                  No data available
-                </p>
-              )}
-            </div>
-          </BrandCard>
+          <div className="bg-neutral-900 rounded-xl p-4">
+            <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-[#FF5800]" />
+              Requests Over Time
+            </h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
+                  <YAxis stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#171717",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      color: "white",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Line type="monotone" dataKey="requests" stroke="#FF5800" strokeWidth={2} dot={{ fill: "#FF5800", r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-neutral-500 py-12 text-sm">No data available</p>
+            )}
+          </div>
 
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                User Growth
-              </h3>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.1)"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <YAxis
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(0,0,0,0.9)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "8px",
-                        color: "white",
-                      }}
-                    />
-                    <Bar dataKey="newUsers" fill="#8b5cf6" name="New Users" />
-                    <Bar dataKey="users" fill="#3b82f6" name="Total Users" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-white/60 py-12">
-                  No data available
-                </p>
-              )}
-            </div>
-          </BrandCard>
+          <div className="bg-neutral-900 rounded-xl p-4">
+            <h3 className="text-sm font-medium text-white mb-4">User Growth</h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
+                  <YAxis stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#171717",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      color: "white",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Bar dataKey="newUsers" fill="#8b5cf6" name="New Users" />
+                  <Bar dataKey="users" fill="#3b82f6" name="Total Users" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-neutral-500 py-12 text-sm">No data available</p>
+            )}
+          </div>
+        </div>
+      )}
 
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Cost Over Time
-              </h3>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(255,255,255,0.1)"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <YAxis
-                      stroke="rgba(255,255,255,0.6)"
-                      style={{ fontSize: "12px" }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(0,0,0,0.9)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "8px",
-                        color: "white",
-                      }}
-                      formatter={(value: number) => `$${value.toFixed(2)}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="cost"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={{ fill: "#10b981" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-white/60 py-12">
-                  No data available
-                </p>
-              )}
-            </div>
-          </BrandCard>
-        </TabsContent>
-
-        <TabsContent value="requests" className="space-y-6">
+      {/* Requests Tab */}
+      {activeTab === "requests" && (
+        <div className="space-y-4">
           {isLoadingStats ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
             </div>
           ) : requestStats ? (
             <>
-              <div className="grid gap-4 md:grid-cols-5">
-                <BrandCard>
-                  <CornerBrackets size="sm" className="opacity-20" />
-                  <div className="relative z-10">
-                    <p className="text-sm text-white/60">Page Views</p>
-                    <p className="text-2xl font-bold text-[#10b981] mt-1">
-                      {(requestStats.byType?.pageview || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </BrandCard>
-
-                <BrandCard>
-                  <CornerBrackets size="sm" className="opacity-20" />
-                  <div className="relative z-10">
-                    <p className="text-sm text-white/60">API Requests</p>
-                    <p className="text-2xl font-bold text-[#FF5800] mt-1">
-                      {(
-                        requestStats.totalRequests -
-                        (requestStats.byType?.pageview || 0)
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                </BrandCard>
-
-                <BrandCard>
-                  <CornerBrackets size="sm" className="opacity-20" />
-                  <div className="relative z-10">
-                    <p className="text-sm text-white/60">Unique Visitors</p>
-                    <p className="text-2xl font-bold text-white mt-1">
-                      {requestStats.uniqueIps.toLocaleString()}
-                    </p>
-                  </div>
-                </BrandCard>
-
-                <BrandCard>
-                  <CornerBrackets size="sm" className="opacity-20" />
-                  <div className="relative z-10">
-                    <p className="text-sm text-white/60">Avg Response Time</p>
-                    <p className="text-2xl font-bold text-white mt-1">
-                      {requestStats.avgResponseTime
-                        ? `${requestStats.avgResponseTime}ms`
-                        : "N/A"}
-                    </p>
-                  </div>
-                </BrandCard>
-
-                <BrandCard>
-                  <CornerBrackets size="sm" className="opacity-20" />
-                  <div className="relative z-10">
-                    <p className="text-sm text-white/60">Total Credits</p>
-                    <p className="text-2xl font-bold text-white mt-1">
-                      ${parseFloat(requestStats.totalCredits || "0").toFixed(4)}
-                    </p>
-                  </div>
-                </BrandCard>
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
+                <MiniStatCard label="Page Views" value={(requestStats.byType?.pageview || 0).toLocaleString()} color="text-emerald-400" />
+                <MiniStatCard label="API Requests" value={(requestStats.totalRequests - (requestStats.byType?.pageview || 0)).toLocaleString()} color="text-[#FF5800]" />
+                <MiniStatCard label="Unique Visitors" value={requestStats.uniqueIps.toLocaleString()} color="text-white" />
+                <MiniStatCard label="Avg Response" value={requestStats.avgResponseTime ? `${requestStats.avgResponseTime}ms` : "N/A"} color="text-white" />
+                <MiniStatCard label="Total Credits" value={`$${parseFloat(requestStats.totalCredits || "0").toFixed(4)}`} color="text-white" />
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <BrandCard>
-                  <CornerBrackets className="opacity-20" />
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-white mb-4">
-                      Requests by Source
-                    </h3>
-                    {sourceData.length > 0 ? (
-                      <div className="flex items-center gap-8">
-                        <ResponsiveContainer width="50%" height={200}>
-                          <PieChart>
-                            <Pie
-                              data={sourceData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="value"
-                            >
-                              {sourceData.map((entry, index) => (
-                                <Cell
-                                  key={`cell-${index}`}
-                                  fill={entry.color}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "rgba(0,0,0,0.9)",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                borderRadius: "8px",
-                                color: "white",
-                              }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="space-y-2">
-                          {sourceData.map((item) => (
-                            <div
-                              key={item.name}
-                              className="flex items-center gap-2"
-                            >
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: item.color }}
-                              />
-                              <span className="text-sm text-white/80">
-                                {item.name}: {item.value.toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-center text-white/60 py-8">
-                        No data available
-                      </p>
-                    )}
-                  </div>
-                </BrandCard>
-
-                <BrandCard>
-                  <CornerBrackets className="opacity-20" />
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-white mb-4">
-                      Requests by Type
-                    </h3>
-                    {Object.keys(requestStats.byType).length > 0 ? (
-                      <div className="space-y-3">
-                        {Object.entries(requestStats.byType).map(
-                          ([type, count]) => (
-                            <div
-                              key={type}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="inline-flex px-2 py-0.5 rounded text-xs"
-                                  style={{
-                                    backgroundColor: `${TYPE_COLORS[type] || "#666"}20`,
-                                    color: TYPE_COLORS[type] || "#666",
-                                  }}
-                                >
-                                  {TYPE_LABELS[type] || type}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{
-                                      width: `${(count / requestStats.totalRequests) * 100}%`,
-                                      backgroundColor:
-                                        TYPE_COLORS[type] || "#FF5800",
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-sm text-white/60 w-16 text-right">
-                                  {count.toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-center text-white/60 py-8">
-                        No data available
-                      </p>
-                    )}
-                  </div>
-                </BrandCard>
-              </div>
-
-              <BrandCard>
-                <CornerBrackets className="opacity-20" />
-                <div className="relative z-10">
-                  <h3 className="text-lg font-semibold text-white mb-4">
-                    Request Status
-                  </h3>
-                  {Object.keys(requestStats.byStatus).length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {Object.entries(requestStats.byStatus).map(
-                        ([status, count]) => (
-                          <div
-                            key={status}
-                            className="bg-white/5 rounded-lg p-4 text-center"
-                          >
-                            <p
-                              className={`text-2xl font-bold ${
-                                status === "success"
-                                  ? "text-green-500"
-                                  : status === "failed"
-                                    ? "text-red-500"
-                                    : "text-yellow-500"
-                              }`}
-                            >
-                              {count.toLocaleString()}
-                            </p>
-                            <p className="text-sm text-white/60 capitalize mt-1">
-                              {status.replace("_", " ")}
-                            </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="bg-neutral-900 rounded-xl p-4">
+                  <h3 className="text-sm font-medium text-white mb-4">By Source</h3>
+                  {sourceData.length > 0 ? (
+                    <div className="flex items-center gap-6">
+                      <ResponsiveContainer width="50%" height={150}>
+                        <PieChart>
+                          <Pie data={sourceData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={2} dataKey="value">
+                            {sourceData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="space-y-2">
+                        {sourceData.map((item) => (
+                          <div key={item.name} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span className="text-xs text-neutral-300">{item.name}: {item.value.toLocaleString()}</span>
                           </div>
-                        ),
-                      )}
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-center text-white/60 py-8">
-                      No data available
-                    </p>
+                    <p className="text-center text-neutral-500 py-8 text-sm">No data</p>
                   )}
                 </div>
-              </BrandCard>
+
+                <div className="bg-neutral-900 rounded-xl p-4">
+                  <h3 className="text-sm font-medium text-white mb-4">By Type</h3>
+                  {Object.keys(requestStats.byType).length > 0 ? (
+                    <div className="space-y-2">
+                      {Object.entries(requestStats.byType).map(([type, count]) => (
+                        <div key={type} className="flex items-center justify-between">
+                          <span className="inline-flex px-2 py-0.5 rounded text-[10px]" style={{ backgroundColor: `${TYPE_COLORS[type] || "#666"}20`, color: TYPE_COLORS[type] || "#666" }}>
+                            {TYPE_LABELS[type] || type}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${(count / requestStats.totalRequests) * 100}%`, backgroundColor: TYPE_COLORS[type] || "#FF5800" }} />
+                            </div>
+                            <span className="text-xs text-neutral-500 w-12 text-right">{count.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-neutral-500 py-8 text-sm">No data</p>
+                  )}
+                </div>
+              </div>
             </>
           ) : (
-            <p className="text-center text-white/60 py-12">
-              No request data available
-            </p>
+            <p className="text-center text-neutral-500 py-12">No request data available</p>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="visitors" className="space-y-6">
+      {/* Visitors Tab */}
+      {activeTab === "visitors" && (
+        <div className="space-y-4">
           {isLoadingStats ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
@@ -771,316 +505,155 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           ) : (
             <>
               {requestStats && (
-                <div className="grid gap-4 md:grid-cols-3">
-                  <BrandCard>
-                    <CornerBrackets size="sm" className="opacity-20" />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-white/60">Unique IPs</p>
-                          <p className="text-2xl font-bold text-white mt-1">
-                            {requestStats.uniqueIps.toLocaleString()}
-                          </p>
-                        </div>
-                        <Globe className="h-8 w-8 text-[#FF5800]" />
-                      </div>
-                    </div>
-                  </BrandCard>
-
-                  <BrandCard>
-                    <CornerBrackets size="sm" className="opacity-20" />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-white/60">Unique Users</p>
-                          <p className="text-2xl font-bold text-white mt-1">
-                            {requestStats.uniqueUsers.toLocaleString()}
-                          </p>
-                        </div>
-                        <Users className="h-8 w-8 text-blue-500" />
-                      </div>
-                    </div>
-                  </BrandCard>
-
-                  <BrandCard>
-                    <CornerBrackets size="sm" className="opacity-20" />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-white/60">
-                            Avg Requests/IP
-                          </p>
-                          <p className="text-2xl font-bold text-white mt-1">
-                            {requestStats.uniqueIps > 0
-                              ? (
-                                  requestStats.totalRequests /
-                                  requestStats.uniqueIps
-                                ).toFixed(1)
-                              : "0"}
-                          </p>
-                        </div>
-                        <Activity className="h-8 w-8 text-purple-500" />
-                      </div>
-                    </div>
-                  </BrandCard>
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+                  <StatCard label="Unique IPs" value={requestStats.uniqueIps.toLocaleString()} icon={<Globe className="h-5 w-5 text-[#FF5800]" />} />
+                  <StatCard label="Unique Users" value={requestStats.uniqueUsers.toLocaleString()} icon={<Users className="h-5 w-5 text-blue-400" />} />
+                  <StatCard label="Avg Requests/IP" value={requestStats.uniqueIps > 0 ? (requestStats.totalRequests / requestStats.uniqueIps).toFixed(1) : "0"} icon={<Activity className="h-5 w-5 text-purple-400" />} />
                 </div>
               )}
 
-              <BrandCard>
-                <CornerBrackets className="opacity-20" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">
-                      Top Visitors
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => fetchRequestStats()}
-                      disabled={isLoadingStats}
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`}
-                      />
-                    </Button>
-                  </div>
-                  {visitors.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-white/60 font-medium">
-                              IP Address
-                            </th>
-                            <th className="text-right py-3 px-4 text-white/60 font-medium">
-                              Requests
-                            </th>
-                            <th className="text-right py-3 px-4 text-white/60 font-medium">
-                              Last Seen
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {visitors.map((visitor, index) => (
-                            <tr
-                              key={visitor.ip}
-                              className="border-b border-white/5 hover:bg-white/5"
-                            >
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-white/40 text-xs w-4">
-                                    {index + 1}
-                                  </span>
-                                  <code className="text-white font-mono">
-                                    {visitor.ip}
-                                  </code>
-                                </div>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <span className="text-white font-medium">
-                                  {visitor.requestCount.toLocaleString()}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right text-white/60">
-                                {formatDistanceToNow(
-                                  new Date(visitor.lastSeen),
-                                  {
-                                    addSuffix: true,
-                                  },
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-center text-white/60 py-8">
-                      No visitor data available
-                    </p>
-                  )}
-                </div>
-              </BrandCard>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="logs" className="space-y-6">
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">
-                  Request Logs
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-white/60">
-                    {logsTotal.toLocaleString()} total
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => fetchRequestLogs(logsPage)}
-                    disabled={isLoadingLogs}
-                  >
-                    <RefreshCw
-                      className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`}
-                    />
+              <div className="bg-neutral-900 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-white">Top Visitors</h3>
+                  <Button variant="ghost" size="sm" onClick={() => fetchRequestStats()} disabled={isLoadingStats} className="h-8 w-8 p-0">
+                    <RefreshCw className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-              </div>
-
-              {isLoadingLogs ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
-                </div>
-              ) : requestLogs.length > 0 ? (
-                <>
+                {visitors.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/10">
-                          <th className="text-left py-3 px-3 text-white/60 font-medium">
-                            Time
-                          </th>
-                          <th className="text-left py-3 px-3 text-white/60 font-medium">
-                            Type
-                          </th>
-                          <th className="text-left py-3 px-3 text-white/60 font-medium">
-                            Source
-                          </th>
-                          <th className="text-left py-3 px-3 text-white/60 font-medium">
-                            IP
-                          </th>
-                          <th className="text-left py-3 px-3 text-white/60 font-medium">
-                            Details
-                          </th>
-                          <th className="text-center py-3 px-3 text-white/60 font-medium">
-                            Status
-                          </th>
+                          <th className="text-left py-2 px-3 text-neutral-500 font-medium text-xs">IP Address</th>
+                          <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">Requests</th>
+                          <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">Last Seen</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {requestLogs.map((log) => (
-                          <tr
-                            key={log.id}
-                            className="border-b border-white/5 hover:bg-white/5"
-                          >
-                            <td className="py-3 px-3 text-white/60 whitespace-nowrap">
-                              {formatDistanceToNow(new Date(log.created_at), {
-                                addSuffix: true,
-                              })}
+                        {visitors.map((visitor, index) => (
+                          <tr key={visitor.ip} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-neutral-500 text-xs w-4">{index + 1}</span>
+                                <code className="text-white font-mono text-xs">{visitor.ip}</code>
+                              </div>
                             </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className="inline-flex px-2 py-0.5 rounded text-xs"
-                                style={{
-                                  backgroundColor: `${TYPE_COLORS[log.request_type] || "#666"}20`,
-                                  color:
-                                    TYPE_COLORS[log.request_type] || "#666",
-                                }}
-                              >
-                                {TYPE_LABELS[log.request_type] ||
-                                  log.request_type}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className="inline-flex px-2 py-0.5 rounded text-xs"
-                                style={{
-                                  backgroundColor: `${SOURCE_COLORS[log.source] || "#666"}20`,
-                                  color: SOURCE_COLORS[log.source] || "#666",
-                                }}
-                              >
-                                {SOURCE_LABELS[log.source] || log.source}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <code className="text-white/60 text-xs font-mono">
-                                {log.ip_address || "N/A"}
-                              </code>
-                            </td>
-                            <td className="py-3 px-3 text-white/60 text-xs max-w-[200px] truncate">
-                              {log.request_type === "pageview" ? (
-                                <span title={log.metadata?.page_url || "/"}>
-                                  {log.metadata?.page_url || "/"}
-                                </span>
-                              ) : (
-                                <span>
-                                  {log.model || "N/A"}
-                                  {(log.input_tokens > 0 ||
-                                    log.output_tokens > 0) && (
-                                    <span className="ml-2 text-white/40">
-                                      (
-                                      {(
-                                        log.input_tokens + log.output_tokens
-                                      ).toLocaleString()}{" "}
-                                      tokens)
-                                    </span>
-                                  )}
-                                  {parseFloat(log.credits_used || "0") > 0 && (
-                                    <span className="ml-2 text-green-500">
-                                      ${parseFloat(log.credits_used).toFixed(4)}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span
-                                className={`inline-flex w-2 h-2 rounded-full ${
-                                  log.status === "success"
-                                    ? "bg-green-500"
-                                    : log.status === "failed"
-                                      ? "bg-red-500"
-                                      : "bg-yellow-500"
-                                }`}
-                              />
-                            </td>
+                            <td className="py-2 px-3 text-right text-white text-xs">{visitor.requestCount.toLocaleString()}</td>
+                            <td className="py-2 px-3 text-right text-neutral-500 text-xs">{formatDistanceToNow(new Date(visitor.lastSeen), { addSuffix: true })}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                ) : (
+                  <p className="text-center text-neutral-500 py-8 text-sm">No visitor data available</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4">
-                      <p className="text-sm text-white/60">
-                        Page {logsPage + 1} of {totalPages}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLogsPage(Math.max(0, logsPage - 1))}
-                          disabled={logsPage === 0 || isLoadingLogs}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setLogsPage(Math.min(totalPages - 1, logsPage + 1))
-                          }
-                          disabled={logsPage >= totalPages - 1 || isLoadingLogs}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-center text-white/60 py-12">
-                  No request logs available yet. Logs will appear here once your
-                  app receives requests.
-                </p>
-              )}
+      {/* Logs Tab */}
+      {activeTab === "logs" && (
+        <div className="bg-neutral-900 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-white">Request Logs</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-500">{logsTotal.toLocaleString()} total</span>
+              <Button variant="ghost" size="sm" onClick={() => fetchRequestLogs(logsPage)} disabled={isLoadingLogs} className="h-8 w-8 p-0">
+                <RefreshCw className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`} />
+              </Button>
             </div>
-          </BrandCard>
-        </TabsContent>
-      </Tabs>
+          </div>
+
+          {isLoadingLogs ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
+            </div>
+          ) : requestLogs.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Time</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Type</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Source</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">IP</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Details</th>
+                      <th className="text-center py-2 px-2 text-neutral-500 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requestLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="py-2 px-2 text-neutral-500 whitespace-nowrap">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</td>
+                        <td className="py-2 px-2">
+                          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px]" style={{ backgroundColor: `${TYPE_COLORS[log.request_type] || "#666"}20`, color: TYPE_COLORS[log.request_type] || "#666" }}>
+                            {TYPE_LABELS[log.request_type] || log.request_type}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2">
+                          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px]" style={{ backgroundColor: `${SOURCE_COLORS[log.source] || "#666"}20`, color: SOURCE_COLORS[log.source] || "#666" }}>
+                            {SOURCE_LABELS[log.source] || log.source}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2"><code className="text-neutral-500 font-mono">{log.ip_address || "N/A"}</code></td>
+                        <td className="py-2 px-2 text-neutral-500 max-w-[150px] truncate">
+                          {log.request_type === "pageview" ? log.metadata?.page_url || "/" : log.model || "N/A"}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`inline-flex w-2 h-2 rounded-full ${log.status === "success" ? "bg-green-500" : log.status === "failed" ? "bg-red-500" : "bg-yellow-500"}`} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <p className="text-xs text-neutral-500">Page {logsPage + 1} of {totalPages}</p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setLogsPage(Math.max(0, logsPage - 1))} disabled={logsPage === 0 || isLoadingLogs} className="h-8 w-8 p-0">
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setLogsPage(Math.min(totalPages - 1, logsPage + 1))} disabled={logsPage >= totalPages - 1 || isLoadingLogs} className="h-8 w-8 p-0">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-center text-neutral-500 py-12 text-sm">No request logs available yet</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="bg-neutral-900 rounded-xl p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-neutral-500">{label}</p>
+          <p className="text-xl font-semibold text-white mt-1">{value}</p>
+        </div>
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function MiniStatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-neutral-900 rounded-xl p-3">
+      <p className="text-[10px] text-neutral-500">{label}</p>
+      <p className={`text-lg font-semibold mt-0.5 ${color}`}>{value}</p>
     </div>
   );
 }

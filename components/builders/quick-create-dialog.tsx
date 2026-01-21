@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -26,7 +26,6 @@ import {
   Globe,
   Zap,
   Sparkles,
-  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateNameForType } from "@/lib/utils/random-names";
@@ -35,7 +34,6 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "./post-creation-app-prompt";
-import { trackEvent, sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
@@ -67,28 +65,28 @@ const TYPE_OPTIONS: TypeOption[] = [
     label: "App",
     description: "Web app or mobile experience",
     icon: Smartphone,
-    color: "from-blue-500 to-cyan-500",
+    color: "text-cyan-400",
   },
   {
     type: "agent",
     label: "AI Agent",
     description: "Conversational AI with personality",
     icon: Bot,
-    color: "from-green-500 to-emerald-500",
+    color: "text-emerald-400",
   },
   {
     type: "workflow",
     label: "Workflow",
     description: "Automated task pipeline",
     icon: Workflow,
-    color: "from-purple-500 to-pink-500",
+    color: "text-purple-400",
   },
   {
     type: "service",
     label: "Service",
     description: "API with MCP, A2A, REST endpoints",
     icon: Server,
-    color: "from-orange-500 to-red-500",
+    color: "text-orange-400",
   },
 ];
 
@@ -124,118 +122,23 @@ export function QuickCreateDialog({
   });
   const [showAppPrompt, setShowAppPrompt] = useState(false);
 
-  // Name validation state (only for app/service types)
-  const [nameValidation, setNameValidation] = useState<{
-    isChecking: boolean;
-    isAvailable: boolean | null;
-    error: string | null;
-    suggestedName: string | null;
-  }>({
-    isChecking: false,
-    isAvailable: null,
-    error: null,
-    suggestedName: null,
-  });
-  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Track when dialog opens with defaultType=agent
-  useEffect(() => {
-    if (open && defaultType === "agent") {
-      trackEvent("agent_create_started", { source: "quick_create" });
-    }
-  }, [open, defaultType]);
-
-  // Debounced name check for app/service types
-  useEffect(() => {
-    // Only check for app and service types
-    if (selectedType !== "app" && selectedType !== "service") {
-      setNameValidation({
-        isChecking: false,
-        isAvailable: null,
-        error: null,
-        suggestedName: null,
-      });
-      return;
-    }
-
-    if (nameCheckTimeoutRef.current) {
-      clearTimeout(nameCheckTimeoutRef.current);
-    }
-
-    const trimmedName = name.trim();
-
-    if (!trimmedName || trimmedName.length < 2) {
-      setNameValidation({
-        isChecking: false,
-        isAvailable: null,
-        error:
-          trimmedName.length > 0 && trimmedName.length < 2
-            ? "Name must be at least 2 characters"
-            : null,
-        suggestedName: null,
-      });
-      return;
-    }
-
-    setNameValidation((prev) => ({ ...prev, isChecking: true, error: null }));
-
-    nameCheckTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/v1/apps/check-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setNameValidation({
-            isChecking: false,
-            isAvailable: data.available,
-            error: data.available
-              ? null
-              : data.conflictType === "subdomain"
-                ? "This name would create a subdomain that is already in use"
-                : "An app with this name already exists",
-            suggestedName: data.suggestedName || null,
-          });
-        } else {
-          setNameValidation({
-            isChecking: false,
-            isAvailable: null,
-            error: null,
-            suggestedName: null,
-          });
-        }
-      } catch {
-        setNameValidation({
-          isChecking: false,
-          isAvailable: null,
-          error: null,
-          suggestedName: null,
-        });
-      }
-    }, 500);
-
-    return () => {
-      if (nameCheckTimeoutRef.current) {
-        clearTimeout(nameCheckTimeoutRef.current);
-      }
-    };
-  }, [name, selectedType]);
-
   const generateName = (type: QuickCreateType): string =>
     generateNameForType(type);
 
   const handleTypeSelect = (type: QuickCreateType) => {
+    if (type === "agent") {
+      router.push("/dashboard/build");
+      onOpenChange(false);
+      return;
+    }
+    if (type === "app") {
+      router.push("/dashboard/apps/create");
+      onOpenChange(false);
+      return;
+    }
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
-
-    // Track when user starts creating an agent (only if not already tracked via defaultType)
-    if (type === "agent" && defaultType !== "agent") {
-      trackEvent("agent_create_started", { source: "quick_create" });
-    }
   };
 
   const regenerateName = () => {
@@ -345,17 +248,7 @@ export function QuickCreateDialog({
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Creation failed";
-      toast.error(errorMessage);
-
-      // Track failed agent creation
-      if (selectedType === "agent") {
-        trackEvent("agent_create_failed", {
-          source: "quick_create",
-          error_message: sanitizeErrorMessage(errorMessage),
-        });
-      }
+      toast.error(err instanceof Error ? err.message : "Creation failed");
     } finally {
       setIsLoading(false);
     }
@@ -392,12 +285,6 @@ export function QuickCreateDialog({
     setCreatedResult(null);
     setCopied(false);
     setServiceEndpoints({ mcp: true, a2a: true, rest: true });
-    setNameValidation({
-      isChecking: false,
-      isAvailable: null,
-      error: null,
-      suggestedName: null,
-    });
     onOpenChange(false);
   };
 
@@ -444,91 +331,41 @@ export function QuickCreateDialog({
                 <Check className="h-5 w-5 text-green-500" />
                 Created Successfully
               </DialogTitle>
-              <DialogDescription>
-                {createdResult.apiKey
-                  ? "Copy your API key now — you won't see it again."
-                  : "Your project is ready to configure."}
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-gradient-to-r",
-                    typeConfig?.color,
-                  )}
-                >
-                  <TypeIcon className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <div className="text-lg font-medium text-white">
-                    {createdResult.name}
-                  </div>
-                  <div className="text-sm text-white/60">
-                    {typeConfig?.label}
-                  </div>
+            {createdResult.apiKey && (
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-medium text-[#FF5800]">
+                  Copy your API key now — you won't see it again
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={createdResult.apiKey}
+                    readOnly
+                    className="flex-1 h-11 px-3 rounded-xl bg-white/5 text-white font-mono text-sm select-all selection:bg-[#FF5800] selection:text-white focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copyApiKey}
+                    className="h-11 w-11 rounded-xl shrink-0"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
+            )}
 
-              {createdResult.apiKey && (
-                <div>
-                  <Label className="text-xs text-white/60">API Key</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      value={createdResult.apiKey}
-                      readOnly
-                      className="font-mono text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={copyApiKey}
-                      className="shrink-0"
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {canCreateApp(createdResult.type) && (
-                <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="h-4 w-4 text-cyan-400" />
-                    <span className="text-sm font-medium text-cyan-300">
-                      Create an App
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/60">
-                    Build a custom app or interface for your{" "}
-                    {createdResult.type}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              {canCreateApp(createdResult.type) && (
-                <Button
-                  onClick={handleCreateApp}
-                  variant="outline"
-                  className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Create App
-                </Button>
-              )}
+            <DialogFooter className="pt-2">
               <Button
                 onClick={handleClose}
-                className="bg-gradient-to-r from-[#FF5800] to-purple-600"
+                className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
-                <ChevronRight className="h-4 w-4 mr-2" />
-                Configure &amp; Deploy
+                Continue
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -557,97 +394,39 @@ export function QuickCreateDialog({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "p-2 rounded-lg bg-gradient-to-r",
-                  typeConfig?.color,
-                )}
-              >
-                <TypeIcon className="h-4 w-4 text-white" />
-              </div>
-              Create {typeConfig?.label}
+              <TypeIcon className={cn("h-5 w-5", typeConfig?.color)} />
+              {selectedType === "service" ? "Service Configuration" : `${typeConfig?.label} Name`}
             </DialogTitle>
-            <DialogDescription>
-              {selectedType === "service"
-                ? "Configure service endpoints and name"
-                : "Give your project a name"}
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="name" className="text-white/80">
-                  Name <span className="text-red-400">*</span>
-                </Label>
-                {(selectedType === "app" || selectedType === "service") && (
-                  <div className="flex items-center gap-2">
-                    {nameValidation.isChecking && (
-                      <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                    )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === true &&
-                      name.trim().length >= 2 && (
-                        <span className="flex items-center gap-1 text-xs text-emerald-400">
-                          <Check className="h-3 w-3" />
-                          Available
-                        </span>
-                      )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === false && (
-                        <span className="flex items-center gap-1 text-xs text-red-400">
-                          <AlertCircle className="h-3 w-3" />
-                          Taken
-                        </span>
-                      )}
-                  </div>
-                )}
-              </div>
+              {selectedType === "service" && (
+                <Label className="text-white/80">Name</Label>
+              )}
               <div className="flex gap-2">
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter a name..."
-                  className={cn(
-                    "flex-1",
-                    nameValidation.error
-                      ? "border-red-500/50 focus:border-red-500"
-                      : nameValidation.isAvailable === true &&
-                          name.trim().length >= 2
-                        ? "border-emerald-500/30 focus:border-emerald-500"
-                        : "",
-                  )}
+                  className="flex-1 h-11 rounded-xl"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   onClick={regenerateName}
                   title="Generate new name"
+                  className="h-11 w-11 rounded-xl shrink-0"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
-              {nameValidation.error && (
-                <p className="text-xs text-red-400 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  {nameValidation.error}
-                  {nameValidation.suggestedName && (
-                    <button
-                      type="button"
-                      onClick={() => setName(nameValidation.suggestedName!)}
-                      className="ml-1 text-[#FF5800] hover:underline"
-                    >
-                      Try &quot;{nameValidation.suggestedName}&quot;
-                    </button>
-                  )}
-                </p>
-              )}
             </div>
 
             {selectedType === "service" && (
-              <div className="space-y-3">
-                <Label className="text-white/80">Service Endpoints</Label>
+              <div className="space-y-3 pt-2">
+                <Label className="text-white/80">Endpoints</Label>
                 <div className="grid gap-2">
                   {[
                     {
@@ -679,7 +458,7 @@ export function QuickCreateDialog({
                         }))
                       }
                       className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
+                        "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
                         serviceEndpoints[key]
                           ? "border-[#FF5800]/50 bg-[#FF5800]/10"
                           : "border-white/10 bg-white/5 hover:bg-white/10",
@@ -687,7 +466,7 @@ export function QuickCreateDialog({
                     >
                       <div
                         className={cn(
-                          "p-2 rounded-lg",
+                          "p-2 rounded-xl",
                           serviceEndpoints[key]
                             ? "bg-[#FF5800]/20"
                             : "bg-white/10",
@@ -733,31 +512,16 @@ export function QuickCreateDialog({
           </div>
 
           <DialogFooter className="flex justify-between">
-            <Button type="button" variant="ghost" onClick={handleBack}>
+            <Button type="button" variant="ghost" onClick={handleBack} className="rounded-xl">
               {defaultType ? "Cancel" : "Back"}
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={
-                isLoading ||
-                !name.trim() ||
-                name.trim().length < 2 ||
-                ((selectedType === "app" || selectedType === "service") &&
-                  (nameValidation.isChecking ||
-                    nameValidation.isAvailable === false))
-              }
-              className="bg-gradient-to-r from-[#FF5800] to-purple-600"
+              disabled={isLoading || !name.trim()}
+              className="w-24 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : nameValidation.isChecking ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Checking...
-                </>
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 "Create"
               )}
@@ -774,43 +538,32 @@ export function QuickCreateDialog({
         <DialogHeader>
           <DialogTitle>What do you want to build?</DialogTitle>
           <DialogDescription>
-            Choose a starting point. Everything integrates together.
+            Start here. Connect other parts anytime.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 py-4">
+        <div className="grid gap-3 pt-4">
           {TYPE_OPTIONS.map((option) => {
             const Icon = option.icon;
             return (
               <button
                 key={option.type}
                 onClick={() => handleTypeSelect(option.type)}
-                className="flex items-center gap-4 p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-left group"
+                className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20 transition-all duration-300 text-left group"
               >
-                <div
-                  className={cn(
-                    "p-3 rounded-lg bg-gradient-to-r",
-                    option.color,
-                  )}
-                >
-                  <Icon className="h-5 w-5 text-white" />
-                </div>
+                <Icon className={cn("h-6 w-6", option.color)} />
                 <div className="flex-1">
                   <div className="font-medium text-white">{option.label}</div>
                   <div className="text-sm text-white/60">
                     {option.description}
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 text-white/30 group-hover:text-white/60 transition-colors" />
+                <ChevronRight className="h-5 w-5 text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
               </button>
             );
           })}
         </div>
 
-        <div className="text-xs text-white/40 text-center pb-2">
-          Services expose MCP, A2A, and REST • Workflows integrate with
-          everything
-        </div>
       </DialogContent>
     </Dialog>
   );

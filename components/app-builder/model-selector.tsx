@@ -76,9 +76,6 @@ export function ModelSelector({
             className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
             disabled={disabled}
           >
-            <span className={getProviderColor(currentModel.provider)}>
-              {getProviderIcon(currentModel.provider)}
-            </span>
             <span className="max-w-[80px] truncate">{currentModel.name}</span>
             <ChevronDown className="h-3 w-3 opacity-50" />
           </Button>
@@ -94,8 +91,8 @@ export function ModelSelector({
                 {getProviderIcon(model.provider)}
               </span>
               <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-sm">{model.name}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="font-medium text-xs">{model.name}</span>
+                <span className="text-[10px] text-muted-foreground">
                   {model.description}
                 </span>
               </div>
