@@ -281,12 +281,15 @@ export class NeonClient {
 // Lazy singleton - only instantiate when NEON_API_KEY is available
 let _neonClient: NeonClient | null = null;
 
+/**
+ * Gets the singleton NeonClient instance.
+ * Throws if NEON_API_KEY environment variable is not set.
+ *
+ * Always use this function instead of creating NeonClient directly.
+ */
 export function getNeonClient(): NeonClient {
   if (!_neonClient) {
     _neonClient = new NeonClient();
   }
   return _neonClient;
 }
-
-// For backward compatibility - but will throw if NEON_API_KEY is not set
-export const neonClient = NEON_API_KEY ? new NeonClient() : (null as unknown as NeonClient);
