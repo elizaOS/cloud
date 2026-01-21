@@ -284,7 +284,15 @@ export default function AdminPage() {
         <p className="text-muted-foreground">
           Please connect your wallet to access the admin panel.
         </p>
-        <Button onClick={() => router.push("/login")}>Connect Wallet</Button>
+        <Button
+          onClick={() =>
+            router.push(
+              `/login?returnTo=${encodeURIComponent("/dashboard/admin")}`,
+            )
+          }
+        >
+          Connect Wallet
+        </Button>
       </div>
     );
   }

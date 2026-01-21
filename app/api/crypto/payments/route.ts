@@ -9,6 +9,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 const createPaymentSchema = z.object({
   amount: z
@@ -62,6 +63,26 @@ async function handleCreatePayment(req: NextRequest) {
       currency,
       payCurrency,
       network,
+    });
+
+    // Track crypto payment initiated in PostHog
+    trackServerEvent(user.id, "crypto_payment_initiated", {
+      amount,
+      currency,
+      pay_currency: payCurrency,
+      network: network || "AUTO",
+      organization_id: user.organization_id,
+      track_id: result.trackId,
+    });
+
+    // Also track unified checkout_initiated
+    trackServerEvent(user.id, "checkout_initiated", {
+      payment_method: "crypto",
+      amount,
+      currency,
+      organization_id: user.organization_id,
+      source_page: "settings",
+      purchase_type: "custom_amount",
     });
 
     return NextResponse.json({

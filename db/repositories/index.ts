@@ -115,3 +115,9 @@ export * from "./seo-requests";
 // Workflows Domain
 // ============================================
 export * from "./workflows";
+
+// ============================================
+// Discord Domain (Bot Automation)
+// ============================================
+export * from "./discord-guilds";
+export * from "./discord-channels";

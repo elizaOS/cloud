@@ -64,6 +64,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.discordapp.com",
+        port: "",
+        pathname: "/**",
+      },
       // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
     ],
   },
@@ -135,6 +141,13 @@ const nextConfig: NextConfig = {
     "electron",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
+    // Prevent Response polyfill conflicts (Next.js #58611)
+    // These packages polyfill global Response which breaks instanceof checks
+    "undici",
+    "cross-fetch",
+    // jsdom ESM dependencies break when bundled - keep external for Node.js loading
+    "jsdom",
+    "isomorphic-dompurify",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
@@ -171,9 +184,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
+              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash, Discord CDN
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com",
               // Fonts - allow self, Monaco Editor CDN, and Vercel sandboxes (for iframe embedding)
               "font-src 'self' https://cdn.jsdelivr.net https://*.vercel.run https://*.vercel.app",
               "object-src 'none'",

@@ -3,8 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
-import { Loader2, AlertTriangle, Shield, ArrowRight } from "lucide-react";
+import { BrandButton } from "@/components/brand";
+import { Loader2, AlertTriangle, Shield, ArrowRight, X } from "lucide-react";
 import LandingHeader from "@/components/layout/landing-header";
 
 interface AppInfo {
@@ -167,21 +167,23 @@ function AuthorizeContent() {
   // Loading state
   if (!ready || isLoading) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
         <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="space-y-2 text-center">
+          <div className="w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
+            <div className="flex flex-col items-center gap-6">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+                <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+              </div>
+              <div className="space-y-1 text-center">
                 <h3 className="text-lg font-semibold text-white">
                   Verifying application...
                 </h3>
               </div>
             </div>
-          </BrandCard>
+          </div>
         </div>
       </div>
     );
@@ -190,31 +192,31 @@ function AuthorizeContent() {
   // Error state
   if (error) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
         <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <div className="p-4 rounded-full bg-red-500/20">
-                <AlertTriangle className="h-8 w-8 text-red-400" />
+          <div className="w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-500/10">
+                <AlertTriangle className="h-7 w-7 text-red-500" />
               </div>
               <div className="space-y-2 text-center">
                 <h3 className="text-lg font-semibold text-white">
                   Authorization Error
                 </h3>
-                <p className="text-sm text-white/60 max-w-xs">{error}</p>
+                <p className="text-sm text-neutral-500 max-w-xs">
+                  {error}
+                </p>
               </div>
-              <BrandButton
-                variant="outline"
+              <button
                 onClick={() => router.push("/")}
-                className="mt-4"
+                className="px-6 py-2.5 rounded-xl border border-white/10 text-sm text-white hover:bg-white/10 transition-colors"
               >
                 Go to Eliza Cloud
-              </BrandButton>
+              </button>
             </div>
-          </BrandCard>
+          </div>
         </div>
       </div>
     );
@@ -223,24 +225,31 @@ function AuthorizeContent() {
   // Authorizing state (after login)
   if (authenticated && isAuthorizing) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
         <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+          <div className="w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
+            <div className="flex flex-col items-center gap-6">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+                <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+              </div>
               <div className="space-y-2 text-center">
                 <h3 className="text-lg font-semibold text-white">
                   Authorizing...
                 </h3>
-                <p className="text-sm text-white/60">
+                <p className="text-sm text-neutral-500">
                   Redirecting you back to {appInfo?.name || "the app"}
                 </p>
               </div>
+              <div className="flex gap-1.5">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
+              </div>
             </div>
-          </BrandCard>
+          </div>
         </div>
       </div>
     );
@@ -248,13 +257,12 @@ function AuthorizeContent() {
 
   // Authorization prompt (not logged in)
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
       <LandingHeader />
-      <BackgroundVideo />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-          <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 space-y-6">
+        <div className="w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-6 md:p-8">
+          <div className="space-y-6">
             {/* App info */}
             <div className="flex flex-col items-center gap-4 text-center">
               {appInfo?.logo_url ? (
@@ -271,11 +279,11 @@ function AuthorizeContent() {
                 </div>
               )}
               <div>
-                <h1 className="text-xl font-bold text-white">
+                <h1 className="text-xl font-semibold text-white">
                   {appInfo?.name || "Application"}
                 </h1>
                 {appInfo?.website_url && (
-                  <p className="text-sm text-white/50 mt-1">
+                  <p className="text-sm text-neutral-500 mt-1">
                     {new URL(appInfo.website_url).hostname}
                   </p>
                 )}
@@ -283,12 +291,12 @@ function AuthorizeContent() {
             </div>
 
             {/* Permission info */}
-            <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 text-white/80">
+            <div className="space-y-3 p-4 rounded-xl bg-black/40 border border-white/10">
+              <div className="flex items-center gap-2 text-white">
                 <Shield className="h-4 w-4 text-[#FF5800]" />
                 <span className="text-sm font-medium">This app wants to:</span>
               </div>
-              <ul className="space-y-2 text-sm text-white/60 ml-6">
+              <ul className="space-y-2 text-sm text-neutral-400 ml-6">
                 <li className="flex items-center gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
                   Access your Eliza Cloud account
@@ -305,7 +313,7 @@ function AuthorizeContent() {
               <BrandButton
                 variant="primary"
                 onClick={handleLogin}
-                className="w-full h-11"
+                className="w-full h-11 rounded-xl"
               >
                 {authenticated ? (
                   <>
@@ -316,62 +324,38 @@ function AuthorizeContent() {
                   "Sign in with Eliza Cloud"
                 )}
               </BrandButton>
-              <BrandButton
-                variant="ghost"
+              <button
                 onClick={handleCancel}
-                className="w-full"
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-neutral-500 hover:text-white transition-colors"
               >
+                <X className="h-4 w-4" />
                 Cancel
-              </BrandButton>
+              </button>
             </div>
 
             {/* Footer */}
-            <p className="text-center text-xs text-white/40">
-              By continuing, you agree to share your account information with
-              this app.
+            <p className="text-center text-xs text-neutral-600 pt-2 border-t border-white/10">
+              By continuing, you agree to share your account information with this app.
             </p>
           </div>
-        </BrandCard>
+        </div>
       </div>
     </div>
   );
 }
 
-function BackgroundVideo() {
-  return (
-    <>
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-    </>
-  );
-}
-
 function LoadingFallback() {
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-lg border border-white/10 backdrop-blur-sm bg-black/60 p-8">
-          <div className="flex flex-col items-center gap-6 py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-            <div className="space-y-2 text-center">
+        <div className="w-full max-w-md bg-neutral-900 border border-white/10 rounded-2xl p-8">
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative">
+              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+              <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+            </div>
+            <div className="space-y-1 text-center">
               <h3 className="text-lg font-semibold text-white">Loading...</h3>
             </div>
           </div>

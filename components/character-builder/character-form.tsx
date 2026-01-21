@@ -44,12 +44,18 @@ export function CharacterForm({
   activeTab,
 }: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
-  const [newAdjective, setNewAdjective] = useState("");
-  const [newTopic, setNewTopic] = useState("");
   const [newUserMessage, setNewUserMessage] = useState("");
   const [newAgentMessage, setNewAgentMessage] = useState("");
   const [isPublic, setIsPublic] = useState(character.isPublic ?? false);
   const [isTogglingShare, setIsTogglingShare] = useState(false);
+
+  // Draft states for comma-separated fields (only parse on blur)
+  const [adjectivesDraft, setAdjectivesDraft] = useState(character.adjectives?.join(", ") || "");
+  const [topicsDraft, setTopicsDraft] = useState(character.topics?.join(", ") || "");
+
+  // Focus tracking to prevent overwrites while user is editing
+  const [isAdjectivesEditing, setIsAdjectivesEditing] = useState(false);
+  const [isTopicsEditing, setIsTopicsEditing] = useState(false);
 
   // Sync isPublic state when character data changes (e.g., loaded from API)
   // Skip sync if currently toggling to prevent race condition
@@ -58,6 +64,19 @@ export function CharacterForm({
       setIsPublic(character.isPublic ?? false);
     }
   }, [character.isPublic, isTogglingShare]);
+
+  // Sync draft states when character data changes externally (skip if user is editing)
+  useEffect(() => {
+    if (!isAdjectivesEditing) {
+      setAdjectivesDraft(character.adjectives?.join(", ") || "");
+    }
+  }, [character.adjectives, isAdjectivesEditing]);
+
+  useEffect(() => {
+    if (!isTopicsEditing) {
+      setTopicsDraft(character.topics?.join(", ") || "");
+    }
+  }, [character.topics, isTopicsEditing]);
 
   const handleToggleShare = async () => {
     if (isTogglingShare) return; // Prevent double-clicking
@@ -118,6 +137,14 @@ export function CharacterForm({
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
+  };
+
+  // Parse comma-separated text to array (used on blur)
+  const parseCommaSeparated = (text: string): string[] => {
+    return text
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
   };
 
   const addTag = (type: TagType) => {
@@ -380,7 +407,10 @@ export function CharacterForm({
           {/* Adjectives */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="adjectives"
+                className="text-sm font-medium text-white/70"
+              >
                 Personality Traits
               </label>
               <Tooltip>
@@ -401,74 +431,35 @@ export function CharacterForm({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={newAdjective}
-                onChange={(e) => setNewAdjective(e.target.value)}
-                placeholder="witty, sarcastic, thoughtful..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!newAdjective.trim()) return;
-                    const currentAdjectives = character.adjectives || [];
-                    updateField("adjectives", [
-                      ...currentAdjectives,
-                      newAdjective.trim(),
-                    ]);
-                    setNewAdjective("");
-                  }
-                }}
-                className="rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
-              />
-              <BrandButton
-                type="button"
-                variant="icon-primary"
-                size="icon"
-                disabled={!newAdjective.trim()}
-                onClick={() => {
-                  if (!newAdjective.trim()) return;
-                  const currentAdjectives = character.adjectives || [];
-                  updateField("adjectives", [
-                    ...currentAdjectives,
-                    newAdjective.trim(),
-                  ]);
-                  setNewAdjective("");
-                }}
-              >
-                <Plus
-                  className="h-4 w-4"
-                  style={{
-                    color: !newAdjective.trim()
-                      ? "rgba(255,255,255,0.4)"
-                      : "#FF5800",
-                  }}
-                />
-              </BrandButton>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {character.adjectives?.map((adj, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    const currentAdjectives = character.adjectives || [];
-                    updateField(
-                      "adjectives",
-                      currentAdjectives.filter((_, i) => i !== index),
-                    );
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
-                >
-                  <span className="text-sm text-white">{adj}</span>
-                  <X className="h-3.5 w-3.5 text-white/70" />
-                </button>
-              ))}
-            </div>
+            <Textarea
+              id="adjectives"
+              value={adjectivesDraft}
+              onChange={(e) => setAdjectivesDraft(e.target.value)}
+              onFocus={() => setIsAdjectivesEditing(true)}
+              onBlur={() => {
+                setIsAdjectivesEditing(false);
+                updateField("adjectives", parseCommaSeparated(adjectivesDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  const parsed = parseCommaSeparated(adjectivesDraft);
+                  updateField("adjectives", parsed);
+                  setAdjectivesDraft(parsed.join(", "));
+                }
+              }}
+              placeholder="witty, sarcastic, caring, thoughtful..."
+              className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
+            />
           </div>
 
           {/* Topics */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="topics"
+                className="text-sm font-medium text-white/70"
+              >
                 Topics of Interest
               </label>
               <Tooltip>
@@ -489,62 +480,26 @@ export function CharacterForm({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                placeholder="DeFi protocols, AI research, meme culture..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (!newTopic.trim()) return;
-                    const currentTopics = character.topics || [];
-                    updateField("topics", [...currentTopics, newTopic.trim()]);
-                    setNewTopic("");
-                  }
-                }}
-                className="rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
-              />
-              <BrandButton
-                type="button"
-                variant="icon-primary"
-                size="icon"
-                disabled={!newTopic.trim()}
-                onClick={() => {
-                  if (!newTopic.trim()) return;
-                  const currentTopics = character.topics || [];
-                  updateField("topics", [...currentTopics, newTopic.trim()]);
-                  setNewTopic("");
-                }}
-              >
-                <Plus
-                  className="h-4 w-4"
-                  style={{
-                    color: !newTopic.trim()
-                      ? "rgba(255,255,255,0.4)"
-                      : "#FF5800",
-                  }}
-                />
-              </BrandButton>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {character.topics?.map((topic, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    const currentTopics = character.topics || [];
-                    updateField(
-                      "topics",
-                      currentTopics.filter((_, i) => i !== index),
-                    );
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 px-3 py-1 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
-                >
-                  <span className="text-sm text-white">{topic}</span>
-                  <X className="h-3.5 w-3.5 text-white/70" />
-                </button>
-              ))}
-            </div>
+            <Textarea
+              id="topics"
+              value={topicsDraft}
+              onChange={(e) => setTopicsDraft(e.target.value)}
+              onFocus={() => setIsTopicsEditing(true)}
+              onBlur={() => {
+                setIsTopicsEditing(false);
+                updateField("topics", parseCommaSeparated(topicsDraft));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  const parsed = parseCommaSeparated(topicsDraft);
+                  updateField("topics", parsed);
+                  setTopicsDraft(parsed.join(", "));
+                }
+              }}
+              placeholder="DeFi protocols, AI research, meme culture..."
+              className="min-h-16 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3"
+            />
           </div>
 
           {/* Message Examples */}

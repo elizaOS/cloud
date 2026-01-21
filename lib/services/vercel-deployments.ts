@@ -78,7 +78,7 @@ interface SubdomainResult {
  */
 async function vercelFetch<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit = {}
 ): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
@@ -124,9 +124,9 @@ function generateProjectName(appSlug: string, appId: string): string {
 }
 
 /**
- * Check if a subdomain is available
+ * Check if a subdomain is available in the local database
  */
-async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
+async function isSubdomainAvailableInDb(subdomain: string): Promise<boolean> {
   const existing = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.subdomain, subdomain),
   });
@@ -134,11 +134,25 @@ async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
 }
 
 /**
+ * Check if a subdomain is available
+ *
+ * We only check the local database because:
+ * 1. We own the parent domain (apps.elizacloud.ai) - subdomains are managed internally
+ * 2. Vercel's /v6/domains/ API checks domain registration, not project assignments
+ * 3. Subdomain assignment to Vercel projects happens later via addDomainToProject
+ * 4. The database is the source of truth for our subdomain allocations
+ */
+async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
+  // Only check local database - that's our source of truth for subdomain assignments
+  return await isSubdomainAvailableInDb(subdomain);
+}
+
+/**
  * Get or create a Vercel project for an app
  */
 async function getOrCreateVercelProject(
   appId: string,
-  app: { slug: string; github_repo: string | null },
+  app: { slug: string; github_repo: string | null }
 ): Promise<{ projectId: string; projectName: string } | null> {
   // Check if app already has a Vercel project
   const existingDomain = await dbRead.query.appDomains.findFirst({
@@ -235,7 +249,7 @@ async function getOrCreateVercelProject(
  */
 export async function assignSubdomain(
   appId: string,
-  preferredSubdomain?: string,
+  preferredSubdomain?: string
 ): Promise<SubdomainResult> {
   const app = await dbRead.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -312,7 +326,7 @@ export async function assignSubdomain(
  */
 async function addDomainToProject(
   projectId: string,
-  domain: string,
+  domain: string
 ): Promise<boolean> {
   try {
     await vercelFetch(`/v10/projects/${projectId}/domains`, {
@@ -343,7 +357,7 @@ export async function createDeployment(
     branch?: string;
     target?: "production" | "preview";
     commitSha?: string;
-  },
+  }
 ): Promise<DeploymentResult> {
   if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
     return {
@@ -442,7 +456,7 @@ export async function createDeployment(
           },
           target,
         }),
-      },
+      }
     );
 
     logger.info("[Vercel Deployments] Deployment created", {
@@ -491,7 +505,7 @@ export async function getDeploymentStatus(deploymentId: string): Promise<{
 
   try {
     const deployment = await vercelFetch<VercelDeploymentResponse>(
-      `/v13/deployments/${deploymentId}`,
+      `/v13/deployments/${deploymentId}`
     );
 
     return {
@@ -514,7 +528,7 @@ export async function getDeploymentStatus(deploymentId: string): Promise<{
  */
 export async function listDeployments(
   appId: string,
-  limit: number = 10,
+  limit: number = 10
 ): Promise<
   Array<{
     id: string;
@@ -595,7 +609,7 @@ export async function getProductionUrl(appId: string): Promise<string | null> {
  * Get the Vercel project ID for an app
  */
 export async function getVercelProjectId(
-  appId: string,
+  appId: string
 ): Promise<string | null> {
   const domain = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.app_id, appId),

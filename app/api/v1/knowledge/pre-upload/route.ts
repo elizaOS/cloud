@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+import {
+  extractUserIdFromBlobPath,
+  trackOrphanedBlobBatch,
+  type OrphanedBlobInfo,
+} from "@/lib/utils/knowledge";
 import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
@@ -13,24 +18,7 @@ import {
 } from "@/lib/constants/knowledge";
 import { fileTypeFromBuffer } from "file-type";
 
-/**
- * Extracts the user ID from a pre-upload blob URL path.
- * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
- * Returns null if the path doesn't match the expected format.
- */
-function extractUserIdFromBlobPath(url: string): string | null {
-  try {
-    const parsedUrl = new URL(url);
-    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
-    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
-      return pathParts[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+const MAX_FILENAME_LENGTH = 255;
 
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf(".");
@@ -46,11 +34,13 @@ function getFileExtension(filename: string): string {
  * @param req - Form data with files array.
  * @returns Pre-uploaded file metadata including blob URLs.
  */
+
 async function handlePOST(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
   const { user } = authResult;
 
   const formData = await req.formData();
+
   const files = formData.getAll("files") as File[];
 
   if (!files || files.length === 0) {
@@ -73,8 +63,31 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
+  // Validate total batch size
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+    return NextResponse.json(
+      {
+        error: "Batch too large",
+        details: `Total upload size must be under ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB`,
+      },
+      { status: 400 },
+    );
+  }
+
   // Validate files before upload
   for (const file of files) {
+    // Validate filename length
+    if (file.name.length > MAX_FILENAME_LENGTH) {
+      return NextResponse.json(
+        {
+          error: "Filename too long",
+          details: `${file.name.substring(0, 50)}... exceeds ${MAX_FILENAME_LENGTH} character limit`,
+        },
+        { status: 400 },
+      );
+    }
+
     // Reject filenames with path-unsafe characters to prevent path traversal
     if (!isValidFilename(file.name)) {
       return NextResponse.json(
@@ -168,6 +181,17 @@ async function handlePOST(req: NextRequest) {
           );
 
           if (isTextExtension) {
+            // SECURITY: Log content mismatch before rejection for audit purposes
+            logger.warn(
+              "[PreUpload] Content mismatch detected - rejecting file",
+              {
+                filename: file.name,
+                declaredExtension: ext,
+                detectedMimeType: detectedType.mime,
+                userId: user.id,
+                reason: "binary_file_with_text_extension",
+              },
+            );
             // Expected text file but detected as binary - reject
             throw new Error(
               `Content mismatch: ${file.name} appears to be a binary file (${detectedType.mime}) but has a text extension`,
@@ -224,6 +248,63 @@ async function handlePOST(req: NextRequest) {
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }
+  }
+
+  // Cleanup: If some files failed, delete successfully uploaded blobs to avoid orphans
+  if (errors.length > 0 && results.length > 0) {
+    logger.info(
+      "[PreUpload] Partial failure - cleaning up successful uploads",
+      {
+        successCount: results.length,
+        errorCount: errors.length,
+      },
+    );
+
+    // Parallel cleanup for better performance
+    const cleanupResults = await Promise.allSettled(
+      results.map((uploaded) => deleteBlob(uploaded.blobUrl)),
+    );
+
+    const orphanedBlobs: OrphanedBlobInfo[] = [];
+    cleanupResults.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        logger.info("[PreUpload] Cleaned up blob", {
+          blobUrl: results[index].blobUrl,
+        });
+      } else {
+        // Track orphaned blob for later cleanup
+        orphanedBlobs.push({
+          blobUrl: results[index].blobUrl,
+          userId: user.id,
+          reason: "partial_upload_failure",
+          originalError:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+          timestamp: Date.now(),
+        });
+      }
+    });
+
+    // Track orphaned blobs for monitoring and future cleanup
+    if (orphanedBlobs.length > 0) {
+      trackOrphanedBlobBatch(orphanedBlobs, {
+        operation: "pre-upload-rollback",
+        userId: user.id,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: "Some files failed to upload - batch rolled back",
+        details: errors,
+        orphanedBlobs:
+          orphanedBlobs.length > 0
+            ? orphanedBlobs.map((b) => b.blobUrl)
+            : undefined,
+      },
+      { status: 400 },
+    );
   }
 
   if (results.length === 0) {

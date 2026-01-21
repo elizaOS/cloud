@@ -62,7 +62,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -92,7 +92,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("MCP Plugin Loading Tests", timings);
@@ -155,7 +155,10 @@ describe("MCP Plugin Loading - Production Flow", () => {
   it("should create test user with ElizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "MCPLoadingTestUser");
+    testUserContext = await createTestUser(
+      testRuntimeResult.runtime,
+      "MCPLoadingTestUser",
+    );
 
     timings.userCreation = endTimer("user_creation");
 
@@ -179,7 +182,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.messageProcessing = endTimer("message_processing");
@@ -227,7 +230,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
     const connected = await verifyConnection();
     if (!connected) {
       throw new Error(
-        "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
       );
     }
     connectionString = getConnectionString();
@@ -257,7 +260,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
     }
     if (testData && connectionString) {
       await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`)
+        (err) => console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("MCP Trending Tokens Tests", timings);
@@ -315,7 +318,12 @@ describe("MCP Assistant - Trending Tokens Query", () => {
       const tools = mcpService.getTools();
       console.log(`   Tools available: ${tools?.length || 0}`);
       if (tools && tools.length > 0) {
-        console.log(`   Sample tools: ${tools.slice(0, 5).map((t: any) => t.name || t).join(", ")}`);
+        console.log(
+          `   Sample tools: ${tools
+            .slice(0, 5)
+            .map((t: any) => t.name || t)
+            .join(", ")}`,
+        );
       }
     }
   }, 30000);
@@ -323,7 +331,10 @@ describe("MCP Assistant - Trending Tokens Query", () => {
   it("should create test user with ElizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "TrendingTestUser");
+    testUserContext = await createTestUser(
+      testRuntimeResult.runtime,
+      "TrendingTestUser",
+    );
 
     timings.userCreation = endTimer("user_creation");
 
@@ -339,7 +350,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
 
   it("should process 'can you get trending tokens' with debug tracing", async () => {
     const debugEnabled = isDebugTracingEnabled();
-    console.log(`\nProcessing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`);
+    console.log(
+      `\nProcessing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`,
+    );
 
     // Clear any existing traces
     clearDebugTraces();
@@ -358,7 +371,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
           renderView: "detail",
           storeTrace: true,
         },
-      }
+      },
     );
 
     timings.trendingQuery = endTimer("trending_query");
@@ -393,7 +406,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
         console.log(`   Status: ${trace.status}`);
         console.log(`   Agent Mode: ${trace.agentMode}`);
         console.log(`   Steps: ${trace.steps?.length || 0}`);
-        console.log(`   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`);
+        console.log(
+          `   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`,
+        );
 
         if (trace.failure) {
           console.log(`\nFailure detected:`);
@@ -402,7 +417,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
           console.log(`   Step: ${trace.failure.step}`);
         }
       } else {
-        console.log("\nNo debug trace captured (trace may not have been generated)");
+        console.log(
+          "\nNo debug trace captured (trace may not have been generated)",
+        );
       }
     }
 
@@ -420,7 +437,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.greetingTest = endTimer("greeting_test");
@@ -451,7 +468,9 @@ describe("Debug Tracing Status", () => {
     console.log("DEBUG TRACING STATUS");
     console.log("=".repeat(60));
     console.log(`Enabled: ${debugEnabled ? "YES" : "NO"}`);
-    console.log(`Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`);
+    console.log(
+      `Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`,
+    );
     console.log("=".repeat(60));
 
     if (!debugEnabled) {

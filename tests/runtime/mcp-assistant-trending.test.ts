@@ -51,7 +51,9 @@ async function setupTestEnvironment(): Promise<void> {
 
   // Check debug tracing
   const debugEnabled = isDebugTracingEnabled();
-  console.log(`\n🔍 Debug Tracing: ${debugEnabled ? "✅ ENABLED" : "❌ DISABLED"}`);
+  console.log(
+    `\n🔍 Debug Tracing: ${debugEnabled ? "✅ ENABLED" : "❌ DISABLED"}`,
+  );
   if (!debugEnabled) {
     console.log("   Set DEBUG_TRACING=true in .env to enable debug output");
   }
@@ -61,7 +63,7 @@ async function setupTestEnvironment(): Promise<void> {
   const connected = await verifyConnection();
   if (!connected) {
     throw new Error(
-      "Cannot connect to database. Make sure DATABASE_URL is set and server is running."
+      "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
     );
   }
   connectionString = getConnectionString();
@@ -95,7 +97,9 @@ async function cleanupTestEnvironment(): Promise<void> {
     await testRuntimeResult.cleanup();
   }
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      () => {},
+    );
   }
   logTimings("MCP Assistant Trending Tests", timings);
   console.log("✅ Cleanup complete\n");
@@ -159,7 +163,12 @@ describe("MCP Assistant - Trending Tokens Query", () => {
       const tools = mcpService.getTools();
       console.log(`   Tools available: ${tools?.length || 0}`);
       if (tools && tools.length > 0) {
-        console.log(`   Sample tools: ${tools.slice(0, 5).map((t: any) => t.name || t).join(", ")}`);
+        console.log(
+          `   Sample tools: ${tools
+            .slice(0, 5)
+            .map((t: any) => t.name || t)
+            .join(", ")}`,
+        );
       }
     }
   }, 30000);
@@ -167,7 +176,10 @@ describe("MCP Assistant - Trending Tokens Query", () => {
   it("should create test user with ElizaOS entities", async () => {
     startTimer("user_creation");
 
-    testUserContext = await createTestUser(testRuntimeResult.runtime, "TrendingTestUser");
+    testUserContext = await createTestUser(
+      testRuntimeResult.runtime,
+      "TrendingTestUser",
+    );
 
     timings.userCreation = endTimer("user_creation");
 
@@ -183,7 +195,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
 
   it("should process 'can you get trending tokens' with debug tracing", async () => {
     const debugEnabled = isDebugTracingEnabled();
-    console.log(`\n🔍 Processing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`);
+    console.log(
+      `\n🔍 Processing message with debug tracing ${debugEnabled ? "ENABLED" : "DISABLED"}`,
+    );
 
     // Clear any existing traces
     clearDebugTraces();
@@ -202,7 +216,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
           renderView: "detail",
           storeTrace: true,
         },
-      }
+      },
     );
 
     timings.trendingQuery = endTimer("trending_query");
@@ -237,7 +251,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
         console.log(`   Status: ${trace.status}`);
         console.log(`   Agent Mode: ${trace.agentMode}`);
         console.log(`   Steps: ${trace.steps?.length || 0}`);
-        console.log(`   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`);
+        console.log(
+          `   Duration: ${trace.endedAt ? trace.endedAt - trace.startedAt : "N/A"}ms`,
+        );
 
         if (trace.failure) {
           console.log(`\n⚠️ Failure detected:`);
@@ -246,7 +262,9 @@ describe("MCP Assistant - Trending Tokens Query", () => {
           console.log(`   Step: ${trace.failure.step}`);
         }
       } else {
-        console.log("\n⚠️ No debug trace captured (trace may not have been generated)");
+        console.log(
+          "\n⚠️ No debug trace captured (trace may not have been generated)",
+        );
       }
     }
 
@@ -264,7 +282,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
       testData,
       {
         timeoutMs: 60000,
-      }
+      },
     );
 
     timings.greetingTest = endTimer("greeting_test");
@@ -291,7 +309,9 @@ describe("Debug Tracing Status", () => {
     console.log("DEBUG TRACING STATUS");
     console.log("=".repeat(60));
     console.log(`Enabled: ${debugEnabled ? "✅ YES" : "❌ NO"}`);
-    console.log(`Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`);
+    console.log(
+      `Environment: DEBUG_TRACING=${process.env.DEBUG_TRACING || "not set"}`,
+    );
     console.log("=".repeat(60));
 
     if (!debugEnabled) {

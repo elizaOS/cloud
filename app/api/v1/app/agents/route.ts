@@ -8,6 +8,7 @@ import { dbRead } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { organizations } from "@/db/schemas/organizations";
 import { eq, and, sql } from "drizzle-orm";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
 const DEFAULT_AGENT_BIO = "A helpful AI assistant";
 
@@ -158,12 +159,24 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    const startTime = Date.now();
     const character = await charactersService.create({
       name,
       bio: bio ? [bio] : [DEFAULT_AGENT_BIO],
       user_id: user.id,
       organization_id: user.organization_id,
       source: "cloud",
+    });
+
+    // Track agent creation in PostHog using internal UUID
+    trackServerEvent(user.id, "agent_create_completed", {
+      agent_id: character.id,
+      agent_name: character.name,
+      source: "quick_create",
+      has_custom_bio: !!bio,
+      creation_time_ms: Date.now() - startTime,
+      agent_count: count + 1,
+      is_first_agent: count === 0,
     });
 
     logger.info(`[Agents API] Created agent: ${character.id}`, {
@@ -194,7 +207,8 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create agent",
+        error:
+          error instanceof Error ? error.message : "Failed to create agent",
       },
       { status: 500 },
     );

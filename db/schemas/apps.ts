@@ -117,15 +117,15 @@ export const apps = pgTable(
     // Creator earnings tracking (summary)
     total_creator_earnings: numeric("total_creator_earnings", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
-      .default("0.00")
+      .default("0.000000")
       .notNull(),
     total_platform_revenue: numeric("total_platform_revenue", {
       precision: 12,
-      scale: 2,
+      scale: 6,
     })
-      .default("0.00")
+      .default("0.000000")
       .notNull(),
 
     // App features/permissions
@@ -160,6 +160,88 @@ export const apps = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
+
+    // Twitter Automation / Vibe Marketing
+    twitter_automation: jsonb("twitter_automation")
+      .$type<{
+        enabled: boolean;
+        autoPost: boolean;
+        autoReply: boolean;
+        autoEngage: boolean;
+        discovery: boolean;
+        postIntervalMin: number; // minutes
+        postIntervalMax: number; // minutes
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        topics?: string[]; // additional topics to post about
+        lastPostAt?: string; // ISO timestamp
+        totalPosts?: number;
+        agentCharacterId?: string; // the character used for automation
+      }>()
+      .default({
+        enabled: false,
+        autoPost: false,
+        autoReply: false,
+        autoEngage: false,
+        discovery: false,
+        postIntervalMin: 90,
+        postIntervalMax: 150,
+      }),
+
+    // Telegram Bot Automation
+    telegram_automation: jsonb("telegram_automation")
+      .$type<{
+        enabled: boolean;
+        botUsername?: string;
+        channelId?: string; // Primary announcement channel
+        groupId?: string; // Community group (optional)
+        autoReply: boolean; // Reply to messages in groups
+        autoAnnounce: boolean; // Periodic announcements
+        announceIntervalMin: number; // minutes
+        announceIntervalMax: number; // minutes
+        welcomeMessage?: string; // Custom /start response
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        lastAnnouncementAt?: string; // ISO timestamp
+        totalMessages?: number;
+      }>()
+      .default({
+        enabled: false,
+        autoReply: true,
+        autoAnnounce: false,
+        announceIntervalMin: 120,
+        announceIntervalMax: 240,
+      }),
+
+    // Discord Bot Automation
+    discord_automation: jsonb("discord_automation")
+      .$type<{
+        enabled: boolean;
+        guildId?: string; // Primary guild for automation
+        channelId?: string; // Announcement channel
+        autoAnnounce: boolean; // Periodic announcements
+        announceIntervalMin: number; // minutes
+        announceIntervalMax: number; // minutes
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        lastAnnouncementAt?: string; // ISO timestamp
+        totalMessages?: number;
+      }>()
+      .default({
+        enabled: false,
+        autoAnnounce: false,
+        announceIntervalMin: 120,
+        announceIntervalMax: 240,
+      }),
+
+    // Promotional Assets - AI-generated images for campaigns
+    promotional_assets: jsonb("promotional_assets")
+      .$type<
+        Array<{
+          type: "social_card" | "banner";
+          url: string;
+          size: { width: number; height: number };
+          generatedAt: string;
+        }>
+      >()
+      .default([]),
 
     // Linked characters (max 4 AI agents that can be used in this app)
     linked_character_ids: jsonb("linked_character_ids")

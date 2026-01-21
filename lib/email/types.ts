@@ -94,3 +94,21 @@ export interface PurchaseConfirmationEmailData {
   invoiceUrl?: string;
   dashboardUrl: string;
 }
+
+/**
+ * Data for container shutdown warning email template.
+ */
+export interface ContainerShutdownWarningEmailData {
+  email: string;
+  organizationName: string;
+  containerName: string;
+  projectName: string;
+  dailyCost: number;
+  monthlyCost: number;
+  currentBalance: number;
+  requiredCredits: number;
+  minimumRecommended: number;
+  shutdownTime: string;
+  billingUrl: string;
+  dashboardUrl: string;
+}

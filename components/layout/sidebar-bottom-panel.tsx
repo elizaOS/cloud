@@ -26,6 +26,7 @@ export function SidebarBottomPanel({
 }: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
+  const pathname = usePathname();
 
   // If not authenticated, show sign up/login CTA
   if (!ready || !authenticated || !user) {
@@ -35,11 +36,17 @@ export function SidebarBottomPanel({
     }
 
     // Collapsed view - just show login icon
+    // Preserve current page with returnTo parameter (including query params like characterId)
     if (isCollapsed) {
+      const currentUrl =
+        pathname +
+        (typeof window !== "undefined" ? window.location.search : "");
       return (
         <div className={cn("flex justify-center py-3", className)}>
           <button
-            onClick={() => router.push("/login")}
+            onClick={() =>
+              router.push(`/login?returnTo=${encodeURIComponent(currentUrl)}`)
+            }
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             title="Sign Up / Log In"
           >
@@ -50,6 +57,9 @@ export function SidebarBottomPanel({
     }
 
     // Anonymous user CTA panel
+    // Include query params (like characterId) to return to exact chat after login
+    const fullUrl =
+      pathname + (typeof window !== "undefined" ? window.location.search : "");
     return (
       <div className={cn("relative border-t border-white/10", className)}>
         <CornerBrackets size="sm" className="opacity-20" />
@@ -61,7 +71,9 @@ export function SidebarBottomPanel({
             </p>
 
             <button
-              onClick={() => router.push("/login")}
+              onClick={() =>
+                router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)
+              }
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white text-xs font-medium rounded-sm transition-colors"
             >
               <UserPlus className="h-3.5 w-3.5" />
@@ -69,7 +81,9 @@ export function SidebarBottomPanel({
             </button>
 
             <button
-              onClick={() => router.push("/login")}
+              onClick={() =>
+                router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)
+              }
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-white/15 hover:bg-white/5 text-white/70 hover:text-white text-xs rounded-sm transition-colors"
             >
               <LogIn className="h-3.5 w-3.5" />

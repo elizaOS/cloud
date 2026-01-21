@@ -1,7 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { usageService } from "@/lib/services/usage";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
+import { calculateSTTCost } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { fileTypeFromBuffer } from "file-type";
 
@@ -31,18 +38,44 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
   "video/webm", // Safari/macOS creates this for audio recordings
 ]);
 
+// Estimate audio duration from file size and format
+// This is a rough approximation for cost estimation
+function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): number {
+  // Average bitrates by format (conservative estimates)
+  const bitratesKbps: Record<string, number> = {
+    "audio/mpeg": 128, // MP3 at 128kbps
+    "audio/mp3": 128,
+    "audio/mp4": 128,
+    "audio/m4a": 128,
+    "audio/wav": 1411, // Uncompressed WAV at 16-bit 44.1kHz stereo
+    "audio/webm": 96,
+    "audio/ogg": 96,
+    "video/webm": 96,
+  };
+
+  const bitrate = bitratesKbps[mimeType] || 128;
+  const bytesPerMinute = (bitrate * 1000) / 8 * 60;
+  const estimatedMinutes = fileSizeBytes / bytesPerMinute;
+  
+  // Return at least 0.1 minutes (6 seconds) for very short clips
+  return Math.max(0.1, estimatedMinutes);
+}
+
 /**
  * POST /api/elevenlabs/stt
  * Converts speech to text using ElevenLabs STT API.
  * Validates file type using magic numbers for security.
+ * Includes 20% platform markup on all STT costs.
  *
  * @param request - Form data with audio file and optional languageCode.
  * @returns Transcript and processing duration.
  */
 export async function POST(request: NextRequest) {
+  let reservation: CreditReservation | undefined;
+
   try {
-    // Authenticate user
-    const user = await requireAuth();
+    // Authenticate user with organization
+    const user = await requireAuthWithOrg();
 
     // Parse form data
     const formData = await request.formData();
@@ -123,6 +156,31 @@ export async function POST(request: NextRequest) {
       `[STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime}, final: ${finalMimeType})`,
     );
 
+    // Estimate audio duration and calculate cost (includes 20% platform markup)
+    const estimatedDurationMinutes = estimateAudioDurationMinutes(audioFile.size, finalMimeType);
+    const estimatedCost = calculateSTTCost(estimatedDurationMinutes);
+
+    // Reserve credits BEFORE transcription
+    try {
+      reservation = await creditsService.reserve({
+        organizationId: user.organization_id!,
+        amount: estimatedCost,
+        userId: user.id,
+        description: `STT transcription: ~${estimatedDurationMinutes.toFixed(1)} min`,
+      });
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
+        return NextResponse.json(
+          {
+            error: "Insufficient credits for speech-to-text",
+            required: error.required,
+          },
+          { status: 402 },
+        );
+      }
+      throw error;
+    }
+
     // Get ElevenLabs service
     const elevenlabs = getElevenLabsService();
 
@@ -137,9 +195,43 @@ export async function POST(request: NextRequest) {
     });
     const duration = Date.now() - startTime;
 
+    // Reconcile with estimated cost (STT pricing is duration-based, we estimated earlier)
+    await reservation.reconcile(estimatedCost);
+
     logger.info(
       `[STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`,
     );
+
+    // Track usage (background, non-blocking)
+    (async () => {
+      try {
+        await usageService.create({
+          organization_id: user.organization_id!,
+          user_id: user.id,
+          api_key_id: null,
+          type: "stt",
+          model: "elevenlabs-stt",
+          provider: "elevenlabs",
+          input_tokens: 0,
+          output_tokens: transcript.length,
+          input_cost: String(estimatedCost),
+          output_cost: String(0),
+          duration_ms: duration,
+          is_successful: true,
+          metadata: {
+            audioFileName: audioFile.name,
+            audioSizeBytes: audioFile.size,
+            estimatedDurationMinutes,
+            languageCode,
+            transcriptLength: transcript.length,
+          },
+        });
+      } catch (error) {
+        logger.error("[STT API] Failed to create usage record", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
 
     return NextResponse.json({
       transcript,
@@ -147,6 +239,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[STT API] Error:", error);
+
+    // Refund reserved credits if STT failed
+    if (reservation) {
+      await reservation.reconcile(0);
+      logger.info("[STT API] Refunded credits after error");
+    }
 
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();

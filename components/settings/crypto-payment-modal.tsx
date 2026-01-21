@@ -5,6 +5,7 @@ import { Loader2, Copy, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { useWallets, usePrivy } from "@privy-io/react-auth";
+import { trackEvent } from "@/lib/analytics/posthog";
 
 interface CryptoPaymentModalProps {
   paymentId: string;
@@ -331,6 +332,13 @@ export function CryptoPaymentModal({
     try {
       await connectWallet();
       toast.success("Wallet connected!");
+
+      // Track wallet connected event
+      trackEvent("crypto_wallet_connected", {
+        wallet_type: "external",
+        network: network,
+        payment_id: paymentId,
+      });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
       toast.error("Failed to connect wallet");
@@ -422,6 +430,16 @@ export function CryptoPaymentModal({
 
       setTxHash(txHashResult);
       toast.success("Transaction sent! Waiting for confirmation...");
+
+      // Track payment sent event
+      trackEvent("crypto_payment_sent", {
+        payment_id: paymentId,
+        track_id: trackId,
+        tx_hash: txHashResult,
+        network: network,
+        token: payCurrency,
+        amount: payAmount,
+      });
 
       setTimeout(() => {
         checkPaymentStatus();

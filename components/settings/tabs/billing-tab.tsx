@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
+import { trackEvent } from "@/lib/analytics/posthog";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -56,11 +57,11 @@ export function BillingTab({ user }: BillingTabProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
-    null,
+    null
   );
 
   const [balance, setBalance] = useState(
-    Number(user.organization?.credit_balance || 0),
+    Number(user.organization?.credit_balance || 0)
   );
 
   const fetchBalance = useCallback(async (fresh = false) => {
@@ -106,6 +107,16 @@ export function BillingTab({ user }: BillingTabProps) {
   const handleBuyCredits = async () => {
     const amount = parseFloat(purchaseAmount);
 
+    // Track checkout attempt on button click for drop-off analysis
+    // This fires before validation to capture all user intent
+    if (user.organization_id) {
+      trackEvent("checkout_attempted", {
+        payment_method: paymentMethod === "card" ? "stripe" : "crypto",
+        amount: Number.isNaN(amount) ? undefined : amount,
+        organization_id: user.organization_id,
+      });
+    }
+
     if (isNaN(amount) || amount < AMOUNT_LIMITS.MIN) {
       toast.error(`Minimum amount is $${AMOUNT_LIMITS.MIN}`);
       return;
@@ -115,6 +126,9 @@ export function BillingTab({ user }: BillingTabProps) {
       toast.error(`Maximum amount is $${AMOUNT_LIMITS.MAX}`);
       return;
     }
+
+    // Note: checkout_initiated is tracked server-side after successful session creation
+    // to avoid inflated metrics from failed API calls
 
     setIsProcessingCheckout(true);
 
@@ -233,7 +247,14 @@ export function BillingTab({ user }: BillingTabProps) {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setPaymentMethod("card")}
+                      onClick={() => {
+                        setPaymentMethod("card");
+                        trackEvent("payment_method_selected", {
+                          method: "stripe",
+                          source_page: "settings",
+                          current_balance: balance,
+                        });
+                      }}
                       className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
                         paymentMethod === "card"
                           ? "bg-[#FF5800] border-[#FF5800] text-white"
@@ -245,7 +266,14 @@ export function BillingTab({ user }: BillingTabProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPaymentMethod("crypto")}
+                      onClick={() => {
+                        setPaymentMethod("crypto");
+                        trackEvent("payment_method_selected", {
+                          method: "crypto",
+                          source_page: "settings",
+                          current_balance: balance,
+                        });
+                      }}
                       className={`flex items-center gap-2 px-4 py-2 font-mono text-sm border transition-colors ${
                         paymentMethod === "crypto"
                           ? "bg-[#FF5800] border-[#FF5800] text-white"

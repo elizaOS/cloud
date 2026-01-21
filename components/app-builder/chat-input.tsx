@@ -31,6 +31,7 @@ type SessionStatus =
 
 interface ChatInputProps {
   onSendPrompt: (text?: string) => void;
+  onStopGeneration?: () => void;
   status: SessionStatus;
 }
 
@@ -198,6 +199,7 @@ const MicButton = memo(function MicButton({
 // Completely isolated input component - only subscribes to input state
 const ChatInputInner = memo(function ChatInputInner({
   onSendPrompt,
+  onStopGeneration,
   status,
 }: ChatInputProps) {
   const input = useChatInput((state) => state.input);
@@ -390,21 +392,29 @@ const ChatInputInner = memo(function ChatInputInner({
               disabled={isMicDisabled}
             />
 
-            {/* Send button - hidden during recording */}
+            {/* Send/Stop button - hidden during recording */}
             {!stt.isRecording && !stt.isProcessing && (
-              <Button
-                type="button"
-                onClick={handleSend}
-                disabled={!input.trim() || status !== "ready"}
-                size="icon"
-                className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
-              >
-                {status === "generating" ? (
-                  <Loader2 className="h-4 w-4 xl:h-3.5 xl:w-3.5 animate-spin text-white/50" />
-                ) : (
+              status === "generating" && onStopGeneration ? (
+                <Button
+                  type="button"
+                  onClick={onStopGeneration}
+                  size="icon"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 hover:text-red-300 transition-all touch-manipulation animate-pulse"
+                  title="Stop generation"
+                >
+                  <Square className="h-3.5 w-3.5 xl:h-3 xl:w-3 fill-current" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={!input.trim() || status !== "ready"}
+                  size="icon"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
+                >
                   <Send className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white/60" />
-                )}
-              </Button>
+                </Button>
+              )
             )}
           </div>
         </div>

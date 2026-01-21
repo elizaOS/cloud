@@ -72,8 +72,9 @@ import {
 } from "@/lib/models";
 import { useModelAvailability } from "./hooks/use-model-availability";
 import { usePrivy } from "@privy-io/react-auth";
-import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 import { ContentType, type Media } from "@elizaos/core";
+import { PendingKnowledgeProcessor } from "./pending-knowledge-processor";
+import type { Voice as CustomVoice } from "@/components/voices/types";
 
 interface Message {
   id: string;
@@ -116,13 +117,21 @@ interface ElizaChatInterfaceProps {
   expectedCharacterId?: string; // Used to validate room belongs to expected character during navigation
 }
 
-import type { Voice as CustomVoice } from "@/components/voices/types";
-
 const tierIcons: Record<string, React.ReactNode> = {
   fast: <Zap className="h-3.5 w-3.5" />,
   pro: <Sparkles className="h-3.5 w-3.5" />,
   ultra: <Crown className="h-3.5 w-3.5" />,
 };
+
+/**
+ * Returns responsive text size classes based on character name length.
+ * Shorter names get larger fonts, longer names scale down for readability.
+ */
+function getGreetingTextSizeClass(nameLength: number): string {
+  if (nameLength > 20) return "text-2xl sm:text-3xl md:text-4xl";
+  if (nameLength > 12) return "text-3xl sm:text-4xl md:text-5xl";
+  return "text-4xl sm:text-5xl md:text-6xl";
+}
 
 /**
  * Check if an error message indicates the anonymous message limit was reached.
@@ -380,9 +389,6 @@ export function ElizaChatInterface({
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
-
-  // Poll knowledge processing status and show toast when complete
-  useKnowledgeProcessingStatus(selectedCharacterId || null);
 
   // Reset message limit state when user authenticates (e.g., signs up via modal)
   useEffect(() => {
@@ -1278,15 +1284,13 @@ export function ElizaChatInterface({
   }, [sendMessage]);
 
   const formatTimestamp = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = Date.now() - timestamp;
     const diffMins = Math.floor(diffMs / 60000);
 
     if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return date.toLocaleDateString();
+    return new Date(timestamp).toLocaleDateString();
   };
 
   const copyToClipboard = async (
@@ -1349,8 +1353,57 @@ export function ElizaChatInterface({
       <div
         className={`flex flex-col items-center flex-1 min-h-0 w-full px-4 sm:px-6 rounded-2xl bg-[#070707] ${isEmptyChat ? "justify-center" : ""}`}
       >
+        {/* Pending Knowledge Processing Banner */}
+        <PendingKnowledgeProcessor characterId={selectedCharacterId} />
+
+        {/* Loading state */}
+        {loadingState.isLoadingMessages && (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
+            <ElizaAvatar
+              avatarUrl={characterAvatarUrl}
+              name={characterName}
+              className="h-16 w-16 mb-4"
+              fallbackClassName="bg-muted"
+              iconClassName="h-8 w-8 text-muted-foreground"
+              animate={true}
+            />
+            <div className="space-y-2">
+              <p className="text-base font-semibold">Loading conversation...</p>
+            </div>
+            {/* Message Skeletons */}
+            <div className="w-full max-w-2xl space-y-4 mt-8">
+              {/* Agent message skeleton */}
+              <div className="flex justify-start animate-pulse">
+                <div className="flex flex-col gap-2 max-w-[70%]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-white/10" />
+                    <div className="h-4 w-20 bg-white/10 rounded" />
+                  </div>
+                  <div className="h-16 bg-white/5 rounded" />
+                </div>
+              </div>
+              {/* User message skeleton */}
+              <div className="flex justify-end animate-pulse">
+                <div className="flex flex-col gap-2 max-w-[70%]">
+                  <div className="h-12 bg-white/10 rounded" />
+                </div>
+              </div>
+              {/* Agent message skeleton */}
+              <div className="flex justify-start animate-pulse">
+                <div className="flex flex-col gap-2 max-w-[70%]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-white/10" />
+                    <div className="h-4 w-20 bg-white/10 rounded" />
+                  </div>
+                  <div className="h-20 bg-white/5 rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Messages Area - Hidden when empty to center input */}
-        {!isEmptyChat && (
+        {!isEmptyChat && !loadingState.isLoadingMessages && (
           <div className="flex-1 min-h-0 w-full overflow-hidden">
             <ScrollArea className="h-full py-6" ref={scrollAreaRef}>
               <div className="max-w-4xl mx-auto px-2 space-y-6">
@@ -1431,11 +1484,7 @@ export function ElizaChatInterface({
             <h1
               className={cn(
                 "font-medium text-white/90",
-                characterName.length > 20
-                  ? "text-2xl sm:text-3xl md:text-4xl"
-                  : characterName.length > 12
-                    ? "text-3xl sm:text-4xl md:text-5xl"
-                    : "text-4xl sm:text-5xl md:text-6xl",
+                getGreetingTextSizeClass(characterName.length),
               )}
             >
               {isFirstConversation

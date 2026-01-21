@@ -25,7 +25,13 @@ import {
   HistoryTab,
   SessionLoader,
   AgentPicker,
+  WebTerminal,
 } from "@/components/app-builder";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 async function fetchWithRetry(
@@ -106,6 +112,12 @@ import {
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
+import {
+  AnimatedCheck,
+  AnimatedCheckmark,
+  AnimatedOrbit,
+  AnimatedLoadingRing,
+} from "@/components/ui/animated-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,6 +129,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -137,18 +155,23 @@ const ChatMessage = memo(function ChatMessage({
   sendPrompt,
 }: ChatMessageProps) {
   const isProcessing = !!msg._thinkingId;
-  const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
-    hour12: true,
-    hour: "numeric",
-    minute: "2-digit",
-  }).toLowerCase();
+  const msgTime = new Date(msg.timestamp)
+    .toLocaleTimeString("en-US", {
+      hour12: true,
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    .toLowerCase();
 
   return (
     <div
-      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message animate-scale-fade`}
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+      style={{
+        animation: 'messageSlideIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+      }}
     >
       <div
-        className={`relative ${
+        className={`relative transition-all duration-500 ease-out ${
           msg.role === "user"
             ? "max-w-[90%] xl:max-w-[85%] py-3 xl:py-3.5 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/15 to-[#FF5800]/5 border border-[#FF5800]/25 rounded-2xl rounded-tr-sm shadow-lg shadow-[#FF5800]/5"
             : isProcessing
@@ -158,26 +181,26 @@ const ChatMessage = memo(function ChatMessage({
       >
         {/* Subtle glow for processing messages */}
         {isProcessing && (
-          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10 animate-pulse" />
+          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10" />
         )}
-        
+
         <div className="flex items-center justify-between mb-2 xl:mb-2.5">
           <div className="flex items-center gap-2 xl:gap-2.5">
             {isProcessing && (
               <div className="relative">
-                <Loader2 className="h-3 w-3 xl:h-3.5 xl:w-3.5 animate-spin text-[#FF5800]" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-30" />
+                <AnimatedOrbit size={14} className="text-[#FF5800]" />
+                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-lg opacity-30" />
               </div>
             )}
             <span
               className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
                 msg.role === "user"
-                  ? "text-[#FF5800]/80"
+                  ? "text-white/70"
                   : isProcessing
-                    ? "text-[#FF5800]/70"
+                    ? "text-white/60"
                     : "text-white/40"
               }`}
-              style={{ fontFamily: 'var(--font-sf-pro)' }}
+              style={{ fontFamily: "var(--font-sf-pro)" }}
             >
               {msg.role === "user"
                 ? "You"
@@ -190,7 +213,8 @@ const ChatMessage = memo(function ChatMessage({
             {msgTime}
           </span>
         </div>
-        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto">
+        {/* Main content with smooth text reveal */}
+        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto text-reveal">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -198,11 +222,104 @@ const ChatMessage = memo(function ChatMessage({
             {msg.content}
           </ReactMarkdown>
         </div>
+
+        {/* Per-operation accordions with reasoning - smooth animated reveal */}
+        {msg.role === "assistant" &&
+          msg.operations &&
+          msg.operations.length > 0 &&
+          !isProcessing && (
+            <div 
+              className="mt-4 pt-3 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
+              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
+                Completed Operations
+              </p>
+              <Accordion type="multiple" className="space-y-1.5">
+                {msg.operations.map((op, idx) => (
+                  <AccordionItem
+                    key={idx}
+                    value={`op-${idx}`}
+                    className="operation-item border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors duration-300"
+                    style={{ animationDelay: `${idx * 80}ms` }}
+                  >
+                    <AccordionTrigger className="px-3 py-2.5 text-[12px] hover:no-underline hover:bg-white/[0.03] transition-all duration-200">
+                      <div className="flex items-center gap-2.5 text-left w-full">
+                        <AnimatedCheck 
+                          size={14} 
+                          className="text-emerald-400 flex-shrink-0" 
+                          delay={idx * 80 + 200} 
+                        />
+                        <span className="font-medium text-white/85">
+                          {op.tool}
+                        </span>
+                        <span className="text-[10px] text-white/45 font-mono truncate max-w-[200px]">
+                          {op.detail}
+                        </span>
+                        <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
+                          {op.timestamp}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    {op.reasoning && (
+                      <AccordionContent className="px-3 pb-3">
+                        <div className="reasoning-reveal text-[11px] leading-[1.6] text-white/55 bg-black/25 rounded-lg p-3.5 max-h-[200px] overflow-y-auto border border-white/[0.04]">
+                          <pre className="whitespace-pre-wrap font-sans">
+                            {op.reasoning}
+                          </pre>
+                        </div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          )}
+
+        {/* Fallback: overall reasoning accordion if no per-operation reasoning */}
+        {msg.role === "assistant" &&
+          msg.reasoning &&
+          !msg.operations?.some((op) => op.reasoning) &&
+          !isProcessing && (
+            <Accordion 
+              type="single" 
+              collapsible 
+              className="mt-3"
+              style={{
+                animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              }}
+            >
+              <AccordionItem value="reasoning" className="border-white/10 operation-item">
+                <AccordionTrigger className="py-2.5 text-[11px] xl:text-[12px] text-white/45 hover:text-white/70 hover:no-underline font-medium transition-colors duration-200">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[14px]">💭</span>
+                    <span>View all reasoning</span>
+                    <span className="text-[10px] text-white/25 font-normal">
+                      ({msg.reasoning.split(/\s+/).length} words)
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="reasoning-reveal text-[12px] leading-[1.6] text-white/55 bg-white/[0.02] rounded-lg px-3.5 py-3 max-h-[300px] overflow-y-auto border border-white/[0.04]">
+                  <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
+                    {msg.reasoning}
+                  </pre>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         {i === 0 &&
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]">
+            <div 
+              className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]"
+              style={{
+                animation: 'reasoningWaveIn 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                animationDelay: '200ms',
+              }}
+            >
               <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
                 Try asking
               </p>
@@ -212,26 +329,35 @@ const ChatMessage = memo(function ChatMessage({
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation"
+                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation operation-item"
+                    style={{ animationDelay: `${300 + idx * 60}ms` }}
                   >
-                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">{prompt}</span>
+                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">
+                      {prompt}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]">
+          <div 
+            className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]"
+            style={{
+              animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              animationDelay: '100ms',
+            }}
+          >
             <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
               Modified
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {msg.filesAffected.map((file) => (
+            <div className="flex flex-wrap gap-1.5 pb-1">
+              {msg.filesAffected.map((file, idx) => (
                 <span
                   key={file}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/12 border border-[#FF5800]/20 text-white/85 font-mono rounded truncate max-w-full"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] xl:text-[11px] bg-[#FF5800]/15 border border-[#FF5800]/25 text-white/90 font-mono rounded-md hover:bg-[#FF5800]/20 transition-colors duration-200"
                 >
-                  <FileCode className="h-2 w-2 flex-shrink-0 text-[#FF5800]/70" />
+                  <FileCode className="h-2.5 w-2.5 flex-shrink-0 text-[#FF5800]/80" />
                   {file}
                 </span>
               ))}
@@ -364,10 +490,13 @@ export default function AppCreatorPage() {
       detail: string;
       timestamp: string;
       status: "pending" | "active" | "done";
+      context?: string;
     }[]
   >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
   const initialThinkingStreamIdRef = useRef<string | null>(null);
+  // AbortController for cancelling ongoing AI generation
+  const generationAbortControllerRef = useRef<AbortController | null>(null);
 
   // Throttled streaming for smooth thinking text updates (~30fps instead of every chunk)
   const {
@@ -401,9 +530,7 @@ export default function AppCreatorPage() {
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection for the app
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(
-    [],
-  );
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [availableAgents, setAvailableAgents] = useState<
     Array<{
       id: string;
@@ -423,6 +550,23 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
+  // Name validation state
+  const [nameValidation, setNameValidation] = useState<{
+    isChecking: boolean;
+    isAvailable: boolean | null;
+    error: string | null;
+    suggestedName: string | null;
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
+  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Minimum description length
+  const MIN_DESCRIPTION_LENGTH = 10;
+
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
@@ -472,6 +616,7 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(null);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
@@ -486,6 +631,84 @@ export default function AppCreatorPage() {
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
+
+  // ============================================================================
+  // DEBOUNCED APP NAME AVAILABILITY CHECK
+  // ============================================================================
+  useEffect(() => {
+    // Clear any pending timeout
+    if (nameCheckTimeoutRef.current) {
+      clearTimeout(nameCheckTimeoutRef.current);
+    }
+
+    const trimmedName = appName.trim();
+
+    // Reset validation if name is empty or too short
+    if (!trimmedName || trimmedName.length < 2) {
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
+        suggestedName: null,
+      });
+      return;
+    }
+
+    // Set checking state
+    setNameValidation((prev) => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+    }));
+
+    // Debounce the API call
+    nameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/v1/apps/check-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNameValidation({
+            isChecking: false,
+            isAvailable: data.available,
+            error: data.available
+              ? null
+              : data.conflictType === "subdomain"
+                ? "This name would create a subdomain that is already in use"
+                : "An app with this name already exists",
+            suggestedName: data.suggestedName || null,
+          });
+        } else {
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
+        }
+      } catch {
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (nameCheckTimeoutRef.current) {
+        clearTimeout(nameCheckTimeoutRef.current);
+      }
+    };
+  }, [appName]);
 
   // ============================================================================
   // FETCH USER'S AGENTS FOR APP AGENT SELECTION
@@ -755,7 +978,11 @@ export default function AppCreatorPage() {
 
   // Additional scroll on initialization complete (handles page refresh)
   useEffect(() => {
-    if (!isInitializing && messages.length > 0 && messagesContainerRef.current) {
+    if (
+      !isInitializing &&
+      messages.length > 0 &&
+      messagesContainerRef.current
+    ) {
       // Delay scroll to ensure layout is complete after initialization
       const timeoutId = setTimeout(() => {
         if (messagesContainerRef.current) {
@@ -776,11 +1003,16 @@ export default function AppCreatorPage() {
 
   // Auto-scroll to bottom when switching to console tab
   useEffect(() => {
-    if (previewTab === "console" && consoleLogsRef.current && consoleLogs.length > 0) {
+    if (
+      previewTab === "console" &&
+      consoleLogsRef.current &&
+      consoleLogs.length > 0
+    ) {
       // Use setTimeout to ensure DOM has rendered
       setTimeout(() => {
         if (consoleLogsRef.current) {
-          consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
+          consoleLogsRef.current.scrollTop =
+            consoleLogsRef.current.scrollHeight;
         }
       }, 0);
     }
@@ -1025,13 +1257,15 @@ export default function AppCreatorPage() {
   const deployToProduction = useCallback(async () => {
     if (!appData?.id || isDeploying) return;
 
+    setIsDeploying(true);
     // First save any uncommitted changes
     if (gitStatus?.hasChanges) {
+      setDeployPhase("saving");
       addLog("Saving changes before deploy...", "info");
       await saveToGitHub();
     }
 
-    setIsDeploying(true);
+    setDeployPhase("deploying");
     try {
       const response = await fetchWithRetry(
         `/api/v1/apps/${appData.id}/deploy`,
@@ -1076,6 +1310,7 @@ export default function AppCreatorPage() {
       );
     } finally {
       setIsDeploying(false);
+      setDeployPhase(null);
     }
   }, [appData?.id, isDeploying, gitStatus?.hasChanges, saveToGitHub, addLog]);
 
@@ -1227,6 +1462,15 @@ export default function AppCreatorPage() {
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "Restoration failed";
+
+      // If the error indicates session is already ready, just set status to ready
+      // This prevents infinite loops when trying to resume an already-ready session
+      if (errorMsg.includes("Current status: ready")) {
+        addLog("Session is already ready", "info");
+        setStatus("ready");
+        return;
+      }
+
       addLog(`Restoration failed: ${errorMsg}`, "error");
 
       // Set status to show "Start New Session" option
@@ -1247,9 +1491,50 @@ export default function AppCreatorPage() {
     }
   }, [session, isRestoring, addLog, checkGitStatus]);
 
-  // No more complex auto-restore effect needed
-  // Expired sessions are handled by simply starting a new session (which clones from GitHub)
-  const autoRestoreTriggeredRef = useRef(false); // Keep for backward compat with viewState
+  // Auto-restore ref to prevent duplicate triggers
+  const autoRestoreTriggeredRef = useRef(false);
+
+  // Auto-restore when session times out - automatically restore sandbox if possible
+  useEffect(() => {
+    // Only trigger when status becomes "timeout"
+    if (status !== "timeout") {
+      // Reset the ref when status changes away from timeout
+      autoRestoreTriggeredRef.current = false;
+      return;
+    }
+
+    // Don't trigger if already restoring or already triggered
+    if (isRestoring || autoRestoreTriggeredRef.current) return;
+
+    // Don't trigger if no session
+    if (!session) return;
+
+    // Check if we can restore - either from snapshotInfo or directly from app's github repo
+    const canAutoRestore =
+      snapshotInfo?.canRestore ||
+      !!appSnapshotInfo?.githubRepo ||
+      !!appData?.github_repo;
+
+    if (canAutoRestore) {
+      // Mark as triggered to prevent re-entry
+      autoRestoreTriggeredRef.current = true;
+
+      // Auto-trigger restore after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        restoreSession();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [
+    status,
+    session,
+    isRestoring,
+    snapshotInfo?.canRestore,
+    appSnapshotInfo?.githubRepo,
+    appData?.github_repo,
+    restoreSession,
+  ]);
 
   // Auto-recovery function - runs silently in background
   const autoRecoverSession = useCallback(async () => {
@@ -1334,6 +1619,18 @@ export default function AppCreatorPage() {
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "Recovery failed";
+
+      // If the error indicates session is already ready, just set status to ready
+      // This prevents infinite loops when trying to recover an already-ready session
+      if (errorMsg.includes("Current status: ready")) {
+        addLog("Session is already ready", "info");
+        setStatus("ready");
+        setSandboxHealthy(true);
+        healthCheckFailCountRef.current = 0;
+        toast.dismiss(toastId);
+        return;
+      }
+
       addLog(`Auto-recovery failed: ${errorMsg}`, "error");
 
       // Only show timeout status if recovery truly failed
@@ -1667,29 +1964,61 @@ Some ideas:
                     description: "Your development environment is ready.",
                   });
                 }
-              } else if (eventType === "thinking") {
-                // Stream actual reasoning text to show chain of thought
+              } else if (
+                eventType === "thinking" ||
+                eventType === "reasoning"
+              ) {
+                // Stream reasoning/thinking text to show chain of thought
+                // "thinking" = regular text output, "reasoning" = deep CoT tokens
                 const reasoningText = data.text || "";
                 // Note: Not logging individual chunks - shown in UI only
 
                 // Update the thinking message with accumulated reasoning using throttled updates
-                if (initialThinkingIdRef.current && initialThinkingStreamIdRef.current && reasoningText) {
+                if (
+                  initialThinkingIdRef.current &&
+                  initialThinkingStreamIdRef.current &&
+                  reasoningText
+                ) {
                   const thinkingId = initialThinkingIdRef.current;
                   const streamId = initialThinkingStreamIdRef.current;
-                  
-                  // Accumulate chunk in buffer
-                  accumulateThinkingChunk(streamId, reasoningText);
-                  
+
+                  // Accumulate chunk in buffer (prefix reasoning with 💭 to distinguish)
+                  const chunkText =
+                    eventType === "reasoning"
+                      ? `💭 ${reasoningText}`
+                      : reasoningText;
+                  accumulateThinkingChunk(streamId, chunkText);
+
                   // Schedule throttled UI update
                   scheduleThinkingUpdate(streamId, (accumulatedText) => {
+                    let content = `**Setting up ${appName}**\n\n`;
+                    if (sessionActionsLogRef.current.length > 0) {
+                      sessionActionsLogRef.current.forEach((action) => {
+                        const statusMarker =
+                          action.status === "active" ? "⏳" : "✓";
+                        content += `${statusMarker} **${action.tool}**\n`;
+                        content += `> \`${action.detail}\`\n`;
+                        // Show reasoning inline with this action
+                        if (action.context) {
+                          const truncated =
+                            action.context.length > 150
+                              ? action.context.substring(0, 150).trim() + "..."
+                              : action.context;
+                          content += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                        }
+                        content += "\n";
+                      });
+                    }
+                    // Show current streaming reasoning (new text since last action)
+                    if (accumulatedText.trim()) {
+                      content += `💭 *${accumulatedText.trim()}*\n`;
+                    }
+
                     setMessages((prev) =>
                       prev.map((m) =>
-                        (m as Message & { _thinkingId?: number })._thinkingId ===
-                        thinkingId
-                          ? {
-                              ...m,
-                              content: `**Setting up ${appName}**\n\n💭 ${accumulatedText}\n\n---\n\n*Thinking...*`,
-                            }
+                        (m as Message & { _thinkingId?: number })
+                          ._thinkingId === thinkingId
+                          ? { ...m, content }
                           : m,
                       ),
                     );
@@ -1702,23 +2031,36 @@ Some ideas:
                   data.input,
                 );
 
+                // Mark previous action as done
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
                     sessionActionsLogRef.current.length - 1
                   ].status = "done";
                 }
-                const timestamp = new Date().toLocaleTimeString("en-US", {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                });
+
+                // Capture current reasoning for this action (before clearing buffer)
+                const streamId = initialThinkingStreamIdRef.current;
+                const actionReasoning = streamId
+                  ? getThinkingText(streamId).trim()
+                  : undefined;
+
+                // Add new action WITH its reasoning context
                 sessionActionsLogRef.current.push({
                   tool: toolDisplay,
                   detail,
-                  timestamp,
+                  timestamp: new Date().toLocaleTimeString("en-US", {
+                    hour12: false,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
                   status: "active",
+                  context: actionReasoning || undefined,
                 });
+
+                // Clear buffer - reasoning is now attached to this action
+                clearThinkingBuffer();
+
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
                   "info",
@@ -1726,24 +2068,24 @@ Some ideas:
 
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
-                  const streamId = initialThinkingStreamIdRef.current;
-                  const accumulatedThinking = streamId ? getThinkingText(streamId) : "";
-                  
+
+                  // Build organized content showing each action with its inline reasoning
                   let progressContent = `**Setting up ${appName}**\n\n`;
-                  
-                  // Include accumulated thinking text if available
-                  if (accumulatedThinking) {
-                    progressContent += `💭 ${accumulatedThinking}\n\n`;
-                  }
-                  
-                  progressContent += `---\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
                       action.status === "active" ? "⏳" : "✓";
-                    progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
-                    progressContent += `> \`${action.detail}\`\n\n`;
+                    progressContent += `${statusMarker} **${action.tool}**\n`;
+                    progressContent += `> \`${action.detail}\`\n`;
+                    // Show reasoning inline with this action
+                    if (action.context) {
+                      const truncated =
+                        action.context.length > 150
+                          ? action.context.substring(0, 150).trim() + "..."
+                          : action.context;
+                      progressContent += `> 💭 ${truncated.replace(/\n/g, " ")}\n`;
+                    }
+                    progressContent += "\n";
                   });
-                  progressContent += `*Working...*`;
 
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -1771,19 +2113,30 @@ Some ideas:
                     action.status = "done";
                   });
 
+                  // Generate clean summary based on what was done
+                  // AI's raw output goes in reasoning accordion for transparency
+                  const result = data.session.initialPromptResult;
+                  const fileCount = result.filesAffected?.length || 0;
+                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
+
                   let assistantContent = "";
-                  if (data.session.initialPromptResult.output) {
-                    assistantContent += data.session.initialPromptResult.output;
+                  if (hasBuildErrors) {
+                    assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (fileCount > 0) {
+                    assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
+                  } else {
+                    assistantContent = `I've set up your app! Check out the preview to see it in action.`;
                   }
 
-                  if (sessionActionsLogRef.current.length > 0) {
-                    assistantContent += "\n\n---\n\n";
-                    assistantContent += "**Operations Completed**\n\n";
-                    sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
-                      assistantContent += `> \`${action.detail}\`\n\n`;
-                    });
-                  }
+                  // Build operations array for accordion display (same format as sendPrompt)
+                  const operations = sessionActionsLogRef.current.map(
+                    (action) => ({
+                      tool: action.tool,
+                      detail: action.detail,
+                      timestamp: action.timestamp,
+                      reasoning: action.context, // Per-action reasoning
+                    }),
+                  );
 
                   setMessages((prev) =>
                     prev.map((m) => {
@@ -1797,6 +2150,9 @@ Some ideas:
                         return {
                           ...rest,
                           content: assistantContent,
+                          operations, // Operations array for accordions
+                          reasoning:
+                            data.session.initialPromptResult.reasoning, // Fallback reasoning
                           filesAffected:
                             data.session.initialPromptResult.filesAffected,
                         };
@@ -1860,7 +2216,6 @@ Some ideas:
     checkGitStatus,
     accumulateThinkingChunk,
     clearThinkingBuffer,
-    getThinkingText,
     scheduleThinkingUpdate,
   ]);
 
@@ -1875,6 +2230,7 @@ Some ideas:
     // - No active session
     // - Not currently loading/restoring
     // - Haven't already triggered auto-start
+    // - Initialization is complete (prevents race condition on page refresh)
     if (
       isEditMode &&
       appData &&
@@ -1882,6 +2238,7 @@ Some ideas:
       status === "idle" &&
       !isLoading &&
       !isRestoring &&
+      !isInitializing &&
       !autoStartTriggeredRef.current
     ) {
       autoStartTriggeredRef.current = true;
@@ -1899,6 +2256,7 @@ Some ideas:
     status,
     isLoading,
     isRestoring,
+    isInitializing,
     startSession,
   ]);
 
@@ -1934,53 +2292,67 @@ Some ideas:
         detail: string;
         timestamp: string;
         status: "pending" | "active" | "done";
+        context?: string; // Associated thinking/reasoning text for this action
       }[] = [];
 
       // getTimeString is imported from @/lib/app-builder
 
-      // Track current reasoning text for display (used by buildLocalProgressContent)
-      let currentReasoning = "";
+      // Track current thinking preview for display during active processing
+      let currentThinkingPreview = "";
 
       // Clear any previous thinking buffer
       clearThinkingBuffer();
 
       const buildLocalProgressContent = (
-        reasoningText: string,
+        newThinkingChunk?: string,
         currentStatus?: string,
       ) => {
         let content = "";
 
-        // Show current chain-of-thought reasoning (full accumulated text)
-        if (reasoningText) {
-          // Show the full reasoning text as markdown (it may contain formatting)
-          content += reasoningText + "\n\n";
+        // Show current status when no actions have started yet
+        if (actionsLog.length === 0) {
+          if (currentStatus) {
+            content += `*${currentStatus}*`;
+          } else if (currentThinkingPreview) {
+            // Show actual reasoning text inline during planning phase
+            content += `💭 *${currentThinkingPreview}*`;
+          }
         }
 
+        // Show operations list with reasoning context
         if (actionsLog.length > 0) {
-          content += "---\n\n";
-          actionsLog.forEach((action) => {
-            const isActive = action.status === "active";
-            const statusMarker = isActive ? "⏳" : "✓";
-            content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
-            content += `> \`${action.detail}\`\n\n`;
-          });
-        }
+          actionsLog.forEach((action, idx) => {
+            const isActive =
+              action.status === "active" || action.status === "pending";
+            const statusIcon = isActive ? "⏳" : "✓";
 
-        if (currentStatus && !reasoningText) {
-          // Only show status if we don't have reasoning text yet
-          content += `*${currentStatus}*`;
+            // Action display with status, tool, detail, and timestamp
+            content += `${statusIcon} **${action.tool}**\n`;
+            content += `\`${action.detail}\`\n`;
+            content += `*${action.timestamp}*\n`;
+
+            // Show reasoning context if available (the "why" behind this action)
+            if (action.context) {
+              // Truncate long reasoning for cleaner display during build
+              const truncatedContext =
+                action.context.length > 200
+                  ? action.context.substring(0, 200).trim() + "..."
+                  : action.context;
+              content += `> 💭 ${truncatedContext.replace(/\n/g, " ")}\n`;
+            }
+            content += "\n";
+          });
+
+          // Note: Reasoning is shown inline with each action via action.context
+          // We don't show a separate thinking preview blob at the bottom to avoid duplication
         }
 
         return content || "**Processing your request**\n\n*Analyzing...*";
       };
 
       // Update UI with current reasoning and status (called directly for non-thinking events)
-      // Reads from throttled buffer to ensure we always have the latest accumulated text
       const updateThinking = (currentStatus?: string) => {
-        // Get latest accumulated text from throttled buffer (may be ahead of currentReasoning)
-        const latestReasoning = getThinkingText(thinkingStreamId) || currentReasoning;
-        currentReasoning = latestReasoning; // Keep local in sync
-        const content = buildLocalProgressContent(latestReasoning, currentStatus);
+        const content = buildLocalProgressContent(undefined, currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -1998,7 +2370,9 @@ Some ideas:
 
       // Throttled update for thinking text (~30fps for smooth appearance)
       const updateThinkingThrottled = (accumulatedText: string) => {
-        currentReasoning = accumulatedText; // Keep local variable in sync
+        // Track FULL thinking text - no truncation!
+        currentThinkingPreview = accumulatedText;
+
         const content = buildLocalProgressContent(accumulatedText);
         setMessages((prev) => {
           const updated = [...prev];
@@ -2025,6 +2399,9 @@ Some ideas:
         } as Message,
       ]);
 
+      // Create AbortController for this generation request
+      generationAbortControllerRef.current = new AbortController();
+
       try {
         const response = await fetchWithRetry(
           `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
@@ -2032,6 +2409,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text, model: selectedModel }),
+            signal: generationAbortControllerRef.current.signal,
           },
         );
 
@@ -2047,6 +2425,7 @@ Some ideas:
         let buffer = "";
         let finalData: {
           output?: string;
+          reasoning?: string; // Separate reasoning for collapsible display
           filesAffected?: string[];
           success?: boolean;
           error?: string;
@@ -2072,7 +2451,7 @@ Some ideas:
                   // Heartbeat received, connection is alive
                   continue;
                 } else if (eventType === "thinking") {
-                  // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
+                  // Stream the actual text output to UI
                   // Uses throttled updates (~30fps) to prevent UI flickering from rapid chunks
                   const reasoningText = data.text || "";
                   if (reasoningText) {
@@ -2085,6 +2464,22 @@ Some ideas:
                     );
                   }
                   // Note: Not logging individual chunks - shown in UI only
+                } else if (eventType === "reasoning") {
+                  // Deep reasoning / chain-of-thought tokens (internal thought process)
+                  // These are the model's internal reasoning before producing output
+                  const reasoningText = data.text || "";
+                  if (reasoningText) {
+                    // Prefix reasoning chunks with 💭 to distinguish from regular output
+                    accumulateThinkingChunk(
+                      thinkingStreamId,
+                      `💭 ${reasoningText}`,
+                    );
+                    // Schedule throttled UI update (~30fps for smooth text appearance)
+                    scheduleThinkingUpdate(
+                      thinkingStreamId,
+                      updateThinkingThrottled,
+                    );
+                  }
                 } else if (eventType === "tool_start") {
                   // Instant feedback when tool begins (before execution)
                   const toolName = data.tool;
@@ -2094,13 +2489,22 @@ Some ideas:
                     statusMessage,
                   } = formatToolDisplay(toolName, data.input);
 
-                  // Add as pending action
+                  // Add as pending action WITH reasoning context for accordion display
+                  // Use server's reasoningContext, fallback to client's accumulated thinking
+                  const reasoningForAction =
+                    data.reasoningContext || currentThinkingPreview || undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
                     timestamp: getTimeString(),
                     status: "pending",
+                    context: reasoningForAction,
                   });
+
+                  // Clear preview AND throttled buffer - reasoning is now attached to action
+                  currentThinkingPreview = "";
+                  clearThinkingBuffer(); // Reset the accumulator so we don't duplicate
+
                   updateThinking(`⏳ ${statusMessage}`);
                 } else if (eventType === "tool_use") {
                   // Tool completed - update status
@@ -2117,11 +2521,14 @@ Some ideas:
                   );
                   if (pendingIdx >= 0) {
                     actionsLog[pendingIdx].status = "done";
+                    // Clear thinking preview since action completed
+                    currentThinkingPreview = "";
                   } else {
                     // Fallback: mark previous as done, add this one
                     if (actionsLog.length > 0) {
                       actionsLog[actionsLog.length - 1].status = "done";
                     }
+                    // Add as completed action (no context - reasoning goes in final accordion)
                     actionsLog.push({
                       tool: toolDisplay,
                       detail,
@@ -2164,24 +2571,45 @@ Some ideas:
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
 
+              // Use the LLM's actual final summary when available
+              // The AI produces a natural summary in finalData.output when it finishes
+              const fileCount = finalData.filesAffected?.length || 0;
+              const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
+              
+              // Check if we have a meaningful LLM summary (not just default/error text)
+              const llmSummary = finalData.output?.trim();
+              const hasLLMSummary = llmSummary && 
+                llmSummary !== "Changes applied!" && 
+                !llmSummary.startsWith("Error:") &&
+                !hasBuildErrors;
+
               let content = "";
-
-              if (finalData.output) {
-                content += finalData.output;
+              if (hasBuildErrors) {
+                content = `I've made changes but encountered some build errors.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+              } else if (hasLLMSummary) {
+                // Use the LLM's natural summary
+                content = llmSummary;
+              } else if (fileCount > 0) {
+                content = `Done! I've updated ${fileCount} file${fileCount !== 1 ? "s" : ""}. Check out the preview to see the changes.`;
+              } else if (actionsLog.length > 0) {
+                content = "I've completed your request.";
+              } else {
+                content = "Done!";
               }
 
-              if (actionsLog.length > 0) {
-                content += "\n\n---\n\n";
-                content += "**Operations Completed**\n\n";
-                actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
-                  content += `> \`${action.detail}\`\n\n`;
-                });
-              }
+              // Build operations list with per-action reasoning for accordions
+              const operations = actionsLog.map((action) => ({
+                tool: action.tool,
+                detail: action.detail,
+                timestamp: action.timestamp, // When the operation was performed
+                reasoning: action.context, // Reasoning that led to this action
+              }));
 
               return {
                 ...rest,
                 content,
+                operations, // Per-operation data with reasoning for accordions
+                reasoning: finalData.reasoning, // Overall reasoning as fallback
                 filesAffected: finalData.filesAffected,
               };
             }
@@ -2205,44 +2633,89 @@ Some ideas:
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
       } catch (error) {
-        setMessages((prev) => {
-          return prev.map((m) => {
-            if (m._thinkingId === thinkingId) {
-              const { _thinkingId: _, ...rest } = m;
-
-              let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
-              content +=
-                "The operation could not be completed. Please try again or modify your request.";
-
-              if (actionsLog.length > 0) {
-                content += "\n\n---\n\n";
-                content += "**Attempted Actions**\n\n";
-                actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
-                  content += `> \`${action.detail}\`\n\n`;
-                });
-              }
-
-              return {
-                ...rest,
-                content,
-              };
-            }
-            return m;
-          });
-        });
-
-        setStatus("ready");
-        addLog(
-          `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error",
+        // Check if this was an abort/cancel
+        const isAborted = error instanceof Error && (
+          error.name === "AbortError" ||
+          error.message.includes("aborted") ||
+          error.message.includes("cancelled")
         );
-        toast.error("Failed to process prompt", {
-          description:
-            error instanceof Error ? error.message : "Please try again",
-        });
+
+        if (isAborted) {
+          // Handle cancellation gracefully
+          setMessages((prev) => {
+            return prev.map((m) => {
+              if (m._thinkingId === thinkingId) {
+                const { _thinkingId: _, ...rest } = m;
+
+                let content = "**Generation stopped**\n\n";
+                content += "The operation was cancelled. You can start a new request when ready.";
+
+                if (actionsLog.length > 0) {
+                  content += "\n\n---\n\n";
+                  content += "**Completed Actions**\n\n";
+                  actionsLog.forEach((action) => {
+                    if (action.status === "done") {
+                      content += `\u2713 **${action.tool}**\n`;
+                      content += `> \`${action.detail}\`\n\n`;
+                    }
+                  });
+                }
+
+                return {
+                  ...rest,
+                  content,
+                };
+              }
+              return m;
+            });
+          });
+
+          setStatus("ready");
+          addLog("Generation stopped by user", "info");
+          toast.info("Generation stopped");
+        } else {
+          // Handle other errors
+          setMessages((prev) => {
+            return prev.map((m) => {
+              if (m._thinkingId === thinkingId) {
+                const { _thinkingId: _, ...rest } = m;
+
+                let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
+                content +=
+                  "The operation could not be completed. Please try again or modify your request.";
+
+                if (actionsLog.length > 0) {
+                  content += "\n\n---\n\n";
+                  content += "**Attempted Actions**\n\n";
+                  actionsLog.forEach((action) => {
+                    content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                    content += `> \`${action.detail}\`\n\n`;
+                  });
+                }
+
+                return {
+                  ...rest,
+                  content,
+                };
+              }
+              return m;
+            });
+          });
+
+          setStatus("ready");
+          addLog(
+            `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            "error",
+          );
+          toast.error("Failed to process prompt", {
+            description:
+              error instanceof Error ? error.message : "Please try again",
+          });
+        }
       } finally {
         setIsLoading(false);
+        // Clean up AbortController
+        generationAbortControllerRef.current = null;
         // Always clean up throttled streaming buffer
         clearThinkingBuffer();
       }
@@ -2258,6 +2731,19 @@ Some ideas:
       getThinkingText,
     ],
   );
+
+  // Stop the current AI generation (abort in-flight request)
+  const stopGeneration = useCallback(() => {
+    if (generationAbortControllerRef.current) {
+      generationAbortControllerRef.current.abort();
+      generationAbortControllerRef.current = null;
+      // Immediately update UI state for responsive feedback
+      setStatus("ready");
+      setIsLoading(false);
+      addLog("Generation stopped", "info");
+      toast.info("Generation stopped");
+    }
+  }, [addLog]);
 
   const stopSession = useCallback(async () => {
     if (!session) return;
@@ -2514,9 +3000,9 @@ ANTHROPIC_API_KEY=your_key_here`}
           {/* Secondary orb */}
           <div
             className="absolute bottom-1/4 -right-20 w-56 md:w-80 h-56 md:h-80 rounded-full blur-[100px] opacity-15 animate-liquid-orb"
-            style={{ 
+            style={{
               backgroundColor: selectedTemplate?.color || "#8B5CF6",
-              animationDelay: "-3s"
+              animationDelay: "-3s",
             }}
           />
           {/* Accent glow */}
@@ -2525,12 +3011,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             style={{ backgroundColor: "#FF5800" }}
           />
           {/* Subtle grid overlay */}
-          <div 
+          <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
               backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
                                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-              backgroundSize: '60px 60px'
+              backgroundSize: "60px 60px",
             }}
           />
         </div>
@@ -2553,10 +3039,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-lg md:text-xl font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+                  <h1
+                    className="text-lg md:text-xl font-bold tracking-tight text-white"
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                  >
                     App Creator
                   </h1>
-                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">Build something amazing</p>
+                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">
+                    Build something amazing
+                  </p>
                 </div>
               </div>
             </div>
@@ -2625,7 +3116,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       className={`text-sm font-medium transition-colors ${
                         setupStep === s.num ? "text-white" : ""
                       }`}
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       {s.label}
                     </span>
@@ -2633,8 +3124,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {i < 3 && (
                     <div
                       className={`w-6 h-[2px] mx-0.5 rounded-full transition-all duration-500 ${
-                        setupStep > s.num 
-                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50" 
+                        setupStep > s.num
+                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50"
                           : "bg-white/[0.06]"
                       }`}
                     />
@@ -2692,9 +3183,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                     {/* Header row with title and navigation */}
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 animate-stagger-fade stagger-1">
                       <div>
-                        <h2 
+                        <h2
                           className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                          style={{ fontFamily: 'var(--font-sf-pro)' }}
+                          style={{ fontFamily: "var(--font-sf-pro)" }}
                         >
                           What are you building?
                         </h2>
@@ -2775,8 +3266,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                                 />
                                 <div
                                   className="absolute inset-[1px] rounded-2xl md:rounded-3xl opacity-10 -z-10"
-                                  style={{ 
-                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`
+                                  style={{
+                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`,
                                   }}
                                 />
                               </>
@@ -2801,7 +3292,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                                 }`}
                               >
                                 {isSelected && (
-                                  <Check className="h-3 w-3 md:h-3.5 md:w-3.5 text-white" strokeWidth={3} />
+                                  <Check
+                                    className="h-3 w-3 md:h-3.5 md:w-3.5 text-white"
+                                    strokeWidth={3}
+                                  />
                                 )}
                               </div>
                             )}
@@ -2835,9 +3329,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                             </div>
 
                             {/* Content */}
-                            <h3 
+                            <h3
                               className="text-sm md:text-lg font-bold text-white mb-1 md:mb-1.5 pr-8 tracking-tight"
-                              style={{ fontFamily: 'var(--font-sf-pro)' }}
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
                             >
                               {template.label}
                             </h3>
@@ -2873,7 +3367,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                                   >
                                     {tech}
                                     {i < template.techStack.length - 1 && (
-                                      <span className="ml-3 text-white/15">•</span>
+                                      <span className="ml-3 text-white/15">
+                                        •
+                                      </span>
                                     )}
                                   </span>
                                 ))}
@@ -2889,17 +3385,21 @@ ANTHROPIC_API_KEY=your_key_here`}
                       <div className="text-center md:text-left">
                         {selectedTemplate ? (
                           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-                            <selectedTemplate.icon 
-                              className="h-3.5 w-3.5" 
+                            <selectedTemplate.icon
+                              className="h-3.5 w-3.5"
                               style={{ color: selectedTemplate.color }}
                             />
-                            <span className="text-xs text-white/50">Selected:</span>
+                            <span className="text-xs text-white/50">
+                              Selected:
+                            </span>
                             <span className="text-xs text-white/80 font-medium">
                               {selectedTemplate.label}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-sm text-white/35">Select a template to continue</p>
+                          <p className="text-sm text-white/35">
+                            Select a template to continue
+                          </p>
                         )}
                       </div>
                       <button
@@ -2910,7 +3410,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ?.comingSoon
                         }
                         className="btn-premium group relative flex items-center justify-center gap-2.5 px-8 md:px-10 py-3 md:py-3.5 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm md:text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                        style={{ fontFamily: 'var(--font-sf-pro)' }}
+                        style={{ fontFamily: "var(--font-sf-pro)" }}
                       >
                         <span className="relative z-10 flex items-center gap-2">
                           Continue
@@ -2932,9 +3432,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Name your creation
                     </h2>
@@ -2945,9 +3445,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Selected template preview - Premium pill */}
                   {selectedTemplate && (
                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -2968,37 +3470,83 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
 
                 <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
-                  {/* App Name - Premium input */}
+                  {/* App Name - Premium input with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">App Name</Label>
-                      <span
-                        className={`text-[10px] font-mono transition-colors ${
-                          appName.length > 100
-                            ? "text-red-400"
-                            : appName.length > 80
-                              ? "text-amber-400"
-                              : "text-white/25"
-                        }`}
-                      >
-                        {appName.length}/100
-                      </span>
+                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
+                        App Name <span className="text-red-400">*</span>
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        {nameValidation.isChecking && (
+                          <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                        )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === true &&
+                          appName.trim().length >= 2 && (
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                              <Check className="h-3 w-3" />
+                              Available
+                            </span>
+                          )}
+                        {!nameValidation.isChecking &&
+                          nameValidation.isAvailable === false && (
+                            <span className="flex items-center gap-1 text-[10px] text-red-400">
+                              <AlertCircle className="h-3 w-3" />
+                              Taken
+                            </span>
+                          )}
+                        <span
+                          className={`text-[10px] font-mono transition-colors ${
+                            appName.length > 100
+                              ? "text-red-400"
+                              : appName.length > 80
+                                ? "text-amber-400"
+                                : "text-white/25"
+                          }`}
+                        >
+                          {appName.length}/100
+                        </span>
+                      </div>
                     </div>
                     <Input
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className="h-12 bg-black/30 border-white/[0.08] text-white text-base placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl transition-all duration-300"
+                      className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
+                        nameValidation.error
+                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          : nameValidation.isAvailable === true &&
+                              appName.trim().length >= 2
+                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                       maxLength={100}
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
+                    {nameValidation.error && (
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {nameValidation.error}
+                        {nameValidation.suggestedName && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAppName(nameValidation.suggestedName!)
+                            }
+                            className="ml-1 text-[#FF5800] hover:underline"
+                          >
+                            Try &quot;{nameValidation.suggestedName}&quot;
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Description - Premium textarea */}
+                  {/* Description - Premium textarea with validation */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        Description
+                        Description <span className="text-red-400">*</span>
                       </Label>
                       <div className="flex items-center gap-3">
                         <button
@@ -3015,29 +3563,42 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </button>
                         <span
                           className={`text-[10px] font-mono transition-colors ${
-                            appDescription.length > 500
-                              ? "text-red-400"
-                              : appDescription.length > 400
-                                ? "text-amber-400"
-                                : "text-white/25"
+                            appDescription.length <
+                                  MIN_DESCRIPTION_LENGTH &&
+                                appDescription.length > 0
+                              ? "text-amber-400"
+                              : "text-white/25"
                           }`}
                         >
-                          {appDescription.length}/500
+                          {appDescription.length} chars
                         </span>
                       </div>
                     </div>
                     <Textarea
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
-                      placeholder="Describe what your app should do... or let AI help you write it"
-                      className="min-h-[120px] bg-black/30 border-white/[0.08] text-white text-sm placeholder:text-white/20 focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10 rounded-xl resize-none transition-all duration-300 leading-relaxed"
+                      placeholder="Describe what your app should do... (minimum 10 characters)"
+                      className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                        appDescription.length > 0 &&
+                            appDescription.length < MIN_DESCRIPTION_LENGTH
+                          ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                          : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
+                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      }`}
                     />
-                    {appDescription.length > 500 && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Description exceeds 500 character limit
-                      </p>
-                    )}
+                    {appDescription.length > 0 &&
+                      appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                        <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Description must be at least {
+                            MIN_DESCRIPTION_LENGTH
+                          }{" "}
+                          characters (
+                          {MIN_DESCRIPTION_LENGTH - appDescription.length} more
+                          needed)
+                        </p>
+                      )}
                   </div>
                 </div>
 
@@ -3053,15 +3614,27 @@ ANTHROPIC_API_KEY=your_key_here`}
                     onClick={() => setSetupStep(3)}
                     disabled={
                       !appName.trim() ||
+                      appName.trim().length < 2 ||
                       appName.length > 100 ||
-                      appDescription.length > 500
+                      nameValidation.isChecking ||
+                      nameValidation.isAvailable === false ||
+                      appDescription.length < MIN_DESCRIPTION_LENGTH
                     }
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                    style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      {nameValidation.isChecking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </>
+                      )}
                     </span>
                   </button>
                 </div>
@@ -3077,9 +3650,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Power-ups
                     </h2>
@@ -3090,9 +3663,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App summary - Premium */}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -3143,16 +3718,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/10"
                         }`}
                       >
-                        <div 
+                        <div
                           className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            includeMonetization ? "translate-x-4" : "translate-x-0"
-                          }`} 
+                            includeMonetization
+                              ? "translate-x-4"
+                              : "translate-x-0"
+                          }`}
                         />
                       </div>
                     </div>
-                    <h3 
+                    <h3
                       className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Monetization
                     </h3>
@@ -3184,8 +3761,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics 
-                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20" 
+                          includeAnalytics
+                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20"
                             : "bg-white/[0.04]"
                         }`}
                       >
@@ -3203,16 +3780,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/10"
                         }`}
                       >
-                        <div 
+                        <div
                           className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
                             includeAnalytics ? "translate-x-4" : "translate-x-0"
-                          }`} 
+                          }`}
                         />
                       </div>
                     </div>
-                    <h3 
+                    <h3
                       className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Analytics
                     </h3>
@@ -3241,7 +3818,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <button
                     onClick={() => setSetupStep(4)}
                     className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold touch-manipulation"
-                    style={{ fontFamily: 'var(--font-sf-pro)' }}
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       Continue
@@ -3261,9 +3838,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
                   <div>
-                    <h2 
+                    <h2
                       className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       Add AI Agents
                     </h2>
@@ -3274,9 +3851,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App summary - Premium */}
                   <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
                     {selectedTemplate && (
-                      <div 
+                      <div
                         className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${selectedTemplate.color}20` }}
+                        style={{
+                          backgroundColor: `${selectedTemplate.color}20`,
+                        }}
                       >
                         <selectedTemplate.icon
                           className="h-3.5 w-3.5"
@@ -3305,7 +3884,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {availableAgents.length === 0 && !loadingAgents && (
                   <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 animate-stagger-fade stagger-3">
                     <p className="text-sm text-amber-300/80 leading-relaxed">
-                      <span className="font-semibold">No agents yet?</span> No worries — you can skip this step and add agents later from the app builder.
+                      <span className="font-semibold">No agents yet?</span> No
+                      worries — you can skip this step and add agents later from
+                      the app builder.
                     </p>
                   </div>
                 )}
@@ -3334,7 +3915,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       onClick={startSession}
                       disabled={isLoading}
                       className="group relative flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-xl text-white text-sm font-semibold transition-all duration-500 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
-                      style={{ fontFamily: 'var(--font-sf-pro)' }}
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
                       {/* Animated gradient background */}
                       <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]" />
@@ -3369,10 +3950,17 @@ ANTHROPIC_API_KEY=your_key_here`}
 
                 {/* Summary footer - Premium */}
                 <div className="flex items-center justify-center gap-4 pt-4 md:pt-6 animate-stagger-fade stagger-5">
-                  {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map((feature, i) => (
+                  {[
+                    "Live sandbox",
+                    "Hot reload",
+                    "AI assist",
+                    "GitHub sync",
+                  ].map((feature, i) => (
                     <div key={feature} className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-[#FF5800]/50" />
-                      <span className="text-[10px] md:text-xs text-white/25 font-medium">{feature}</span>
+                      <span className="text-[10px] md:text-xs text-white/25 font-medium">
+                        {feature}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -3438,7 +4026,10 @@ ANTHROPIC_API_KEY=your_key_here`}
           </Link>
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded flex-shrink-0">
-              <span className="text-white font-bold text-[10px]" style={{ fontFamily: "var(--font-sf-pro)" }}>
+              <span
+                className="text-white font-bold text-[10px]"
+                style={{ fontFamily: "var(--font-sf-pro)" }}
+              >
                 {(appData?.name || appName || "A").charAt(0).toUpperCase()}
               </span>
             </div>
@@ -3587,7 +4178,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ) : (
                       <Rocket className="h-4 w-4" />
                     )}
-                    {isDeploying ? "Deploying..." : "Deploy"}
+                    {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                   </DropdownMenuItem>
                   {productionUrl && (
                     <DropdownMenuItem asChild>
@@ -3677,7 +4268,10 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="relative">
               <div className="absolute inset-0 bg-[#FF5800] blur-md opacity-40" />
               <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded-md border border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/20">
-                <span className="text-white font-bold text-sm" style={{ fontFamily: "var(--font-sf-pro)" }}>
+                <span
+                  className="text-white font-bold text-sm"
+                  style={{ fontFamily: "var(--font-sf-pro)" }}
+                >
                   {(appData?.name || appName || "A").charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -3780,7 +4374,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Rocket className="h-3 w-3" />
                 )}
                 <span className="ml-1.5">
-                  {isDeploying ? "Deploying..." : "Deploy"}
+                  {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                 </span>
               </Button>
               {productionUrl && (
@@ -3856,7 +4450,10 @@ ANTHROPIC_API_KEY=your_key_here`}
               <Loader2 className="h-4 w-4 xl:h-4.5 xl:w-4.5 animate-spin text-[#FF5800] flex-shrink-0" />
               <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
             </div>
-            <span className="text-xs xl:text-sm text-white/90 font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>
+            <span
+              className="text-xs xl:text-sm text-white/90 font-medium"
+              style={{ fontFamily: "var(--font-sf-pro)" }}
+            >
               Reconnecting to sandbox...
             </span>
             <span className="text-[10px] xl:text-xs text-white/40 hidden sm:inline">
@@ -3879,7 +4476,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 xl:p-6 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+            className="flex-1 overflow-y-auto pt-4 xl:pt-6 px-4 xl:px-6 pb-6 xl:pb-8 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -3891,11 +4488,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                 sendPrompt={sendPrompt}
               />
             ))}
-            <div ref={messagesEndRef} />
+            {/* Scroll anchor with extra space for file chips visibility */}
+            <div ref={messagesEndRef} className="h-4" />
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
-          <ChatInput onSendPrompt={sendPrompt} status={status} />
+          <ChatInput onSendPrompt={sendPrompt} onStopGeneration={stopGeneration} status={status} />
         </div>
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
@@ -4140,8 +4738,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                       <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
                       <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
                     </div>
-                    <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Loading preview...</p>
-                    <p className="text-white/25 text-xs mt-1">Your app is starting up</p>
+                    <p
+                      className="text-white/60 text-sm font-medium"
+                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                    >
+                      Loading preview...
+                    </p>
+                    <p className="text-white/25 text-xs mt-1">
+                      Your app is starting up
+                    </p>
                   </div>
                 </div>
                 <iframe
@@ -4164,8 +4769,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
                     <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
                   </div>
-                  <p className="text-white/60 text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Starting sandbox...</p>
-                  <p className="text-white/25 text-xs mt-1">This usually takes 10-20 seconds</p>
+                  <p
+                    className="text-white/60 text-sm font-medium"
+                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                  >
+                    Starting sandbox...
+                  </p>
+                  <p className="text-white/25 text-xs mt-1">
+                    This usually takes 10-20 seconds
+                  </p>
                 </div>
               </div>
             )}
@@ -4232,9 +4844,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                           body: JSON.stringify({ linked_character_ids: ids }),
                         });
                         toast.success(
-                          ids.length > 0
-                            ? "Agents updated"
-                            : "Agents removed",
+                          ids.length > 0 ? "Agents updated" : "Agents removed",
                         );
                       } catch (error) {
                         console.error("Failed to update agents:", error);
@@ -4248,87 +4858,154 @@ ANTHROPIC_API_KEY=your_key_here`}
               </div>
             )}
 
-            {/* Console tab - Premium */}
+            {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (
-              <div
-                ref={consoleLogsRef}
-                className="h-full bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25 animate-in fade-in duration-200"
+              <ResizablePanelGroup
+                direction="vertical"
+                className="h-full animate-in fade-in duration-200"
               >
-                {consoleLogs.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-white/25">
-                    <div className="text-center">
-                      <div className="relative inline-block mb-4">
-                        <Terminal className="h-10 w-10 mx-auto opacity-40" />
-                        <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                {/* Logs Panel - Top */}
+                <ResizablePanel defaultSize={60} minSize={20}>
+                  <div className="h-full flex flex-col">
+                    {/* Logs Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/20">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500/70 animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Logs
+                        </span>
+                        {consoleLogs.length > 0 && (
+                          <span className="text-[10px] text-white/30 tabular-nums">
+                            ({consoleLogs.length})
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm font-medium" style={{ fontFamily: 'var(--font-sf-pro)' }}>Console is empty</p>
-                      <p className="text-xs text-white/15 mt-1">Logs will appear here during builds</p>
+                    </div>
+                    {/* Logs Content */}
+                    <div
+                      ref={consoleLogsRef}
+                      className="flex-1 bg-gradient-to-b from-[#0d0d0f] to-[#0a0a0b] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+                    >
+                      {consoleLogs.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-white/25">
+                          <div className="text-center">
+                            <div className="relative inline-block mb-4">
+                              <Terminal className="h-8 w-8 mx-auto opacity-40" />
+                              <div className="absolute inset-0 bg-[#FF5800] blur-xl opacity-10" />
+                            </div>
+                            <p
+                              className="text-xs font-medium"
+                              style={{ fontFamily: "var(--font-sf-pro)" }}
+                            >
+                              No logs yet
+                            </p>
+                            <p className="text-[10px] text-white/15 mt-1">
+                              Logs will appear here during builds
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 space-y-0.5">
+                          {consoleLogs.map((log, i) => {
+                            let colorClass = "text-white/60";
+                            let bgClass = "";
+
+                            if (log.includes("[info]")) {
+                              colorClass = "text-blue-400";
+                            } else if (log.includes("[success]")) {
+                              colorClass = "text-green-400";
+                            } else if (
+                              log.includes("[error]") ||
+                              log.includes("Error") ||
+                              log.includes("error")
+                            ) {
+                              colorClass = "text-red-400";
+                              bgClass = "bg-red-500/10";
+                            } else if (
+                              log.includes("[warning]") ||
+                              log.includes("Warning")
+                            ) {
+                              colorClass = "text-yellow-400";
+                              bgClass = "bg-yellow-500/5";
+                            } else if (log.includes("Progress:")) {
+                              colorClass = "text-purple-400";
+                            } else if (
+                              log.includes("GET ") ||
+                              log.includes("POST ") ||
+                              log.includes("PUT ") ||
+                              log.includes("DELETE ")
+                            ) {
+                              if (log.includes(" 2")) {
+                                colorClass = "text-green-400/70";
+                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                                colorClass = "text-red-400/70";
+                              } else {
+                                colorClass = "text-cyan-400/70";
+                              }
+                            } else if (
+                              log.includes("Next.js") ||
+                              log.includes("Turbopack")
+                            ) {
+                              colorClass = "text-white/80";
+                            }
+
+                            return (
+                              <div
+                                key={i}
+                                className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                              >
+                                <span className="text-white/20 select-none w-5 text-right shrink-0 text-[10px]">
+                                  {i + 1}
+                                </span>
+                                <pre
+                                  className={`whitespace-pre-wrap break-all ${colorClass}`}
+                                >
+                                  {log}
+                                </pre>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 space-y-1">
-                    {consoleLogs.map((log, i) => {
-                      let colorClass = "text-white/60";
-                      let bgClass = "";
+                </ResizablePanel>
 
-                      if (log.includes("[info]")) {
-                        colorClass = "text-blue-400";
-                      } else if (log.includes("[success]")) {
-                        colorClass = "text-green-400";
-                      } else if (
-                        log.includes("[error]") ||
-                        log.includes("Error") ||
-                        log.includes("error")
-                      ) {
-                        colorClass = "text-red-400";
-                        bgClass = "bg-red-500/10";
-                      } else if (
-                        log.includes("[warning]") ||
-                        log.includes("Warning")
-                      ) {
-                        colorClass = "text-yellow-400";
-                        bgClass = "bg-yellow-500/5";
-                      } else if (log.includes("Progress:")) {
-                        colorClass = "text-purple-400";
-                      } else if (
-                        log.includes("GET ") ||
-                        log.includes("POST ") ||
-                        log.includes("PUT ") ||
-                        log.includes("DELETE ")
-                      ) {
-                        if (log.includes(" 2")) {
-                          colorClass = "text-green-400/70";
-                        } else if (log.includes(" 4") || log.includes(" 5")) {
-                          colorClass = "text-red-400/70";
-                        } else {
-                          colorClass = "text-cyan-400/70";
-                        }
-                      } else if (
-                        log.includes("Next.js") ||
-                        log.includes("Turbopack")
-                      ) {
-                        colorClass = "text-white/80";
-                      }
+                {/* Resizable Handle */}
+                <ResizableHandle
+                  withHandle
+                  className="bg-white/[0.04] hover:bg-[#FF5800]/30 transition-colors data-[resize-handle-active]:bg-[#FF5800]/50"
+                />
 
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
-                        >
-                          <span className="text-white/20 select-none w-5 text-right shrink-0">
-                            {i + 1}
-                          </span>
-                          <pre
-                            className={`whitespace-pre-wrap break-all ${colorClass}`}
-                          >
-                            {log}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                {/* Terminal Panel - Bottom */}
+                <ResizablePanel defaultSize={40} minSize={15}>
+                  <div className="h-full flex flex-col">
+                    {/* Terminal Header */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-black/30">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="h-3 w-3 text-[#FF5800]" />
+                        <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
+                          Terminal
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-white/20">
+                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                        </span>
+                      </div>
+                    </div>
+                    {/* Terminal Content */}
+                    <div className="flex-1 min-h-0">
+                      <WebTerminal
+                        sessionId={session?.id}
+                        sandboxUrl={session?.sandboxUrl}
+                        disabled={!session}
+                        className="h-full"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             )}
           </div>
         </div>

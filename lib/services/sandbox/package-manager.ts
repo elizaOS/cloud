@@ -58,6 +58,19 @@ export async function installDependencies(
   const startTime = Date.now();
   logger.info("Installing dependencies from package.json");
 
+  // Check if package.json exists before attempting install
+  const packageJsonCheck = await sandbox.runCommand({
+    cmd: "test",
+    args: ["-f", "package.json"],
+  });
+
+  if (packageJsonCheck.exitCode !== 0) {
+    logger.error(
+      "package.json not found - template may have failed to clone properly",
+    );
+    return "Failed to install dependencies: package.json not found. The sandbox template may have failed to initialize properly. Please try again.";
+  }
+
   // Only clear caches if force is requested
   if (options?.force) {
     await sandbox.runCommand({

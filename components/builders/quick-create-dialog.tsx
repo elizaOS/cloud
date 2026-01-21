@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
   Globe,
   Zap,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateNameForType } from "@/lib/utils/random-names";
@@ -34,6 +35,7 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "./post-creation-app-prompt";
+import { trackEvent, sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
@@ -122,6 +124,106 @@ export function QuickCreateDialog({
   });
   const [showAppPrompt, setShowAppPrompt] = useState(false);
 
+  // Name validation state (only for app/service types)
+  const [nameValidation, setNameValidation] = useState<{
+    isChecking: boolean;
+    isAvailable: boolean | null;
+    error: string | null;
+    suggestedName: string | null;
+  }>({
+    isChecking: false,
+    isAvailable: null,
+    error: null,
+    suggestedName: null,
+  });
+  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Track when dialog opens with defaultType=agent
+  useEffect(() => {
+    if (open && defaultType === "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
+  }, [open, defaultType]);
+
+  // Debounced name check for app/service types
+  useEffect(() => {
+    // Only check for app and service types
+    if (selectedType !== "app" && selectedType !== "service") {
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error: null,
+        suggestedName: null,
+      });
+      return;
+    }
+
+    if (nameCheckTimeoutRef.current) {
+      clearTimeout(nameCheckTimeoutRef.current);
+    }
+
+    const trimmedName = name.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setNameValidation({
+        isChecking: false,
+        isAvailable: null,
+        error:
+          trimmedName.length > 0 && trimmedName.length < 2
+            ? "Name must be at least 2 characters"
+            : null,
+        suggestedName: null,
+      });
+      return;
+    }
+
+    setNameValidation((prev) => ({ ...prev, isChecking: true, error: null }));
+
+    nameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/v1/apps/check-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNameValidation({
+            isChecking: false,
+            isAvailable: data.available,
+            error: data.available
+              ? null
+              : data.conflictType === "subdomain"
+                ? "This name would create a subdomain that is already in use"
+                : "An app with this name already exists",
+            suggestedName: data.suggestedName || null,
+          });
+        } else {
+          setNameValidation({
+            isChecking: false,
+            isAvailable: null,
+            error: null,
+            suggestedName: null,
+          });
+        }
+      } catch {
+        setNameValidation({
+          isChecking: false,
+          isAvailable: null,
+          error: null,
+          suggestedName: null,
+        });
+      }
+    }, 500);
+
+    return () => {
+      if (nameCheckTimeoutRef.current) {
+        clearTimeout(nameCheckTimeoutRef.current);
+      }
+    };
+  }, [name, selectedType]);
+
   const generateName = (type: QuickCreateType): string =>
     generateNameForType(type);
 
@@ -129,6 +231,11 @@ export function QuickCreateDialog({
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
+
+    // Track when user starts creating an agent (only if not already tracked via defaultType)
+    if (type === "agent" && defaultType !== "agent") {
+      trackEvent("agent_create_started", { source: "quick_create" });
+    }
   };
 
   const regenerateName = () => {
@@ -238,7 +345,17 @@ export function QuickCreateDialog({
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Creation failed");
+      const errorMessage =
+        err instanceof Error ? err.message : "Creation failed";
+      toast.error(errorMessage);
+
+      // Track failed agent creation
+      if (selectedType === "agent") {
+        trackEvent("agent_create_failed", {
+          source: "quick_create",
+          error_message: sanitizeErrorMessage(errorMessage),
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -275,6 +392,12 @@ export function QuickCreateDialog({
     setCreatedResult(null);
     setCopied(false);
     setServiceEndpoints({ mcp: true, a2a: true, rest: true });
+    setNameValidation({
+      isChecking: false,
+      isAvailable: null,
+      error: null,
+      suggestedName: null,
+    });
     onOpenChange(false);
   };
 
@@ -452,17 +575,49 @@ export function QuickCreateDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="name" className="text-white/80">
-                Name
-              </Label>
-              <div className="flex gap-2 mt-1">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="name" className="text-white/80">
+                  Name <span className="text-red-400">*</span>
+                </Label>
+                {(selectedType === "app" || selectedType === "service") && (
+                  <div className="flex items-center gap-2">
+                    {nameValidation.isChecking && (
+                      <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                    )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === true &&
+                      name.trim().length >= 2 && (
+                        <span className="flex items-center gap-1 text-xs text-emerald-400">
+                          <Check className="h-3 w-3" />
+                          Available
+                        </span>
+                      )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === false && (
+                        <span className="flex items-center gap-1 text-xs text-red-400">
+                          <AlertCircle className="h-3 w-3" />
+                          Taken
+                        </span>
+                      )}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter a name..."
-                  className="flex-1"
+                  className={cn(
+                    "flex-1",
+                    nameValidation.error
+                      ? "border-red-500/50 focus:border-red-500"
+                      : nameValidation.isAvailable === true &&
+                          name.trim().length >= 2
+                        ? "border-emerald-500/30 focus:border-emerald-500"
+                        : "",
+                  )}
                 />
                 <Button
                   type="button"
@@ -473,6 +628,21 @@ export function QuickCreateDialog({
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
+              {nameValidation.error && (
+                <p className="text-xs text-red-400 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {nameValidation.error}
+                  {nameValidation.suggestedName && (
+                    <button
+                      type="button"
+                      onClick={() => setName(nameValidation.suggestedName!)}
+                      className="ml-1 text-[#FF5800] hover:underline"
+                    >
+                      Try &quot;{nameValidation.suggestedName}&quot;
+                    </button>
+                  )}
+                </p>
+              )}
             </div>
 
             {selectedType === "service" && (
@@ -568,13 +738,25 @@ export function QuickCreateDialog({
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={isLoading || !name.trim()}
+              disabled={
+                isLoading ||
+                !name.trim() ||
+                name.trim().length < 2 ||
+                ((selectedType === "app" || selectedType === "service") &&
+                  (nameValidation.isChecking ||
+                    nameValidation.isAvailable === false))
+              }
               className="bg-gradient-to-r from-[#FF5800] to-purple-600"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Creating...
+                </>
+              ) : nameValidation.isChecking ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking...
                 </>
               ) : (
                 "Create"

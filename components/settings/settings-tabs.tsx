@@ -17,6 +17,7 @@ import {
   CreditCard,
   Key,
   PieChart,
+  Link2,
 } from "lucide-react";
 import {
   Select,
@@ -36,6 +37,7 @@ interface SettingsTabsProps {
 const tabs = [
   { id: "general" as const, label: "General", icon: User },
   { id: "account" as const, label: "Account", icon: Building2 },
+  { id: "connections" as const, label: "Connections", icon: Link2 },
   { id: "usage" as const, label: "Usage", icon: BarChart3 },
   { id: "billing" as const, label: "Billing", icon: CreditCard },
   { id: "apis" as const, label: "APIs", icon: Key },

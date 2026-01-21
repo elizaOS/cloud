@@ -5,6 +5,14 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/container-billing",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/social-automation",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/auto-top-up",
       "schedule": "*/15 * * * *"
     },

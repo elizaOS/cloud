@@ -14,7 +14,11 @@ const MIN_UPDATE_INTERVAL_MS = 33; // ~30fps
  * Allows proper cleanup of both timeouts and animation frames.
  */
 type PendingUpdate =
-  | { type: "timeout"; timeoutId: ReturnType<typeof setTimeout>; rafId?: number }
+  | {
+      type: "timeout";
+      timeoutId: ReturnType<typeof setTimeout>;
+      rafId?: number;
+    }
   | { type: "raf"; frameId: number };
 
 /**

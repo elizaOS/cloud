@@ -1,6 +1,6 @@
 /**
  * Test Setup - MUST RUN BEFORE ANY TEST CODE
- * 
+ *
  * CRITICAL: This ensures tests run against local endpoints, NOT production!
  * Without this, tests would hit https://www.elizacloud.ai which is VERY BAD.
  */
@@ -23,35 +23,37 @@ process.env.TEST_BLOCK_ANONYMOUS = "true";
  */
 async function verifyLocalServerRunning(): Promise<void> {
   console.log("\n[Test Setup] Verifying local server is running...");
-  
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
-  
+
   const healthEndpoint = `${LOCAL_SERVER_URL}/api/health`;
-  const response = await fetch(healthEndpoint, { 
+  const response = await fetch(healthEndpoint, {
     signal: controller.signal,
     method: "GET",
   }).catch((error: Error) => {
     clearTimeout(timeout);
     throw new Error(
       `\n${"=".repeat(60)}\n` +
-      `❌ LOCAL SERVER NOT RUNNING\n` +
-      `${"=".repeat(60)}\n\n` +
-      `Runtime tests require the local server at ${LOCAL_SERVER_URL}\n` +
-      `Please start the server first:\n\n` +
-      `  bun run dev\n\n` +
-      `Error: ${error.message}\n` +
-      `${"=".repeat(60)}\n`
+        `❌ LOCAL SERVER NOT RUNNING\n` +
+        `${"=".repeat(60)}\n\n` +
+        `Runtime tests require the local server at ${LOCAL_SERVER_URL}\n` +
+        `Please start the server first:\n\n` +
+        `  bun run dev\n\n` +
+        `Error: ${error.message}\n` +
+        `${"=".repeat(60)}\n`,
     );
   });
-  
+
   clearTimeout(timeout);
-  
+
   // Accept any response as "server is running"
   // 401/403 = server running but auth required (expected for some endpoints)
   // 200 = healthy
   // 5xx = server error (should still proceed, server is technically running)
-  console.log(`  ✅ Local server running at ${LOCAL_SERVER_URL} (status: ${response.status})`);
+  console.log(
+    `  ✅ Local server running at ${LOCAL_SERVER_URL} (status: ${response.status})`,
+  );
 }
 
 // Run verification synchronously at module load time

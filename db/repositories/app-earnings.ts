@@ -94,6 +94,31 @@ export class AppEarningsRepository {
   }
 
   /**
+   * Finds an earnings transaction by idempotency key.
+   *
+   * Used for withdrawal deduplication when clients retry failed requests.
+   * Uses JSONB containment query for efficient lookup (covered by GIN index).
+   */
+  async findTransactionByIdempotencyKey(
+    appId: string,
+    idempotencyKey: string,
+  ): Promise<AppEarningsTransaction | undefined> {
+    const result = await dbRead
+      .select()
+      .from(appEarningsTransactions)
+      .where(
+        and(
+          eq(appEarningsTransactions.app_id, appId),
+          eq(appEarningsTransactions.type, "withdrawal"),
+          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ idempotencyKey })}::jsonb`,
+        ),
+      )
+      .limit(1);
+
+    return result[0];
+  }
+
+  /**
    * Gets transaction totals grouped by type within a date range.
    */
   async getTransactionTotalsByType(
@@ -236,6 +261,9 @@ export class AppEarningsRepository {
 
   /**
    * Atomically adds inference earnings to app earnings.
+   *
+   * Earnings go directly to withdrawable_balance for immediate availability.
+   * This provides a better developer experience for solo creators.
    */
   async addInferenceEarnings(
     appId: string,
@@ -248,7 +276,7 @@ export class AppEarningsRepository {
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
         total_inference_earnings: sql`${appEarnings.total_inference_earnings} + ${amount}`,
-        pending_balance: sql`${appEarnings.pending_balance} + ${amount}`,
+        withdrawable_balance: sql`${appEarnings.withdrawable_balance} + ${amount}`,
         updated_at: new Date(),
       })
       .where(eq(appEarnings.app_id, appId))
@@ -259,6 +287,9 @@ export class AppEarningsRepository {
 
   /**
    * Atomically adds purchase earnings to app earnings.
+   *
+   * Earnings go directly to withdrawable_balance for immediate availability.
+   * This provides a better developer experience for solo creators.
    */
   async addPurchaseEarnings(
     appId: string,
@@ -271,7 +302,7 @@ export class AppEarningsRepository {
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
         total_purchase_earnings: sql`${appEarnings.total_purchase_earnings} + ${amount}`,
-        pending_balance: sql`${appEarnings.pending_balance} + ${amount}`,
+        withdrawable_balance: sql`${appEarnings.withdrawable_balance} + ${amount}`,
         updated_at: new Date(),
       })
       .where(eq(appEarnings.app_id, appId))

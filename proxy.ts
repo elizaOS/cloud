@@ -1,11 +1,65 @@
 /**
- * Proxy Middleware - Auth caching
+ * Proxy - Auth caching
+ *
+ * IMPORTANT: Uses native Response everywhere to avoid polyfill conflicts.
+ * The mcp-handler package triggers undici's Response polyfill which breaks
+ * NextResponse instanceof checks. We use x-middleware-next header instead.
+ * See: https://github.com/vercel/next.js/issues/58611
  */
 
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
+
+// Helper to create "next" response (continue to route handler)
+// Uses internal Next.js header that NextResponse.next() sets
+function middlewareNext(options?: {
+  headers?: Record<string, string>;
+  requestHeaders?: Headers;
+}): Response {
+  const headers = new Headers(options?.headers);
+  headers.set("x-middleware-next", "1");
+
+  // Forward modified request headers if provided
+  if (options?.requestHeaders) {
+    const headersList: string[] = [];
+    options.requestHeaders.forEach((value, key) => {
+      headersList.push(`${key}:${value}`);
+    });
+    if (headersList.length > 0) {
+      headers.set(
+        "x-middleware-override-headers",
+        Array.from(options.requestHeaders.keys()).join(","),
+      );
+      options.requestHeaders.forEach((value, key) => {
+        headers.set(`x-middleware-request-${key}`, value);
+      });
+    }
+  }
+
+  return new Response(null, { status: 200, headers });
+}
+
+// Helper to create redirect response
+function middlewareRedirect(
+  url: URL | string,
+  options?: { headers?: Record<string, string>; deleteCookies?: string[] },
+): Response {
+  const headers = new Headers(options?.headers);
+  headers.set("Location", url.toString());
+
+  // Set cookies to delete
+  if (options?.deleteCookies) {
+    for (const cookie of options.deleteCookies) {
+      headers.append(
+        "Set-Cookie",
+        `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+      );
+    }
+  }
+
+  return new Response(null, { status: 307, headers });
+}
 
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
@@ -28,7 +82,6 @@ const AUTH_CACHE_TTL = 300;
 interface CachedAuth {
   valid: boolean;
   userId?: string;
-  /** Token expiration (unix timestamp, seconds) */
   expiration?: number;
   cachedAt: number;
 }
@@ -112,12 +165,13 @@ const publicPaths = [
   "/api/a2a",
   "/api/agents",
   "/api/v1/track",
+  "/api/v1/discovery", // Public discovery endpoint for agents/MCPs
+  "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
 ];
 
-// Public endpoint patterns that need special matching (e.g., /api/v1/apps/[id]/public)
 const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
@@ -139,7 +193,7 @@ export async function proxy(request: NextRequest) {
 
   // Handle CORS preflight (OPTIONS) requests for API routes
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
-    return new NextResponse(null, {
+    return new Response(null, {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -157,16 +211,16 @@ export async function proxy(request: NextRequest) {
     publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     publicPathPatterns.some((pattern) => pattern.test(pathname));
   if (isPublicPath) {
-    const response = NextResponse.next();
-    response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-    return response;
+    return middlewareNext({
+      headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+    });
   }
 
   const isProtectedPath = protectedPaths.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
   if (!isProtectedPath && !pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return middlewareNext();
   }
 
   try {
@@ -178,25 +232,27 @@ export async function proxy(request: NextRequest) {
     const apiKey = request.headers.get("X-API-Key");
 
     if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
-      const response = NextResponse.next();
-      response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-      return response;
+      return middlewareNext({
+        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+      });
     }
 
     const token = bearerToken || authToken?.value;
 
     if (!token) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       const url = request.nextUrl.clone();
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      return middlewareRedirect(url);
     }
 
     const cachedAuth = await getCachedAuth(token);
     if (cachedAuth?.valid && cachedAuth.userId) {
-      // Ensure we never accept a cached auth result past token expiration.
       if (cachedAuth.expiration) {
         const now = Math.floor(Date.now() / 1000);
         if (cachedAuth.expiration <= now) {
@@ -205,24 +261,25 @@ export async function proxy(request: NextRequest) {
           const requestHeaders = new Headers(request.headers);
           requestHeaders.set("x-privy-user-id", cachedAuth.userId);
           requestHeaders.set("x-auth-cached", "true");
-          const response = NextResponse.next({
-            request: { headers: requestHeaders },
+          return middlewareNext({
+            headers: {
+              "X-Proxy-Time": `${Date.now() - startTime}ms`,
+              "X-Auth-Cached": "true",
+            },
+            requestHeaders,
           });
-          response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-          response.headers.set("X-Auth-Cached", "true");
-          return response;
         }
       } else {
-        // Backwards-compatible cache entry (no expiration stored)
         const requestHeaders = new Headers(request.headers);
         requestHeaders.set("x-privy-user-id", cachedAuth.userId);
         requestHeaders.set("x-auth-cached", "true");
-        const response = NextResponse.next({
-          request: { headers: requestHeaders },
+        return middlewareNext({
+          headers: {
+            "X-Proxy-Time": `${Date.now() - startTime}ms`,
+            "X-Auth-Cached": "true",
+          },
+          requestHeaders,
         });
-        response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-        response.headers.set("X-Auth-Cached", "true");
-        return response;
       }
     }
 
@@ -231,19 +288,19 @@ export async function proxy(request: NextRequest) {
     try {
       user = await privyClient.verifyAuthToken(token);
     } catch (error) {
-      // Token expiry is an expected state; don't treat it as middleware failure.
       if (isJwtExpiredError(error)) {
         await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
         if (pathname.startsWith("/api/")) {
-          return NextResponse.json({ error: "Token expired" }, { status: 401 });
+          return new Response(JSON.stringify({ error: "Token expired" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         const url = request.nextUrl.clone();
         url.pathname = "/";
-        // Best-effort cleanup so clients stop sending expired tokens.
-        const response = NextResponse.redirect(url);
-        response.cookies.delete("privy-token");
-        response.cookies.delete("privy-id-token");
-        return response;
+        return middlewareRedirect(url, {
+          deleteCookies: ["privy-token", "privy-id-token"],
+        });
       }
       throw error;
     }
@@ -251,14 +308,14 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          { error: "Invalid authentication token" },
-          { status: 401 },
+        return new Response(
+          JSON.stringify({ error: "Invalid authentication token" }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
         );
       }
       const url = request.nextUrl.clone();
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      return middlewareRedirect(url);
     }
 
     await setCachedAuth(token, {
@@ -274,24 +331,22 @@ export async function proxy(request: NextRequest) {
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-privy-user-id", user.userId);
-    const response = NextResponse.next({
-      request: { headers: requestHeaders },
+    return middlewareNext({
+      headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
+      requestHeaders,
     });
-    response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
-    return response;
   } catch (error) {
-    // Unexpected middleware failures only.
-    console.error("Middleware auth error:", error);
+    console.error("Proxy auth error:", error);
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Authentication failed" },
-        { status: 401 },
-      );
+      return new Response(JSON.stringify({ error: "Authentication failed" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/error";
     url.searchParams.set("reason", "auth_failed");
-    return NextResponse.redirect(url);
+    return middlewareRedirect(url);
   }
 }
 

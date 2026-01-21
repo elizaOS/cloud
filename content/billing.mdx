@@ -69,11 +69,15 @@ elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 
 ### Infrastructure
 
-| Resource                       | Cost         |
-| ------------------------------ | ------------ |
-| Container CPU (per core/hour)  | 0.05 credits |
-| Container Memory (per GB/hour) | 0.01 credits |
-| Knowledge storage (per GB/day) | 0.01 credits |
+| Resource                       | Cost                  |
+| ------------------------------ | --------------------- |
+| Container (per day)            | 0.67 credits (~$20/mo)|
+| Container deployment (one-time)| 0.50 credits          |
+| Knowledge storage (per GB/day) | 0.01 credits          |
+
+<Callout type="info">
+  Containers are billed **daily**. If credits run low, you'll receive a 48-hour warning before shutdown.
+</Callout>
 
 ## Credit Packs
 
@@ -136,7 +140,7 @@ curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
 ```
 
 <Callout type="info">
-  See [x402 Payments](/docs/x402) for details on crypto payments.
+  See crypto payment documentation for details.
 </Callout>
 
 ## Auto Top-Up
@@ -162,30 +166,14 @@ curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
 
 ## Usage Analytics
 
-Track your spending:
+Track your spending via the credits summary endpoint:
 
 ```bash
-curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
+curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-```json
-{
-  "period": "2024-01",
-  "total": 1250.5,
-  "breakdown": {
-    "chat": 800.0,
-    "embeddings": 150.0,
-    "images": 200.0,
-    "videos": 50.0,
-    "containers": 50.5
-  },
-  "daily": [
-    { "date": "2024-01-01", "usage": 42.5 },
-    { "date": "2024-01-02", "usage": 38.0 }
-  ]
-}
-```
+See the [Credits API](/docs/api/credits) for the complete response format including usage breakdown by agents and apps.
 
 ## Invoices
 
@@ -205,43 +193,18 @@ curl -X GET "https://elizacloud.ai/api/invoices/{id}" \
 
 ## Payment Methods
 
-### Add Card
+Payment methods are managed through the Stripe checkout flow. When you create a checkout session via `/api/v1/credits/checkout`, Stripe handles payment method collection securely.
 
-```bash
-curl -X POST "https://elizacloud.ai/api/payment-methods/attach" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paymentMethodId": "pm_xxx"
-  }'
-```
-
-### Set Default
-
-```bash
-curl -X POST "https://elizacloud.ai/api/payment-methods/set-default" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "paymentMethodId": "pm_xxx"
-  }'
-```
+<Callout type="info">
+  Saved payment methods and auto top-up can be configured in your [Dashboard → Billing](/dashboard/billing) settings.
+</Callout>
 
 ## Cost Alerts
 
-Set up alerts for spending thresholds:
+Cost alerts can be configured in your [Dashboard → Billing](/dashboard/billing) settings. You can set:
 
-```bash
-curl -X POST "https://elizacloud.ai/api/analytics/config" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "alerts": [
-      { "threshold": 100, "email": true },
-      { "threshold": 500, "email": true, "webhook": "https://..." }
-    ]
-  }'
-```
+- **Email notifications** when balance drops below a threshold
+- **Auto top-up** to automatically add credits when balance is low
 
 ## Free Tier
 
@@ -271,7 +234,7 @@ Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
   <Cards.Card title="Earnings" href="/docs/earnings">
     Earn from your agents
   </Cards.Card>
-  <Cards.Card title="x402 Payments" href="/docs/x402">
+  <Cards.Card title="Billing" href="/docs/billing">
     Pay with crypto
   </Cards.Card>
   <Cards.Card title="API Reference" href="/docs/api">

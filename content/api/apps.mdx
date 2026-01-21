@@ -53,12 +53,10 @@ Create a new application.
 ```json
 {
   "name": "My App",
+  "app_url": "https://myapp.example.com",
   "description": "Customer support chatbot",
-  "agentId": "char_abc123",
-  "settings": {
-    "allowAnonymous": true,
-    "rateLimit": 100
-  }
+  "website_url": "https://example.com",
+  "contact_email": "support@example.com"
 }
 ```
 
@@ -66,10 +64,14 @@ Create a new application.
 
 ```json
 {
-  "id": "app_abc123",
-  "name": "My App",
-  "apiKey": "ak_live_xxx...",
-  "createdAt": "2024-01-15T10:30:00Z"
+  "success": true,
+  "app": {
+    "id": "uuid-abc123",
+    "name": "My App",
+    "app_url": "https://myapp.example.com",
+    "api_key": "ek_xxx...",
+    "created_at": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 

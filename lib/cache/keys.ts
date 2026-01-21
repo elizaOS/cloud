@@ -105,7 +105,7 @@ export const CacheKeys = {
    */
   discovery: {
     /** Cache discovery results by filter hash */
-    list: (filterHash: string) => `discovery:list:${filterHash}:v1`,
+    list: (filterHash: string) => `discovery:list:${filterHash}:v2`,
     /** Pattern for invalidating all discovery cache */
     pattern: () => `discovery:*`,
   },

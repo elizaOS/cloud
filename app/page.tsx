@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { LandingPage } from "@/components/landing/landing-page";
+import { LandingPage } from "@/components/landing/landing-page-new";
 import {
   generateOrganizationSchema,
   generateWebApplicationSchema,

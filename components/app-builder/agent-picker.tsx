@@ -170,7 +170,7 @@ export function AgentPicker({
       </div>
 
       {/* Agent Grid */}
-      <ScrollArea className="h-[280px] pr-3">
+      <ScrollArea className="h-[400px] pr-3">
         <div className="grid gap-2">
           {filteredAgents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -332,25 +332,24 @@ export function CompactAgentPicker({
         ))}
 
         {/* Add button */}
-        {selectedIds.length < maxSelection &&
-          availableAgents.length > 0 && (
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  addAgent(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
-            >
-              <option value="">+ Add agent</option>
-              {availableAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
-          )}
+        {selectedIds.length < maxSelection && availableAgents.length > 0 && (
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                addAgent(e.target.value);
+                e.target.value = "";
+              }
+            }}
+            className="px-2 py-1.5 rounded-lg bg-white/5 border border-dashed border-white/20 text-xs text-white/60 cursor-pointer hover:border-white/40 transition-colors"
+          >
+            <option value="">+ Add agent</option>
+            {availableAgents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {selectedIds.length === 0 && (

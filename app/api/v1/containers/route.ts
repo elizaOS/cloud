@@ -24,6 +24,8 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { sanitizeErrorMessage } from "@/lib/analytics/posthog";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -192,7 +194,7 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      console.warn(
+      logger.warn(
         "Proceeding with deployment despite image verification failure",
       );
     }
@@ -253,7 +255,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       // Reserve credits BEFORE update deployment
@@ -324,7 +325,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       let createReservation: CreditReservation;
@@ -400,7 +400,6 @@ async function handleCreateContainer(request: NextRequest) {
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false,
       });
 
       // NOTE: is_successful is FALSE initially - deployment monitor will mark it
@@ -466,6 +465,16 @@ async function handleCreateContainer(request: NextRequest) {
           );
         });
 
+      // Track container deployment started in PostHog using internal UUID
+      trackServerEvent(user.id, "container_deploy_started", {
+        container_id: container.id,
+        container_name: validatedData.name,
+        is_update: isUpdate,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        cost: deploymentCost,
+      });
+
       // Return immediately with container info and polling instructions
       return NextResponse.json(
         {
@@ -526,6 +535,13 @@ async function handleCreateContainer(request: NextRequest) {
       } catch (refundError) {
         logger.error(`❌ Failed to refund credits:`, refundError);
       }
+
+      // Track failed container deployment in PostHog using internal UUID
+      trackServerEvent(user.id, "container_deploy_failed", {
+        container_id: container.id,
+        container_name: validatedData.name,
+        error_message: sanitizeErrorMessage(errorMessage),
+      });
 
       return NextResponse.json(
         {

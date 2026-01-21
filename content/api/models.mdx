@@ -90,11 +90,13 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ## Image Models
 
-| Model                 | Resolution | Speed  |
-| --------------------- | ---------- | ------ |
-| `fal-ai/flux/schnell` | 1024²      | Fast   |
-| `fal-ai/flux/dev`     | 1024²      | Medium |
-| `fal-ai/flux-pro`     | 2048²      | Slow   |
+| Model                                   | Provider | Speed  | Best For                 |
+| --------------------------------------- | -------- | ------ | ------------------------ |
+| `google/gemini-2.5-flash-image`         | Google   | Fast   | General use (default)    |
+| `google/gemini-2.5-flash-image-preview` | Google   | Fast   | Preview/testing          |
+| `google/gemini-3-pro-image`             | Google   | Medium | Higher quality           |
+| `openai/gpt-5-nano`                     | OpenAI   | Medium | OpenAI image generation  |
+| `bfl/flux-kontext-max`                  | BFL      | Medium | Context-aware generation |
 
 ---
 

@@ -9,9 +9,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CreditPackCard } from "./credit-pack-card";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/analytics/posthog";
 
 interface CreditPack {
   id: string;
@@ -35,29 +36,57 @@ export function BillingPageClient({
 }: BillingPageClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
+  // Track billing page viewed - only on initial mount
+  useEffect(() => {
+    trackEvent("billing_page_viewed", {
+      current_credits: currentCredits,
+      available_packs: creditPacks.length,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally track only on mount
+  }, []);
+
   const handlePurchase = async (creditPackId: string) => {
     setLoading(creditPackId);
 
-    const response = await fetch("/api/stripe/create-checkout-session", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ creditPackId }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to create checkout session");
+    // Find the pack being purchased for tracking
+    const pack = creditPacks.find((p) => p.id === creditPackId);
+    if (pack) {
+      trackEvent("credits_purchase_started", {
+        pack_id: creditPackId,
+        pack_name: pack.name,
+        credits: pack.credits,
+        price_cents: pack.price_cents,
+      });
     }
 
-    const { url } = await response.json();
+    try {
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ creditPackId }),
+      });
 
-    if (!url) {
-      throw new Error("No checkout URL returned");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create checkout session");
+      }
+
+      const { url } = await response.json();
+
+      if (!url) {
+        throw new Error("No checkout URL returned");
+      }
+
+      window.location.href = url;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Purchase failed";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(null);
     }
-
-    window.location.href = url;
-    setLoading(null);
   };
 
   // Determine which pack is popular (middle one)

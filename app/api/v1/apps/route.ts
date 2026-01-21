@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
+import { appsService, AppNameConflictError } from "@/lib/services/apps";
 import { appFactoryService } from "@/lib/services/app-factory";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
@@ -15,6 +15,10 @@ const CreateAppSchema = z.object({
   logo_url: z.string().url().optional(),
   /** Whether to skip creating a GitHub repository (default: false) */
   skipGitHubRepo: z.boolean().optional(),
+});
+
+const CheckNameSchema = z.object({
+  name: z.string().min(1).max(100),
 });
 
 /**
@@ -112,6 +116,23 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
+    // Handle name conflict errors with helpful response
+    if (error instanceof AppNameConflictError) {
+      logger.warn("App name conflict:", {
+        conflictType: error.conflictType,
+        suggestedName: error.suggestedName,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          conflictType: error.conflictType,
+          suggestedName: error.suggestedName,
+        },
+        { status: 409 }, // Conflict status code
+      );
+    }
+
     logger.error("Failed to create app:", error);
     return NextResponse.json(
       {

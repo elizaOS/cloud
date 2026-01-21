@@ -147,6 +147,7 @@ function containsMinimalBadWords(text: string): boolean {
  * Call OpenAI's free moderation endpoint
  */
 let hasLoggedModerationUnavailable = false;
+let hasLoggedGatewayModerationUnsupported = false;
 
 type ModerationBackend = "openai" | "vercel-gateway";
 
@@ -203,29 +204,62 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     return emptyModerationResult();
   }
 
-  const response = await fetch(backend.url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${backend.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      // OpenAI-compatible moderation request
-      model: "omni-moderation-latest",
-      input: text,
-    }),
-  });
+  const doRequest = async (url: string, apiKey: string): Promise<Response> => {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // OpenAI-compatible moderation request
+        model: "omni-moderation-latest",
+        input: text,
+      }),
+    });
+  };
 
+  let response = await doRequest(backend.url, backend.apiKey);
+  let usedBackend = backend.backend;
+
+  if (!response.ok) {
+    // Some gateways / deployments do not support the moderations endpoint at all.
+    // Vercel AI Gateway has historically returned 405 in that case.
+    if (
+      backend.backend === "vercel-gateway" &&
+      response.status === 405 &&
+      process.env.OPENAI_API_KEY
+    ) {
+      if (!hasLoggedGatewayModerationUnsupported) {
+        hasLoggedGatewayModerationUnsupported = true;
+        logger.warn(
+          "[ContentModeration] Vercel Gateway moderations unsupported; falling back to OpenAI",
+          {
+            status: response.status,
+            statusText: response.statusText,
+          },
+        );
+      }
+
+      response = await doRequest(
+        "https://api.openai.com/v1/moderations",
+        process.env.OPENAI_API_KEY,
+      );
+      usedBackend = "openai";
+    }
+  }
+
+  // Check again after potential fallback
   if (!response.ok) {
     // Moderation is explicitly non-blocking in this app. If the backend is not permitted
     // (common with gateways / provider accounts), avoid noisy per-request errors.
-    if ([401, 403, 404].includes(response.status)) {
+    if ([401, 403, 404, 405].includes(response.status)) {
       if (!hasLoggedModerationUnavailable) {
         hasLoggedModerationUnavailable = true;
         logger.warn(
           "[ContentModeration] Moderation endpoint unavailable; skipping moderation checks",
           {
-            backend: backend.backend,
+            backend: usedBackend,
             status: response.status,
             statusText: response.statusText,
           },
@@ -235,7 +269,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     }
 
     throw new Error(
-      `Moderation API failed (${backend.backend}): ${response.status} ${response.statusText}`,
+      `Moderation API failed (${usedBackend}): ${response.status} ${response.statusText}`,
     );
   }
 

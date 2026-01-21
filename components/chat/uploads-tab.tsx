@@ -3,14 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Upload,
-  FileText,
-  Trash2,
-  Loader2,
-  RefreshCw,
-  AlertCircle,
-} from "lucide-react";
+import { Upload, FileText, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
@@ -61,8 +54,32 @@ export function UploadsTab({
     }
   }, [characterId, fetchDocuments]);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
+  const MAX_BATCH_SIZE = 5 * 1024 * 1024; // 5MB total per batch
+
   const handleUpload = async (files: File[]) => {
     if (files.length === 0) return;
+
+    // Check individual file sizes first for better error messages
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        const fileMB = (file.size / (1024 * 1024)).toFixed(1);
+        toast.error("File too large", {
+          description: `"${file.name}" (${fileMB}MB) exceeds 5MB limit.`,
+        });
+        return;
+      }
+    }
+
+    // Validate total batch size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_BATCH_SIZE) {
+      const totalMB = (totalSize / (1024 * 1024)).toFixed(1);
+      toast.error("Batch too large", {
+        description: `Total size (${totalMB}MB) exceeds 5MB limit. Upload fewer files at once.`,
+      });
+      return;
+    }
 
     // Validate pre-upload mode requirements BEFORE entering tracked upload state
     // This avoids incrementing counter and setting uploading=true for invalid operations
@@ -135,12 +152,13 @@ export function UploadsTab({
         toast.success("Files uploaded successfully", {
           description: `${data.successCount} file(s) processed and ready to use`,
         });
+        fetchDocuments();
+
         setSelectedFiles([]);
         const fileInput = document.getElementById(
           "uploads-tab-file-input",
         ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
-        fetchDocuments();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error("Upload failed", {

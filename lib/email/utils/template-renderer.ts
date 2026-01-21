@@ -11,6 +11,7 @@ import type {
   AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
   PurchaseConfirmationEmailData,
+  ContainerShutdownWarningEmailData,
 } from "@/lib/email/types";
 
 /**
@@ -340,6 +341,42 @@ export function renderPurchaseConfirmationTemplate(
     transactionDate: data.transactionDate,
     invoiceNumber: data.invoiceNumber || "N/A",
     invoiceUrl: data.invoiceUrl || data.dashboardUrl,
+    dashboardUrl: data.dashboardUrl,
+    currentYear: new Date().getFullYear(),
+  };
+
+  return {
+    html: interpolate(htmlTemplate, templateData),
+    text: interpolate(textTemplate, templateData),
+  };
+}
+
+/**
+ * Renders the container shutdown warning email template.
+ *
+ * @param data - Container shutdown warning email data.
+ * @returns Rendered HTML and text versions.
+ */
+export function renderContainerShutdownWarningTemplate(
+  data: ContainerShutdownWarningEmailData,
+): {
+  html: string;
+  text: string;
+} {
+  const htmlTemplate = loadTemplate("container-shutdown-warning.html");
+  const textTemplate = loadTemplate("container-shutdown-warning.txt");
+
+  const templateData = {
+    organizationName: data.organizationName,
+    containerName: data.containerName,
+    projectName: data.projectName,
+    dailyCost: data.dailyCost.toFixed(2),
+    monthlyCost: data.monthlyCost.toFixed(2),
+    currentBalance: data.currentBalance.toFixed(2),
+    requiredCredits: data.requiredCredits.toFixed(2),
+    minimumRecommended: data.minimumRecommended.toFixed(2),
+    shutdownTime: data.shutdownTime,
+    billingUrl: data.billingUrl,
     dashboardUrl: data.dashboardUrl,
     currentYear: new Date().getFullYear(),
   };

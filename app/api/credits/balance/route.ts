@@ -79,33 +79,23 @@ export async function GET(req: NextRequest) {
       errorMessage.includes("Authentication required") ||
       errorMessage.includes("Forbidden");
 
-    if (isAuthError) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        {
-          status: 401,
-          headers: {
-            ...corsHeaders,
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        },
-      );
+    const status = isAuthError ? 401 : 500;
+    const body = isAuthError
+      ? { error: "Unauthorized" }
+      : { error: errorMessage };
+
+    if (!isAuthError) {
+      logger.error("[Balance API] Error:", error);
     }
 
-    logger.error("[Balance API] Error:", error);
-    return NextResponse.json(
-      { error: errorMessage },
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-          Pragma: "no-cache",
-          Expires: "0",
-        },
+    return NextResponse.json(body, {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
       },
-    );
+    });
   }
 }
