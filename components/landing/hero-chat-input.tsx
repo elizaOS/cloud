@@ -34,7 +34,11 @@ interface HeroChatInputProps {
 
 const appQuickPrompts = [
   { label: "Task Manager", prompt: "Build a task manager app", icon: Zap },
-  { label: "AI Chatbot", prompt: "Build an AI chatbot app", icon: MessageSquare },
+  {
+    label: "AI Chatbot",
+    prompt: "Build an AI chatbot app",
+    icon: MessageSquare,
+  },
   { label: "Marketplace", prompt: "Build a marketplace app", icon: Rocket },
   { label: "Social Feed", prompt: "Build a social feed app", icon: Globe },
   { label: "Dashboard", prompt: "Build a dashboard app", icon: Lightbulb },
@@ -233,8 +237,17 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
       </div>
 
       {/* Quick Prompt Tabs - Marquee */}
-      <div className="mt-4 overflow-hidden" style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}>
-        <div className="flex w-max hover:[animation-play-state:paused]" style={{ animation: 'marquee 30s linear infinite' }}>
+      <div
+        className="mt-4 overflow-hidden"
+        style={{
+          maskImage:
+            "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+        }}
+      >
+        <div
+          className="flex w-max hover:[animation-play-state:paused]"
+          style={{ animation: "marquee 30s linear infinite" }}
+        >
           <div className="flex gap-2 pr-2">
             {quickPrompts.map((item) => (
               <button

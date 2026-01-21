@@ -95,7 +95,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<
+    boolean | null
+  >(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -114,7 +116,10 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     setError(null);
 
     try {
-      const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
+      const url = new URL(
+        `/api/v1/apps/${appId}/earnings`,
+        window.location.origin,
+      );
       url.searchParams.set("days", period);
 
       if (testDataParam) {
@@ -140,7 +145,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         setError(data.error || "Failed to load earnings data");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load earnings data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load earnings data",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +199,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   }
 
   const canWithdraw =
-    summary && summary.withdrawableBalance >= (summary.payoutThreshold || PAYOUT_THRESHOLD);
+    summary &&
+    summary.withdrawableBalance >=
+      (summary.payoutThreshold || PAYOUT_THRESHOLD);
 
   return (
     <div className="space-y-6">
@@ -378,7 +387,11 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
             { label: "This Month", data: breakdown.thisMonth },
             { label: "All Time", data: breakdown.allTime },
           ].map(({ label, data }, index) => (
-            <BrandCard key={label} className="animate-stagger-fade" style={{ animationDelay: `${index * 0.1}s` }}>
+            <BrandCard
+              key={label}
+              className="animate-stagger-fade"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
               <CornerBrackets size="sm" className="opacity-20" />
               <div className="relative z-10">
                 <p className="text-xs text-white/50 mb-2">{label}</p>
@@ -387,10 +400,12 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                 </p>
                 <div className="flex gap-3 text-xs">
                   <span className="text-purple-400 flex items-center gap-1">
-                    <Zap className="h-3 w-3" />${data.inferenceEarnings.toFixed(2)}
+                    <Zap className="h-3 w-3" />$
+                    {data.inferenceEarnings.toFixed(2)}
                   </span>
                   <span className="text-yellow-400 flex items-center gap-1">
-                    <Coins className="h-3 w-3" />${data.purchaseEarnings.toFixed(2)}
+                    <Coins className="h-3 w-3" />$
+                    {data.purchaseEarnings.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -492,7 +507,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                     <span
                       className={cn(
                         "font-mono font-semibold",
-                        Number(tx.amount) >= 0 ? "text-green-400" : "text-red-400",
+                        Number(tx.amount) >= 0
+                          ? "text-green-400"
+                          : "text-red-400",
                       )}
                     >
                       {Number(tx.amount) >= 0 ? "+" : ""}$
@@ -548,13 +565,21 @@ function StatCard({ label, value, icon, color }: StatCardProps) {
     <BrandCard>
       <CornerBrackets size="sm" className="opacity-20" />
       <div className="relative z-10 flex items-center gap-3">
-        <div className={cn("p-2 rounded-lg", colorClasses[color])}>
-          {icon}
-        </div>
+        <div className={cn("p-2 rounded-lg", colorClasses[color])}>{icon}</div>
         <div>
           <p className="text-xs text-white/50">{label}</p>
-          <p className={cn("text-lg font-bold", colorClasses[color].split(" ")[0])}>
-            <AnimatedCounter value={value} prefix="$" decimals={2} duration={1000} />
+          <p
+            className={cn(
+              "text-lg font-bold",
+              colorClasses[color].split(" ")[0],
+            )}
+          >
+            <AnimatedCounter
+              value={value}
+              prefix="$"
+              decimals={2}
+              duration={1000}
+            />
           </p>
         </div>
       </div>
@@ -579,25 +604,37 @@ function TransactionBadge({ type }: { type: string }) {
   switch (type) {
     case "inference_markup":
       return (
-        <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 text-xs">
+        <Badge
+          variant="secondary"
+          className="bg-purple-500/20 text-purple-400 text-xs"
+        >
           Inference
         </Badge>
       );
     case "purchase_share":
       return (
-        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 text-xs">
+        <Badge
+          variant="secondary"
+          className="bg-yellow-500/20 text-yellow-400 text-xs"
+        >
           Purchase
         </Badge>
       );
     case "withdrawal":
       return (
-        <Badge variant="secondary" className="bg-red-500/20 text-red-400 text-xs">
+        <Badge
+          variant="secondary"
+          className="bg-red-500/20 text-red-400 text-xs"
+        >
           Withdrawal
         </Badge>
       );
     default:
       return (
-        <Badge variant="secondary" className="bg-gray-500/20 text-gray-400 text-xs">
+        <Badge
+          variant="secondary"
+          className="bg-gray-500/20 text-gray-400 text-xs"
+        >
           {type}
         </Badge>
       );

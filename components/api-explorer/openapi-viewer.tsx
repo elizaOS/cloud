@@ -75,59 +75,65 @@ export function OpenApiViewer({ value, className }: OpenApiViewerProps) {
   };
 
   return (
-    <div className={cn("w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-black/40 overflow-hidden", className)}>
+    <div
+      className={cn(
+        "w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-black/40 overflow-hidden",
+        className,
+      )}
+    >
       <div className="w-0 min-w-full h-full overflow-hidden">
         <Editor
           height="100%"
           defaultLanguage="json"
           value={value}
           onMount={handleEditorDidMount}
-        options={{
-          readOnly: true,
-          fontSize: 13,
-          fontFamily: '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
-          lineHeight: 21,
-          tabSize: 2,
-          insertSpaces: true,
-          minimap: { enabled: false },
-          scrollBeyondLastLine: false,
-          wordWrap: "off",
-          wrappingStrategy: "advanced",
-          automaticLayout: true,
-          smoothScrolling: true,
-          cursorBlinking: "solid",
-          renderLineHighlight: "none",
-          bracketPairColorization: {
-            enabled: true,
-          },
-          guides: {
-            bracketPairs: true,
-            indentation: true,
-          },
-          folding: true,
-          foldingStrategy: "indentation",
-          showFoldingControls: "mouseover",
-          padding: {
-            top: 16,
-            bottom: 16,
-          },
-          // Read-only specific options
-          domReadOnly: true,
-          readOnlyMessage: {
-            value:
-              "This OpenAPI specification is read-only. Use the Copy buttons above to export.",
-          },
-          contextmenu: true,
-          selectOnLineNumbers: true,
-          lineNumbers: "on",
-          glyphMargin: false,
-          scrollbar: {
-            vertical: "visible",
-            horizontal: "visible",
-            verticalScrollbarSize: 10,
-            horizontalScrollbarSize: 10,
-          },
-        }}
+          options={{
+            readOnly: true,
+            fontSize: 13,
+            fontFamily:
+              '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
+            lineHeight: 21,
+            tabSize: 2,
+            insertSpaces: true,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            wordWrap: "off",
+            wrappingStrategy: "advanced",
+            automaticLayout: true,
+            smoothScrolling: true,
+            cursorBlinking: "solid",
+            renderLineHighlight: "none",
+            bracketPairColorization: {
+              enabled: true,
+            },
+            guides: {
+              bracketPairs: true,
+              indentation: true,
+            },
+            folding: true,
+            foldingStrategy: "indentation",
+            showFoldingControls: "mouseover",
+            padding: {
+              top: 16,
+              bottom: 16,
+            },
+            // Read-only specific options
+            domReadOnly: true,
+            readOnlyMessage: {
+              value:
+                "This OpenAPI specification is read-only. Use the Copy buttons above to export.",
+            },
+            contextmenu: true,
+            selectOnLineNumbers: true,
+            lineNumbers: "on",
+            glyphMargin: false,
+            scrollbar: {
+              vertical: "visible",
+              horizontal: "visible",
+              verticalScrollbarSize: 10,
+              horizontalScrollbarSize: 10,
+            },
+          }}
         />
       </div>
     </div>

@@ -46,9 +46,18 @@ interface AppOverviewProps {
   showApiKey?: string;
 }
 
-type DeploymentStatus = "deployed" | "deploying" | "building" | "failed" | "draft";
+type DeploymentStatus =
+  | "deployed"
+  | "deploying"
+  | "building"
+  | "failed"
+  | "draft";
 
-function DeploymentStatusBadge({ status }: { status: DeploymentStatus }): JSX.Element {
+function DeploymentStatusBadge({
+  status,
+}: {
+  status: DeploymentStatus;
+}): JSX.Element {
   switch (status) {
     case "deployed":
       return (
@@ -95,7 +104,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   const [displayApiKey, setDisplayApiKey] = useState(showApiKey || "");
   const [showKey, setShowKey] = useState(!!showApiKey);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<
+    boolean | null
+  >(null);
   const [totalEarnings, setTotalEarnings] = useState<number | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -140,9 +151,12 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   async function handleRegenerateApiKey(): Promise<void> {
     setIsRegenerating(true);
     try {
-      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `/api/v1/apps/${app.id}/regenerate-api-key`,
+        {
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -155,14 +169,18 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
       toast.success("API key regenerated");
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to regenerate");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to regenerate",
+      );
     } finally {
       setIsRegenerating(false);
     }
   }
 
   const allowedOrigins: string[] = Array.isArray(app.allowed_origins)
-    ? app.allowed_origins.filter((origin): origin is string => typeof origin === "string")
+    ? app.allowed_origins.filter(
+        (origin): origin is string => typeof origin === "string",
+      )
     : [];
   const maskedApiKey = "eliza_" + "•".repeat(32);
 
@@ -234,7 +252,8 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 </button>
               </div>
               <p className="text-xs text-white/50">
-                Save this key securely. You won&apos;t see it again. This message disappears in 60 seconds.
+                Save this key securely. You won&apos;t see it again. This
+                message disappears in 60 seconds.
               </p>
             </div>
           </div>
@@ -251,7 +270,10 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
         />
         <StatCard
           label="Deployment"
-          value={(app.deployment_status || "draft").charAt(0).toUpperCase() + (app.deployment_status || "draft").slice(1)}
+          value={
+            (app.deployment_status || "draft").charAt(0).toUpperCase() +
+            (app.deployment_status || "draft").slice(1)
+          }
           icon={<Rocket className="h-5 w-5" />}
           color="blue"
         />
@@ -295,7 +317,8 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will immediately invalidate your current API key. Your app will stop working until you update it with the new key.
+                    This will immediately invalidate your current API key. Your
+                    app will stop working until you update it with the new key.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -383,13 +406,16 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             {app.last_deployed_at && (
               <InfoRow
                 label="Last Deployed"
-                value={new Date(app.last_deployed_at).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                value={new Date(app.last_deployed_at).toLocaleDateString(
+                  "en-US",
+                  {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  },
+                )}
               />
             )}
           </div>
@@ -420,13 +446,15 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 className={cn(
                   monetizationEnabled
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                    : "bg-white/10 text-white/50 border-white/20"
+                    : "bg-white/10 text-white/50 border-white/20",
                 )}
               >
                 {monetizationEnabled ? "Enabled" : "Disabled"}
               </Badge>
               <button
-                onClick={() => router.push(`/dashboard/apps/${app.id}?tab=monetization`)}
+                onClick={() =>
+                  router.push(`/dashboard/apps/${app.id}?tab=monetization`)
+                }
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <ChevronRight className="h-4 w-4 text-neutral-400" />
@@ -444,7 +472,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             Allowed Origins
           </h3>
           <button
-            onClick={() => router.push(`/dashboard/apps/${app.id}?tab=settings`)}
+            onClick={() =>
+              router.push(`/dashboard/apps/${app.id}?tab=settings`)
+            }
             className="text-xs text-neutral-400 hover:text-white transition-colors"
           >
             Edit
@@ -497,7 +527,12 @@ function StatCard({
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs text-neutral-500 truncate">{label}</p>
-          <p className={cn("text-lg md:text-xl font-semibold mt-1 truncate", colorClasses[color])}>
+          <p
+            className={cn(
+              "text-lg md:text-xl font-semibold mt-1 truncate",
+              colorClasses[color],
+            )}
+          >
             {value}
           </p>
         </div>
@@ -530,7 +565,9 @@ function InfoRow({
         >
           {icon}
           <span className="truncate">{value}</span>
-          {!href.startsWith("mailto:") && <ExternalLink className="h-3 w-3 shrink-0" />}
+          {!href.startsWith("mailto:") && (
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          )}
         </a>
       ) : (
         <p className="text-sm text-white mt-0.5 line-clamp-2">{value}</p>

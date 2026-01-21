@@ -67,58 +67,58 @@ export function WebTerminal({
       if (trimmedCommand === "help") {
         term.write("\r\n");
         term.write(
-          "\x1b[38;5;245m╭────────────────────────────────────────────────────────────╮\x1b[0m\r\n"
+          "\x1b[38;5;245m╭────────────────────────────────────────────────────────────╮\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[1;38;5;208mEliza Cloud Sandbox Terminal\x1b[0m                            \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[1;38;5;208mEliza Cloud Sandbox Terminal\x1b[0m                            \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m├────────────────────────────────────────────────────────────┤\x1b[0m\r\n"
+          "\x1b[38;5;245m├────────────────────────────────────────────────────────────┤\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mFile Commands:\x1b[0m                                           \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mFile Commands:\x1b[0m                                           \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m    ls, cat, head, tail, find, grep, pwd, cd, mkdir        \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m    ls, cat, head, tail, find, grep, pwd, cd, mkdir        \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mPackage Managers:\x1b[0m                                        \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mPackage Managers:\x1b[0m                                        \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m    npm, bun, pnpm, yarn, npx, bunx                         \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m    npm, bun, pnpm, yarn, npx, bunx                         \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mGit:\x1b[0m                                                     \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mGit:\x1b[0m                                                     \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m    git status, git log, git diff, git branch, etc.        \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m    git status, git log, git diff, git branch, etc.        \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mDev Tools:\x1b[0m                                               \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mDev Tools:\x1b[0m                                               \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m    node, bun, tsc, curl                                    \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m    node, bun, tsc, curl                                    \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m                                                            \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mLocal:\x1b[0m  clear, help, history                             \x1b[38;5;245m│\x1b[0m\r\n"
+          "\x1b[38;5;245m│\x1b[0m  \x1b[38;5;75mLocal:\x1b[0m  clear, help, history                             \x1b[38;5;245m│\x1b[0m\r\n",
         );
         term.write(
-          "\x1b[38;5;245m╰────────────────────────────────────────────────────────────╯\x1b[0m\r\n"
+          "\x1b[38;5;245m╰────────────────────────────────────────────────────────────╯\x1b[0m\r\n",
         );
         term.write(
-          "\r\n\x1b[38;5;245mUse ↑/↓ to navigate history • Tab for autocomplete\x1b[0m"
+          "\r\n\x1b[38;5;245mUse ↑/↓ to navigate history • Tab for autocomplete\x1b[0m",
         );
         writePrompt();
         return;
@@ -131,7 +131,7 @@ export function WebTerminal({
         } else {
           commandHistory.forEach((cmd, i) => {
             term.write(
-              `\x1b[38;5;245m${String(i + 1).padStart(3, " ")}\x1b[0m  ${cmd}\r\n`
+              `\x1b[38;5;245m${String(i + 1).padStart(3, " ")}\x1b[0m  ${cmd}\r\n`,
             );
           });
         }
@@ -143,7 +143,7 @@ export function WebTerminal({
       if (!sessionId) {
         term.write("\r\n");
         term.write(
-          "\x1b[38;5;196mNo active session.\x1b[0m Start a session to run commands."
+          "\x1b[38;5;196mNo active session.\x1b[0m Start a session to run commands.",
         );
         writePrompt();
         return;
@@ -161,7 +161,7 @@ export function WebTerminal({
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify({ command: trimmedCommand, cwd }),
-          }
+          },
         );
 
         const data = await response.json();
@@ -169,11 +169,11 @@ export function WebTerminal({
         if (!response.ok) {
           if (data.blocked) {
             term.write(
-              `\x1b[38;5;196mBlocked:\x1b[0m ${data.error || "Command not allowed"}`
+              `\x1b[38;5;196mBlocked:\x1b[0m ${data.error || "Command not allowed"}`,
             );
           } else {
             term.write(
-              `\x1b[38;5;196mError:\x1b[0m ${data.error || "Command failed"}`
+              `\x1b[38;5;196mError:\x1b[0m ${data.error || "Command failed"}`,
             );
           }
           writePrompt();
@@ -183,7 +183,8 @@ export function WebTerminal({
 
         // Handle cd command to update cwd display
         if (trimmedCommand.startsWith("cd ") || trimmedCommand === "cd") {
-          const newDir = trimmedCommand === "cd" ? "~" : trimmedCommand.slice(3).trim();
+          const newDir =
+            trimmedCommand === "cd" ? "~" : trimmedCommand.slice(3).trim();
           if (data.exitCode === 0) {
             // Update cwd based on the cd command
             if (newDir === "~" || newDir === "") {
@@ -192,7 +193,10 @@ export function WebTerminal({
               if (cwd === "~" || cwd === "") {
                 setCwd("~"); // Can't go above project root
               } else {
-                const parts = cwd.replace(/^~\/?/, "").split("/").filter(Boolean);
+                const parts = cwd
+                  .replace(/^~\/?/, "")
+                  .split("/")
+                  .filter(Boolean);
                 parts.pop();
                 setCwd(parts.length > 0 ? "~/" + parts.join("/") : "~");
               }
@@ -228,20 +232,18 @@ export function WebTerminal({
 
         // Show exit code if non-zero
         if (data.exitCode !== 0) {
-          term.write(
-            `\x1b[38;5;245mExit code: ${data.exitCode}\x1b[0m`
-          );
+          term.write(`\x1b[38;5;245mExit code: ${data.exitCode}\x1b[0m`);
         }
       } catch (error) {
         term.write(
-          `\x1b[38;5;196mError:\x1b[0m ${error instanceof Error ? error.message : "Failed to execute command"}`
+          `\x1b[38;5;196mError:\x1b[0m ${error instanceof Error ? error.message : "Failed to execute command"}`,
         );
       }
 
       isExecutingRef.current = false;
       writePrompt();
     },
-    [sessionId, cwd, commandHistory, writePrompt, getPrompt]
+    [sessionId, cwd, commandHistory, writePrompt, getPrompt],
   );
 
   useEffect(() => {
@@ -313,19 +315,19 @@ export function WebTerminal({
 
     // Welcome message
     term.write(
-      "\x1b[38;5;208m╭─────────────────────────────────────────╮\x1b[0m\r\n"
+      "\x1b[38;5;208m╭─────────────────────────────────────────╮\x1b[0m\r\n",
     );
     term.write(
-      "\x1b[38;5;208m│\x1b[0m  \x1b[1mEliza Cloud Sandbox Terminal\x1b[0m          \x1b[38;5;208m│\x1b[0m\r\n"
+      "\x1b[38;5;208m│\x1b[0m  \x1b[1mEliza Cloud Sandbox Terminal\x1b[0m          \x1b[38;5;208m│\x1b[0m\r\n",
     );
     term.write(
-      "\x1b[38;5;208m│\x1b[0m  \x1b[38;5;245mConnected to live sandbox shell\x1b[0m        \x1b[38;5;208m│\x1b[0m\r\n"
+      "\x1b[38;5;208m│\x1b[0m  \x1b[38;5;245mConnected to live sandbox shell\x1b[0m        \x1b[38;5;208m│\x1b[0m\r\n",
     );
     term.write(
-      "\x1b[38;5;208m│\x1b[0m  \x1b[38;5;245mType \x1b[38;5;75mhelp\x1b[38;5;245m for available commands\x1b[0m     \x1b[38;5;208m│\x1b[0m\r\n"
+      "\x1b[38;5;208m│\x1b[0m  \x1b[38;5;245mType \x1b[38;5;75mhelp\x1b[38;5;245m for available commands\x1b[0m     \x1b[38;5;208m│\x1b[0m\r\n",
     );
     term.write(
-      "\x1b[38;5;208m╰─────────────────────────────────────────╯\x1b[0m\r\n"
+      "\x1b[38;5;208m╰─────────────────────────────────────────╯\x1b[0m\r\n",
     );
     term.write("\r\n\x1b[38;5;245m~\x1b[0m \x1b[38;5;208m❯\x1b[0m ");
 
@@ -439,20 +441,23 @@ export function WebTerminal({
         }
       } else if (data === "\x16") {
         // Ctrl+V - paste from clipboard
-        navigator.clipboard.readText().then((text) => {
-          if (text) {
-            // Insert pasted text at cursor position
-            const before = currentLineBuffer.slice(0, cursorPosRef.current);
-            const after = currentLineBuffer.slice(cursorPosRef.current);
-            currentLineBuffer = before + text + after;
-            cursorPosRef.current += text.length;
-            term.write("\x1b[2K\r" + getPrompt() + currentLineBuffer);
-            const moveBack = currentLineBuffer.length - cursorPosRef.current;
-            if (moveBack > 0) {
-              term.write(`\x1b[${moveBack}D`);
+        navigator.clipboard
+          .readText()
+          .then((text) => {
+            if (text) {
+              // Insert pasted text at cursor position
+              const before = currentLineBuffer.slice(0, cursorPosRef.current);
+              const after = currentLineBuffer.slice(cursorPosRef.current);
+              currentLineBuffer = before + text + after;
+              cursorPosRef.current += text.length;
+              term.write("\x1b[2K\r" + getPrompt() + currentLineBuffer);
+              const moveBack = currentLineBuffer.length - cursorPosRef.current;
+              if (moveBack > 0) {
+                term.write(`\x1b[${moveBack}D`);
+              }
             }
-          }
-        }).catch(() => {});
+          })
+          .catch(() => {});
       } else if (data === "\x0c") {
         // Ctrl+L - clear
         term.clear();
@@ -478,7 +483,7 @@ export function WebTerminal({
           "curl",
         ];
         const matches = commands.filter((cmd) =>
-          cmd.startsWith(currentLineBuffer)
+          cmd.startsWith(currentLineBuffer),
         );
         if (matches.length === 1) {
           currentLineBuffer = matches[0];

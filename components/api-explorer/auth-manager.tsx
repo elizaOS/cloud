@@ -6,14 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  Eye,
-  EyeOff,
-  Copy,
-  Check,
-  RefreshCw,
-  Loader2,
-} from "lucide-react";
+import { Eye, EyeOff, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "@/lib/utils/toast-adapter";
 
 interface ExplorerApiKey {
@@ -83,7 +76,9 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isValidKey = authToken && (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
+  const isValidKey =
+    authToken &&
+    (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
 
   if (isLoading) {
     return (
@@ -144,21 +139,31 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
               onClick={() => setShowToken(!showToken)}
               className="absolute right-0 top-0 h-full px-3 text-neutral-500 hover:text-white transition-colors"
             >
-              {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showToken ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
           <button
             onClick={handleCopy}
             className="h-10 px-3 rounded-lg border border-white/10 bg-black/40 text-neutral-400 hover:text-white transition-colors"
           >
-            {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+            {copied ? (
+              <Check className="h-4 w-4 text-emerald-400" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
           </button>
         </div>
       </div>
 
       {/* Notice */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <span className="text-xs text-amber-400">API calls are billed to your account</span>
+        <span className="text-xs text-amber-400">
+          API calls are billed to your account
+        </span>
       </div>
 
       {/* Custom key option */}

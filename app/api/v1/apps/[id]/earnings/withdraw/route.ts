@@ -17,7 +17,10 @@ const WithdrawRequestSchema = z.object({
   amount: z
     .number()
     .positive("Amount must be positive")
-    .max(MAXIMUM_WITHDRAWAL, `Maximum withdrawal is $${MAXIMUM_WITHDRAWAL.toLocaleString()}`),
+    .max(
+      MAXIMUM_WITHDRAWAL,
+      `Maximum withdrawal is $${MAXIMUM_WITHDRAWAL.toLocaleString()}`,
+    ),
   idempotency_key: z
     .string()
     .min(16, "Idempotency key must be at least 16 characters")
@@ -45,15 +48,12 @@ interface RouteContext {
  *
  * @returns Success status, transaction ID, and new balance
  */
-async function handlePOST(
-  request: NextRequest,
-  context?: RouteContext
-) {
+async function handlePOST(request: NextRequest, context?: RouteContext) {
   try {
     if (!context?.params) {
       return NextResponse.json(
         { success: false, error: "Missing route parameters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -65,14 +65,14 @@ async function handlePOST(
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (app.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -83,14 +83,14 @@ async function handlePOST(
           success: false,
           error: "Only the app creator can withdraw earnings",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     if (!app.monetization_enabled) {
       return NextResponse.json(
         { success: false, error: "Monetization is not enabled for this app" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -101,7 +101,7 @@ async function handlePOST(
     } catch {
       return NextResponse.json(
         { success: false, error: "Invalid JSON in request body" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -114,7 +114,7 @@ async function handlePOST(
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,7 +122,8 @@ async function handlePOST(
 
     // Get earnings summary to read the actual payout threshold from database
     const earningsSummary = await appEarningsService.getEarningsSummary(id);
-    const minimumPayout = earningsSummary?.payoutThreshold ?? DEFAULT_MINIMUM_PAYOUT;
+    const minimumPayout =
+      earningsSummary?.payoutThreshold ?? DEFAULT_MINIMUM_PAYOUT;
 
     // Early validation: fail fast if amount below minimum (using database value)
     if (amount < minimumPayout) {
@@ -131,11 +132,15 @@ async function handlePOST(
           success: false,
           error: `Minimum withdrawal amount is $${minimumPayout.toFixed(2)}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const result = await appEarningsService.requestWithdrawal(id, amount, idempotency_key);
+    const result = await appEarningsService.requestWithdrawal(
+      id,
+      amount,
+      idempotency_key,
+    );
 
     if (!result.success) {
       logger.warn("[Withdrawal] Request failed", {
@@ -147,7 +152,7 @@ async function handlePOST(
 
       return NextResponse.json(
         { success: false, error: result.message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -177,13 +182,13 @@ async function handlePOST(
     if (error instanceof Error && error.message.includes("Unauthorized")) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

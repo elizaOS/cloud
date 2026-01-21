@@ -4,7 +4,13 @@ import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2, Terminal, CheckCircle2, AlertCircle, Key } from "lucide-react";
+import {
+  Loader2,
+  Terminal,
+  CheckCircle2,
+  AlertCircle,
+  Key,
+} from "lucide-react";
 
 function CliLoginContent() {
   const { authenticated, login, user, ready } = usePrivy();
@@ -120,7 +126,9 @@ function CliLoginContent() {
             </div>
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-white">Loading...</h2>
-              <p className="text-sm text-neutral-500">Preparing authentication</p>
+              <p className="text-sm text-neutral-500">
+                Preparing authentication
+              </p>
             </div>
           </div>
         </div>
@@ -138,7 +146,9 @@ function CliLoginContent() {
               <AlertCircle className="h-7 w-7 text-red-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Authentication Error
+              </h2>
               <p className="text-sm text-neutral-500">{errorMessage}</p>
             </div>
             <Button
@@ -164,7 +174,9 @@ function CliLoginContent() {
               <Terminal className="h-7 w-7 text-[#FF5800]" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
+              <h2 className="text-xl font-semibold text-white">
+                CLI Authentication
+              </h2>
               <p className="text-sm text-neutral-500">
                 Sign in to connect your ElizaOS CLI to the cloud
               </p>
@@ -203,7 +215,9 @@ function CliLoginContent() {
               <Key className="h-7 w-7 text-[#FF5800] animate-pulse" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Generating API Key</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Generating API Key
+              </h2>
               <p className="text-sm text-neutral-500">
                 Creating your credentials for CLI access...
               </p>
@@ -229,14 +243,18 @@ function CliLoginContent() {
               <CheckCircle2 className="h-7 w-7 text-green-500" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-white">Authentication Complete!</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Authentication Complete!
+              </h2>
               <p className="text-sm text-neutral-500">
                 Your API key has been generated and sent to the CLI
               </p>
             </div>
 
             <div className="w-full rounded-xl bg-black/40 border border-white/10 p-4 space-y-3">
-              <p className="text-xs font-medium text-neutral-400">API Key Details</p>
+              <p className="text-xs font-medium text-neutral-400">
+                API Key Details
+              </p>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Prefix</span>
@@ -244,7 +262,9 @@ function CliLoginContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Created for</span>
-                  <span className="text-white">{user?.email?.address || "Your account"}</span>
+                  <span className="text-white">
+                    {user?.email?.address || "Your account"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -289,7 +309,9 @@ export default function CliLoginPage() {
               </div>
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-white">Loading...</h2>
-                <p className="text-sm text-neutral-500">Initializing authentication</p>
+                <p className="text-sm text-neutral-500">
+                  Initializing authentication
+                </p>
               </div>
             </div>
           </div>

@@ -97,7 +97,7 @@ export function AppSettings({ app }: AppSettingsProps) {
         `/api/v1/apps/${app.id}/regenerate-api-key`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -113,7 +113,7 @@ export function AppSettings({ app }: AppSettingsProps) {
       });
 
       router.push(
-        `/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`
+        `/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`,
       );
       router.refresh();
     } catch (error) {

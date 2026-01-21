@@ -75,14 +75,14 @@ function getWebhookHmacSecret(): string | null {
 function verifyOxaPaySignature(
   payload: string,
   signature: string | null,
-  ip: string
+  ip: string,
 ): boolean {
   const secret = getWebhookHmacSecret();
 
   if (!secret) {
     logger.error(
       "[Crypto Webhook] HMAC secret not configured - OXAPAY_MERCHANT_API_KEY is required for webhook verification",
-      { ip: redact.ip(ip) }
+      { ip: redact.ip(ip) },
     );
     return false;
   }
@@ -128,7 +128,7 @@ function verifyOxaPaySignature(
 function generateWebhookEventId(
   trackId: string,
   status: string,
-  payloadHash: string
+  payloadHash: string,
 ): string {
   return `oxapay_${trackId}_${status}_${payloadHash}`;
 }
@@ -144,7 +144,7 @@ async function handleWebhook(req: NextRequest) {
       {
         ip: redact.ip(ip),
         allowlistConfigured: allowedIps.length > 0,
-      }
+      },
     );
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -156,7 +156,7 @@ async function handleWebhook(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Service unavailable" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -165,11 +165,11 @@ async function handleWebhook(req: NextRequest) {
     if (!auditHashKey) {
       logger.error(
         "[Crypto Webhook] OXAPAY_MERCHANT_API_KEY is required when crypto payments are enabled",
-        { ip: redact.ip(ip) }
+        { ip: redact.ip(ip) },
       );
       return NextResponse.json(
         { error: "Service misconfigured" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -191,7 +191,7 @@ async function handleWebhook(req: NextRequest) {
           ip: redact.ip(ip),
           payloadHash,
           hasSignature: !!signature,
-        }
+        },
       );
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -219,14 +219,14 @@ async function handleWebhook(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate webhook timestamp to prevent replay attacks
     const webhookTimestampMs = extractWebhookTimestamp(
       timestampHeader,
-      payload
+      payload,
     );
     const timestampValidation = validateWebhookTimestamp(webhookTimestampMs);
     if (!timestampValidation.isValid) {
@@ -237,11 +237,11 @@ async function handleWebhook(req: NextRequest) {
           payloadHash,
           trackId: redact.trackId(normalizedPayload.trackId),
           error: timestampValidation.error,
-        }
+        },
       );
       return NextResponse.json(
         { error: `Webhook rejected: ${timestampValidation.error}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -249,7 +249,7 @@ async function handleWebhook(req: NextRequest) {
     const eventId = generateWebhookEventId(
       normalizedPayload.trackId,
       normalizedPayload.status,
-      payloadHash
+      payloadHash,
     );
 
     // Atomic deduplication: Try to insert first, handle duplicate error.
@@ -330,7 +330,7 @@ async function handleWebhook(req: NextRequest) {
       > | null = null;
       try {
         payment = await cryptoPaymentsRepository.findByTrackId(
-          normalizedPayload.trackId
+          normalizedPayload.trackId,
         );
       } catch (analyticsError) {
         logger.warn("[Crypto Webhook] Failed to fetch payment for analytics", {
@@ -347,7 +347,7 @@ async function handleWebhook(req: NextRequest) {
           "[Crypto Webhook] Cannot track analytics - payment not found",
           {
             trackId: normalizedPayload.trackId,
-          }
+          },
         );
       } else if (!payment.user_id) {
         logger.warn(
@@ -355,7 +355,7 @@ async function handleWebhook(req: NextRequest) {
           {
             trackId: normalizedPayload.trackId,
             paymentId: payment.id,
-          }
+          },
         );
       } else {
         // Map crypto status to descriptive error reason for consistency with Stripe

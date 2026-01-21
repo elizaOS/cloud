@@ -34,7 +34,7 @@ export default async function ContainersPage() {
       (c) =>
         c.status === "building" ||
         c.status === "deploying" ||
-        c.status === "pending"
+        c.status === "pending",
     ).length,
   };
 
@@ -102,7 +102,9 @@ function StatCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-neutral-500">{label}</p>
-          <p className="text-xl md:text-2xl font-semibold text-white mt-1">{value}</p>
+          <p className="text-xl md:text-2xl font-semibold text-white mt-1">
+            {value}
+          </p>
         </div>
         {icon}
       </div>

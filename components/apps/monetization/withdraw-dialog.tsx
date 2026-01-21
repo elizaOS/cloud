@@ -282,7 +282,9 @@ export function WithdrawDialog({
               Visit your Earnings page to redeem as elizaOS tokens
             </p>
             <div className="inline-block p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="text-xs text-white/40">Remaining App Balance</span>
+              <span className="text-xs text-white/40">
+                Remaining App Balance
+              </span>
               <p className="text-lg font-mono font-bold text-white">
                 ${newBalance.toFixed(2)}
               </p>

@@ -132,7 +132,11 @@ function StepIndicator({
             <Loader2
               className={cn(
                 "w-4 h-4 animate-spin",
-                color === "text-[#FF5800]" ? "text-[#FF5800]" : color === "text-cyan-400" ? "text-cyan-400" : "text-violet-400"
+                color === "text-[#FF5800]"
+                  ? "text-[#FF5800]"
+                  : color === "text-cyan-400"
+                    ? "text-cyan-400"
+                    : "text-violet-400",
               )}
             />
           ) : (
@@ -195,7 +199,9 @@ function StepIndicator({
           </div>
         )}
         {isComplete && (
-          <span className="text-xs text-emerald-400/60 flex-shrink-0 ml-3">Done</span>
+          <span className="text-xs text-emerald-400/60 flex-shrink-0 ml-3">
+            Done
+          </span>
         )}
       </div>
     </div>

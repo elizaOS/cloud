@@ -119,7 +119,7 @@ export async function POST(
         fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
       }
     }
-    
+
     const result = await sandbox.runCommand({
       cmd: "sh",
       args: ["-c", fullCommand],
@@ -206,7 +206,9 @@ export async function GET(
           // Handle cwd if specified
           let fullCommand = command;
           if (cwd && cwd !== "~" && cwd !== "/app" && cwd !== ".") {
-            const targetDir = cwd.startsWith("/") ? cwd : cwd.replace(/^~\/?/, "");
+            const targetDir = cwd.startsWith("/")
+              ? cwd
+              : cwd.replace(/^~\/?/, "");
             if (targetDir && targetDir !== ".") {
               fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
             }
@@ -275,8 +277,10 @@ export async function GET(
     });
   } catch (error) {
     logger.error("Terminal stream failed", { error });
-    const message =
-      error instanceof Error ? error.message : "Stream failed";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Stream failed";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 },
+    );
   }
 }

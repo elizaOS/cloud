@@ -55,7 +55,9 @@ export function EndpointCard({
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-neutral-500">{getCategoryIcon(endpoint.category)}</span>
+            <span className="text-neutral-500">
+              {getCategoryIcon(endpoint.category)}
+            </span>
             <h3 className="text-sm font-semibold text-white group-hover:text-[#FF5800] transition-colors pr-16">
               {endpoint.name}
             </h3>
@@ -67,7 +69,12 @@ export function EndpointCard({
 
         {/* Method and path */}
         <div className="flex items-center gap-2">
-          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", getMethodColor(endpoint.method))}>
+          <span
+            className={cn(
+              "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+              getMethodColor(endpoint.method),
+            )}
+          >
             {endpoint.method}
           </span>
           <code className="flex-1 text-xs font-mono text-neutral-400 truncate">
@@ -79,13 +86,20 @@ export function EndpointCard({
         <div className="flex items-center justify-between pt-2 border-t border-white/5">
           {/* Pricing */}
           {endpoint.pricing ? (
-            <div className={cn("flex items-center gap-1.5 text-xs", getPricingTextStyle(endpoint.pricing))}>
+            <div
+              className={cn(
+                "flex items-center gap-1.5 text-xs",
+                getPricingTextStyle(endpoint.pricing),
+              )}
+            >
               {endpoint.pricing.isFree ? (
                 <Sparkles className="h-3 w-3" />
               ) : (
                 <Coins className="h-3 w-3" />
               )}
-              <span className="font-medium">{formatPrice(endpoint.pricing)}</span>
+              <span className="font-medium">
+                {formatPrice(endpoint.pricing)}
+              </span>
               {!endpoint.pricing.isFree && (
                 <span className="opacity-60">/{endpoint.pricing.unit}</span>
               )}
@@ -97,7 +111,9 @@ export function EndpointCard({
           {/* Tags and deprecated badge */}
           <div className="flex items-center gap-2">
             {endpoint.deprecated && (
-              <span className="text-[10px] text-rose-400 font-medium">Deprecated</span>
+              <span className="text-[10px] text-rose-400 font-medium">
+                Deprecated
+              </span>
             )}
             {endpoint.tags.length > 0 && (
               <div className="flex gap-1">

@@ -257,16 +257,19 @@ export function AppDomains({ appId }: AppDomainsProps) {
                 Connect custom domains to your app
               </p>
             </div>
-            {primaryDomain && !hasCustomDomain && !showAddForm && !isLoading && (
-              <Button
-                onClick={() => setShowAddForm(true)}
-                size="sm"
-                className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white rounded-lg"
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                Add Domain
-              </Button>
-            )}
+            {primaryDomain &&
+              !hasCustomDomain &&
+              !showAddForm &&
+              !isLoading && (
+                <Button
+                  onClick={() => setShowAddForm(true)}
+                  size="sm"
+                  className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white rounded-lg"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Add Domain
+                </Button>
+              )}
           </div>
 
           {/* Loading State */}
@@ -294,7 +297,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
                       Development URL
                     </p>
                     <p className="text-xs text-blue-300/70 mt-0.5">
-                      Deploy your app to get a permanent subdomain and add custom domains.
+                      Deploy your app to get a permanent subdomain and add
+                      custom domains.
                     </p>
                   </div>
                 </div>
@@ -306,9 +310,12 @@ export function AppDomains({ appId }: AppDomainsProps) {
               <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
                 <AlertTriangle className="h-6 w-6 text-amber-400" />
               </div>
-              <h4 className="text-sm font-medium text-white mb-1">No App Deployed</h4>
+              <h4 className="text-sm font-medium text-white mb-1">
+                No App Deployed
+              </h4>
               <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                Deploy your app first to get a subdomain. Once deployed, you can add custom domains here.
+                Deploy your app first to get a subdomain. Once deployed, you can
+                add custom domains here.
               </p>
             </div>
           ) : (
@@ -331,10 +338,16 @@ export function AppDomains({ appId }: AppDomainsProps) {
                   domain={primaryDomain.customDomain}
                   url={primaryDomain.customDomainUrl}
                   type="custom"
-                  status={primaryDomain.customDomainVerified ? "verified" : "pending"}
+                  status={
+                    primaryDomain.customDomainVerified ? "verified" : "pending"
+                  }
                   sslStatus={primaryDomain.sslStatus}
-                  onRefresh={() => checkDomainStatus(primaryDomain.customDomain!)}
-                  onRemove={() => handleRemoveDomain(primaryDomain.customDomain!)}
+                  onRefresh={() =>
+                    checkDomainStatus(primaryDomain.customDomain!)
+                  }
+                  onRemove={() =>
+                    handleRemoveDomain(primaryDomain.customDomain!)
+                  }
                   isChecking={isChecking}
                   isRemoving={isRemoving}
                   copyToClipboard={copyToClipboard}
@@ -352,7 +365,9 @@ export function AppDomains({ appId }: AppDomainsProps) {
                     transition={{ duration: 0.2 }}
                   >
                     <div className="p-6 rounded-lg border border-white/5 bg-black/20">
-                      <h4 className="text-sm font-medium text-white mb-1">Add Custom Domain</h4>
+                      <h4 className="text-sm font-medium text-white mb-1">
+                        Add Custom Domain
+                      </h4>
                       <p className="text-xs text-neutral-500 mb-4">
                         Enter your domain name below
                       </p>
@@ -410,9 +425,12 @@ export function AppDomains({ appId }: AppDomainsProps) {
               {/* Empty Custom Domain State */}
               {primaryDomain && !hasCustomDomain && !showAddForm && (
                 <div className="p-6 rounded-lg border border-white/5 bg-black/20 text-center">
-                  <h4 className="text-sm font-medium text-white">Use Your Own Domain</h4>
+                  <h4 className="text-sm font-medium text-white">
+                    Use Your Own Domain
+                  </h4>
                   <p className="text-xs text-neutral-500 max-w-xs mx-auto mt-2">
-                    Connect a custom domain to make your app accessible at your own branded URL
+                    Connect a custom domain to make your app accessible at your
+                    own branded URL
                   </p>
                 </div>
               )}
@@ -431,7 +449,9 @@ export function AppDomains({ appId }: AppDomainsProps) {
               <DnsConfigPanel
                 domain={primaryDomain?.customDomain || ""}
                 domainStatus={domainStatus}
-                onRefresh={() => checkDomainStatus(primaryDomain?.customDomain || "")}
+                onRefresh={() =>
+                  checkDomainStatus(primaryDomain?.customDomain || "")
+                }
                 isChecking={isChecking}
                 lastChecked={lastChecked}
                 copyToClipboard={copyToClipboard}
@@ -443,22 +463,30 @@ export function AppDomains({ appId }: AppDomainsProps) {
 
         {/* Quick Reference */}
         <div className="bg-neutral-900 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-white mb-4">Quick DNS Reference</h3>
+          <h3 className="text-sm font-medium text-white mb-4">
+            Quick DNS Reference
+          </h3>
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between p-4 rounded-lg bg-black/40">
               <div>
                 <p className="text-sm font-medium text-white">Subdomains</p>
-                <p className="text-xs text-neutral-500 font-mono mt-1">app.example.com</p>
+                <p className="text-xs text-neutral-500 font-mono mt-1">
+                  app.example.com
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-white font-mono">CNAME</p>
-                <p className="text-xs text-white font-mono mt-1">cname.vercel-dns.com</p>
+                <p className="text-xs text-white font-mono mt-1">
+                  cname.vercel-dns.com
+                </p>
               </div>
             </div>
             <div className="flex items-center justify-between p-4 rounded-lg bg-black/40">
               <div>
                 <p className="text-sm font-medium text-white">Root Domains</p>
-                <p className="text-xs text-neutral-500 font-mono mt-1">example.com</p>
+                <p className="text-xs text-neutral-500 font-mono mt-1">
+                  example.com
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-white font-mono">A</p>
@@ -507,16 +535,19 @@ function DomainCard({
     <div
       className={`
         rounded-lg border p-3
-        ${isVerified
-          ? "bg-black/30 border-white/10"
-          : "bg-amber-500/5 border-amber-500/20"
+        ${
+          isVerified
+            ? "bg-black/30 border-white/10"
+            : "bg-amber-500/5 border-amber-500/20"
         }
       `}
     >
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm text-white truncate">{domain}</span>
+            <span className="font-mono text-sm text-white truncate">
+              {domain}
+            </span>
             <DomainStatusBadge status={status} sslStatus={sslStatus} />
             {type === "subdomain" && (
               <span className="text-[10px] text-neutral-500 uppercase tracking-wider">
@@ -554,7 +585,12 @@ function DomainCard({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="bg-neutral-800 text-white border-white/10">Copy URL</TooltipContent>
+            <TooltipContent
+              side="bottom"
+              className="bg-neutral-800 text-white border-white/10"
+            >
+              Copy URL
+            </TooltipContent>
           </Tooltip>
 
           {isVerified && url && (
@@ -569,7 +605,12 @@ function DomainCard({
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-neutral-800 text-white border-white/10">Open in new tab</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                className="bg-neutral-800 text-white border-white/10"
+              >
+                Open in new tab
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -583,10 +624,17 @@ function DomainCard({
                   disabled={isChecking}
                   className="h-8 w-8 p-0 text-neutral-400 hover:text-white hover:bg-white/10"
                 >
-                  <RefreshCw className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 ${isChecking ? "animate-spin" : ""}`}
+                  />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-neutral-800 text-white border-white/10">Check DNS status</TooltipContent>
+              <TooltipContent
+                side="bottom"
+                className="bg-neutral-800 text-white border-white/10"
+              >
+                Check DNS status
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -609,7 +657,12 @@ function DomainCard({
                     </Button>
                   </AlertDialogTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-neutral-800 text-white border-white/10">Remove domain</TooltipContent>
+                <TooltipContent
+                  side="bottom"
+                  className="bg-neutral-800 text-white border-white/10"
+                >
+                  Remove domain
+                </TooltipContent>
               </Tooltip>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -619,7 +672,8 @@ function DomainCard({
                     <code className="px-1.5 py-0.5 bg-white/10 rounded font-mono text-white">
                       {domain}
                     </code>
-                    ? Users will no longer be able to access your app via this domain.
+                    ? Users will no longer be able to access your app via this
+                    domain.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -640,7 +694,13 @@ function DomainCard({
   );
 }
 
-function DomainStatusBadge({ status, sslStatus }: { status: string; sslStatus: string }) {
+function DomainStatusBadge({
+  status,
+  sslStatus,
+}: {
+  status: string;
+  sslStatus: string;
+}) {
   if (status === "verified" && sslStatus === "active") {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
@@ -693,10 +753,15 @@ function DnsConfigPanel({
   const dnsRecords: DnsInstruction[] = domainStatus?.dnsInstructions || [
     isApex
       ? { type: "A", name: "@", value: "76.76.21.21" }
-      : { type: "CNAME", name: domain.split(".")[0], value: "cname.vercel-dns.com" },
+      : {
+          type: "CNAME",
+          name: domain.split(".")[0],
+          value: "cname.vercel-dns.com",
+        },
   ];
 
-  const txtRecords = domainStatus?.records?.filter((r) => r.type === "TXT") || [];
+  const txtRecords =
+    domainStatus?.records?.filter((r) => r.type === "TXT") || [];
 
   return (
     <div className="bg-neutral-900 rounded-xl p-4 space-y-4">
@@ -706,7 +771,9 @@ function DnsConfigPanel({
           <Zap className="h-4 w-4 text-amber-400" />
           <div>
             <h3 className="text-sm font-medium text-white">Configure DNS</h3>
-            <p className="text-xs text-neutral-500">Add these records at your DNS provider</p>
+            <p className="text-xs text-neutral-500">
+              Add these records at your DNS provider
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -746,24 +813,36 @@ function DnsConfigPanel({
           <>
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-emerald-300 font-medium">DNS Verified</p>
-              <p className="text-xs text-emerald-300/70">SSL certificate is being provisioned</p>
+              <p className="text-xs text-emerald-300 font-medium">
+                DNS Verified
+              </p>
+              <p className="text-xs text-emerald-300/70">
+                SSL certificate is being provisioned
+              </p>
             </div>
           </>
         ) : currentStatus === "invalid" ? (
           <>
             <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-red-300 font-medium">DNS Configuration Issue</p>
-              <p className="text-xs text-red-300/70">Please check your records match exactly</p>
+              <p className="text-xs text-red-300 font-medium">
+                DNS Configuration Issue
+              </p>
+              <p className="text-xs text-red-300/70">
+                Please check your records match exactly
+              </p>
             </div>
           </>
         ) : (
           <>
             <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-amber-300 font-medium">Waiting for DNS Propagation</p>
-              <p className="text-xs text-amber-300/70">This may take a few minutes</p>
+              <p className="text-xs text-amber-300 font-medium">
+                Waiting for DNS Propagation
+              </p>
+              <p className="text-xs text-amber-300/70">
+                This may take a few minutes
+              </p>
             </div>
           </>
         )}
@@ -830,11 +909,18 @@ function DnsRecordRow({
     <div className="group bg-black/30 rounded-lg border border-white/5 p-3">
       {/* Desktop */}
       <div className="hidden sm:flex items-center gap-3">
-        <Badge variant="outline" className="font-mono text-[10px] border-white/20 text-neutral-400 bg-white/5">
+        <Badge
+          variant="outline"
+          className="font-mono text-[10px] border-white/20 text-neutral-400 bg-white/5"
+        >
           {type}
         </Badge>
-        <span className="font-mono text-xs text-white flex-1 truncate">{name}</span>
-        <span className="font-mono text-xs text-neutral-500 flex-1 truncate">{value}</span>
+        <span className="font-mono text-xs text-white flex-1 truncate">
+          {name}
+        </span>
+        <span className="font-mono text-xs text-neutral-500 flex-1 truncate">
+          {value}
+        </span>
         <Button
           variant="ghost"
           size="sm"
@@ -852,7 +938,10 @@ function DnsRecordRow({
       {/* Mobile */}
       <div className="sm:hidden space-y-2">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="font-mono text-[10px] border-white/20 text-neutral-400 bg-white/5">
+          <Badge
+            variant="outline"
+            className="font-mono text-[10px] border-white/20 text-neutral-400 bg-white/5"
+          >
             {type}
           </Badge>
           <Button
@@ -875,12 +964,15 @@ function DnsRecordRow({
             <p className="font-mono text-xs text-white break-all">{name}</p>
           </div>
           <div>
-            <p className="text-[10px] text-neutral-500 mb-0.5">Value / Target</p>
-            <p className="font-mono text-xs text-neutral-400 break-all">{value}</p>
+            <p className="text-[10px] text-neutral-500 mb-0.5">
+              Value / Target
+            </p>
+            <p className="font-mono text-xs text-neutral-400 break-all">
+              {value}
+            </p>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

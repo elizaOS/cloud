@@ -205,9 +205,7 @@ function AuthorizeContent() {
                 <h3 className="text-lg font-semibold text-white">
                   Authorization Error
                 </h3>
-                <p className="text-sm text-neutral-500 max-w-xs">
-                  {error}
-                </p>
+                <p className="text-sm text-neutral-500 max-w-xs">{error}</p>
               </div>
               <button
                 onClick={() => router.push("/")}
@@ -335,7 +333,8 @@ function AuthorizeContent() {
 
             {/* Footer */}
             <p className="text-center text-xs text-neutral-600 pt-2 border-t border-white/10">
-              By continuing, you agree to share your account information with this app.
+              By continuing, you agree to share your account information with
+              this app.
             </p>
           </div>
         </div>

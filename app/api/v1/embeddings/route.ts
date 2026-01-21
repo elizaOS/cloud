@@ -19,7 +19,11 @@ import {
   InsufficientCreditsError,
 } from "@/lib/services/ai-billing";
 import { creditsService } from "@/lib/services/credits";
-import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  estimateTokens,
+  getProviderFromModel,
+  normalizeModelName,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
@@ -46,37 +50,49 @@ async function handlePOST(req: NextRequest) {
 
     // Validate input
     if (!request.model || !request.input) {
-      return Response.json({
-        error: {
-          message: "Missing required fields: model and input",
-          type: "invalid_request_error",
-          param: !request.model ? "model" : "input",
-          code: "missing_required_parameter",
+      return Response.json(
+        {
+          error: {
+            message: "Missing required fields: model and input",
+            type: "invalid_request_error",
+            param: !request.model ? "model" : "input",
+            code: "missing_required_parameter",
+          },
         },
-      }, { status: 400 });
+        { status: 400 },
+      );
     }
 
     // Validate input is not empty
     if (Array.isArray(request.input) && request.input.length === 0) {
-      return Response.json({
-        error: {
-          message: "input array cannot be empty",
-          type: "invalid_request_error",
-          param: "input",
-          code: "invalid_value",
+      return Response.json(
+        {
+          error: {
+            message: "input array cannot be empty",
+            type: "invalid_request_error",
+            param: "input",
+            code: "invalid_value",
+          },
         },
-      }, { status: 400 });
+        { status: 400 },
+      );
     }
 
-    if (typeof request.input === "string" && request.input.trim().length === 0) {
-      return Response.json({
-        error: {
-          message: "input string cannot be empty",
-          type: "invalid_request_error",
-          param: "input",
-          code: "invalid_value",
+    if (
+      typeof request.input === "string" &&
+      request.input.trim().length === 0
+    ) {
+      return Response.json(
+        {
+          error: {
+            message: "input string cannot be empty",
+            type: "invalid_request_error",
+            param: "input",
+            code: "invalid_value",
+          },
         },
-      }, { status: 400 });
+        { status: 400 },
+      );
     }
 
     const model = request.model;
@@ -93,19 +109,27 @@ async function handlePOST(req: NextRequest) {
     let reservation;
     try {
       reservation = await reserveCredits(
-        { organizationId: user.organization_id!, userId: user.id, model, provider },
+        {
+          organizationId: user.organization_id!,
+          userId: user.id,
+          model,
+          provider,
+        },
         estimatedInputTokens,
         0, // embeddings don't have output tokens
       );
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
-        return Response.json({
-          error: {
-            message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
+        return Response.json(
+          {
+            error: {
+              message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
+              type: "insufficient_quota",
+              code: "insufficient_balance",
+            },
           },
-        }, { status: 402 });
+          { status: 402 },
+        );
       }
       throw error;
     }
@@ -141,7 +165,13 @@ async function handlePOST(req: NextRequest) {
 
     // Bill using actual usage from SDK response
     const billing = await billUsage(
-      { organizationId: user.organization_id!, userId: user.id, apiKeyId: apiKey?.id, model, provider },
+      {
+        organizationId: user.organization_id!,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider,
+      },
       { inputTokens: actualTokens, outputTokens: 0 },
       reservation,
     );
@@ -153,21 +183,25 @@ async function handlePOST(req: NextRequest) {
     });
 
     // Record usage (non-blocking)
-    usageService.create({
-      organization_id: user.organization_id!,
-      user_id: user.id,
-      api_key_id: apiKey?.id || null,
-      type: "embeddings",
-      model: normalizedModel,
-      provider,
-      input_tokens: actualTokens,
-      output_tokens: 0,
-      input_cost: String(billing.inputCost),
-      output_cost: String(0),
-      is_successful: true,
-    }).catch((err) => {
-      logger.error("[Embeddings] Failed to record usage", { error: err.message });
-    });
+    usageService
+      .create({
+        organization_id: user.organization_id!,
+        user_id: user.id,
+        api_key_id: apiKey?.id || null,
+        type: "embeddings",
+        model: normalizedModel,
+        provider,
+        input_tokens: actualTokens,
+        output_tokens: 0,
+        input_cost: String(billing.inputCost),
+        output_cost: String(0),
+        is_successful: true,
+      })
+      .catch((err) => {
+        logger.error("[Embeddings] Failed to record usage", {
+          error: err.message,
+        });
+      });
 
     // Return OpenAI-compatible response
     return Response.json({
@@ -184,13 +218,19 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error("[Embeddings] Error", { error: error instanceof Error ? error.message : String(error) });
-    return Response.json({
-      error: {
-        message: error instanceof Error ? error.message : "Internal server error",
-        type: "api_error",
+    logger.error("[Embeddings] Error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return Response.json(
+      {
+        error: {
+          message:
+            error instanceof Error ? error.message : "Internal server error",
+          type: "api_error",
+        },
       },
-    }, { status: 500 });
+      { status: 500 },
+    );
   }
 }
 

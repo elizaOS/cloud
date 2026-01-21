@@ -50,8 +50,12 @@ export function CharacterForm({
   const [isTogglingShare, setIsTogglingShare] = useState(false);
 
   // Draft states for comma-separated fields (only parse on blur)
-  const [adjectivesDraft, setAdjectivesDraft] = useState(character.adjectives?.join(", ") || "");
-  const [topicsDraft, setTopicsDraft] = useState(character.topics?.join(", ") || "");
+  const [adjectivesDraft, setAdjectivesDraft] = useState(
+    character.adjectives?.join(", ") || "",
+  );
+  const [topicsDraft, setTopicsDraft] = useState(
+    character.topics?.join(", ") || "",
+  );
 
   // Focus tracking to prevent overwrites while user is editing
   const [isAdjectivesEditing, setIsAdjectivesEditing] = useState(false);

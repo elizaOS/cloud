@@ -123,13 +123,14 @@ function AppCard({ app }: { app: App }) {
         {/* Header */}
         <div className="p-4 pb-3">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-white truncate">
-              {app.name}
-            </h3>
-            <Badge className={app.is_active
-              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
-              : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
-            }>
+            <h3 className="font-semibold text-white truncate">{app.name}</h3>
+            <Badge
+              className={
+                app.is_active
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
+                  : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30 text-[10px] px-1.5 py-0 shrink-0 ml-2"
+              }
+            >
               {app.is_active ? "Active" : "Inactive"}
             </Badge>
           </div>
@@ -152,7 +153,12 @@ function AppCard({ app }: { app: App }) {
               </div>
             </div>
             <span className="text-white/30">
-              Updated {formatDistanceToNow(new Date(app.updated_at)).replace('about ', '')} ago
+              Updated{" "}
+              {formatDistanceToNow(new Date(app.updated_at)).replace(
+                "about ",
+                "",
+              )}{" "}
+              ago
             </span>
           </div>
         </div>

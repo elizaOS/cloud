@@ -395,7 +395,9 @@ export function QuickCreateDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TypeIcon className={cn("h-5 w-5", typeConfig?.color)} />
-              {selectedType === "service" ? "Service Configuration" : `${typeConfig?.label} Name`}
+              {selectedType === "service"
+                ? "Service Configuration"
+                : `${typeConfig?.label} Name`}
             </DialogTitle>
           </DialogHeader>
 
@@ -512,7 +514,12 @@ export function QuickCreateDialog({
           </div>
 
           <DialogFooter className="flex justify-between">
-            <Button type="button" variant="ghost" onClick={handleBack} className="rounded-xl">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleBack}
+              className="rounded-xl"
+            >
               {defaultType ? "Cancel" : "Back"}
             </Button>
             <Button
@@ -563,7 +570,6 @@ export function QuickCreateDialog({
             );
           })}
         </div>
-
       </DialogContent>
     </Dialog>
   );

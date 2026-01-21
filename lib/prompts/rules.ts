@@ -1,6 +1,6 @@
 /**
  * Build Rules
- * 
+ *
  * Critical rules for building apps that work.
  * Focused on preventing common errors.
  */

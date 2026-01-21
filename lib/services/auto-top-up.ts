@@ -174,18 +174,24 @@ export class AutoTopUpService {
     let trackingId = `org:${organizationId}`;
     try {
       const users = await usersRepository.listByOrganization(organizationId);
-      const billingUser = org.billing_email 
-        ? users.find(u => u.email === org.billing_email) 
+      const billingUser = org.billing_email
+        ? users.find((u) => u.email === org.billing_email)
         : null;
       const userId = billingUser?.id || (users.length > 0 ? users[0].id : null);
       trackingId = userId || `org:${organizationId}`;
     } catch (userLookupError) {
-      logger.warn(`[AutoTopUp] Failed to fetch users for analytics, using org ID`, {
-        organizationId,
-        error: userLookupError instanceof Error ? userLookupError.message : "Unknown error",
-      });
+      logger.warn(
+        `[AutoTopUp] Failed to fetch users for analytics, using org ID`,
+        {
+          organizationId,
+          error:
+            userLookupError instanceof Error
+              ? userLookupError.message
+              : "Unknown error",
+        },
+      );
     }
-    
+
     const currentBalance = Number(org.credit_balance);
     const threshold = Number(org.auto_top_up_threshold);
     const topUpAmount = Number(org.auto_top_up_amount || 0);

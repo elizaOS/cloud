@@ -165,7 +165,7 @@ function FlowNode({
         highlight
           ? "border-[#FF5800]/30 animate-glow-pulse"
           : "border-white/10",
-        bgColor
+        bgColor,
       )}
     >
       <div className={cn(color)}>{icon}</div>
@@ -188,13 +188,13 @@ function FlowArrow({ label, highlight }: FlowArrowProps) {
       <ArrowRight
         className={cn(
           "h-4 w-4",
-          highlight ? "text-[#FF5800]" : "text-white/30"
+          highlight ? "text-[#FF5800]" : "text-white/30",
         )}
       />
       <span
         className={cn(
           "text-[10px] font-mono",
-          highlight ? "text-[#FF5800]" : "text-white/40"
+          highlight ? "text-[#FF5800]" : "text-white/40",
         )}
       >
         {label}
@@ -226,7 +226,7 @@ function FlowNodeMobile({
         "flex items-center justify-between p-3 rounded-lg border",
         highlight
           ? "border-[#FF5800]/30 bg-[#FF5800]/10"
-          : "border-white/10 bg-white/5"
+          : "border-white/10 bg-white/5",
       )}
     >
       <div className="flex items-center gap-2">

@@ -41,12 +41,12 @@ import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
 const OpenApiViewer = dynamic(
   () =>
     import("@/components/api-explorer/openapi-viewer").then(
-      (mod) => mod.OpenApiViewer
+      (mod) => mod.OpenApiViewer,
     ),
   {
     ssr: false,
     loading: () => <MonacoEditorSkeleton height="600px" />,
-  }
+  },
 );
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ export default function ApiExplorerPage() {
 
   const [activeTab, setActiveTab] = useState<TabValue>("endpoints");
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null
+    null,
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -88,7 +88,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
       );
       setOpenApiSpec(spec);
     } catch {
@@ -208,7 +208,7 @@ export default function ApiExplorerPage() {
               "px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
               activeTab === tab.value
                 ? "bg-white/10 text-white"
-                : "text-neutral-400 hover:text-white"
+                : "text-neutral-400 hover:text-white",
             )}
           >
             {tab.label}
@@ -234,7 +234,7 @@ export default function ApiExplorerPage() {
                   <div
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                      getPricingStyle(selectedEndpoint.pricing)
+                      getPricingStyle(selectedEndpoint.pricing),
                     )}
                   >
                     {getPricingIcon(selectedEndpoint.pricing)}
@@ -249,7 +249,7 @@ export default function ApiExplorerPage() {
                 <span
                   className={cn(
                     "px-2.5 py-1 rounded-md text-xs font-bold uppercase",
-                    getMethodColor(selectedEndpoint.method)
+                    getMethodColor(selectedEndpoint.method),
                   )}
                 >
                   {selectedEndpoint.method}
@@ -318,7 +318,7 @@ export default function ApiExplorerPage() {
                       "h-7 sm:h-9 flex items-center gap-1 sm:gap-2 px-2 sm:px-3 text-[11px] sm:text-xs font-medium rounded-md sm:rounded-lg border transition-colors",
                       selectedCategory === category
                         ? "bg-[#FF5800]/10 text-[#FF5800] border-[#FF5800]/30"
-                        : "bg-neutral-900/50 text-neutral-400 border-white/5 hover:text-white hover:border-white/10"
+                        : "bg-neutral-900/50 text-neutral-400 border-white/5 hover:text-white hover:border-white/10",
                     )}
                   >
                     <span>{category}</span>
@@ -327,7 +327,7 @@ export default function ApiExplorerPage() {
                         "text-[11px] sm:text-xs font-semibold",
                         selectedCategory === category
                           ? "text-[#FF5800]"
-                          : "text-neutral-500"
+                          : "text-neutral-500",
                       )}
                     >
                       {count}

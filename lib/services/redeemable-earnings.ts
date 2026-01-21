@@ -252,7 +252,14 @@ class RedeemableEarningsService {
     ledgerEntryId: string;
     error?: string;
   }> {
-    const { userId, amount, source, sourceId, description, metadata = {} } = params;
+    const {
+      userId,
+      amount,
+      source,
+      sourceId,
+      description,
+      metadata = {},
+    } = params;
 
     if (amount <= 0) {
       return {
@@ -326,11 +333,14 @@ class RedeemableEarningsService {
     });
 
     if (result.skipped) {
-      logger.info("[RedeemableEarnings] No earnings to reduce (user has no record)", {
-        userId: `${userId.slice(0, 8)}...`,
-        amount,
-        source,
-      });
+      logger.info(
+        "[RedeemableEarnings] No earnings to reduce (user has no record)",
+        {
+          userId: `${userId.slice(0, 8)}...`,
+          amount,
+          source,
+        },
+      );
 
       return {
         success: true,

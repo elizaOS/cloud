@@ -203,7 +203,7 @@ export function ChatSidebar({
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
     const character = availableCharacters.find(
-      (c) => c.id === selectedCharacterId
+      (c) => c.id === selectedCharacterId,
     );
     // Use username if available, otherwise fall back to character ID
     const shareUrl = character?.username
@@ -348,7 +348,9 @@ export function ChatSidebar({
               href="/dashboard"
               className="flex items-center gap-2 hover:opacity-80 relative z-10"
             >
-              <ElizaLogo className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`} />
+              <ElizaLogo
+                className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`}
+              />
             </Link>
           )}
           {/* Collapse Toggle Button (Desktop) */}
@@ -475,11 +477,13 @@ export function ChatSidebar({
                   {selectedCharacter?.name || "Create New Agent"}
                 </div>
                 {/* Creator attribution for non-owners */}
-                {selectedCharacter && !isOwner && selectedCharacter.creatorUsername && (
-                  <span className="text-[10px] text-white/40 truncate">
-                    by @{selectedCharacter.creatorUsername}
-                  </span>
-                )}
+                {selectedCharacter &&
+                  !isOwner &&
+                  selectedCharacter.creatorUsername && (
+                    <span className="text-[10px] text-white/40 truncate">
+                      by @{selectedCharacter.creatorUsername}
+                    </span>
+                  )}
               </div>
               {/* Settings Dropdown - Owner only */}
               {selectedCharacter && isOwner && (

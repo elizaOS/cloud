@@ -90,7 +90,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
                 "flex items-center justify-center gap-1.5 px-2 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
                 activeTab === tab.value
                   ? "bg-white/10 text-white"
-                  : "text-neutral-400 hover:text-white"
+                  : "text-neutral-400 hover:text-white",
               )}
             >
               <Icon className="h-4 w-4 hidden sm:block" />

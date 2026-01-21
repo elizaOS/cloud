@@ -59,7 +59,10 @@ function getCacheKey(sessionId: string, path?: string): string {
   return path ? `${sessionId}:${path}` : sessionId;
 }
 
-function isValidCache<T>(entry: CacheEntry<T> | undefined, ttlMs: number): entry is CacheEntry<T> {
+function isValidCache<T>(
+  entry: CacheEntry<T> | undefined,
+  ttlMs: number,
+): entry is CacheEntry<T> {
   if (!entry) return false;
   return Date.now() - entry.timestamp < ttlMs;
 }
@@ -87,7 +90,11 @@ function getFileFromCache(sessionId: string, path: string): string | null {
   return null;
 }
 
-function setFileInCache(sessionId: string, path: string, content: string): void {
+function setFileInCache(
+  sessionId: string,
+  path: string,
+  content: string,
+): void {
   const key = getCacheKey(sessionId, path);
   globalFileCache.files.set(key, { data: content, timestamp: Date.now() });
 }
@@ -176,51 +183,54 @@ export function SandboxFileExplorer({
   );
 
   // Fetch file tree with caching
-  const fetchFileTree = useCallback(async (forceRefresh = false) => {
-    // Check cache first (unless forced refresh)
-    if (!forceRefresh) {
-      const cachedTree = getTreeFromCache(sessionId);
-      if (cachedTree) {
-        setTree(cachedTree);
-        setLoading(false);
-        // Auto-expand src directory for cached data too
-        setExpandedDirs((prev) => {
-          const next = new Set(prev);
-          next.add("./src");
-          next.add("./src/app");
-          return next;
-        });
-        return;
+  const fetchFileTree = useCallback(
+    async (forceRefresh = false) => {
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        const cachedTree = getTreeFromCache(sessionId);
+        if (cachedTree) {
+          setTree(cachedTree);
+          setLoading(false);
+          // Auto-expand src directory for cached data too
+          setExpandedDirs((prev) => {
+            const next = new Set(prev);
+            next.add("./src");
+            next.add("./src/app");
+            return next;
+          });
+          return;
+        }
       }
-    }
 
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/v1/app-builder/sessions/${sessionId}/files?path=.`,
-        { credentials: "include" },
-      );
-      const data = await res.json();
-      if (data.success) {
-        const treeData = data.tree || [];
-        setTree(treeData);
-        // Cache the tree data
-        setTreeInCache(sessionId, treeData);
-        // Auto-expand src directory
-        setExpandedDirs((prev) => {
-          const next = new Set(prev);
-          next.add("./src");
-          next.add("./src/app");
-          return next;
-        });
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/v1/app-builder/sessions/${sessionId}/files?path=.`,
+          { credentials: "include" },
+        );
+        const data = await res.json();
+        if (data.success) {
+          const treeData = data.tree || [];
+          setTree(treeData);
+          // Cache the tree data
+          setTreeInCache(sessionId, treeData);
+          // Auto-expand src directory
+          setExpandedDirs((prev) => {
+            const next = new Set(prev);
+            next.add("./src");
+            next.add("./src/app");
+            return next;
+          });
+        }
+      } catch (error) {
+        console.warn("[SandboxFileExplorer] Failed to fetch file tree:", error);
+        toast.error("Failed to load files");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.warn("[SandboxFileExplorer] Failed to fetch file tree:", error);
-      toast.error("Failed to load files");
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId]);
+    },
+    [sessionId],
+  );
 
   useEffect(() => {
     fetchFileTree();
@@ -266,7 +276,7 @@ export function SandboxFileExplorer({
       if (data.success) {
         // Cache the file content
         setFileInCache(sessionId, path, data.content);
-        
+
         const newFile: OpenFile = {
           path,
           content: data.content,
@@ -328,7 +338,7 @@ export function SandboxFileExplorer({
       if (data.success) {
         // Update cache with new content
         setFileInCache(sessionId, path, file.content);
-        
+
         setOpenFiles((prev) =>
           prev.map((f) =>
             f.path === path ? { ...f, originalContent: f.content } : f,

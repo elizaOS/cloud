@@ -33,18 +33,18 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
 
 ### Parameters
 
-| Parameter     | Type   | Required | Description                               |
-| ------------- | ------ | -------- | ----------------------------------------- |
-| `files`       | file[] | ✓        | One or more files to upload (max 10)      |
-| `characterId` | string |          | Associate with a specific agent           |
+| Parameter     | Type   | Required | Description                          |
+| ------------- | ------ | -------- | ------------------------------------ |
+| `files`       | file[] | ✓        | One or more files to upload (max 10) |
+| `characterId` | string |          | Associate with a specific agent      |
 
 ### Upload Limits
 
-| Limit                | Value                          |
-| -------------------- | ------------------------------ |
-| Max file size        | 5 MB per file                  |
-| Max files per batch  | 10 files                       |
-| Max total batch size | 10 MB                          |
+| Limit                | Value         |
+| -------------------- | ------------- |
+| Max file size        | 5 MB per file |
+| Max files per batch  | 10 files      |
+| Max total batch size | 10 MB         |
 
 ### Supported Formats
 

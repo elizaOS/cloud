@@ -373,10 +373,13 @@ Return ONLY valid JSON, no markdown.`;
             metadata: { appId, type: "content_generation_refund" },
           });
           result.totalCreditsUsed -= PROMOTION_COSTS.contentGeneration;
-          logger.error("[AppPromotion] Content generation failed, credits refunded", {
-            appId,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
+          logger.error(
+            "[AppPromotion] Content generation failed, credits refunded",
+            {
+              appId,
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          );
           result.errors.push("Content generation failed - credits refunded");
         }
       }
@@ -745,10 +748,13 @@ Return ONLY valid JSON, no markdown.`;
     try {
       // If useExisting is true, just post using existing automation config
       if (config.useExisting) {
-        logger.info("[AppPromotion] Using existing Telegram automation, posting only", {
-          appId: app.id,
-          organizationId,
-        });
+        logger.info(
+          "[AppPromotion] Using existing Telegram automation, posting only",
+          {
+            appId: app.id,
+            organizationId,
+          },
+        );
 
         const postResult = await telegramAppAutomationService.postAnnouncement(
           organizationId,
@@ -845,10 +851,13 @@ Return ONLY valid JSON, no markdown.`;
     try {
       // If useExisting is true, just post using existing automation config
       if (config.useExisting) {
-        logger.info("[AppPromotion] Using existing Discord automation, posting only", {
-          appId: app.id,
-          organizationId,
-        });
+        logger.info(
+          "[AppPromotion] Using existing Discord automation, posting only",
+          {
+            appId: app.id,
+            organizationId,
+          },
+        );
 
         const postResult = await discordAppAutomationService.postAnnouncement(
           organizationId,

@@ -41,7 +41,7 @@ export function DeployFromCLI() {
       <div
         className={cn(
           "overflow-hidden transition-all duration-200",
-          isExpanded ? "max-h-40" : "max-h-0"
+          isExpanded ? "max-h-40" : "max-h-0",
         )}
       >
         <div className="px-4 pb-4">

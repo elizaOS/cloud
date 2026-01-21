@@ -130,7 +130,9 @@ async function processContainerBilling(
     new Date(container.scheduled_shutdown_at) <= now
   ) {
     // Time to shut down the container
-    logger.info(`[Container Billing] Shutting down container ${containerName} due to insufficient credits`);
+    logger.info(
+      `[Container Billing] Shutting down container ${containerName} due to insufficient credits`,
+    );
 
     await dbWrite
       .update(containers)
@@ -142,12 +144,16 @@ async function processContainerBilling(
       .where(eq(containers.id, containerId));
 
     // Track shutdown event
-    trackServerEvent(container.user_id, "container_shutdown_insufficient_credits", {
-      container_id: containerId,
-      container_name: containerName,
-      organization_id: organizationId,
-      balance_at_shutdown: currentBalance,
-    });
+    trackServerEvent(
+      container.user_id,
+      "container_shutdown_insufficient_credits",
+      {
+        container_id: containerId,
+        container_name: containerName,
+        organization_id: organizationId,
+        balance_at_shutdown: currentBalance,
+      },
+    );
 
     return {
       containerId,
@@ -165,7 +171,10 @@ async function processContainerBilling(
       !container.shutdown_warning_sent_at
     ) {
       // Send 48-hour warning and schedule shutdown
-      const shutdownTime = new Date(now.getTime() + CONTAINER_PRICING.SHUTDOWN_WARNING_HOURS * 60 * 60 * 1000);
+      const shutdownTime = new Date(
+        now.getTime() +
+          CONTAINER_PRICING.SHUTDOWN_WARNING_HOURS * 60 * 60 * 1000,
+      );
 
       await dbWrite
         .update(containers)
@@ -178,7 +187,8 @@ async function processContainerBilling(
         .where(eq(containers.id, containerId));
 
       // Send warning email
-      const recipientEmail = org.billing_email || await getOrgUserEmail(organizationId);
+      const recipientEmail =
+        org.billing_email || (await getOrgUserEmail(organizationId));
       if (recipientEmail) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
         await emailService.sendContainerShutdownWarningEmail({
@@ -204,7 +214,9 @@ async function processContainerBilling(
           dashboardUrl: `${appUrl}/dashboard/containers/${containerId}`,
         });
 
-        logger.info(`[Container Billing] Sent shutdown warning for ${containerName} to ${recipientEmail}`);
+        logger.info(
+          `[Container Billing] Sent shutdown warning for ${containerName} to ${recipientEmail}`,
+        );
       }
 
       // Record the billing failure
@@ -310,11 +322,14 @@ async function processContainerBilling(
     return { newBalance, transactionId: creditTx.id };
   });
 
-  logger.info(`[Container Billing] Billed ${containerName}: $${dailyCost.toFixed(2)}`, {
-    containerId,
-    newBalance: billingResult.newBalance,
-    transactionId: billingResult.transactionId,
-  });
+  logger.info(
+    `[Container Billing] Billed ${containerName}: $${dailyCost.toFixed(2)}`,
+    {
+      containerId,
+      newBalance: billingResult.newBalance,
+      transactionId: billingResult.transactionId,
+    },
+  );
 
   // Track billing event
   trackServerEvent(container.user_id, "container_daily_billed", {
@@ -343,7 +358,10 @@ async function getOrgUserEmail(organizationId: string): Promise<string | null> {
     const users = await usersRepository.listByOrganization(organizationId);
     return users.length > 0 && users[0].email ? users[0].email : null;
   } catch (error) {
-    logger.error(`[Container Billing] Failed to get org user email`, { organizationId, error });
+    logger.error(`[Container Billing] Failed to get org user email`, {
+      organizationId,
+      error,
+    });
     return null;
   }
 }
@@ -351,7 +369,9 @@ async function getOrgUserEmail(organizationId: string): Promise<string | null> {
 /**
  * Main billing handler
  */
-async function handleContainerBilling(request: NextRequest): Promise<NextResponse> {
+async function handleContainerBilling(
+  request: NextRequest,
+): Promise<NextResponse> {
   const startTime = Date.now();
 
   if (!verifyCronSecret(request)) {
@@ -383,7 +403,11 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
         and(
           eq(containers.status, "running"),
           // Include active and shutdown_pending (to check if shutdown time reached)
-          inArray(containers.billing_status, ["active", "warning", "shutdown_pending"]),
+          inArray(containers.billing_status, [
+            "active",
+            "warning",
+            "shutdown_pending",
+          ]),
         ),
       );
 
@@ -403,10 +427,14 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
       });
     }
 
-    logger.info(`[Container Billing] Processing ${runningContainers.length} containers`);
+    logger.info(
+      `[Container Billing] Processing ${runningContainers.length} containers`,
+    );
 
     // Get all unique organization IDs
-    const orgIds = [...new Set(runningContainers.map((c) => c.organization_id))];
+    const orgIds = [
+      ...new Set(runningContainers.map((c) => c.organization_id)),
+    ];
 
     // Fetch all organizations at once
     const orgs = await dbRead
@@ -460,7 +488,10 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
           errors++;
         }
       } catch (error) {
-        logger.error(`[Container Billing] Error processing container ${container.name}`, { error });
+        logger.error(
+          `[Container Billing] Error processing container ${container.name}`,
+          { error },
+        );
         results.push({
           containerId: container.id,
           containerName: container.name,
@@ -506,7 +537,8 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Container billing failed",
+        error:
+          error instanceof Error ? error.message : "Container billing failed",
       },
       { status: 500 },
     );

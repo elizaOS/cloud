@@ -34,7 +34,7 @@ export function SurveyBanner({ className }: SurveyBannerProps) {
     <div
       className={cn(
         "relative border border-[#FF5800]/40 bg-gradient-to-r from-[#FF5800]/15 via-[#FF5800]/10 to-[#FF5800]/5 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg shadow-[#FF5800]/10",
-        className
+        className,
       )}
     >
       <div className="px-5 py-4 md:px-6">

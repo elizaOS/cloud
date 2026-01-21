@@ -52,7 +52,7 @@ export default function DashboardLayout({
 
   // Check if current path allows free access
   const isFreeModePath = FREE_MODE_PATHS.some((path) =>
-    pathname?.startsWith(path)
+    pathname?.startsWith(path),
   );
 
   // Redirect to login if not authenticated and trying to access protected path
@@ -60,7 +60,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (ready && !authenticated && !isFreeModePath) {
       // Build login URL with returnTo parameter to preserve intended destination
-      const returnTo = encodeURIComponent(pathname + (typeof window !== "undefined" ? window.location.search : ""));
+      const returnTo = encodeURIComponent(
+        pathname +
+          (typeof window !== "undefined" ? window.location.search : ""),
+      );
       router.replace(`/login?returnTo=${returnTo}`);
     }
   }, [ready, authenticated, isFreeModePath, router, pathname]);
@@ -138,7 +141,9 @@ export default function DashboardLayout({
 
             {/* Main Content Area */}
             <ScrollArea className="flex-1 bg-black rounded-2xl min-w-0">
-              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">{children}</main>
+              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">
+                {children}
+              </main>
             </ScrollArea>
           </div>
         </div>

@@ -254,7 +254,12 @@ export function AgentPicker({
                         : "border border-white/20 group-hover:border-white/30",
                     )}
                   >
-                    {isSelected && <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-white" strokeWidth={3} />}
+                    {isSelected && (
+                      <Check
+                        className="h-2.5 w-2.5 md:h-3 md:w-3 text-white"
+                        strokeWidth={3}
+                      />
+                    )}
                   </div>
                 </button>
               );

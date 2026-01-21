@@ -62,7 +62,9 @@ export function ContainersSection({
             >
               Containers
             </Link>
-            <span className="text-base text-white/50">({containers.length})</span>
+            <span className="text-base text-white/50">
+              ({containers.length})
+            </span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -116,7 +118,9 @@ function ContainersEmptyState() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[240px] gap-5 bg-neutral-900 rounded-xl py-8">
-      <h3 className="text-lg font-medium text-neutral-500">No containers yet</h3>
+      <h3 className="text-lg font-medium text-neutral-500">
+        No containers yet
+      </h3>
 
       {/* CLI Instructions */}
       <div className="flex flex-col bg-black/60 rounded-lg border border-white/5 overflow-hidden w-full max-w-xs">
@@ -125,7 +129,7 @@ function ContainersEmptyState() {
             key={index}
             className={cn(
               "flex items-center gap-2 px-4 py-2.5 group",
-              index < commands.length - 1 && "border-b border-white/5"
+              index < commands.length - 1 && "border-b border-white/5",
             )}
           >
             <span className="text-neutral-600 select-none">$</span>

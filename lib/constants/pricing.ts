@@ -29,19 +29,50 @@ const BASE_CONTAINER_PRICING = {
 
 export const CONTAINER_PRICING = {
   // One-time costs (with 20% markup)
-  DEPLOYMENT: Math.round(BASE_CONTAINER_PRICING.DEPLOYMENT * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.50 per deployment
-  IMAGE_UPLOAD: Math.round(BASE_CONTAINER_PRICING.IMAGE_UPLOAD * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.25 per image upload
+  DEPLOYMENT:
+    Math.round(
+      BASE_CONTAINER_PRICING.DEPLOYMENT * PLATFORM_MARKUP_MULTIPLIER * 100,
+    ) / 100, // $0.50 per deployment
+  IMAGE_UPLOAD:
+    Math.round(
+      BASE_CONTAINER_PRICING.IMAGE_UPLOAD * PLATFORM_MARKUP_MULTIPLIER * 100,
+    ) / 100, // $0.25 per image upload
 
   // Recurring costs - DAILY BILLING (with 20% markup)
-  MONTHLY_BASE_COST: Math.round(BASE_CONTAINER_PRICING.MONTHLY_BASE_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $20/month
-  DAILY_RUNNING_COST: Math.round(BASE_CONTAINER_PRICING.DAILY_RUNNING_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.67/day per container
+  MONTHLY_BASE_COST:
+    Math.round(
+      BASE_CONTAINER_PRICING.MONTHLY_BASE_COST *
+        PLATFORM_MARKUP_MULTIPLIER *
+        100,
+    ) / 100, // $20/month
+  DAILY_RUNNING_COST:
+    Math.round(
+      BASE_CONTAINER_PRICING.DAILY_RUNNING_COST *
+        PLATFORM_MARKUP_MULTIPLIER *
+        100,
+    ) / 100, // $0.67/day per container
 
   // Resource-based costs (with 20% markup)
-  COST_PER_GB_STORAGE: Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_STORAGE * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.10/GB/month
-  COST_PER_GB_BANDWIDTH: Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_BANDWIDTH * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.05/GB outbound
+  COST_PER_GB_STORAGE:
+    Math.round(
+      BASE_CONTAINER_PRICING.COST_PER_GB_STORAGE *
+        PLATFORM_MARKUP_MULTIPLIER *
+        100,
+    ) / 100, // $0.10/GB/month
+  COST_PER_GB_BANDWIDTH:
+    Math.round(
+      BASE_CONTAINER_PRICING.COST_PER_GB_BANDWIDTH *
+        PLATFORM_MARKUP_MULTIPLIER *
+        100,
+    ) / 100, // $0.05/GB outbound
 
   // Scaling costs (with 20% markup)
-  COST_PER_ADDITIONAL_INSTANCE: Math.round(BASE_CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.05 per instance per hour
+  COST_PER_ADDITIONAL_INSTANCE:
+    Math.round(
+      BASE_CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE *
+        PLATFORM_MARKUP_MULTIPLIER *
+        100,
+    ) / 100, // $0.05 per instance per hour
 
   // Warning thresholds (not pricing, keep as-is)
   LOW_CREDITS_WARNING_THRESHOLD: 2.0, // Warn when < 3 days of credit ($0.67 * 3)

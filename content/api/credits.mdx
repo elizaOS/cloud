@@ -22,15 +22,15 @@ Get your current credit balance.
 
 ### Query Parameters
 
-| Parameter | Type    | Description                                                |
-| --------- | ------- | ---------------------------------------------------------- |
+| Parameter | Type    | Description                                                    |
+| --------- | ------- | -------------------------------------------------------------- |
 | `fresh`   | boolean | Set to `true` to bypass cache (use after payment confirmation) |
 
 ### Response
 
 ```json
 {
-  "balance": 50.00
+  "balance": 50.0
 }
 ```
 
@@ -53,7 +53,7 @@ Get comprehensive credit status including organization balance, agent budgets, a
   "organization": {
     "id": "org_abc123",
     "name": "My Organization",
-    "creditBalance": 50.00,
+    "creditBalance": 50.0,
     "autoTopUpEnabled": false,
     "autoTopUpThreshold": null,
     "autoTopUpAmount": null,
@@ -66,12 +66,12 @@ Get comprehensive credit status including organization balance, agent budgets, a
       "isPublic": false,
       "monetizationEnabled": false,
       "hasBudget": true,
-      "allocated": 10.00,
-      "spent": 2.50,
-      "available": 7.50,
-      "dailyLimit": 5.00,
-      "dailySpent": 1.00,
-      "dailyRemaining": 4.00,
+      "allocated": 10.0,
+      "spent": 2.5,
+      "available": 7.5,
+      "dailyLimit": 5.0,
+      "dailySpent": 1.0,
+      "dailyRemaining": 4.0,
       "isPaused": false,
       "pauseReason": null,
       "totalEarnings": 0,
@@ -82,9 +82,9 @@ Get comprehensive credit status including organization balance, agent budgets, a
     "total": 3,
     "withBudget": 2,
     "paused": 0,
-    "totalAllocated": 20.00,
-    "totalSpent": 5.00,
-    "totalAvailable": 15.00
+    "totalAllocated": 20.0,
+    "totalSpent": 5.0,
+    "totalAvailable": 15.0
   },
   "apps": [
     {
@@ -93,19 +93,19 @@ Get comprehensive credit status including organization balance, agent budgets, a
       "slug": "customer-portal",
       "monetizationEnabled": true,
       "inferenceMarkupPercentage": 20,
-      "totalCreatorEarnings": 125.50,
+      "totalCreatorEarnings": 125.5,
       "totalPlatformRevenue": 31.38
     }
   ],
   "earnings": {
-    "availableBalance": 125.50,
-    "totalEarned": 200.00,
-    "totalRedeemed": 74.50,
+    "availableBalance": 125.5,
+    "totalEarned": 200.0,
+    "totalRedeemed": 74.5,
     "totalPending": 0,
     "breakdown": {
-      "miniapps": 100.00,
-      "agents": 75.00,
-      "mcps": 25.00
+      "miniapps": 100.0,
+      "agents": 75.0,
+      "mcps": 25.0
     }
   },
   "recentTransactions": [
@@ -140,7 +140,7 @@ Create a Stripe checkout session to purchase credits.
 
 ```json
 {
-  "amount": 50.00
+  "amount": 50.0
 }
 ```
 
@@ -180,8 +180,8 @@ Verify a completed payment and add credits.
 ```json
 {
   "success": true,
-  "creditsAdded": 50.00,
-  "newBalance": 100.00
+  "creditsAdded": 50.0,
+  "newBalance": 100.0
 }
 ```
 
@@ -223,7 +223,7 @@ Get credit transaction history.
     {
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "type": "topup",
-      "amount": 50.00,
+      "amount": 50.0,
       "description": "Stripe payment",
       "created_at": "2024-01-14T08:00:00Z"
     }
@@ -256,18 +256,19 @@ Check crypto payment status.
 
 ## Pricing Reference
 
-| Service                  | Unit       | Price          |
-| ------------------------ | ---------- | -------------- |
-| GPT-4o                   | 1M tokens  | $2.50 / $10.00 |
-| GPT-4o-mini              | 1M tokens  | $0.15 / $0.60  |
-| Claude 3.5 Sonnet        | 1M tokens  | $3.00 / $15.00 |
-| Claude 3.5 Haiku         | 1M tokens  | $1.00 / $5.00  |
-| Embeddings (3-small)     | 1M tokens  | $0.02          |
-| Image Generation         | per image  | ~$0.02         |
-| Container Deployment     | per deploy | ~$0.50         |
+| Service              | Unit       | Price          |
+| -------------------- | ---------- | -------------- |
+| GPT-4o               | 1M tokens  | $2.50 / $10.00 |
+| GPT-4o-mini          | 1M tokens  | $0.15 / $0.60  |
+| Claude 3.5 Sonnet    | 1M tokens  | $3.00 / $15.00 |
+| Claude 3.5 Haiku     | 1M tokens  | $1.00 / $5.00  |
+| Embeddings (3-small) | 1M tokens  | $0.02          |
+| Image Generation     | per image  | ~$0.02         |
+| Container Deployment | per deploy | ~$0.50         |
 
 _Input / Output token pricing shown for chat models_
 
 <Callout type="info">
-  Actual pricing is calculated based on model and token usage. Check the [Dashboard](/dashboard/billing) for real-time pricing.
+  Actual pricing is calculated based on model and token usage. Check the
+  [Dashboard](/dashboard/billing) for real-time pricing.
 </Callout>

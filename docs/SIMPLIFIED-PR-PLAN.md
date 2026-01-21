@@ -8,10 +8,10 @@
 
 ## Overview
 
-| PR | Name | Files | Status |
-|----|------|-------|--------|
-| **#1** | Foundation + Auth + Landing | 30 | ✅ Created (`ui/foundation-auth-landing`) |
-| **#2** | Dashboard Redesign | 70 | 🔲 Pending |
+| PR     | Name                        | Files | Status                                    |
+| ------ | --------------------------- | ----- | ----------------------------------------- |
+| **#1** | Foundation + Auth + Landing | 30    | ✅ Created (`ui/foundation-auth-landing`) |
+| **#2** | Dashboard Redesign          | 70    | 🔲 Pending                                |
 
 **Total:** 100 files
 
@@ -72,6 +72,7 @@ components/layout/landing-header-old.tsx (A)
 ### Files (70)
 
 #### Layouts (3)
+
 ```
 app/layout.tsx (M)
 app/dashboard/layout.tsx (M)
@@ -79,6 +80,7 @@ app/dashboard/(chat-build)/layout.tsx (M)
 ```
 
 #### Sidebar & Header (9)
+
 ```
 components/layout/sidebar.tsx (M)
 components/layout/sidebar-data.ts (M)
@@ -92,6 +94,7 @@ components/layout/user-menu.tsx (M)
 ```
 
 #### Dashboard Home (7)
+
 ```
 app/dashboard/page.tsx (M)
 components/dashboard/survey-banner.tsx (A)
@@ -103,6 +106,7 @@ lib/actions/dashboard.ts (M)
 ```
 
 #### Apps Pages & Components (15)
+
 ```
 app/dashboard/apps/page.tsx (M)
 app/dashboard/apps/[id]/page.tsx (M)
@@ -123,6 +127,7 @@ db/repositories/apps.ts (M)
 ```
 
 #### App Builder (5)
+
 ```
 app/dashboard/apps/create/page.tsx (M)
 components/app-builder/agent-picker.tsx (M)
@@ -132,6 +137,7 @@ lib/app-builder/markdown-components.tsx (M)
 ```
 
 #### Containers (5)
+
 ```
 app/dashboard/containers/page.tsx (M)
 app/dashboard/containers/containers-empty-state.tsx (A)
@@ -141,6 +147,7 @@ components/containers/containers-table.tsx (M)
 ```
 
 #### MCPs (4)
+
 ```
 app/dashboard/mcps/page.tsx (M)
 app/dashboard/mcps/mcps-page-wrapper.tsx (A)
@@ -150,6 +157,7 @@ components/mcps/mcps-page-client.tsx (D)
 ```
 
 #### Agents & My Agents (7)
+
 ```
 app/dashboard/my-agents/my-agents.tsx (M)
 components/agents/agent-card.tsx (A)
@@ -161,6 +169,7 @@ components/my-agents/empty-state.tsx (M)
 ```
 
 #### API Explorer (4)
+
 ```
 app/dashboard/api-explorer/page.tsx (M)
 components/api-explorer/auth-manager.tsx (M)
@@ -169,6 +178,7 @@ components/api-explorer/openapi-viewer.tsx (M)
 ```
 
 #### Misc Components (8)
+
 ```
 components/builders/quick-create-dialog.tsx (M)
 components/chat/build-mode-assistant.tsx (M)
@@ -185,9 +195,11 @@ docs/PENDING-FEATURES.md (A)
 ## Execution Steps
 
 ### Step 1: Merge PR #1
+
 Wait for `ui/foundation-auth-landing` to be reviewed and merged into dev.
 
 ### Step 2: Create PR #2 Branch
+
 ```bash
 # After PR #1 is merged:
 git checkout dev && git pull origin dev
@@ -280,6 +292,7 @@ EOF
 ## Verification Checklist
 
 ### Per PR
+
 - [ ] `bun install` succeeds
 - [ ] `bun run build` succeeds
 - [ ] No TypeScript errors
