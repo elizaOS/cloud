@@ -276,7 +276,7 @@ const ChatInputInner = memo(function ChatInputInner({
   const isMicDisabled = status !== "ready" && status !== "idle";
 
   return (
-    <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.04] bg-[#0a0a0b]">
+    <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.06] bg-[#0a0a0b]">
       {/* Visor Scanner Animation Styles */}
       <style jsx global>{`
         @keyframes visor-scan {
@@ -301,10 +301,10 @@ const ChatInputInner = memo(function ChatInputInner({
 
       <div
         className={cn(
-          "relative rounded-xl border bg-white/[0.015] overflow-hidden transition-all",
+          "relative rounded-xl border bg-black/40 overflow-hidden transition-all duration-300",
           stt.isRecording
-            ? "border-red-500/30 bg-red-500/[0.02]"
-            : "border-white/[0.06] focus-within:border-white/[0.12] focus-within:bg-white/[0.025]",
+            ? "border-red-500/30 bg-red-500/5"
+            : "border-white/10 focus-within:border-white/20",
         )}
       >
         {/* Subtle scanning animation for generating state */}

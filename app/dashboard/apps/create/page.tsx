@@ -33,6 +33,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 async function fetchWithRetry(
   url: string,
@@ -116,6 +117,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -425,6 +427,9 @@ const SOURCE_CONTEXT_INFO: Record<
 export default function AppCreatorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Set page header
+  useSetPageHeader({ title: "Create App" }, []);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const consoleLogsRef = useRef<HTMLDivElement>(null);
@@ -2898,7 +2903,6 @@ ANTHROPIC_API_KEY=your_key_here`}
       const data = await response.json();
       if (data.success && data.prompts?.[0]) {
         setAppDescription(data.prompts[0]);
-        toast.success("Description generated!");
       } else {
         throw new Error("Invalid response from API");
       }
@@ -2916,7 +2920,6 @@ ANTHROPIC_API_KEY=your_key_here`}
       setAppDescription(
         fallbackDescriptions[templateType] || fallbackDescriptions.blank,
       );
-      toast.success("Description generated!");
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -2929,58 +2932,28 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (viewState === "setup") {
     return (
-      <div className="min-h-screen bg-[#0A0A0A]">
-        {/* Ambient background effects */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute top-1/3 -left-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-15"
-            style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
-          />
-          <div
-            className="absolute bottom-1/3 -right-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-10"
-            style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
-          />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-5">
-          {/* Header - compact */}
-          <div className="flex items-center justify-between mb-3 md:mb-5">
-            <div className="flex items-center gap-2 md:gap-3">
-              <Link
-                href={backLink}
-                className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
-              >
-                <ArrowLeft className="h-4 w-4 text-white/60" />
-              </Link>
-              <div className="flex items-center gap-1.5 md:gap-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full blur-sm opacity-50" />
-                  <Sparkles className="relative h-4 w-4 md:h-5 md:w-5 text-white" />
-                </div>
-                <h1 className="text-base md:text-xl font-semibold tracking-tight text-white">
-                  App Creator
-                </h1>
-              </div>
-            </div>
-
+      <ScrollArea className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A]">
+        <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-6">
+          {/* Step indicators */}
+          <div className="flex items-center justify-center mb-6">
             {/* Mobile step indicator */}
-            <div className="flex md:hidden items-center gap-1">
+            <div className="flex md:hidden items-center gap-1.5">
               {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
                     setupStep === num
-                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6"
+                      ? "bg-[#FF5800] w-6"
                       : setupStep > num
-                        ? "bg-white/40 w-3"
-                        : "bg-white/10 w-3"
+                        ? "bg-white/40 w-2"
+                        : "bg-white/10 w-2"
                   }`}
                 />
               ))}
             </div>
 
             {/* Desktop step indicator */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1">
               {[
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
@@ -2999,19 +2972,19 @@ ANTHROPIC_API_KEY=your_key_here`}
                         setSetupStep(s.num as 1 | 2 | 3 | 4);
                       }
                     }}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
                       setupStep === s.num
-                        ? "bg-white/10 border border-white/20"
+                        ? "bg-white/10 border-white/20"
                         : setupStep > s.num
-                          ? "text-white/60 hover:text-white/80"
-                          : "text-white/30"
+                          ? "text-white/60 hover:text-white/80 hover:bg-white/5 border-transparent"
+                          : "text-white/30 border-transparent"
                     }`}
                     disabled={s.num > 1 && !templateType && s.num !== setupStep}
                   >
                     <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-300 ${
                         setupStep === s.num
-                          ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
+                          ? "bg-[#FF5800] text-white"
                           : setupStep > s.num
                             ? "bg-white/20 text-white"
                             : "bg-white/5 text-white/40"
@@ -3031,7 +3004,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </button>
                   {i < 3 && (
                     <div
-                      className={`w-8 h-px mx-1 transition-colors duration-300 ${
+                      className={`w-3 h-px ml-1 transition-colors duration-300 ${
                         setupStep > s.num ? "bg-white/30" : "bg-white/10"
                       }`}
                     />
@@ -3042,25 +3015,20 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {sourceContext && (
-            <div
-              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
-              style={{
-                borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
-              }}
-            >
+            <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
                 {(() => {
                   const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
                   return (
                     <Icon
-                      className="h-3.5 w-3.5 md:h-4 md:w-4"
+                      className="h-4 w-4"
                       style={{
                         color: SOURCE_CONTEXT_INFO[sourceContext.type].color,
                       }}
                     />
                   );
                 })()}
-                <p className="text-[11px] md:text-xs text-white/70">
+                <p className="text-xs text-white/60">
                   Building for{" "}
                   <span className="text-white font-medium">
                     {sourceContext.name}
@@ -3072,314 +3040,114 @@ ANTHROPIC_API_KEY=your_key_here`}
 
           {/* STEP 1: Template Selection */}
           <div
-            className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
-            {setupStep === 1 &&
-              (() => {
-                const totalPages = Math.ceil(
-                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE,
-                );
-                const visibleTemplates = TEMPLATE_OPTIONS.slice(
-                  templatePage * TEMPLATES_PER_PAGE,
-                  (templatePage + 1) * TEMPLATES_PER_PAGE,
-                );
+            {setupStep === 1 && (
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                {/* Header */}
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    What are you building?
+                  </h2>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Choose a template to get started
+                  </p>
+                </div>
 
-                return (
-                  <div className="space-y-4 md:space-y-6">
-                    {/* Header row with title and navigation */}
-                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 animate-stagger-fade stagger-1">
-                      <div>
-                        <h2
-                          className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                          style={{ fontFamily: "var(--font-sf-pro)" }}
-                        >
-                          What are you building?
-                        </h2>
-                        <p className="text-white/40 text-sm md:text-base mt-1">
-                          Choose a foundation for your next masterpiece
-                        </p>
-                      </div>
+                {/* Template cards - 2x3 grid showing all 6 templates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
+                  {TEMPLATE_OPTIONS.map((template, idx) => {
+                    const Icon = template.icon;
+                    const isSelected = templateType === template.value;
+                    const isDisabled = template.comingSoon;
 
-                      {/* Carousel navigation - Premium */}
-                      <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4">
-                        <button
-                          onClick={() =>
-                            setTemplatePage((p) => Math.max(0, p - 1))
+                    return (
+                      <button
+                        key={template.value}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            setTemplateType(template.value);
+                            setSetupStep(2);
                           }
-                          disabled={templatePage === 0}
-                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                        >
-                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
-                        </button>
-                        <div className="flex items-center gap-2">
-                          {Array.from({ length: totalPages }).map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={() => setTemplatePage(i)}
-                              className={`rounded-full transition-all duration-500 ease-out ${
-                                i === templatePage
-                                  ? "bg-gradient-to-r from-[#FF5800] to-amber-500 w-8 h-2 shadow-lg shadow-[#FF5800]/30"
-                                  : "bg-white/20 hover:bg-white/40 w-2 h-2"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <button
-                          onClick={() =>
-                            setTemplatePage((p) =>
-                              Math.min(totalPages - 1, p + 1),
-                            )
-                          }
-                          disabled={templatePage >= totalPages - 1}
-                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                        >
-                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Template cards - Premium glass cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                      {visibleTemplates.map((template, idx) => {
-                        const Icon = template.icon;
-                        const isSelected = templateType === template.value;
-                        const isDisabled = template.comingSoon;
-
-                        return (
-                          <button
-                            key={template.value}
-                            onClick={() => {
-                              if (!isDisabled) {
-                                setTemplateType(template.value);
-                              }
-                            }}
-                            disabled={isDisabled}
-                            className={`group relative p-4 md:p-6 rounded-2xl md:rounded-3xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade ${
-                              isSelected
-                                ? "bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/20 scale-[1.02] shadow-2xl"
-                                : isDisabled
-                                  ? "bg-white/[0.01] border-white/[0.04] opacity-50 cursor-not-allowed"
-                                  : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15 hover:shadow-xl hover:shadow-black/30 active:scale-[0.98]"
-                            }`}
-                            style={{ animationDelay: `${idx * 0.08}s` }}
-                          >
-                            {/* Premium glow effect on selected */}
-                            {isSelected && (
-                              <>
-                                <div
-                                  className="absolute inset-0 rounded-2xl md:rounded-3xl blur-2xl opacity-25 -z-10 animate-glow-pulse"
-                                  style={{ backgroundColor: template.color }}
-                                />
-                                <div
-                                  className="absolute inset-[1px] rounded-2xl md:rounded-3xl opacity-10 -z-10"
-                                  style={{
-                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`,
-                                  }}
-                                />
-                              </>
-                            )}
-
-                            {/* Coming soon badge - Premium */}
-                            {isDisabled && (
-                              <div className="absolute top-3 right-3 md:top-4 md:right-4 px-2.5 py-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full backdrop-blur-sm">
-                                <span className="text-[9px] md:text-[10px] font-semibold text-amber-400 tracking-wide uppercase">
-                                  Soon
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Selection indicator - Premium checkbox */}
-                            {!isDisabled && (
-                              <div
-                                className={`absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-lg transition-all duration-300 flex items-center justify-center ${
-                                  isSelected
-                                    ? "bg-gradient-to-br from-[#FF5800] to-amber-500 shadow-lg shadow-[#FF5800]/30"
-                                    : "border-2 border-white/15 group-hover:border-white/30 bg-white/[0.02]"
-                                }`}
-                              >
-                                {isSelected && (
-                                  <Check
-                                    className="h-3 w-3 md:h-3.5 md:w-3.5 text-white"
-                                    strokeWidth={3}
-                                  />
-                                )}
-                              </div>
-                            )}
-
-                            {/* Icon - Premium with glow */}
-                            <div className="relative mb-3 md:mb-4">
-                              <div
-                                className={`inline-flex p-2.5 md:p-3.5 rounded-xl md:rounded-2xl transition-all duration-500 ${
-                                  isSelected
-                                    ? "scale-110"
-                                    : "group-hover:scale-105 group-hover:rotate-2"
-                                }`}
-                                style={{
-                                  backgroundColor: `${template.color}15`,
-                                  boxShadow: isSelected
-                                    ? `0 0 30px ${template.color}40, inset 0 0 20px ${template.color}10`
-                                    : `inset 0 0 20px ${template.color}05`,
-                                }}
-                              >
-                                <Icon
-                                  className="h-5 w-5 md:h-7 md:w-7 transition-all duration-300"
-                                  style={{ color: template.color }}
-                                />
-                              </div>
-                              {isSelected && (
-                                <div
-                                  className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-40"
-                                  style={{ backgroundColor: template.color }}
-                                />
-                              )}
-                            </div>
-
-                            {/* Content */}
-                            <h3
-                              className="text-sm md:text-lg font-bold text-white mb-1 md:mb-1.5 pr-8 tracking-tight"
-                              style={{ fontFamily: "var(--font-sf-pro)" }}
-                            >
-                              {template.label}
-                            </h3>
-                            <p className="text-xs md:text-sm text-white/45 mb-3 md:mb-4 line-clamp-2 leading-relaxed">
-                              {template.description}
-                            </p>
-
-                            {/* Features - Premium pills */}
-                            <div className="hidden md:flex flex-wrap gap-2">
-                              {template.features.map((feature) => (
-                                <span
-                                  key={feature}
-                                  className="px-2.5 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/50 transition-colors group-hover:text-white/70 group-hover:border-white/15"
-                                >
-                                  {feature}
-                                </span>
-                              ))}
-                            </div>
-
-                            {/* Tech stack on hover/selected - Premium reveal */}
-                            <div
-                              className={`hidden md:block mt-4 pt-4 border-t border-white/[0.06] transition-all duration-500 ${
-                                isSelected
-                                  ? "opacity-100 translate-y-0"
-                                  : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                {template.techStack.map((tech, i) => (
-                                  <span
-                                    key={tech}
-                                    className="text-[10px] text-white/35 font-medium"
-                                  >
-                                    {tech}
-                                    {i < template.techStack.length - 1 && (
-                                      <span className="ml-3 text-white/15">
-                                        •
-                                      </span>
-                                    )}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Continue button row - Premium */}
-                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-4 pt-4 animate-stagger-fade stagger-5">
-                      <div className="text-center md:text-left">
-                        {selectedTemplate ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-                            <selectedTemplate.icon
-                              className="h-3.5 w-3.5"
-                              style={{ color: selectedTemplate.color }}
-                            />
-                            <span className="text-xs text-white/50">
-                              Selected:
-                            </span>
-                            <span className="text-xs text-white/80 font-medium">
-                              {selectedTemplate.label}
+                        }}
+                        disabled={isDisabled}
+                        className={`group relative p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
+                          isDisabled
+                            ? "border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed"
+                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
+                        }`}
+                      >
+                        {/* Coming soon badge */}
+                        {isDisabled && (
+                          <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full">
+                            <span className="text-[10px] font-medium text-white/40 uppercase">
+                              Soon
                             </span>
                           </div>
-                        ) : (
-                          <p className="text-sm text-white/35">
-                            Select a template to continue
-                          </p>
                         )}
-                      </div>
-                      <button
-                        onClick={() => setSetupStep(2)}
-                        disabled={
-                          !templateType ||
-                          TEMPLATE_OPTIONS.find((t) => t.value === templateType)
-                            ?.comingSoon
-                        }
-                        className="btn-premium group relative flex items-center justify-center gap-2.5 px-8 md:px-10 py-3 md:py-3.5 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm md:text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                        style={{ fontFamily: "var(--font-sf-pro)" }}
-                      >
-                        <span className="relative z-10 flex items-center gap-2">
-                          Continue
-                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                        </span>
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl -z-10" />
+
+                        {/* Mobile: horizontal layout / Desktop: vertical layout */}
+                        <div className="flex items-start gap-3 md:block">
+                          {/* Icon */}
+                          <div className="flex-shrink-0 md:mb-3">
+                            <div className="inline-flex p-2 md:p-2.5 rounded-xl bg-white/5 group-hover:bg-white/10 transition-all duration-300">
+                              <Icon
+                                className="h-4 w-4 md:h-5 md:w-5"
+                                style={{ color: template.color }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-white mb-0.5 md:mb-1">
+                              {template.label}
+                            </h3>
+                            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed">
+                              {template.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Tech stack */}
+                        <div className="hidden md:flex flex-wrap gap-1 mt-3 pt-3 border-t border-white/[0.06]">
+                          {template.techStack.map((tech) => (
+                            <span
+                              key={tech}
+                              className="px-1.5 py-0.5 text-[10px] text-white/50 bg-black/80 rounded"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
                       </button>
-                    </div>
-                  </div>
-                );
-              })()}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* STEP 2: App Details - Premium */}
+          {/* STEP 2: App Details */}
           <div
-            className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 2 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
-                      Name your creation
-                    </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Give it a memorable identity
-                    </p>
-                  </div>
-                  {/* Selected template preview - Premium pill */}
-                  {selectedTemplate && (
-                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
-                        <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      </div>
-                      <span className="text-xs text-white/60 font-medium">
-                        {selectedTemplate.label}
-                      </span>
-                      <button
-                        onClick={() => setSetupStep(1)}
-                        className="text-[10px] text-[#FF5800]/70 hover:text-[#FF5800] transition-colors font-medium"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Name your app
+                  </h2>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Give it a memorable identity
+                  </p>
                 </div>
 
-                <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
-                  {/* App Name - Premium input with validation */}
+                <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
+                  {/* App Name */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
+                      <Label className="text-white/60 text-xs font-medium">
                         App Name <span className="text-red-400">*</span>
                       </Label>
                       <div className="flex items-center gap-2">
@@ -3402,12 +3170,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                             </span>
                           )}
                         <span
-                          className={`text-[10px] font-mono transition-colors ${
+                          className={`text-[10px] font-mono ${
                             appName.length > 100
                               ? "text-red-400"
                               : appName.length > 80
                                 ? "text-amber-400"
-                                : "text-white/25"
+                                : "text-white/40"
                           }`}
                         >
                           {appName.length}/100
@@ -3418,19 +3186,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
+                      className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
                         nameValidation.error
-                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          ? "border-red-500/50 focus:border-red-500"
                           : nameValidation.isAvailable === true &&
                               appName.trim().length >= 2
-                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
-                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                            ? "border-emerald-500/30 focus:border-emerald-500"
+                            : "border-white/10 focus:border-[#FF5800]"
                       }`}
                       maxLength={100}
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
                     {nameValidation.error && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                      <p className="text-xs text-red-400 flex items-center gap-1.5">
                         <AlertCircle className="h-3.5 w-3.5" />
                         {nameValidation.error}
                         {nameValidation.suggestedName && (
@@ -3448,55 +3215,53 @@ ANTHROPIC_API_KEY=your_key_here`}
                     )}
                   </div>
 
-                  {/* Description - Premium textarea with validation */}
+                  {/* Description */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        Description <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-end justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-white/60 text-xs font-medium">
+                          Description <span className="text-red-400">*</span>
+                        </Label>
                         <button
                           onClick={generateAIDescription}
                           disabled={isGeneratingDescription || !appName.trim()}
-                          className="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#FF5800]/15 to-amber-500/10 border border-[#FF5800]/25 rounded-lg text-[#FF5800] hover:text-amber-400 transition-all hover:scale-105 hover:border-[#FF5800]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {isGeneratingDescription ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Wand2 className="h-3 w-3 group-hover:rotate-12 transition-transform" />
+                            <Wand2 className="h-3 w-3" />
                           )}
-                          <span className="tracking-wide">AI ASSIST</span>
+                          Generate
                         </button>
-                        <span
-                          className={`text-[10px] font-mono transition-colors ${
-                            appDescription.length > 500
-                              ? "text-red-400"
-                              : appDescription.length <
-                                    MIN_DESCRIPTION_LENGTH &&
-                                  appDescription.length > 0
-                                ? "text-amber-400"
-                                : appDescription.length > 400
-                                  ? "text-amber-400"
-                                  : "text-white/25"
-                          }`}
-                        >
-                          {appDescription.length}/500
-                        </span>
                       </div>
+                      <span
+                        className={`text-[10px] font-mono ${
+                          appDescription.length > 500
+                            ? "text-red-400"
+                            : appDescription.length <
+                                  MIN_DESCRIPTION_LENGTH &&
+                                appDescription.length > 0
+                              ? "text-amber-400"
+                              : "text-white/40"
+                        }`}
+                      >
+                        {appDescription.length}/500
+                      </span>
                     </div>
                     <Textarea
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
                       placeholder="Describe what your app should do... (minimum 10 characters)"
-                      className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                      className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
                         appDescription.length > 500
-                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          ? "border-red-500/50 focus:border-red-500"
                           : appDescription.length > 0 &&
                               appDescription.length < MIN_DESCRIPTION_LENGTH
-                            ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
+                            ? "border-amber-500/30 focus:border-amber-500"
                             : appDescription.length >= MIN_DESCRIPTION_LENGTH
-                              ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
-                              : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                              ? "border-emerald-500/30 focus:border-emerald-500"
+                              : "border-white/10 focus:border-[#FF5800]"
                       }`}
                     />
                     {appDescription.length > 0 &&
@@ -3520,14 +3285,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-3">
-                  <button
-                    onClick={() => setSetupStep(1)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
+                <div className="flex items-center justify-between pt-4">
+                  {selectedTemplate && (
+                    <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
+                        style={{ color: selectedTemplate.color }}
+                      />
+                      <span className="text-xs md:text-sm text-white/60">
+                        {selectedTemplate.label}
+                      </span>
+                      <button
+                        onClick={() => setSetupStep(1)}
+                        className="text-[10px] md:text-xs text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
                   <button
                     onClick={() => setSetupStep(3)}
                     disabled={
@@ -3539,257 +3314,207 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appDescription.length < MIN_DESCRIPTION_LENGTH ||
                       appDescription.length > 500
                     }
-                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                    className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
                   >
-                    <span className="relative z-10 flex items-center gap-2">
-                      {nameValidation.isChecking ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Checking...
-                        </>
-                      ) : (
-                        <>
-                          Continue
-                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                        </>
-                      )}
-                    </span>
+                    {nameValidation.isChecking ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4 group-enabled:group-hover:translate-x-0.5 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 3: Features - Premium */}
+          {/* STEP 3: Features */}
           <div
-            className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 3 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xl font-semibold text-white">
                       Power-ups
                     </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Supercharge with built-in integrations
-                    </p>
-                  </div>
-                  {/* App summary - Premium */}
-                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                    {selectedTemplate && (
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
+                    {/* App summary */}
+                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
+                      {selectedTemplate && (
                         <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
+                          className="h-3 w-3 md:h-3.5 md:w-3.5"
                           style={{ color: selectedTemplate.color }}
                         />
-                      </div>
-                    )}
-                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
-                      {appName || "Your App"}
-                    </span>
+                      )}
+                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
+                        {appName || "Your App"}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Add optional integrations
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   {/* Monetization - Premium toggle card */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-2 ${
+                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeMonetization
-                        ? "bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
+                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
                     }`}
                   >
-                    {includeMonetization && (
-                      <div className="absolute inset-0 rounded-2xl bg-emerald-500/5 blur-xl -z-10" />
-                    )}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeMonetization
-                            ? "bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
-                            : "bg-white/[0.04]"
+                          includeMonetization ? "bg-[#FF5800]/20" : "bg-white/5"
                         }`}
                       >
                         <DollarSign
                           className={`h-5 w-5 transition-colors ${
-                            includeMonetization
-                              ? "text-emerald-400"
-                              : "text-white/40"
+                            includeMonetization ? "text-[#FF5800]" : "text-neutral-500"
                           }`}
                         />
                       </div>
-                      {/* Premium toggle switch */}
+                      {/* Toggle switch */}
                       <div
                         className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeMonetization
-                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30"
-                            : "bg-white/10"
+                          includeMonetization ? "bg-[#FF5800]" : "bg-white/10"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            includeMonetization
-                              ? "translate-x-4"
-                              : "translate-x-0"
+                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
+                            includeMonetization ? "translate-x-4" : "translate-x-0"
                           }`}
                         />
                       </div>
                     </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                    <h3 className="text-sm font-semibold text-white">
                       Monetization
                     </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                    <p className="text-xs text-white/50 mt-1">
                       Accept payments & subscriptions
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Stripe
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Billing
                       </span>
                     </div>
                   </button>
 
-                  {/* Analytics - Premium toggle card */}
+                  {/* Analytics toggle card */}
                   <button
                     onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-3 ${
+                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeAnalytics
-                        ? "bg-gradient-to-br from-blue-500/15 to-blue-500/5 border-blue-500/30 shadow-lg shadow-blue-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
+                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
                     }`}
                   >
-                    {includeAnalytics && (
-                      <div className="absolute inset-0 rounded-2xl bg-blue-500/5 blur-xl -z-10" />
-                    )}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics
-                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20"
-                            : "bg-white/[0.04]"
+                          includeAnalytics ? "bg-[#FF5800]/20" : "bg-white/5"
                         }`}
                       >
                         <LineChart
                           className={`h-5 w-5 transition-colors ${
-                            includeAnalytics ? "text-blue-400" : "text-white/40"
+                            includeAnalytics ? "text-[#FF5800]" : "text-neutral-500"
                           }`}
                         />
                       </div>
-                      {/* Premium toggle switch */}
+                      {/* Toggle switch */}
                       <div
                         className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeAnalytics
-                            ? "bg-gradient-to-r from-blue-500 to-blue-400 shadow-lg shadow-blue-500/30"
-                            : "bg-white/10"
+                          includeAnalytics ? "bg-[#FF5800]" : "bg-white/10"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
                             includeAnalytics ? "translate-x-4" : "translate-x-0"
                           }`}
                         />
                       </div>
                     </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                    <h3 className="text-sm font-semibold text-white">
                       Analytics
                     </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                    <p className="text-xs text-white/50 mt-1">
                       Track users & events in real-time
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Real-time
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Events
                       </span>
                     </div>
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
+                <div className="flex items-center justify-between pt-4">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <button
                     onClick={() => setSetupStep(4)}
-                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold touch-manipulation"
-                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                    className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium transition-all duration-300"
                   >
-                    <span className="relative z-10 flex items-center gap-2">
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                    </span>
+                    Continue
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 4: Agent Selection - Premium */}
+          {/* STEP 4: Agent Selection */}
           <div
-            className={`transition-all duration-500 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 4 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xl font-semibold text-white">
                       Add AI Agents
                     </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Choose agents to power your app (optional)
-                    </p>
-                  </div>
-                  {/* App summary - Premium */}
-                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                    {selectedTemplate && (
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
+                    {/* App summary */}
+                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
+                      {selectedTemplate && (
                         <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
+                          className="h-3 w-3 md:h-3.5 md:w-3.5"
                           style={{ color: selectedTemplate.color }}
                         />
-                      </div>
-                    )}
-                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
-                      {appName || "Your App"}
-                    </span>
+                      )}
+                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
+                        {appName || "Your App"}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Choose agents to power your app (optional)
+                  </p>
                 </div>
 
-                {/* Agent Picker - Premium container */}
-                <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
+                {/* Agent Picker container */}
+                <div className="p-3 md:p-5 rounded-xl bg-white/5 border border-white/10">
                   <AgentPicker
                     agents={availableAgents}
                     selectedIds={selectedAgentIds}
@@ -3799,23 +3524,23 @@ ANTHROPIC_API_KEY=your_key_here`}
                   />
                 </div>
 
-                {/* Skip note - Premium */}
+                {/* Skip note */}
                 {availableAgents.length === 0 && !loadingAgents && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 animate-stagger-fade stagger-3">
-                    <p className="text-sm text-amber-300/80 leading-relaxed">
-                      <span className="font-semibold">No agents yet?</span> No
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-sm text-white/60">
+                      <span className="font-medium text-white/80">No agents yet?</span> No
                       worries — you can skip this step and add agents later from
                       the app builder.
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
+                <div className="flex items-center justify-between pt-4">
                   <button
                     onClick={() => setSetupStep(3)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <div className="flex items-center gap-3">
@@ -3824,60 +3549,45 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <button
                           onClick={startSession}
                           disabled={isLoading}
-                          className="text-xs text-white/40 hover:text-white/70 transition-colors font-medium"
+                          className="text-sm text-white/50 hover:text-white transition-colors"
                         >
-                          Skip for now
+                          Skip
                         </button>
                       )}
-                    {/* Premium Launch Button */}
+                    {/* Launch Button */}
                     <button
                       onClick={startSession}
                       disabled={isLoading}
-                      className="group relative flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-xl text-white text-sm font-semibold transition-all duration-500 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                      className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
-                      {/* Animated gradient background */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]" />
-                      {/* Inner border glow */}
-                      <div className="absolute inset-[1px] rounded-[10px] bg-gradient-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {/* Outer glow effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] to-amber-500 blur-xl opacity-50 group-hover:opacity-70 transition-opacity -z-10" />
-                      <span className="relative flex items-center gap-2.5">
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="hidden sm:inline tracking-wide">
-                              Launching Sandbox...
-                            </span>
-                            <span className="sm:hidden">...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
-                            <span className="hidden sm:inline tracking-wide">
-                              {selectedAgentIds.length > 0
-                                ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
-                                : "Start Building"}
-                            </span>
-                            <span className="sm:hidden">Start</span>
-                          </>
-                        )}
-                      </span>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Launching...
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="h-4 w-4" />
+                          {selectedAgentIds.length > 0
+                            ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
+                            : "Start Building"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
-                {/* Summary footer - Premium */}
-                <div className="flex items-center justify-center gap-4 pt-4 md:pt-6 animate-stagger-fade stagger-5">
+                {/* Summary footer */}
+                <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
                   {[
                     "Live sandbox",
                     "Hot reload",
                     "AI assist",
                     "GitHub sync",
-                  ].map((feature, i) => (
-                    <div key={feature} className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-[#FF5800]/50" />
-                      <span className="text-[10px] md:text-xs text-white/25 font-medium">
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                      <span className="text-[11px] md:text-xs text-white/50 font-medium">
                         {feature}
                       </span>
                     </div>
@@ -3899,7 +3609,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             }
           }
         `}</style>
-      </div>
+      </ScrollArea>
     );
   }
 
