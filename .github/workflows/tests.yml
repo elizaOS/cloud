@@ -47,7 +47,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-test-env
@@ -55,7 +55,7 @@ jobs:
       - name: Check TypeScript types
         run: bun run check-types
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=8192
 
   e2e-api:
     runs-on: ubuntu-latest
