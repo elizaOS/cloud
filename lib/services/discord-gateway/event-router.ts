@@ -202,10 +202,14 @@ async function handleMessageCreate(
         return { processed: true };
       }
     } else if (metadata.responseMode === "keyword") {
-      // Only respond if message contains keywords
-      const hasKeyword = metadata.keywords?.some((k) =>
-        data.content.toLowerCase().includes(k.toLowerCase()),
-      );
+      // Only respond if message contains keywords (word boundary matching)
+      const contentLower = data.content.toLowerCase();
+      const hasKeyword = metadata.keywords?.some((k) => {
+        const keywordLower = k.toLowerCase();
+        // Use word boundary regex to avoid false positives (e.g., "or" matching "organization")
+        const wordBoundaryRegex = new RegExp(`\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        return wordBoundaryRegex.test(contentLower);
+      });
       if (!hasKeyword) {
         return { processed: true };
       }

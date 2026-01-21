@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
 import { FailoverRequestSchema } from "@/lib/services/discord-gateway/schemas";
+import { DEAD_POD_THRESHOLD_MS } from "@/lib/services/discord-gateway/constants";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +47,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  const DEAD_POD_THRESHOLD_MS = 45_000; // Should match gateway-manager constant
 
   // Quick check - reject if pod has any recent heartbeat (optimization)
   const recentHeartbeat =

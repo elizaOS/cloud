@@ -27,6 +27,9 @@ const CLEANUP_INTERVAL_MS = parseInt(
 
 const MAX_VOICE_FILE_SIZE = 25 * 1024 * 1024; // 25MB Discord limit
 
+/** Timeout for Discord CDN fetch operations */
+const DISCORD_CDN_TIMEOUT_MS = 30_000; // 30 seconds
+
 /**
  * Blob access mode for voice files.
  * - "public": Anyone with URL can access (simpler, but less secure)
@@ -123,7 +126,9 @@ export class VoiceMessageHandler {
 
     const downloadStart = Date.now();
 
-    const response = await fetch(attachment.url);
+    const response = await fetch(attachment.url, {
+      signal: AbortSignal.timeout(DISCORD_CDN_TIMEOUT_MS),
+    });
     if (!response.ok) {
       throw new Error(
         `Failed to download voice attachment: ${response.status} ${response.statusText}`,

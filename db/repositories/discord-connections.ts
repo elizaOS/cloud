@@ -177,8 +177,10 @@ export const discordConnectionsRepository = {
       updates.error_message = null;
     }
 
-    // Clear pod assignment on disconnect or error to allow reassignment
-    if (status === "disconnected" || status === "error") {
+    // Only clear pod assignment on "error" status
+    // Don't clear on "disconnected" - the pod may reconnect shortly
+    // Failover mechanism handles truly dead pods via heartbeat staleness
+    if (status === "error") {
       updates.assigned_pod = null;
     }
 
