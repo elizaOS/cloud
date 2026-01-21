@@ -48,6 +48,11 @@ CREATE INDEX IF NOT EXISTS "discord_connections_assigned_pod_idx" ON "discord_co
 CREATE INDEX IF NOT EXISTS "discord_connections_status_idx" ON "discord_connections" ("status");
 CREATE INDEX IF NOT EXISTS "discord_connections_is_active_idx" ON "discord_connections" ("is_active");
 
+-- Composite index for assignUnassignedToPod query (SELECT ... WHERE is_active AND assigned_pod IS NULL ORDER BY created_at)
+CREATE INDEX IF NOT EXISTS "discord_connections_unassigned_idx" 
+  ON "discord_connections" ("is_active", "assigned_pod", "created_at") 
+  WHERE "is_active" = true AND "assigned_pod" IS NULL;
+
 -- One bot per Discord application per organization (prevents duplicate connections)
 CREATE UNIQUE INDEX IF NOT EXISTS "discord_connections_org_app_unique_idx" 
   ON "discord_connections" ("organization_id", "application_id");
