@@ -13,6 +13,24 @@ import {
 } from "./voice-message-handler";
 
 // ============================================
+// Helpers
+// ============================================
+
+/**
+ * Parse an integer from environment variable with validation.
+ * Throws if the value is not a valid integer to fail fast on misconfiguration.
+ */
+function parseIntEnv(name: string, defaultValue: number): number {
+  const value = process.env[name];
+  if (value === undefined) return defaultValue;
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Invalid ${name} environment variable: "${value}" is not a valid integer`);
+  }
+  return parsed;
+}
+
+// ============================================
 // Constants
 // ============================================
 
@@ -58,21 +76,11 @@ const MAX_DISCORD_MESSAGE_LENGTH = 2000;
  *
  * The threshold should be at least 2x heartbeat interval to avoid false positives.
  */
-const FAILOVER_CHECK_INTERVAL_MS = parseInt(
-  process.env.FAILOVER_CHECK_INTERVAL_MS ?? "30000", // 30 seconds
-  10,
-);
-
-const DEAD_POD_THRESHOLD_MS = parseInt(
-  process.env.DEAD_POD_THRESHOLD_MS ?? "45000", // 45 seconds (3 missed heartbeats)
-  10,
-);
+const FAILOVER_CHECK_INTERVAL_MS = parseIntEnv("FAILOVER_CHECK_INTERVAL_MS", 30_000);
+const DEAD_POD_THRESHOLD_MS = parseIntEnv("DEAD_POD_THRESHOLD_MS", 45_000);
 
 /** Maximum bots per pod - prevents resource exhaustion */
-const MAX_BOTS_PER_POD = parseInt(
-  process.env.MAX_BOTS_PER_POD ?? "100",
-  10,
-);
+const MAX_BOTS_PER_POD = parseIntEnv("MAX_BOTS_PER_POD", 100);
 
 // ============================================
 // Types
@@ -269,6 +277,30 @@ export class GatewayManager {
       this.removeAllListeners(conn);
       conn.client.destroy();
       logger.info("Disconnected bot", { connectionId });
+    }
+
+    // Release all connections in database so other pods can pick them up immediately
+    // This is critical for graceful shutdowns (deployments, scaling) to avoid message loss
+    try {
+      await fetchWithTimeout(
+        `${this.config.elizaCloudUrl}/api/internal/discord/gateway/shutdown`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-API-Key": this.config.internalApiKey,
+          },
+          body: JSON.stringify({ pod_name: this.config.podName }),
+        },
+      );
+      logger.info("Released connections in database", {
+        podName: this.config.podName,
+      });
+    } catch (error) {
+      // Log but don't fail shutdown - failover will handle orphaned connections
+      logger.error("Failed to release connections in database", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Clear pod heartbeat from Redis

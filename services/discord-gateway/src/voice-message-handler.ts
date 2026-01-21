@@ -12,18 +12,26 @@ import { MessageFlags, type Attachment } from "discord.js";
 import { put, del, list } from "@vercel/blob";
 import { logger } from "./logger";
 
-const VOICE_AUDIO_TTL_SECONDS = parseInt(
-  process.env.VOICE_AUDIO_TTL_SECONDS ?? "3600",
-  10,
-);
+/**
+ * Parse an integer from environment variable with validation.
+ * Throws if the value is not a valid integer to fail fast on misconfiguration.
+ */
+function parseIntEnv(name: string, defaultValue: number): number {
+  const value = process.env[name];
+  if (value === undefined) return defaultValue;
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Invalid ${name} environment variable: "${value}" is not a valid integer`);
+  }
+  return parsed;
+}
+
+const VOICE_AUDIO_TTL_SECONDS = parseIntEnv("VOICE_AUDIO_TTL_SECONDS", 3600);
 
 const VOICE_STORAGE_PATH_PREFIX =
   process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
 
-const CLEANUP_INTERVAL_MS = parseInt(
-  process.env.VOICE_CLEANUP_INTERVAL_MS ?? "900000",
-  10,
-); // 15 minutes
+const CLEANUP_INTERVAL_MS = parseIntEnv("VOICE_CLEANUP_INTERVAL_MS", 900_000); // 15 minutes
 
 const MAX_VOICE_FILE_SIZE = 25 * 1024 * 1024; // 25MB Discord limit
 
