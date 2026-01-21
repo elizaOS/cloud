@@ -55,13 +55,12 @@ export const models: LLMModel[] = [
     tier: "$$",
   },
   {
-    id: "anthropic/claude-haiku-4",
-    name: "Claude Haiku 4",
+    id: "anthropic/claude-opus-4.5",
+    name: "Claude Opus 4.5",
     provider: "Anthropic",
     providerId: "anthropic",
     multiModal: true,
-    tier: "$",
-    fast: true,
+    tier: "$$$",
   },
   {
     id: "anthropic/claude-3-5-sonnet-20241022",

@@ -569,6 +569,7 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(null);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
@@ -1209,13 +1210,15 @@ export default function AppCreatorPage() {
   const deployToProduction = useCallback(async () => {
     if (!appData?.id || isDeploying) return;
 
+    setIsDeploying(true);
     // First save any uncommitted changes
     if (gitStatus?.hasChanges) {
+      setDeployPhase("saving");
       addLog("Saving changes before deploy...", "info");
       await saveToGitHub();
     }
 
-    setIsDeploying(true);
+    setDeployPhase("deploying");
     try {
       const response = await fetchWithRetry(
         `/api/v1/apps/${appData.id}/deploy`,
@@ -1260,6 +1263,7 @@ export default function AppCreatorPage() {
       );
     } finally {
       setIsDeploying(false);
+      setDeployPhase(null);
     }
   }, [appData?.id, isDeploying, gitStatus?.hasChanges, saveToGitHub, addLog]);
 
@@ -2686,7 +2690,11 @@ Some ideas:
     if (generationAbortControllerRef.current) {
       generationAbortControllerRef.current.abort();
       generationAbortControllerRef.current = null;
-      addLog("Stopping generation...", "info");
+      // Immediately update UI state for responsive feedback
+      setStatus("ready");
+      setIsLoading(false);
+      addLog("Generation stopped", "info");
+      toast.info("Generation stopped");
     }
   }, [addLog]);
 
@@ -3276,12 +3284,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                           needed)
                         </p>
                       )}
-                    {appDescription.length > 500 && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Description exceeds 500 character limit
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -3311,8 +3313,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appName.length > 100 ||
                       nameValidation.isChecking ||
                       nameValidation.isAvailable === false ||
-                      appDescription.length < MIN_DESCRIPTION_LENGTH ||
-                      appDescription.length > 500
+                      appDescription.length < MIN_DESCRIPTION_LENGTH
                     }
                     className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
                   >
@@ -3800,7 +3801,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ) : (
                       <Rocket className="h-4 w-4" />
                     )}
-                    {isDeploying ? "Deploying..." : "Deploy"}
+                    {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                   </DropdownMenuItem>
                   {productionUrl && (
                     <DropdownMenuItem asChild>
@@ -4010,7 +4011,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Rocket className="h-3 w-3" />
                 )}
                 <span className="ml-1.5">
-                  {isDeploying ? "Deploying..." : "Deploy"}
+                  {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
                 </span>
               </Button>
               {productionUrl && (
