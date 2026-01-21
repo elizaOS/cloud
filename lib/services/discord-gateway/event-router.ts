@@ -36,15 +36,26 @@ import { getEncryptionService } from "@/lib/services/secrets/encryption";
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 
 /**
- * Truncate a string to a maximum length without breaking multi-byte UTF-8 characters.
- * Uses Array.from to properly handle Unicode code points (including emoji).
+ * Truncate a string to a maximum UTF-16 code unit length (Discord's limit).
+ * Avoids breaking surrogate pairs (emoji, etc.) by backing up if needed.
  */
-function truncateUtf8Safe(str: string, maxLength: number): string {
-  const chars = Array.from(str);
-  if (chars.length <= maxLength) {
+function truncateUtf16Safe(str: string, maxLength: number): string {
+  if (str.length <= maxLength) {
     return str;
   }
-  return chars.slice(0, maxLength).join("");
+
+  // Truncate to maxLength
+  let truncated = str.slice(0, maxLength);
+
+  // Check if we cut in the middle of a surrogate pair
+  // High surrogate: 0xD800-0xDBFF, Low surrogate: 0xDC00-0xDFFF
+  const lastChar = truncated.charCodeAt(truncated.length - 1);
+  if (lastChar >= 0xd800 && lastChar <= 0xdbff) {
+    // Last char is a high surrogate without its low surrogate - remove it
+    truncated = truncated.slice(0, -1);
+  }
+
+  return truncated;
 }
 
 /** HTTP request timeout for Discord API calls */
@@ -487,7 +498,7 @@ async function sendDiscordResponse(
   replyToMessageId?: string,
 ): Promise<void> {
   const payload: Record<string, unknown> = {
-    content: truncateUtf8Safe(content, MAX_DISCORD_MESSAGE_LENGTH),
+    content: truncateUtf16Safe(content, MAX_DISCORD_MESSAGE_LENGTH),
   };
 
   if (replyToMessageId) {
