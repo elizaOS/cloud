@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const podName = request.nextUrl.searchParams.get("pod");
-  if (!podName) {
+  // Validate pod name: alphanumeric with hyphens, max 253 chars (K8s limit)
+  if (!podName || !/^[a-zA-Z0-9-]+$/.test(podName) || podName.length > 253) {
     return NextResponse.json(
-      { error: "Pod name required" },
+      { error: "Invalid pod name" },
       { status: 400 },
     );
   }

@@ -330,16 +330,17 @@ export class GatewayManager {
       };
 
       for (const assignment of data.assignments) {
+        // Check capacity FIRST before each assignment to prevent TOCTOU race
+        // (capacity could change during async connectBot operations)
+        if (this.connections.size >= MAX_BOTS_PER_POD) {
+          logger.warn("MAX_BOTS_PER_POD limit reached, skipping remaining assignments", {
+            currentBots: this.connections.size,
+            maxBots: MAX_BOTS_PER_POD,
+            skippedConnectionId: assignment.connectionId,
+          });
+          break;
+        }
         if (!this.connections.has(assignment.connectionId)) {
-          // Enforce MAX_BOTS_PER_POD limit
-          if (this.connections.size >= MAX_BOTS_PER_POD) {
-            logger.warn("MAX_BOTS_PER_POD limit reached, skipping new assignment", {
-              currentBots: this.connections.size,
-              maxBots: MAX_BOTS_PER_POD,
-              skippedConnectionId: assignment.connectionId,
-            });
-            break;
-          }
           await this.connectBot(assignment);
         }
       }

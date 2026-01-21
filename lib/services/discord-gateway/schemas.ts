@@ -100,9 +100,16 @@ export const DiscordEventPayloadSchema = z.object({
 });
 
 // Connection status update schema
+// K8s pod name pattern: alphanumeric with hyphens, max 253 chars
+const podNameSchema = z
+  .string()
+  .min(1)
+  .max(253)
+  .regex(/^[a-zA-Z0-9-]+$/, "Pod name must be alphanumeric with hyphens");
+
 export const ConnectionStatusUpdateSchema = z.object({
   connection_id: z.string().uuid(),
-  pod_name: z.string().min(1),
+  pod_name: podNameSchema,
   status: z.enum(["connecting", "connected", "disconnected", "error"]),
   error_message: z.string().optional(),
   // Bot user ID - sent when status is "connected" for mention detection
@@ -112,8 +119,8 @@ export const ConnectionStatusUpdateSchema = z.object({
 
 // Failover request schema
 export const FailoverRequestSchema = z.object({
-  claiming_pod: z.string().min(1),
-  dead_pod: z.string().min(1),
+  claiming_pod: podNameSchema,
+  dead_pod: podNameSchema,
 });
 
 // Type exports

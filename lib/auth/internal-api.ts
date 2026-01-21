@@ -37,31 +37,16 @@ export function validateInternalApiKey(
   }
 
   // Constant-time comparison to prevent timing attacks
+  // Length check is not constant-time but leaking length is acceptable
+  // (key length is not secret, key content is)
   const expectedBuffer = Buffer.from(INTERNAL_API_KEY, "utf8");
   const providedBuffer = Buffer.from(providedKey, "utf8");
 
-  // First check length (if different, comparison will fail anyway)
-  // We still do the timingSafeEqual even if lengths differ to avoid
-  // leaking information about whether length was the issue
-  const lengthsMatch = expectedBuffer.length === providedBuffer.length;
+  const keysMatch =
+    expectedBuffer.length === providedBuffer.length &&
+    timingSafeEqual(expectedBuffer, providedBuffer);
 
-  // If lengths differ, create equal-length buffers for comparison
-  // This ensures constant-time behavior regardless of length mismatch
-  const compareExpected = lengthsMatch
-    ? expectedBuffer
-    : Buffer.alloc(Math.max(expectedBuffer.length, providedBuffer.length));
-  const compareProvided = lengthsMatch
-    ? providedBuffer
-    : Buffer.alloc(Math.max(expectedBuffer.length, providedBuffer.length));
-
-  if (!lengthsMatch) {
-    expectedBuffer.copy(compareExpected);
-    providedBuffer.copy(compareProvided);
-  }
-
-  const keysMatch = timingSafeEqual(compareExpected, compareProvided);
-
-  if (!lengthsMatch || !keysMatch) {
+  if (!keysMatch) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

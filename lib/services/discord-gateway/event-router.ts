@@ -35,6 +35,19 @@ import { getEncryptionService } from "@/lib/services/secrets/encryption";
 /** Maximum Discord message length */
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 
+/** Discord bot token pattern for sanitization */
+const DISCORD_TOKEN_PATTERN =
+  /[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27}/g;
+
+/**
+ * Sanitize error messages to prevent accidental token exposure in logs.
+ * Discord bot tokens have a specific format that we can detect and redact.
+ */
+function sanitizeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(DISCORD_TOKEN_PATTERN, "[REDACTED_TOKEN]");
+}
+
 /**
  * Truncate a string to a maximum UTF-16 code unit length (Discord's limit).
  * Avoids breaking surrogate pairs (emoji, etc.) by backing up if needed.
@@ -236,7 +249,7 @@ async function handleMessageCreate(
     logger.error("[DiscordRouter] Failed to create runtime", {
       appId: app.id,
       characterId,
-      error: error instanceof Error ? error.message : String(error),
+      error: sanitizeError(error),
     });
     return { processed: false };
   }
@@ -251,7 +264,7 @@ async function handleMessageCreate(
     logger.error("[DiscordRouter] Failed to process message through runtime", {
       connectionId: connection.id,
       messageId: data.id,
-      error: error instanceof Error ? error.message : String(error),
+      error: sanitizeError(error),
     });
     return { processed: false };
   }
@@ -273,7 +286,7 @@ async function handleMessageCreate(
       logger.error("[DiscordRouter] Failed to send Discord response", {
         connectionId: connection.id,
         channelId: data.channel_id,
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }

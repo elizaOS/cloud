@@ -1,4 +1,4 @@
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discordConnections,
@@ -219,7 +219,7 @@ export const discordConnectionsRepository = {
       .where(
         and(
           eq(discordConnections.assigned_pod, podName),
-          sql`${discordConnections.id} = ANY(${connectionIds})`,
+          inArray(discordConnections.id, connectionIds),
         ),
       )
       .returning({ id: discordConnections.id });
