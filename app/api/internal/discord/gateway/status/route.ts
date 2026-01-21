@@ -7,8 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
+import { ConnectionStatusUpdateSchema } from "@/lib/services/discord-gateway/schemas";
 import { logger } from "@/lib/utils/logger";
-import type { ConnectionStatusUpdate } from "@/lib/services/discord-gateway/types";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +16,25 @@ export async function POST(request: NextRequest) {
   const authError = validateInternalApiKey(request);
   if (authError) return authError;
 
-  const body = (await request.json()) as ConnectionStatusUpdate;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  const { connection_id, pod_name, status, error_message } = body;
-
-  if (!connection_id || !status) {
+  const parsed = ConnectionStatusUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn("[Gateway Status] Invalid payload", {
+      errors: parsed.error.errors,
+    });
     return NextResponse.json(
-      { error: "connection_id and status required" },
+      { error: "Invalid payload", details: parsed.error.errors },
       { status: 400 },
     );
   }
+
+  const { connection_id, pod_name, status, error_message } = parsed.data;
 
   logger.info("[Gateway Status] Updating connection status", {
     connectionId: connection_id,

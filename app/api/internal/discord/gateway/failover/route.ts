@@ -7,8 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
+import { FailoverRequestSchema } from "@/lib/services/discord-gateway/schemas";
 import { logger } from "@/lib/utils/logger";
-import type { FailoverRequest, FailoverResponse } from "@/lib/services/discord-gateway/types";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +16,33 @@ export async function POST(request: NextRequest) {
   const authError = validateInternalApiKey(request);
   if (authError) return authError;
 
-  const body = (await request.json()) as FailoverRequest;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  const { claiming_pod, dead_pod } = body;
-
-  if (!claiming_pod || !dead_pod) {
+  const parsed = FailoverRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn("[Gateway Failover] Invalid payload", {
+      errors: parsed.error.errors,
+    });
     return NextResponse.json(
-      { error: "claiming_pod and dead_pod required" },
+      { error: "Invalid payload", details: parsed.error.errors },
+      { status: 400 },
+    );
+  }
+
+  const { claiming_pod, dead_pod } = parsed.data;
+
+  // Prevent self-claiming (could cause data inconsistency)
+  if (claiming_pod === dead_pod) {
+    logger.warn("[Gateway Failover] Rejected self-claim attempt", {
+      pod: claiming_pod,
+    });
+    return NextResponse.json(
+      { error: "Cannot claim connections from self" },
       { status: 400 },
     );
   }
@@ -43,6 +63,5 @@ export async function POST(request: NextRequest) {
     claimed,
   });
 
-  const response: FailoverResponse = { claimed };
-  return NextResponse.json(response);
+  return NextResponse.json({ claimed });
 }

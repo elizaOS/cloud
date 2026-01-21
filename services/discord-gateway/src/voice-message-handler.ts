@@ -27,6 +27,17 @@ const CLEANUP_INTERVAL_MS = parseInt(
 
 const MAX_VOICE_FILE_SIZE = 25 * 1024 * 1024; // 25MB Discord limit
 
+/**
+ * Blob access mode for voice files.
+ * - "public": Anyone with URL can access (simpler, but less secure)
+ *
+ * Security note: Voice messages are sensitive. The current "public" mode
+ * relies on unguessable URLs (random path components) and short TTL for security.
+ * For higher security requirements, consider implementing signed URL generation
+ * at the consumer level with Vercel Blob's token-based access.
+ */
+const VOICE_BLOB_ACCESS = "public" as const;
+
 export interface VoiceAttachmentResult {
   audioUrl: string;
   expiresAt: Date;
@@ -152,7 +163,7 @@ export class VoiceMessageHandler {
 
     const uploadStart = Date.now();
     const blob = await put(pathname, audioBuffer, {
-      access: "public",
+      access: VOICE_BLOB_ACCESS,
       contentType,
       addRandomSuffix: false,
     });
@@ -268,21 +279,33 @@ export class VoiceMessageHandler {
 
     logger.info("Starting voice audio cleanup");
 
-    const blobs = await list({
-      prefix: `${VOICE_STORAGE_PATH_PREFIX}/`,
-      limit: 1000,
-    });
+    // Collect all expired blobs across all pages
+    const now = Date.now();
+    const expiredBlobs: Array<{ url: string; uploadedAt: Date }> = [];
+    let cursor: string | undefined;
 
-    if (blobs.blobs.length === 0) {
-      logger.debug("No voice audio files to clean up");
+    // Paginate through all blobs
+    do {
+      const response = await list({
+        prefix: `${VOICE_STORAGE_PATH_PREFIX}/`,
+        limit: 1000,
+        cursor,
+      });
+
+      for (const blob of response.blobs) {
+        const ageSeconds = (now - blob.uploadedAt.getTime()) / 1000;
+        if (ageSeconds > VOICE_AUDIO_TTL_SECONDS) {
+          expiredBlobs.push({ url: blob.url, uploadedAt: blob.uploadedAt });
+        }
+      }
+
+      cursor = response.cursor;
+    } while (cursor);
+
+    if (expiredBlobs.length === 0) {
+      logger.debug("No expired voice audio files to clean up");
       return 0;
     }
-
-    const now = Date.now();
-    const expiredBlobs = blobs.blobs.filter((blob) => {
-      const ageSeconds = (now - blob.uploadedAt.getTime()) / 1000;
-      return ageSeconds > VOICE_AUDIO_TTL_SECONDS;
-    });
 
     const deleteResults = await Promise.allSettled(
       expiredBlobs.map((blob) => del(blob.url)),
@@ -334,6 +357,7 @@ export class VoiceMessageHandler {
 
   /**
    * Start the cleanup job that runs periodically.
+   * First cleanup is deferred to avoid blocking startup and failing health checks.
    */
   startCleanupJob(): void {
     if (this.cleanupInterval) {
@@ -353,7 +377,9 @@ export class VoiceMessageHandler {
     };
 
     this.cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
-    runCleanup();
+
+    // Defer initial cleanup to avoid blocking startup (run after 30 seconds)
+    setTimeout(runCleanup, 30_000);
   }
 
   /**

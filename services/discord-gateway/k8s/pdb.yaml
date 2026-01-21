@@ -4,7 +4,9 @@ metadata:
   name: discord-gateway
   namespace: discord-gateway
 spec:
-  minAvailable: 2
+  # Allow at most 1 pod unavailable during voluntary disruptions
+  # Works better than minAvailable as it scales with replica count
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: discord-gateway

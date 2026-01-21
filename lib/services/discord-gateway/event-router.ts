@@ -12,7 +12,6 @@ import {
   Memory,
   MemoryType,
   stringToUuid,
-  elizaLogger,
   createUniqueUuid,
   type UUID,
   type Content,
@@ -24,15 +23,36 @@ import { discordConnectionsRepository, appsRepository } from "@/db/repositories"
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
-import type {
-  DiscordEventPayload,
-  MessageCreateData,
-  DiscordAuthor,
-} from "./types";
-import {
-  DISCORD_API_BASE,
-  discordBotHeaders,
-} from "@/lib/utils/discord-api";
+import type { DiscordEventPayload, MessageCreateData } from "./schemas";
+import { MessageCreateDataSchema, DiscordAuthorSchema } from "./schemas";
+import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
+import { getEncryptionService } from "@/lib/services/secrets/encryption";
+
+// ============================================
+// Constants
+// ============================================
+
+/** Maximum Discord message length */
+const MAX_DISCORD_MESSAGE_LENGTH = 2000;
+
+/**
+ * Truncate a string to a maximum length without breaking multi-byte UTF-8 characters.
+ * Uses Array.from to properly handle Unicode code points (including emoji).
+ */
+function truncateUtf8Safe(str: string, maxLength: number): string {
+  const chars = Array.from(str);
+  if (chars.length <= maxLength) {
+    return str;
+  }
+  return chars.slice(0, maxLength).join("");
+}
+
+/** HTTP request timeout for Discord API calls */
+const DISCORD_API_TIMEOUT_MS = 10_000;
+
+// ============================================
+// Types
+// ============================================
 
 interface ProcessedMessage {
   roomId: string;
@@ -43,9 +63,20 @@ interface ProcessedMessage {
     discordMessageId: string;
     discordChannelId: string;
     discordGuildId?: string;
-    discordAuthor: DiscordAuthor;
+    discordAuthor: {
+      id: string;
+      username: string;
+      discriminator?: string;
+      avatar?: string | null;
+      bot?: boolean;
+      global_name?: string | null;
+    };
   };
 }
+
+// ============================================
+// Main Router
+// ============================================
 
 /**
  * Route a Discord event to the appropriate handler.
@@ -53,7 +84,7 @@ interface ProcessedMessage {
 export async function routeDiscordEvent(
   payload: DiscordEventPayload,
 ): Promise<{ processed: boolean; response?: string }> {
-  const { event_type, connection_id, data } = payload;
+  const { event_type, connection_id } = payload;
 
   logger.info("[DiscordRouter] Routing event", {
     eventType: event_type,
@@ -62,8 +93,17 @@ export async function routeDiscordEvent(
   });
 
   switch (event_type) {
-    case "MESSAGE_CREATE":
-      return handleMessageCreate(payload, data as MessageCreateData);
+    case "MESSAGE_CREATE": {
+      // Validate message data
+      const parsed = MessageCreateDataSchema.safeParse(payload.data);
+      if (!parsed.success) {
+        logger.warn("[DiscordRouter] Invalid MESSAGE_CREATE data", {
+          errors: parsed.error.errors,
+        });
+        return { processed: false };
+      }
+      return handleMessageCreate(payload, parsed.data);
+    }
 
     case "MESSAGE_UPDATE":
     case "MESSAGE_DELETE":
@@ -78,7 +118,9 @@ export async function routeDiscordEvent(
       return { processed: true };
 
     default:
-      logger.warn("[DiscordRouter] Unknown event type", { eventType: event_type });
+      logger.warn("[DiscordRouter] Unknown event type", {
+        eventType: event_type,
+      });
       return { processed: false };
   }
 }
@@ -122,8 +164,10 @@ async function handleMessageCreate(
 
     // Check response mode
     if (metadata.responseMode === "mention") {
-      // Only respond if bot is mentioned
-      const botMentioned = data.mentions?.some((m) => m.bot);
+      // Only respond if THIS bot is mentioned (application_id === bot user id in Discord)
+      const botMentioned = data.mentions?.some(
+        (m) => m.id === connection.application_id,
+      );
       if (!botMentioned) {
         return { processed: true };
       }
@@ -147,8 +191,8 @@ async function handleMessageCreate(
   }
 
   const app = await appsRepository.findById(connection.app_id);
-  if (!app || !app.character_id) {
-    logger.warn("[DiscordRouter] App or character not found", {
+  if (!app) {
+    logger.warn("[DiscordRouter] App not found", {
       appId: connection.app_id,
     });
     return { processed: false };
@@ -168,27 +212,53 @@ async function handleMessageCreate(
   context.characterId = characterId;
   context.organizationId = app.organization_id;
 
-  const runtime = await runtimeFactory.createRuntimeForUser(context);
-  if (!runtime) {
-    logger.error("[DiscordRouter] Failed to get runtime for app", {
+  let runtime: AgentRuntime;
+  try {
+    runtime = await runtimeFactory.createRuntimeForUser(context);
+  } catch (error) {
+    logger.error("[DiscordRouter] Failed to create runtime", {
       appId: app.id,
       characterId,
+      error: error instanceof Error ? error.message : String(error),
     });
     return { processed: false };
   }
 
   // Process the message
   const processed = processMessage(data, payload);
-  const response = await sendToRuntime(runtime, processed);
+  let response: string | undefined;
+
+  try {
+    response = await sendToRuntime(runtime, processed);
+  } catch (error) {
+    logger.error("[DiscordRouter] Failed to process message through runtime", {
+      connectionId: connection.id,
+      messageId: data.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { processed: false };
+  }
 
   // Send response back to Discord if we have one
   if (response) {
-    await sendDiscordResponse(
-      connection.bot_token_encrypted,
-      data.channel_id,
-      response,
-      data.id,
-    );
+    try {
+      // Decrypt the bot token
+      const encryption = getEncryptionService();
+      const botToken = await encryption.decrypt({
+        encryptedValue: connection.bot_token_encrypted,
+        encryptedDek: connection.encrypted_dek,
+        nonce: connection.token_nonce,
+        authTag: connection.token_auth_tag,
+      });
+
+      await sendDiscordResponse(botToken, data.channel_id, response, data.id);
+    } catch (error) {
+      logger.error("[DiscordRouter] Failed to send Discord response", {
+        connectionId: connection.id,
+        channelId: data.channel_id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   return { processed: true, response };
@@ -261,50 +331,74 @@ async function sendToRuntime(
   const serverId = stringToUuid("discord-server") as UUID;
 
   // Ensure world exists
-  await runtime.ensureWorldExists({
-    id: worldId,
-    name: "Discord",
-    agentId: runtime.agentId,
-    serverId,
-  } as World).catch(() => {});
+  try {
+    await runtime.ensureWorldExists({
+      id: worldId,
+      name: "Discord",
+      agentId: runtime.agentId,
+      serverId,
+    } as World);
+  } catch (error) {
+    logger.debug("[DiscordRouter] World may already exist", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Ensure room exists
-  await runtime.ensureRoomExists({
-    id: roomUuid,
-    name: `Discord Channel ${message.metadata.discordChannelId}`,
-    type: ChannelType.GROUP,
-    channelId: roomUuid,
-    worldId,
-    serverId,
-    agentId: runtime.agentId,
-    source: "discord",
-  }).catch(() => {});
+  try {
+    await runtime.ensureRoomExists({
+      id: roomUuid,
+      name: `Discord Channel ${message.metadata.discordChannelId}`,
+      type: ChannelType.GROUP,
+      channelId: roomUuid,
+      worldId,
+      serverId,
+      agentId: runtime.agentId,
+      source: "discord",
+    });
+  } catch (error) {
+    logger.debug("[DiscordRouter] Room may already exist", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Ensure user entity exists
   const displayName =
     message.metadata.discordAuthor.global_name ||
     message.metadata.discordAuthor.username;
 
-  await runtime.createEntity({
-    id: entityUuid,
-    agentId: runtime.agentId,
-    names: [displayName, message.metadata.discordAuthor.username],
-    metadata: {
-      discord: {
-        id: message.metadata.discordAuthor.id,
-        username: message.metadata.discordAuthor.username,
-        discriminator: message.metadata.discordAuthor.discriminator,
-        avatar: message.metadata.discordAuthor.avatar,
-        globalName: message.metadata.discordAuthor.global_name,
+  try {
+    await runtime.createEntity({
+      id: entityUuid,
+      agentId: runtime.agentId,
+      names: [displayName, message.metadata.discordAuthor.username],
+      metadata: {
+        discord: {
+          id: message.metadata.discordAuthor.id,
+          username: message.metadata.discordAuthor.username,
+          discriminator: message.metadata.discordAuthor.discriminator,
+          avatar: message.metadata.discordAuthor.avatar,
+          globalName: message.metadata.discordAuthor.global_name,
+        },
       },
-    },
-  }).catch(() => {});
+    });
+  } catch (error) {
+    logger.debug("[DiscordRouter] Entity may already exist", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Ensure participants
-  await Promise.all([
-    runtime.ensureParticipantInRoom(runtime.agentId, roomUuid).catch(() => {}),
-    runtime.ensureParticipantInRoom(entityUuid, roomUuid).catch(() => {}),
-  ]);
+  try {
+    await Promise.all([
+      runtime.ensureParticipantInRoom(runtime.agentId, roomUuid),
+      runtime.ensureParticipantInRoom(entityUuid, roomUuid),
+    ]);
+  } catch (error) {
+    logger.debug("[DiscordRouter] Participants may already exist", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Create user message
   const userMessage: Memory = {
@@ -316,7 +410,9 @@ async function sendToRuntime(
     content: {
       text: message.text,
       source: "discord",
-      ...(message.attachments?.length ? { attachments: message.attachments } : {}),
+      ...(message.attachments?.length
+        ? { attachments: message.attachments }
+        : {}),
     },
     metadata: {
       type: MemoryType.MESSAGE,
@@ -356,7 +452,14 @@ async function sendToRuntime(
             visibility: "visible",
           },
         };
-        await runtime.createMemory(responseMemory, "messages");
+
+        try {
+          await runtime.createMemory(responseMemory, "messages");
+        } catch (error) {
+          logger.error("[DiscordRouter] Failed to save response memory", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
       return [];
     },
@@ -375,7 +478,7 @@ async function sendDiscordResponse(
   replyToMessageId?: string,
 ): Promise<void> {
   const payload: Record<string, unknown> = {
-    content: content.slice(0, 2000), // Discord message limit
+    content: truncateUtf8Safe(content, MAX_DISCORD_MESSAGE_LENGTH),
   };
 
   if (replyToMessageId) {
@@ -384,21 +487,32 @@ async function sendDiscordResponse(
     };
   }
 
-  const response = await fetch(
-    `${DISCORD_API_BASE}/channels/${channelId}/messages`,
-    {
-      method: "POST",
-      headers: discordBotHeaders(botToken),
-      body: JSON.stringify(payload),
-    },
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    DISCORD_API_TIMEOUT_MS,
   );
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    logger.error("[DiscordRouter] Failed to send response", {
-      channelId,
-      status: response.status,
-      error,
-    });
+  try {
+    const response = await fetch(
+      `${DISCORD_API_BASE}/channels/${channelId}/messages`,
+      {
+        method: "POST",
+        headers: discordBotHeaders(botToken),
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      logger.error("[DiscordRouter] Discord API error", {
+        channelId,
+        status: response.status,
+        error,
+      });
+    }
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

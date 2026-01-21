@@ -6,12 +6,24 @@
  */
 
 import { serve } from "@hono/node-server";
+import { hostname } from "os";
 import { Hono } from "hono";
 import { GatewayManager } from "./gateway-manager";
 import { logger } from "./logger";
 
 const app = new Hono();
-const podName = process.env.POD_NAME ?? `gateway-${Date.now()}`;
+
+// Pod name is critical for connection tracking and failover.
+// In K8s: Set via POD_NAME from metadata.name
+// Locally: Falls back to hostname for stable identity across restarts
+const podName = process.env.POD_NAME ?? `gateway-${hostname()}`;
+if (!process.env.POD_NAME) {
+  logger.warn(
+    "POD_NAME not set - using hostname. Set POD_NAME in production for proper failover.",
+    { podName },
+  );
+}
+
 const port = parseInt(process.env.PORT ?? "3000", 10);
 
 // Initialize gateway manager
@@ -23,22 +35,23 @@ const gatewayManager = new GatewayManager({
   redisToken: process.env.KV_REST_API_TOKEN,
 });
 
-// Health check endpoint
+// Liveness check - is the pod alive and should NOT be restarted?
+// Returns 200 for healthy/degraded (don't restart), 503 for unhealthy (restart)
+// Degraded pods return 200 because restarting would disconnect all bots
 app.get("/health", (c) => {
   const health = gatewayManager.getHealth();
-  const status =
-    health.status === "healthy"
-      ? 200
-      : health.status === "degraded"
-        ? 200
-        : 503;
-  return c.json(health, status);
+  const alive = health.status !== "unhealthy";
+  return c.json(health, alive ? 200 : 503);
 });
 
-// Readiness check - ready when at least one bot is connected or no bots assigned
+// Readiness check - can this pod accept new work?
+// Returns 503 for degraded/unhealthy to deprioritize in load balancing
 app.get("/ready", (c) => {
   const health = gatewayManager.getHealth();
-  const ready = health.totalBots === 0 || health.connectedBots > 0;
+  const ready =
+    health.status === "healthy" &&
+    health.controlPlane.healthy &&
+    (health.totalBots === 0 || health.connectedBots > 0);
   return c.json({ ready, ...health }, ready ? 200 : 503);
 });
 

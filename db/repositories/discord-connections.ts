@@ -1,16 +1,50 @@
-import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discordConnections,
   type DiscordConnection,
   type NewDiscordConnection,
 } from "@/db/schemas/discord-connections";
+import { getEncryptionService } from "@/lib/services/secrets/encryption";
+import { logger } from "@/lib/utils/logger";
+
+interface CreateConnectionInput {
+  organizationId: string;
+  appId?: string;
+  applicationId: string;
+  botToken: string;
+  intents?: number;
+  metadata?: DiscordConnection["metadata"];
+}
+
+interface DecryptedAssignment {
+  connectionId: string;
+  organizationId: string;
+  applicationId: string;
+  botToken: string;
+  intents: number;
+}
 
 export const discordConnectionsRepository = {
-  async create(data: NewDiscordConnection): Promise<DiscordConnection> {
+  async create(input: CreateConnectionInput): Promise<DiscordConnection> {
+    const encryption = getEncryptionService();
+    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
+      await encryption.encrypt(input.botToken);
+
     const [connection] = await db
       .insert(discordConnections)
-      .values(data)
+      .values({
+        organization_id: input.organizationId,
+        app_id: input.appId,
+        application_id: input.applicationId,
+        bot_token_encrypted: encryptedValue,
+        encrypted_dek: encryptedDek,
+        token_nonce: nonce,
+        token_auth_tag: authTag,
+        encryption_key_id: keyId,
+        intents: input.intents,
+        metadata: input.metadata,
+      })
       .returning();
     return connection;
   },
@@ -34,12 +68,18 @@ export const discordConnectionsRepository = {
   },
 
   async findByApplicationId(
+    organizationId: string,
     applicationId: string,
   ): Promise<DiscordConnection | null> {
     const [connection] = await db
       .select()
       .from(discordConnections)
-      .where(eq(discordConnections.application_id, applicationId))
+      .where(
+        and(
+          eq(discordConnections.organization_id, organizationId),
+          eq(discordConnections.application_id, applicationId),
+        ),
+      )
       .limit(1);
     return connection ?? null;
   },
@@ -68,20 +108,31 @@ export const discordConnectionsRepository = {
       );
   },
 
-  async assignToPod(
-    connectionId: string,
+  /**
+   * Atomically assign an unassigned connection to a pod using row-level locking.
+   * Prevents race conditions when multiple pods request assignments simultaneously.
+   */
+  async assignUnassignedToPod(
     podName: string,
   ): Promise<DiscordConnection | null> {
-    const [connection] = await db
-      .update(discordConnections)
-      .set({
-        assigned_pod: podName,
-        status: "connecting",
-        updated_at: new Date(),
-      })
-      .where(eq(discordConnections.id, connectionId))
-      .returning();
-    return connection ?? null;
+    // Use raw SQL for SELECT ... FOR UPDATE SKIP LOCKED
+    const result = await db.execute<DiscordConnection>(sql`
+      UPDATE discord_connections
+      SET assigned_pod = ${podName},
+          status = 'connecting',
+          updated_at = NOW()
+      WHERE id = (
+        SELECT id FROM discord_connections
+        WHERE is_active = true
+          AND assigned_pod IS NULL
+        ORDER BY created_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `);
+
+    return result.rows[0] ?? null;
   },
 
   async updateStatus(
@@ -89,7 +140,7 @@ export const discordConnectionsRepository = {
     status: string,
     errorMessage?: string,
   ): Promise<DiscordConnection | null> {
-    const updates: Partial<DiscordConnection> = {
+    const updates: Record<string, unknown> = {
       status,
       updated_at: new Date(),
     };
@@ -100,10 +151,15 @@ export const discordConnectionsRepository = {
 
     if (status === "connected") {
       updates.connected_at = new Date();
+    }
+
+    // Clear error message for non-error states
+    if (status !== "error" && errorMessage === undefined) {
       updates.error_message = null;
     }
 
-    if (status === "disconnected") {
+    // Clear pod assignment on disconnect or error to allow reassignment
+    if (status === "disconnected" || status === "error") {
       updates.assigned_pod = null;
     }
 
@@ -133,7 +189,9 @@ export const discordConnectionsRepository = {
       eventsRouted?: number;
     },
   ): Promise<void> {
-    const updates: Record<string, unknown> = { updated_at: new Date() };
+    const updates: Partial<typeof discordConnections.$inferInsert> = {
+      updated_at: new Date(),
+    };
 
     if (stats.guildCount !== undefined) {
       updates.guild_count = stats.guildCount;
@@ -207,34 +265,74 @@ export const discordConnectionsRepository = {
     return connection ?? null;
   },
 
-  async getAssignmentsForPod(
-    podName: string,
-  ): Promise<
-    Array<{
-      connectionId: string;
-      organizationId: string;
-      applicationId: string;
-      botToken: string;
-      intents: number;
-    }>
-  > {
-    // First, get any unassigned connections and assign them to this pod
-    const unassigned = await this.findActiveUnassigned();
+  /**
+   * Get assignments for a pod with decrypted bot tokens.
+   * Attempts to assign one unassigned connection to this pod if available.
+   */
+  async getAssignmentsForPod(podName: string): Promise<DecryptedAssignment[]> {
+    const encryption = getEncryptionService();
 
-    // Simple round-robin: assign first unassigned to requesting pod
-    if (unassigned.length > 0) {
-      await this.assignToPod(unassigned[0].id, podName);
-    }
+    // Try to claim an unassigned connection atomically
+    await this.assignUnassignedToPod(podName);
 
     // Get all connections assigned to this pod
     const connections = await this.findByAssignedPod(podName);
 
-    return connections.map((conn) => ({
-      connectionId: conn.id,
-      organizationId: conn.organization_id,
-      applicationId: conn.application_id,
-      botToken: conn.bot_token_encrypted, // Will be decrypted by caller
-      intents: conn.intents ?? 3276799,
-    }));
+    // Decrypt tokens in parallel
+    const assignments = await Promise.all(
+      connections.map(async (conn): Promise<DecryptedAssignment | null> => {
+        try {
+          const botToken = await encryption.decrypt({
+            encryptedValue: conn.bot_token_encrypted,
+            encryptedDek: conn.encrypted_dek,
+            nonce: conn.token_nonce,
+            authTag: conn.token_auth_tag,
+          });
+
+          return {
+            connectionId: conn.id,
+            organizationId: conn.organization_id,
+            applicationId: conn.application_id,
+            botToken,
+            intents: conn.intents ?? 3276799,
+          };
+        } catch (error) {
+          logger.error("[DiscordConnections] Failed to decrypt bot token", {
+            connectionId: conn.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
+      }),
+    );
+
+    return assignments.filter((a): a is DecryptedAssignment => a !== null);
+  },
+
+  /**
+   * Update a bot token (re-encrypts with new DEK).
+   */
+  async updateBotToken(
+    connectionId: string,
+    newBotToken: string,
+  ): Promise<DiscordConnection | null> {
+    const encryption = getEncryptionService();
+    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
+      await encryption.encrypt(newBotToken);
+
+    const [connection] = await db
+      .update(discordConnections)
+      .set({
+        bot_token_encrypted: encryptedValue,
+        encrypted_dek: encryptedDek,
+        token_nonce: nonce,
+        token_auth_tag: authTag,
+        encryption_key_id: keyId,
+        updated_at: new Date(),
+      })
+      .where(eq(discordConnections.id, connectionId))
+      .returning();
+
+    return connection ?? null;
   },
 };

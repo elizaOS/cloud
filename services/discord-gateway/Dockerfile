@@ -35,8 +35,8 @@ USER gateway
 
 EXPOSE 3000
 
-# Health check
+# Health check using bun (guaranteed to be available)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+    CMD bun -e "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["bun", "run", "dist/index.js"]
