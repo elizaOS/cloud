@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
                 expiresAt: readySession.expiresAt,
                 appId: readySession.appId,
                 githubRepo: readySession.githubRepo,
+                hasDatabase: readySession.hasDatabase,
               },
               hasInitialPrompt: !!data.initialPrompt,
             });
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
               initialPromptResult: session.initialPromptResult,
               appId: session.appId,
               githubRepo: session.githubRepo,
+              hasDatabase: session.hasDatabase,
             },
           });
         }
