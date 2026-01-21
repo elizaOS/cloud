@@ -511,7 +511,7 @@ export default function AppCreatorPage() {
   const [includeMonetization, setIncludeMonetization] = useState(true);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
   const [includePersistentStorage, setIncludePersistentStorage] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(true);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [templatePage, setTemplatePage] = useState(0);
   const TEMPLATES_PER_PAGE = 4;
 
@@ -519,8 +519,8 @@ export default function AppCreatorPage() {
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   // Input is managed by Zustand for isolated re-renders - see useChatInput
-  const [isLoading, setIsLoading] = useState(true);
-  const [copied, setCopied] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(true);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
@@ -529,16 +529,16 @@ export default function AppCreatorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
-  const [iframeLoaded, setIframeLoaded] = useState(true);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [isExtending, setIsExtending] = useState(true);
+  const [isExtending, setIsExtending] = useState(false);
   const [snapshotInfo, setSnapshotInfo] = useState<{
     canRestore: boolean;
     githubRepo: string | null;
     lastBackup: string | null;
   } | null>(null);
-  const [isRestoring, setIsRestoring] = useState(true);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<{
     current: number;
     total: number;
@@ -551,8 +551,8 @@ export default function AppCreatorPage() {
 
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
-  const [isSaving, setIsSaving] = useState(true);
-  const [isDeploying, setIsDeploying] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
     null,
   );
