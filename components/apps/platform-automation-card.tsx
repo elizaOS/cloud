@@ -142,13 +142,19 @@ export function PlatformAutomationCard({
     setIsLoading(true);
     setHasError(false);
     try {
-      const response = await fetch(`/api/v1/apps/${appId}/${platform}-automation`);
+      const response = await fetch(
+        `/api/v1/apps/${appId}/${platform}-automation`,
+      );
       if (response.ok) {
         const data = await response.json();
 
         // Check if automation has been configured (has channel/guild/etc)
         const hasAutomationConfig =
-          data.channelId || data.groupId || data.guildId || data.autoAnnounce || data.autoPost;
+          data.channelId ||
+          data.groupId ||
+          data.guildId ||
+          data.autoAnnounce ||
+          data.autoPost;
 
         // Normalize the response based on platform
         // IMPORTANT: Preserve config even when enabled=false (paused state)
@@ -156,10 +162,10 @@ export function PlatformAutomationCard({
           enabled: data.enabled ?? false,
           connected:
             platform === "discord"
-              ? data.discordConnected ?? false
+              ? (data.discordConnected ?? false)
               : platform === "telegram"
-                ? data.botConnected ?? false
-                : data.twitterConnected ?? false,
+                ? (data.botConnected ?? false)
+                : (data.twitterConnected ?? false),
           config: hasAutomationConfig
             ? {
                 enabled: data.enabled ?? false,
@@ -217,10 +223,13 @@ export function PlatformAutomationCard({
     if (isActionInProgress) return;
     setIsPosting(true);
     try {
-      const response = await fetch(`/api/v1/apps/${appId}/${platform}-automation/post`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await fetch(
+        `/api/v1/apps/${appId}/${platform}-automation/post`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       const data = await response.json().catch(() => ({}));
 
@@ -243,14 +252,19 @@ export function PlatformAutomationCard({
     setIsToggling(true);
 
     try {
-      const response = await fetch(`/api/v1/apps/${appId}/${platform}-automation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !status.enabled }),
-      });
+      const response = await fetch(
+        `/api/v1/apps/${appId}/${platform}-automation`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: !status.enabled }),
+        },
+      );
 
       if (response.ok) {
-        toast.success(status.enabled ? "Automation paused" : "Automation resumed");
+        toast.success(
+          status.enabled ? "Automation paused" : "Automation resumed",
+        );
         await fetchStatus();
       } else {
         const data = await response.json().catch(() => ({}));
@@ -267,9 +281,12 @@ export function PlatformAutomationCard({
     if (isDeleting) return; // Prevent double-click
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/v1/apps/${appId}/${platform}-automation`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/v1/apps/${appId}/${platform}-automation`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (response.ok) {
         toast.success("Automation stopped");
@@ -314,7 +331,9 @@ export function PlatformAutomationCard({
 
     if (nextDate <= now) return "Soon";
 
-    const minutesUntil = Math.round((nextDate.getTime() - now.getTime()) / (1000 * 60));
+    const minutesUntil = Math.round(
+      (nextDate.getTime() - now.getTime()) / (1000 * 60),
+    );
     if (minutesUntil < 60) return `~${minutesUntil} min`;
     const hoursUntil = Math.round(minutesUntil / 60);
     return `~${hoursUntil}h`;
@@ -363,7 +382,9 @@ export function PlatformAutomationCard({
       if (status.guildName && status.channelName) {
         return `${status.guildName} > #${status.channelName}`;
       }
-      return status.channelName ? `#${status.channelName}` : "No channel selected";
+      return status.channelName
+        ? `#${status.channelName}`
+        : "No channel selected";
     }
 
     if (platform === "telegram") {
@@ -385,7 +406,11 @@ export function PlatformAutomationCard({
   };
 
   // Determine card state
-  const getCardState = (): "not-connected" | "connected" | "active" | "paused" => {
+  const getCardState = ():
+    | "not-connected"
+    | "connected"
+    | "active"
+    | "paused" => {
     if (!status?.connected) return "not-connected";
     // Has config means automation was set up
     if (!status.config) return "connected";
@@ -417,11 +442,11 @@ export function PlatformAutomationCard({
 
   if (hasError) {
     return (
-      <div
-        className={`rounded-lg border border-red-500/30 bg-red-500/5 p-4`}
-      >
+      <div className={`rounded-lg border border-red-500/30 bg-red-500/5 p-4`}>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
+          <div
+            className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}
+          >
             <Icon className={`h-5 w-5 ${config.textColor}`} />
           </div>
           <div className="flex-1">
@@ -445,11 +470,15 @@ export function PlatformAutomationCard({
 
   return (
     <>
-      <div className={`rounded-lg border ${config.borderColor} ${config.bgColor} p-4`}>
+      <div
+        className={`rounded-lg border ${config.borderColor} ${config.bgColor} p-4`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
+            <div
+              className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}
+            >
               <Icon className={`h-5 w-5 ${config.textColor}`} />
             </div>
             <div>
@@ -498,7 +527,8 @@ export function PlatformAutomationCard({
         {cardState === "not-connected" && (
           <div className="mb-4">
             <p className="text-white/60 text-sm mb-3">
-              Connect your {config.name} account to enable posting and automation.
+              Connect your {config.name} account to enable posting and
+              automation.
             </p>
             <Link href={config.connectUrl}>
               <Button variant="outline" size="sm" className="gap-2">
@@ -545,7 +575,9 @@ export function PlatformAutomationCard({
             <p className="text-white/60 text-sm">
               No scheduled automation configured.
               <br />
-              <span className="text-white/40">You can still post manually anytime.</span>
+              <span className="text-white/40">
+                You can still post manually anytime.
+              </span>
             </p>
           </div>
         )}
@@ -650,7 +682,9 @@ export function PlatformAutomationCard({
                 )}
                 <li>Your {getTotalPosts()} previous posts will remain</li>
               </ul>
-              <p className="mt-3">You can always set up a new automation later.</p>
+              <p className="mt-3">
+                You can always set up a new automation later.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

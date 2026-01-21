@@ -54,7 +54,11 @@ export function AppsTable({ apps }: AppsTableProps) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!confirm(`Are you sure you want to delete "${app.name}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${app.name}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
@@ -74,7 +78,8 @@ export function AppsTable({ apps }: AppsTableProps) {
     } catch (error) {
       console.error("Error deleting app:", error);
       toast.error("Failed to delete app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setDeletingId(null);
@@ -127,7 +132,10 @@ export function AppsTable({ apps }: AppsTableProps) {
                   <MoreHorizontal className="h-4 w-4 text-white/60" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem asChild className="cursor-pointer text-[#FF5800] bg-[#FF5800]/10 hover:bg-[#FF5800]/20 focus:bg-[#FF5800]/20 focus:text-[#FF5800]">
+                  <DropdownMenuItem
+                    asChild
+                    className="cursor-pointer text-[#FF5800] bg-[#FF5800]/10 hover:bg-[#FF5800]/20 focus:bg-[#FF5800]/20 focus:text-[#FF5800]"
+                  >
                     <Link href={`/dashboard/apps/create?appId=${app.id}`}>
                       <Sparkles className="h-4 w-4 mr-2 text-[#FF5800]" />
                       Continue Building
@@ -190,7 +198,11 @@ export function AppsTable({ apps }: AppsTableProps) {
               </div>
               <span className="text-white/20">·</span>
               <span className="text-white/40 shrink-0">
-                {formatDistanceToNow(new Date(app.updated_at)).replace("about ", "")} ago
+                {formatDistanceToNow(new Date(app.updated_at)).replace(
+                  "about ",
+                  "",
+                )}{" "}
+                ago
               </span>
             </div>
           </div>

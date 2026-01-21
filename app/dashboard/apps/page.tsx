@@ -37,7 +37,10 @@ export default async function AppsPage() {
     <AppsPageWrapper>
       <div className="w-full max-w-[1400px] mx-auto space-y-3 md:space-y-6">
         {/* Stats Grid */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 min-w-0" data-onboarding="apps-stats">
+        <div
+          className="grid gap-3 grid-cols-2 lg:grid-cols-4 min-w-0"
+          data-onboarding="apps-stats"
+        >
           <StatCard
             label="Total Apps"
             value={stats.total}
@@ -87,7 +90,9 @@ function StatCard({
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs text-neutral-500 truncate">{label}</p>
-          <p className="text-xl md:text-2xl font-semibold text-white mt-1 truncate">{value}</p>
+          <p className="text-xl md:text-2xl font-semibold text-white mt-1 truncate">
+            {value}
+          </p>
         </div>
         <div className="flex-shrink-0">{icon}</div>
       </div>

@@ -75,14 +75,14 @@ function SidebarComponent({
             : isCollapsed
               ? "w-14 p-1.5"
               : "w-72 p-1.5",
-          className
+          className,
         )}
       >
         {/* Header with Logo and Collapse Toggle */}
         <div
           className={cn(
             "relative flex h-14 mb-2 shrink-0 grow-0 items-center overflow-visible",
-            isCollapsed ? "justify-center px-0" : "justify-between px-3"
+            isCollapsed ? "justify-center px-0" : "justify-between px-3",
           )}
         >
           {!isCollapsed && (
@@ -90,7 +90,9 @@ function SidebarComponent({
               href="/dashboard"
               className="flex items-center gap-2 hover:opacity-80 relative z-10"
             >
-              <ElizaLogo className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`} />
+              <ElizaLogo
+                className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`}
+              />
             </Link>
           )}
           {/* Collapse Toggle Button (Desktop) */}
@@ -121,13 +123,14 @@ function SidebarComponent({
 
         {/* Navigation Content */}
         <ScrollArea className="flex-1">
-          <nav className={cn(
-            "py-6",
-            isCollapsed ? "px-1" : "px-4"
-          )}>
+          <nav className={cn("py-6", isCollapsed ? "px-1" : "px-4")}>
             <div className={isCollapsed ? "space-y-2" : "space-y-8"}>
               {sidebarSections.map((section, index) => (
-                <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
+                <SidebarNavigationSection
+                  key={index}
+                  section={section}
+                  isCollapsed={isCollapsed}
+                />
               ))}
             </div>
           </nav>

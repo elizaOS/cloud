@@ -122,8 +122,8 @@ export default function BottomChatBar({
                 isTyping: true,
                 text: responseText,
               }
-            : msg
-        )
+            : msg,
+        ),
       );
 
       // After typing is complete, remove typing state
@@ -138,8 +138,8 @@ export default function BottomChatBar({
                   ...msg,
                   isTyping: false,
                 }
-              : msg
-          )
+              : msg,
+          ),
         );
 
         // After 3rd message, show sign-in prompt every 2 messages

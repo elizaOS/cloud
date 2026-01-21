@@ -1,6 +1,6 @@
 /**
  * AI App Builder System Prompts (Legacy)
- * 
+ *
  * Re-exports from the new modular prompt system.
  * New code should import from '@/lib/prompts' directly.
  */
@@ -12,15 +12,15 @@ export {
   BASE_SYSTEM_PROMPT,
   TEMPLATE_PROMPTS,
   TEMPLATE_EXAMPLES as EXAMPLE_PROMPTS,
-} from '@/lib/prompts';
+} from "@/lib/prompts";
 
 // Legacy type alias
-export type { TemplateType as keyof } from '@/lib/prompts';
+export type { TemplateType as keyof } from "@/lib/prompts";
 
 // Legacy function wrapper
-export function getSystemPrompt(templateType: string = 'blank'): string {
-  const { buildSystemPrompt } = require('@/lib/prompts');
-  return buildSystemPrompt({ templateType: templateType as 'blank' });
+export function getSystemPrompt(templateType: string = "blank"): string {
+  const { buildSystemPrompt } = require("@/lib/prompts");
+  return buildSystemPrompt({ templateType: templateType as "blank" });
 }
 
 // Legacy monetization/analytics prompts (now built into main builder)

@@ -38,7 +38,7 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1
+  maxRetries = 1,
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -457,10 +457,10 @@ export default function AppCreatorPage() {
   }, [searchParams]);
 
   const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl
+    isEditMode || !!sessionIdFromUrl,
   );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup"
+    isEditMode ? "building" : "setup",
   );
   // Setup wizard steps: 1 = template, 2 = details, 3 = features, 4 = agents
   const [setupStep, setSetupStep] = useState<1 | 2 | 3 | 4>(1);
@@ -479,12 +479,12 @@ export default function AppCreatorPage() {
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : ""
+    sourceContext ? `${sourceContext.name} App` : "",
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : ""
+      : "",
   );
   // Name validation state
   const [nameValidation, setNameValidation] = useState<{
@@ -506,7 +506,7 @@ export default function AppCreatorPage() {
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank"
+      : "blank",
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -553,6 +553,9 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
+    null,
+  );
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
@@ -657,7 +660,7 @@ export default function AppCreatorPage() {
         setLoadingAgents(true);
         try {
           const response = await fetchWithRetry(
-            "/api/my-agents/characters?limit=100"
+            "/api/my-agents/characters?limit=100",
           );
           if (response.ok) {
             const data = await response.json();
@@ -682,8 +685,8 @@ export default function AppCreatorPage() {
                     avatar_url: agent.avatar_url,
                     bio: agent.bio,
                     is_public: agent.is_public,
-                  })
-                )
+                  }),
+                ),
               );
             }
           }
@@ -738,7 +741,7 @@ export default function AppCreatorPage() {
         if (sessionIdFromUrl && appIdFromUrl) {
           const connected = await connectToSession(
             sessionIdFromUrl,
-            appIdFromUrl
+            appIdFromUrl,
           );
           if (connected) {
             setIsInitializing(false);
@@ -763,7 +766,7 @@ export default function AppCreatorPage() {
         setIsInitializing(false);
         setStatus("error");
         setErrorMessage(
-          error instanceof Error ? error.message : "Initialization failed"
+          error instanceof Error ? error.message : "Initialization failed",
         );
       }
     };
@@ -771,7 +774,7 @@ export default function AppCreatorPage() {
     // Connect to existing session - returns true if successful
     const connectToSession = async (
       sessionId: string,
-      appId: string
+      appId: string,
     ): Promise<boolean> => {
       // Fetch session and app data together
       const [sessionRes, appRes] = await Promise.all([
@@ -869,7 +872,7 @@ export default function AppCreatorPage() {
 
       // Check for existing active session
       const sessionRes = await fetchWithRetry(
-        `/api/v1/app-builder?appId=${appId}&limit=1`
+        `/api/v1/app-builder?appId=${appId}&limit=1`,
       );
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
@@ -877,7 +880,7 @@ export default function AppCreatorPage() {
           // Found active session - redirect to it
           router.replace(
             `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-            { scroll: false }
+            { scroll: false },
           );
           initializationRef.current = false;
           return;
@@ -1043,7 +1046,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -1071,7 +1074,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -1094,7 +1097,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`
+        `/api/v1/app-builder/sessions/${session.id}/commit`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -1119,7 +1122,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`
+        `/api/v1/app-builder/sessions/${session.id}/history`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -1146,7 +1149,7 @@ export default function AppCreatorPage() {
           body: JSON.stringify({
             message: `Manual save at ${new Date().toLocaleString()}`,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -1163,7 +1166,7 @@ export default function AppCreatorPage() {
           });
           addLog(
             `Saved to GitHub: ${data.commitSha.substring(0, 7)} (${data.filesCommitted} files)`,
-            "success"
+            "success",
           );
         } else {
           toast.info("No changes to save", {
@@ -1182,7 +1185,7 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error"
+        "error",
       );
     } finally {
       setIsSaving(false);
@@ -1193,13 +1196,15 @@ export default function AppCreatorPage() {
   const deployToProduction = useCallback(async () => {
     if (!appData?.id || isDeploying) return;
 
+    setIsDeploying(true);
     // First save any uncommitted changes
     if (gitStatus?.hasChanges) {
+      setDeployPhase("saving");
       addLog("Saving changes before deploy...", "info");
       await saveToGitHub();
     }
 
-    setIsDeploying(true);
+    setDeployPhase("deploying");
     try {
       const response = await fetchWithRetry(
         `/api/v1/apps/${appData.id}/deploy`,
@@ -1207,7 +1212,7 @@ export default function AppCreatorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ target: "production" }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -1240,10 +1245,11 @@ export default function AppCreatorPage() {
       });
       addLog(
         `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error"
+        "error",
       );
     } finally {
       setIsDeploying(false);
+      setDeployPhase(null);
     }
   }, [appData?.id, isDeploying, gitStatus?.hasChanges, saveToGitHub, addLog]);
 
@@ -1254,7 +1260,7 @@ export default function AppCreatorPage() {
     const fetchDeploymentInfo = async () => {
       try {
         const response = await fetchWithRetry(
-          `/api/v1/apps/${appData.id}/deploy`
+          `/api/v1/apps/${appData.id}/deploy`,
         );
         if (response.ok) {
           const data = await response.json();
@@ -1266,7 +1272,7 @@ export default function AppCreatorPage() {
         // Not critical but log for debugging
         console.warn(
           "[AppBuilder] Deployment info fetch failed:",
-          deployInfoError
+          deployInfoError,
         );
       }
     };
@@ -1309,7 +1315,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       if (!response.ok) {
@@ -1354,7 +1360,7 @@ export default function AppCreatorPage() {
                 });
                 addLog(
                   `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info"
+                  "info",
                 );
               } else if (eventType === "complete") {
                 setSession({
@@ -1486,7 +1492,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       if (!response.ok) {
@@ -1617,7 +1623,7 @@ export default function AppCreatorPage() {
           setSandboxHealthy(false);
           addLog(
             `Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`,
-            "warning"
+            "warning",
           );
           autoRecoverSession();
         }
@@ -1677,7 +1683,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -1695,7 +1701,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`
+                (log: string) => `[${timestamp}] ${log}`,
               );
               return [...prev, ...formatted];
             });
@@ -1848,7 +1854,7 @@ export default function AppCreatorPage() {
 
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success"
+                  "success",
                 );
 
                 if (data.hasInitialPrompt) {
@@ -1947,8 +1953,8 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                         (m as Message & { _thinkingId?: number })
                           ._thinkingId === thinkingId
                           ? { ...m, content }
-                          : m
-                      )
+                          : m,
+                      ),
                     );
                   });
                 }
@@ -1956,7 +1962,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                 const toolName = data.tool;
                 const { display: toolDisplay, detail } = formatToolDisplay(
                   toolName,
-                  data.input
+                  data.input,
                 );
 
                 // Mark previous action as done
@@ -1991,7 +1997,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                  "info"
+                  "info",
                 );
 
                 if (initialThinkingIdRef.current) {
@@ -2020,8 +2026,8 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                       (m as Message & { _thinkingId?: number })._thinkingId ===
                       thinkingId
                         ? { ...m, content: progressContent }
-                        : m
-                    )
+                        : m,
+                    ),
                   );
                 }
               } else if (eventType === "complete") {
@@ -2064,7 +2070,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                       detail: action.detail,
                       timestamp: action.timestamp,
                       reasoning: action.context, // Per-action reasoning
-                    })
+                    }),
                   );
 
                   setMessages((prev) =>
@@ -2086,7 +2092,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                         };
                       }
                       return m;
-                    })
+                    }),
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
@@ -2201,7 +2207,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info"
+        "info",
       );
 
       const userMessage: Message = {
@@ -2233,7 +2239,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
       const buildLocalProgressContent = (
         newThinkingChunk?: string,
-        currentStatus?: string
+        currentStatus?: string,
       ) => {
         let content = "";
 
@@ -2284,7 +2290,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId
+            (m) => m._thinkingId === thinkingId,
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -2305,7 +2311,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId
+            (m) => m._thinkingId === thinkingId,
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -2338,7 +2344,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text, model: selectedModel }),
             signal: generationAbortControllerRef.current.signal,
-          }
+          },
         );
 
         if (!response.ok) {
@@ -2388,7 +2394,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                     // Schedule throttled UI update (~30fps for smooth text appearance)
                     scheduleThinkingUpdate(
                       thinkingStreamId,
-                      updateThinkingThrottled
+                      updateThinkingThrottled,
                     );
                   }
                   // Note: Not logging individual chunks - shown in UI only
@@ -2400,12 +2406,12 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                     // Prefix reasoning chunks with 💭 to distinguish from regular output
                     accumulateThinkingChunk(
                       thinkingStreamId,
-                      `💭 ${reasoningText}`
+                      `💭 ${reasoningText}`,
                     );
                     // Schedule throttled UI update (~30fps for smooth text appearance)
                     scheduleThinkingUpdate(
                       thinkingStreamId,
-                      updateThinkingThrottled
+                      updateThinkingThrottled,
                     );
                   }
                 } else if (eventType === "tool_start") {
@@ -2447,7 +2453,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                   // Find and update the pending action, or add new one if not found
                   const pendingIdx = actionsLog.findIndex(
-                    (a) => a.status === "pending" && a.tool === toolDisplay
+                    (a) => a.status === "pending" && a.tool === toolDisplay,
                   );
                   if (pendingIdx >= 0) {
                     actionsLog[pendingIdx].status = "done";
@@ -2470,7 +2476,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info"
+                    "info",
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -2637,7 +2643,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           setStatus("ready");
           addLog(
             `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            "error"
+            "error",
           );
           toast.error("Failed to process prompt", {
             description:
@@ -2661,7 +2667,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       accumulateThinkingChunk,
       scheduleThinkingUpdate,
       getThinkingText,
-    ]
+    ],
   );
 
   // Stop the current AI generation (abort in-flight request)
@@ -2669,7 +2675,11 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     if (generationAbortControllerRef.current) {
       generationAbortControllerRef.current.abort();
       generationAbortControllerRef.current = null;
-      addLog("Stopping generation...", "info");
+      // Immediately update UI state for responsive feedback
+      setStatus("ready");
+      setIsLoading(false);
+      addLog("Generation stopped", "info");
+      toast.info("Generation stopped");
     }
   }, [addLog]);
 
@@ -2834,7 +2844,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onClick={() =>
                     window.open(
                       "https://vercel.com/docs/vercel-sandbox",
-                      "_blank"
+                      "_blank",
                     )
                   }
                 >
@@ -2866,7 +2876,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
     setIsGeneratingDescription(true);
     const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
-      (t) => t.value === templateType
+      (t) => t.value === templateType,
     );
 
     try {
@@ -2901,7 +2911,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
       };
       setAppDescription(
-        fallbackDescriptions[templateType] || fallbackDescriptions.blank
+        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
       );
     } finally {
       setIsGeneratingDescription(false);
@@ -2910,7 +2920,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   // Get the selected template data
   const selectedTemplate = TEMPLATE_OPTIONS.find(
-    (t) => t.value === templateType
+    (t) => t.value === templateType,
   );
 
   if (viewState === "setup") {
@@ -3258,12 +3268,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                           needed)
                         </p>
                       )}
-                    {appDescription.length > 500 && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Description exceeds 500 character limit
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -3293,8 +3297,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       appName.length > 100 ||
                       nameValidation.isChecking ||
                       nameValidation.isAvailable === false ||
-                      appDescription.length < MIN_DESCRIPTION_LENGTH ||
-                      appDescription.length > 500
+                      appDescription.length < MIN_DESCRIPTION_LENGTH
                     }
                     className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
                   >
@@ -3850,7 +3853,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ) : (
                       <Rocket className="h-4 w-4" />
                     )}
-                    {isDeploying ? "Deploying..." : "Deploy"}
+                    {isDeploying
+                      ? deployPhase === "saving"
+                        ? "Saving to GitHub..."
+                        : "Deploying..."
+                      : "Deploy"}
                   </DropdownMenuItem>
                   {productionUrl && (
                     <DropdownMenuItem asChild>
@@ -4060,7 +4067,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Rocket className="h-3 w-3" />
                 )}
                 <span className="ml-1.5">
-                  {isDeploying ? "Deploying..." : "Deploy"}
+                  {isDeploying
+                    ? deployPhase === "saving"
+                      ? "Saving to GitHub..."
+                      : "Deploying..."
+                    : "Deploy"}
                 </span>
               </Button>
               {productionUrl && (
@@ -4514,7 +4525,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                           body: JSON.stringify({ linked_character_ids: ids }),
                         });
                         toast.success(
-                          ids.length > 0 ? "Agents updated" : "Agents removed"
+                          ids.length > 0 ? "Agents updated" : "Agents removed",
                         );
                       } catch (error) {
                         console.error("Failed to update agents:", error);

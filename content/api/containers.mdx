@@ -12,12 +12,14 @@ import { Callout, Tabs } from "nextra/components";
 Deploy and manage containerized applications on AWS ECS.
 
 <Callout type="info">
-  Container deployments use AWS CloudFormation to provision dedicated EC2 instances. Deployments typically take 8-12 minutes to complete.
+  Container deployments use AWS CloudFormation to provision dedicated EC2
+  instances. Deployments typically take 8-12 minutes to complete.
 </Callout>
 
 ## Prerequisites
 
 Before deploying a container, you need to:
+
 1. Build and push your Docker image to ECR
 2. Get ECR credentials from `/api/v1/containers/credentials`
 
@@ -116,18 +118,18 @@ Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted statu
 
 ### Parameters
 
-| Parameter           | Type    | Required | Description                                            |
-| ------------------- | ------- | -------- | ------------------------------------------------------ |
-| `name`              | string  | ✓        | Display name (max 100 chars)                           |
-| `project_name`      | string  | ✓        | Project identifier (max 50 chars, used in URL)         |
-| `ecr_image_uri`     | string  | ✓        | Full ECR image URI with tag                            |
-| `port`              | integer |          | Container port. Default: 3000                          |
-| `cpu`               | integer |          | CPU units (256-2048). Default: 1792                    |
-| `memory`            | integer |          | Memory in MB (256-2048). Default: 1792                 |
-| `desired_count`     | integer |          | Number of instances (1-10). Default: 1                 |
-| `architecture`      | string  |          | `arm64` or `x86_64`. Default: `arm64`                  |
-| `health_check_path` | string  |          | Health check endpoint. Default: `/health`              |
-| `environment_vars`  | object  |          | Environment variables (max 50 vars, 32KB per value)    |
+| Parameter           | Type    | Required | Description                                         |
+| ------------------- | ------- | -------- | --------------------------------------------------- |
+| `name`              | string  | ✓        | Display name (max 100 chars)                        |
+| `project_name`      | string  | ✓        | Project identifier (max 50 chars, used in URL)      |
+| `ecr_image_uri`     | string  | ✓        | Full ECR image URI with tag                         |
+| `port`              | integer |          | Container port. Default: 3000                       |
+| `cpu`               | integer |          | CPU units (256-2048). Default: 1792                 |
+| `memory`            | integer |          | Memory in MB (256-2048). Default: 1792              |
+| `desired_count`     | integer |          | Number of instances (1-10). Default: 1              |
+| `architecture`      | string  |          | `arm64` or `x86_64`. Default: `arm64`               |
+| `health_check_path` | string  |          | Health check endpoint. Default: `/health`           |
+| `environment_vars`  | object  |          | Environment variables (max 50 vars, 32KB per value) |
 
 ### Response (202 Accepted)
 
@@ -141,8 +143,8 @@ Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted statu
     "status": "pending"
   },
   "message": "Container deployment started. Poll GET /api/v1/containers/:id to check status.",
-  "creditsDeducted": 0.50,
-  "creditsRemaining": 49.50,
+  "creditsDeducted": 0.5,
+  "creditsRemaining": 49.5,
   "stackName": "eliza-user-abc123-my-project",
   "polling": {
     "endpoint": "/api/v1/containers/550e8400-e29b-41d4-a716-446655440000",
@@ -153,7 +155,8 @@ Deploy a new container to AWS ECS. Returns immediately with a 202 Accepted statu
 ```
 
 <Callout type="warning">
-  Container deployments require sufficient credits and are subject to organization quotas.
+  Container deployments require sufficient credits and are subject to
+  organization quotas.
 </Callout>
 
 ---
@@ -169,14 +172,14 @@ Get container details and deployment status.
 
 ### Container Status Values
 
-| Status      | Description                              |
-| ----------- | ---------------------------------------- |
-| `pending`   | Deployment initiated                     |
-| `building`  | Provisioning EC2 instance                |
-| `deploying` | CloudFormation stack creating            |
-| `running`   | Container is healthy and accessible      |
-| `failed`    | Deployment failed (check error message)  |
-| `stopped`   | Container manually stopped               |
+| Status      | Description                             |
+| ----------- | --------------------------------------- |
+| `pending`   | Deployment initiated                    |
+| `building`  | Provisioning EC2 instance               |
+| `deploying` | CloudFormation stack creating           |
+| `running`   | Container is healthy and accessible     |
+| `failed`    | Deployment failed (check error message) |
+| `stopped`   | Container manually stopped              |
 
 ---
 
@@ -297,5 +300,6 @@ Get container health status.
 5. **Access Your App**: Once status is `running`, use the provided URL
 
 <Callout type="info">
-  Container logs are retained for 7 days. For production workloads, consider setting up external log aggregation.
+  Container logs are retained for 7 days. For production workloads, consider
+  setting up external log aggregation.
 </Callout>

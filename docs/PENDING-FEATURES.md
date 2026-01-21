@@ -3,9 +3,11 @@
 ## Landing Page - Discover Sections
 
 ### Current State
+
 The agents and apps displayed in the landing page discover sections are **placeholders/mock data**.
 
 ### Required Changes
+
 1. **Fetch real data from database**
    - Replace mock agents with actual public/featured agents from the database
    - Replace mock apps with actual public/featured apps from the database
@@ -22,6 +24,7 @@ The agents and apps displayed in the landing page discover sections are **placeh
 ## Landing Page Chatbox - localStorage Auto-Load
 
 ### Current Behavior
+
 - User types a prompt in the landing page hero chatbox
 - User selects mode: "App" or "Agent"
 - On submit, data is saved to localStorage with key `hero-chat-input`:
@@ -51,6 +54,7 @@ The agents and apps displayed in the landing page discover sections are **placeh
 3. **Implementation Location**
    - Add check in dashboard layout or relevant builder components
    - Use a custom hook like `useHeroPrompt()` that:
+
      ```tsx
      function useHeroPrompt(targetMode: "app" | "agent") {
        const [savedPrompt, setSavedPrompt] = useState<string | null>(null);
@@ -78,6 +82,7 @@ The agents and apps displayed in the landing page discover sections are **placeh
 ---
 
 ## Priority
+
 1. localStorage auto-load (quick win, improves onboarding UX)
 2. Public agents/apps pages
 3. Real data in landing page discover sections

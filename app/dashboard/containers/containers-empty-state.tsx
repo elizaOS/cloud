@@ -31,11 +31,13 @@ export function ContainersEmptyState() {
             key={index}
             className={cn(
               "flex items-center gap-3 px-4 py-3 group",
-              index < commands.length - 1 && "border-b border-white/5"
+              index < commands.length - 1 && "border-b border-white/5",
             )}
           >
             <span className="text-neutral-600 select-none">$</span>
-            <code className="text-sm text-neutral-300 flex-1 font-mono">{cmd}</code>
+            <code className="text-sm text-neutral-300 flex-1 font-mono">
+              {cmd}
+            </code>
             <button
               onClick={() => handleCopy(cmd, index)}
               className="text-neutral-600 hover:text-neutral-300 transition-colors"
@@ -55,7 +57,11 @@ export function ContainersEmptyState() {
         asChild
         className="h-10 text-neutral-400 border-neutral-700 hover:text-white hover:border-neutral-600"
       >
-        <a href="https://elizaos.github.io/eliza/docs/cli" target="_blank" rel="noopener noreferrer">
+        <a
+          href="https://elizaos.github.io/eliza/docs/cli"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <Terminal className="h-4 w-4" />
           CLI Documentation
         </a>

@@ -107,7 +107,7 @@ function CopyLinkButton({ copied, onCopyShareLink }: CopyLinkButtonProps) {
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
         "border border-white/10 bg-black/40 hover:bg-white/5",
-        "text-white/80 hover:text-white"
+        "text-white/80 hover:text-white",
       )}
       data-testid="copy-link-btn"
     >
@@ -232,7 +232,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       const data = await response.json();
@@ -343,7 +343,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     <div
       className={cn(
         "flex items-center gap-2 px-3 py-2 rounded-none",
-        "border border-white/10 bg-black/40"
+        "border border-white/10 bg-black/40",
       )}
       data-testid="agent-name"
     >
@@ -365,7 +365,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             "flex items-center gap-2 px-3 py-2 rounded-none",
             "border border-white/10 bg-black/40",
             "hover:bg-white/5 transition-colors",
-            "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
+            "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
           )}
           data-testid="agent-picker-dropdown"
         >
@@ -395,7 +395,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           onClick={handleCreateNewAgent}
           className={cn(
             "flex items-center gap-2 px-3 py-2 cursor-pointer",
-            "hover:bg-white/5 focus:bg-white/5"
+            "hover:bg-white/5 focus:bg-white/5",
           )}
         >
           <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center">
@@ -418,7 +418,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 cursor-pointer",
                   "hover:bg-white/5 focus:bg-white/5",
-                  selectedCharacterId === character.id && "bg-white/10"
+                  selectedCharacterId === character.id && "bg-white/10",
                 )}
               >
                 <AgentDisplay agent={character} />
@@ -443,7 +443,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               "flex items-center gap-1.5 px-2.5 py-1.5 rounded-none transition-colors",
               "border border-white/10 bg-black/40 hover:bg-white/5",
               "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
-              isPublic && "border-green-500/30"
+              isPublic && "border-green-500/30",
             )}
             title={isPublic ? "Public - Anyone can chat" : "Private"}
             data-testid="share-toggle"
@@ -516,7 +516,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
             mode === "chat"
               ? "bg-[#471E08] text-white"
-              : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
+              : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
           )}
           data-testid="chat-mode-btn"
         >
@@ -529,14 +529,14 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
             mode === "build"
               ? "bg-[#2D1505] text-white"
-              : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
+              : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
           )}
           data-testid="edit-mode-btn"
         >
           <Wrench
             className={cn(
               "h-4 w-4",
-              mode === "build" ? "text-[#FF5800]" : "text-white"
+              mode === "build" ? "text-[#FF5800]" : "text-white",
             )}
           />
           <span className="hidden md:inline">Edit</span>
@@ -554,7 +554,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       <button
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
-          "border border-white/10 bg-[#471E08] text-white"
+          "border border-white/10 bg-[#471E08] text-white",
         )}
         data-testid="chat-mode-btn"
       >
@@ -571,7 +571,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors",
             "border border-white/10 bg-black/40 hover:bg-white/5",
             "text-white/80 hover:text-white",
-            isCopying && "opacity-50 cursor-not-allowed"
+            isCopying && "opacity-50 cursor-not-allowed",
           )}
           data-testid="copy-agent-btn"
         >

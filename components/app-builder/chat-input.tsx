@@ -334,7 +334,8 @@ const ChatInputInner = memo(function ChatInputInner({
           disabled={isDisabled}
           className={cn(
             "w-full bg-transparent px-3 xl:px-4 pt-2.5 xl:pt-3 pb-2 text-[13px] xl:text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed",
-            stt.isRecording && "placeholder:text-white/70 placeholder:animate-pulse",
+            stt.isRecording &&
+              "placeholder:text-white/70 placeholder:animate-pulse",
           )}
           style={{ minHeight: "44px", maxHeight: "100px" }}
         />
@@ -385,8 +386,9 @@ const ChatInputInner = memo(function ChatInputInner({
             />
 
             {/* Send/Stop button - hidden during recording */}
-            {!stt.isRecording && !stt.isProcessing && (
-              status === "generating" && onStopGeneration ? (
+            {!stt.isRecording &&
+              !stt.isProcessing &&
+              (status === "generating" && onStopGeneration ? (
                 <Button
                   type="button"
                   onClick={onStopGeneration}
@@ -406,8 +408,7 @@ const ChatInputInner = memo(function ChatInputInner({
                 >
                   <ArrowUp className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white group-disabled:text-neutral-400" />
                 </Button>
-              )
-            )}
+              ))}
           </div>
         </div>
       </div>

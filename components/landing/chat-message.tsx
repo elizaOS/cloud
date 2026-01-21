@@ -37,7 +37,7 @@ function TypewriterText({
   const words = text.split(" ");
   const initialWords = 10;
   const [wordCount, setWordCount] = useState(
-    Math.min(initialWords, words.length)
+    Math.min(initialWords, words.length),
   );
 
   useEffect(() => {

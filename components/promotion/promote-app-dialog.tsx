@@ -94,10 +94,26 @@ const SOCIAL_PLATFORMS = [
 ];
 
 const AD_OBJECTIVES = [
-  { id: "awareness", name: "Brand Awareness", description: "Reach new audiences" },
-  { id: "traffic", name: "Website Traffic", description: "Drive visits to your app" },
-  { id: "engagement", name: "Engagement", description: "Get likes, comments, shares" },
-  { id: "app_promotion", name: "App Installs", description: "Promote app downloads" },
+  {
+    id: "awareness",
+    name: "Brand Awareness",
+    description: "Reach new audiences",
+  },
+  {
+    id: "traffic",
+    name: "Website Traffic",
+    description: "Drive visits to your app",
+  },
+  {
+    id: "engagement",
+    name: "Engagement",
+    description: "Get likes, comments, shares",
+  },
+  {
+    id: "app_promotion",
+    name: "App Installs",
+    description: "Promote app downloads",
+  },
 ];
 
 export function PromoteAppDialog({
@@ -106,7 +122,9 @@ export function PromoteAppDialog({
   app,
   adAccounts = [],
 }: PromoteAppDialogProps) {
-  const [step, setStep] = useState<"channels" | "configure" | "review" | "result">("channels");
+  const [step, setStep] = useState<
+    "channels" | "configure" | "review" | "result"
+  >("channels");
   const [activeTab, setActiveTab] = useState<PromotionChannel>("social");
   const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState<PromotionConfig>({ channels: [] });
@@ -210,26 +228,36 @@ export function PromoteAppDialog({
                     : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                 }`}
               >
-                <Share2 className={`h-6 w-6 ${config.channels.includes("social") ? "text-blue-400" : "text-neutral-400"}`} />
+                <Share2
+                  className={`h-6 w-6 ${config.channels.includes("social") ? "text-blue-400" : "text-neutral-400"}`}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-white">Social Media</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] ${
-                      config.channels.includes("social")
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "bg-white/10 text-neutral-400"
-                    }`}>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] ${
+                        config.channels.includes("social")
+                          ? "bg-blue-500/20 text-blue-300"
+                          : "bg-white/10 text-neutral-400"
+                      }`}
+                    >
                       ~$0.02/post
                     </span>
                   </div>
-                  <p className="text-sm text-white/50 mt-0.5">Post to Twitter, LinkedIn, Discord...</p>
+                  <p className="text-sm text-white/50 mt-0.5">
+                    Post to Twitter, LinkedIn, Discord...
+                  </p>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  config.channels.includes("social")
-                    ? "border-blue-500 bg-blue-600"
-                    : "border-white/30"
-                }`}>
-                  {config.channels.includes("social") && <Check className="h-3 w-3 text-white" />}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    config.channels.includes("social")
+                      ? "border-blue-500 bg-blue-600"
+                      : "border-white/30"
+                  }`}
+                >
+                  {config.channels.includes("social") && (
+                    <Check className="h-3 w-3 text-white" />
+                  )}
                 </div>
               </button>
 
@@ -242,32 +270,44 @@ export function PromoteAppDialog({
                     : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                 }`}
               >
-                <Search className={`h-6 w-6 ${config.channels.includes("seo") ? "text-green-400" : "text-neutral-400"}`} />
+                <Search
+                  className={`h-6 w-6 ${config.channels.includes("seo") ? "text-green-400" : "text-neutral-400"}`}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-white">SEO</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] ${
-                      config.channels.includes("seo")
-                        ? "bg-green-500/20 text-green-300"
-                        : "bg-white/10 text-neutral-400"
-                    }`}>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] ${
+                        config.channels.includes("seo")
+                          ? "bg-green-500/20 text-green-300"
+                          : "bg-white/10 text-neutral-400"
+                      }`}
+                    >
                       ~$0.03
                     </span>
                   </div>
-                  <p className="text-sm text-white/50 mt-0.5">Optimize for search engines</p>
+                  <p className="text-sm text-white/50 mt-0.5">
+                    Optimize for search engines
+                  </p>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  config.channels.includes("seo")
-                    ? "border-green-500 bg-green-600"
-                    : "border-white/30"
-                }`}>
-                  {config.channels.includes("seo") && <Check className="h-3 w-3 text-white" />}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    config.channels.includes("seo")
+                      ? "border-green-500 bg-green-600"
+                      : "border-white/30"
+                  }`}
+                >
+                  {config.channels.includes("seo") && (
+                    <Check className="h-3 w-3 text-white" />
+                  )}
                 </div>
               </button>
 
               {/* Advertising */}
               <button
-                onClick={() => adAccounts.length > 0 && toggleChannel("advertising")}
+                onClick={() =>
+                  adAccounts.length > 0 && toggleChannel("advertising")
+                }
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left group ${
                   config.channels.includes("advertising")
                     ? "border-purple-500/50 bg-purple-500/10"
@@ -276,46 +316,62 @@ export function PromoteAppDialog({
                       : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                 }`}
               >
-                <Megaphone className={`h-6 w-6 ${
-                  config.channels.includes("advertising")
-                    ? "text-purple-400"
-                    : adAccounts.length === 0
-                      ? "text-neutral-600"
-                      : "text-neutral-400"
-                }`} />
+                <Megaphone
+                  className={`h-6 w-6 ${
+                    config.channels.includes("advertising")
+                      ? "text-purple-400"
+                      : adAccounts.length === 0
+                        ? "text-neutral-600"
+                        : "text-neutral-400"
+                  }`}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`font-medium ${adAccounts.length === 0 ? "text-neutral-500" : "text-white"}`}>Advertising</span>
+                    <span
+                      className={`font-medium ${adAccounts.length === 0 ? "text-neutral-500" : "text-white"}`}
+                    >
+                      Advertising
+                    </span>
                     {adAccounts.length === 0 ? (
                       <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
                         Connect account first
                       </span>
                     ) : (
-                      <span className={`px-2 py-0.5 rounded text-[10px] ${
-                        config.channels.includes("advertising")
-                          ? "bg-purple-500/20 text-purple-300"
-                          : "bg-white/10 text-neutral-400"
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] ${
+                          config.channels.includes("advertising")
+                            ? "bg-purple-500/20 text-purple-300"
+                            : "bg-white/10 text-neutral-400"
+                        }`}
+                      >
                         Custom budget
                       </span>
                     )}
                   </div>
-                  <p className={`text-sm mt-0.5 ${adAccounts.length === 0 ? "text-neutral-600" : "text-white/50"}`}>
+                  <p
+                    className={`text-sm mt-0.5 ${adAccounts.length === 0 ? "text-neutral-600" : "text-white/50"}`}
+                  >
                     Run paid ad campaigns
                   </p>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  config.channels.includes("advertising")
-                    ? "border-purple-500 bg-purple-600"
-                    : "border-white/30"
-                }`}>
-                  {config.channels.includes("advertising") && <Check className="h-3 w-3 text-white" />}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    config.channels.includes("advertising")
+                      ? "border-purple-500 bg-purple-600"
+                      : "border-white/30"
+                  }`}
+                >
+                  {config.channels.includes("advertising") && (
+                    <Check className="h-3 w-3 text-white" />
+                  )}
                 </div>
               </button>
 
               <div className="flex items-center justify-between pt-4 border-t border-white/10">
                 <p className="text-sm text-neutral-500">
-                  {config.channels.length === 0 ? "Select at least one channel" : `${config.channels.length} channel(s) selected`}
+                  {config.channels.length === 0
+                    ? "Select at least one channel"
+                    : `${config.channels.length} channel(s) selected`}
                 </p>
                 <Button
                   onClick={() => {
@@ -351,7 +407,11 @@ export function PromoteAppDialog({
                         : "text-neutral-500 hover:text-white"
                     }`}
                   >
-                    {channel === "social" ? "Social Media" : channel === "seo" ? "SEO" : "Advertising"}
+                    {channel === "social"
+                      ? "Social Media"
+                      : channel === "seo"
+                        ? "SEO"
+                        : "Advertising"}
                   </button>
                 ))}
               </div>
@@ -360,7 +420,9 @@ export function PromoteAppDialog({
               {activeTab === "social" && config.channels.includes("social") && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-white text-sm mb-2 block">Select Platforms</Label>
+                    <Label className="text-white text-sm mb-2 block">
+                      Select Platforms
+                    </Label>
                     <div className="grid grid-cols-3 gap-2">
                       {SOCIAL_PLATFORMS.map((platform) => (
                         <button
@@ -372,30 +434,40 @@ export function PromoteAppDialog({
                               : "bg-black/30 border border-white/5 hover:border-white/20"
                           }`}
                         >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                            config.social?.platforms?.includes(platform.id)
-                              ? "bg-blue-500 border-blue-500"
-                              : "border-white/20"
-                          }`}>
-                            {config.social?.platforms?.includes(platform.id) && (
-                              <Check className="h-3 w-3 text-white" />
-                            )}
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              config.social?.platforms?.includes(platform.id)
+                                ? "bg-blue-500 border-blue-500"
+                                : "border-white/20"
+                            }`}
+                          >
+                            {config.social?.platforms?.includes(
+                              platform.id,
+                            ) && <Check className="h-3 w-3 text-white" />}
                           </div>
                           <span className="text-base">{platform.icon}</span>
-                          <span className="text-sm text-white">{platform.name}</span>
+                          <span className="text-sm text-white">
+                            {platform.name}
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <Label className="text-white text-sm">Custom Message (optional)</Label>
+                    <Label className="text-white text-sm">
+                      Custom Message (optional)
+                    </Label>
                     <Textarea
                       placeholder="Leave blank to auto-generate..."
                       value={config.social?.customMessage || ""}
                       onChange={(e) =>
                         setConfig((prev) => ({
                           ...prev,
-                          social: { ...prev.social, platforms: prev.social?.platforms || [], customMessage: e.target.value },
+                          social: {
+                            ...prev.social,
+                            platforms: prev.social?.platforms || [],
+                            customMessage: e.target.value,
+                          },
                         }))
                       }
                       className="mt-1.5 bg-black/30 border-white/10 text-white placeholder:text-neutral-600 rounded-lg"
@@ -426,17 +498,27 @@ export function PromoteAppDialog({
                         : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                     }`}
                   >
-                    <FileText className={`h-5 w-5 ${(config.seo?.generateMeta ?? true) ? "text-green-400" : "text-neutral-400"}`} />
+                    <FileText
+                      className={`h-5 w-5 ${(config.seo?.generateMeta ?? true) ? "text-green-400" : "text-neutral-400"}`}
+                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">Generate Meta Tags</p>
-                      <p className="text-xs text-white/50 mt-0.5">AI-generated title, description, and keywords</p>
+                      <p className="text-sm font-medium text-white">
+                        Generate Meta Tags
+                      </p>
+                      <p className="text-xs text-white/50 mt-0.5">
+                        AI-generated title, description, and keywords
+                      </p>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      (config.seo?.generateMeta ?? true)
-                        ? "border-green-500 bg-green-600"
-                        : "border-white/30"
-                    }`}>
-                      {(config.seo?.generateMeta ?? true) && <Check className="h-3 w-3 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        (config.seo?.generateMeta ?? true)
+                          ? "border-green-500 bg-green-600"
+                          : "border-white/30"
+                      }`}
+                    >
+                      {(config.seo?.generateMeta ?? true) && (
+                        <Check className="h-3 w-3 text-white" />
+                      )}
                     </div>
                   </button>
 
@@ -458,17 +540,27 @@ export function PromoteAppDialog({
                         : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                     }`}
                   >
-                    <Braces className={`h-5 w-5 ${(config.seo?.generateSchema ?? true) ? "text-green-400" : "text-neutral-400"}`} />
+                    <Braces
+                      className={`h-5 w-5 ${(config.seo?.generateSchema ?? true) ? "text-green-400" : "text-neutral-400"}`}
+                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">Generate Schema.org Data</p>
-                      <p className="text-xs text-white/50 mt-0.5">Structured data for rich search results</p>
+                      <p className="text-sm font-medium text-white">
+                        Generate Schema.org Data
+                      </p>
+                      <p className="text-xs text-white/50 mt-0.5">
+                        Structured data for rich search results
+                      </p>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      (config.seo?.generateSchema ?? true)
-                        ? "border-green-500 bg-green-600"
-                        : "border-white/30"
-                    }`}>
-                      {(config.seo?.generateSchema ?? true) && <Check className="h-3 w-3 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        (config.seo?.generateSchema ?? true)
+                          ? "border-green-500 bg-green-600"
+                          : "border-white/30"
+                      }`}
+                    >
+                      {(config.seo?.generateSchema ?? true) && (
+                        <Check className="h-3 w-3 text-white" />
+                      )}
                     </div>
                   </button>
 
@@ -480,7 +572,9 @@ export function PromoteAppDialog({
                         seo: {
                           generateMeta: prev.seo?.generateMeta ?? true,
                           generateSchema: prev.seo?.generateSchema ?? true,
-                          submitToIndexNow: !(prev.seo?.submitToIndexNow ?? true),
+                          submitToIndexNow: !(
+                            prev.seo?.submitToIndexNow ?? true
+                          ),
                         },
                       }))
                     }
@@ -490,111 +584,156 @@ export function PromoteAppDialog({
                         : "border-white/10 bg-white/5 hover:bg-white/[0.07] hover:border-white/20"
                     }`}
                   >
-                    <Send className={`h-5 w-5 ${(config.seo?.submitToIndexNow ?? true) ? "text-green-400" : "text-neutral-400"}`} />
+                    <Send
+                      className={`h-5 w-5 ${(config.seo?.submitToIndexNow ?? true) ? "text-green-400" : "text-neutral-400"}`}
+                    />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">Submit to IndexNow</p>
-                      <p className="text-xs text-white/50 mt-0.5">Notify search engines of your new content</p>
+                      <p className="text-sm font-medium text-white">
+                        Submit to IndexNow
+                      </p>
+                      <p className="text-xs text-white/50 mt-0.5">
+                        Notify search engines of your new content
+                      </p>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      (config.seo?.submitToIndexNow ?? true)
-                        ? "border-green-500 bg-green-600"
-                        : "border-white/30"
-                    }`}>
-                      {(config.seo?.submitToIndexNow ?? true) && <Check className="h-3 w-3 text-white" />}
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        (config.seo?.submitToIndexNow ?? true)
+                          ? "border-green-500 bg-green-600"
+                          : "border-white/30"
+                      }`}
+                    >
+                      {(config.seo?.submitToIndexNow ?? true) && (
+                        <Check className="h-3 w-3 text-white" />
+                      )}
                     </div>
                   </button>
                 </div>
               )}
 
               {/* Advertising Config */}
-              {activeTab === "advertising" && config.channels.includes("advertising") && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-white text-sm">Ad Account</Label>
-                    <Select
-                      value={config.advertising?.adAccountId}
-                      onValueChange={(value) => {
-                        const account = adAccounts.find((a) => a.id === value);
-                        setConfig((prev) => ({
-                          ...prev,
-                          advertising: {
-                            ...prev.advertising,
-                            adAccountId: value,
-                            platform: account?.platform || "meta",
-                            budget: prev.advertising?.budget || 10,
-                            budgetType: prev.advertising?.budgetType || "daily",
-                            objective: prev.advertising?.objective || "traffic",
-                          },
-                        }));
-                      }}
-                    >
-                      <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
-                        <SelectValue placeholder="Select account" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-neutral-800 border-white/10">
-                        {adAccounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id} className="text-white">
-                            {account.accountName} ({account.platform})
+              {activeTab === "advertising" &&
+                config.channels.includes("advertising") && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-white text-sm">Ad Account</Label>
+                      <Select
+                        value={config.advertising?.adAccountId}
+                        onValueChange={(value) => {
+                          const account = adAccounts.find(
+                            (a) => a.id === value,
+                          );
+                          setConfig((prev) => ({
+                            ...prev,
+                            advertising: {
+                              ...prev.advertising,
+                              adAccountId: value,
+                              platform: account?.platform || "meta",
+                              budget: prev.advertising?.budget || 10,
+                              budgetType:
+                                prev.advertising?.budgetType || "daily",
+                              objective:
+                                prev.advertising?.objective || "traffic",
+                            },
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
+                          <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-neutral-800 border-white/10">
+                          {adAccounts.map((account) => (
+                            <SelectItem
+                              key={account.id}
+                              value={account.id}
+                              className="text-white"
+                            >
+                              {account.accountName} ({account.platform})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-white text-sm">Objective</Label>
+                      <Select
+                        value={config.advertising?.objective}
+                        onValueChange={(value) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            advertising: {
+                              ...prev.advertising!,
+                              objective: value,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
+                          <SelectValue placeholder="Select objective" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-neutral-800 border-white/10">
+                          {AD_OBJECTIVES.map((obj) => (
+                            <SelectItem
+                              key={obj.id}
+                              value={obj.id}
+                              className="text-white"
+                            >
+                              {obj.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-white text-sm">Budget ($)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10000}
+                        value={config.advertising?.budget || 10}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            advertising: {
+                              ...prev.advertising!,
+                              budget: parseFloat(e.target.value) || 10,
+                            },
+                          }))
+                        }
+                        className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-white text-sm">Budget Type</Label>
+                      <Select
+                        value={config.advertising?.budgetType || "daily"}
+                        onValueChange={(value: "daily" | "lifetime") =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            advertising: {
+                              ...prev.advertising!,
+                              budgetType: value,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-neutral-800 border-white/10">
+                          <SelectItem value="daily" className="text-white">
+                            Daily Budget
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-white text-sm">Objective</Label>
-                    <Select
-                      value={config.advertising?.objective}
-                      onValueChange={(value) =>
-                        setConfig((prev) => ({ ...prev, advertising: { ...prev.advertising!, objective: value } }))
-                      }
-                    >
-                      <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
-                        <SelectValue placeholder="Select objective" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-neutral-800 border-white/10">
-                        {AD_OBJECTIVES.map((obj) => (
-                          <SelectItem key={obj.id} value={obj.id} className="text-white">
-                            {obj.name}
+                          <SelectItem value="lifetime" className="text-white">
+                            Total Budget
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-
-                  <div>
-                    <Label className="text-white text-sm">Budget ($)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10000}
-                      value={config.advertising?.budget || 10}
-                      onChange={(e) =>
-                        setConfig((prev) => ({ ...prev, advertising: { ...prev.advertising!, budget: parseFloat(e.target.value) || 10 } }))
-                      }
-                      className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-white text-sm">Budget Type</Label>
-                    <Select
-                      value={config.advertising?.budgetType || "daily"}
-                      onValueChange={(value: "daily" | "lifetime") =>
-                        setConfig((prev) => ({ ...prev, advertising: { ...prev.advertising!, budgetType: value } }))
-                      }
-                    >
-                      <SelectTrigger className="mt-1.5 bg-black/30 border-white/10 text-white rounded-lg">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-neutral-800 border-white/10">
-                        <SelectItem value="daily" className="text-white">Daily Budget</SelectItem>
-                        <SelectItem value="lifetime" className="text-white">Total Budget</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
+                )}
 
               <div className="flex items-center justify-between pt-4 border-t border-white/5">
                 <Button
@@ -620,7 +759,9 @@ export function PromoteAppDialog({
           {step === "review" && (
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-black/30 border border-white/5 space-y-4">
-                <h3 className="text-sm font-medium text-white">Promotion Summary</h3>
+                <h3 className="text-sm font-medium text-white">
+                  Promotion Summary
+                </h3>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -629,7 +770,9 @@ export function PromoteAppDialog({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-400">URL:</span>
-                    <span className="text-[#FF5800] font-medium">{app.app_url}</span>
+                    <span className="text-[#FF5800] font-medium">
+                      {app.app_url}
+                    </span>
                   </div>
                 </div>
 
@@ -637,7 +780,11 @@ export function PromoteAppDialog({
                   {config.channels.includes("social") && (
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-white">Social: {config.social?.platforms?.join(", ") || "No platforms selected"}</span>
+                      <span className="text-white">
+                        Social:{" "}
+                        {config.social?.platforms?.join(", ") ||
+                          "No platforms selected"}
+                      </span>
                     </div>
                   )}
                   {config.channels.includes("seo") && (
@@ -649,14 +796,21 @@ export function PromoteAppDialog({
                   {config.channels.includes("advertising") && (
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-white">Ad Campaign: ${config.advertising?.budget} {config.advertising?.budgetType}</span>
+                      <span className="text-white">
+                        Ad Campaign: ${config.advertising?.budget}{" "}
+                        {config.advertising?.budgetType}
+                      </span>
                     </div>
                   )}
                 </div>
 
                 <div className="border-t border-white/5 pt-4 flex justify-between">
-                  <span className="text-sm font-medium text-white">Estimated Cost:</span>
-                  <span className="text-sm font-medium text-white">${estimatedCost()}</span>
+                  <span className="text-sm font-medium text-white">
+                    Estimated Cost:
+                  </span>
+                  <span className="text-sm font-medium text-white">
+                    ${estimatedCost()}
+                  </span>
                 </div>
               </div>
 
@@ -720,28 +874,36 @@ export function PromoteAppDialog({
                             : "bg-red-500/10 border border-red-500/30"
                         }`}
                       >
-                        <span className="text-sm font-medium text-white capitalize">{channel}</span>
-                        <span className={`text-xs font-medium px-2 py-1 rounded ${
-                          status.success
-                            ? "bg-green-500/20 text-green-400"
-                            : "bg-red-500/20 text-red-400"
-                        }`}>
+                        <span className="text-sm font-medium text-white capitalize">
+                          {channel}
+                        </span>
+                        <span
+                          className={`text-xs font-medium px-2 py-1 rounded ${
+                            status.success
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-red-500/20 text-red-400"
+                          }`}
+                        >
                           {status.success ? "Success" : "Failed"}
                         </span>
                       </div>
-                    )
+                    ),
                 )}
               </div>
 
-              {Object.entries(result.channels).some(([, status]) => status && !status.success && status.error) && (
+              {Object.entries(result.channels).some(
+                ([, status]) => status && !status.success && status.error,
+              ) && (
                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                   {Object.entries(result.channels).map(
                     ([channel, status]) =>
-                      status && !status.success && status.error && (
+                      status &&
+                      !status.success &&
+                      status.error && (
                         <p key={channel} className="text-sm text-red-400">
                           {channel}: {status.error}
                         </p>
-                      )
+                      ),
                   )}
                 </div>
               )}

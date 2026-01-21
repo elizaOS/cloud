@@ -25,15 +25,20 @@ interface SidebarNavigationItemProps {
   isCollapsed?: boolean;
 }
 
-export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavigationItemProps) {
+export function SidebarNavigationItem({
+  item,
+  isCollapsed = false,
+}: SidebarNavigationItemProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { authenticated } = usePrivy();
   // Use exact match for dashboard, startsWith for other routes (excluding /create sub-paths)
-  const isActive = item.href === "/dashboard"
-    ? pathname === item.href
-    : pathname === item.href ||
-      (pathname?.startsWith(item.href + "/") && !pathname?.startsWith(item.href + "/create"));
+  const isActive =
+    item.href === "/dashboard"
+      ? pathname === item.href
+      : pathname === item.href ||
+        (pathname?.startsWith(item.href + "/") &&
+          !pathname?.startsWith(item.href + "/create"));
   const Icon = item.icon;
 
   // Check if this item is coming soon (disabled)
@@ -109,7 +114,12 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
       return (
         <Tooltip>
           <TooltipTrigger asChild>{lockedButton}</TooltipTrigger>
-          <TooltipContent side="right" className="bg-neutral-800 text-white border-white/10">{item.label}</TooltipContent>
+          <TooltipContent
+            side="right"
+            className="bg-neutral-800 text-white border-white/10"
+          >
+            {item.label}
+          </TooltipContent>
         </Tooltip>
       );
     }
@@ -124,9 +134,7 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
       className={cn(
         "relative flex items-center rounded-lg transition-all duration-200",
         "hover:bg-white/5 hover:text-white",
-        isActive
-          ? "bg-white/10 text-white"
-          : "text-white/60",
+        isActive ? "bg-white/10 text-white" : "text-white/60",
         isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
       )}
       style={{
@@ -167,7 +175,12 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     return (
       <Tooltip>
         <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
-        <TooltipContent side="right" className="bg-neutral-800 text-white border-white/10">{item.label}</TooltipContent>
+        <TooltipContent
+          side="right"
+          className="bg-neutral-800 text-white border-white/10"
+        >
+          {item.label}
+        </TooltipContent>
       </Tooltip>
     );
   }

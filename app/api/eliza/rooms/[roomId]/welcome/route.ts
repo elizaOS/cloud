@@ -19,7 +19,7 @@ const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> }
+  ctx: { params: Promise<{ roomId: string }> },
 ) {
   const { roomId } = await ctx.params;
   const body = await request.json();
@@ -40,7 +40,7 @@ export async function POST(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     userId = anonData.user.id;
@@ -75,7 +75,7 @@ export async function POST(
   });
 
   logger.info(
-    `[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`
+    `[Welcome API] Stored welcome message: ${messageId} in room ${roomId}`,
   );
 
   return NextResponse.json({
@@ -91,7 +91,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> }
+  ctx: { params: Promise<{ roomId: string }> },
 ) {
   const { roomId } = await ctx.params;
 
@@ -106,7 +106,7 @@ export async function DELETE(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     userId = anonData.user.id;

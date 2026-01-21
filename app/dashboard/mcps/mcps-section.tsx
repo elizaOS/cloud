@@ -88,7 +88,7 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
       server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       server.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       server.features.some((f) =>
-        f.toLowerCase().includes(searchQuery.toLowerCase())
+        f.toLowerCase().includes(searchQuery.toLowerCase()),
       );
 
     const matchesCategory =
@@ -172,8 +172,8 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
               ...data,
             },
             null,
-            2
-          )
+            2,
+          ),
         );
         toast.success(`${server.name} is online (requires auth)`);
       } else if (mcpResponse.ok) {
@@ -189,8 +189,8 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
               details: errorText,
             },
             null,
-            2
-          )
+            2,
+          ),
         );
         toast.error(`Server returned ${mcpResponse.status}`);
       }
@@ -204,8 +204,8 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
             hint: "The server may be offline or unreachable",
           },
           null,
-          2
-        )
+          2,
+        ),
       );
       toast.error(`Failed to connect: ${errorMessage}`);
     }
@@ -286,7 +286,7 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                 "h-8 px-3.5 text-xs border rounded-full transition-colors capitalize",
                 categoryFilter === cat
                   ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
-                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/30 hover:text-white"
+                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/30 hover:text-white",
               )}
             >
               {cat}
@@ -390,7 +390,7 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                         onClick={() =>
                           copyEndpoint(
                             selectedServer.endpoint,
-                            selectedServer.id
+                            selectedServer.id,
                           )
                         }
                         className="p-3 bg-white/5 border border-white/10 hover:border-white/30 transition-colors rounded-xl"
@@ -425,7 +425,7 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                             },
                           },
                           null,
-                          2
+                          2,
                         )}
                       </pre>
                     </div>
@@ -506,7 +506,7 @@ export function MCPsSection({ servers, className }: MCPsSectionProps) {
                     onClick={() =>
                       window.open(
                         "https://modelcontextprotocol.io/introduction",
-                        "_blank"
+                        "_blank",
                       )
                     }
                   >
@@ -586,7 +586,7 @@ function MCPCard({
                   ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                   : server.status === "coming_soon"
                     ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                    : "bg-red-500/20 text-red-400 border-red-500/30"
+                    : "bg-red-500/20 text-red-400 border-red-500/30",
               )}
             >
               {server.status === "live" && (

@@ -42,7 +42,9 @@ export function AppUsers({ appId }: AppUsersProps) {
     try {
       const [usersRes, visitorsRes] = await Promise.all([
         fetch(`/api/v1/apps/${appId}/users?limit=50`),
-        fetch(`/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`),
+        fetch(
+          `/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`,
+        ),
       ]);
 
       const [usersData, visitorsData] = await Promise.all([
@@ -85,7 +87,9 @@ export function AppUsers({ appId }: AppUsersProps) {
           <UsersIcon className="h-6 w-6 text-neutral-500" />
         </div>
         <h3 className="text-sm font-medium text-white mb-1">No users yet</h3>
-        <p className="text-xs text-neutral-500">Users will appear here once they start using your app</p>
+        <p className="text-xs text-neutral-500">
+          Users will appear here once they start using your app
+        </p>
       </div>
     );
   }
@@ -124,18 +128,24 @@ export function AppUsers({ appId }: AppUsersProps) {
                         {appUser.total_requests}
                       </span>
                       <span className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        ${parseFloat(appUser.total_credits_used).toFixed(2)}
+                        <DollarSign className="h-3 w-3" />$
+                        {parseFloat(appUser.total_credits_used).toFixed(2)}
                       </span>
                     </div>
                   </div>
 
                   <div className="text-right hidden lg:block">
                     <p className="text-xs text-neutral-500">
-                      First seen {formatDistanceToNow(new Date(appUser.first_seen_at), { addSuffix: true })}
+                      First seen{" "}
+                      {formatDistanceToNow(new Date(appUser.first_seen_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                     <p className="text-[10px] text-neutral-600 mt-0.5">
-                      Last seen {formatDistanceToNow(new Date(appUser.last_seen_at), { addSuffix: true })}
+                      Last seen{" "}
+                      {formatDistanceToNow(new Date(appUser.last_seen_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -159,7 +169,9 @@ export function AppUsers({ appId }: AppUsersProps) {
               disabled={isLoading}
               className="h-8 w-8 p-0"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
             </Button>
           </div>
 
@@ -167,27 +179,42 @@ export function AppUsers({ appId }: AppUsersProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left py-2 px-3 text-neutral-500 font-medium text-xs">IP Address</th>
-                  <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">Requests</th>
-                  <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">Last Seen</th>
+                  <th className="text-left py-2 px-3 text-neutral-500 font-medium text-xs">
+                    IP Address
+                  </th>
+                  <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">
+                    Requests
+                  </th>
+                  <th className="text-right py-2 px-3 text-neutral-500 font-medium text-xs">
+                    Last Seen
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {visitors.map((visitor, index) => (
-                  <tr key={visitor.ip} className="border-b border-white/5 hover:bg-white/5">
+                  <tr
+                    key={visitor.ip}
+                    className="border-b border-white/5 hover:bg-white/5"
+                  >
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/5">
-                          <span className="text-neutral-500 text-[10px]">{index + 1}</span>
+                          <span className="text-neutral-500 text-[10px]">
+                            {index + 1}
+                          </span>
                         </div>
-                        <code className="text-white font-mono text-xs">{visitor.ip}</code>
+                        <code className="text-white font-mono text-xs">
+                          {visitor.ip}
+                        </code>
                       </div>
                     </td>
                     <td className="py-2 px-3 text-right text-white text-xs font-medium">
                       {visitor.requestCount.toLocaleString()}
                     </td>
                     <td className="py-2 px-3 text-right text-neutral-500 text-xs">
-                      {formatDistanceToNow(new Date(visitor.lastSeen), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(visitor.lastSeen), {
+                        addSuffix: true,
+                      })}
                     </td>
                   </tr>
                 ))}

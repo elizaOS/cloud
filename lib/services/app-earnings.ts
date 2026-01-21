@@ -215,10 +215,11 @@ export class AppEarningsService {
   ): Promise<{ success: boolean; message: string; transactionId?: string }> {
     // Idempotency check: return existing transaction if key was already used
     if (idempotencyKey) {
-      const existing = await appEarningsRepository.findTransactionByIdempotencyKey(
-        appId,
-        idempotencyKey,
-      );
+      const existing =
+        await appEarningsRepository.findTransactionByIdempotencyKey(
+          appId,
+          idempotencyKey,
+        );
       if (existing) {
         logger.info("[AppEarnings] Idempotent withdrawal request (duplicate)", {
           appId,

@@ -90,101 +90,113 @@ export function AgentCard({
   const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleDuplicate = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropdownOpen(false);
+  const handleDuplicate = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropdownOpen(false);
 
-    toast.info("Duplicating agent...");
+      toast.info("Duplicating agent...");
 
-    try {
-      const response = await fetch(
-        `/api/my-agents/characters/${agent.id}/clone`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(`Created "${data.data.character.name}"`);
-        router.refresh();
-        router.push(`/dashboard/build?characterId=${data.data.character.id}`);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to duplicate agent");
-      }
-    } catch {
-      toast.error("Failed to duplicate agent");
-    }
-  }, [router, agent.id, agent.name]);
-
-  const handleExport = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropdownOpen(false);
-
-    const dataStr = JSON.stringify(agent, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${agent.name || "agent"}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Agent exported successfully");
-  }, [agent]);
-
-  const handleToggleShare = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const newIsPublic = !isPublic;
-    setIsPublic(newIsPublic);
-
-    try {
-      const response = await fetch(
-        `/api/my-agents/characters/${agent.id}/share`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPublic: newIsPublic }),
-        }
-      );
-
-      if (response.ok) {
-        toast.success(
-          newIsPublic ? "Agent is now public" : "Agent is now private"
+      try {
+        const response = await fetch(
+          `/api/my-agents/characters/${agent.id}/clone`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: `${agent.name} (Copy)` }),
+          },
         );
-      } else {
+
+        if (response.ok) {
+          const data = await response.json();
+          toast.success(`Created "${data.data.character.name}"`);
+          router.refresh();
+          router.push(`/dashboard/build?characterId=${data.data.character.id}`);
+        } else {
+          const error = await response.json();
+          toast.error(error.error || "Failed to duplicate agent");
+        }
+      } catch {
+        toast.error("Failed to duplicate agent");
+      }
+    },
+    [router, agent.id, agent.name],
+  );
+
+  const handleExport = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropdownOpen(false);
+
+      const dataStr = JSON.stringify(agent, null, 2);
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${agent.name || "agent"}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Agent exported successfully");
+    },
+    [agent],
+  );
+
+  const handleToggleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const newIsPublic = !isPublic;
+      setIsPublic(newIsPublic);
+
+      try {
+        const response = await fetch(
+          `/api/my-agents/characters/${agent.id}/share`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isPublic: newIsPublic }),
+          },
+        );
+
+        if (response.ok) {
+          toast.success(
+            newIsPublic ? "Agent is now public" : "Agent is now private",
+          );
+        } else {
+          setIsPublic(!newIsPublic);
+          toast.error("Failed to update sharing");
+        }
+      } catch {
         setIsPublic(!newIsPublic);
         toast.error("Failed to update sharing");
       }
-    } catch {
-      setIsPublic(!newIsPublic);
-      toast.error("Failed to update sharing");
-    }
-  }, [agent.id, isPublic]);
+    },
+    [agent.id, isPublic],
+  );
 
-  const handleCopyShareLink = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropdownOpen(false);
+  const handleCopyShareLink = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropdownOpen(false);
 
-    if (!agent.username) {
-      toast.error("Set a username first to share this agent");
-      return;
-    }
-    const shareUrl = `${window.location.origin}/chat/@${agent.username}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied!");
-    } catch {
-      toast.error("Failed to copy link to clipboard");
-    }
-  }, [agent.username]);
+      if (!agent.username) {
+        toast.error("Set a username first to share this agent");
+        return;
+      }
+      const shareUrl = `${window.location.origin}/chat/@${agent.username}`;
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Share link copied!");
+      } catch {
+        toast.error("Failed to copy link to clipboard");
+      }
+    },
+    [agent.username],
+  );
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -193,26 +205,29 @@ export function AgentCard({
     setShowDeleteConfirm(true);
   }, []);
 
-  const handleConfirmDelete = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDeleting(true);
+  const handleConfirmDelete = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDeleting(true);
 
-    const response = await fetch(`/api/my-agents/characters/${agent.id}`, {
-      method: "DELETE",
-    });
+      const response = await fetch(`/api/my-agents/characters/${agent.id}`, {
+        method: "DELETE",
+      });
 
-    if (response.ok) {
-      toast.success("Agent deleted");
-      setShowDeleteConfirm(false);
-      window.dispatchEvent(new Event("characters-updated"));
-      router.refresh();
-    } else {
-      toast.error("Failed to delete agent");
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  }, [agent.id, router]);
+      if (response.ok) {
+        toast.success("Agent deleted");
+        setShowDeleteConfirm(false);
+        window.dispatchEvent(new Event("characters-updated"));
+        router.refresh();
+      } else {
+        toast.error("Failed to delete agent");
+        setIsDeleting(false);
+        setShowDeleteConfirm(false);
+      }
+    },
+    [agent.id, router],
+  );
 
   const handleCancelDelete = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -220,56 +235,62 @@ export function AgentCard({
     setShowDeleteConfirm(false);
   }, []);
 
-  const handleRemoveSaved = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropdownOpen(false);
-
-    try {
-      const response = await fetch(`/api/my-agents/saved/${agent.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success(`Removed ${agent.name} from saved agents`);
-        onRemoveSaved?.(agent.id);
-        window.dispatchEvent(new Event("characters-updated"));
-        router.refresh();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to remove saved agent");
-      }
-    } catch {
-      toast.error("Failed to remove saved agent");
-    }
-  }, [agent.id, agent.name, onRemoveSaved, router]);
-
-  const handleCardClick = useCallback(async (e: React.MouseEvent) => {
-    if (showDeleteConfirm) {
+  const handleRemoveSaved = useCallback(
+    async (e: React.MouseEvent) => {
       e.preventDefault();
-      return;
-    }
+      e.stopPropagation();
+      setDropdownOpen(false);
 
-    e.preventDefault();
+      try {
+        const response = await fetch(`/api/my-agents/saved/${agent.id}`, {
+          method: "DELETE",
+        });
 
-    // Ensure rooms are loaded
-    if (rooms.length === 0) {
-      await loadRooms();
-    }
+        if (response.ok) {
+          toast.success(`Removed ${agent.name} from saved agents`);
+          onRemoveSaved?.(agent.id);
+          window.dispatchEvent(new Event("characters-updated"));
+          router.refresh();
+        } else {
+          const error = await response.json();
+          toast.error(error.error || "Failed to remove saved agent");
+        }
+      } catch {
+        toast.error("Failed to remove saved agent");
+      }
+    },
+    [agent.id, agent.name, onRemoveSaved, router],
+  );
 
-    const currentRooms = useChatStore.getState().rooms;
-    const characterRooms = currentRooms
-      .filter((r) => r.characterId === agent.id)
-      .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+  const handleCardClick = useCallback(
+    async (e: React.MouseEvent) => {
+      if (showDeleteConfirm) {
+        e.preventDefault();
+        return;
+      }
 
-    if (characterRooms.length > 0) {
-      router.push(
-        `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`
-      );
-    } else {
-      router.push(`/dashboard/chat?characterId=${agent.id}`);
-    }
-  }, [showDeleteConfirm, rooms.length, loadRooms, agent.id, router]);
+      e.preventDefault();
+
+      // Ensure rooms are loaded
+      if (rooms.length === 0) {
+        await loadRooms();
+      }
+
+      const currentRooms = useChatStore.getState().rooms;
+      const characterRooms = currentRooms
+        .filter((r) => r.characterId === agent.id)
+        .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+      if (characterRooms.length > 0) {
+        router.push(
+          `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`,
+        );
+      } else {
+        router.push(`/dashboard/chat?characterId=${agent.id}`);
+      }
+    },
+    [showDeleteConfirm, rooms.length, loadRooms, agent.id, router],
+  );
 
   const isListView = viewMode === "list";
 
@@ -277,10 +298,7 @@ export function AgentCard({
   if (isListView) {
     return (
       <div
-        className={cn(
-          "min-w-0",
-          !showDeleteConfirm && "cursor-pointer"
-        )}
+        className={cn("min-w-0", !showDeleteConfirm && "cursor-pointer")}
         onClick={handleCardClick}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ")
@@ -320,7 +338,9 @@ export function AgentCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm text-white/50 truncate">{bioText || "No description"}</p>
+              <p className="text-sm text-white/50 truncate">
+                {bioText || "No description"}
+              </p>
             </div>
 
             {/* Status badges */}
@@ -373,11 +393,17 @@ export function AgentCard({
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleDuplicate}
+                      className="cursor-pointer"
+                    >
                       <Copy className="h-4 w-4 mr-2" />
                       Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExport} className="cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleExport}
+                      className="cursor-pointer"
+                    >
                       <Upload className="h-4 w-4 mr-2" />
                       Export JSON
                     </DropdownMenuItem>
@@ -400,7 +426,10 @@ export function AgentCard({
                       />
                     </DropdownMenuItem>
                     {isPublic && (
-                      <DropdownMenuItem onClick={handleCopyShareLink} className="cursor-pointer">
+                      <DropdownMenuItem
+                        onClick={handleCopyShareLink}
+                        className="cursor-pointer"
+                      >
                         <LinkIcon className="h-4 w-4 mr-2" />
                         Share
                       </DropdownMenuItem>
@@ -416,7 +445,10 @@ export function AgentCard({
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleDuplicate}
+                      className="cursor-pointer"
+                    >
                       <Copy className="h-4 w-4 mr-2" />
                       Fork Agent
                     </DropdownMenuItem>
@@ -451,10 +483,7 @@ export function AgentCard({
   // Grid view (default)
   return (
     <div
-      className={cn(
-        "block h-full",
-        !showDeleteConfirm && "cursor-pointer"
-      )}
+      className={cn("block h-full", !showDeleteConfirm && "cursor-pointer")}
       onClick={handleCardClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ")
@@ -475,7 +504,7 @@ export function AgentCard({
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           className={cn(
             "object-cover transition-transform duration-500",
-            !showDeleteConfirm && "group-hover:scale-105"
+            !showDeleteConfirm && "group-hover:scale-105",
           )}
           priority
           unoptimized={!isBuiltInAvatar(avatarUrl)}
@@ -486,9 +515,7 @@ export function AgentCard({
 
         {/* Top left badges */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
-          {!isPublic && isOwned && (
-            <Lock className="h-4 w-4 text-white/70" />
-          )}
+          {!isPublic && isOwned && <Lock className="h-4 w-4 text-white/70" />}
           {!isOwned && (
             <span className="text-xs text-white/70 bg-black/30 px-2 py-0.5 rounded-md">
               by @{agent.ownerUsername || "unknown"}
@@ -537,11 +564,17 @@ export function AgentCard({
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleDuplicate}
+                  className="cursor-pointer"
+                >
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleExport}
+                  className="cursor-pointer"
+                >
                   <Upload className="h-4 w-4 mr-2" />
                   Export JSON
                 </DropdownMenuItem>
@@ -564,7 +597,10 @@ export function AgentCard({
                   />
                 </DropdownMenuItem>
                 {isPublic && (
-                  <DropdownMenuItem onClick={handleCopyShareLink} className="cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={handleCopyShareLink}
+                    className="cursor-pointer"
+                  >
                     <LinkIcon className="h-4 w-4 mr-2" />
                     Share
                   </DropdownMenuItem>
@@ -580,7 +616,10 @@ export function AgentCard({
               </>
             ) : (
               <>
-                <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleDuplicate}
+                  className="cursor-pointer"
+                >
                   <Copy className="h-4 w-4 mr-2" />
                   Fork Agent
                 </DropdownMenuItem>
@@ -599,9 +638,7 @@ export function AgentCard({
 
         {/* Name and Bio overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
-          <h3 className="font-semibold text-white truncate">
-            {agent.name}
-          </h3>
+          <h3 className="font-semibold text-white truncate">{agent.name}</h3>
           <p className="text-xs text-white/70 line-clamp-2 leading-relaxed">
             {bioText || "No description"}
           </p>
@@ -643,7 +680,9 @@ function DeleteConfirmDialog({
       >
         <h3 className="text-lg font-semibold text-white mb-2">Delete Agent</h3>
         <p className="text-sm text-white/60 mb-6">
-          Are you sure you want to delete <span className="font-semibold text-white">{agentName}</span>? This action cannot be undone.
+          Are you sure you want to delete{" "}
+          <span className="font-semibold text-white">{agentName}</span>? This
+          action cannot be undone.
         </p>
         <div className="flex gap-3">
           <button

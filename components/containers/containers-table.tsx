@@ -265,7 +265,8 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         {/* Results Count */}
         {(filters.searchQuery || filters.statusFilter !== "all") && (
           <p className="text-sm text-neutral-500">
-            Showing {filteredAndSortedContainers.length} of {containers.length} containers
+            Showing {filteredAndSortedContainers.length} of {containers.length}{" "}
+            containers
           </p>
         )}
 
@@ -393,7 +394,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                         </div>
                         {container.last_deployed_at && (
                           <div className="text-xs text-neutral-500">
-                            {new Date(container.last_deployed_at).toLocaleTimeString([], {
+                            {new Date(
+                              container.last_deployed_at,
+                            ).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -405,7 +408,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       <div className="flex justify-end gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/dashboard/containers/${container.id}`}>
+                            <Link
+                              href={`/dashboard/containers/${container.id}`}
+                            >
                               <button className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                                 <FileText className="h-4 w-4" />
                               </button>
@@ -420,7 +425,12 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                onClick={() => window.open(container.load_balancer_url!, "_blank")}
+                                onClick={() =>
+                                  window.open(
+                                    container.load_balancer_url!,
+                                    "_blank",
+                                  )
+                                }
                                 className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                               >
                                 <ExternalLink className="h-4 w-4" />
@@ -462,7 +472,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
       >
         <AlertDialogContent className="bg-neutral-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Container</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">
+              Delete Container
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-400">
               Are you sure you want to delete this container? This action cannot
               be undone and will remove the container from AWS ECS.
