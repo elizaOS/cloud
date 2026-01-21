@@ -57,7 +57,7 @@ export function OverviewMetricsSkeleton() {
   return (
     <BrandCard corners={false}>
       <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 inline-flex p-2.5 rounded-none border border-white/10 bg-white/5">
+        <div className="flex-shrink-0 inline-flex p-2.5 rounded-sm border border-white/10 bg-white/5">
           <div className="h-5 w-5 bg-white/10 animate-pulse rounded" />
         </div>
         <div className="flex-1 min-w-0">

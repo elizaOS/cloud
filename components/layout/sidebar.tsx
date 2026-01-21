@@ -11,24 +11,29 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect, memo, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, PanelLeft, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
+import { ElizaLogo } from "@/components/brand";
 
 interface SidebarProps {
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function SidebarComponent({
   className,
   isOpen = false,
   onToggle,
+  isCollapsed = false,
+  onToggleCollapse,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -64,32 +69,49 @@ function SidebarComponent({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "flex h-full flex-col border-r border-white/10 bg-[#0A0A0A] transition-transform duration-300 ease-in-out",
+          "flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-            : "relative w-64",
-          className,
+            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-72 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            : isCollapsed
+              ? "w-14 p-1.5"
+              : "w-72 p-1.5",
+          className
         )}
       >
-        {/* Header with Logo */}
-        <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4 overflow-visible">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
-          >
-            <Image
-              src="/cloudlogo.svg"
-              alt="ELIZA"
-              width={80}
-              height={24}
-              className={`invert shrink-0 ${isMobile ? "w-20" : "w-24"}`}
-            />
-          </Link>
+        {/* Header with Logo and Collapse Toggle */}
+        <div
+          className={cn(
+            "relative flex h-14 mb-2 shrink-0 grow-0 items-center overflow-visible",
+            isCollapsed ? "justify-center px-0" : "justify-between px-3"
+          )}
+        >
+          {!isCollapsed && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 hover:opacity-80 relative z-10"
+            >
+              <ElizaLogo className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`} />
+            </Link>
+          )}
+          {/* Collapse Toggle Button (Desktop) */}
+          {!isMobile && onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <PanelLeft className="h-5 w-5 text-neutral-300" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5 text-neutral-300" />
+              )}
+            </button>
+          )}
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
               onClick={handleCloseClick}
-              className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+              className="rounded-lg p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
             >
               <X className="h-4 w-4 text-white" />
@@ -98,16 +120,21 @@ function SidebarComponent({
         </div>
 
         {/* Navigation Content */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="space-y-8">
-            {sidebarSections.map((section, index) => (
-              <SidebarNavigationSection key={index} section={section} />
-            ))}
-          </div>
-        </nav>
+        <ScrollArea className="flex-1">
+          <nav className={cn(
+            "py-6",
+            isCollapsed ? "px-1" : "px-4"
+          )}>
+            <div className={isCollapsed ? "space-y-2" : "space-y-8"}>
+              {sidebarSections.map((section, index) => (
+                <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
+              ))}
+            </div>
+          </nav>
+        </ScrollArea>
 
-        {/* Bottom Panel with User Info and Settings */}
-        <SidebarBottomPanel />
+        {/* Bottom Panel with User Info and Settings - hidden when collapsed */}
+        {!isCollapsed && <SidebarBottomPanel />}
       </aside>
     </>
   );

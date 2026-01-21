@@ -14,12 +14,11 @@ import {
   AlertCircle,
   Timer,
   Sparkles,
-  ArrowLeft,
   GitBranch,
   Rocket,
   Cloud,
+  Loader2,
 } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type {
   ProgressStep,
@@ -34,7 +33,7 @@ const PHASES = [
     key: "creating",
     label: "Initializing sandbox",
     icon: Sparkles,
-    color: "text-orange-400",
+    color: "text-[#FF5800]",
   },
   {
     key: "installing",
@@ -77,7 +76,7 @@ interface SessionLoaderProps {
 
 // Unified spinner with colorful gradient
 function LoadingSpinner({ size = "lg" }: { size?: "sm" | "lg" }) {
-  const sizeClasses = size === "lg" ? "w-16 h-16" : "w-8 h-8";
+  const sizeClasses = size === "lg" ? "w-12 h-12" : "w-8 h-8";
 
   return (
     <div className={cn("relative", sizeClasses)}>
@@ -118,39 +117,28 @@ function StepIndicator({
     <div className="relative flex items-start">
       {/* Left column: icon + vertical line */}
       <div className="relative flex flex-col items-center">
-        {/* Icon container - fixed 40x40px for consistent sizing */}
+        {/* Icon container */}
         <div
           className={cn(
-            "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 flex-shrink-0",
+            "relative z-10 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-500 flex-shrink-0",
             isComplete && "bg-emerald-500/20 border border-emerald-500/30",
             isActive && "bg-white/10 border border-white/20",
             !isActive && !isComplete && "bg-white/5 border border-white/10",
           )}
         >
           {isComplete ? (
-            <Check className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
+            <Check className="w-4 h-4 text-emerald-400" strokeWidth={2.5} />
           ) : isActive ? (
-            <div className="relative w-5 h-5 flex items-center justify-center">
-              {/* Spinning ring for active state */}
-              <div
-                className="absolute inset-0 rounded-full animate-spin"
-                style={{
-                  background: `conic-gradient(from 0deg, transparent 0%, ${color === "text-orange-400" ? "#FF5800" : color === "text-cyan-400" ? "#06B6D4" : "#8B5CF6"} 50%, transparent 100%)`,
-                  animationDuration: "1.5s",
-                }}
-              />
-              <div className="absolute inset-[2px] rounded-full bg-[#0A0A0A]" />
-              <Icon
-                className={cn(
-                  "relative w-3.5 h-3.5 transition-colors duration-500",
-                  color,
-                )}
-              />
-            </div>
+            <Loader2
+              className={cn(
+                "w-4 h-4 animate-spin",
+                color === "text-[#FF5800]" ? "text-[#FF5800]" : color === "text-cyan-400" ? "text-cyan-400" : "text-violet-400"
+              )}
+            />
           ) : (
             <Icon
               className={cn(
-                "w-5 h-5 transition-colors duration-500",
+                "w-4 h-4 transition-colors duration-500",
                 "text-white/40",
               )}
             />
@@ -161,7 +149,7 @@ function StepIndicator({
         {!isLast && (
           <div
             className={cn(
-              "w-[2px] h-6 transition-all duration-500",
+              "w-[2px] h-3 transition-all duration-500",
               isComplete ? "bg-emerald-500/40" : "bg-white/10",
             )}
           />
@@ -171,7 +159,7 @@ function StepIndicator({
       {/* Right column: label and status */}
       <div
         className={cn(
-          "flex-1 min-w-0 ml-4 min-h-10 flex items-center transition-all duration-500",
+          "flex-1 min-w-0 ml-3 min-h-8 flex items-center transition-all duration-500",
           isActive && "scale-[1.02] origin-left",
           !isActive && !isComplete && "opacity-40",
         )}
@@ -290,25 +278,14 @@ export function SessionLoader({
 
   return (
     <div className="w-full max-w-lg mx-auto px-6">
-      {/* Back link - top left */}
-      <div className="mb-8">
-        <Link
-          href={backLink}
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to apps</span>
-        </Link>
-      </div>
-
       {/* Main content */}
-      <div className="text-center space-y-8">
+      <div className="text-center space-y-5">
         {/* Spinner or mode icon */}
         <div className="flex justify-center">
           {mode === "error" || mode === "expired" ? (
             <div
               className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center",
+                "w-12 h-12 rounded-xl flex items-center justify-center",
                 mode === "error" && "bg-red-500/10 border border-red-500/20",
                 mode === "expired" &&
                   "bg-amber-500/10 border border-amber-500/20",
@@ -322,8 +299,8 @@ export function SessionLoader({
         </div>
 
         {/* Title and subtitle */}
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-white tracking-tight">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold text-white tracking-tight">
             {title}
           </h1>
           <p className="text-white/50 text-sm">
@@ -348,7 +325,7 @@ export function SessionLoader({
 
         {/* Progress steps */}
         {showProgress && (
-          <div className="text-left max-w-sm mx-auto pt-4">
+          <div className="text-left max-w-sm mx-auto pt-2">
             {PHASES.map((phase, index) => (
               <StepIndicator
                 key={phase.key}

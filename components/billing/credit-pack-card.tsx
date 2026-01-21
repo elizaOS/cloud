@@ -55,7 +55,7 @@ export function CreditPackCard({
 
       {isPopular && (
         <div className="absolute top-0 right-0 z-10">
-          <span className="rounded-none rounded-bl-lg bg-[#FF5800] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white inline-flex items-center">
+          <span className="rounded-bl-lg bg-[#FF5800] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white inline-flex items-center">
             <Sparkles className="mr-1 h-3 w-3" />
             Popular
           </span>

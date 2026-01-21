@@ -16,6 +16,7 @@ import {
   AppsSection,
   AppsSectionSkeleton,
 } from "@/components/dashboard/apps-section";
+import { SurveyBanner } from "@/components/dashboard/survey-banner";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -47,17 +48,18 @@ export default async function DashboardPage() {
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
-      <main className="mx-auto w-full max-w-[1400px] px-4 pb-8 pt-6 lg:px-8">
+      <main className="mx-auto w-full max-w-[1400px]">
+        <SurveyBanner className="mb-6" />
         <div className="space-y-8">
           <section>
-            <Suspense fallback={<AgentsSectionSkeleton />}>
-              <AgentsSection agents={data.agents} />
+            <Suspense fallback={<AppsSectionSkeleton />}>
+              <AppsSection apps={data.apps ?? []} />
             </Suspense>
           </section>
 
           <section>
-            <Suspense fallback={<AppsSectionSkeleton />}>
-              <AppsSection apps={data.apps ?? []} />
+            <Suspense fallback={<AgentsSectionSkeleton />}>
+              <AgentsSection agents={data.agents} />
             </Suspense>
           </section>
 

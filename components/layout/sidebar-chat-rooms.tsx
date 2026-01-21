@@ -136,11 +136,11 @@ export function SidebarChatRooms() {
               key={room.id}
               onClick={() => handleSelectRoom(room.id)}
               className={cn(
-                "group w-full text-left px-3 py-2 rounded-none transition-colors",
+                "group w-full text-left px-3 py-2 rounded-lg transition-colors",
                 "hover:bg-white/5",
                 selectedRoomId === room.id
-                  ? "bg-[#FF5800]/20 border-l-2 border-[#FF5800]"
-                  : "border-l-2 border-transparent",
+                  ? "bg-white/10 text-white"
+                  : "text-white/60",
               )}
             >
               <div className="flex items-start justify-between gap-2">

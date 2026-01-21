@@ -107,15 +107,15 @@ const DEFAULT_MODEL = "anthropic/claude-opus-4.5";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude Sonnet 4.5",
-    description: "Best balance of speed and capability for coding tasks",
+    id: "anthropic/claude-opus-4.5",
+    name: "Claude Opus 4.5",
+    description: "Most capable model for complex coding tasks",
     isDefault: true,
   },
   {
-    id: "anthropic/claude-haiku-4.5",
-    name: "Claude Haiku 4.5",
-    description: "Fastest model for quick iterations",
+    id: "anthropic/claude-sonnet-4.5",
+    name: "Claude Sonnet 4.5",
+    description: "Best balance of speed and capability for coding tasks",
   },
   {
     id: "openai/gpt-5.2-codex",
@@ -459,6 +459,7 @@ CRITICAL RULES:
           // Use shared tool executor
           const { result: toolResult, filesAffected: affected } =
             await sharedExecuteToolCall(sandbox, tc.toolName, toolArgs, {
+              abortSignal,
               sandboxId,
               appId,
             });

@@ -11,7 +11,7 @@
  */
 
 import { memo, useCallback, useRef, useEffect, useState } from "react";
-import { Loader2, Send, Mic, Square, X } from "lucide-react";
+import { Loader2, ArrowUp, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
@@ -66,7 +66,7 @@ const AudioWaveform = memo(function AudioWaveform({
         return (
           <div
             key={i}
-            className="w-[3px] rounded-full bg-gradient-to-t from-red-500 to-red-400 transition-all duration-75"
+            className="w-[3px] rounded-full bg-gradient-to-t from-white/60 to-white/80 transition-all duration-75"
             style={{
               height: `${Math.max(4, height * 20)}px`,
               opacity: isRecording ? 0.9 : 0.4,
@@ -87,7 +87,7 @@ const RecordingTimer = memo(function RecordingTimer({
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return (
-    <span className="text-[11px] font-mono text-red-400 tabular-nums">
+    <span className="text-[11px] font-mono text-white/70 tabular-nums">
       {minutes.toString().padStart(2, "0")}:{secs.toString().padStart(2, "0")}
     </span>
   );
@@ -122,11 +122,8 @@ const MicButton = memo(function MicButton({
   // Processing state - show spinner
   if (isProcessing) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20">
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
-          <span className="text-[11px] text-violet-400">Transcribing...</span>
-        </div>
+      <div className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-[#FF5800] flex items-center justify-center">
+        <Loader2 className="h-4 w-4 xl:h-3.5 xl:w-3.5 animate-spin text-white" />
       </div>
     );
   }
@@ -136,11 +133,11 @@ const MicButton = memo(function MicButton({
     return (
       <div className="flex items-center gap-2">
         {/* Recording indicator */}
-        <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
-          {/* Pulsing red dot */}
+        <div className="flex items-center gap-2 px-2 h-8 xl:h-7 rounded-xl bg-white/[0.08] border border-white/[0.15]">
+          {/* Pulsing dot */}
           <div className="relative">
-            <div className="h-2 w-2 rounded-full bg-red-500" />
-            <div className="absolute inset-0 h-2 w-2 rounded-full bg-red-500 animate-ping opacity-75" />
+            <div className="h-2 w-2 rounded-full bg-white/80" />
+            <div className="absolute inset-0 h-2 w-2 rounded-full bg-white/80 animate-ping opacity-75" />
           </div>
 
           {/* Waveform visualization */}
@@ -156,7 +153,7 @@ const MicButton = memo(function MicButton({
           onClick={onCancelRecording}
           size="icon"
           variant="ghost"
-          className="h-7 w-7 rounded-lg text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
+          className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl text-white/40 hover:text-white/60 hover:bg-white/[0.04]"
           title="Cancel recording"
         >
           <X className="h-3.5 w-3.5" />
@@ -167,10 +164,10 @@ const MicButton = memo(function MicButton({
           type="button"
           onClick={onStopRecording}
           size="icon"
-          className="h-8 w-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 transition-all"
-          title="Stop and send"
+          className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-red-600/40 hover:bg-red-600/50 border border-red-500/40 text-red-400 transition-all"
+          title="Stop recording"
         >
-          <Square className="h-3.5 w-3.5 fill-current" />
+          <Square className="h-3.5 w-3.5 xl:h-3 xl:w-3 fill-current" />
         </Button>
       </div>
     );
@@ -184,7 +181,7 @@ const MicButton = memo(function MicButton({
       disabled={disabled}
       size="icon"
       className={cn(
-        "h-8 w-8 xl:h-7 xl:w-7 rounded-lg transition-all touch-manipulation",
+        "h-8 w-8 xl:h-7 xl:w-7 rounded-xl transition-all touch-manipulation",
         "bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30",
         "border border-white/[0.06] hover:border-white/[0.1]",
         "group",
@@ -215,8 +212,8 @@ const ChatInputInner = memo(function ChatInputInner({
   const handleInput = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = "48px";
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+      textarea.style.height = "44px";
+      textarea.style.height = Math.min(textarea.scrollHeight, 100) + "px";
     }
   }, []);
 
@@ -301,27 +298,22 @@ const ChatInputInner = memo(function ChatInputInner({
 
       <div
         className={cn(
-          "relative rounded-xl border bg-white/[0.015] overflow-hidden transition-all",
+          "relative rounded-2xl border bg-white/[0.04] overflow-hidden transition-all shadow-lg shadow-black/20",
           stt.isRecording
-            ? "border-red-500/30 bg-red-500/[0.02]"
-            : "border-white/[0.06] focus-within:border-white/[0.12] focus-within:bg-white/[0.025]",
+            ? "border-white/[0.25] bg-white/[0.08]"
+            : "border-white/[0.08] focus-within:border-white/[0.12] focus-within:bg-white/[0.05]",
         )}
       >
         {/* Subtle scanning animation for generating state */}
         {status === "generating" && (
           <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
             <div
-              className="absolute h-full w-32 bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
+              className="absolute h-full w-32 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
               style={{
                 animation: "visor-scan 3s ease-in-out infinite",
               }}
             />
           </div>
-        )}
-
-        {/* Recording indicator line */}
-        {stt.isRecording && (
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-red-500/50 via-red-400 to-red-500/50" />
         )}
 
         {/* Textarea */}
@@ -342,7 +334,7 @@ const ChatInputInner = memo(function ChatInputInner({
           disabled={isDisabled}
           className={cn(
             "w-full bg-transparent px-3 xl:px-4 pt-2.5 xl:pt-3 pb-2 text-[13px] xl:text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed",
-            stt.isRecording && "placeholder:text-red-400/50",
+            stt.isRecording && "placeholder:text-white/70 placeholder:animate-pulse",
           )}
           style={{ minHeight: "44px", maxHeight: "100px" }}
         />
@@ -363,13 +355,13 @@ const ChatInputInner = memo(function ChatInputInner({
             {/* Status indicator - visible on mobile/tablet only */}
             <div className="xl:hidden">
               {status === "generating" && !stt.isRecording && (
-                <span className="text-[10px] text-violet-400 flex items-center gap-1">
+                <span className="text-[10px] text-[#FF5800]/70 flex items-center gap-1">
                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
                   Building...
                 </span>
               )}
               {status === "recovering" && (
-                <span className="text-[10px] text-cyan-400 flex items-center gap-1">
+                <span className="text-[10px] text-[#FF5800]/70 flex items-center gap-1">
                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
                   Reconnecting...
                 </span>
@@ -399,7 +391,7 @@ const ChatInputInner = memo(function ChatInputInner({
                   type="button"
                   onClick={onStopGeneration}
                   size="icon"
-                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 hover:text-red-300 transition-all touch-manipulation animate-pulse"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-red-600/40 hover:bg-red-600/50 border border-red-500/40 text-red-400 transition-all touch-manipulation animate-pulse"
                   title="Stop generation"
                 >
                   <Square className="h-3.5 w-3.5 xl:h-3 xl:w-3 fill-current" />
@@ -410,9 +402,9 @@ const ChatInputInner = memo(function ChatInputInner({
                   onClick={handleSend}
                   disabled={!input.trim() || status !== "ready"}
                   size="icon"
-                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
+                  className="h-8 w-8 xl:h-7 xl:w-7 rounded-xl bg-[#FF5800] hover:bg-[#e54e00] disabled:bg-white/10 transition-all touch-manipulation group"
                 >
-                  <Send className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white/60" />
+                  <ArrowUp className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white group-disabled:text-neutral-400" />
                 </Button>
               )
             )}
@@ -422,7 +414,7 @@ const ChatInputInner = memo(function ChatInputInner({
 
       {/* STT error display */}
       {stt.error && (
-        <div className="mt-2 px-3 py-1.5 text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">
+        <div className="mt-2 px-3 py-1.5 text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl">
           {stt.error}
         </div>
       )}

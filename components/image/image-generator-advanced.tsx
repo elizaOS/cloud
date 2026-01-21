@@ -27,7 +27,7 @@ import {
   Download,
   X,
   ImagePlus,
-  Send,
+  ArrowUp,
   RefreshCw,
   Copy,
   RectangleHorizontal,
@@ -631,12 +631,12 @@ export function ImageGeneratorAdvanced({
                 onClick={handleGenerate}
                 disabled={requestState.isLoading || !prompt.trim()}
                 size="icon"
-                className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+                className="h-8 w-8 rounded-xl bg-[#FF5800] hover:bg-[#e54e00] disabled:bg-white/10 transition-colors group"
               >
                 {requestState.isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
-                  <Send className="h-4 w-4 text-[#FF5800]" />
+                  <ArrowUp className="h-4 w-4 text-white group-disabled:text-neutral-400" />
                 )}
               </Button>
             </div>

@@ -11,12 +11,14 @@
 import { useRef } from "react";
 import Editor, { Monaco } from "@monaco-editor/react";
 import type * as monacoEditor from "monaco-editor";
+import { cn } from "@/lib/utils";
 
 interface OpenApiViewerProps {
   value: string;
+  className?: string;
 }
 
-export function OpenApiViewer({ value }: OpenApiViewerProps) {
+export function OpenApiViewer({ value, className }: OpenApiViewerProps) {
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
     null,
   );
@@ -46,6 +48,7 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
         "editor.foreground": "#D4D4D4",
         "editorLineNumber.foreground": "#858585",
         "editorLineNumber.activeForeground": "#C6C6C6",
+        "editorGutter.background": "#0a0a0a",
         "editorCursor.foreground": "#FFFFFF",
         "editor.selectionBackground": "#264F78",
         "editor.inactiveSelectionBackground": "#3A3D41",
@@ -54,6 +57,8 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
         "editor.lineHighlightBackground": "#FFFFFF0A",
         "editorBracketMatch.background": "#0064001A",
         "editorBracketMatch.border": "#888888",
+        "editorStickyScroll.background": "#0a0a0a",
+        "editorStickyScrollHover.background": "#171717",
       },
     });
 
@@ -70,12 +75,13 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
   };
 
   return (
-    <div className="h-full w-full rounded-none border border-white/10 bg-black/60 overflow-hidden">
-      <Editor
-        height="800px"
-        defaultLanguage="json"
-        value={value}
-        onMount={handleEditorDidMount}
+    <div className={cn("w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-black/40 overflow-hidden", className)}>
+      <div className="w-0 min-w-full h-full overflow-hidden">
+        <Editor
+          height="100%"
+          defaultLanguage="json"
+          value={value}
+          onMount={handleEditorDidMount}
         options={{
           readOnly: true,
           fontSize: 13,
@@ -122,7 +128,8 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
             horizontalScrollbarSize: 10,
           },
         }}
-      />
+        />
+      </div>
     </div>
   );
 }
