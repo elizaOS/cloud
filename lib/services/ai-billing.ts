@@ -11,8 +11,18 @@
  * - Support streaming and non-streaming responses
  */
 
-import { calculateCost, getProviderFromModel, normalizeModelName, estimateTokens, PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing";
-import { creditsService, InsufficientCreditsError, type CreditReservation } from "@/lib/services/credits";
+import {
+  calculateCost,
+  getProviderFromModel,
+  normalizeModelName,
+  estimateTokens,
+  PLATFORM_MARKUP_MULTIPLIER,
+} from "@/lib/pricing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { logger } from "@/lib/utils/logger";
@@ -70,7 +80,7 @@ export function normalizeUsage(usage: AIUsage | undefined | null): {
   // AI SDK v4+ uses inputTokens/outputTokens
   const inputTokens = usage.inputTokens ?? usage.promptTokens ?? 0;
   const outputTokens = usage.outputTokens ?? usage.completionTokens ?? 0;
-  const totalTokens = usage.totalTokens ?? (inputTokens + outputTokens);
+  const totalTokens = usage.totalTokens ?? inputTokens + outputTokens;
 
   return { inputTokens, outputTokens, totalTokens };
 }
@@ -117,7 +127,8 @@ export function estimateInputTokens(
   const messageText = messages
     .map((m) => {
       if (typeof m.content === "string") return m.content;
-      if (m.content && typeof m.content === "object") return JSON.stringify(m.content);
+      if (m.content && typeof m.content === "object")
+        return JSON.stringify(m.content);
       return "";
     })
     .join(" ");
@@ -194,7 +205,13 @@ export async function recordUsageAnalytics(
     prompt?: string;
   } = {},
 ): Promise<void> {
-  const { type = "chat", isSuccessful = true, errorMessage, content, prompt } = options;
+  const {
+    type = "chat",
+    isSuccessful = true,
+    errorMessage,
+    content,
+    prompt,
+  } = options;
   const provider = context.provider ?? getProviderFromModel(context.model);
 
   try {

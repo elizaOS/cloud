@@ -606,7 +606,7 @@ async function handleStripeWebhook(req: NextRequest) {
 
         // Use org-prefixed ID as fallback when user ID is missing (matches auto-top-up pattern)
         const trackingId = userId || (orgId ? `org:${orgId}` : null);
-        
+
         if (trackingId && orgId) {
           trackServerEvent(trackingId, "checkout_failed", {
             payment_method: "stripe",

@@ -1,19 +1,13 @@
 /**
  * Endpoint card component displaying API endpoint information.
- * Shows method, path, description, pricing, and parameter count.
- *
- * @param props - Endpoint card configuration
- * @param props.endpoint - API endpoint data to display
- * @param props.onSelect - Callback when card is clicked
- * @param props.getMethodColor - Function to get color for HTTP method
- * @param props.getCategoryIcon - Function to get icon for category
+ * Shows method, path, description, pricing, and tags.
  */
 
 "use client";
 
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
 import { ChevronRight, Coins, Sparkles } from "lucide-react";
-import { BrandCard } from "@/components/brand";
+import { cn } from "@/lib/utils";
 
 interface EndpointCardProps {
   endpoint: ApiEndpoint;
@@ -32,7 +26,7 @@ function formatPrice(pricing: ApiEndpoint["pricing"]) {
 }
 
 function getPricingTextStyle(pricing: ApiEndpoint["pricing"]) {
-  if (!pricing) return "text-white/50";
+  if (!pricing) return "text-neutral-500";
   if (pricing.isFree) return "text-emerald-400";
   if (pricing.isVariable) return "text-amber-400";
   return "text-[#FF5800]";
@@ -44,112 +38,103 @@ export function EndpointCard({
   getMethodColor,
   getCategoryIcon,
 }: EndpointCardProps) {
-  const paramCount =
-    (endpoint.parameters?.path?.length || 0) +
-    (endpoint.parameters?.query?.length || 0) +
-    (endpoint.parameters?.body?.length || 0);
-
   return (
-    <BrandCard
-      hover
-      corners={false}
-      className="group relative cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[#FF5800]/50"
+    <button
+      type="button"
       onClick={() => onSelect(endpoint)}
+      className="group relative w-full min-w-0 text-left bg-neutral-900/50 rounded-xl p-4 transition-all border border-white/5 hover:border-white/10 hover:bg-neutral-900/70 overflow-hidden"
     >
-      <div className="absolute right-4 top-4 opacity-0 transition-all duration-300 group-hover:opacity-100">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#FF5800]">
-          TEST ENDPOINT <ChevronRight className="h-4 w-4" />
+      {/* Hover indicator */}
+      <div className="absolute right-4 top-4 opacity-0 transition-all duration-200 group-hover:opacity-100">
+        <div className="flex items-center gap-1 text-xs font-medium text-[#FF5800]">
+          Test <ChevronRight className="h-3 w-3" />
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
+        {/* Header */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-neutral-500">
               {getCategoryIcon(endpoint.category)}
-              <h3 className="text-lg font-bold text-white group-hover:text-[#FF5800] transition-colors">
-                {endpoint.name}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 pr-8">
-              {endpoint.deprecated && (
-                <span className="rounded-none bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400 border border-rose-500/40">
-                  DEPRECATED
-                </span>
-              )}
-            </div>
+            </span>
+            <h3 className="text-sm font-semibold text-white group-hover:text-[#FF5800] transition-colors pr-16">
+              {endpoint.name}
+            </h3>
           </div>
-          <p className="text-sm text-white/60 line-clamp-2">
+          <p className="text-xs text-neutral-500 line-clamp-2">
             {endpoint.description}
           </p>
         </div>
 
+        {/* Method and path */}
         <div className="flex items-center gap-2">
-          <span className={getMethodColor(endpoint.method)}>
+          <span
+            className={cn(
+              "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+              getMethodColor(endpoint.method),
+            )}
+          >
             {endpoint.method}
           </span>
-          <code className="flex-1 rounded-none bg-black/60 border border-white/10 px-2 py-1 font-mono text-xs text-white truncate">
+          <code className="flex-1 text-xs font-mono text-neutral-400 truncate">
             {endpoint.path}
           </code>
         </div>
 
-        {/* Pricing */}
-        {endpoint.pricing && (
-          <div className="flex items-center gap-2">
+        {/* Footer with pricing and tags */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          {/* Pricing */}
+          {endpoint.pricing ? (
             <div
-              className={`flex items-center gap-1.5 ${getPricingTextStyle(endpoint.pricing)}`}
+              className={cn(
+                "flex items-center gap-1.5 text-xs",
+                getPricingTextStyle(endpoint.pricing),
+              )}
             >
               {endpoint.pricing.isFree ? (
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="h-3 w-3" />
               ) : (
-                <Coins className="h-3.5 w-3.5" />
+                <Coins className="h-3 w-3" />
               )}
-              <span className="text-xs font-semibold">
+              <span className="font-medium">
                 {formatPrice(endpoint.pricing)}
               </span>
               {!endpoint.pricing.isFree && (
-                <span className="text-[10px] opacity-70">
-                  /{endpoint.pricing.unit}
-                </span>
+                <span className="opacity-60">/{endpoint.pricing.unit}</span>
               )}
             </div>
-            {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
-              <span className="text-[10px] text-white/40 italic">
-                varies by usage
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4">
-          <div className="flex gap-4 text-xs text-white/40 font-mono">
-            <span>{paramCount} params</span>
-            {endpoint.rateLimit && (
-              <span>
-                {endpoint.rateLimit.requests}/{endpoint.rateLimit.window}
-              </span>
-            )}
-          </div>
-
-          {endpoint.tags.length > 0 && (
-            <div className="flex gap-1.5">
-              {endpoint.tags.slice(0, 2).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-none bg-white/5 px-1.5 py-0.5 text-xs text-white/50 uppercase tracking-wider"
-                >
-                  {tag}
-                </span>
-              ))}
-              {endpoint.tags.length > 2 && (
-                <span className="text-[10px] text-white/50 py-0.5">
-                  +{endpoint.tags.length - 2}
-                </span>
-              )}
-            </div>
+          ) : (
+            <div />
           )}
+
+          {/* Tags and deprecated badge */}
+          <div className="flex items-center gap-2">
+            {endpoint.deprecated && (
+              <span className="text-[10px] text-rose-400 font-medium">
+                Deprecated
+              </span>
+            )}
+            {endpoint.tags.length > 0 && (
+              <div className="flex gap-1">
+                {endpoint.tags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-1.5 py-0.5 text-[10px] text-neutral-300 bg-white/10 rounded"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {endpoint.tags.length > 2 && (
+                  <span className="text-[10px] text-neutral-400">
+                    +{endpoint.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </BrandCard>
+    </button>
   );
 }

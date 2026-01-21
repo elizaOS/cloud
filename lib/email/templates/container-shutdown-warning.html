@@ -39,9 +39,16 @@
         animation: shake 0.5s ease-in-out infinite;
       }
       @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
       }
       .header-banner h1 {
         font-size: 28px;
@@ -269,8 +276,9 @@
         <div class="urgent-card">
           <strong>⚠️ Your container will be shut down in 48 hours</strong>
           <p>
-            Your account has insufficient credits to continue running your deployed container.
-            Add funds within the next 48 hours to prevent service interruption.
+            Your account has insufficient credits to continue running your
+            deployed container. Add funds within the next 48 hours to prevent
+            service interruption.
           </p>
         </div>
 
@@ -296,7 +304,9 @@
           </div>
           <div class="info-row">
             <span class="info-label">Current Balance</span>
-            <span class="info-value" style="color: #dc2626;">${{currentBalance}}</span>
+            <span class="info-value" style="color: #dc2626"
+              >${{currentBalance}}</span
+            >
           </div>
           <div class="info-row">
             <span class="info-label">Required to Continue</span>
@@ -341,9 +351,10 @@
             <span>Quick Cost Reference</span>
           </strong>
           <p>
-            Containers are billed daily at ${{dailyCost}}/day (${{monthlyCost}}/month).
-            Add at least ${{minimumRecommended}} to keep your container running for the next week,
-            or set up auto-recharge to never worry about credits again.
+            Containers are billed daily at ${{dailyCost}}/day
+            (${{monthlyCost}}/month). Add at least ${{minimumRecommended}} to
+            keep your container running for the next week, or set up
+            auto-recharge to never worry about credits again.
           </p>
         </div>
 
@@ -358,7 +369,7 @@
         >
           <p style="color: #6b7280; font-size: 14px; margin: 0">
             <strong>Questions?</strong> Reply to this email or visit our
-            <a href="{{dashboardUrl}}" style="color: #dc2626;">dashboard</a>
+            <a href="{{dashboardUrl}}" style="color: #dc2626">dashboard</a>
             to manage your containers.
           </p>
         </div>
@@ -368,8 +379,9 @@
         <div class="footer-logo">Eliza Cloud</div>
         <p>© {{currentYear}} Eliza Cloud. All rights reserved.</p>
         <p style="margin-top: 12px">
-          You received this urgent alert because your container "{{containerName}}"
-          is scheduled for shutdown due to insufficient credits.
+          You received this urgent alert because your container
+          "{{containerName}}" is scheduled for shutdown due to insufficient
+          credits.
         </p>
       </div>
     </div>

@@ -60,7 +60,7 @@ function PaymentSuccessContent() {
       const loginUrl = new URL("/login", window.location.origin);
       loginUrl.searchParams.set(
         "returnTo",
-        targetUrl.pathname + targetUrl.search
+        targetUrl.pathname + targetUrl.search,
       );
       router.replace(loginUrl.toString());
     }

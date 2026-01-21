@@ -69,7 +69,7 @@ export function AnimatedCounter({
     <span
       className={cn(
         "tabular-nums font-mono transition-opacity duration-300",
-        className
+        className,
       )}
     >
       {prefix}
@@ -101,7 +101,7 @@ export function AnimatedCounterWithLabel({
       <span
         className={cn(
           "text-xs text-white/50 uppercase tracking-wider mb-1",
-          labelClassName
+          labelClassName,
         )}
       >
         {label}
@@ -114,7 +114,7 @@ export function AnimatedCounterWithLabel({
         <span
           className={cn(
             "text-xs mt-1 flex items-center gap-1",
-            trend.value >= 0 ? "text-green-400" : "text-red-400"
+            trend.value >= 0 ? "text-green-400" : "text-red-400",
           )}
         >
           <span>{trend.value >= 0 ? "↑" : "↓"}</span>

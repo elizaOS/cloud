@@ -37,7 +37,7 @@ import {
 import { useChatStore } from "@/lib/stores/chat-store";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
-import { ElizaAvatar } from "@/components/ui/eliza-avatar";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 // ==========================================================================
 // SHARED COMPONENTS (defined at module scope to prevent re-creation on render)
@@ -68,7 +68,7 @@ function AgentDisplay({
   return (
     <div className="flex items-center gap-2">
       <ElizaAvatar
-        avatarUrl={agent.avatarUrl}
+        avatarUrl={agent.avatarUrl || undefined}
         name={agent.name}
         className="w-6 h-6"
         iconClassName="h-3 w-3"

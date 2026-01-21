@@ -24,7 +24,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C"; // %5C = backslash
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`
+        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
       );
 
       // Should NOT return 500 (the original bug)
@@ -40,7 +40,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C%5C";
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`
+        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -53,7 +53,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%2F"; // %2F = forward slash
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`
+        `${BASE_URL}/dashboard/chat?characterId=${malformedId}`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -64,7 +64,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       page,
     }) => {
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=not-a-valid-uuid`
+        `${BASE_URL}/dashboard/chat?characterId=not-a-valid-uuid`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -73,7 +73,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
 
     test("dashboard chat handles empty characterId", async ({ page }) => {
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=`
+        `${BASE_URL}/dashboard/chat?characterId=`,
       );
 
       expect(response?.status()).toBe(200);
@@ -86,7 +86,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const validUuid = "00000000-0000-4000-8000-000000000000";
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${validUuid}`
+        `${BASE_URL}/dashboard/chat?characterId=${validUuid}`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -101,7 +101,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const malformedId = "17c8b876-86a0-465d-9794-2aea244f4239%5C";
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?roomId=${malformedId}`
+        `${BASE_URL}/dashboard/chat?roomId=${malformedId}`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -110,7 +110,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
 
     test("dashboard chat handles invalid roomId", async ({ page }) => {
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?roomId=invalid-room-id`
+        `${BASE_URL}/dashboard/chat?roomId=invalid-room-id`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -135,7 +135,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
           !e.includes("WalletConnect") &&
           !e.includes("hydration") &&
           !e.includes("ResizeObserver") &&
-          !e.includes("eth_accounts")
+          !e.includes("eth_accounts"),
       );
 
       // Should not have any critical JavaScript errors
@@ -151,7 +151,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const maliciousId = "'; DROP TABLE users; --";
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(maliciousId)}`
+        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(maliciousId)}`,
       );
 
       // Should not return 500 (SQL error)
@@ -165,7 +165,7 @@ test.describe("UUID Sanitization - Dashboard Chat", () => {
       const unicodeId = "test-id-\u0000-null-byte";
 
       const response = await page.goto(
-        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(unicodeId)}`
+        `${BASE_URL}/dashboard/chat?characterId=${encodeURIComponent(unicodeId)}`,
       );
 
       expect(response?.status()).not.toBe(500);
@@ -189,7 +189,7 @@ test.describe("UUID Sanitization - API Response", () => {
     const data = await response.json();
 
     const elizaPlatform = data.registry.find(
-      (entry: { id: string }) => entry.id === "eliza-platform"
+      (entry: { id: string }) => entry.id === "eliza-platform",
     );
 
     expect(elizaPlatform).toBeDefined();

@@ -11,7 +11,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -29,7 +28,7 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LockOnButton } from "@/components/brand";
+import { LockOnButton, ElizaLogo } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
@@ -91,7 +90,11 @@ export function ChatSidebar({
     deleteRoom,
     selectedCharacterId,
     availableCharacters,
+    viewerState,
   } = useChatStore();
+
+  // Check if user is the owner
+  const isOwner = viewerState === "owner";
 
   const [operationState, setOperationState] = useState<OperationState>({
     deletingRoomId: null,
@@ -202,11 +205,10 @@ export function ChatSidebar({
     const character = availableCharacters.find(
       (c) => c.id === selectedCharacterId,
     );
-    if (!character?.username) {
-      toast.error("Set a username first to share this agent");
-      return;
-    }
-    const shareUrl = `${window.location.origin}/chat/@${character.username}`;
+    // Use username if available, otherwise fall back to character ID
+    const shareUrl = character?.username
+      ? `${window.location.origin}/chat/@${character.username}`
+      : `${window.location.origin}/chat/${selectedCharacterId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");
@@ -327,10 +329,10 @@ export function ChatSidebar({
         className={cn(
           "flex h-full flex-col transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed bg-[#191919] inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-72 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
               ? "w-14 p-1.5"
-              : "w-80 p-1.5",
+              : "w-72 p-1.5",
           className,
         )}
       >
@@ -346,12 +348,8 @@ export function ChatSidebar({
               href="/dashboard"
               className="flex items-center gap-2 hover:opacity-80 relative z-10"
             >
-              <Image
-                src="/cloudlogo.svg"
-                alt="ELIZA"
-                width={80}
-                height={24}
-                className={`invert shrink-0 ${isMobile ? "w-16" : "w-20"}`}
+              <ElizaLogo
+                className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`}
               />
             </Link>
           )}
@@ -389,8 +387,8 @@ export function ChatSidebar({
             isCollapsed ? "justify-center" : "gap-3 px-3",
           )}
         >
-          {/* Avatar - wrapped in dropdown when collapsed */}
-          {isCollapsed && selectedCharacter ? (
+          {/* Avatar - wrapped in dropdown when collapsed (only for owners) */}
+          {isCollapsed && selectedCharacter && isOwner ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="rounded-full hover:ring-2 hover:ring-white/20 transition-all">
@@ -450,6 +448,15 @@ export function ChatSidebar({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : isCollapsed && selectedCharacter ? (
+            // Non-owner collapsed view - just avatar, no dropdown
+            <ElizaAvatar
+              avatarUrl={selectedCharacter.avatarUrl}
+              name={selectedCharacter.name}
+              className="w-6 h-6 shrink-0"
+              iconClassName="h-3 w-3"
+              fallbackClassName="bg-[#FF5800]/10"
+            />
           ) : selectedCharacter ? (
             <ElizaAvatar
               avatarUrl={selectedCharacter.avatarUrl}
@@ -465,11 +472,21 @@ export function ChatSidebar({
           )}
           {!isCollapsed && (
             <>
-              <div className="text-sm font-medium text-white truncate flex-1">
-                {selectedCharacter?.name || "Create New Agent"}
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="text-sm font-medium text-white truncate">
+                  {selectedCharacter?.name || "Create New Agent"}
+                </div>
+                {/* Creator attribution for non-owners */}
+                {selectedCharacter &&
+                  !isOwner &&
+                  selectedCharacter.creatorUsername && (
+                    <span className="text-[10px] text-white/40 truncate">
+                      by @{selectedCharacter.creatorUsername}
+                    </span>
+                  )}
               </div>
-              {/* Settings Dropdown */}
-              {selectedCharacter && (
+              {/* Settings Dropdown - Owner only */}
+              {selectedCharacter && isOwner && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
@@ -523,6 +540,16 @@ export function ChatSidebar({
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              )}
+              {/* Non-owner: Copy share link button only */}
+              {selectedCharacter && !isOwner && selectedCharacter.username && (
+                <button
+                  onClick={handleCopyShareLink}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Copy share link"
+                >
+                  <LinkIcon className="h-4 w-4 text-neutral-300" />
+                </button>
               )}
             </>
           )}

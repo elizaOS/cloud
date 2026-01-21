@@ -53,18 +53,22 @@ export async function GET(request: NextRequest) {
       (c) => c.status === "running",
     );
     const currentDailyBurn = runningContainers.reduce((total, container) => {
-      return total + calculateDailyContainerCost({
-        desiredCount: container.desired_count,
-        cpu: container.cpu,
-        memory: container.memory,
-      });
+      return (
+        total +
+        calculateDailyContainerCost({
+          desiredCount: container.desired_count,
+          cpu: container.cpu,
+          memory: container.memory,
+        })
+      );
     }, 0);
 
     // Calculate days of runway
     const currentBalance = Number(user.organization.credit_balance);
-    const daysOfRunway = currentDailyBurn > 0 
-      ? Math.floor(currentBalance / currentDailyBurn)
-      : Infinity;
+    const daysOfRunway =
+      currentDailyBurn > 0
+        ? Math.floor(currentBalance / currentDailyBurn)
+        : Infinity;
 
     return NextResponse.json({
       success: true,

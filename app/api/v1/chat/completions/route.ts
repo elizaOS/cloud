@@ -9,7 +9,12 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { streamText, generateText, type UIMessage, convertToModelMessages } from "ai";
+import {
+  streamText,
+  generateText,
+  type UIMessage,
+  convertToModelMessages,
+} from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -23,7 +28,11 @@ import {
   InsufficientCreditsError,
 } from "@/lib/services/ai-billing";
 import { creditsService, type CreditReservation } from "@/lib/services/credits";
-import { calculateCost, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  normalizeModelName,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { createPreflightResponse } from "@/lib/middleware/cors-apps";
@@ -37,7 +46,9 @@ export const maxDuration = 60;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -65,7 +76,10 @@ interface ChatRequest {
       parameters?: Record<string, unknown>;
     };
   }>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tool_choice?:
+    | "auto"
+    | "none"
+    | { type: "function"; function: { name: string } };
 }
 
 // ============================================================================
@@ -81,7 +95,10 @@ function addCorsHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID");
+  headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  );
   headers.set("Access-Control-Max-Age", "86400");
   return new Response(response.body, {
     status: response.status,
@@ -96,9 +113,10 @@ function addCorsHeaders(response: Response): Response {
 
 function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
   return messages.map((msg) => {
-    const content = typeof msg.content === "string"
-      ? msg.content
-      : msg.content.map((part) => part.text || "").join("");
+    const content =
+      typeof msg.content === "string"
+        ? msg.content
+        : msg.content.map((part) => part.text || "").join("");
 
     return {
       id: crypto.randomUUID(),
@@ -110,7 +128,7 @@ function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
 
 function getMessageContent(msg: ChatMessage): string {
   if (typeof msg.content === "string") return msg.content;
-  return msg.content.map(p => p.text || "").join("");
+  return msg.content.map((p) => p.text || "").join("");
 }
 
 // ============================================================================
@@ -127,7 +145,8 @@ async function handlePOST(req: NextRequest) {
     // 2. Check for app monetization
     const appId = req.headers.get("X-App-Id");
     let useAppCredits = false;
-    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null = null;
+    let monetizedApp: Awaited<ReturnType<typeof appsService.getById>> | null =
+      null;
 
     if (appId) {
       monetizedApp = await appsService.getById(appId);
@@ -141,13 +160,18 @@ async function handlePOST(req: NextRequest) {
 
     // 4. Validate
     if (!request.model || !request.messages?.length) {
-      return addCorsHeaders(Response.json({
-        error: {
-          message: "Missing required fields: model and messages",
-          type: "invalid_request_error",
-          code: "missing_required_parameter",
-        },
-      }, { status: 400 }));
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message: "Missing required fields: model and messages",
+              type: "invalid_request_error",
+              code: "missing_required_parameter",
+            },
+          },
+          { status: 400 },
+        ),
+      );
     }
 
     const model = request.model;
@@ -156,80 +180,135 @@ async function handlePOST(req: NextRequest) {
 
     // 5. Check content moderation
     if (await contentModerationService.shouldBlockUser(user.id)) {
-      return addCorsHeaders(Response.json({
-        error: {
-          message: "Your account has been suspended due to policy violations.",
-          type: "account_suspended",
-          code: "moderation_violation",
-        },
-      }, { status: 403 }));
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message:
+                "Your account has been suspended due to policy violations.",
+              type: "account_suspended",
+              code: "moderation_violation",
+            },
+          },
+          { status: 403 },
+        ),
+      );
     }
 
     // Start async moderation in background
-    const lastUserMessage = request.messages.filter(m => m.role === "user").pop();
+    const lastUserMessage = request.messages
+      .filter((m) => m.role === "user")
+      .pop();
     if (lastUserMessage) {
       const content = getMessageContent(lastUserMessage);
       if (content) {
-        contentModerationService.moderateInBackground(content, user.id, undefined, (result) => {
-          logger.warn("[Chat Completions] Async moderation detected violation", {
-            userId: user.id,
-            categories: result.flaggedCategories,
-          });
-        });
+        contentModerationService.moderateInBackground(
+          content,
+          user.id,
+          undefined,
+          (result) => {
+            logger.warn(
+              "[Chat Completions] Async moderation detected violation",
+              {
+                userId: user.id,
+                categories: result.flaggedCategories,
+              },
+            );
+          },
+        );
       }
     }
 
     // 6. Estimate tokens and reserve credits
-    const estimatedInputTokens = estimateInputTokens(request.messages.map(m => ({ content: getMessageContent(m) })));
+    const estimatedInputTokens = estimateInputTokens(
+      request.messages.map((m) => ({ content: getMessageContent(m) })),
+    );
     const estimatedOutputTokens = request.max_tokens || 500;
 
     let reservation: CreditReservation;
-    let appCreditsInfo: { appId: string; estimatedBaseCost: number; app: typeof monetizedApp } | undefined;
+    let appCreditsInfo:
+      | { appId: string; estimatedBaseCost: number; app: typeof monetizedApp }
+      | undefined;
 
     if (useAppCredits && appId && monetizedApp) {
       // App credits path
-      const { totalCost } = await calculateCost(normalizedModel, provider, estimatedInputTokens, estimatedOutputTokens);
-      const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
+      const { totalCost } = await calculateCost(
+        normalizedModel,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+      const costWithMarkup = await appCreditsService.calculateCostWithMarkup(
+        appId,
+        totalCost,
+      );
 
-      const balanceCheck = await appCreditsService.checkBalance(appId, user.id, costWithMarkup.totalCost);
+      const balanceCheck = await appCreditsService.checkBalance(
+        appId,
+        user.id,
+        costWithMarkup.totalCost,
+      );
       if (!balanceCheck.sufficient) {
-        return addCorsHeaders(Response.json({
-          error: {
-            message: `Insufficient app credits. Required: $${costWithMarkup.totalCost.toFixed(4)}`,
-            type: "insufficient_quota",
-            code: "insufficient_credits",
-          },
-        }, { status: 402 }));
+        return addCorsHeaders(
+          Response.json(
+            {
+              error: {
+                message: `Insufficient app credits. Required: $${costWithMarkup.totalCost.toFixed(4)}`,
+                type: "insufficient_quota",
+                code: "insufficient_credits",
+              },
+            },
+            { status: 402 },
+          ),
+        );
       }
 
-      appCreditsInfo = { appId, estimatedBaseCost: totalCost, app: monetizedApp };
+      appCreditsInfo = {
+        appId,
+        estimatedBaseCost: totalCost,
+        app: monetizedApp,
+      };
       reservation = creditsService.createAnonymousReservation();
     } else {
       // Organization credits path
       try {
         reservation = await reserveCredits(
-          { organizationId: user.organization_id!, userId: user.id, model, provider },
+          {
+            organizationId: user.organization_id!,
+            userId: user.id,
+            model,
+            provider,
+          },
           estimatedInputTokens,
           estimatedOutputTokens,
         );
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
-          return addCorsHeaders(Response.json({
-            error: {
-              message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
-              type: "insufficient_quota",
-              code: "insufficient_credits",
-            },
-          }, { status: 402 }));
+          return addCorsHeaders(
+            Response.json(
+              {
+                error: {
+                  message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
+                  type: "insufficient_quota",
+                  code: "insufficient_credits",
+                },
+              },
+              { status: 402 },
+            ),
+          );
         }
         throw error;
       }
     }
 
     // 7. Convert messages for AI SDK
-    const systemMessage = request.messages.find(m => m.role === "system");
-    const systemPrompt = systemMessage ? getMessageContent(systemMessage) : undefined;
-    const nonSystemMessages = request.messages.filter(m => m.role !== "system");
+    const systemMessage = request.messages.find((m) => m.role === "system");
+    const systemPrompt = systemMessage
+      ? getMessageContent(systemMessage)
+      : undefined;
+    const nonSystemMessages = request.messages.filter(
+      (m) => m.role !== "system",
+    );
     const uiMessages = convertToUIMessages(nonSystemMessages);
 
     logger.info("[Chat Completions] Request", {
@@ -273,23 +352,37 @@ async function handlePOST(req: NextRequest) {
     let status = 500;
     let errorType = "api_error";
 
-    if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
+    if (
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication")
+    ) {
       status = 401;
       errorType = "authentication_error";
-    } else if (errorMessage.includes("Insufficient") || errorMessage.includes("credits")) {
+    } else if (
+      errorMessage.includes("Insufficient") ||
+      errorMessage.includes("credits")
+    ) {
       status = 402;
       errorType = "insufficient_quota";
-    } else if (errorMessage.includes("Invalid") || errorMessage.includes("validation")) {
+    } else if (
+      errorMessage.includes("Invalid") ||
+      errorMessage.includes("validation")
+    ) {
       status = 400;
       errorType = "invalid_request_error";
     }
 
-    return addCorsHeaders(Response.json({
-      error: {
-        message: errorMessage,
-        type: errorType,
-      },
-    }, { status }));
+    return addCorsHeaders(
+      Response.json(
+        {
+          error: {
+            message: errorMessage,
+            type: errorType,
+          },
+        },
+        { status },
+      ),
+    );
   }
 }
 
@@ -305,7 +398,9 @@ async function handleStreamingRequest(
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
   reservation: CreditReservation,
-  appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
+  appCreditsInfo:
+    | { appId: string; estimatedBaseCost: number; app: unknown }
+    | undefined,
   startTime: number,
 ) {
   const provider = getProviderFromModel(model);
@@ -318,12 +413,22 @@ async function handleStreamingRequest(
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
     presencePenalty: request.presence_penalty,
-    stopSequences: request.stop ? (Array.isArray(request.stop) ? request.stop : [request.stop]) : undefined,
+    stopSequences: request.stop
+      ? Array.isArray(request.stop)
+        ? request.stop
+        : [request.stop]
+      : undefined,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
     onFinish: async ({ text, usage }) => {
       try {
         const billing = await billUsage(
-          { organizationId: user.organization_id, userId: user.id, apiKeyId: apiKey?.id, model, provider },
+          {
+            organizationId: user.organization_id,
+            userId: user.id,
+            apiKeyId: apiKey?.id,
+            model,
+            provider,
+          },
           usage,
           reservation,
         );
@@ -341,7 +446,13 @@ async function handleStreamingRequest(
         }
 
         await recordUsageAnalytics(
-          { organizationId: user.organization_id, userId: user.id, apiKeyId: apiKey?.id, model, provider },
+          {
+            organizationId: user.organization_id,
+            userId: user.id,
+            apiKeyId: apiKey?.id,
+            model,
+            provider,
+          },
           billing,
           { type: "chat", content: text },
         );
@@ -353,7 +464,9 @@ async function handleStreamingRequest(
           totalCost: billing.totalCost,
         });
       } catch (error) {
-        logger.error("[Chat Completions] onFinish error", { error: error instanceof Error ? error.message : String(error) });
+        logger.error("[Chat Completions] onFinish error", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     },
   });
@@ -381,14 +494,18 @@ async function handleStreamingRequest(
             object: "chat.completion.chunk",
             created: Math.floor(Date.now() / 1000),
             model,
-            choices: [{
-              index: 0,
-              delta: { content: value },
-              finish_reason: null,
-            }],
+            choices: [
+              {
+                index: 0,
+                delta: { content: value },
+                finish_reason: null,
+              },
+            ],
           };
 
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
+          );
         }
 
         // Send final chunk with finish_reason
@@ -397,13 +514,17 @@ async function handleStreamingRequest(
           object: "chat.completion.chunk",
           created: Math.floor(Date.now() / 1000),
           model,
-          choices: [{
-            index: 0,
-            delta: {},
-            finish_reason: "stop",
-          }],
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              finish_reason: "stop",
+            },
+          ],
         };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`));
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`),
+        );
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
@@ -412,13 +533,15 @@ async function handleStreamingRequest(
     },
   });
 
-  return addCorsHeaders(new Response(openAIStream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-    },
-  }));
+  return addCorsHeaders(
+    new Response(openAIStream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    }),
+  );
 }
 
 // ============================================================================
@@ -433,7 +556,9 @@ async function handleNonStreamingRequest(
   user: { id: string; organization_id: string },
   apiKey: { id: string } | null,
   reservation: CreditReservation,
-  appCreditsInfo: { appId: string; estimatedBaseCost: number; app: unknown } | undefined,
+  appCreditsInfo:
+    | { appId: string; estimatedBaseCost: number; app: unknown }
+    | undefined,
   startTime: number,
 ) {
   const provider = getProviderFromModel(model);
@@ -446,13 +571,23 @@ async function handleNonStreamingRequest(
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
     presencePenalty: request.presence_penalty,
-    stopSequences: request.stop ? (Array.isArray(request.stop) ? request.stop : [request.stop]) : undefined,
+    stopSequences: request.stop
+      ? Array.isArray(request.stop)
+        ? request.stop
+        : [request.stop]
+      : undefined,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
   });
 
   // Bill using actual usage from SDK response
   const billing = await billUsage(
-    { organizationId: user.organization_id, userId: user.id, apiKeyId: apiKey?.id, model, provider },
+    {
+      organizationId: user.organization_id,
+      userId: user.id,
+      apiKeyId: apiKey?.id,
+      model,
+      provider,
+    },
     result.usage,
     reservation,
   );
@@ -470,7 +605,13 @@ async function handleNonStreamingRequest(
   }
 
   await recordUsageAnalytics(
-    { organizationId: user.organization_id, userId: user.id, apiKeyId: apiKey?.id, model, provider },
+    {
+      organizationId: user.organization_id,
+      userId: user.id,
+      apiKeyId: apiKey?.id,
+      model,
+      provider,
+    },
     billing,
     { type: "chat", content: result.text },
   );
@@ -483,25 +624,29 @@ async function handleNonStreamingRequest(
   });
 
   // Return OpenAI-compatible response
-  return addCorsHeaders(Response.json({
-    id: `chatcmpl-${Date.now()}`,
-    object: "chat.completion",
-    created: Math.floor(Date.now() / 1000),
-    model,
-    choices: [{
-      index: 0,
-      message: {
-        role: "assistant",
-        content: result.text,
+  return addCorsHeaders(
+    Response.json({
+      id: `chatcmpl-${Date.now()}`,
+      object: "chat.completion",
+      created: Math.floor(Date.now() / 1000),
+      model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: result.text,
+          },
+          finish_reason: "stop",
+        },
+      ],
+      usage: {
+        prompt_tokens: billing.inputTokens,
+        completion_tokens: billing.outputTokens,
+        total_tokens: billing.totalTokens,
       },
-      finish_reason: "stop",
-    }],
-    usage: {
-      prompt_tokens: billing.inputTokens,
-      completion_tokens: billing.outputTokens,
-      total_tokens: billing.totalTokens,
-    },
-  }));
+    }),
+  );
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

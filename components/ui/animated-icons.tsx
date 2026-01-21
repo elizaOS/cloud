@@ -1,6 +1,6 @@
 /**
  * Animated Icons for App Builder
- * 
+ *
  * Premium animated SVG icons for status indicators.
  * Features smooth CSS animations for a polished AAA feel.
  */
@@ -19,10 +19,10 @@ interface AnimatedIconProps {
  * Animated checkmark with drawing effect
  * Circle draws first, then checkmark pops in
  */
-export function AnimatedCheckmark({ 
-  className, 
-  size = 16, 
-  delay = 0 
+export function AnimatedCheckmark({
+  className,
+  size = 16,
+  delay = 0,
 }: AnimatedIconProps) {
   return (
     <svg
@@ -85,10 +85,10 @@ export function AnimatedCheckmark({
 /**
  * Simple checkmark without circle - draws in smoothly
  */
-export function AnimatedCheck({ 
-  className, 
-  size = 14, 
-  delay = 0 
+export function AnimatedCheck({
+  className,
+  size = 14,
+  delay = 0,
 }: AnimatedIconProps) {
   return (
     <svg
@@ -127,9 +127,9 @@ export function AnimatedCheck({
 /**
  * Animated loading ring with rotating gradient
  */
-export function AnimatedLoadingRing({ 
-  className, 
-  size = 16 
+export function AnimatedLoadingRing({
+  className,
+  size = 16,
 }: AnimatedIconProps) {
   return (
     <svg
@@ -196,10 +196,7 @@ export function AnimatedLoadingRing({
 /**
  * Animated hourglass/timer with sand flowing
  */
-export function AnimatedHourglass({ 
-  className, 
-  size = 16 
-}: AnimatedIconProps) {
+export function AnimatedHourglass({ className, size = 16 }: AnimatedIconProps) {
   return (
     <svg
       width={size}
@@ -308,10 +305,7 @@ export function AnimatedHourglass({
 /**
  * Pulsing dots loading indicator
  */
-export function AnimatedDots({ 
-  className, 
-  size = 16 
-}: AnimatedIconProps) {
+export function AnimatedDots({ className, size = 16 }: AnimatedIconProps) {
   const dotSize = size / 5;
   return (
     <svg
@@ -357,10 +351,7 @@ export function AnimatedDots({
 /**
  * Spinning gear/cog for processing state
  */
-export function AnimatedGear({ 
-  className, 
-  size = 16 
-}: AnimatedIconProps) {
+export function AnimatedGear({ className, size = 16 }: AnimatedIconProps) {
   return (
     <svg
       width={size}
@@ -402,14 +393,14 @@ export function AnimatedGear({
 /**
  * Circular progress with animated stroke
  */
-export function AnimatedProgress({ 
-  className, 
+export function AnimatedProgress({
+  className,
   size = 16,
-  progress = 0 // 0-100
+  progress = 0, // 0-100
 }: AnimatedIconProps & { progress?: number }) {
   const circumference = 2 * Math.PI * 10;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
-  
+
   return (
     <svg
       width={size}
@@ -449,10 +440,7 @@ export function AnimatedProgress({
 /**
  * Orbiting dots spinner - premium look
  */
-export function AnimatedOrbit({ 
-  className, 
-  size = 16 
-}: AnimatedIconProps) {
+export function AnimatedOrbit({ className, size = 16 }: AnimatedIconProps) {
   return (
     <svg
       width={size}

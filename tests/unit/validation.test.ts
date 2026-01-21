@@ -49,7 +49,9 @@ describe("isValidUUID", () => {
     expect(isValidUUID("12345678")).toBe(false);
     expect(isValidUUID("")).toBe(false);
     expect(isValidUUID("550e8400-e29b-41d4-a716")).toBe(false); // Too short
-    expect(isValidUUID("550e8400-e29b-41d4-a716-446655440000-extra")).toBe(false); // Too long
+    expect(isValidUUID("550e8400-e29b-41d4-a716-446655440000-extra")).toBe(
+      false,
+    ); // Too long
   });
 
   test("returns false for UUIDs with invalid characters", () => {
@@ -70,32 +72,32 @@ describe("sanitizeUUID", () => {
 
   test("removes trailing backslash and returns valid UUID", () => {
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\\")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
     // Multiple backslashes
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\\\\")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
   test("removes trailing forward slash and returns valid UUID", () => {
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239/")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
   test("removes trailing whitespace and returns valid UUID", () => {
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239 ")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\t")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
   test("trims leading whitespace before validation", () => {
     expect(sanitizeUUID("  17c8b876-86a0-465d-9794-2aea244f4239")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
@@ -129,30 +131,34 @@ describe("sanitizeUUID", () => {
   test("handles multiple types of trailing garbage", () => {
     // Combination of backslash, slash, and whitespace
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\\ /")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239/\\")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239 \\")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
   test("handles multiple whitespace types", () => {
     // Tab, newline, space combinations
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239\t\n ")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
     expect(sanitizeUUID("17c8b876-86a0-465d-9794-2aea244f4239  \t")).toBe(
-      "17c8b876-86a0-465d-9794-2aea244f4239"
+      "17c8b876-86a0-465d-9794-2aea244f4239",
     );
   });
 
   test("rejects UUIDs with embedded invalid characters (fail-fast)", () => {
     // Embedded invalid chars should cause rejection, not sanitization
     expect(sanitizeUUID("550e8400-e29b-INVALID-446655440000")).toBeUndefined();
-    expect(sanitizeUUID("550e8400\\e29b-41d4-a716-446655440000")).toBeUndefined();
-    expect(sanitizeUUID("550e8400-e29b-41d4-a716-446655440000\x00")).toBeUndefined();
+    expect(
+      sanitizeUUID("550e8400\\e29b-41d4-a716-446655440000"),
+    ).toBeUndefined();
+    expect(
+      sanitizeUUID("550e8400-e29b-41d4-a716-446655440000\x00"),
+    ).toBeUndefined();
   });
 });

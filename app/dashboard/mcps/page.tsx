@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { MCPsPageClient } from "@/components/mcps/mcps-page-client";
-import { Puzzle, Server, Zap, Globe } from "lucide-react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { MCPsPageWrapper } from "./mcps-page-wrapper";
+import { MCPsSection, MCPsSectionSkeleton } from "./mcps-section";
 
 export const metadata: Metadata = {
   title: "MCP Servers",
@@ -114,166 +113,22 @@ const demoMcpServers = [
 
 /**
  * MCP Servers page displaying available Model Context Protocol servers.
- * Shows statistics (total MCPs, live servers, x402 enabled, total tools) and server cards.
- *
- * @returns The rendered MCP servers page with statistics and server explorer.
+ * Shows server cards with filtering and detail view.
  */
 export default async function MCPsPage() {
-  const user = await requireAuthWithOrg();
-
-  const stats = {
-    total: demoMcpServers.length,
-    live: demoMcpServers.filter((s) => s.status === "live").length,
-    x402Enabled: demoMcpServers.filter((s) => s.x402Enabled).length,
-    totalTools: demoMcpServers.reduce((acc, s) => acc + s.toolCount, 0),
-  };
+  await requireAuthWithOrg();
 
   return (
-    <div className="max-w-7xl mx-auto pb-10 space-y-6">
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-none bg-[#FF5800]/20 border border-[#FF5800]/40">
-              <Puzzle className="h-4 w-4 text-[#FF5800]" />
-            </div>
-          </div>
-          <div>
-            <p
-              className="text-xs font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Total MCPs
-            </p>
-            <p
-              className="text-3xl font-medium mt-1 text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {stats.total}
-            </p>
-          </div>
-        </BrandCard>
-
-        <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-none bg-green-500/20 border border-green-500/40">
-              <Server className="h-4 w-4 text-green-400" />
-            </div>
-          </div>
-          <div>
-            <p
-              className="text-xs font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Live
-            </p>
-            <p
-              className="text-3xl font-medium mt-1 text-green-400"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {stats.live}
-            </p>
-          </div>
-        </BrandCard>
-
-        <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-none bg-purple-500/20 border border-purple-500/40">
-              <Zap className="h-4 w-4 text-purple-400" />
-            </div>
-          </div>
-          <div>
-            <p
-              className="text-xs font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              x402 Enabled
-            </p>
-            <p
-              className="text-3xl font-medium mt-1 text-purple-400"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {stats.x402Enabled}
-            </p>
-          </div>
-        </BrandCard>
-
-        <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-none bg-blue-500/20 border border-blue-500/40">
-              <Globe className="h-4 w-4 text-blue-400" />
-            </div>
-          </div>
-          <div>
-            <p
-              className="text-xs font-medium text-white/60 uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Total Tools
-            </p>
-            <p
-              className="text-3xl font-medium mt-1 text-blue-400"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              {stats.totalTools}
-            </p>
-          </div>
-        </BrandCard>
-      </div>
-
-      {/* Info Card */}
-      <BrandCard className="relative shadow-lg shadow-black/50">
-        <CornerBrackets size="sm" className="opacity-50" />
-        <div className="relative z-10 space-y-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Puzzle className="h-5 w-5 text-[#FF5800]" />
-              <h3
-                className="text-lg font-normal text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                What is MCP?
-              </h3>
-            </div>
-            <p className="text-sm text-white/60">
-              The Model Context Protocol (MCP) is an open standard that enables
-              AI assistants to securely connect with data sources and tools.
-              These MCP servers are hosted on Vercel serverless functions and
-              provide ready-to-use tools for your AI agents.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-2 text-white/60">
-              <span className="w-2 h-2 rounded-full bg-green-400" />
-              <span>Serverless & Scalable</span>
-            </div>
-            <div className="flex items-center gap-2 text-white/60">
-              <span className="w-2 h-2 rounded-full bg-purple-400" />
-              <span>x402 Micropayments</span>
-            </div>
-            <div className="flex items-center gap-2 text-white/60">
-              <span className="w-2 h-2 rounded-full bg-blue-400" />
-              <span>SSE & HTTP Transport</span>
-            </div>
-          </div>
+    <MCPsPageWrapper>
+      <main className="mx-auto w-full max-w-[1400px]">
+        <div className="space-y-8">
+          <section>
+            <Suspense fallback={<MCPsSectionSkeleton />}>
+              <MCPsSection servers={demoMcpServers} />
+            </Suspense>
+          </section>
         </div>
-      </BrandCard>
-
-      {/* MCP Explorer */}
-      <Suspense
-        fallback={
-          <div className="grid gap-4 md:grid-cols-2">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-64 bg-black/40 border border-white/10 animate-pulse"
-              />
-            ))}
-          </div>
-        }
-      >
-        <MCPsPageClient servers={demoMcpServers} />
-      </Suspense>
-    </div>
+      </main>
+    </MCPsPageWrapper>
   );
 }

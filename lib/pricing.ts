@@ -71,8 +71,12 @@ export async function calculateCost(
   );
 
   // Apply 20% platform markup
-  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const inputCostCents = Math.ceil(
+    baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER,
+  );
+  const outputCostCents = Math.ceil(
+    baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER,
+  );
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;
@@ -111,12 +115,20 @@ function getFallbackPricing(
   const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
 
   // Calculate base costs in cents
-  const baseInputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
-  const baseOutputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
+  const baseInputCostCents = Math.ceil(
+    (inputTokens / 1000) * pricing.input * 100,
+  );
+  const baseOutputCostCents = Math.ceil(
+    (outputTokens / 1000) * pricing.output * 100,
+  );
 
   // Apply 20% platform markup
-  const inputCostCents = Math.ceil(baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER);
-  const outputCostCents = Math.ceil(baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER);
+  const inputCostCents = Math.ceil(
+    baseInputCostCents * PLATFORM_MARKUP_MULTIPLIER,
+  );
+  const outputCostCents = Math.ceil(
+    baseOutputCostCents * PLATFORM_MARKUP_MULTIPLIER,
+  );
 
   const inputCost = Math.round(inputCostCents) / 100;
   const outputCost = Math.round(outputCostCents) / 100;
@@ -235,7 +247,10 @@ export async function estimateRequestCost(
  * @returns Cost in USD (with 20% markup).
  */
 export function calculateTTSCost(characterCount: number): number {
-  const { TTS_COST_PER_1K_CHARS, TTS_MINIMUM_COST } = require("@/lib/pricing-constants");
+  const {
+    TTS_COST_PER_1K_CHARS,
+    TTS_MINIMUM_COST,
+  } = require("@/lib/pricing-constants");
   const cost = (characterCount / 1000) * TTS_COST_PER_1K_CHARS;
   return Math.max(TTS_MINIMUM_COST, Math.round(cost * 10000) / 10000);
 }
@@ -248,7 +263,10 @@ export function calculateTTSCost(characterCount: number): number {
  * @returns Cost in USD (with 20% markup).
  */
 export function calculateSTTCost(durationMinutes: number): number {
-  const { STT_COST_PER_MINUTE, STT_MINIMUM_COST } = require("@/lib/pricing-constants");
+  const {
+    STT_COST_PER_MINUTE,
+    STT_MINIMUM_COST,
+  } = require("@/lib/pricing-constants");
   const cost = durationMinutes * STT_COST_PER_MINUTE;
   return Math.max(STT_MINIMUM_COST, Math.round(cost * 10000) / 10000);
 }

@@ -142,10 +142,10 @@ export function AutomationEditSheet({
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   // Track currently selected guild/channel names for display
   const [selectedGuildName, setSelectedGuildName] = useState<string | null>(
-    null
+    null,
   );
   const [selectedChannelName, setSelectedChannelName] = useState<string | null>(
-    null
+    null,
   );
 
   // Telegram-specific state
@@ -159,7 +159,7 @@ export function AutomationEditSheet({
   // Character state
   const [characters, setCharacters] = useState<AgentCharacter[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    null
+    null,
   );
 
   const platformConfig = PLATFORM_CONFIG[platform];
@@ -200,7 +200,7 @@ export function AutomationEditSheet({
         const charactersData = await charactersRes.json();
         // The response structure is { success: true, data: { characters: [...] } }
         setCharacters(
-          charactersData.data?.characters || charactersData.characters || []
+          charactersData.data?.characters || charactersData.characters || [],
         );
       }
 
@@ -232,7 +232,11 @@ export function AutomationEditSheet({
           console.log("[Telegram] Fetched stored chats:", fetchedTelegramChats);
         } else {
           const errText = await chatsRes.text().catch(() => "");
-          console.error("[Telegram] Failed to fetch chats:", chatsRes.status, errText);
+          console.error(
+            "[Telegram] Failed to fetch chats:",
+            chatsRes.status,
+            errText,
+          );
         }
 
         // If no chats found, trigger a scan to discover new chats
@@ -258,7 +262,7 @@ export function AutomationEditSheet({
       // If editing, fetch current config
       if (mode === "edit") {
         const configRes = await fetch(
-          `/api/v1/apps/${appId}/${platform}-automation`
+          `/api/v1/apps/${appId}/${platform}-automation`,
         );
         if (configRes.ok) {
           const configData = await configRes.json();
@@ -287,7 +291,7 @@ export function AutomationEditSheet({
           if (platform === "discord" && configData.guildId) {
             // Set guild name
             const guild = fetchedDiscordGuilds.find(
-              (g) => g.id === configData.guildId
+              (g) => g.id === configData.guildId,
             );
             if (guild) {
               setSelectedGuildName(guild.name);
@@ -299,7 +303,7 @@ export function AutomationEditSheet({
             const channels = await fetchDiscordChannels(configData.guildId);
             if (configData.channelId && channels) {
               const channel = channels.find(
-                (c: DiscordChannel) => c.id === configData.channelId
+                (c: DiscordChannel) => c.id === configData.channelId,
               );
               if (channel) {
                 setSelectedChannelName(channel.name);
@@ -314,7 +318,7 @@ export function AutomationEditSheet({
             const currentChatId = configData.channelId || configData.groupId;
             if (currentChatId) {
               const matchingChat = fetchedTelegramChats.find(
-                (c) => c.id === currentChatId
+                (c) => c.id === currentChatId,
               );
               if (matchingChat) {
                 setExistingTelegramChatName(matchingChat.title);
@@ -343,7 +347,7 @@ export function AutomationEditSheet({
   }, [open, fetchData, resetForm]);
 
   const fetchDiscordChannels = async (
-    guildId: string
+    guildId: string,
   ): Promise<DiscordChannel[] | null> => {
     setIsLoadingChannels(true);
     try {
@@ -379,7 +383,7 @@ export function AutomationEditSheet({
           toast.success(`Found ${chats.length} chat(s)`);
         } else {
           toast.info(
-            "No chats found. Send a message in your Telegram group first, then scan again."
+            "No chats found. Send a message in your Telegram group first, then scan again.",
           );
         }
       } else {
@@ -469,14 +473,14 @@ export function AutomationEditSheet({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success(
           mode === "create"
             ? "Automation set up successfully!"
-            : "Automation updated!"
+            : "Automation updated!",
         );
         onOpenChange(false);
         onSuccess?.();
@@ -611,7 +615,7 @@ export function AutomationEditSheet({
                     onValueChange={(value) => {
                       setConfig((prev) => ({ ...prev, channelId: value }));
                       const channel = discordChannels.find(
-                        (c) => c.id === value
+                        (c) => c.id === value,
                       );
                       setSelectedChannelName(channel?.name || null);
                     }}
@@ -734,7 +738,8 @@ export function AutomationEditSheet({
                   <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <span className="text-xs text-blue-400/90 leading-relaxed">
                       <strong>Tip:</strong> Send a message in your Telegram
-                      group/channel first, then click &quot;Scan&quot; to discover it.
+                      group/channel first, then click &quot;Scan&quot; to
+                      discover it.
                     </span>
                   </div>
                 )}
@@ -750,7 +755,7 @@ export function AutomationEditSheet({
                 {mode === "edit" &&
                   (config.channelId || config.groupId) &&
                   !telegramChats.find(
-                    (c) => c.id === (config.channelId || config.groupId)
+                    (c) => c.id === (config.channelId || config.groupId),
                   ) && (
                     <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <span className="text-xs text-amber-400/90 leading-relaxed">
@@ -804,7 +809,7 @@ export function AutomationEditSheet({
                           postIntervalMin: value,
                           postIntervalMax: Math.max(
                             value,
-                            prev.postIntervalMax ?? 150
+                            prev.postIntervalMax ?? 150,
                           ),
                         }));
                       } else {
@@ -813,7 +818,7 @@ export function AutomationEditSheet({
                           announceIntervalMin: value,
                           announceIntervalMax: Math.max(
                             value,
-                            prev.announceIntervalMax ?? 240
+                            prev.announceIntervalMax ?? 240,
                           ),
                         }));
                       }
@@ -844,7 +849,7 @@ export function AutomationEditSheet({
                           postIntervalMax: value,
                           postIntervalMin: Math.min(
                             value,
-                            prev.postIntervalMin ?? 90
+                            prev.postIntervalMin ?? 90,
                           ),
                         }));
                       } else {
@@ -853,7 +858,7 @@ export function AutomationEditSheet({
                           announceIntervalMax: value,
                           announceIntervalMin: Math.min(
                             value,
-                            prev.announceIntervalMin ?? 120
+                            prev.announceIntervalMin ?? 120,
                           ),
                         }));
                       }

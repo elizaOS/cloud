@@ -1,14 +1,18 @@
 /**
  * Prompt Builder
- * 
+ *
  * Composes the system prompt from modular pieces.
  * Clean, maintainable, and easy to update.
  */
 
-import { BASE_SYSTEM_PROMPT } from './base';
-import { SDK_REFERENCE, SDK_RESTRICTIONS } from './sdk';
-import { BUILD_RULES, WORKFLOW_RULES } from './rules';
-import { TEMPLATE_PROMPTS, TEMPLATE_EXAMPLES, type TemplateType } from './templates';
+import { BASE_SYSTEM_PROMPT } from "./base";
+import { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+import { BUILD_RULES, WORKFLOW_RULES } from "./rules";
+import {
+  TEMPLATE_PROMPTS,
+  TEMPLATE_EXAMPLES,
+  type TemplateType,
+} from "./templates";
 
 export type { TemplateType };
 
@@ -29,7 +33,7 @@ export interface PromptConfig {
  */
 export function buildSystemPrompt(config: PromptConfig = {}): string {
   const {
-    templateType = 'blank',
+    templateType = "blank",
     includeMonetization = false,
     includeAnalytics = true,
     customInstructions,
@@ -56,13 +60,15 @@ export function buildSystemPrompt(config: PromptConfig = {}): string {
     sections.push(`## Additional Instructions\n${customInstructions}`);
   }
 
-  return sections.join('\n\n');
+  return sections.join("\n\n");
 }
 
 /**
  * Get example prompts for a template type.
  */
-export function getExamplePrompts(templateType: TemplateType = 'blank'): string[] {
+export function getExamplePrompts(
+  templateType: TemplateType = "blank",
+): string[] {
   return TEMPLATE_EXAMPLES[templateType] || TEMPLATE_EXAMPLES.blank;
 }
 
@@ -97,7 +103,7 @@ trackPageView('/custom-path');
 `;
 
 // Re-export for convenience
-export { BASE_SYSTEM_PROMPT } from './base';
-export { SDK_REFERENCE, SDK_RESTRICTIONS } from './sdk';
-export { BUILD_RULES, WORKFLOW_RULES } from './rules';
-export { TEMPLATE_PROMPTS, TEMPLATE_EXAMPLES } from './templates';
+export { BASE_SYSTEM_PROMPT } from "./base";
+export { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
+export { BUILD_RULES, WORKFLOW_RULES } from "./rules";
+export { TEMPLATE_PROMPTS, TEMPLATE_EXAMPLES } from "./templates";

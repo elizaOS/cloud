@@ -57,11 +57,11 @@ export function BillingTab({ user }: BillingTabProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
-    null
+    null,
   );
 
   const [balance, setBalance] = useState(
-    Number(user.organization?.credit_balance || 0)
+    Number(user.organization?.credit_balance || 0),
   );
 
   const fetchBalance = useCallback(async (fresh = false) => {

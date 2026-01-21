@@ -37,7 +37,7 @@ const MAX_METADATA_DEPTH = 5;
  */
 function validateMetadata(
   metadata: Record<string, unknown> | undefined,
-  context: string
+  context: string,
 ): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
 
@@ -45,7 +45,7 @@ function validateMetadata(
   const serialized = JSON.stringify(metadata);
   if (serialized.length > MAX_METADATA_SIZE_BYTES) {
     throw new Error(
-      `${context}: Metadata exceeds maximum size of ${MAX_METADATA_SIZE_BYTES} bytes`
+      `${context}: Metadata exceeds maximum size of ${MAX_METADATA_SIZE_BYTES} bytes`,
     );
   }
 
@@ -53,7 +53,7 @@ function validateMetadata(
   const checkDepth = (obj: unknown, depth: number): void => {
     if (depth > MAX_METADATA_DEPTH) {
       throw new Error(
-        `${context}: Metadata exceeds maximum nesting depth of ${MAX_METADATA_DEPTH}`
+        `${context}: Metadata exceeds maximum nesting depth of ${MAX_METADATA_DEPTH}`,
       );
     }
     if (obj && typeof obj === "object") {
@@ -147,7 +147,7 @@ export interface AppCreditReconciliationResult {
 export class AppCreditsService {
   async getBalance(
     appId: string,
-    userId: string
+    userId: string,
   ): Promise<{
     balance: number;
     totalPurchased: number;
@@ -155,7 +155,7 @@ export class AppCreditsService {
   } | null> {
     const creditBalance = await appCreditBalancesRepository.findByAppAndUser(
       appId,
-      userId
+      userId,
     );
 
     if (!creditBalance) {
@@ -172,12 +172,12 @@ export class AppCreditsService {
   async getOrCreateBalance(
     appId: string,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AppCreditBalance> {
     return await appCreditBalancesRepository.getOrCreate(
       appId,
       userId,
-      organizationId
+      organizationId,
     );
   }
 
@@ -189,7 +189,7 @@ export class AppCreditsService {
     appId: string,
     userId: string,
     amount: number,
-    description: string
+    description: string,
   ): Promise<{ newBalance: number }> {
     // Get user's organization ID to ensure balance exists
     const user = await usersRepository.findById(userId);
@@ -202,7 +202,7 @@ export class AppCreditsService {
       appId,
       userId,
       user.organization_id,
-      amount
+      amount,
     );
 
     logger.info("[AppCredits] Added credits (reward/bonus)", {
@@ -217,7 +217,7 @@ export class AppCreditsService {
   }
 
   async processPurchase(
-    params: AppCreditPurchaseParams
+    params: AppCreditPurchaseParams,
   ): Promise<AppCreditPurchaseResult> {
     const {
       appId,
@@ -237,7 +237,7 @@ export class AppCreditsService {
       const existingTransaction =
         await appEarningsRepository.findTransactionByPaymentIntent(
           appId,
-          stripePaymentIntentId
+          stripePaymentIntentId,
         );
       if (existingTransaction) {
         logger.info("[AppCredits] Duplicate purchase detected, skipping", {
@@ -249,7 +249,7 @@ export class AppCreditsService {
         const balance = await appCreditBalancesRepository.getOrCreate(
           appId,
           userId,
-          organizationId
+          organizationId,
         );
         return {
           success: true,
@@ -288,7 +288,7 @@ export class AppCreditsService {
         appId,
         userId,
         organizationId,
-        creditsToAdd
+        creditsToAdd,
       );
 
     // Track app user activity for purchase (this will create app_users record if new user)
@@ -313,7 +313,7 @@ export class AppCreditsService {
           creatorSharePercentage: Number(app.purchase_share_percentage),
           ...(stripePaymentIntentId && { stripePaymentIntentId }),
         },
-        app // Pass app to avoid N+1 query
+        app, // Pass app to avoid N+1 query
       );
 
       await dbWrite
@@ -352,7 +352,7 @@ export class AppCreditsService {
   }
 
   async deductCredits(
-    params: AppCreditDeductionParams
+    params: AppCreditDeductionParams,
   ): Promise<AppCreditDeductionResult> {
     const {
       appId,
@@ -391,7 +391,7 @@ export class AppCreditsService {
     const result = await appCreditBalancesRepository.deductCredits(
       appId,
       userId,
-      totalCost
+      totalCost,
     );
 
     if (!result.success) {
@@ -413,7 +413,7 @@ export class AppCreditsService {
       app,
       userId,
       totalCost.toFixed(4),
-      metadata
+      metadata,
     );
 
     if (app.monetization_enabled && creatorMarkup > 0) {
@@ -429,7 +429,7 @@ export class AppCreditsService {
           description,
           ...metadata,
         },
-        app // Pass app to avoid N+1 query
+        app, // Pass app to avoid N+1 query
       );
 
       await dbWrite
@@ -472,7 +472,7 @@ export class AppCreditsService {
    * Threshold: Only reconcile if difference > $0.000001 (6 decimal precision)
    */
   async reconcileCredits(
-    params: AppCreditReconciliationParams
+    params: AppCreditReconciliationParams,
   ): Promise<AppCreditReconciliationResult> {
     const {
       appId,
@@ -493,7 +493,7 @@ export class AppCreditsService {
     if (Math.abs(baseCostDifference) < RECONCILIATION_THRESHOLD) {
       const currentBalance = await appCreditBalancesRepository.getBalance(
         appId,
-        userId
+        userId,
       );
       return {
         reconciled: false,
@@ -512,7 +512,7 @@ export class AppCreditsService {
       });
       const currentBalance = await appCreditBalancesRepository.getBalance(
         appId,
-        userId
+        userId,
       );
       return {
         reconciled: false,
@@ -541,7 +541,7 @@ export class AppCreditsService {
         });
         const currentBalance = await appCreditBalancesRepository.getBalance(
           appId,
-          userId
+          userId,
         );
         return {
           reconciled: false,
@@ -559,19 +559,24 @@ export class AppCreditsService {
         appId,
         userId,
         user.organization_id,
-        refundAmount
+        refundAmount,
       );
 
       // Reverse creator earnings if monetization is enabled and there was markup
       if (app.monetization_enabled && creatorEarningsReduction > 0) {
-        await this.reverseCreatorEarnings(appId, userId, creatorEarningsReduction, {
-          type: "reconciliation_refund",
-          baseCostDifference,
-          estimatedBaseCost,
-          actualBaseCost,
-          description,
-          ...metadata,
-        });
+        await this.reverseCreatorEarnings(
+          appId,
+          userId,
+          creatorEarningsReduction,
+          {
+            type: "reconciliation_refund",
+            baseCostDifference,
+            estimatedBaseCost,
+            actualBaseCost,
+            description,
+            ...metadata,
+          },
+        );
 
         // Update app revenue counters
         await dbWrite
@@ -615,8 +620,8 @@ export class AppCreditsService {
         .where(
           and(
             eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          )
+            eq(appCreditBalances.user_id, userId),
+          ),
         )
         .for("update");
 
@@ -649,8 +654,8 @@ export class AppCreditsService {
         .where(
           and(
             eq(appCreditBalances.app_id, appId),
-            eq(appCreditBalances.user_id, userId)
-          )
+            eq(appCreditBalances.user_id, userId),
+          ),
         );
 
       // Update app revenue counters atomically with credit deduction
@@ -685,7 +690,7 @@ export class AppCreditsService {
             description,
             ...metadata,
           },
-          app // Pass app to avoid N+1 query
+          app, // Pass app to avoid N+1 query
         );
       }
 
@@ -736,7 +741,7 @@ export class AppCreditsService {
         additionalCharge,
         currentBalance: result.newBalance,
         lossAmount: additionalCharge,
-      }
+      },
     );
 
     return {
@@ -750,7 +755,7 @@ export class AppCreditsService {
 
   async calculateCostWithMarkup(
     appId: string,
-    baseCost: number
+    baseCost: number,
   ): Promise<{
     baseCost: number;
     creatorMarkup: number;
@@ -786,7 +791,7 @@ export class AppCreditsService {
   async checkBalance(
     appId: string,
     userId: string,
-    requiredAmount: number
+    requiredAmount: number,
   ): Promise<{
     sufficient: boolean;
     balance: number;
@@ -807,7 +812,7 @@ export class AppCreditsService {
     type: "inference_markup" | "purchase_share",
     amount: number,
     metadata: Record<string, unknown>,
-    providedApp?: App
+    providedApp?: App,
   ): Promise<void> {
     // Update app-level earnings tracking
     if (type === "inference_markup") {
@@ -879,7 +884,7 @@ export class AppCreditsService {
     appId: string,
     userId: string,
     amount: number,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
   ): Promise<void> {
     // Reduce app-level inference earnings (use negative value)
     await appEarningsRepository.addInferenceEarnings(appId, -amount);
@@ -940,13 +945,13 @@ export class AppCreditsService {
     app: App,
     userId: string,
     creditsUsed: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     await appsRepository.trackAppUserActivity(
       app.id,
       userId,
       creditsUsed,
-      metadata
+      metadata,
     );
   }
 
@@ -975,7 +980,7 @@ export class AppCreditsService {
       monetizationEnabled?: boolean;
       inferenceMarkupPercentage?: number;
       purchaseSharePercentage?: number;
-    }
+    },
   ): Promise<void> {
     if (
       settings.inferenceMarkupPercentage !== undefined &&

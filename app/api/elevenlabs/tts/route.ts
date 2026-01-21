@@ -101,10 +101,11 @@ export async function POST(request: NextRequest) {
 
     // Calculate estimated cost (includes 20% platform markup)
     let estimatedCost = calculateTTSCost(text.length);
-    
+
     // Apply additional custom voice markup if using a custom cloned voice
     if (isCustomVoice) {
-      estimatedCost = Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
+      estimatedCost =
+        Math.round(estimatedCost * CUSTOM_VOICE_TTS_MARKUP * 10000) / 10000;
     }
 
     // Reserve credits BEFORE generation

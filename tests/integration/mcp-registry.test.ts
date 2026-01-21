@@ -50,7 +50,7 @@ interface McpRegistryResponse {
 }
 
 async function fetchRegistry(
-  params?: Record<string, string>
+  params?: Record<string, string>,
 ): Promise<Response> {
   const url = new URL(`${SERVER_URL}/api/mcp/registry`);
   if (params) {
@@ -99,7 +99,7 @@ describe("MCP Registry API", () => {
     const data: McpRegistryResponse = await res.json();
 
     const elizaPlatform = data.registry.find(
-      (entry) => entry.id === "eliza-platform"
+      (entry) => entry.id === "eliza-platform",
     );
 
     expect(elizaPlatform).toBeDefined();
@@ -115,7 +115,7 @@ describe("MCP Registry API", () => {
 
     // eliza-platform should NOT be in live results
     const elizaPlatform = data.registry.find(
-      (entry) => entry.id === "eliza-platform"
+      (entry) => entry.id === "eliza-platform",
     );
     expect(elizaPlatform).toBeUndefined();
 
@@ -130,7 +130,7 @@ describe("MCP Registry API", () => {
     const data: McpRegistryResponse = await res.json();
 
     const elizaPlatform = data.registry.find(
-      (entry) => entry.id === "eliza-platform"
+      (entry) => entry.id === "eliza-platform",
     );
     expect(elizaPlatform).toBeDefined();
 
@@ -145,7 +145,7 @@ describe("MCP Registry API", () => {
     const data: McpRegistryResponse = await res.json();
 
     const elizaPlatform = data.registry.find(
-      (entry) => entry.id === "eliza-platform"
+      (entry) => entry.id === "eliza-platform",
     );
     expect(elizaPlatform).toBeDefined();
 
@@ -160,7 +160,7 @@ describe("MCP Registry API", () => {
     const data: McpRegistryResponse = await res.json();
 
     const cryptoPrices = data.registry.find(
-      (entry) => entry.id === "crypto-prices"
+      (entry) => entry.id === "crypto-prices",
     );
     expect(cryptoPrices).toBeDefined();
     expect(cryptoPrices!.status).toBe("live");

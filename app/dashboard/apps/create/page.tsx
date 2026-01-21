@@ -33,6 +33,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 async function fetchWithRetry(
   url: string,
@@ -112,16 +113,11 @@ import {
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
-import {
-  AnimatedCheck,
-  AnimatedCheckmark,
-  AnimatedOrbit,
-  AnimatedLoadingRing,
-} from "@/components/ui/animated-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,55 +162,24 @@ const ChatMessage = memo(function ChatMessage({
   return (
     <div
       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
-      style={{
-        animation: 'messageSlideIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-      }}
     >
       <div
-        className={`relative transition-all duration-500 ease-out ${
+        className={`${
           msg.role === "user"
-            ? "max-w-[90%] xl:max-w-[85%] py-3 xl:py-3.5 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/15 to-[#FF5800]/5 border border-[#FF5800]/25 rounded-2xl rounded-tr-sm shadow-lg shadow-[#FF5800]/5"
-            : isProcessing
-              ? "max-w-[95%] xl:max-w-[90%] py-3 xl:py-4 px-4 xl:px-5 bg-gradient-to-br from-[#FF5800]/[0.08] via-amber-500/[0.04] to-transparent border border-[#FF5800]/20 rounded-2xl rounded-tl-sm shadow-lg shadow-[#FF5800]/5"
-              : "max-w-[95%] xl:max-w-[90%] py-3 xl:py-4 px-4 xl:px-5 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] rounded-2xl rounded-tl-sm"
+            ? "w-fit max-w-full py-2 xl:py-2.5 px-3 xl:px-4 bg-white/[0.04] border border-white/[0.08] rounded-2xl"
+            : "w-fit max-w-full py-2.5 xl:py-3 px-3 xl:px-4 rounded-2xl"
         }`}
       >
-        {/* Subtle glow for processing messages */}
+        {/* Header - only show for processing state */}
         {isProcessing && (
-          <div className="absolute inset-0 rounded-2xl rounded-tl-sm bg-gradient-to-br from-[#FF5800]/10 to-transparent blur-xl -z-10" />
-        )}
-
-        <div className="flex items-center justify-between mb-2 xl:mb-2.5">
-          <div className="flex items-center gap-2 xl:gap-2.5">
-            {isProcessing && (
-              <div className="relative">
-                <AnimatedOrbit size={14} className="text-[#FF5800]" />
-                <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-lg opacity-30" />
-              </div>
-            )}
-            <span
-              className={`text-[10px] xl:text-[11px] font-semibold tracking-wide uppercase ${
-                msg.role === "user"
-                  ? "text-white/70"
-                  : isProcessing
-                    ? "text-white/60"
-                    : "text-white/40"
-              }`}
-              style={{ fontFamily: "var(--font-sf-pro)" }}
-            >
-              {msg.role === "user"
-                ? "You"
-                : isProcessing
-                  ? "Building"
-                  : "Eliza"}
+          <div className="flex items-center gap-1.5 xl:gap-2 mb-1 xl:mb-1.5">
+            <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-[#FF8C42]" />
+            <span className="text-[10px] xl:text-[11px] text-[#FF8C42]">
+              Building
             </span>
           </div>
-          <span className="text-[9px] xl:text-[10px] text-white/35 font-medium opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity duration-300">
-            {msgTime}
-          </span>
-        </div>
-        {/* Main content with smooth text reveal */}
-        <div className="text-[13px] xl:text-[14px] leading-[1.7] xl:leading-[1.8] text-white/85 prose-pre:max-w-full prose-pre:overflow-x-auto text-reveal">
+        )}
+        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -223,49 +188,39 @@ const ChatMessage = memo(function ChatMessage({
           </ReactMarkdown>
         </div>
 
-        {/* Per-operation accordions with reasoning - smooth animated reveal */}
+        {/* Per-operation accordions with reasoning */}
         {msg.role === "assistant" &&
           msg.operations &&
           msg.operations.length > 0 &&
           !isProcessing && (
-            <div 
-              className="mt-4 pt-3 border-t border-white/[0.06]"
-              style={{
-                animation: 'reasoningWaveIn 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-              }}
-            >
-              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2.5 uppercase tracking-widest font-semibold">
+            <div className="mt-3 pt-2.5 border-t border-white/[0.05]">
+              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 uppercase tracking-wider">
                 Completed Operations
               </p>
-              <Accordion type="multiple" className="space-y-1.5">
+              <Accordion type="multiple" className="space-y-1">
                 {msg.operations.map((op, idx) => (
                   <AccordionItem
                     key={idx}
                     value={`op-${idx}`}
-                    className="operation-item border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors duration-300"
-                    style={{ animationDelay: `${idx * 80}ms` }}
+                    className="border border-white/[0.06] rounded-lg bg-white/[0.01] overflow-hidden hover:border-white/[0.1] transition-colors"
                   >
-                    <AccordionTrigger className="px-3 py-2.5 text-[12px] hover:no-underline hover:bg-white/[0.03] transition-all duration-200">
-                      <div className="flex items-center gap-2.5 text-left w-full">
-                        <AnimatedCheck 
-                          size={14} 
-                          className="text-emerald-400 flex-shrink-0" 
-                          delay={idx * 80 + 200} 
-                        />
-                        <span className="font-medium text-white/85">
+                    <AccordionTrigger className="px-2.5 py-2 text-[11px] hover:no-underline hover:bg-white/[0.03] data-[state=open]:bg-white/[0.03] data-[state=open]:hover:bg-white/[0.05] transition-colors">
+                      <div className="flex items-center gap-2 text-left w-full">
+                        <Check className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                        <span className="font-medium text-white/80">
                           {op.tool}
                         </span>
-                        <span className="text-[10px] text-white/45 font-mono truncate max-w-[200px]">
+                        <span className="text-[10px] text-white/40 font-mono truncate max-w-[200px]">
                           {op.detail}
                         </span>
-                        <span className="text-[9px] text-white/25 ml-auto mr-3 font-mono">
+                        <span className="text-[9px] text-white/25 ml-auto mr-2 font-mono">
                           {op.timestamp}
                         </span>
                       </div>
                     </AccordionTrigger>
                     {op.reasoning && (
-                      <AccordionContent className="px-3 pb-3">
-                        <div className="reasoning-reveal text-[11px] leading-[1.6] text-white/55 bg-black/25 rounded-lg p-3.5 max-h-[200px] overflow-y-auto border border-white/[0.04]">
+                      <AccordionContent className="p-2.5">
+                        <div className="text-[11px] leading-[1.6] text-white/50 pr-0.5 rounded-lg max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 scrollbar-thumb-rounded">
                           <pre className="whitespace-pre-wrap font-sans">
                             {op.reasoning}
                           </pre>
@@ -283,16 +238,9 @@ const ChatMessage = memo(function ChatMessage({
           msg.reasoning &&
           !msg.operations?.some((op) => op.reasoning) &&
           !isProcessing && (
-            <Accordion 
-              type="single" 
-              collapsible 
-              className="mt-3"
-              style={{
-                animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-              }}
-            >
-              <AccordionItem value="reasoning" className="border-white/10 operation-item">
-                <AccordionTrigger className="py-2.5 text-[11px] xl:text-[12px] text-white/45 hover:text-white/70 hover:no-underline font-medium transition-colors duration-200">
+            <Accordion type="single" collapsible className="mt-2.5">
+              <AccordionItem value="reasoning" className="border-white/10">
+                <AccordionTrigger className="py-2 text-[11px] xl:text-[12px] text-white/40 hover:text-white/60 hover:no-underline transition-colors">
                   <span className="flex items-center gap-2">
                     <span className="text-[14px]">💭</span>
                     <span>View all reasoning</span>
@@ -301,7 +249,7 @@ const ChatMessage = memo(function ChatMessage({
                     </span>
                   </span>
                 </AccordionTrigger>
-                <AccordionContent className="reasoning-reveal text-[12px] leading-[1.6] text-white/55 bg-white/[0.02] rounded-lg px-3.5 py-3 max-h-[300px] overflow-y-auto border border-white/[0.04]">
+                <AccordionContent className="text-[11px] leading-[1.6] text-white/50 bg-white/[0.02] rounded-lg px-3 py-2.5 max-h-[300px] overflow-y-auto border border-white/[0.04]">
                   <pre className="whitespace-pre-wrap font-sans text-[11px] xl:text-[12px]">
                     {msg.reasoning}
                   </pre>
@@ -313,51 +261,35 @@ const ChatMessage = memo(function ChatMessage({
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div 
-              className="mt-4 xl:mt-5 pt-3 xl:pt-4 border-t border-white/[0.06]"
-              style={{
-                animation: 'reasoningWaveIn 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                animationDelay: '200ms',
-              }}
-            >
-              <p className="text-[9px] xl:text-[10px] text-white/30 mb-2 xl:mb-2.5 uppercase tracking-widest font-semibold">
-                Try asking
+            <div className="mt-3 xl:mt-4 pt-2.5 xl:pt-3 border-t border-white/[0.05]">
+              <p className="text-[9px] xl:text-[10px] text-white/35 mb-1.5 xl:mb-2 uppercase tracking-wider">
+                Suggestions
               </p>
-              <div className="flex flex-wrap gap-1.5 xl:gap-2">
+              <div className="flex flex-wrap gap-1 xl:gap-1.5">
                 {session.examplePrompts.map((prompt, idx) => (
                   <button
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="group/suggestion px-3 xl:px-3.5 py-1.5 xl:py-2 text-[11px] xl:text-[12px] bg-white/[0.02] hover:bg-[#FF5800]/10 border border-white/[0.06] hover:border-[#FF5800]/30 text-white/55 hover:text-white/90 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed text-left touch-manipulation operation-item"
-                    style={{ animationDelay: `${300 + idx * 60}ms` }}
+                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
                   >
-                    <span className="group-hover/suggestion:text-[#FF5800]/80 transition-colors">
-                      {prompt}
-                    </span>
+                    {prompt}
                   </button>
                 ))}
               </div>
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div 
-            className="mt-3 xl:mt-4 pt-3 xl:pt-3.5 border-t border-white/[0.05]"
-            style={{
-              animation: 'reasoningWaveIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-              animationDelay: '100ms',
-            }}
-          >
-            <p className="text-[9px] xl:text-[10px] text-white/25 mb-1.5 xl:mb-2 uppercase tracking-widest font-semibold">
-              Modified
+          <div className="mt-2.5 xl:mt-3 pt-2 xl:pt-2.5 border-t border-white/[0.04]">
+            <p className="text-[9px] xl:text-[10px] text-white/30 mb-1 xl:mb-1.5 uppercase tracking-wider">
+              Changed
             </p>
-            <div className="flex flex-wrap gap-1.5 pb-1">
-              {msg.filesAffected.map((file, idx) => (
+            <div className="flex flex-wrap gap-1 xl:gap-1.5">
+              {msg.filesAffected.map((file) => (
                 <span
                   key={file}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-[10px] xl:text-[11px] bg-[#FF5800]/15 border border-[#FF5800]/25 text-white/90 font-mono rounded-md hover:bg-[#FF5800]/20 transition-colors duration-200"
+                  className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/90 font-mono rounded-lg truncate max-w-full"
                 >
-                  <FileCode className="h-2.5 w-2.5 flex-shrink-0 text-[#FF5800]/80" />
                   {file}
                 </span>
               ))}
@@ -477,6 +409,9 @@ const SOURCE_CONTEXT_INFO: Record<
 export default function AppCreatorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Set page header
+  useSetPageHeader({ title: "Create App" }, []);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const consoleLogsRef = useRef<HTMLDivElement>(null);
@@ -616,7 +551,9 @@ export default function AppCreatorPage() {
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(null);
+  const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
+    null,
+  );
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
@@ -1949,13 +1886,7 @@ export default function AppCreatorPage() {
 
 I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is loading on the right.${contextMessage}
 
-**What would you like to ${isEditMode ? "add or change" : "build"}?**
-
-Some ideas:
-- Add a new page or feature
-- Improve the UI design
-- Add analytics tracking
-- Integrate more APIs`,
+**What would you like to ${isEditMode ? "add or change" : "build"}?**`,
                       timestamp: new Date().toISOString(),
                     },
                   ]);
@@ -2117,7 +2048,8 @@ Some ideas:
                   // AI's raw output goes in reasoning accordion for transparency
                   const result = data.session.initialPromptResult;
                   const fileCount = result.filesAffected?.length || 0;
-                  const hasBuildErrors = result.output?.includes("BUILD ERRORS");
+                  const hasBuildErrors =
+                    result.output?.includes("BUILD ERRORS");
 
                   let assistantContent = "";
                   if (hasBuildErrors) {
@@ -2151,8 +2083,7 @@ Some ideas:
                           ...rest,
                           content: assistantContent,
                           operations, // Operations array for accordions
-                          reasoning:
-                            data.session.initialPromptResult.reasoning, // Fallback reasoning
+                          reasoning: data.session.initialPromptResult.reasoning, // Fallback reasoning
                           filesAffected:
                             data.session.initialPromptResult.filesAffected,
                         };
@@ -2492,7 +2423,9 @@ Some ideas:
                   // Add as pending action WITH reasoning context for accordion display
                   // Use server's reasoningContext, fallback to client's accumulated thinking
                   const reasoningForAction =
-                    data.reasoningContext || currentThinkingPreview || undefined;
+                    data.reasoningContext ||
+                    currentThinkingPreview ||
+                    undefined;
                   actionsLog.push({
                     tool: toolDisplay,
                     detail,
@@ -2575,11 +2508,12 @@ Some ideas:
               // The AI produces a natural summary in finalData.output when it finishes
               const fileCount = finalData.filesAffected?.length || 0;
               const hasBuildErrors = finalData.output?.includes("BUILD ERRORS");
-              
+
               // Check if we have a meaningful LLM summary (not just default/error text)
               const llmSummary = finalData.output?.trim();
-              const hasLLMSummary = llmSummary && 
-                llmSummary !== "Changes applied!" && 
+              const hasLLMSummary =
+                llmSummary &&
+                llmSummary !== "Changes applied!" &&
                 !llmSummary.startsWith("Error:") &&
                 !hasBuildErrors;
 
@@ -2634,11 +2568,11 @@ Some ideas:
         checkGitStatus();
       } catch (error) {
         // Check if this was an abort/cancel
-        const isAborted = error instanceof Error && (
-          error.name === "AbortError" ||
-          error.message.includes("aborted") ||
-          error.message.includes("cancelled")
-        );
+        const isAborted =
+          error instanceof Error &&
+          (error.name === "AbortError" ||
+            error.message.includes("aborted") ||
+            error.message.includes("cancelled"));
 
         if (isAborted) {
           // Handle cancellation gracefully
@@ -2648,7 +2582,8 @@ Some ideas:
                 const { _thinkingId: _, ...rest } = m;
 
                 let content = "**Generation stopped**\n\n";
-                content += "The operation was cancelled. You can start a new request when ready.";
+                content +=
+                  "The operation was cancelled. You can start a new request when ready.";
 
                 if (actionsLog.length > 0) {
                   content += "\n\n---\n\n";
@@ -2818,7 +2753,7 @@ Some ideas:
   // Simple loading states - just initializing or restoring
   if (viewState === "initializing" || viewState === "restoring") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+      <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A] flex items-center justify-center animate-in fade-in duration-200 overflow-hidden">
         <SessionLoader
           mode={viewState}
           progressStep={progressStep}
@@ -2958,7 +2893,6 @@ ANTHROPIC_API_KEY=your_key_here`}
       const data = await response.json();
       if (data.success && data.prompts?.[0]) {
         setAppDescription(data.prompts[0]);
-        toast.success("Description generated!");
       } else {
         throw new Error("Invalid response from API");
       }
@@ -2976,7 +2910,6 @@ ANTHROPIC_API_KEY=your_key_here`}
       setAppDescription(
         fallbackDescriptions[templateType] || fallbackDescriptions.blank,
       );
-      toast.success("Description generated!");
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -2989,87 +2922,28 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (viewState === "setup") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#050507] animate-in fade-in duration-300">
-        {/* Premium ambient background effects */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          {/* Primary morphing orb */}
-          <div
-            className="absolute top-1/4 -left-20 w-64 md:w-96 h-64 md:h-96 rounded-full blur-[120px] opacity-20 animate-liquid-orb"
-            style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
-          />
-          {/* Secondary orb */}
-          <div
-            className="absolute bottom-1/4 -right-20 w-56 md:w-80 h-56 md:h-80 rounded-full blur-[100px] opacity-15 animate-liquid-orb"
-            style={{
-              backgroundColor: selectedTemplate?.color || "#8B5CF6",
-              animationDelay: "-3s",
-            }}
-          />
-          {/* Accent glow */}
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[200px] opacity-[0.07]"
-            style={{ backgroundColor: "#FF5800" }}
-          />
-          {/* Subtle grid overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                               linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-              backgroundSize: "60px 60px",
-            }}
-          />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6">
-          {/* Header - refined */}
-          <div className="flex items-center justify-between mb-4 md:mb-6 animate-slide-in-left">
-            <div className="flex items-center gap-3 md:gap-4">
-              <Link
-                href={backLink}
-                className="group p-2 md:p-2.5 hover:bg-white/8 rounded-xl transition-all duration-300 border border-white/[0.06] hover:border-white/15 hover:scale-105"
-              >
-                <ArrowLeft className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
-              </Link>
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
-                  <div className="relative p-2 bg-gradient-to-br from-[#FF5800]/20 to-amber-500/10 rounded-xl border border-[#FF5800]/20">
-                    <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-[#FF5800]" />
-                  </div>
-                </div>
-                <div>
-                  <h1
-                    className="text-lg md:text-xl font-bold tracking-tight text-white"
-                    style={{ fontFamily: "var(--font-sf-pro)" }}
-                  >
-                    App Creator
-                  </h1>
-                  <p className="text-[10px] md:text-xs text-white/40 -mt-0.5 hidden md:block">
-                    Build something amazing
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile step indicator - Premium pills */}
-            <div className="flex md:hidden items-center gap-1.5 p-1 bg-white/[0.03] rounded-full border border-white/[0.06]">
+      <ScrollArea className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A]">
+        <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-6">
+          {/* Step indicators */}
+          <div className="flex items-center justify-center mb-6">
+            {/* Mobile step indicator */}
+            <div className="flex md:hidden items-center gap-1.5">
               {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
-                  className={`rounded-full transition-all duration-500 ease-out ${
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
                     setupStep === num
-                      ? "bg-gradient-to-r from-[#FF5800] to-amber-500 w-8 h-2 shadow-lg shadow-[#FF5800]/30"
+                      ? "bg-[#FF5800] w-6"
                       : setupStep > num
-                        ? "bg-[#FF5800]/60 w-2 h-2"
-                        : "bg-white/15 w-2 h-2"
+                        ? "bg-white/40 w-2"
+                        : "bg-white/10 w-2"
                   }`}
                 />
               ))}
             </div>
 
-            {/* Desktop step indicator - Premium tabs */}
-            <div className="hidden md:flex items-center gap-1 p-1.5 bg-white/[0.02] rounded-2xl border border-white/[0.06] backdrop-blur-sm">
+            {/* Desktop step indicator */}
+            <div className="hidden md:flex items-center gap-1">
               {[
                 { num: 1, label: "Template" },
                 { num: 2, label: "Details" },
@@ -3088,45 +2962,40 @@ ANTHROPIC_API_KEY=your_key_here`}
                         setSetupStep(s.num as 1 | 2 | 3 | 4);
                       }
                     }}
-                    className={`group flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
                       setupStep === s.num
-                        ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 border border-[#FF5800]/30 shadow-lg shadow-[#FF5800]/10"
+                        ? "bg-white/10 border-white/20"
                         : setupStep > s.num
-                          ? "text-white/60 hover:text-white/80 hover:bg-white/[0.04]"
-                          : "text-white/30 cursor-not-allowed"
+                          ? "text-white/60 hover:text-white/80 hover:bg-white/5 border-transparent"
+                          : "text-white/30 border-transparent"
                     }`}
                     disabled={s.num > 1 && !templateType && s.num !== setupStep}
                   >
                     <span
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-semibold transition-all duration-300 ${
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-300 ${
                         setupStep === s.num
-                          ? "bg-gradient-to-br from-[#FF5800] to-amber-500 text-white shadow-md shadow-[#FF5800]/30"
+                          ? "bg-[#FF5800] text-white"
                           : setupStep > s.num
-                            ? "bg-[#FF5800]/20 text-[#FF5800]"
-                            : "bg-white/[0.06] text-white/40"
+                            ? "bg-white/20 text-white"
+                            : "bg-white/5 text-white/40"
                       }`}
                     >
                       {setupStep > s.num ? (
-                        <Check className="h-3.5 w-3.5" />
+                        <Check className="h-3 w-3" />
                       ) : (
                         s.num
                       )}
                     </span>
                     <span
-                      className={`text-sm font-medium transition-colors ${
-                        setupStep === s.num ? "text-white" : ""
-                      }`}
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
                     >
                       {s.label}
                     </span>
                   </button>
                   {i < 3 && (
                     <div
-                      className={`w-6 h-[2px] mx-0.5 rounded-full transition-all duration-500 ${
-                        setupStep > s.num
-                          ? "bg-gradient-to-r from-[#FF5800]/50 to-amber-500/50"
-                          : "bg-white/[0.06]"
+                      className={`w-3 h-px ml-1 transition-colors duration-300 ${
+                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
                       }`}
                     />
                   )}
@@ -3136,25 +3005,20 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {sourceContext && (
-            <div
-              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
-              style={{
-                borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
-              }}
-            >
+            <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
                 {(() => {
                   const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
                   return (
                     <Icon
-                      className="h-3.5 w-3.5 md:h-4 md:w-4"
+                      className="h-4 w-4"
                       style={{
                         color: SOURCE_CONTEXT_INFO[sourceContext.type].color,
                       }}
                     />
                   );
                 })()}
-                <p className="text-[11px] md:text-xs text-white/70">
+                <p className="text-xs text-white/60">
                   Building for{" "}
                   <span className="text-white font-medium">
                     {sourceContext.name}
@@ -3166,314 +3030,114 @@ ANTHROPIC_API_KEY=your_key_here`}
 
           {/* STEP 1: Template Selection */}
           <div
-            className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
-            {setupStep === 1 &&
-              (() => {
-                const totalPages = Math.ceil(
-                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE,
-                );
-                const visibleTemplates = TEMPLATE_OPTIONS.slice(
-                  templatePage * TEMPLATES_PER_PAGE,
-                  (templatePage + 1) * TEMPLATES_PER_PAGE,
-                );
+            {setupStep === 1 && (
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                {/* Header */}
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    What are you building?
+                  </h2>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Choose a template to get started
+                  </p>
+                </div>
 
-                return (
-                  <div className="space-y-4 md:space-y-6">
-                    {/* Header row with title and navigation */}
-                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 animate-stagger-fade stagger-1">
-                      <div>
-                        <h2
-                          className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                          style={{ fontFamily: "var(--font-sf-pro)" }}
-                        >
-                          What are you building?
-                        </h2>
-                        <p className="text-white/40 text-sm md:text-base mt-1">
-                          Choose a foundation for your next masterpiece
-                        </p>
-                      </div>
+                {/* Template cards - 2x3 grid showing all 6 templates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
+                  {TEMPLATE_OPTIONS.map((template, idx) => {
+                    const Icon = template.icon;
+                    const isSelected = templateType === template.value;
+                    const isDisabled = template.comingSoon;
 
-                      {/* Carousel navigation - Premium */}
-                      <div className="flex items-center justify-center md:justify-end gap-3 md:gap-4">
-                        <button
-                          onClick={() =>
-                            setTemplatePage((p) => Math.max(0, p - 1))
+                    return (
+                      <button
+                        key={template.value}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            setTemplateType(template.value);
+                            setSetupStep(2);
                           }
-                          disabled={templatePage === 0}
-                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                        >
-                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
-                        </button>
-                        <div className="flex items-center gap-2">
-                          {Array.from({ length: totalPages }).map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={() => setTemplatePage(i)}
-                              className={`rounded-full transition-all duration-500 ease-out ${
-                                i === templatePage
-                                  ? "bg-gradient-to-r from-[#FF5800] to-amber-500 w-8 h-2 shadow-lg shadow-[#FF5800]/30"
-                                  : "bg-white/20 hover:bg-white/40 w-2 h-2"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <button
-                          onClick={() =>
-                            setTemplatePage((p) =>
-                              Math.min(totalPages - 1, p + 1),
-                            )
-                          }
-                          disabled={templatePage >= totalPages - 1}
-                          className="group p-2.5 md:p-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-black/20"
-                        >
-                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/50 group-hover:text-white/80 transition-colors" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Template cards - Premium glass cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                      {visibleTemplates.map((template, idx) => {
-                        const Icon = template.icon;
-                        const isSelected = templateType === template.value;
-                        const isDisabled = template.comingSoon;
-
-                        return (
-                          <button
-                            key={template.value}
-                            onClick={() => {
-                              if (!isDisabled) {
-                                setTemplateType(template.value);
-                              }
-                            }}
-                            disabled={isDisabled}
-                            className={`group relative p-4 md:p-6 rounded-2xl md:rounded-3xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade ${
-                              isSelected
-                                ? "bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/20 scale-[1.02] shadow-2xl"
-                                : isDisabled
-                                  ? "bg-white/[0.01] border-white/[0.04] opacity-50 cursor-not-allowed"
-                                  : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15 hover:shadow-xl hover:shadow-black/30 active:scale-[0.98]"
-                            }`}
-                            style={{ animationDelay: `${idx * 0.08}s` }}
-                          >
-                            {/* Premium glow effect on selected */}
-                            {isSelected && (
-                              <>
-                                <div
-                                  className="absolute inset-0 rounded-2xl md:rounded-3xl blur-2xl opacity-25 -z-10 animate-glow-pulse"
-                                  style={{ backgroundColor: template.color }}
-                                />
-                                <div
-                                  className="absolute inset-[1px] rounded-2xl md:rounded-3xl opacity-10 -z-10"
-                                  style={{
-                                    background: `linear-gradient(135deg, ${template.color}40 0%, transparent 50%, ${template.color}20 100%)`,
-                                  }}
-                                />
-                              </>
-                            )}
-
-                            {/* Coming soon badge - Premium */}
-                            {isDisabled && (
-                              <div className="absolute top-3 right-3 md:top-4 md:right-4 px-2.5 py-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full backdrop-blur-sm">
-                                <span className="text-[9px] md:text-[10px] font-semibold text-amber-400 tracking-wide uppercase">
-                                  Soon
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Selection indicator - Premium checkbox */}
-                            {!isDisabled && (
-                              <div
-                                className={`absolute top-3 right-3 md:top-4 md:right-4 w-5 h-5 md:w-6 md:h-6 rounded-lg transition-all duration-300 flex items-center justify-center ${
-                                  isSelected
-                                    ? "bg-gradient-to-br from-[#FF5800] to-amber-500 shadow-lg shadow-[#FF5800]/30"
-                                    : "border-2 border-white/15 group-hover:border-white/30 bg-white/[0.02]"
-                                }`}
-                              >
-                                {isSelected && (
-                                  <Check
-                                    className="h-3 w-3 md:h-3.5 md:w-3.5 text-white"
-                                    strokeWidth={3}
-                                  />
-                                )}
-                              </div>
-                            )}
-
-                            {/* Icon - Premium with glow */}
-                            <div className="relative mb-3 md:mb-4">
-                              <div
-                                className={`inline-flex p-2.5 md:p-3.5 rounded-xl md:rounded-2xl transition-all duration-500 ${
-                                  isSelected
-                                    ? "scale-110"
-                                    : "group-hover:scale-105 group-hover:rotate-2"
-                                }`}
-                                style={{
-                                  backgroundColor: `${template.color}15`,
-                                  boxShadow: isSelected
-                                    ? `0 0 30px ${template.color}40, inset 0 0 20px ${template.color}10`
-                                    : `inset 0 0 20px ${template.color}05`,
-                                }}
-                              >
-                                <Icon
-                                  className="h-5 w-5 md:h-7 md:w-7 transition-all duration-300"
-                                  style={{ color: template.color }}
-                                />
-                              </div>
-                              {isSelected && (
-                                <div
-                                  className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-40"
-                                  style={{ backgroundColor: template.color }}
-                                />
-                              )}
-                            </div>
-
-                            {/* Content */}
-                            <h3
-                              className="text-sm md:text-lg font-bold text-white mb-1 md:mb-1.5 pr-8 tracking-tight"
-                              style={{ fontFamily: "var(--font-sf-pro)" }}
-                            >
-                              {template.label}
-                            </h3>
-                            <p className="text-xs md:text-sm text-white/45 mb-3 md:mb-4 line-clamp-2 leading-relaxed">
-                              {template.description}
-                            </p>
-
-                            {/* Features - Premium pills */}
-                            <div className="hidden md:flex flex-wrap gap-2">
-                              {template.features.map((feature) => (
-                                <span
-                                  key={feature}
-                                  className="px-2.5 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/50 transition-colors group-hover:text-white/70 group-hover:border-white/15"
-                                >
-                                  {feature}
-                                </span>
-                              ))}
-                            </div>
-
-                            {/* Tech stack on hover/selected - Premium reveal */}
-                            <div
-                              className={`hidden md:block mt-4 pt-4 border-t border-white/[0.06] transition-all duration-500 ${
-                                isSelected
-                                  ? "opacity-100 translate-y-0"
-                                  : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                {template.techStack.map((tech, i) => (
-                                  <span
-                                    key={tech}
-                                    className="text-[10px] text-white/35 font-medium"
-                                  >
-                                    {tech}
-                                    {i < template.techStack.length - 1 && (
-                                      <span className="ml-3 text-white/15">
-                                        •
-                                      </span>
-                                    )}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Continue button row - Premium */}
-                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-4 pt-4 animate-stagger-fade stagger-5">
-                      <div className="text-center md:text-left">
-                        {selectedTemplate ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] rounded-lg border border-white/[0.06]">
-                            <selectedTemplate.icon
-                              className="h-3.5 w-3.5"
-                              style={{ color: selectedTemplate.color }}
-                            />
-                            <span className="text-xs text-white/50">
-                              Selected:
-                            </span>
-                            <span className="text-xs text-white/80 font-medium">
-                              {selectedTemplate.label}
+                        }}
+                        disabled={isDisabled}
+                        className={`group relative p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
+                          isDisabled
+                            ? "border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed"
+                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
+                        }`}
+                      >
+                        {/* Coming soon badge */}
+                        {isDisabled && (
+                          <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full">
+                            <span className="text-[10px] font-medium text-white/40 uppercase">
+                              Soon
                             </span>
                           </div>
-                        ) : (
-                          <p className="text-sm text-white/35">
-                            Select a template to continue
-                          </p>
                         )}
-                      </div>
-                      <button
-                        onClick={() => setSetupStep(2)}
-                        disabled={
-                          !templateType ||
-                          TEMPLATE_OPTIONS.find((t) => t.value === templateType)
-                            ?.comingSoon
-                        }
-                        className="btn-premium group relative flex items-center justify-center gap-2.5 px-8 md:px-10 py-3 md:py-3.5 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm md:text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                        style={{ fontFamily: "var(--font-sf-pro)" }}
-                      >
-                        <span className="relative z-10 flex items-center gap-2">
-                          Continue
-                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                        </span>
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl -z-10" />
+
+                        {/* Mobile: horizontal layout / Desktop: vertical layout */}
+                        <div className="flex items-start gap-3 md:block">
+                          {/* Icon */}
+                          <div className="flex-shrink-0 md:mb-3">
+                            <div className="inline-flex p-2 md:p-2.5 rounded-xl bg-white/5 group-hover:bg-white/10 transition-all duration-300">
+                              <Icon
+                                className="h-4 w-4 md:h-5 md:w-5"
+                                style={{ color: template.color }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-white mb-0.5 md:mb-1">
+                              {template.label}
+                            </h3>
+                            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed">
+                              {template.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Tech stack */}
+                        <div className="hidden md:flex flex-wrap gap-1 mt-3 pt-3 border-t border-white/[0.06]">
+                          {template.techStack.map((tech) => (
+                            <span
+                              key={tech}
+                              className="px-1.5 py-0.5 text-[10px] text-white/50 bg-black/80 rounded"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
                       </button>
-                    </div>
-                  </div>
-                );
-              })()}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* STEP 2: App Details - Premium */}
+          {/* STEP 2: App Details */}
           <div
-            className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 2 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
-                      Name your creation
-                    </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Give it a memorable identity
-                    </p>
-                  </div>
-                  {/* Selected template preview - Premium pill */}
-                  {selectedTemplate && (
-                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
-                        <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      </div>
-                      <span className="text-xs text-white/60 font-medium">
-                        {selectedTemplate.label}
-                      </span>
-                      <button
-                        onClick={() => setSetupStep(1)}
-                        className="text-[10px] text-[#FF5800]/70 hover:text-[#FF5800] transition-colors font-medium"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Name your app
+                  </h2>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Give it a memorable identity
+                  </p>
                 </div>
 
-                <div className="space-y-4 md:space-y-5 p-4 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
-                  {/* App Name - Premium input with validation */}
+                <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
+                  {/* App Name */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
+                      <Label className="text-white/60 text-xs font-medium">
                         App Name <span className="text-red-400">*</span>
                       </Label>
                       <div className="flex items-center gap-2">
@@ -3496,12 +3160,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                             </span>
                           )}
                         <span
-                          className={`text-[10px] font-mono transition-colors ${
+                          className={`text-[10px] font-mono ${
                             appName.length > 100
                               ? "text-red-400"
                               : appName.length > 80
                                 ? "text-amber-400"
-                                : "text-white/25"
+                                : "text-white/40"
                           }`}
                         >
                           {appName.length}/100
@@ -3512,19 +3176,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       placeholder="My Awesome App"
-                      className={`h-12 bg-black/30 text-white text-base placeholder:text-white/20 rounded-xl transition-all duration-300 ${
+                      className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
                         nameValidation.error
-                          ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+                          ? "border-red-500/50 focus:border-red-500"
                           : nameValidation.isAvailable === true &&
                               appName.trim().length >= 2
-                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
-                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                            ? "border-emerald-500/30 focus:border-emerald-500"
+                            : "border-white/10 focus:border-[#FF5800]"
                       }`}
                       maxLength={100}
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
                     />
                     {nameValidation.error && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 animate-scale-fade">
+                      <p className="text-xs text-red-400 flex items-center gap-1.5">
                         <AlertCircle className="h-3.5 w-3.5" />
                         {nameValidation.error}
                         {nameValidation.suggestedName && (
@@ -3542,49 +3205,52 @@ ANTHROPIC_API_KEY=your_key_here`}
                     )}
                   </div>
 
-                  {/* Description - Premium textarea with validation */}
+                  {/* Description */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium tracking-wide uppercase">
-                        Description <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-end justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-white/60 text-xs font-medium">
+                          Description <span className="text-red-400">*</span>
+                        </Label>
                         <button
                           onClick={generateAIDescription}
                           disabled={isGeneratingDescription || !appName.trim()}
-                          className="group flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#FF5800]/15 to-amber-500/10 border border-[#FF5800]/25 rounded-lg text-[#FF5800] hover:text-amber-400 transition-all hover:scale-105 hover:border-[#FF5800]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {isGeneratingDescription ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Wand2 className="h-3 w-3 group-hover:rotate-12 transition-transform" />
+                            <Wand2 className="h-3 w-3" />
                           )}
-                          <span className="tracking-wide">AI ASSIST</span>
+                          Generate
                         </button>
-                        <span
-                          className={`text-[10px] font-mono transition-colors ${
-                            appDescription.length <
-                                  MIN_DESCRIPTION_LENGTH &&
+                      </div>
+                      <span
+                        className={`text-[10px] font-mono ${
+                          appDescription.length > 500
+                            ? "text-red-400"
+                            : appDescription.length < MIN_DESCRIPTION_LENGTH &&
                                 appDescription.length > 0
                               ? "text-amber-400"
-                              : "text-white/25"
-                          }`}
-                        >
-                          {appDescription.length} chars
-                        </span>
-                      </div>
+                              : "text-white/40"
+                        }`}
+                      >
+                        {appDescription.length}/500
+                      </span>
                     </div>
                     <Textarea
                       value={appDescription}
                       onChange={(e) => setAppDescription(e.target.value)}
                       placeholder="Describe what your app should do... (minimum 10 characters)"
-                      className={`min-h-[120px] bg-black/30 text-white text-sm placeholder:text-white/20 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
-                        appDescription.length > 0 &&
-                            appDescription.length < MIN_DESCRIPTION_LENGTH
-                          ? "border-amber-500/30 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/10"
-                          : appDescription.length >= MIN_DESCRIPTION_LENGTH
-                            ? "border-emerald-500/30 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10"
-                            : "border-white/[0.08] focus:border-[#FF5800]/50 focus:ring-2 focus:ring-[#FF5800]/10"
+                      className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                        appDescription.length > 500
+                          ? "border-red-500/50 focus:border-red-500"
+                          : appDescription.length > 0 &&
+                              appDescription.length < MIN_DESCRIPTION_LENGTH
+                            ? "border-amber-500/30 focus:border-amber-500"
+                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                              ? "border-emerald-500/30 focus:border-emerald-500"
+                              : "border-white/10 focus:border-[#FF5800]"
                       }`}
                     />
                     {appDescription.length > 0 &&
@@ -3602,14 +3268,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-3">
-                  <button
-                    onClick={() => setSetupStep(1)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
+                <div className="flex items-center justify-between pt-4">
+                  {selectedTemplate && (
+                    <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-white/5 border border-white/10">
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
+                        style={{ color: selectedTemplate.color }}
+                      />
+                      <span className="text-xs md:text-sm text-white/60">
+                        {selectedTemplate.label}
+                      </span>
+                      <button
+                        onClick={() => setSetupStep(1)}
+                        className="text-[10px] md:text-xs text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
                   <button
                     onClick={() => setSetupStep(3)}
                     disabled={
@@ -3620,106 +3296,86 @@ ANTHROPIC_API_KEY=your_key_here`}
                       nameValidation.isAvailable === false ||
                       appDescription.length < MIN_DESCRIPTION_LENGTH
                     }
-                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none touch-manipulation"
-                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                    className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
                   >
-                    <span className="relative z-10 flex items-center gap-2">
-                      {nameValidation.isChecking ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Checking...
-                        </>
-                      ) : (
-                        <>
-                          Continue
-                          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                        </>
-                      )}
-                    </span>
+                    {nameValidation.isChecking ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4 group-enabled:group-hover:translate-x-0.5 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 3: Features - Premium */}
+          {/* STEP 3: Features */}
           <div
-            className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 3 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xl font-semibold text-white">
                       Power-ups
                     </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Supercharge with built-in integrations
-                    </p>
-                  </div>
-                  {/* App summary - Premium */}
-                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                    {selectedTemplate && (
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
+                    {/* App summary */}
+                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
+                      {selectedTemplate && (
                         <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
+                          className="h-3 w-3 md:h-3.5 md:w-3.5"
                           style={{ color: selectedTemplate.color }}
                         />
-                      </div>
-                    )}
-                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
-                      {appName || "Your App"}
-                    </span>
+                      )}
+                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
+                        {appName || "Your App"}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Add optional integrations
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   {/* Monetization - Premium toggle card */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-2 ${
+                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeMonetization
-                        ? "bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
+                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
                     }`}
                   >
-                    {includeMonetization && (
-                      <div className="absolute inset-0 rounded-2xl bg-emerald-500/5 blur-xl -z-10" />
-                    )}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeMonetization
-                            ? "bg-emerald-500/20 shadow-lg shadow-emerald-500/20"
-                            : "bg-white/[0.04]"
+                          includeMonetization ? "bg-[#FF5800]/20" : "bg-white/5"
                         }`}
                       >
                         <DollarSign
                           className={`h-5 w-5 transition-colors ${
                             includeMonetization
-                              ? "text-emerald-400"
-                              : "text-white/40"
+                              ? "text-[#FF5800]"
+                              : "text-neutral-500"
                           }`}
                         />
                       </div>
-                      {/* Premium toggle switch */}
+                      {/* Toggle switch */}
                       <div
                         className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeMonetization
-                            ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30"
-                            : "bg-white/10"
+                          includeMonetization ? "bg-[#FF5800]" : "bg-white/10"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
                             includeMonetization
                               ? "translate-x-4"
                               : "translate-x-0"
@@ -3727,150 +3383,126 @@ ANTHROPIC_API_KEY=your_key_here`}
                         />
                       </div>
                     </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                    <h3 className="text-sm font-semibold text-white">
                       Monetization
                     </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                    <p className="text-xs text-white/50 mt-1">
                       Accept payments & subscriptions
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Stripe
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Billing
                       </span>
                     </div>
                   </button>
 
-                  {/* Analytics - Premium toggle card */}
+                  {/* Analytics toggle card */}
                   <button
                     onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-3 ${
+                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeAnalytics
-                        ? "bg-gradient-to-br from-blue-500/15 to-blue-500/5 border-blue-500/30 shadow-lg shadow-blue-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
+                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
+                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
                     }`}
                   >
-                    {includeAnalytics && (
-                      <div className="absolute inset-0 rounded-2xl bg-blue-500/5 blur-xl -z-10" />
-                    )}
                     <div className="flex items-center justify-between mb-3">
                       <div
                         className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics
-                            ? "bg-blue-500/20 shadow-lg shadow-blue-500/20"
-                            : "bg-white/[0.04]"
+                          includeAnalytics ? "bg-[#FF5800]/20" : "bg-white/5"
                         }`}
                       >
                         <LineChart
                           className={`h-5 w-5 transition-colors ${
-                            includeAnalytics ? "text-blue-400" : "text-white/40"
+                            includeAnalytics
+                              ? "text-[#FF5800]"
+                              : "text-neutral-500"
                           }`}
                         />
                       </div>
-                      {/* Premium toggle switch */}
+                      {/* Toggle switch */}
                       <div
                         className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeAnalytics
-                            ? "bg-gradient-to-r from-blue-500 to-blue-400 shadow-lg shadow-blue-500/30"
-                            : "bg-white/10"
+                          includeAnalytics ? "bg-[#FF5800]" : "bg-white/10"
                         }`}
                       >
                         <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
                             includeAnalytics ? "translate-x-4" : "translate-x-0"
                           }`}
                         />
                       </div>
                     </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                    <h3 className="text-sm font-semibold text-white">
                       Analytics
                     </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
+                    <p className="text-xs text-white/50 mt-1">
                       Track users & events in real-time
                     </p>
                     <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Real-time
                       </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
+                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
                         Events
                       </span>
                     </div>
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
+                <div className="flex items-center justify-between pt-4">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <button
                     onClick={() => setSetupStep(4)}
-                    className="btn-premium group relative flex items-center gap-2.5 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-[#FF5800] to-amber-500 rounded-xl text-white text-sm font-semibold touch-manipulation"
-                    style={{ fontFamily: "var(--font-sf-pro)" }}
+                    className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium transition-all duration-300"
                   >
-                    <span className="relative z-10 flex items-center gap-2">
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                    </span>
+                    Continue
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* STEP 4: Agent Selection - Premium */}
+          {/* STEP 4: Agent Selection */}
           <div
-            className={`transition-all duration-500 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+            className={`transition-all duration-300 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
           >
             {setupStep === 4 && (
               <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-0 animate-stagger-fade stagger-1">
-                  <div>
-                    <h2
-                      className="text-2xl md:text-3xl font-bold text-white tracking-tight"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-xl font-semibold text-white">
                       Add AI Agents
                     </h2>
-                    <p className="text-white/40 text-sm md:text-base mt-1">
-                      Choose agents to power your app (optional)
-                    </p>
-                  </div>
-                  {/* App summary - Premium */}
-                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm w-fit">
-                    {selectedTemplate && (
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{
-                          backgroundColor: `${selectedTemplate.color}20`,
-                        }}
-                      >
+                    {/* App summary */}
+                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
+                      {selectedTemplate && (
                         <selectedTemplate.icon
-                          className="h-3.5 w-3.5"
+                          className="h-3 w-3 md:h-3.5 md:w-3.5"
                           style={{ color: selectedTemplate.color }}
                         />
-                      </div>
-                    )}
-                    <span className="text-xs text-white/60 font-medium truncate max-w-[150px]">
-                      {appName || "Your App"}
-                    </span>
+                      )}
+                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
+                        {appName || "Your App"}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                    Choose agents to power your app (optional)
+                  </p>
                 </div>
 
-                {/* Agent Picker - Premium container */}
-                <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] backdrop-blur-sm animate-stagger-fade stagger-2">
+                {/* Agent Picker container */}
+                <div className="p-3 md:p-5 rounded-xl bg-white/5 border border-white/10">
                   <AgentPicker
                     agents={availableAgents}
                     selectedIds={selectedAgentIds}
@@ -3880,23 +3512,25 @@ ANTHROPIC_API_KEY=your_key_here`}
                   />
                 </div>
 
-                {/* Skip note - Premium */}
+                {/* Skip note */}
                 {availableAgents.length === 0 && !loadingAgents && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 animate-stagger-fade stagger-3">
-                    <p className="text-sm text-amber-300/80 leading-relaxed">
-                      <span className="font-semibold">No agents yet?</span> No
-                      worries — you can skip this step and add agents later from
-                      the app builder.
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-sm text-white/60">
+                      <span className="font-medium text-white/80">
+                        No agents yet?
+                      </span>{" "}
+                      No worries — you can skip this step and add agents later
+                      from the app builder.
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-4">
+                <div className="flex items-center justify-between pt-4">
                   <button
                     onClick={() => setSetupStep(3)}
-                    className="group flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm text-white/50 hover:text-white transition-colors rounded-lg hover:bg-white/[0.03]"
+                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
                     Back
                   </button>
                   <div className="flex items-center gap-3">
@@ -3905,60 +3539,45 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <button
                           onClick={startSession}
                           disabled={isLoading}
-                          className="text-xs text-white/40 hover:text-white/70 transition-colors font-medium"
+                          className="text-sm text-white/50 hover:text-white transition-colors"
                         >
-                          Skip for now
+                          Skip
                         </button>
                       )}
-                    {/* Premium Launch Button */}
+                    {/* Launch Button */}
                     <button
                       onClick={startSession}
                       disabled={isLoading}
-                      className="group relative flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-xl text-white text-sm font-semibold transition-all duration-500 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
+                      className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
-                      {/* Animated gradient background */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] via-amber-500 to-[#FF5800] bg-[length:200%_100%] animate-[shimmer_3s_linear_infinite]" />
-                      {/* Inner border glow */}
-                      <div className="absolute inset-[1px] rounded-[10px] bg-gradient-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {/* Outer glow effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF5800] to-amber-500 blur-xl opacity-50 group-hover:opacity-70 transition-opacity -z-10" />
-                      <span className="relative flex items-center gap-2.5">
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="hidden sm:inline tracking-wide">
-                              Launching Sandbox...
-                            </span>
-                            <span className="sm:hidden">...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-300" />
-                            <span className="hidden sm:inline tracking-wide">
-                              {selectedAgentIds.length > 0
-                                ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
-                                : "Start Building"}
-                            </span>
-                            <span className="sm:hidden">Start</span>
-                          </>
-                        )}
-                      </span>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Launching...
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="h-4 w-4" />
+                          {selectedAgentIds.length > 0
+                            ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
+                            : "Start Building"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
-                {/* Summary footer - Premium */}
-                <div className="flex items-center justify-center gap-4 pt-4 md:pt-6 animate-stagger-fade stagger-5">
+                {/* Summary footer */}
+                <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
                   {[
                     "Live sandbox",
                     "Hot reload",
                     "AI assist",
                     "GitHub sync",
-                  ].map((feature, i) => (
-                    <div key={feature} className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-[#FF5800]/50" />
-                      <span className="text-[10px] md:text-xs text-white/25 font-medium">
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                      <span className="text-[11px] md:text-xs text-white/50 font-medium">
                         {feature}
                       </span>
                     </div>
@@ -3980,14 +3599,14 @@ ANTHROPIC_API_KEY=your_key_here`}
             }
           }
         `}</style>
-      </div>
+      </ScrollArea>
     );
   }
 
   // Show unified loader for starting sandbox
   if (viewState === "starting") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+      <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A] flex items-center justify-center animate-in fade-in duration-200 overflow-hidden">
         <SessionLoader
           mode="starting"
           progressStep={progressStep}
@@ -4001,7 +3620,7 @@ ANTHROPIC_API_KEY=your_key_here`}
   // Error state
   if (viewState === "error") {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[#0A0A0A] flex items-center justify-center py-12 animate-in fade-in duration-200">
+      <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A] flex items-center justify-center animate-in fade-in duration-200 overflow-hidden">
         <SessionLoader
           mode="error"
           errorMessage={errorMessage}
@@ -4014,9 +3633,9 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#050507] z-10 animate-in fade-in duration-300">
+    <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] flex flex-col overflow-hidden bg-[#0A0A0A] animate-in fade-in duration-300">
       {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
-      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-3 py-2.5 border-b border-white/[0.06] bg-black/60 backdrop-blur-xl">
+      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Link
             href={backLink}
@@ -4024,32 +3643,25 @@ ANTHROPIC_API_KEY=your_key_here`}
           >
             <ArrowLeft className="h-4 w-4 text-white/60" />
           </Link>
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-6 h-6 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded flex-shrink-0">
-              <span
-                className="text-white font-bold text-[10px]"
-                style={{ fontFamily: "var(--font-sf-pro)" }}
-              >
-                {(appData?.name || appName || "A").charAt(0).toUpperCase()}
-              </span>
-            </div>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
             <span
-              className="text-xs text-white font-medium truncate"
-              style={{ fontFamily: "var(--font-sf-pro)" }}
+              className="text-xs text-white truncate"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
               {appData?.name || appName}
             </span>
           </div>
         </div>
 
-        {/* Mobile Panel Toggle - Premium */}
-        <div className="flex items-center gap-1.5 mx-2 p-1 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+        {/* Mobile Panel Toggle */}
+        <div className="flex items-center gap-1 mx-2">
           <button
             onClick={() => setMobilePanel("chat")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               mobilePanel === "chat"
-                ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 text-white border border-[#FF5800]/25"
-                : "text-white/45 hover:text-white/70"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
@@ -4057,10 +3669,10 @@ ANTHROPIC_API_KEY=your_key_here`}
           </button>
           <button
             onClick={() => setMobilePanel("preview")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               mobilePanel === "preview"
-                ? "bg-gradient-to-r from-[#FF5800]/20 to-amber-500/10 text-white border border-[#FF5800]/25"
-                : "text-white/45 hover:text-white/70"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
             }`}
           >
             <Monitor className="h-3.5 w-3.5" />
@@ -4178,7 +3790,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ) : (
                       <Rocket className="h-4 w-4" />
                     )}
-                    {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
+                    {isDeploying
+                      ? deployPhase === "saving"
+                        ? "Saving to GitHub..."
+                        : "Deploying..."
+                      : "Deploy"}
                   </DropdownMenuItem>
                   {productionUrl && (
                     <DropdownMenuItem asChild>
@@ -4256,41 +3872,31 @@ ANTHROPIC_API_KEY=your_key_here`}
       </div>
 
       {/* DESKTOP TOOLBAR - visible from xl (1280px) and up */}
-      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-black/60 backdrop-blur-xl">
-        <div className="flex items-center gap-5">
+      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
+        <div className="flex items-center gap-4">
           <Link
             href={backLink}
-            className="group p-2.5 hover:bg-white/[0.06] rounded-xl transition-all duration-300 border border-transparent hover:border-white/10"
+            className="p-2 hover:bg-white/10 rounded-md transition-colors"
           >
-            <ArrowLeft className="h-4 w-4 text-white/50 group-hover:text-white/80 transition-colors" />
+            <ArrowLeft className="h-4 w-4 text-white/60" />
           </Link>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-[#FF5800] blur-md opacity-40" />
-              <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-br from-[#FF5800] to-amber-600 rounded-md border border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/20">
-                <span
-                  className="text-white font-bold text-sm"
-                  style={{ fontFamily: "var(--font-sf-pro)" }}
-                >
-                  {(appData?.name || appName || "A").charAt(0).toUpperCase()}
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-cyan-400" />
             <span
-              className="text-sm text-white font-semibold tracking-tight"
-              style={{ fontFamily: "var(--font-sf-pro)" }}
+              className="text-sm text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
               {appData?.name || appName}
             </span>
             {isEditMode && (
-              <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-white/10 text-white/70 rounded border border-white/10">
-                Editor
+              <span className="h-7 px-2.5 text-xs bg-[#FF5800]/10 text-[#FF5800] rounded-md flex items-center border border-[#FF5800]/20">
+                Editing
               </span>
             )}
           </div>
           {sourceContext && (
             <div
-              className="px-2 py-1 text-xs border rounded"
+              className="px-2 py-1 text-xs border"
               style={{
                 backgroundColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}15`,
                 borderColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}40`,
@@ -4301,6 +3907,30 @@ ANTHROPIC_API_KEY=your_key_here`}
               {sourceContext.type}: {sourceContext.name}
             </div>
           )}
+          {/* GitHub repo indicator */}
+          {appData?.github_repo ? (
+            <a
+              href={`https://github.com/${appData.github_repo}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-7 px-2.5 text-xs bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-md flex items-center gap-1.5 border border-green-500/20 transition-colors"
+              title="View on GitHub"
+            >
+              <GitBranch className="h-3 w-3" />
+              <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
+                {appData.github_repo.split("/").pop()}
+              </span>
+              <Cloud className="h-3 w-3" />
+            </a>
+          ) : status === "ready" || status === "recovering" ? (
+            <div
+              className="h-7 px-2.5 text-xs bg-yellow-500/10 text-yellow-400 rounded-md flex items-center gap-1.5 border border-yellow-500/20"
+              title="GitHub not configured"
+            >
+              <CloudOff className="h-3 w-3" />
+              <span>No GitHub</span>
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {timeRemaining && (
@@ -4374,7 +4004,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Rocket className="h-3 w-3" />
                 )}
                 <span className="ml-1.5">
-                  {isDeploying ? (deployPhase === "saving" ? "Saving to GitHub..." : "Deploying...") : "Deploy"}
+                  {isDeploying
+                    ? deployPhase === "saving"
+                      ? "Saving to GitHub..."
+                      : "Deploying..."
+                    : "Deploy"}
                 </span>
               </Button>
               {productionUrl && (
@@ -4396,7 +4030,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <>
               <button
                 onClick={copySandboxUrl}
-                className="p-2 hover:bg-white/10 transition-colors"
+                className="p-2 hover:bg-white/10 rounded-md transition-colors"
                 title="Copy URL"
               >
                 {copied ? (
@@ -4409,7 +4043,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 href={session.sandboxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 hover:bg-white/10 transition-colors"
+                className="p-2 hover:bg-white/10 rounded-md transition-colors"
                 title="Open in new tab"
               >
                 <ExternalLink className="h-4 w-4 text-white/60" />
@@ -4418,7 +4052,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           )}
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-2 hover:bg-white/10 transition-colors"
+            className="p-2 hover:bg-white/10 rounded-md transition-colors"
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen preview"}
           >
             {isFullscreen ? (
@@ -4431,7 +4065,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <button
               onClick={stopSession}
               disabled={status === "recovering"}
-              className="p-2 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 hover:bg-red-500/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 status === "recovering" ? "Reconnecting..." : "Stop session"
               }
@@ -4442,31 +4076,10 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       </div>
 
-      {/* Auto-recovery indicator - Premium banner */}
-      {status === "recovering" && !isRestoring && (
-        <div className="absolute top-[49px] xl:top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-[#FF5800]/20 via-amber-500/15 to-[#FF5800]/20 border-b border-[#FF5800]/30 backdrop-blur-sm">
-          <div className="flex items-center justify-center gap-3 xl:gap-4 px-4 xl:px-5 py-2 xl:py-2.5">
-            <div className="relative">
-              <Loader2 className="h-4 w-4 xl:h-4.5 xl:w-4.5 animate-spin text-[#FF5800] flex-shrink-0" />
-              <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-md opacity-40" />
-            </div>
-            <span
-              className="text-xs xl:text-sm text-white/90 font-medium"
-              style={{ fontFamily: "var(--font-sf-pro)" }}
-            >
-              Reconnecting to sandbox...
-            </span>
-            <span className="text-[10px] xl:text-xs text-white/40 hidden sm:inline">
-              This happens automatically
-            </span>
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 flex overflow-hidden">
         {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
-          className={`flex flex-col border-r border-white/[0.04] bg-gradient-to-b from-[#0a0a0b] to-[#080809] transition-all overflow-hidden ${
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
             isFullscreen
               ? "w-0 hidden"
               : mobilePanel === "chat"
@@ -4476,7 +4089,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto pt-4 xl:pt-6 px-4 xl:px-6 pb-6 xl:pb-8 space-y-4 xl:space-y-5 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent hover:scrollbar-thumb-white/25"
+            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20 scrollbar-thumb-rounded"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -4488,12 +4101,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                 sendPrompt={sendPrompt}
               />
             ))}
-            {/* Scroll anchor with extra space for file chips visibility */}
-            <div ref={messagesEndRef} className="h-4" />
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
-          <ChatInput onSendPrompt={sendPrompt} onStopGeneration={stopGeneration} status={status} />
+          <ChatInput
+            onSendPrompt={sendPrompt}
+            onStopGeneration={stopGeneration}
+            status={status}
+          />
         </div>
 
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
@@ -4574,7 +4190,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Users className="h-3.5 w-3.5" />
                 Agents
                 {selectedAgentIds.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded-full text-[10px] min-w-[18px] text-center">
+                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
                     {selectedAgentIds.length}
                   </span>
                 )}
@@ -4612,15 +4228,15 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
           </div>
 
-          {/* Desktop Preview Tabs - Clean & Minimal */}
-          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] bg-black/30">
-            <div className="flex items-center gap-0.5">
+          {/* Desktop Preview Tabs */}
+          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
+            <div className="flex bg-white/5 rounded-md p-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   previewTab === "preview"
-                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
-                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <Monitor className="h-3.5 w-3.5" />
@@ -4628,26 +4244,26 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("console")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   previewTab === "console"
-                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
-                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <Terminal className="h-3.5 w-3.5" />
                 Console
                 {consoleLogs.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-semibold tabular-nums rounded">
+                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
                     {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => setPreviewTab("files")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   previewTab === "files"
-                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
-                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <FolderCode className="h-3.5 w-3.5" />
@@ -4655,32 +4271,32 @@ ANTHROPIC_API_KEY=your_key_here`}
               </button>
               <button
                 onClick={() => setPreviewTab("history")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   previewTab === "history"
-                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
-                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <History className="h-3.5 w-3.5" />
                 History
                 {commitHistory.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold tabular-nums rounded">
+                  <span className="ml-1 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px]">
                     {commitHistory.length}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => setPreviewTab("agents")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                   previewTab === "agents"
-                    ? "text-white bg-white/10 border-b-2 border-[#FF5800]"
-                    : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 <Users className="h-3.5 w-3.5" />
                 Agents
                 {selectedAgentIds.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 text-[10px] font-semibold tabular-nums rounded">
+                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
                     {selectedAgentIds.length}
                   </span>
                 )}
@@ -4715,7 +4331,9 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-gradient-to-br from-white/[0.03] to-transparent overflow-hidden relative">
+          <div
+            className={`flex-1 overflow-hidden relative ${previewTab === "preview" ? "bg-white" : "bg-[#0a0a0b]"}`}
+          >
             {/* Preview iframe - always mounted when session exists to prevent reload flicker */}
             {session?.sandboxUrl && (
               <div
@@ -4937,7 +4555,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ) {
                               if (log.includes(" 2")) {
                                 colorClass = "text-green-400/70";
-                              } else if (log.includes(" 4") || log.includes(" 5")) {
+                              } else if (
+                                log.includes(" 4") ||
+                                log.includes(" 5")
+                              ) {
                                 colorClass = "text-red-400/70";
                               } else {
                                 colorClass = "text-cyan-400/70";
@@ -4990,7 +4611,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-white/20">
-                          Type <code className="text-[#FF5800]/70">help</code> for commands
+                          Type <code className="text-[#FF5800]/70">help</code>{" "}
+                          for commands
                         </span>
                       </div>
                     </div>

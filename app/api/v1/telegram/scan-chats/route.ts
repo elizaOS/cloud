@@ -132,8 +132,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           isAdmin =
             member.status === "administrator" || member.status === "creator";
           canPost =
-            isAdmin ||
-            (member.status === "member" && chat.type !== "channel");
+            isAdmin || (member.status === "member" && chat.type !== "channel");
         } catch {
           // If we can't check membership, assume basic permissions for groups
           canPost = chat.type !== "channel";
@@ -174,7 +173,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             member.status === "administrator" || member.status === "creator";
           const canPost =
             isAdmin ||
-            (member.status === "member" && existingChat.chat_type !== "channel");
+            (member.status === "member" &&
+              existingChat.chat_type !== "channel");
 
           // Update if permissions changed
           if (
