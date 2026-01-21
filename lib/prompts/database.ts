@@ -56,7 +56,7 @@ export const items = pgTable('items', {
 
 4. **Create \`db/index.ts\`** for the database client:
 \`\`\`typescript
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import * as schema from './schema';
 
