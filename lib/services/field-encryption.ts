@@ -289,7 +289,10 @@ export class FieldEncryptionService {
     }
 
     // Race condition: another request created the key, fetch it
-    const raceCreatedKey = await this.getOrgKeyByOrgId(organizationId);
+    // Use dbWrite (primary) instead of dbRead (replica) to avoid replication lag
+    const raceCreatedKey = await dbWrite.query.organizationEncryptionKeys.findFirst({
+      where: eq(organizationEncryptionKeys.organization_id, organizationId),
+    });
     if (!raceCreatedKey) {
       throw new Error(
         `Failed to create/get encryption key for org: ${organizationId}`,
