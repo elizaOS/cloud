@@ -49,6 +49,11 @@ const eslintConfig = [
       // Warn about components that might benefit from memo()
       // Note: Not always needed, but good to be aware of
       "react/jsx-no-useless-fragment": "warn",
+
+      // Disable overly strict rule that flags valid patterns like:
+      // - Data fetching on mount (useEffect + setState)
+      // - SSR hydration (reading localStorage after mount)
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 ];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -36,11 +36,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
   const isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
+
+  // Auto-collapse sidebar on app builder page
+  const initialCollapsed = useMemo(
+    () => pathname === "/dashboard/apps/create",
+    [pathname],
+  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialCollapsed);
 
   // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {

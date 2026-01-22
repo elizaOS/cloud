@@ -73,7 +73,7 @@ export function SocialConnectionHint({
   // Check localStorage after mount to avoid SSR mismatch
   // This is a valid hydration pattern - we need to read localStorage client-side only
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Valid hydration for localStorage
+     
     setState({
       discord: getStorageValue(STORAGE_KEY_DISCORD),
       telegram: getStorageValue(STORAGE_KEY_TELEGRAM),

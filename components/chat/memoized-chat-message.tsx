@@ -70,7 +70,7 @@ function useTypewriterText(
     if (targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
       state.lastTargetLength = targetText.length;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset for new message
+       
       setDisplayLength(0);
     } else {
       state.lastTargetLength = targetText.length;
@@ -186,7 +186,7 @@ function useReasoningTypewriter(
     if (!targetText || targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
       state.lastTargetLength = targetText?.length || 0;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset for new reasoning
+       
       setDisplayLength(0);
       if (!targetText) {
         state.everActive = false;
