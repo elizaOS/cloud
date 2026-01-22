@@ -313,9 +313,10 @@ export class FieldEncryptionService {
 
   /**
    * Find encryption key by its ID.
+   * Uses dbWrite (primary) to avoid replication lag when key was just created.
    */
   private async getOrgKeyById(keyId: string) {
-    return dbRead.query.organizationEncryptionKeys.findFirst({
+    return dbWrite.query.organizationEncryptionKeys.findFirst({
       where: eq(organizationEncryptionKeys.id, keyId),
     });
   }
