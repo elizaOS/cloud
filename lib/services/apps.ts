@@ -227,10 +227,13 @@ export class AppsService {
         logger.info("Cleaned up user database for app", { appId: id });
       } catch (error) {
         // Log but don't fail deletion - database might already be gone
-        logger.warn("Failed to clean up user database (continuing with deletion)", {
-          appId: id,
-          error: error instanceof Error ? error.message : "Unknown",
-        });
+        logger.warn(
+          "Failed to clean up user database (continuing with deletion)",
+          {
+            appId: id,
+            error: error instanceof Error ? error.message : "Unknown",
+          },
+        );
       }
     }
 

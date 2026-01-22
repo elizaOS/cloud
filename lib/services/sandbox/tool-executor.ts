@@ -203,7 +203,10 @@ export async function executeToolCall(
           if (isDatabaseCommand && appId) {
             const app = await appsRepository.findById(appId);
 
-            if (app?.user_database_status === "ready" && app.user_database_uri) {
+            if (
+              app?.user_database_status === "ready" &&
+              app.user_database_uri
+            ) {
               commandEnv = { DATABASE_URL: app.user_database_uri };
 
               logger.info("Injecting DATABASE_URL for database command", {
@@ -230,7 +233,8 @@ export async function executeToolCall(
           });
 
           // Sanitize output to prevent credential leakage
-          const rawOutput = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+          const rawOutput =
+            `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
           return sanitizeOutput(rawOutput);
         }
 

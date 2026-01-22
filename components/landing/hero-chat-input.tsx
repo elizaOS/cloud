@@ -101,7 +101,8 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
     "Make a writing coach for my essays",
   ];
 
-  const placeholderSentences = mode === "app" ? appPlaceholders : agentPlaceholders;
+  const placeholderSentences =
+    mode === "app" ? appPlaceholders : agentPlaceholders;
   const typingPlaceholder = useTypingPlaceholder(placeholderSentences, mode);
 
   return (
