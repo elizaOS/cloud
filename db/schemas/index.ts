@@ -5,6 +5,7 @@
  */
 export * from "./organizations";
 export * from "./organization-invites";
+export * from "./organization-encryption-keys";
 export * from "./users";
 export * from "./user-sessions";
 export * from "./anonymous-sessions";
