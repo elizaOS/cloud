@@ -72,7 +72,15 @@ export const appSandboxSessions = pgTable(
     initial_prompt: text("initial_prompt"),
     template_type: text("template_type")
       .$type<
-        "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank"
+        | "chat"
+        | "agent-dashboard"
+        | "landing-page"
+        | "analytics"
+        | "blank"
+        | "mcp-service"
+        | "a2a-agent"
+        | "saas-starter"
+        | "ai-tool"
       >()
       .default("blank"),
 
@@ -84,6 +92,7 @@ export const appSandboxSessions = pgTable(
         styling?: "minimal" | "branded" | "custom";
         includeAnalytics?: boolean;
         includeMonetization?: boolean;
+        includeDatabase?: boolean;
       }>()
       .default({})
       .notNull(),

@@ -44,7 +44,7 @@ export interface CharacterPromptContext {
  * Returns null if character not found.
  */
 export async function getCharacterPromptContext(
-  characterId: string
+  characterId: string,
 ): Promise<CharacterPromptContext | null> {
   const character = await charactersService.getById(characterId);
 
@@ -90,7 +90,7 @@ export async function getCharacterPromptContext(
  * Used by Twitter, Discord, Telegram automation services.
  */
 export function buildCharacterSystemPrompt(
-  context: CharacterPromptContext
+  context: CharacterPromptContext,
 ): string {
   const parts: string[] = [];
 
@@ -119,7 +119,7 @@ export function buildCharacterSystemPrompt(
   if (context.postExamples.length > 0) {
     const examples = getRandomSample(context.postExamples, 3);
     parts.push(
-      `Example posts you've written:\n${examples.map((ex) => `- "${ex}"`).join("\n")}`
+      `Example posts you've written:\n${examples.map((ex) => `- "${ex}"`).join("\n")}`,
     );
   }
 

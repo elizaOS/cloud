@@ -22,7 +22,7 @@ import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Send,
+  ArrowUp,
   Loader2,
   Copy,
   Check,
@@ -1431,12 +1431,12 @@ export function BuildModeAssistant({
                   type="submit"
                   disabled={isLoading || !inputText.trim()}
                   size="icon"
-                  className="group h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] border-0 transition-colors ml-1"
+                  className="h-8 w-8 rounded-xl bg-[#FF5800] hover:bg-[#e54e00] disabled:bg-white/10 transition-colors group ml-1"
                 >
                   {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
                   ) : (
-                    <Send className="h-4 w-4 text-[#FF5800] group-disabled:text-white/50 transition-colors" />
+                    <ArrowUp className="h-4 w-4 text-white group-disabled:text-neutral-400" />
                   )}
                 </Button>
               </div>

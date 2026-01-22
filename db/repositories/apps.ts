@@ -88,12 +88,12 @@ export class AppsRepository {
   }
 
   /**
-   * Lists all apps for an organization, ordered by creation date.
+   * Lists all apps for an organization, ordered by updated date.
    */
   async listByOrganization(organizationId: string): Promise<App[]> {
     return await dbRead.query.apps.findMany({
       where: eq(apps.organization_id, organizationId),
-      orderBy: [desc(apps.created_at)],
+      orderBy: [desc(apps.updated_at)],
     });
   }
 
@@ -175,7 +175,7 @@ export class AppsRepository {
 
     return await dbRead.query.apps.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: [desc(apps.created_at)],
+      orderBy: [desc(apps.updated_at)],
     });
   }
 
@@ -317,6 +317,40 @@ export class AppsRepository {
         updated_at: new Date(),
       })
       .where(eq(apps.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Atomically tries to set database status to "provisioning".
+   * Only succeeds if current status is "none" or "error" (not "ready" or "provisioning").
+   * This prevents race conditions when multiple requests try to provision simultaneously.
+   *
+   * @param id App ID
+   * @param region Database region to set
+   * @returns Updated app if the status transition succeeded, undefined if another process won the race
+   */
+  async trySetDatabaseProvisioning(
+    id: string,
+    region: string,
+  ): Promise<App | undefined> {
+    const [updated] = await dbWrite
+      .update(apps)
+      .set({
+        user_database_status: "provisioning",
+        user_database_error: null,
+        user_database_region: region,
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(apps.id, id),
+          or(
+            eq(apps.user_database_status, "none"),
+            eq(apps.user_database_status, "error"),
+          ),
+        ),
+      )
       .returning();
     return updated;
   }

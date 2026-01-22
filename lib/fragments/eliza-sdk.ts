@@ -1,11 +1,14 @@
 /**
  * Eliza SDK Reference (Legacy)
- * 
+ *
  * Re-exports from the new modular prompt system.
  * New code should import from '@/lib/prompts/sdk' directly.
  */
 
-export { SDK_REFERENCE as ELIZA_SDK_REFERENCE, SDK_RESTRICTIONS } from '@/lib/prompts/sdk';
+export {
+  SDK_REFERENCE as ELIZA_SDK_REFERENCE,
+  SDK_RESTRICTIONS,
+} from "@/lib/prompts/sdk";
 
 // Compact version for smaller context
 export const ELIZA_SDK_COMPACT = `## Eliza SDK (Pre-built)

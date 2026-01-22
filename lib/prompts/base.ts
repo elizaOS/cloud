@@ -1,6 +1,6 @@
 /**
  * Base System Prompt
- * 
+ *
  * Core identity and capabilities for AI App Builder.
  */
 

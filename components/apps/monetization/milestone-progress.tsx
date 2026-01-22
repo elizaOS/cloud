@@ -62,7 +62,7 @@ export function MilestoneProgress({
             "absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out",
             isComplete
               ? "bg-gradient-to-r from-green-500 to-green-400"
-              : "bg-gradient-to-r from-[#FF5800] to-[#FF8C00]"
+              : "bg-gradient-to-r from-[#FF5800] to-[#FF8C00]",
           )}
           style={{ width: `${animatedProgress}%` }}
         />
@@ -70,7 +70,7 @@ export function MilestoneProgress({
         {/* Shimmer effect */}
         <div
           className={cn(
-            "absolute inset-y-0 left-0 rounded-full overflow-hidden transition-all duration-1000 ease-out"
+            "absolute inset-y-0 left-0 rounded-full overflow-hidden transition-all duration-1000 ease-out",
           )}
           style={{ width: `${animatedProgress}%` }}
         >
@@ -114,7 +114,7 @@ export function MilestoneCard({
         "relative p-4 rounded-lg border transition-all duration-500",
         isComplete
           ? "bg-green-500/5 border-green-500/30 animate-[milestoneReached_2s_ease-in-out_infinite]"
-          : "bg-white/5 border-white/10"
+          : "bg-white/5 border-white/10",
       )}
     >
       <h4 className="text-sm font-medium text-white mb-3">{title}</h4>

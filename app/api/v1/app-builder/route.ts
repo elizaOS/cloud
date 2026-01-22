@@ -25,7 +25,7 @@ const CreateSessionSchema = z.object({
       "ai-tool",
     ])
     .default("blank"),
-  includeMonetization: z.boolean().default(false),
+  includeMonetization: z.boolean().default(true),
   includeAnalytics: z.boolean().default(true),
 });
 

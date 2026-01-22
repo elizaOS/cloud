@@ -108,17 +108,20 @@ async function seedLocalDev() {
     ];
 
     for (const pack of creditPacks) {
-      await db.insert(schema.creditPacks).values({
-        name: pack.name,
-        description: pack.description,
-        credits: pack.credits.toString(),
-        price_cents: pack.price_cents,
-        stripe_price_id: pack.stripe_price_id,
-        stripe_product_id: pack.stripe_product_id,
-        sort_order: pack.sort_order,
-      }).onConflictDoNothing({
-        target: schema.creditPacks.stripe_price_id,
-      });
+      await db
+        .insert(schema.creditPacks)
+        .values({
+          name: pack.name,
+          description: pack.description,
+          credits: pack.credits.toString(),
+          price_cents: pack.price_cents,
+          stripe_price_id: pack.stripe_price_id,
+          stripe_product_id: pack.stripe_product_id,
+          sort_order: pack.sort_order,
+        })
+        .onConflictDoNothing({
+          target: schema.creditPacks.stripe_price_id,
+        });
       console.log(`   ✓ ${pack.name} ready`);
     }
 

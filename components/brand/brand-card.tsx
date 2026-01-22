@@ -48,7 +48,9 @@ export function BrandCard({
       )}
       {...props}
     >
-      {corners && !isRounded && <CornerBrackets size={cornerSize} color={cornerColor} />}
+      {corners && !isRounded && (
+        <CornerBrackets size={cornerSize} color={cornerColor} />
+      )}
       {children}
     </Component>
   );

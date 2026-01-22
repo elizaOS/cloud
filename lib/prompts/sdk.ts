@@ -1,6 +1,6 @@
 /**
  * SDK Reference
- * 
+ *
  * Complete API documentation for the Eliza Cloud SDK.
  * Used by AI to understand available functions and patterns.
  */

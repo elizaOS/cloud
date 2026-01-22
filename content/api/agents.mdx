@@ -12,7 +12,8 @@ import { Callout, Tabs } from "nextra/components";
 Create, configure, and manage your AI agents (characters).
 
 <Callout type="info">
-  Agents API has two endpoint patterns: dashboard routes under `/api/my-agents/` and programmatic API under `/api/v1/app/agents`. Both require authentication.
+  Agents API has two endpoint patterns: dashboard routes under `/api/my-agents/`
+  and programmatic API under `/api/v1/app/agents`. Both require authentication.
 </Callout>
 
 ## List Agents
@@ -26,13 +27,13 @@ Get all your agents with optional filtering and pagination.
 
 ### Query Parameters
 
-| Parameter  | Type   | Description                           |
-| ---------- | ------ | ------------------------------------- |
-| `search`   | string | Search by name or bio                 |
-| `category` | string | Filter by category                    |
-| `sortBy`   | string | `newest`, `updated`, or `name`        |
-| `order`    | string | `asc` or `desc`                       |
-| `page`     | number | Page number (default: 1)              |
+| Parameter  | Type   | Description                             |
+| ---------- | ------ | --------------------------------------- |
+| `search`   | string | Search by name or bio                   |
+| `category` | string | Filter by category                      |
+| `sortBy`   | string | `newest`, `updated`, or `name`          |
+| `order`    | string | `asc` or `desc`                         |
+| `page`     | number | Page number (default: 1)                |
 | `limit`    | number | Items per page (default: 30, max: 1000) |
 
 ### Response
@@ -86,10 +87,10 @@ Create a new agent with a name and optional bio.
 
 ### Parameters
 
-| Parameter | Type   | Required | Description                        |
-| --------- | ------ | -------- | ---------------------------------- |
-| `name`    | string | ✓        | Agent name (max 100 characters)    |
-| `bio`     | string |          | Agent bio/description              |
+| Parameter | Type   | Required | Description                     |
+| --------- | ------ | -------- | ------------------------------- |
+| `name`    | string | ✓        | Agent name (max 100 characters) |
+| `bio`     | string |          | Agent bio/description           |
 
 ### Response
 
@@ -107,7 +108,8 @@ Create a new agent with a name and optional bio.
 ```
 
 <Callout type="info">
-  Agent creation is rate limited and subject to organization quotas based on credit balance.
+  Agent creation is rate limited and subject to organization quotas based on
+  credit balance.
 </Callout>
 
 ---

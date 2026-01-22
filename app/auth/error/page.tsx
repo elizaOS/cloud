@@ -111,8 +111,12 @@ export default function AuthErrorPage() {
                 <AlertCircle className="h-7 w-7 text-red-500" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
-                <p className="text-sm text-neutral-500">Loading error details...</p>
+                <h2 className="text-xl font-semibold text-white">
+                  Authentication Error
+                </h2>
+                <p className="text-sm text-neutral-500">
+                  Loading error details...
+                </p>
               </div>
             </div>
           </div>

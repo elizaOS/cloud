@@ -43,14 +43,16 @@ export function isValidUUID(value: string): boolean {
  * @param value - The potentially malformed UUID string.
  * @returns The sanitized UUID if valid, undefined otherwise.
  */
-export function sanitizeUUID(value: string | undefined | null): string | undefined {
+export function sanitizeUUID(
+  value: string | undefined | null,
+): string | undefined {
   if (!value) return undefined;
 
   // Remove URL-encoded garbage that commonly appends to UUIDs:
   // - %5C decodes to backslash (\)
   // - Trailing slashes from malformed URL paths
   // - Trailing whitespace from copy/paste errors
-  const cleaned = value.trim().replace(/[\\\/\s]+$/, '');
+  const cleaned = value.trim().replace(/[\\\/\s]+$/, "");
 
   return isValidUUID(cleaned) ? cleaned : undefined;
 }

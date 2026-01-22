@@ -54,7 +54,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
 
 const data = await response.json();
 console.log(data.images[0].url);
-```
+
+````
   </Tabs.Tab>
   <Tabs.Tab>
 ```python
@@ -76,7 +77,8 @@ response = requests.post(
 
 data = response.json()
 print(data['images'][0]['url'])
-```
+````
+
   </Tabs.Tab>
 </Tabs>
 
@@ -138,7 +140,8 @@ print(data['images'][0]['url'])
 ```
 
 <Callout type="info">
-  The `url` field contains a permanent link to the generated image. The `image` field (base64) is only included as a fallback if blob storage upload fails.
+  The `url` field contains a permanent link to the generated image. The `image`
+  field (base64) is only included as a fallback if blob storage upload fails.
 </Callout>
 
 ---
@@ -164,16 +167,16 @@ print(data['images'][0]['url'])
 Transform existing images by providing a `sourceImage` parameter:
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'Transform this into a watercolor painting',
-    sourceImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
-    model: 'google/gemini-2.5-flash-image',
+    prompt: "Transform this into a watercolor painting",
+    sourceImage: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    model: "google/gemini-2.5-flash-image",
   }),
 });
 ```

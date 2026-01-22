@@ -3,6 +3,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { appsRepository } from "@/db/repositories/apps";
 import type { SandboxInstance } from "./types";
 import { isCommandAllowed } from "./security";
 import { readFileViaSh, writeFileViaSh, listFilesViaSh } from "./file-ops";
@@ -11,6 +12,37 @@ import { checkBuild } from "./build-tools";
 
 // Timeout for individual tool calls (60 seconds)
 const TOOL_TIMEOUT_MS = 60000;
+
+// Database migration timeout (2 minutes for complex migrations)
+const DATABASE_COMMAND_TIMEOUT_MS = 120000;
+
+/**
+ * Patterns that identify database commands needing DATABASE_URL injection.
+ * These commands will have credentials automatically injected from our secure backend.
+ */
+const DATABASE_COMMAND_PATTERNS = [
+  /drizzle-kit\s+(push|pull|generate|migrate|check|up|drop|introspect|studio)/i,
+  /drizzle-kit$/i, // Just "drizzle-kit" alone (might show help or run default)
+];
+
+/**
+ * Check if a command needs DATABASE_URL injected.
+ */
+function needsDatabaseCredentials(command: string): boolean {
+  return DATABASE_COMMAND_PATTERNS.some((pattern) => pattern.test(command));
+}
+
+/**
+ * Sanitize command output to prevent credential leakage.
+ * Applied to all command output before returning to the AI.
+ */
+function sanitizeOutput(output: string): string {
+  return output
+    .replace(/postgres(ql)?:\/\/[^@\s]+@/gi, "postgres://***@")
+    .replace(/password=[^&\s"']+/gi, "password=***")
+    .replace(/DATABASE_URL=[^\s"']+/gi, "DATABASE_URL=***")
+    .replace(/:[^:@\s]{8,}@/g, ":***@"); // Generic password patterns in URLs
+}
 
 export interface ToolExecutionResult {
   result: string;
@@ -72,10 +104,11 @@ export async function executeToolCall(
   args: Record<string, unknown>,
   options: {
     sandboxId?: string;
+    appId?: string;
     abortSignal?: AbortSignal;
   } = {},
 ): Promise<ToolExecutionResult> {
-  const { sandboxId, abortSignal } = options;
+  const { sandboxId, appId, abortSignal } = options;
   const filesAffected: string[] = [];
   let result: string;
 
@@ -86,6 +119,13 @@ export async function executeToolCall(
       filesAffected: [],
     };
   }
+
+  // Determine timeout upfront - database commands get extended timeout
+  const command = toolName === "run_command" ? (args?.command as string) : "";
+  const isDatabaseCommand = command && needsDatabaseCredentials(command);
+  const effectiveTimeout = isDatabaseCommand
+    ? DATABASE_COMMAND_TIMEOUT_MS
+    : TOOL_TIMEOUT_MS;
 
   try {
     const execution = async (): Promise<string> => {
@@ -156,11 +196,42 @@ export async function executeToolCall(
             return `Command blocked: ${commandCheck.reason}`;
           }
 
+          // Build environment for this command
+          let commandEnv: Record<string, string> | undefined;
+
+          // Auto-inject DATABASE_URL for drizzle-kit commands
+          if (isDatabaseCommand && appId) {
+            const app = await appsRepository.findById(appId);
+
+            if (app?.user_database_status === "ready" && app.user_database_uri) {
+              commandEnv = { DATABASE_URL: app.user_database_uri };
+
+              logger.info("Injecting DATABASE_URL for database command", {
+                sandboxId,
+                appId,
+                command: command.substring(0, 80),
+              });
+            } else if (app?.user_database_status === "provisioning") {
+              return "Error: Database is still provisioning. Please wait a moment and try again.";
+            } else if (!app?.user_database_uri) {
+              logger.warn("Database command without provisioned database", {
+                sandboxId,
+                appId,
+                status: app?.user_database_status,
+              });
+              return "Error: No database provisioned for this app. The app needs a database to run this command.";
+            }
+          }
+
           const r = await sandbox.runCommand({
             cmd: "sh",
             args: ["-c", command],
+            env: commandEnv,
           });
-          return `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+
+          // Sanitize output to prevent credential leakage
+          const rawOutput = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+          return sanitizeOutput(rawOutput);
         }
 
         default:
@@ -168,10 +239,10 @@ export async function executeToolCall(
       }
     };
 
-    // Execute with timeout and abort signal support
+    // Execute with timeout and abort signal support (database commands get extended timeout)
     result = await withTimeoutAndAbort(
       execution(),
-      TOOL_TIMEOUT_MS,
+      effectiveTimeout,
       toolName,
       abortSignal,
     );

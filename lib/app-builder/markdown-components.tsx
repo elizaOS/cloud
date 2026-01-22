@@ -25,12 +25,7 @@ function ReasoningText({ children }: { children: string }) {
  */
 const AnimatedCheckInline = () => (
   <span className="flex items-center justify-center w-[14px] h-[14px] flex-shrink-0 mt-[3px]">
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-    >
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
       <style>
         {`
           @keyframes checkDrawInline {
@@ -61,12 +56,7 @@ const AnimatedCheckInline = () => (
  */
 const AnimatedSpinnerInline = () => (
   <span className="flex items-center justify-center w-[14px] h-[14px] flex-shrink-0 mt-[3px]">
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
       <style>
         {`
           @keyframes spinnerRotate {
@@ -95,7 +85,7 @@ const AnimatedSpinnerInline = () => (
           cx="12"
           cy="12"
           r="10"
-          stroke="#FF5800"
+          stroke="#8B5CF6"
           strokeWidth="2"
           fill="none"
         />
@@ -104,7 +94,7 @@ const AnimatedSpinnerInline = () => (
           cx="12"
           cy="12"
           r="10"
-          stroke="#FF5800"
+          stroke="#8B5CF6"
           strokeWidth="2"
           strokeLinecap="round"
           fill="none"
@@ -117,10 +107,13 @@ const AnimatedSpinnerInline = () => (
 /**
  * Check if content starts with a status marker
  */
-function getStatusMarker(children: React.ReactNode): "check" | "spinner" | null {
+function getStatusMarker(
+  children: React.ReactNode,
+): "check" | "spinner" | null {
   if (typeof children === "string") {
     if (children.startsWith("✓ ") || children.startsWith("✓")) return "check";
-    if (children.startsWith("⏳ ") || children.startsWith("⏳")) return "spinner";
+    if (children.startsWith("⏳ ") || children.startsWith("⏳"))
+      return "spinner";
   }
   if (Array.isArray(children) && children.length > 0) {
     return getStatusMarker(children[0]);
@@ -173,7 +166,11 @@ function transformStatusMarkers(children: React.ReactNode): React.ReactNode {
   if (Array.isArray(children)) {
     return children.map((child, i) => {
       if (i === 0) {
-        return <React.Fragment key={i}>{transformStatusMarkers(child)}</React.Fragment>;
+        return (
+          <React.Fragment key={i}>
+            {transformStatusMarkers(child)}
+          </React.Fragment>
+        );
       }
       return <React.Fragment key={i}>{child}</React.Fragment>;
     });
@@ -216,22 +213,24 @@ export const markdownComponents = {
         </p>
       );
     }
-    
+
     // Check for status markers - use flexbox for perfect alignment
     const marker = getStatusMarker(children);
     if (marker) {
       return (
         <p className="flex items-start gap-2 text-[14px] text-white/85 mb-2 leading-[1.7]">
-          {marker === "check" ? <AnimatedCheckInline /> : <AnimatedSpinnerInline />}
+          {marker === "check" ? (
+            <AnimatedCheckInline />
+          ) : (
+            <AnimatedSpinnerInline />
+          )}
           <span className="flex-1 min-w-0">{stripStatusMarker(children)}</span>
         </p>
       );
     }
-    
+
     return (
-      <p className="text-[14px] text-white/85 mb-2 leading-[1.7]">
-        {children}
-      </p>
+      <p className="text-[14px] text-white/85 mb-2 leading-[1.7]">{children}</p>
     );
   },
   ul: ({ children }: { children?: React.ReactNode }) => (
@@ -270,7 +269,9 @@ export const markdownComponents = {
     </pre>
   ),
   strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="font-medium text-white/90">{transformStatusMarkers(children)}</strong>
+    <strong className="font-medium text-white/90">
+      {transformStatusMarkers(children)}
+    </strong>
   ),
   em: ({ children }: { children?: React.ReactNode }) => {
     // Check if this is reasoning text (starts with 💭)
@@ -282,9 +283,7 @@ export const markdownComponents = {
         </em>
       );
     }
-    return (
-      <em className="text-white/80 italic">{children}</em>
-    );
+    return <em className="text-white/80 italic">{children}</em>;
   },
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a

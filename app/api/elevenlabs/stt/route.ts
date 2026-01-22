@@ -40,7 +40,10 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
 
 // Estimate audio duration from file size and format
 // This is a rough approximation for cost estimation
-function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): number {
+function estimateAudioDurationMinutes(
+  fileSizeBytes: number,
+  mimeType: string,
+): number {
   // Average bitrates by format (conservative estimates)
   const bitratesKbps: Record<string, number> = {
     "audio/mpeg": 128, // MP3 at 128kbps
@@ -54,9 +57,9 @@ function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): 
   };
 
   const bitrate = bitratesKbps[mimeType] || 128;
-  const bytesPerMinute = (bitrate * 1000) / 8 * 60;
+  const bytesPerMinute = ((bitrate * 1000) / 8) * 60;
   const estimatedMinutes = fileSizeBytes / bytesPerMinute;
-  
+
   // Return at least 0.1 minutes (6 seconds) for very short clips
   return Math.max(0.1, estimatedMinutes);
 }
@@ -157,7 +160,10 @@ export async function POST(request: NextRequest) {
     );
 
     // Estimate audio duration and calculate cost (includes 20% platform markup)
-    const estimatedDurationMinutes = estimateAudioDurationMinutes(audioFile.size, finalMimeType);
+    const estimatedDurationMinutes = estimateAudioDurationMinutes(
+      audioFile.size,
+      finalMimeType,
+    );
     const estimatedCost = calculateSTTCost(estimatedDurationMinutes);
 
     // Reserve credits BEFORE transcription

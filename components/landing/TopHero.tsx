@@ -19,7 +19,7 @@ const TopHero = () => {
   const [deployingDots, setDeployingDots] = useState(0);
   const [isDeploying, setIsDeploying] = useState(true);
   const [cursorLine, setCursorLine] = useState<"deploy" | "deploying" | "url">(
-    "deploy"
+    "deploy",
   );
   const [status, setStatus] = useState<"create" | "deploy">("create");
   const router = useRouter();

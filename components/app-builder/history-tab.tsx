@@ -213,7 +213,7 @@ export function HistoryTab({
             animate={{ opacity: 1 }}
             className="flex flex-col items-center gap-4 max-w-[280px] text-center px-6"
           >
-            <History className="h-10 w-10 text-white/25" />
+            <History className="h-10 w-10 text-neutral-400" />
             <div>
               <p className="text-sm text-white/70 font-medium mb-1">
                 No history yet
@@ -382,7 +382,7 @@ export function HistoryTab({
                         >
                           <div className="px-4 pb-4 pt-2 ml-6 border-l-2 border-white/[0.06]">
                             {/* Full SHA */}
-                            <div className="mb-4 p-3 bg-black/30 rounded-lg">
+                            <div className="mb-4 p-3 bg-black/30 rounded-xl">
                               <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
                                 Commit SHA
                               </p>
@@ -404,7 +404,7 @@ export function HistoryTab({
 
                             {/* Extended message */}
                             {commit.message.includes("\n") && (
-                              <div className="mb-4 p-3 bg-black/30 rounded-lg">
+                              <div className="mb-4 p-3 bg-black/30 rounded-xl">
                                 <p className="text-xs text-white/40 mb-1.5 uppercase tracking-wide">
                                   Details
                                 </p>

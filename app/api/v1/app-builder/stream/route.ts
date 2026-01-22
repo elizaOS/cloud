@@ -36,8 +36,9 @@ const CreateSessionSchema = z.object({
       "ai-tool",
     ])
     .default("blank"),
-  includeMonetization: z.boolean().default(false),
+  includeMonetization: z.boolean().default(true),
   includeAnalytics: z.boolean().default(true),
+  includePersistentStorage: z.boolean().default(false),
   linkedAgentIds: z.array(z.string().uuid()).max(4).optional(),
 });
 
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
           templateType: data.templateType,
           includeMonetization: data.includeMonetization,
           includeAnalytics: data.includeAnalytics,
+          includePersistentStorage: data.includePersistentStorage,
           linkedAgentIds: data.linkedAgentIds,
           onProgress: async (progress: SandboxProgress) => {
             if (!streamWriter.isConnected()) return;
@@ -126,6 +128,7 @@ export async function POST(request: NextRequest) {
                 expiresAt: readySession.expiresAt,
                 appId: readySession.appId,
                 githubRepo: readySession.githubRepo,
+                hasDatabase: readySession.hasDatabase,
               },
               hasInitialPrompt: !!data.initialPrompt,
             });
@@ -165,6 +168,7 @@ export async function POST(request: NextRequest) {
               initialPromptResult: session.initialPromptResult,
               appId: session.appId,
               githubRepo: session.githubRepo,
+              hasDatabase: session.hasDatabase,
             },
           });
         }

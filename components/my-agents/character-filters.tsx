@@ -23,9 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { BrandButton } from "@/components/brand";
-import { Search, LayoutGrid, List, Plus } from "lucide-react";
+import { Search, LayoutGrid, List } from "lucide-react";
 import type { ViewMode, SortOption } from "./my-agents-client";
 
 interface CharacterFiltersProps {
@@ -37,7 +35,6 @@ interface CharacterFiltersProps {
   onSortChange: (sort: SortOption) => void;
   totalCount: number;
   filteredCount: number;
-  onCreateNew: () => void;
 }
 
 export function CharacterFilters({
@@ -49,51 +46,39 @@ export function CharacterFilters({
   onSortChange,
   totalCount,
   filteredCount,
-  onCreateNew,
 }: CharacterFiltersProps) {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-      {/* Search */}
-      <div className="relative flex-1 max-w-md w-full">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-        <Input
-          type="text"
-          placeholder="Search agents..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-        />
-      </div>
-
-      {/* Right controls */}
-      <div className="flex items-center gap-3">
-        {/* Results count */}
+    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+      {/* Left side - Search and count */}
+      <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+          <Input
+            type="text"
+            placeholder="Search agents..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9 h-9 md:h-10 rounded-lg border-white/10 bg-neutral-900 text-white text-sm placeholder:text-neutral-500 focus:ring-1 focus:ring-[#FF5800]/50 focus:border-[#FF5800]/50"
+          />
+        </div>
         {searchQuery && (
-          <span className="text-sm text-white/60">
-            {filteredCount} of {totalCount} agents
+          <span className="text-xs text-neutral-500 whitespace-nowrap">
+            {filteredCount}/{totalCount}
           </span>
         )}
+      </div>
 
-        {/* Create New Agent button - only show when user has agents */}
-        {totalCount > 0 && (
-          <BrandButton
-            onClick={onCreateNew}
-            className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 h-9 px-4"
-          >
-            <Plus className="h-4 w-4" />
-            Create New Agent
-          </BrandButton>
-        )}
-
-        {/* Sort */}
+      {/* Right side - Controls */}
+      <div className="flex items-center gap-2">
+        {/* Sort dropdown */}
         <Select
           value={sortBy}
           onValueChange={(v) => onSortChange(v as SortOption)}
         >
-          <SelectTrigger className="w-[140px] rounded-none border-white/10 bg-black/40">
+          <SelectTrigger className="h-9 md:h-10 w-[160px] rounded-lg border-white/10 bg-neutral-900 text-sm text-neutral-400 focus:ring-1 focus:ring-[#FF5800]/50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-lg">
             <SelectItem value="modified">Last Modified</SelectItem>
             <SelectItem value="created">Created Date</SelectItem>
             <SelectItem value="name">Name (A-Z)</SelectItem>
@@ -102,31 +87,29 @@ export function CharacterFilters({
         </Select>
 
         {/* View mode toggle */}
-        <div className="flex border border-white/10 rounded-none overflow-hidden">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex h-9 md:h-10 rounded-lg bg-neutral-900 p-1">
+          <button
+            type="button"
             onClick={() => onViewModeChange("grid")}
-            className={`rounded-none px-3 ${
+            className={`flex items-center justify-center w-8 md:w-9 rounded-md transition-colors ${
               viewMode === "grid"
-                ? "bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
-                : "bg-black/40 text-white/60 hover:text-white hover:bg-white/5"
+                ? "bg-white/10 text-white"
+                : "text-neutral-500 hover:text-neutral-300"
             }`}
           >
             <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </button>
+          <button
+            type="button"
             onClick={() => onViewModeChange("list")}
-            className={`rounded-none px-3 border-l border-white/10 ${
+            className={`flex items-center justify-center w-8 md:w-9 rounded-md transition-colors ${
               viewMode === "list"
-                ? "bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
-                : "bg-black/40 text-white/60 hover:text-white hover:bg-white/5"
+                ? "bg-white/10 text-white"
+                : "text-neutral-500 hover:text-neutral-300"
             }`}
           >
             <List className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
     </div>

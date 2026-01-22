@@ -4,8 +4,10 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
-import { Terminal, Server, TrendingUp, Activity } from "lucide-react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { Server, Activity, TrendingUp, AlertCircle } from "lucide-react";
+import { ContainersPageWrapper } from "./containers-page-wrapper";
+import { ContainersEmptyState } from "./containers-empty-state";
+import { DeployFromCLI } from "./deploy-from-cli";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -18,9 +20,6 @@ export const dynamic = "force-dynamic";
 /**
  * Containers page displaying all containers deployed by the authenticated user's organization.
  * Shows statistics (total, running, building, failed) and a table of containers.
- * Displays quick start instructions when no containers exist.
- *
- * @returns The rendered containers page with statistics and containers table.
  */
 export default async function ContainersPage() {
   const user = await requireAuthWithOrg();
@@ -40,176 +39,75 @@ export default async function ContainersPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto pb-10 space-y-6">
-      {/* Stats Overview - Only show if there are containers */}
-      {containers.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 rounded-none bg-blue-500/20 border border-blue-500/40">
-                <Server className="h-4 w-4 text-blue-400" />
-              </div>
-            </div>
-            <div>
-              <p
-                className="text-xs font-medium text-white/60 uppercase tracking-wider"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Total Containers
-              </p>
-              <p
-                className="text-3xl font-medium mt-1 text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {stats.total}
-              </p>
-            </div>
-          </BrandCard>
+    <ContainersPageWrapper>
+      <div className="mx-auto w-full max-w-[1400px] space-y-6">
+        {/* Stats Grid - only show when containers exist */}
+        {containers.length > 0 && (
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Containers"
+              value={stats.total}
+              icon={<Server className="h-5 w-5 text-[#FF5800]" />}
+            />
+            <StatCard
+              label="Running"
+              value={stats.running}
+              icon={<Activity className="h-5 w-5 text-green-500" />}
+            />
+            <StatCard
+              label="Building"
+              value={stats.building}
+              icon={<TrendingUp className="h-5 w-5 text-yellow-500" />}
+            />
+            <StatCard
+              label="Issues"
+              value={stats.failed}
+              icon={<AlertCircle className="h-5 w-5 text-red-500" />}
+            />
+          </div>
+        )}
 
-          <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 rounded-none bg-green-500/20 border border-green-500/40">
-                <Activity className="h-4 w-4 text-green-400" />
-              </div>
-            </div>
-            <div>
-              <p
-                className="text-xs font-medium text-white/60 uppercase tracking-wider"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Running
-              </p>
-              <p
-                className="text-3xl font-medium mt-1 text-green-400"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {stats.running}
-              </p>
-            </div>
-          </BrandCard>
+        {/* Containers Table or Empty State */}
+        {containers.length === 0 ? (
+          <ContainersEmptyState />
+        ) : (
+          <>
+            {/* Deploy from CLI helper */}
+            <DeployFromCLI />
 
-          <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 rounded-none bg-yellow-500/20 border border-yellow-500/40">
-                <TrendingUp className="h-4 w-4 text-yellow-400" />
-              </div>
+            {/* Table */}
+            <div className="bg-neutral-900 rounded-xl p-4 md:p-6">
+              <Suspense fallback={<ContainersSkeleton />}>
+                <ContainersTable containers={containers} />
+              </Suspense>
             </div>
-            <div>
-              <p
-                className="text-xs font-medium text-white/60 uppercase tracking-wider"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Building
-              </p>
-              <p
-                className="text-3xl font-medium mt-1 text-yellow-400"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {stats.building}
-              </p>
-            </div>
-          </BrandCard>
+          </>
+        )}
+      </div>
+    </ContainersPageWrapper>
+  );
+}
 
-          <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 rounded-none bg-rose-500/20 border border-rose-500/40">
-                <Activity className="h-4 w-4 text-rose-400" />
-              </div>
-            </div>
-            <div>
-              <p
-                className="text-xs font-medium text-white/60 uppercase tracking-wider"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Issues
-              </p>
-              <p
-                className="text-3xl font-medium mt-1 text-rose-400"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                {stats.failed}
-              </p>
-            </div>
-          </BrandCard>
+function StatCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="bg-neutral-900 rounded-xl p-3 md:p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-neutral-500">{label}</p>
+          <p className="text-xl md:text-2xl font-semibold text-white mt-1">
+            {value}
+          </p>
         </div>
-      )}
-
-      {/* Quick Start Card - Show prominently when no containers exist */}
-      {containers.length === 0 ? (
-        <BrandCard className="relative border-dashed shadow-lg shadow-black/50">
-          <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Terminal className="h-6 w-6 text-[#FF5800]" />
-                <h3
-                  className="text-2xl font-normal text-white"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  Get Started with ElizaOS
-                </h3>
-              </div>
-              <p className="text-base text-white/60">
-                Deploy your first ElizaOS container using the command line
-              </p>
-            </div>
-            <div className="space-y-4">
-              <div
-                className="bg-black/60 border border-white/10 p-5 rounded-none text-sm"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                <div className="text-white/50 mb-2"># Install ElizaOS CLI</div>
-                <div className="text-white font-medium">
-                  bun install -g @elizaos/cli
-                </div>
-
-                <div className="text-white/50 mt-4 mb-2 font-sans">
-                  # Deploy your project
-                </div>
-                <div className="text-white">cd your-elizaos-project</div>
-                <div className="text-white font-semibold">elizaos deploy</div>
-              </div>
-              <p className="text-sm text-white/60">
-                Once deployed, you&apos;ll be able to view deployment history,
-                logs, and metrics for your container right here.
-              </p>
-            </div>
-          </div>
-        </BrandCard>
-      ) : (
-        <BrandCard className="relative shadow-lg shadow-black/50">
-          <CornerBrackets size="sm" className="opacity-50" />
-          <div className="relative z-10 space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Terminal className="h-5 w-5 text-[#FF5800]" />
-                <h3
-                  className="text-lg font-normal text-white"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  Deploy from CLI
-                </h3>
-              </div>
-              <p className="text-sm text-white/60">
-                Deploy additional ElizaOS projects using the command line
-              </p>
-            </div>
-            <div
-              className="bg-black/60 border border-white/10 p-4 rounded-none text-sm"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              <div className="text-white/50 mb-2">
-                # From your ElizaOS project directory
-              </div>
-              <div className="text-white font-medium">elizaos deploy</div>
-            </div>
-          </div>
-        </BrandCard>
-      )}
-
-      <Suspense fallback={<ContainersSkeleton />}>
-        <ContainersTable containers={containers} />
-      </Suspense>
+        {icon}
+      </div>
     </div>
   );
 }

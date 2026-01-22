@@ -1,20 +1,20 @@
 /**
  * Template-Specific Prompts
- * 
+ *
  * Concise guidance for each app template type.
  * Each template includes a minimal complete example.
  */
 
 export type TemplateType =
-  | 'chat'
-  | 'agent-dashboard'
-  | 'landing-page'
-  | 'analytics'
-  | 'saas-starter'
-  | 'ai-tool'
-  | 'mcp-service'
-  | 'a2a-agent'
-  | 'blank';
+  | "chat"
+  | "agent-dashboard"
+  | "landing-page"
+  | "analytics"
+  | "saas-starter"
+  | "ai-tool"
+  | "mcp-service"
+  | "a2a-agent"
+  | "blank";
 
 export const TEMPLATE_PROMPTS: Record<TemplateType, string> = {
   chat: `## Chat App
@@ -91,7 +91,7 @@ export default function ChatPage() {
 \`\`\`
 `,
 
-  'agent-dashboard': `## Agent Dashboard
+  "agent-dashboard": `## Agent Dashboard
 
 Build an agent management interface:
 - Agent cards grid
@@ -106,7 +106,7 @@ import { useAgents, useAgentChat } from '@/hooks/use-eliza';
 **page.tsx must render agent list and chat functionality.**
 `,
 
-  'landing-page': `## Landing Page
+  "landing-page": `## Landing Page
 
 Build a marketing/landing page:
 - Hero section
@@ -127,7 +127,7 @@ Build a data visualization dashboard:
 **page.tsx must render the dashboard with actual data.**
 `,
 
-  'saas-starter': `## SaaS Starter
+  "saas-starter": `## SaaS Starter
 
 Build a complete SaaS app:
 
@@ -139,7 +139,7 @@ import { ProtectedRoute, SignInButton, UserMenu, AppCreditDisplay } from '@/comp
 **page.tsx must render a landing page or dashboard based on auth state.**
 `,
 
-  'ai-tool': `## AI Tool
+  "ai-tool": `## AI Tool
 
 Build a focused single-purpose AI tool:
 - Landing with pricing
@@ -150,11 +150,11 @@ Build a focused single-purpose AI tool:
 **page.tsx must render the tool interface.**
 `,
 
-  'mcp-service': `## MCP Service
+  "mcp-service": `## MCP Service
 Build an MCP server. Advanced template.
 `,
 
-  'a2a-agent': `## A2A Agent
+  "a2a-agent": `## A2A Agent
 Build an A2A endpoint. Advanced template.
 `,
 
@@ -165,57 +165,57 @@ Build what the user requests. **page.tsx MUST render the UI.**
 
 export const TEMPLATE_EXAMPLES: Record<TemplateType, string[]> = {
   chat: [
-    'Add sidebar with conversation history',
-    'Add markdown rendering',
-    'Add typing indicator',
-    'Add image upload support',
+    "Add sidebar with conversation history",
+    "Add markdown rendering",
+    "Add typing indicator",
+    "Add image upload support",
   ],
-  'agent-dashboard': [
-    'Add agent cards grid',
-    'Create agent chat modal',
-    'Add analytics charts',
-    'Show conversation logs',
+  "agent-dashboard": [
+    "Add agent cards grid",
+    "Create agent chat modal",
+    "Add analytics charts",
+    "Show conversation logs",
   ],
-  'landing-page': [
-    'Create hero with gradient',
-    'Add features section',
-    'Create pricing table',
-    'Add contact form',
+  "landing-page": [
+    "Create hero with gradient",
+    "Add features section",
+    "Create pricing table",
+    "Add contact form",
   ],
   analytics: [
-    'Add KPI cards',
-    'Create trend chart',
-    'Add date picker',
-    'Add data export',
+    "Add KPI cards",
+    "Create trend chart",
+    "Add date picker",
+    "Add data export",
   ],
-  'saas-starter': [
-    'Create dashboard layout',
-    'Add billing page',
-    'Add settings page',
-    'Create API playground',
+  "saas-starter": [
+    "Create dashboard layout",
+    "Add billing page",
+    "Add settings page",
+    "Create API playground",
   ],
-  'ai-tool': [
-    'Create image generator',
-    'Build text summarizer',
-    'Make code assistant',
-    'Create writing helper',
+  "ai-tool": [
+    "Create image generator",
+    "Build text summarizer",
+    "Make code assistant",
+    "Create writing helper",
   ],
-  'mcp-service': [
-    'Create tool handler',
-    'Add resource provider',
-    'Implement search',
-    'Add prompts',
+  "mcp-service": [
+    "Create tool handler",
+    "Add resource provider",
+    "Implement search",
+    "Add prompts",
   ],
-  'a2a-agent': [
-    'Create agent card',
-    'Add task handler',
-    'Add discovery',
-    'Create router',
+  "a2a-agent": [
+    "Create agent card",
+    "Add task handler",
+    "Add discovery",
+    "Create router",
   ],
   blank: [
-    'Create dashboard',
-    'Add navigation',
-    'Create data table',
-    'Add theme toggle',
+    "Create dashboard",
+    "Add navigation",
+    "Create data table",
+    "Add theme toggle",
   ],
 };

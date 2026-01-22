@@ -138,7 +138,7 @@ function LoginPageContent() {
   };
 
   const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github"
+    provider: "google" | "discord" | "github",
   ) => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning

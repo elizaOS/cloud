@@ -2,22 +2,20 @@
  * Character library grid component displaying characters in grid or list view.
  * Shows empty state when no characters are available.
  * Supports both owned and saved agents with appropriate actions for each.
- *
- * @param props - Character library grid configuration
- * @param props.characters - Array of characters to display (owned and saved)
- * @param props.viewMode - Display mode (grid or list)
- * @param props.onCreateNew - Callback when create button is clicked
- * @param props.onRemoveSaved - Callback when a saved agent is removed
  */
 
 "use client";
 
 import {
-  CharacterLibraryCard,
-  type AgentWithOwnership,
-} from "./character-library-card";
+  AgentCard,
+  type AgentCardData,
+  type ViewMode,
+} from "@/components/agents";
 import { EmptyState } from "./empty-state";
-import type { ViewMode } from "./my-agents-client";
+
+export interface AgentWithOwnership extends AgentCardData {
+  isOwned: boolean;
+}
 
 interface CharacterLibraryGridProps {
   characters: AgentWithOwnership[];
@@ -41,20 +39,16 @@ export function CharacterLibraryGrid({
       className={
         viewMode === "grid"
           ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          : "flex flex-col gap-2"
+          : "grid grid-cols-1 gap-2"
       }
     >
       {characters.map((character) => (
-        <div
+        <AgentCard
           key={character.id}
-          className={viewMode === "grid" ? "max-w-sm" : ""}
-        >
-          <CharacterLibraryCard
-            character={character}
-            viewMode={viewMode}
-            onRemoveSaved={onRemoveSaved}
-          />
-        </div>
+          agent={character}
+          viewMode={viewMode}
+          onRemoveSaved={onRemoveSaved}
+        />
       ))}
     </div>
   );
