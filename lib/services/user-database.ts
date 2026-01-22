@@ -307,7 +307,9 @@ export class UserDatabaseService {
     };
 
     if (includeUri && app.user_database_uri) {
-      status.connectionUri = app.user_database_uri;
+      status.connectionUri =
+        (await fieldEncryption.decryptIfNeeded(app.user_database_uri)) ||
+        undefined;
     }
 
     return status;
