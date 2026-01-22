@@ -341,9 +341,12 @@ export class UserDatabaseService {
     // Only retry if in error state
     if (app.user_database_status !== "error") {
       if (app.user_database_status === "ready") {
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(
+          app.user_database_uri,
+        );
         return {
           success: true,
-          connectionUri: app.user_database_uri || undefined,
+          connectionUri: decryptedUri || undefined,
           projectId: app.user_database_project_id || undefined,
           branchId: app.user_database_branch_id || undefined,
           region: app.user_database_region || region,
