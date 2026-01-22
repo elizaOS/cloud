@@ -270,16 +270,16 @@ export class UserDatabaseService {
    * Get connection URI for an app.
    *
    * @param appId App ID
-   * @returns Connection URI or null if no database
+   * @returns Decrypted connection URI or null if no database
    */
   async getConnectionUri(appId: string): Promise<string | null> {
     const app = await appsRepository.findById(appId);
 
-    if (!app || app.user_database_status !== "ready") {
+    if (!app || app.user_database_status !== "ready" || !app.user_database_uri) {
       return null;
     }
 
-    return app.user_database_uri || null;
+    return fieldEncryption.decryptIfNeeded(app.user_database_uri);
   }
 
   /**
