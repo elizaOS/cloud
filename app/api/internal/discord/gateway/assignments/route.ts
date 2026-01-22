@@ -26,14 +26,19 @@ export async function GET(request: NextRequest) {
   }
 
   // Current and max connection counts to prevent over-claiming
-  const currentCount = parseInt(
+  // Validate to prevent NaN causing silent failures (NaN < NaN is always false)
+  const currentCountRaw = parseInt(
     request.nextUrl.searchParams.get("current") ?? "0",
     10,
   );
-  const maxCount = parseInt(
+  const maxCountRaw = parseInt(
     request.nextUrl.searchParams.get("max") ?? "100",
     10,
   );
+
+  // Use safe defaults if values are invalid
+  const currentCount = Number.isNaN(currentCountRaw) ? 0 : currentCountRaw;
+  const maxCount = Number.isNaN(maxCountRaw) ? 100 : maxCountRaw;
 
   logger.info("[Gateway Assignments] Fetching assignments", {
     podName,

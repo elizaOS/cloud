@@ -396,15 +396,23 @@ export const discordConnectionsRepository = {
 
           // Mark connection as error so it's not silently skipped
           // This makes decryption failures visible in monitoring
-          await db
-            .update(discordConnections)
-            .set({
-              status: "error",
-              error_message: `Token decryption failed: ${errorMessage}`,
-              assigned_pod: null, // Release for retry after key issue resolved
-              updated_at: new Date(),
-            })
-            .where(eq(discordConnections.id, conn.id));
+          // Wrap in try-catch to prevent db errors from failing all assignments
+          try {
+            await db
+              .update(discordConnections)
+              .set({
+                status: "error",
+                error_message: `Token decryption failed: ${errorMessage}`,
+                assigned_pod: null, // Release for retry after key issue resolved
+                updated_at: new Date(),
+              })
+              .where(eq(discordConnections.id, conn.id));
+          } catch (dbError) {
+            logger.error("[DiscordConnections] Failed to mark connection as error", {
+              connectionId: conn.id,
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+            });
+          }
 
           return null;
         }

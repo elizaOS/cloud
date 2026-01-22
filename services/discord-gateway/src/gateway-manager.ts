@@ -305,8 +305,15 @@ export class GatewayManager {
 
     // Clear pod heartbeat from Redis
     if (this.redis) {
-      await this.redis.del(`discord:pod:${this.config.podName}`);
-      await this.redis.srem("discord:active_pods", this.config.podName);
+      try {
+        await this.redis.del(`discord:pod:${this.config.podName}`);
+        await this.redis.srem("discord:active_pods", this.config.podName);
+      } catch (error) {
+        // Log but don't fail shutdown - stale Redis state will expire via TTL
+        logger.error("Failed to clear Redis state during shutdown", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     this.connections.clear();
