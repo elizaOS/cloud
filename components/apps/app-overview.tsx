@@ -53,11 +53,7 @@ type DeploymentStatus =
   | "failed"
   | "draft";
 
-function DeploymentStatusBadge({
-  status,
-}: {
-  status: DeploymentStatus;
-}): JSX.Element {
+function DeploymentStatusBadge({ status }: { status: DeploymentStatus }) {
   switch (status) {
     case "deployed":
       return (

@@ -14,7 +14,7 @@ import {
 import { EmptyState } from "./empty-state";
 
 export interface AgentWithOwnership extends AgentCardData {
-  isOwned: boolean;
+  isOwned?: boolean;
 }
 
 interface CharacterLibraryGridProps {
