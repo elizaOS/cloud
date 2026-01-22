@@ -833,12 +833,12 @@ function WorkflowCanvas({
                     <div className="flex-1 bg-white/5 rounded-2xl rounded-tl-md px-4 py-3">
                       <p className="text-sm text-white/80">{message.content}</p>
                       
-                      {/* Show workflow preview and apply button */}
+                      {/* Show workflow info */}
                       {message.workflow && (
                         <div className="mt-3 space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-white/50">
+                          <div className="flex items-center gap-2 text-xs text-green-400">
                             <span className="w-2 h-2 rounded-full bg-green-400" />
-                            <span>{message.workflow.nodes.length} nodes ready</span>
+                            <span>✓ Applied {message.workflow.nodes.length} nodes to canvas</span>
                           </div>
                           
                           {/* Missing credentials warning */}
@@ -849,14 +849,6 @@ function WorkflowCanvas({
                               </p>
                             </div>
                           )}
-                          
-                          <button
-                            onClick={() => handleApplyWorkflow(message.workflow!)}
-                            className="w-full flex items-center justify-center gap-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-black font-medium text-sm rounded-xl px-4 py-2.5 transition-colors"
-                          >
-                            <Play className="w-4 h-4" />
-                            Apply to Canvas
-                          </button>
                         </div>
                       )}
                     </div>
