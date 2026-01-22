@@ -18,13 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CornerBrackets } from "@/components/brand";
 import {
   Loader2,
   Wallet,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -156,9 +154,7 @@ export function WithdrawDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-black/95 border-white/10 backdrop-blur-xl">
-        <CornerBrackets size="lg" color="#FF5800" className="opacity-30" />
-
+      <DialogContent className="sm:max-w-md bg-neutral-900 border-white/10">
         {state === "confirm" && (
           <>
             <DialogHeader>
@@ -166,7 +162,7 @@ export function WithdrawDialog({
                 <Wallet className="h-5 w-5 text-[#FF5800]" />
                 Withdraw Earnings
               </DialogTitle>
-              <DialogDescription className="text-white/60">
+              <DialogDescription className="text-neutral-400">
                 Mark earnings as withdrawn. These funds are already in your
                 redeemable balance and can be redeemed as elizaOS tokens.
               </DialogDescription>
@@ -174,39 +170,39 @@ export function WithdrawDialog({
 
             <div className="space-y-4 py-4">
               {/* Balance display */}
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
-                <span className="text-sm text-white/60">Available Balance</span>
-                <span className="text-lg font-mono font-bold text-green-400">
+              <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-white/10">
+                <span className="text-sm text-neutral-400">Available Balance</span>
+                <span className="text-lg font-mono font-semibold text-emerald-400">
                   ${withdrawableBalance.toFixed(2)}
                 </span>
               </div>
 
               {/* Amount input */}
               <div className="space-y-2">
-                <label className="text-sm text-white/60">
+                <label className="text-xs text-neutral-400">
                   Withdrawal Amount
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">
                     $
                   </span>
                   <Input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="pl-7 bg-white/5 border-white/10 text-white font-mono"
+                    className="pl-7 bg-black/40 border-white/10 text-white font-mono focus:border-[#FF5800]/50"
                     min={payoutThreshold}
                     max={withdrawableBalance}
                     step="0.01"
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/40">
+                  <span className="text-neutral-500">
                     Minimum: ${payoutThreshold.toFixed(2)}
                   </span>
                   <button
                     onClick={() => setAmount(withdrawableBalance.toFixed(2))}
-                    className="text-[#FF5800] hover:text-[#FF8C00] transition-colors"
+                    className="text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
                   >
                     Withdraw All
                   </button>
@@ -228,14 +224,14 @@ export function WithdrawDialog({
               <Button
                 variant="ghost"
                 onClick={handleClose}
-                className="text-white/60 hover:text-white"
+                className="text-neutral-400 hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleWithdraw}
                 disabled={!isValidAmount}
-                className="bg-gradient-to-r from-[#FF5800] to-[#FF8C00] text-white hover:opacity-90 disabled:opacity-50"
+                className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white disabled:opacity-50"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
                 Withdraw ${parsedAmount.toFixed(2)}
@@ -246,17 +242,13 @@ export function WithdrawDialog({
 
         {state === "processing" && (
           <div className="py-12 text-center">
-            <div className="relative mx-auto w-16 h-16 mb-4">
-              <div className="absolute inset-0 border-2 border-[#FF5800]/30 rounded-lg animate-pulse" />
-              <div className="absolute inset-2 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
-              </div>
-              <CornerBrackets size="sm" color="#FF5800" />
+            <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
             </div>
             <h3 className="text-lg font-medium text-white mb-2">
               Processing Withdrawal
             </h3>
-            <p className="text-sm text-white/60">
+            <p className="text-sm text-neutral-400">
               This may take a few moments...
             </p>
           </div>
@@ -264,35 +256,28 @@ export function WithdrawDialog({
 
         {state === "success" && (
           <div className="py-8 text-center">
-            <div className="relative mx-auto w-20 h-20 mb-6">
-              <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" />
-              <div className="absolute inset-0 flex items-center justify-center bg-green-500/10 rounded-full border border-green-500/30">
-                <CheckCircle2 className="h-10 w-10 text-green-400" />
-              </div>
+            <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center bg-emerald-500/10 rounded-full border border-emerald-500/30">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
-            <h3 className="text-xl font-bold gradient-text mb-2 flex items-center justify-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#FF5800]" />
+            <h3 className="text-xl font-semibold text-white mb-2">
               Withdrawal Complete!
-              <Sparkles className="h-5 w-5 text-[#FF5800]" />
             </h3>
-            <p className="text-white/60 mb-2">
+            <p className="text-neutral-400 mb-2">
               ${parsedAmount.toFixed(2)} marked as withdrawn
             </p>
-            <p className="text-xs text-white/40 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Visit your Earnings page to redeem as elizaOS tokens
             </p>
-            <div className="inline-block p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="text-xs text-white/40">
-                Remaining App Balance
-              </span>
-              <p className="text-lg font-mono font-bold text-white">
+            <div className="inline-block p-3 bg-black/30 rounded-lg border border-white/10">
+              <span className="text-xs text-neutral-500">Remaining App Balance</span>
+              <p className="text-lg font-mono font-semibold text-white">
                 ${newBalance.toFixed(2)}
               </p>
             </div>
             <DialogFooter className="mt-6">
               <Button
                 onClick={handleClose}
-                className="w-full bg-gradient-to-r from-[#FF5800] to-[#FF8C00] text-white"
+                className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
               >
                 Done
               </Button>
@@ -313,7 +298,7 @@ export function WithdrawDialog({
               <Button
                 variant="ghost"
                 onClick={handleClose}
-                className="text-white/60 hover:text-white"
+                className="text-neutral-400 hover:text-white"
               >
                 Cancel
               </Button>

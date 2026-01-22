@@ -69,7 +69,7 @@ export function AnimatedCounter({
     <span
       className={cn(
         "tabular-nums font-mono transition-opacity duration-300",
-        className,
+        className
       )}
     >
       {prefix}
@@ -100,26 +100,26 @@ export function AnimatedCounterWithLabel({
     <div className="flex flex-col">
       <span
         className={cn(
-          "text-xs text-white/50 uppercase tracking-wider mb-1",
-          labelClassName,
+          "text-xs text-neutral-500 mb-1",
+          labelClassName
         )}
       >
         {label}
       </span>
       <AnimatedCounter
         {...counterProps}
-        className={cn("text-2xl font-bold text-white", valueClassName)}
+        className={cn("text-xl font-semibold text-white", valueClassName)}
       />
       {trend && (
         <span
           className={cn(
             "text-xs mt-1 flex items-center gap-1",
-            trend.value >= 0 ? "text-green-400" : "text-red-400",
+            trend.value >= 0 ? "text-emerald-400" : "text-red-400"
           )}
         >
           <span>{trend.value >= 0 ? "↑" : "↓"}</span>
           <span>${Math.abs(trend.value).toFixed(2)}</span>
-          <span className="text-white/40">{trend.period}</span>
+          <span className="text-neutral-500">{trend.period}</span>
         </span>
       )}
     </div>
