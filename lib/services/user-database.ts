@@ -92,9 +92,12 @@ export class UserDatabaseService {
     // Already has a database?
     if (app.user_database_status === "ready" && app.user_database_uri) {
       logger.info("App already has database", { appId });
+      const decryptedUri = await fieldEncryption.decryptIfNeeded(
+        app.user_database_uri,
+      );
       return {
         success: true,
-        connectionUri: app.user_database_uri,
+        connectionUri: decryptedUri || undefined,
         projectId: app.user_database_project_id || undefined,
         branchId: app.user_database_branch_id || undefined,
         region: app.user_database_region || region,
@@ -119,9 +122,12 @@ export class UserDatabaseService {
         logger.info("Database was provisioned by concurrent request", {
           appId,
         });
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(
+          currentApp.user_database_uri,
+        );
         return {
           success: true,
-          connectionUri: currentApp.user_database_uri,
+          connectionUri: decryptedUri || undefined,
           projectId: currentApp.user_database_project_id || undefined,
           branchId: currentApp.user_database_branch_id || undefined,
           region: currentApp.user_database_region || region,
