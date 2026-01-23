@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { nanoid } from "nanoid";
+import { generateRandomName } from "@/lib/utils/random-names";
 import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
@@ -1653,6 +1655,16 @@ export default function AppCreatorPage() {
   }, [session, status]);
 
   const startSession = useCallback(async () => {
+    // Auto-generate app name with unique suffix for new apps
+    const generatedAppName = !isEditMode
+      ? `${generateRandomName()}-${nanoid(6)}`
+      : appName;
+    
+    // Update the appName state so it's available for display
+    if (!isEditMode) {
+      setAppName(generatedAppName);
+    }
+
     setIsLoading(true);
     setStatus("initializing");
     addLog("Starting sandbox environment...", "info");
@@ -1674,7 +1686,7 @@ export default function AppCreatorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appId: appIdFromUrl || undefined,
-          appName: isEditMode ? undefined : appName,
+          appName: isEditMode ? undefined : generatedAppName,
           appDescription: isEditMode ? undefined : appDescription,
           initialPrompt,
           templateType,
@@ -2885,97 +2897,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
 
             <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
-              {/* App Name */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white/60 text-xs font-medium">
-                    App Name <span className="text-red-400">*</span>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {nameValidation.isChecking && (
-                      <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                    )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === true &&
-                      appName.trim().length >= 2 && (
-                        <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                          <Check className="h-3 w-3" />
-                          Available
-                        </span>
-                      )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === false && (
-                        <span className="flex items-center gap-1 text-[10px] text-red-400">
-                          <AlertCircle className="h-3 w-3" />
-                          Taken
-                        </span>
-                      )}
-                    <span
-                      className={`text-[10px] font-mono ${
-                        appName.length > 100
-                          ? "text-red-400"
-                          : appName.length > 80
-                            ? "text-amber-400"
-                            : "text-white/40"
-                      }`}
-                    >
-                      {appName.length}/100
-                    </span>
-                  </div>
-                </div>
-                <Input
-                  value={appName}
-                  onChange={(e) => setAppName(e.target.value)}
-                  placeholder="My Awesome App"
-                  className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
-                    nameValidation.error
-                      ? "border-red-500/50 focus:border-red-500"
-                      : nameValidation.isAvailable === true &&
-                          appName.trim().length >= 2
-                        ? "border-emerald-500/30 focus:border-emerald-500"
-                        : "border-white/10 focus:border-[#FF5800]"
-                  }`}
-                  maxLength={100}
-                />
-                {nameValidation.error && (
-                  <p className="text-xs text-red-400 flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    {nameValidation.error}
-                    {nameValidation.suggestedName && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAppName(nameValidation.suggestedName!)
-                        }
-                        className="ml-1 text-[#FF5800] hover:underline"
-                      >
-                        Try &quot;{nameValidation.suggestedName}&quot;
-                      </button>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Description / Prompt */}
+              {/* Main Prompt - Only input needed */}
               <div className="space-y-2">
                 <div className="flex items-end justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-white/60 text-xs font-medium">
-                      What should it do? <span className="text-red-400">*</span>
-                    </Label>
-                    <button
-                      onClick={generateAIDescription}
-                      disabled={isGeneratingDescription || !appName.trim()}
-                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingDescription ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-3 w-3" />
-                      )}
-                      Generate
-                    </button>
-                  </div>
+                  <Label className="text-white/60 text-xs font-medium">
+                    What do you want to build?
+                  </Label>
                   <span
                     className={`text-[10px] font-mono ${
                       appDescription.length > 500
@@ -2992,7 +2919,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Textarea
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
-                  placeholder="Describe what your app should do... (minimum 10 characters)"
+                  placeholder="Describe what you want to build..."
                   className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
                     appDescription.length > 500
                       ? "border-red-500/50 focus:border-red-500"
@@ -3023,11 +2950,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onClick={startSession}
                 disabled={
                   isLoading ||
-                  !appName.trim() ||
-                  appName.trim().length < 2 ||
-                  appName.length > 100 ||
-                  nameValidation.isChecking ||
-                  nameValidation.isAvailable === false ||
                   appDescription.length < MIN_DESCRIPTION_LENGTH
                 }
                 className="group flex items-center gap-2 px-6 py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
@@ -3036,11 +2958,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Launching...
-                  </>
-                ) : nameValidation.isChecking ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking...
                   </>
                 ) : (
                   <>
