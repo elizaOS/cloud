@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { nanoid } from "nanoid";
+import { generateRandomName } from "@/lib/utils/random-names";
 import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
@@ -457,6 +459,7 @@ export default function AppCreatorPage() {
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection removed - agents can be added later from the app builder
   const selectedAgentIds: string[] = [];
+  // App name is auto-generated when building starts (user doesn't need to provide it)
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -465,20 +468,6 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
-  // Name validation state
-  const [nameValidation, setNameValidation] = useState<{
-    isChecking: boolean;
-    isAvailable: boolean | null;
-    error: string | null;
-    suggestedName: string | null;
-  }>({
-    isChecking: false,
-    isAvailable: null,
-    error: null,
-    suggestedName: null,
-  });
-  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Minimum description length
   const MIN_DESCRIPTION_LENGTH = 10;
 
@@ -508,6 +497,9 @@ export default function AppCreatorPage() {
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  // Track if first generation has completed (to hide template preview until then)
+  const [hasCompletedFirstGeneration, setHasCompletedFirstGeneration] =
+    useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -550,84 +542,6 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   // ============================================================================
-  // DEBOUNCED APP NAME AVAILABILITY CHECK
-  // ============================================================================
-  useEffect(() => {
-    // Clear any pending timeout
-    if (nameCheckTimeoutRef.current) {
-      clearTimeout(nameCheckTimeoutRef.current);
-    }
-
-    const trimmedName = appName.trim();
-
-    // Reset validation if name is empty or too short
-    if (!trimmedName || trimmedName.length < 2) {
-      setNameValidation({
-        isChecking: false,
-        isAvailable: null,
-        error:
-          trimmedName.length > 0 && trimmedName.length < 2
-            ? "Name must be at least 2 characters"
-            : null,
-        suggestedName: null,
-      });
-      return;
-    }
-
-    // Set checking state
-    setNameValidation((prev) => ({
-      ...prev,
-      isChecking: true,
-      error: null,
-    }));
-
-    // Debounce the API call
-    nameCheckTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/v1/apps/check-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setNameValidation({
-            isChecking: false,
-            isAvailable: data.available,
-            error: data.available
-              ? null
-              : data.conflictType === "subdomain"
-                ? "This name would create a subdomain that is already in use"
-                : "An app with this name already exists",
-            suggestedName: data.suggestedName || null,
-          });
-        } else {
-          setNameValidation({
-            isChecking: false,
-            isAvailable: null,
-            error: null,
-            suggestedName: null,
-          });
-        }
-      } catch {
-        setNameValidation({
-          isChecking: false,
-          isAvailable: null,
-          error: null,
-          suggestedName: null,
-        });
-      }
-    }, 500); // 500ms debounce
-
-    return () => {
-      if (nameCheckTimeoutRef.current) {
-        clearTimeout(nameCheckTimeoutRef.current);
-      }
-    };
-  }, [appName]);
-
-  // ============================================================================
   // SIMPLE INITIALIZATION FLOW
   // 1. New app (no appId) → show setup wizard
   // 2. Edit app (appId) → load app data, then start/connect to session
@@ -650,6 +564,7 @@ export default function AppCreatorPage() {
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
       setIframeLoaded(false);
+      setHasCompletedFirstGeneration(false);
 
       if (appChanged) {
         setAppData(null);
@@ -766,6 +681,8 @@ export default function AppCreatorPage() {
           clearTimeout(timeout);
           setStatus("ready");
           setSandboxHealthy(true);
+          // Reconnecting to existing session - app likely already generated
+          setHasCompletedFirstGeneration(true);
         } catch {
           // Sandbox not responding - needs recovery
           setStatus("recovering");
@@ -1296,6 +1213,8 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
+                // Restored session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1334,6 +1253,8 @@ export default function AppCreatorPage() {
       if (errorMsg.includes("Current status: ready")) {
         addLog("Session is already ready", "info");
         setStatus("ready");
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         return;
       }
 
@@ -1458,6 +1379,8 @@ export default function AppCreatorPage() {
                 setStatus("ready");
                 setSandboxHealthy(true);
                 healthCheckFailCountRef.current = 0;
+                // Recovered session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1493,6 +1416,8 @@ export default function AppCreatorPage() {
         setStatus("ready");
         setSandboxHealthy(true);
         healthCheckFailCountRef.current = 0;
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         toast.dismiss(toastId);
         return;
       }
@@ -1653,6 +1578,16 @@ export default function AppCreatorPage() {
   }, [session, status]);
 
   const startSession = useCallback(async () => {
+    // Auto-generate app name with unique suffix for new apps
+    const generatedAppName = !isEditMode
+      ? `${generateRandomName()}-${nanoid(6)}`
+      : appName;
+    
+    // Update the appName state so it's available for display
+    if (!isEditMode) {
+      setAppName(generatedAppName);
+    }
+
     setIsLoading(true);
     setStatus("initializing");
     addLog("Starting sandbox environment...", "info");
@@ -1662,10 +1597,27 @@ export default function AppCreatorPage() {
 
     const shouldAutoScaffold =
       !isEditMode && (appDescription || templateType !== "blank");
+    
+    // Check if description is too vague/short to build meaningfully
+    const isDescriptionVague = appDescription && (
+      appDescription.trim().length < 20 ||
+      appDescription.trim().split(/\s+/).length < 4 ||
+      /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
+      /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim()) // all consonants
+    );
+    
+    // User's message (what they see in chat) - just their raw input
     const initialPrompt = shouldAutoScaffold
       ? appDescription
-        ? `Set up the initial app structure based on these requirements:\n\n**Template:** ${templateType}\n**Description:** ${appDescription}\n\nPlease scaffold the project with all necessary components, pages, and styling to match this description.`
+        ? appDescription // Just show their raw description
         : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
+      : undefined;
+    
+    // Description sent to system prompt - includes clarification instructions if vague
+    const effectiveDescription = appDescription
+      ? isDescriptionVague
+        ? `IMPORTANT: The user's input "${appDescription}" appears to be vague, a typo, or placeholder text. DO NOT try to build anything yet. Instead, respond conversationally and ask clarifying questions to understand what they actually want. Ask about: what problem to solve, who will use it, and 2-3 key features. Be friendly and helpful. Only start building once you understand their needs.`
+        : appDescription
       : undefined;
 
     try {
@@ -1674,8 +1626,8 @@ export default function AppCreatorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appId: appIdFromUrl || undefined,
-          appName: isEditMode ? undefined : appName,
-          appDescription: isEditMode ? undefined : appDescription,
+          appName: isEditMode ? undefined : generatedAppName,
+          appDescription: isEditMode ? undefined : effectiveDescription,
           initialPrompt,
           templateType,
           includeMonetization,
@@ -1806,6 +1758,10 @@ export default function AppCreatorPage() {
                     } as Message,
                   ]);
                 } else {
+                  // In edit mode, app already exists - show preview immediately
+                  if (isEditMode) {
+                    setHasCompletedFirstGeneration(true);
+                  }
                   const contextMessage = sourceContext
                     ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
                     : "";
@@ -1960,6 +1916,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
+                // Only mark first generation complete if actual files were modified
+                if (data.session.initialPromptResult?.filesAffected?.length > 0) {
+                  setHasCompletedFirstGeneration(true);
+                }
 
                 if (
                   data.session.initialPromptResult &&
@@ -1981,9 +1941,20 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   const hasBuildErrors =
                     result.output?.includes("BUILD ERRORS");
 
+
+                  // Check if we have a meaningful LLM response (not just default text)
+                  const llmOutput = result.output?.trim();
+                  const hasLLMOutput =
+                    llmOutput &&
+                    llmOutput !== "Changes applied!" &&
+                    !llmOutput.startsWith("Error:") &&
+                    !hasBuildErrors;
                   let assistantContent = "";
                   if (hasBuildErrors) {
                     assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (hasLLMOutput) {
+                    // Use the actual LLM response (e.g., clarifying questions for vague prompts)
+                    assistantContent = llmOutput;
                   } else if (fileCount > 0) {
                     assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
                   } else {
@@ -2493,6 +2464,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
         setStatus("ready");
 
+        // Only mark first generation complete if actual files were modified (not just clarifications)
+        if (finalData.filesAffected && finalData.filesAffected.length > 0) {
+          setHasCompletedFirstGeneration(true);
+        }
         // Refresh git status after prompt completes
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
@@ -2885,97 +2860,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
 
             <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
-              {/* App Name */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white/60 text-xs font-medium">
-                    App Name <span className="text-red-400">*</span>
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {nameValidation.isChecking && (
-                      <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                    )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === true &&
-                      appName.trim().length >= 2 && (
-                        <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                          <Check className="h-3 w-3" />
-                          Available
-                        </span>
-                      )}
-                    {!nameValidation.isChecking &&
-                      nameValidation.isAvailable === false && (
-                        <span className="flex items-center gap-1 text-[10px] text-red-400">
-                          <AlertCircle className="h-3 w-3" />
-                          Taken
-                        </span>
-                      )}
-                    <span
-                      className={`text-[10px] font-mono ${
-                        appName.length > 100
-                          ? "text-red-400"
-                          : appName.length > 80
-                            ? "text-amber-400"
-                            : "text-white/40"
-                      }`}
-                    >
-                      {appName.length}/100
-                    </span>
-                  </div>
-                </div>
-                <Input
-                  value={appName}
-                  onChange={(e) => setAppName(e.target.value)}
-                  placeholder="My Awesome App"
-                  className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
-                    nameValidation.error
-                      ? "border-red-500/50 focus:border-red-500"
-                      : nameValidation.isAvailable === true &&
-                          appName.trim().length >= 2
-                        ? "border-emerald-500/30 focus:border-emerald-500"
-                        : "border-white/10 focus:border-[#FF5800]"
-                  }`}
-                  maxLength={100}
-                />
-                {nameValidation.error && (
-                  <p className="text-xs text-red-400 flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    {nameValidation.error}
-                    {nameValidation.suggestedName && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAppName(nameValidation.suggestedName!)
-                        }
-                        className="ml-1 text-[#FF5800] hover:underline"
-                      >
-                        Try &quot;{nameValidation.suggestedName}&quot;
-                      </button>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Description / Prompt */}
+              {/* Main Prompt - Only input needed */}
               <div className="space-y-2">
                 <div className="flex items-end justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-white/60 text-xs font-medium">
-                      What should it do? <span className="text-red-400">*</span>
-                    </Label>
-                    <button
-                      onClick={generateAIDescription}
-                      disabled={isGeneratingDescription || !appName.trim()}
-                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingDescription ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-3 w-3" />
-                      )}
-                      Generate
-                    </button>
-                  </div>
+                  <Label className="text-white/60 text-xs font-medium">
+                    What do you want to build?
+                  </Label>
                   <span
                     className={`text-[10px] font-mono ${
                       appDescription.length > 500
@@ -2992,7 +2882,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <Textarea
                   value={appDescription}
                   onChange={(e) => setAppDescription(e.target.value)}
-                  placeholder="Describe what your app should do... (minimum 10 characters)"
+                  placeholder="Describe what you want to build..."
                   className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
                     appDescription.length > 500
                       ? "border-red-500/50 focus:border-red-500"
@@ -3023,11 +2913,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onClick={startSession}
                 disabled={
                   isLoading ||
-                  !appName.trim() ||
-                  appName.trim().length < 2 ||
-                  appName.length > 100 ||
-                  nameValidation.isChecking ||
-                  nameValidation.isAvailable === false ||
                   appDescription.length < MIN_DESCRIPTION_LENGTH
                 }
                 className="group flex items-center gap-2 px-6 py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
@@ -3036,11 +2921,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Launching...
-                  </>
-                ) : nameValidation.isChecking ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking...
                   </>
                 ) : (
                   <>
@@ -3790,27 +3670,39 @@ ANTHROPIC_API_KEY=your_key_here`}
                     : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
-                {/* Loading overlay - Premium */}
+                {/* Building overlay - Show until first generation completes */}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0b] to-[#080809] flex items-center justify-center transition-opacity duration-500 ${
-                    iframeLoaded && previewTab === "preview"
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 z-20 ${
+                    iframeLoaded && previewTab === "preview" && hasCompletedFirstGeneration
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
                   }`}
                 >
-                  <div className="text-center">
-                    <div className="relative inline-block mb-5">
-                      <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
-                      <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                  {/* Background with gradient and grid */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f12] via-[#0a0a0d] to-[#080810]" />
+                  {/* Subtle grid pattern */}
+                  <div 
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                      backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                      backgroundSize: '40px 40px'
+                    }}
+                  />
+                  {/* Subtle radial glow */}
+                  <div className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)' }} />
+                  
+                  <div className="text-center relative z-10">
+                    <div className="mb-6">
+                      <Sparkles className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse" style={{ opacity: 0.4 }} strokeWidth={1.5} />
                     </div>
                     <p
-                      className="text-white/60 text-sm font-medium"
+                      className="text-white/50 text-lg font-medium tracking-wide"
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
-                      Loading preview...
+                      {hasCompletedFirstGeneration ? "Loading preview..." : "Building your dream..."}
                     </p>
-                    <p className="text-white/25 text-xs mt-1">
-                      Your app is starting up
+                    <p className="text-white/20 text-sm mt-2">
+                      {hasCompletedFirstGeneration ? "Your app is starting up" : "AI is generating your app"}
                     </p>
                   </div>
                 </div>

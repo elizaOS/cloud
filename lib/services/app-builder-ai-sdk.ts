@@ -418,15 +418,21 @@ CRITICAL RULES:
         // Get tool calls (already resolved after fullStream completes)
         const toolCalls = await result.toolCalls;
 
-        // ALL text output goes to reasoning - it's the model's thinking process
-        // Only the FINAL iteration (no tool calls) might have actual final output
-        const allTextThisIteration = (
-          reasoningText +
-          "\n" +
-          assistantText
-        ).trim();
-        if (allTextThisIteration) {
-          allReasoningText += allTextThisIteration + "\n\n";
+        // Accumulate reasoning text (chain-of-thought, internal thinking)
+        // Only add to reasoning if there's actual reasoningText (CoT tokens)
+        // OR if there will be tool calls (intermediate thinking before actions)
+        // Don't add assistantText to reasoning if it's the final output (no tool calls)
+        const hasToolCalls = toolCalls && toolCalls.length > 0;
+        
+        if (reasoningText.trim()) {
+          // Always capture explicit reasoning/CoT tokens
+          allReasoningText += reasoningText.trim() + "\n\n";
+        }
+        
+        if (hasToolCalls && assistantText.trim()) {
+          // Only add assistant text to reasoning if there are tool calls
+          // (this is intermediate thinking, not final output)
+          allReasoningText += assistantText.trim() + "\n\n";
         }
 
         // Only set outputText from the LAST iteration (when no more tools)
@@ -449,7 +455,7 @@ CRITICAL RULES:
             type: "tool_call",
             toolName: tc.toolName,
             args: toolArgs,
-            reasoningContext: allTextThisIteration || undefined, // Include reasoning that led to this tool
+            reasoningContext: (reasoningText || assistantText) || undefined, // Include reasoning that led to this tool
           };
           if (callbacks?.onToolCall)
             await callbacks.onToolCall(tc.toolName, toolArgs);
@@ -542,11 +548,20 @@ CRITICAL RULES:
         durationMs: Date.now() - startTime,
       });
 
+      // Only include reasoning if it's meaningful and different from output
+      // This prevents conversational responses from being hidden in a collapsed accordion
+      const finalReasoning = allReasoningText.trim();
+      const finalOutput = outputText || "Changes applied!";
+      const shouldIncludeReasoning = finalReasoning && 
+        finalReasoning !== finalOutput && 
+        !finalOutput.includes(finalReasoning) &&
+        !finalReasoning.includes(finalOutput);
+
       yield {
         type: "complete",
         result: {
-          output: outputText || "Changes applied!",
-          reasoning: allReasoningText.trim() || undefined,
+          output: finalOutput,
+          reasoning: shouldIncludeReasoning ? finalReasoning : undefined,
           filesAffected: [...new Set(filesAffected)],
           success: true,
           toolCallCount,
@@ -570,11 +585,20 @@ CRITICAL RULES:
       logger.error("AI execution failed", { sandboxId, error: errorMessage });
 
       yield { type: "error", error: errorMessage };
+      
+      // Apply same reasoning logic for error case
+      const errorFinalReasoning = allReasoningText.trim();
+      const errorFinalOutput = outputText || "Operation failed";
+      const errorShouldIncludeReasoning = errorFinalReasoning && 
+        errorFinalReasoning !== errorFinalOutput && 
+        !errorFinalOutput.includes(errorFinalReasoning) &&
+        !errorFinalReasoning.includes(errorFinalOutput);
+        
       yield {
         type: "complete",
         result: {
-          output: outputText || "Operation failed",
-          reasoning: allReasoningText.trim() || undefined,
+          output: errorFinalOutput,
+          reasoning: errorShouldIncludeReasoning ? errorFinalReasoning : undefined,
           filesAffected: [...new Set(filesAffected)],
           success: false,
           error: errorMessage,
