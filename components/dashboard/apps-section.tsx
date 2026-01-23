@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { HelpCircle, Sparkles, Activity, Users } from "lucide-react";
+import { Sparkles, Activity, Users, Info } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
                   type="button"
                   className="text-white/40 hover:text-white/70 transition-colors"
                 >
-                  <HelpCircle className="h-4 w-4" />
+                  <Info className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent
