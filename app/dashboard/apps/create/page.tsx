@@ -499,7 +499,7 @@ export default function AppCreatorPage() {
   // Input is managed by Zustand for isolated re-renders - see useChatInput
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
