@@ -24,7 +24,6 @@ import {
   ChatInput,
   HistoryTab,
   SessionLoader,
-  AgentPicker,
   WebTerminal,
 } from "@/components/app-builder";
 import {
@@ -74,7 +73,6 @@ import {
   RefreshCw,
   ExternalLink,
   ArrowLeft,
-  ArrowRight,
   Bot,
   Square,
   Copy,
@@ -95,20 +93,14 @@ import {
   History,
   Cloud,
   CloudOff,
-  ChevronLeft,
-  ChevronRight,
   Rocket,
   FolderCode,
   MessageSquare,
   FileCode,
   Globe,
   Wand2,
-  DollarSign,
-  LineChart,
   X,
   MoreVertical,
-  Users,
-  Database,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -462,22 +454,9 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = agents
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
-  // Agent selection for the app
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
-  const [availableAgents, setAvailableAgents] = useState<
-    Array<{
-      id: string;
-      name: string;
-      username?: string | null;
-      avatar_url?: string | null;
-      bio?: string | string[];
-      is_public?: boolean;
-    }>
-  >([]);
-  const [loadingAgents, setLoadingAgents] = useState(true);
+  // Agent selection removed - agents can be added later from the app builder
+  const selectedAgentIds: string[] = [];
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -510,18 +489,17 @@ export default function AppCreatorPage() {
   );
   const [includeMonetization, setIncludeMonetization] = useState(true);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
-  const [includePersistentStorage, setIncludePersistentStorage] = useState(false);
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(true);
-  const [templatePage, setTemplatePage] = useState(0);
-  const TEMPLATES_PER_PAGE = 4;
+  const [includePersistentStorage, setIncludePersistentStorage] =
+    useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   // Input is managed by Zustand for isolated re-renders - see useChatInput
-  const [isLoading, setIsLoading] = useState(true);
-  const [copied, setCopied] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -529,16 +507,16 @@ export default function AppCreatorPage() {
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
-  const [iframeLoaded, setIframeLoaded] = useState(true);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [isExtending, setIsExtending] = useState(true);
+  const [isExtending, setIsExtending] = useState(false);
   const [snapshotInfo, setSnapshotInfo] = useState<{
     canRestore: boolean;
     githubRepo: string | null;
     lastBackup: string | null;
   } | null>(null);
-  const [isRestoring, setIsRestoring] = useState(true);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<{
     current: number;
     total: number;
@@ -551,8 +529,8 @@ export default function AppCreatorPage() {
 
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
-  const [isSaving, setIsSaving] = useState(true);
-  const [isDeploying, setIsDeploying] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [deployPhase, setDeployPhase] = useState<"saving" | "deploying" | null>(
     null,
   );
@@ -648,57 +626,6 @@ export default function AppCreatorPage() {
       }
     };
   }, [appName]);
-
-  // ============================================================================
-  // FETCH USER'S AGENTS FOR APP AGENT SELECTION
-  // ============================================================================
-  useEffect(() => {
-    // Only fetch when we reach the agents step (step 3) or when in building mode
-    if (setupStep === 3 || step === "building") {
-      const fetchAgents = async () => {
-        if (availableAgents.length > 0) return; // Already fetched
-        setLoadingAgents(true);
-        try {
-          const response = await fetchWithRetry(
-            "/api/my-agents/characters?limit=100",
-          );
-          if (response.ok) {
-            const data = await response.json();
-            if (
-              data.success &&
-              data.data?.characters &&
-              Array.isArray(data.data.characters)
-            ) {
-              setAvailableAgents(
-                data.data.characters.map(
-                  (agent: {
-                    id: string;
-                    name: string;
-                    username?: string | null;
-                    avatar_url?: string | null;
-                    bio?: string | string[];
-                    is_public?: boolean;
-                  }) => ({
-                    id: agent.id,
-                    name: agent.name,
-                    username: agent.username,
-                    avatar_url: agent.avatar_url,
-                    bio: agent.bio,
-                    is_public: agent.is_public,
-                  }),
-                ),
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch agents:", error);
-        } finally {
-          setLoadingAgents(false);
-        }
-      };
-      fetchAgents();
-    }
-  }, [setupStep, step, availableAgents.length]);
 
   // ============================================================================
   // SIMPLE INITIALIZATION FLOW
@@ -2918,93 +2845,10 @@ ANTHROPIC_API_KEY=your_key_here`}
     }
   };
 
-  // Get the selected template data
-  const selectedTemplate = TEMPLATE_OPTIONS.find(
-    (t) => t.value === templateType,
-  );
-
   if (viewState === "setup") {
     return (
       <ScrollArea className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A]">
         <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-6">
-          {/* Step indicators */}
-          <div className="flex items-center justify-center mb-6">
-            {/* Mobile step indicator */}
-            <div className="flex md:hidden items-center gap-1.5">
-              {[1, 2, 3].map((num) => (
-                <div
-                  key={num}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    setupStep === num
-                      ? "bg-[#FF5800] w-6"
-                      : setupStep > num
-                        ? "bg-white/40 w-2"
-                        : "bg-white/10 w-2"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Desktop step indicator */}
-            <div className="hidden md:flex items-center gap-1">
-              {[
-                { num: 1, label: "Template" },
-                { num: 2, label: "Details" },
-                { num: 3, label: "Agents" },
-              ].map((s, i) => (
-                <div key={s.num} className="flex items-center">
-                  <button
-                    onClick={() => {
-                      if (
-                        s.num === 1 ||
-                        (s.num === 2 && templateType) ||
-                        (s.num === 3 && appName.trim())
-                      ) {
-                        setSetupStep(s.num as 1 | 2 | 3);
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
-                      setupStep === s.num
-                        ? "bg-white/10 border-white/20"
-                        : setupStep > s.num
-                          ? "text-white/60 hover:text-white/80 hover:bg-white/5 border-transparent"
-                          : "text-white/30 border-transparent"
-                    }`}
-                    disabled={s.num > 1 && !templateType && s.num !== setupStep}
-                  >
-                    <span
-                      className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-300 ${
-                        setupStep === s.num
-                          ? "bg-[#FF5800] text-white"
-                          : setupStep > s.num
-                            ? "bg-white/20 text-white"
-                            : "bg-white/5 text-white/40"
-                      }`}
-                    >
-                      {setupStep > s.num ? (
-                        <Check className="h-3 w-3" />
-                      ) : (
-                        s.num
-                      )}
-                    </span>
-                    <span
-                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
-                    >
-                      {s.label}
-                    </span>
-                  </button>
-                  {i < 2 && (
-                    <div
-                      className={`w-3 h-px ml-1 transition-colors duration-300 ${
-                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {sourceContext && (
             <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
@@ -3029,624 +2873,197 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
           )}
 
-          {/* STEP 1: Template Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 1 && (
-              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                {/* Header */}
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    What are you building?
-                  </h2>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Choose a template to get started
-                  </p>
-                </div>
+          {/* Simplified App Creation - Just Name and Prompt */}
+          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                Create your app
+              </h2>
+              <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                Tell us what you want to build
+              </p>
+            </div>
 
-                {/* Template cards - 2x3 grid showing all 6 templates */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-                  {TEMPLATE_OPTIONS.map((template, idx) => {
-                    const Icon = template.icon;
-                    const isSelected = templateType === template.value;
-                    const isDisabled = template.comingSoon;
-
-                    return (
-                      <button
-                        key={template.value}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            setTemplateType(template.value);
-                            setSetupStep(2);
-                          }
-                        }}
-                        disabled={isDisabled}
-                        className={`group relative p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                          isDisabled
-                            ? "border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed"
-                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                        }`}
-                      >
-                        {/* Coming soon badge */}
-                        {isDisabled && (
-                          <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full">
-                            <span className="text-[10px] font-medium text-white/40 uppercase">
-                              Soon
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Mobile: horizontal layout / Desktop: vertical layout */}
-                        <div className="flex items-start gap-3 md:block">
-                          {/* Icon */}
-                          <div className="flex-shrink-0 md:mb-3">
-                            <div className="inline-flex p-2 md:p-2.5 rounded-xl bg-white/5 group-hover:bg-white/10 transition-all duration-300">
-                              <Icon
-                                className="h-4 w-4 md:h-5 md:w-5"
-                                style={{ color: template.color }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-white mb-0.5 md:mb-1">
-                              {template.label}
-                            </h3>
-                            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed">
-                              {template.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Tech stack */}
-                        <div className="hidden md:flex flex-wrap gap-1 mt-3 pt-3 border-t border-white/[0.06]">
-                          {template.techStack.map((tech) => (
-                            <span
-                              key={tech}
-                              className="px-1.5 py-0.5 text-[10px] text-white/50 bg-black/80 rounded"
-                            >
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* STEP 2: App Details */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 2 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    Name your app
-                  </h2>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Give it a memorable identity
-                  </p>
-                </div>
-
-                <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
-                  {/* App Name */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium">
-                        App Name <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        {nameValidation.isChecking && (
-                          <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                        )}
-                        {!nameValidation.isChecking &&
-                          nameValidation.isAvailable === true &&
-                          appName.trim().length >= 2 && (
-                            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                              <Check className="h-3 w-3" />
-                              Available
-                            </span>
-                          )}
-                        {!nameValidation.isChecking &&
-                          nameValidation.isAvailable === false && (
-                            <span className="flex items-center gap-1 text-[10px] text-red-400">
-                              <AlertCircle className="h-3 w-3" />
-                              Taken
-                            </span>
-                          )}
-                        <span
-                          className={`text-[10px] font-mono ${
-                            appName.length > 100
-                              ? "text-red-400"
-                              : appName.length > 80
-                                ? "text-amber-400"
-                                : "text-white/40"
-                          }`}
-                        >
-                          {appName.length}/100
+            <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
+              {/* App Name */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-white/60 text-xs font-medium">
+                    App Name <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    {nameValidation.isChecking && (
+                      <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                    )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === true &&
+                      appName.trim().length >= 2 && (
+                        <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                          <Check className="h-3 w-3" />
+                          Available
                         </span>
-                      </div>
-                    </div>
-                    <Input
-                      value={appName}
-                      onChange={(e) => setAppName(e.target.value)}
-                      placeholder="My Awesome App"
-                      className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
-                        nameValidation.error
-                          ? "border-red-500/50 focus:border-red-500"
-                          : nameValidation.isAvailable === true &&
-                              appName.trim().length >= 2
-                            ? "border-emerald-500/30 focus:border-emerald-500"
-                            : "border-white/10 focus:border-[#FF5800]"
-                      }`}
-                      maxLength={100}
-                    />
-                    {nameValidation.error && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {nameValidation.error}
-                        {nameValidation.suggestedName && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAppName(nameValidation.suggestedName!)
-                            }
-                            className="ml-1 text-[#FF5800] hover:underline"
-                          >
-                            Try &quot;{nameValidation.suggestedName}&quot;
-                          </button>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <div className="flex items-end justify-between">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-white/60 text-xs font-medium">
-                          Description <span className="text-red-400">*</span>
-                        </Label>
-                        <button
-                          onClick={generateAIDescription}
-                          disabled={isGeneratingDescription || !appName.trim()}
-                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {isGeneratingDescription ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Wand2 className="h-3 w-3" />
-                          )}
-                          Generate
-                        </button>
-                      </div>
-                      <span
-                        className={`text-[10px] font-mono ${
-                          appDescription.length > 500
-                            ? "text-red-400"
-                            : appDescription.length < MIN_DESCRIPTION_LENGTH &&
-                                appDescription.length > 0
-                              ? "text-amber-400"
-                              : "text-white/40"
-                        }`}
-                      >
-                        {appDescription.length}/500
-                      </span>
-                    </div>
-                    <Textarea
-                      value={appDescription}
-                      onChange={(e) => setAppDescription(e.target.value)}
-                      placeholder="Describe what your app should do... (minimum 10 characters)"
-                      className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
-                        appDescription.length > 500
-                          ? "border-red-500/50 focus:border-red-500"
-                          : appDescription.length > 0 &&
-                              appDescription.length < MIN_DESCRIPTION_LENGTH
-                            ? "border-amber-500/30 focus:border-amber-500"
-                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
-                              ? "border-emerald-500/30 focus:border-emerald-500"
-                              : "border-white/10 focus:border-[#FF5800]"
-                      }`}
-                    />
-                    {appDescription.length > 0 &&
-                      appDescription.length < MIN_DESCRIPTION_LENGTH && (
-                        <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          Description must be at least {
-                            MIN_DESCRIPTION_LENGTH
-                          }{" "}
-                          characters (
-                          {MIN_DESCRIPTION_LENGTH - appDescription.length} more
-                          needed)
-                        </p>
                       )}
+                    {!nameValidation.isChecking &&
+                      nameValidation.isAvailable === false && (
+                        <span className="flex items-center gap-1 text-[10px] text-red-400">
+                          <AlertCircle className="h-3 w-3" />
+                          Taken
+                        </span>
+                      )}
+                    <span
+                      className={`text-[10px] font-mono ${
+                        appName.length > 100
+                          ? "text-red-400"
+                          : appName.length > 80
+                            ? "text-amber-400"
+                            : "text-white/40"
+                      }`}
+                    >
+                      {appName.length}/100
+                    </span>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  {selectedTemplate && (
-                    <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-white/5 border border-white/10">
-                      <selectedTemplate.icon
-                        className="h-3.5 w-3.5 md:h-4 md:w-4"
-                        style={{ color: selectedTemplate.color }}
-                      />
-                      <span className="text-xs md:text-sm text-white/60">
-                        {selectedTemplate.label}
-                      </span>
+                <Input
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  placeholder="My Awesome App"
+                  className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
+                    nameValidation.error
+                      ? "border-red-500/50 focus:border-red-500"
+                      : nameValidation.isAvailable === true &&
+                          appName.trim().length >= 2
+                        ? "border-emerald-500/30 focus:border-emerald-500"
+                        : "border-white/10 focus:border-[#FF5800]"
+                  }`}
+                  maxLength={100}
+                />
+                {nameValidation.error && (
+                  <p className="text-xs text-red-400 flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {nameValidation.error}
+                    {nameValidation.suggestedName && (
                       <button
-                        onClick={() => setSetupStep(1)}
-                        className="text-[10px] md:text-xs text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
+                        type="button"
+                        onClick={() =>
+                          setAppName(nameValidation.suggestedName!)
+                        }
+                        className="ml-1 text-[#FF5800] hover:underline"
                       >
-                        Change
+                        Try &quot;{nameValidation.suggestedName}&quot;
                       </button>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setSetupStep(3)}
-                    disabled={
-                      !appName.trim() ||
-                      appName.trim().length < 2 ||
-                      appName.length > 100 ||
-                      nameValidation.isChecking ||
-                      nameValidation.isAvailable === false ||
-                      appDescription.length < MIN_DESCRIPTION_LENGTH
-                    }
-                    className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
-                  >
-                    {nameValidation.isChecking ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
-                        Checking...
-                      </>
-                    ) : (
-                      <>
-                        Continue
-                        <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4 group-enabled:group-hover:translate-x-0.5 transition-transform" />
-                      </>
                     )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-
-          {/* STEP 3: Agent Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      Power-ups
-                    </h2>
-                    {/* App summary */}
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
-                      {selectedTemplate && (
-                        <selectedTemplate.icon
-                          className="h-3 w-3 md:h-3.5 md:w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      )}
-                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
-                        {appName || "Your App"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Add optional integrations
                   </p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                  {/* Monetization - Premium toggle card */}
-                  <button
-                    onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeMonetization
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeMonetization ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <DollarSign
-                          className={`h-5 w-5 transition-colors ${
-                            includeMonetization
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeMonetization ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeMonetization
-                              ? "translate-x-4"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Monetization
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Accept payments & subscriptions
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Stripe
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Billing
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Analytics toggle card */}
-                  <button
-                    onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeAnalytics
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <LineChart
-                          className={`h-5 w-5 transition-colors ${
-                            includeAnalytics
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeAnalytics ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeAnalytics ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Analytics
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Track users & events in real-time
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Real-time
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Events
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Persistent Storage - Premium toggle card */}
-                  <button
-                    onClick={() => setIncludePersistentStorage(!includePersistentStorage)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-4 col-span-2 md:col-span-1 ${
-                      includePersistentStorage
-                        ? "bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-500/30 shadow-lg shadow-violet-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
-                    }`}
-                  >
-                    {includePersistentStorage && (
-                      <div className="absolute inset-0 rounded-2xl bg-violet-500/5 blur-xl -z-10" />
-                    )}
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includePersistentStorage
-                            ? "bg-violet-500/20 shadow-lg shadow-violet-500/20"
-                            : "bg-white/[0.04]"
-                        }`}
-                      >
-                        <Database
-                          className={`h-5 w-5 transition-colors ${
-                            includePersistentStorage ? "text-violet-400" : "text-white/40"
-                          }`}
-                        />
-                      </div>
-                      {/* Premium toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includePersistentStorage
-                            ? "bg-gradient-to-r from-violet-500 to-violet-400 shadow-lg shadow-violet-500/30"
-                            : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            includePersistentStorage ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
-                      Persistent Storage
-                    </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
-                      Save data with PostgreSQL database
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
-                        PostgreSQL
-                      </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
-                        Drizzle ORM
-                      </span>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-5">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
-                  >
-                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(4)}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium transition-all duration-300"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* STEP 4: Agent Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 4 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      Add AI Agents
-                    </h2>
-                    {/* App summary */}
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
-                      {selectedTemplate && (
-                        <selectedTemplate.icon
-                          className="h-3 w-3 md:h-3.5 md:w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      )}
-                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
-                        {appName || "Your App"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Choose agents to power your app (optional)
-                  </p>
-                </div>
-
-                {/* Agent Picker container */}
-                <div className="p-3 md:p-5 rounded-xl bg-white/5 border border-white/10">
-                  <AgentPicker
-                    agents={availableAgents}
-                    selectedIds={selectedAgentIds}
-                    onSelectionChange={setSelectedAgentIds}
-                    maxSelection={4}
-                    loading={loadingAgents}
-                  />
-                </div>
-
-                {/* Skip note */}
-                {availableAgents.length === 0 && !loadingAgents && (
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <p className="text-sm text-white/60">
-                      <span className="font-medium text-white/80">
-                        No agents yet?
-                      </span>{" "}
-                      No worries — you can skip this step and add agents later
-                      from the app builder.
-                    </p>
-                  </div>
                 )}
+              </div>
 
-                <div className="flex items-center justify-between pt-4">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
-                  >
-                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
-                  <div className="flex items-center gap-3">
-                    {selectedAgentIds.length === 0 &&
-                      availableAgents.length > 0 && (
-                        <button
-                          onClick={startSession}
-                          disabled={isLoading}
-                          className="text-sm text-white/50 hover:text-white transition-colors"
-                        >
-                          Skip
-                        </button>
-                      )}
-                    {/* Launch Button */}
+              {/* Description / Prompt */}
+              <div className="space-y-2">
+                <div className="flex items-end justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-white/60 text-xs font-medium">
+                      What should it do? <span className="text-red-400">*</span>
+                    </Label>
                     <button
-                      onClick={startSession}
-                      disabled={isLoading}
-                      className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                      onClick={generateAIDescription}
+                      disabled={isGeneratingDescription || !appName.trim()}
+                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Launching...
-                        </>
+                      {isGeneratingDescription ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
-                        <>
-                          <Rocket className="h-4 w-4" />
-                          {selectedAgentIds.length > 0
-                            ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
-                            : "Start Building"}
-                        </>
+                        <Wand2 className="h-3 w-3" />
                       )}
+                      Generate
                     </button>
                   </div>
+                  <span
+                    className={`text-[10px] font-mono ${
+                      appDescription.length > 500
+                        ? "text-red-400"
+                        : appDescription.length < MIN_DESCRIPTION_LENGTH &&
+                            appDescription.length > 0
+                          ? "text-amber-400"
+                          : "text-white/40"
+                    }`}
+                  >
+                    {appDescription.length}/500
+                  </span>
                 </div>
-
-                {/* Summary footer */}
-                <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
-                  {[
-                    "Live sandbox",
-                    "Hot reload",
-                    "AI assist",
-                    "GitHub sync",
-                  ].map((feature) => (
-                    <div key={feature} className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                      <span className="text-[11px] md:text-xs text-white/50 font-medium">
-                        {feature}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <Textarea
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  placeholder="Describe what your app should do... (minimum 10 characters)"
+                  className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                    appDescription.length > 500
+                      ? "border-red-500/50 focus:border-red-500"
+                      : appDescription.length > 0 &&
+                          appDescription.length < MIN_DESCRIPTION_LENGTH
+                        ? "border-amber-500/30 focus:border-amber-500"
+                        : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                          ? "border-emerald-500/30 focus:border-emerald-500"
+                          : "border-white/10 focus:border-[#FF5800]"
+                  }`}
+                />
+                {appDescription.length > 0 &&
+                  appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                    <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Description must be at least {MIN_DESCRIPTION_LENGTH}{" "}
+                      characters (
+                      {MIN_DESCRIPTION_LENGTH - appDescription.length} more
+                      needed)
+                    </p>
+                  )}
               </div>
-            )}
+            </div>
+
+            {/* Launch Button */}
+            <div className="flex items-center justify-end pt-4">
+              <button
+                onClick={startSession}
+                disabled={
+                  isLoading ||
+                  !appName.trim() ||
+                  appName.trim().length < 2 ||
+                  appName.length > 100 ||
+                  nameValidation.isChecking ||
+                  nameValidation.isAvailable === false ||
+                  appDescription.length < MIN_DESCRIPTION_LENGTH
+                }
+                className="group flex items-center gap-2 px-6 py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Launching...
+                  </>
+                ) : nameValidation.isChecking ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    Start Building
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Summary footer */}
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
+              {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map(
+                (feature) => (
+                  <div key={feature} className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                    <span className="text-[11px] md:text-xs text-white/50 font-medium">
+                      {feature}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
           </div>
         </div>
 
@@ -4241,22 +3658,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setPreviewTab("agents")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "agents"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                <Users className="h-3.5 w-3.5" />
-                Agents
-                {selectedAgentIds.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
-                    {selectedAgentIds.length}
-                  </span>
-                )}
-              </button>
             </div>
             {/* Mobile/Tablet action buttons */}
             <div className="flex items-center gap-1 ml-auto flex-shrink-0">
@@ -4344,22 +3745,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                 {commitHistory.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[10px]">
                     {commitHistory.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setPreviewTab("agents")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "agents"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                <Users className="h-3.5 w-3.5" />
-                Agents
-                {selectedAgentIds.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
-                    {selectedAgentIds.length}
                   </span>
                 )}
               </button>
@@ -4506,37 +3891,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
               ))}
-
-            {/* Agents tab */}
-            {previewTab === "agents" && (
-              <div className="h-full p-4 overflow-auto animate-in fade-in duration-200">
-                <AgentPicker
-                  agents={availableAgents}
-                  selectedIds={selectedAgentIds}
-                  onSelectionChange={async (ids) => {
-                    setSelectedAgentIds(ids);
-                    // Save to app if we have an app ID
-                    if (appData?.id) {
-                      try {
-                        await fetchWithRetry(`/api/v1/apps/${appData.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ linked_character_ids: ids }),
-                        });
-                        toast.success(
-                          ids.length > 0 ? "Agents updated" : "Agents removed",
-                        );
-                      } catch (error) {
-                        console.error("Failed to update agents:", error);
-                        toast.error("Failed to update agents");
-                      }
-                    }
-                  }}
-                  maxSelection={4}
-                  loading={loadingAgents}
-                />
-              </div>
-            )}
 
             {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (

@@ -89,13 +89,21 @@ export default function HeroChatInput({ onSubmit }: HeroChatInputProps) {
     }
   };
 
-  const placeholderSentences = [
-    "How do I build an AI agent?",
-    "What models does Eliza support?",
-    "How do I deploy my agent?",
+  const appPlaceholders = [
+    "Build a note-taking app with AI",
+    "Create a habit tracker with reminders",
+    "Make an inventory tracking tool",
   ];
 
-  const typingPlaceholder = useTypingPlaceholder(placeholderSentences);
+  const agentPlaceholders = [
+    "Create a personal finance advisor",
+    "Build a meeting scheduler assistant",
+    "Make a writing coach for my essays",
+  ];
+
+  const placeholderSentences =
+    mode === "app" ? appPlaceholders : agentPlaceholders;
+  const typingPlaceholder = useTypingPlaceholder(placeholderSentences, mode);
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4">

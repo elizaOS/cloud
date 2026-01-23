@@ -111,8 +111,13 @@ export class UserDatabaseService {
       // Another request won the race, or status was already "provisioning" or "ready"
       // Re-fetch to get current state
       const currentApp = await appsRepository.findById(appId);
-      if (currentApp?.user_database_status === "ready" && currentApp.user_database_uri) {
-        logger.info("Database was provisioned by concurrent request", { appId });
+      if (
+        currentApp?.user_database_status === "ready" &&
+        currentApp.user_database_uri
+      ) {
+        logger.info("Database was provisioned by concurrent request", {
+          appId,
+        });
         return {
           success: true,
           connectionUri: currentApp.user_database_uri,
@@ -122,7 +127,9 @@ export class UserDatabaseService {
         };
       }
 
-      logger.warn("Database provisioning already in progress (lost race)", { appId });
+      logger.warn("Database provisioning already in progress (lost race)", {
+        appId,
+      });
       return {
         success: false,
         error: "Database provisioning already in progress",
@@ -201,7 +208,8 @@ export class UserDatabaseService {
           logger.error("Failed to clean up orphaned Neon project", {
             appId,
             projectId: createdProjectId,
-            error: cleanupError instanceof Error ? cleanupError.message : "Unknown",
+            error:
+              cleanupError instanceof Error ? cleanupError.message : "Unknown",
           });
         }
       }

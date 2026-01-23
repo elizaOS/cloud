@@ -343,8 +343,7 @@ export class AIAppBuilderService {
 
     // Provision database if user explicitly requested OR if prompt analysis detects need
     const shouldProvisionDatabase =
-      includePersistentStorage ||
-      (detectionResult?.requiresDatabase && appId);
+      includePersistentStorage || (detectionResult?.requiresDatabase && appId);
 
     if (shouldProvisionDatabase && appId) {
       logger.info("Database required, provisioning", {
@@ -374,11 +373,14 @@ export class AIAppBuilderService {
         });
       } else {
         // Log warning but continue without database (graceful degradation)
-        logger.warn("Database provisioning failed, continuing without database", {
-          appId,
-          error: dbResult.error,
-          errorCode: dbResult.errorCode,
-        });
+        logger.warn(
+          "Database provisioning failed, continuing without database",
+          {
+            appId,
+            error: dbResult.error,
+            errorCode: dbResult.errorCode,
+          },
+        );
       }
     } else if (!shouldProvisionDatabase) {
       logger.info("No database provisioning needed", {
@@ -426,7 +428,12 @@ export class AIAppBuilderService {
         app_description: appDescription,
         initial_prompt: initialPrompt,
         template_type: templateType,
-        build_config: { features: [], includeMonetization, includeAnalytics, includeDatabase },
+        build_config: {
+          features: [],
+          includeMonetization,
+          includeAnalytics,
+          includeDatabase,
+        },
         claude_messages: [],
         started_at: new Date(),
         expires_at: expiresAt,
@@ -800,6 +807,7 @@ export class AIAppBuilderService {
       messages,
       examplePrompts,
       expiresAt: session.expires_at?.toISOString() || null,
+      appId: session.app_id || undefined,
     };
   }
 
