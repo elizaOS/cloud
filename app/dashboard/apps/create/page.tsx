@@ -2867,7 +2867,7 @@ ANTHROPIC_API_KEY=your_key_here`}
   if (viewState === "setup") {
     return (
       <ScrollArea className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A]">
-        <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-6">
+        <div className="relative max-w-5xl mx-auto px-4 md:px-6 min-h-[calc(100vh-88px)] md:min-h-[calc(100vh-100px)] flex flex-col items-center justify-center py-8 md:py-12">
           {sourceContext && (
             <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
@@ -2893,7 +2893,7 @@ ANTHROPIC_API_KEY=your_key_here`}
           )}
 
           {/* Simplified App Creation - Just Name and Prompt */}
-          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          <div className="max-w-3xl w-full space-y-4 md:space-y-6">
             <div>
               <h2 className="text-xl font-semibold text-white">
                 Create your app
