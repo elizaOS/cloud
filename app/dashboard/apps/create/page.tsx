@@ -459,6 +459,7 @@ export default function AppCreatorPage() {
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection removed - agents can be added later from the app builder
   const selectedAgentIds: string[] = [];
+  // App name is auto-generated when building starts (user doesn't need to provide it)
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -467,20 +468,6 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
-  // Name validation state
-  const [nameValidation, setNameValidation] = useState<{
-    isChecking: boolean;
-    isAvailable: boolean | null;
-    error: string | null;
-    suggestedName: string | null;
-  }>({
-    isChecking: false,
-    isAvailable: null,
-    error: null,
-    suggestedName: null,
-  });
-  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Minimum description length
   const MIN_DESCRIPTION_LENGTH = 10;
 
@@ -550,84 +537,6 @@ export default function AppCreatorPage() {
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
-
-  // ============================================================================
-  // DEBOUNCED APP NAME AVAILABILITY CHECK
-  // ============================================================================
-  useEffect(() => {
-    // Clear any pending timeout
-    if (nameCheckTimeoutRef.current) {
-      clearTimeout(nameCheckTimeoutRef.current);
-    }
-
-    const trimmedName = appName.trim();
-
-    // Reset validation if name is empty or too short
-    if (!trimmedName || trimmedName.length < 2) {
-      setNameValidation({
-        isChecking: false,
-        isAvailable: null,
-        error:
-          trimmedName.length > 0 && trimmedName.length < 2
-            ? "Name must be at least 2 characters"
-            : null,
-        suggestedName: null,
-      });
-      return;
-    }
-
-    // Set checking state
-    setNameValidation((prev) => ({
-      ...prev,
-      isChecking: true,
-      error: null,
-    }));
-
-    // Debounce the API call
-    nameCheckTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/v1/apps/check-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setNameValidation({
-            isChecking: false,
-            isAvailable: data.available,
-            error: data.available
-              ? null
-              : data.conflictType === "subdomain"
-                ? "This name would create a subdomain that is already in use"
-                : "An app with this name already exists",
-            suggestedName: data.suggestedName || null,
-          });
-        } else {
-          setNameValidation({
-            isChecking: false,
-            isAvailable: null,
-            error: null,
-            suggestedName: null,
-          });
-        }
-      } catch {
-        setNameValidation({
-          isChecking: false,
-          isAvailable: null,
-          error: null,
-          suggestedName: null,
-        });
-      }
-    }, 500); // 500ms debounce
-
-    return () => {
-      if (nameCheckTimeoutRef.current) {
-        clearTimeout(nameCheckTimeoutRef.current);
-      }
-    };
-  }, [appName]);
 
   // ============================================================================
   // SIMPLE INITIALIZATION FLOW
