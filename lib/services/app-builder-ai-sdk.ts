@@ -19,6 +19,7 @@
  */
 
 import { streamText, tool } from "ai";
+import type { ModelMessage, UserModelMessage, AssistantModelMessage } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -34,6 +35,12 @@ import {
   checkBuild,
   readFileViaSh,
 } from "./sandbox/index";
+
+/** Image data for multimodal LLM requests */
+export interface ImageData {
+  base64: string;
+  mimeType: string;
+}
 
 // ============================================================================
 // Types
@@ -63,6 +70,8 @@ export interface AppBuilderConfig {
   includeAnalytics?: boolean;
   /** Include database setup instructions (for stateful apps) */
   includeDatabase?: boolean;
+  /** Images attached for multimodal vision analysis */
+  images?: ImageData[];
   model?: string;
   timeoutMs?: number;
   abortSignal?: AbortSignal;
@@ -172,6 +181,7 @@ export class AppBuilderAISDK {
       includeMonetization = false,
       includeAnalytics = true,
       includeDatabase = false,
+      images = [],
       model = DEFAULT_MODEL,
       timeoutMs = DEFAULT_TIMEOUT_MS,
       abortSignal,
@@ -278,11 +288,35 @@ CRITICAL RULES:
         model,
         sandboxId,
         promptLength: prompt.length,
+        imageCount: images.length,
       });
 
-      // Messages array for multi-turn conversation
-      const messages: Array<{ role: "user" | "assistant"; content: string }> = [
-        { role: "user", content: contextPrompt },
+      // Build multimodal user content if images are attached
+      const buildUserMessage = (text: string, includeImages: boolean = false): UserModelMessage => {
+        if (!includeImages || images.length === 0) {
+          return { role: "user", content: text };
+        }
+        
+        // Multimodal content with images
+        const contentParts: Array<{ type: "text"; text: string } | { type: "image"; image: string; mediaType?: string }> = [
+          { type: "text", text: text }
+        ];
+        
+        // Add images
+        for (const img of images) {
+          contentParts.push({
+            type: "image",
+            image: img.base64,
+            mediaType: img.mimeType, // AI SDK uses mediaType, not mimeType
+          });
+        }
+        
+        return { role: "user", content: contentParts };
+      };
+
+      // Messages array for multi-turn conversation (AI SDK ModelMessage type)
+      const messages: ModelMessage[] = [
+        buildUserMessage(contextPrompt, true),
       ];
 
       let iteration = 0;
