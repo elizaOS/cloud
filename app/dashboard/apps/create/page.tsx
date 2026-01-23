@@ -497,6 +497,9 @@ export default function AppCreatorPage() {
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  // Track if first generation has completed (to hide template preview until then)
+  const [hasCompletedFirstGeneration, setHasCompletedFirstGeneration] =
+    useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -561,6 +564,7 @@ export default function AppCreatorPage() {
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
       setIframeLoaded(false);
+      setHasCompletedFirstGeneration(false);
 
       if (appChanged) {
         setAppData(null);
@@ -677,6 +681,8 @@ export default function AppCreatorPage() {
           clearTimeout(timeout);
           setStatus("ready");
           setSandboxHealthy(true);
+          // Reconnecting to existing session - app likely already generated
+          setHasCompletedFirstGeneration(true);
         } catch {
           // Sandbox not responding - needs recovery
           setStatus("recovering");
@@ -1207,6 +1213,8 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
+                // Restored session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1245,6 +1253,8 @@ export default function AppCreatorPage() {
       if (errorMsg.includes("Current status: ready")) {
         addLog("Session is already ready", "info");
         setStatus("ready");
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         return;
       }
 
@@ -1369,6 +1379,8 @@ export default function AppCreatorPage() {
                 setStatus("ready");
                 setSandboxHealthy(true);
                 healthCheckFailCountRef.current = 0;
+                // Recovered session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1404,6 +1416,8 @@ export default function AppCreatorPage() {
         setStatus("ready");
         setSandboxHealthy(true);
         healthCheckFailCountRef.current = 0;
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         toast.dismiss(toastId);
         return;
       }
@@ -1583,10 +1597,27 @@ export default function AppCreatorPage() {
 
     const shouldAutoScaffold =
       !isEditMode && (appDescription || templateType !== "blank");
+    
+    // Check if description is too vague/short to build meaningfully
+    const isDescriptionVague = appDescription && (
+      appDescription.trim().length < 20 ||
+      appDescription.trim().split(/\s+/).length < 4 ||
+      /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
+      /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim()) // all consonants
+    );
+    
+    // User's message (what they see in chat) - just their raw input
     const initialPrompt = shouldAutoScaffold
       ? appDescription
-        ? `Set up the initial app structure based on these requirements:\n\n**Template:** ${templateType}\n**Description:** ${appDescription}\n\nPlease scaffold the project with all necessary components, pages, and styling to match this description.`
+        ? appDescription // Just show their raw description
         : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
+      : undefined;
+    
+    // Description sent to system prompt - includes clarification instructions if vague
+    const effectiveDescription = appDescription
+      ? isDescriptionVague
+        ? `IMPORTANT: The user's input "${appDescription}" appears to be vague, a typo, or placeholder text. DO NOT try to build anything yet. Instead, respond conversationally and ask clarifying questions to understand what they actually want. Ask about: what problem to solve, who will use it, and 2-3 key features. Be friendly and helpful. Only start building once you understand their needs.`
+        : appDescription
       : undefined;
 
     try {
@@ -1596,7 +1627,7 @@ export default function AppCreatorPage() {
         body: JSON.stringify({
           appId: appIdFromUrl || undefined,
           appName: isEditMode ? undefined : generatedAppName,
-          appDescription: isEditMode ? undefined : appDescription,
+          appDescription: isEditMode ? undefined : effectiveDescription,
           initialPrompt,
           templateType,
           includeMonetization,
@@ -1727,6 +1758,10 @@ export default function AppCreatorPage() {
                     } as Message,
                   ]);
                 } else {
+                  // In edit mode, app already exists - show preview immediately
+                  if (isEditMode) {
+                    setHasCompletedFirstGeneration(true);
+                  }
                   const contextMessage = sourceContext
                     ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
                     : "";
@@ -1881,6 +1916,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
+                // Only mark first generation complete if actual files were modified
+                if (data.session.initialPromptResult?.filesAffected?.length > 0) {
+                  setHasCompletedFirstGeneration(true);
+                }
 
                 if (
                   data.session.initialPromptResult &&
@@ -1902,9 +1941,20 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   const hasBuildErrors =
                     result.output?.includes("BUILD ERRORS");
 
+
+                  // Check if we have a meaningful LLM response (not just default text)
+                  const llmOutput = result.output?.trim();
+                  const hasLLMOutput =
+                    llmOutput &&
+                    llmOutput !== "Changes applied!" &&
+                    !llmOutput.startsWith("Error:") &&
+                    !hasBuildErrors;
                   let assistantContent = "";
                   if (hasBuildErrors) {
                     assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (hasLLMOutput) {
+                    // Use the actual LLM response (e.g., clarifying questions for vague prompts)
+                    assistantContent = llmOutput;
                   } else if (fileCount > 0) {
                     assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
                   } else {
@@ -2414,6 +2464,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
         setStatus("ready");
 
+        // Only mark first generation complete if actual files were modified (not just clarifications)
+        if (finalData.filesAffected && finalData.filesAffected.length > 0) {
+          setHasCompletedFirstGeneration(true);
+        }
         // Refresh git status after prompt completes
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
@@ -3616,27 +3670,39 @@ ANTHROPIC_API_KEY=your_key_here`}
                     : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
-                {/* Loading overlay - Premium */}
+                {/* Building overlay - Show until first generation completes */}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0b] to-[#080809] flex items-center justify-center transition-opacity duration-500 ${
-                    iframeLoaded && previewTab === "preview"
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 z-20 ${
+                    iframeLoaded && previewTab === "preview" && hasCompletedFirstGeneration
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
                   }`}
                 >
-                  <div className="text-center">
-                    <div className="relative inline-block mb-5">
-                      <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
-                      <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                  {/* Background with gradient and grid */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f12] via-[#0a0a0d] to-[#080810]" />
+                  {/* Subtle grid pattern */}
+                  <div 
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                      backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                      backgroundSize: '40px 40px'
+                    }}
+                  />
+                  {/* Subtle radial glow */}
+                  <div className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)' }} />
+                  
+                  <div className="text-center relative z-10">
+                    <div className="mb-6">
+                      <Sparkles className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse" style={{ opacity: 0.4 }} strokeWidth={1.5} />
                     </div>
                     <p
-                      className="text-white/60 text-sm font-medium"
+                      className="text-white/50 text-lg font-medium tracking-wide"
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
-                      Loading preview...
+                      {hasCompletedFirstGeneration ? "Loading preview..." : "Building your dream..."}
                     </p>
-                    <p className="text-white/25 text-xs mt-1">
-                      Your app is starting up
+                    <p className="text-white/20 text-sm mt-2">
+                      {hasCompletedFirstGeneration ? "Your app is starting up" : "AI is generating your app"}
                     </p>
                   </div>
                 </div>
