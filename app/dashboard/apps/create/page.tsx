@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { nanoid } from "nanoid";
 import { generateRandomName } from "@/lib/utils/random-names";
-import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
+import { useChatInput, useModelSelection, type ImageAttachment } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
 import type {
@@ -135,7 +135,7 @@ interface ChatMessageProps {
   index: number;
   session: SessionData | null;
   status: SessionStatus;
-  sendPrompt: (promptText?: string) => void;
+  sendPrompt: (promptText?: string, images?: ImageAttachment[]) => void;
 }
 
 const ChatMessage = memo(function ChatMessage({
@@ -174,14 +174,38 @@ const ChatMessage = memo(function ChatMessage({
             </span>
           </div>
         )}
-        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={markdownComponents}
-          >
-            {msg.content}
-          </ReactMarkdown>
-        </div>
+        
+        {/* Image attachments preview */}
+        {msg.images && msg.images.length > 0 && (
+          <div className={`flex flex-wrap gap-2 ${msg.content ? 'mb-2' : ''}`}>
+            {msg.images.map((img) => (
+              <div
+                key={img.id}
+                className="relative rounded-lg overflow-hidden border border-white/[0.1] bg-white/[0.04] group/img cursor-pointer"
+                onClick={() => window.open(img.previewUrl, '_blank')}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.previewUrl}
+                  alt="Attached image"
+                  className="w-20 h-20 xl:w-24 xl:h-24 object-cover hover:opacity-90 transition-opacity"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Text content */}
+        {msg.content && (
+          <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
+              {msg.content}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {/* Per-operation accordions with reasoning */}
         {msg.role === "assistant" &&
@@ -2093,25 +2117,38 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
   ]);
 
   const sendPrompt = useCallback(
-    async (promptText?: string) => {
-      // Get input and model from Zustand store for isolation
+    async (promptText?: string, images?: ImageAttachment[]) => {
+      // Get input, images, and model from Zustand store for isolation
       const currentInput = useChatInput.getState().input;
+      const currentImages = images || useChatInput.getState().images;
       const selectedModel = useModelSelection.getState().selectedModel;
       const text = promptText || currentInput.trim();
-      if (!text || !session || isLoading) return;
+      
+      // Allow sending with text or images (or both)
+      const hasContent = text || currentImages.length > 0;
+      if (!hasContent || !session || isLoading) return;
 
       setIsLoading(true);
       setStatus("generating");
 
+      // Log with image count if applicable
+      const imageInfo = currentImages.length > 0 ? ` [${currentImages.length} image(s)]` : "";
       addLog(
-        `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
+        `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"${imageInfo}`,
         "info",
       );
 
+      // Build user message with image previews (use blobUrl for persistence)
       const userMessage: Message = {
         role: "user",
-        content: text,
+        content: text || "",
         timestamp: new Date().toISOString(),
+        images: currentImages.length > 0 
+          ? currentImages.map(img => ({ 
+              id: img.id, 
+              previewUrl: img.blobUrl || img.previewUrl // Use blobUrl for persistence, fallback to previewUrl
+            }))
+          : undefined,
       };
       setMessages((prev) => [...prev, userMessage]);
       // Clear input using Zustand
@@ -2240,7 +2277,14 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: text, model: selectedModel }),
+            body: JSON.stringify({ 
+              prompt: text || "Please analyze the attached image(s) and help me with this design.", 
+              model: selectedModel,
+              images: currentImages.filter(img => img.base64).map(img => ({
+                base64: img.base64,
+                mimeType: img.file.type,
+              })),
+            }),
             signal: generationAbortControllerRef.current.signal,
           },
         );

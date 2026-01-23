@@ -27,16 +27,48 @@ import { DEFAULT_APP_BUILDER_MODEL } from "./types";
 // ============================================
 // CHAT INPUT SLICE - Isolated for fast typing
 // ============================================
+
+/** Image attachment for the chat input */
+export interface ImageAttachment {
+  id: string;
+  file: File;
+  previewUrl: string;      // Temporary blob URL for preview
+  base64?: string;         // Base64 data for API
+  blobUrl?: string;        // Persistent Vercel Blob URL
+  uploadStatus: 'pending' | 'uploading' | 'uploaded' | 'error';
+  uploadError?: string;
+}
+
 interface ChatInputSlice {
   input: string;
+  images: ImageAttachment[];
   setInput: (input: string) => void;
   clearInput: () => void;
+  addImage: (image: ImageAttachment) => void;
+  removeImage: (id: string) => void;
+  clearImages: () => void;
+  setImageBase64: (id: string, base64: string) => void;
+  setImageBlobUrl: (id: string, blobUrl: string) => void;
+  setImageUploadStatus: (id: string, status: ImageAttachment['uploadStatus'], error?: string) => void;
 }
 
 export const useChatInput = create<ChatInputSlice>()((set) => ({
   input: "",
+  images: [],
   setInput: (input) => set({ input }),
-  clearInput: () => set({ input: "" }),
+  addImage: (image) => set((state) => ({ images: [...state.images, image] })),
+  removeImage: (id) => set((state) => ({ images: state.images.filter((img) => img.id !== id) })),
+  clearImages: () => set({ images: [] }),
+  setImageBase64: (id, base64) => set((state) => ({ 
+    images: state.images.map((img) => img.id === id ? { ...img, base64 } : img) 
+  })),
+  setImageBlobUrl: (id, blobUrl) => set((state) => ({ 
+    images: state.images.map((img) => img.id === id ? { ...img, blobUrl, uploadStatus: 'uploaded' } : img) 
+  })),
+  setImageUploadStatus: (id, status, error) => set((state) => ({ 
+    images: state.images.map((img) => img.id === id ? { ...img, uploadStatus: status, uploadError: error } : img) 
+  })),
+  clearInput: () => set({ input: "", images: [] }),
 }));
 
 // ============================================
