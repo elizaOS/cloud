@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { usageService } from "@/lib/services/usage";
 import {
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
   let reservation: CreditReservation | undefined;
 
   try {
-    // Authenticate user with organization
-    const user = await requireAuthWithOrg();
+    // Authenticate user (supports both session and API key)
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
     // Parse form data
     const formData = await request.formData();
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         await usageService.create({
           organization_id: user.organization_id!,
           user_id: user.id,
-          api_key_id: null,
+          api_key_id: apiKey?.id ?? null,
           type: "stt",
           model: "elevenlabs-stt",
           provider: "elevenlabs",

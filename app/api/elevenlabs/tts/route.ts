@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { usageService } from "@/lib/services/usage";
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
   let reservation: CreditReservation | undefined;
 
   try {
-    // Authenticate user
-    const user = await requireAuthWithOrg();
+    // Authenticate user (supports both session and API key)
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
     // Parse request body
     const body = await request.json();
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         await usageService.create({
           organization_id: user.organization_id!!,
           user_id: user.id,
-          api_key_id: null, // TTS doesn't use API keys currently
+          api_key_id: apiKey?.id ?? null,
           type: "tts",
           model: modelId || "eleven_flash_v2_5",
           provider: "elevenlabs",
