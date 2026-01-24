@@ -202,6 +202,7 @@
   },
   "devDependencies": {
     "@elizaos/cli": "^1.7.2",
+    "@playwright/test": "^1.58.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
