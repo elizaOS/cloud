@@ -4,18 +4,16 @@
 # Prerequisites: docker-compose up -d
 #
 # What it does:
-#   1. Loads setup.ts (env vars, just like unit/integration)
-#   2. Loads e2e/setup-server.ts which:
-#      - Checks if server already running → reuses it
-#      - If not → spawns "bun run dev" and waits for /api/health
-#      - Shuts down server after all tests
+#   - Loads preload.ts which starts Next.js server and waits for health
+#   - Server auto-shuts down after tests
 #
-# Inspired by Playwright's webServer config.
+# ⚠️ KNOWN BUN BUG: --config doesn't load preload properly (oven-sh/bun#17664)
+# Use --preload flag directly instead:
 #
 # Usage:
-#   bun test --config bunfig.e2e.toml tests/e2e/api
-#   bun test --config bunfig.e2e.toml tests/e2e/runtime
+#   bun test --preload ./tests/e2e/preload.ts tests/e2e/api
+#   bun test --preload ./tests/e2e/preload.ts tests/e2e/runtime
 
 [test]
-preload = ["./tests/setup.ts", "./tests/e2e/setup-server.ts"]
+preload = ["./tests/e2e/preload.ts"]
 timeout = 120000

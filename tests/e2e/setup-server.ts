@@ -2,18 +2,17 @@
  * E2E Server Setup (Preload)
  *
  * Auto-starts Next.js server before e2e tests, shuts down after.
- * Uses beforeAll/afterAll for proper Bun test integration.
+ * Uses top-level await for synchronous startup before any test runs.
  *
  * Behavior:
- *   - beforeAll: Check if server running → reuse or start new
- *   - afterAll: Kill server if we started it
+ *   - Top-level: Check if server running → reuse or start new
+ *   - Process exit: Kill server if we started it
  *
  * Usage:
  *   bun test --config bunfig.e2e.toml tests/e2e
  */
 
-import { beforeAll, afterAll } from "bun:test";
-import { Subprocess } from "bun";
+import type { Subprocess } from "bun";
 
 const SERVER_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
@@ -48,7 +47,7 @@ async function waitForServer(timeout: number): Promise<void> {
   throw new Error(`Server failed to start within ${timeout / 1000}s`);
 }
 
-beforeAll(async () => {
+async function startServer(): Promise<void> {
   console.log("\n[E2E Setup] Checking server status...");
 
   if (await isServerRunning()) {
@@ -70,7 +69,7 @@ beforeAll(async () => {
     },
   });
 
-  // Log key server output
+  // Log server output in background
   if (serverProcess.stdout) {
     const reader = serverProcess.stdout.getReader();
     (async () => {
@@ -91,15 +90,28 @@ beforeAll(async () => {
 
   await waitForServer(STARTUP_TIMEOUT);
   console.log(`[E2E Setup] ✅ Server ready at ${SERVER_URL}`);
-});
+}
 
-afterAll(async () => {
+function stopServer(): void {
   if (weStartedServer && serverProcess) {
     console.log("\n[E2E Setup] 🛑 Stopping server...");
     serverProcess.kill();
-    await serverProcess.exited;
     console.log("[E2E Setup] Server stopped");
   }
+}
+
+// Register cleanup on process exit
+process.on("exit", stopServer);
+process.on("SIGINT", () => {
+  stopServer();
+  process.exit(0);
 });
+process.on("SIGTERM", () => {
+  stopServer();
+  process.exit(0);
+});
+
+// Start server synchronously before any tests run
+await startServer();
 
 export const serverUrl = SERVER_URL;

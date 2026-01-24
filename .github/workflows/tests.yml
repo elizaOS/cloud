@@ -67,8 +67,9 @@ jobs:
       - uses: ./.github/actions/setup-test-env
         with:
           setup-db: 'true'
-      - name: Run E2E tests (auto-starts server)
-        run: bun test --config bunfig.e2e.toml tests/e2e/api tests/e2e/runtime
+      - name: Run E2E API tests (auto-starts server)
+        # Note: --config has a Bun bug with preloads (see oven-sh/bun#17664)
+        run: bun test --preload ./tests/e2e/preload.ts tests/e2e/api tests/e2e/runtime --timeout 120000
         env:
           TEST_BASE_URL: http://localhost:3000
 
