@@ -72,6 +72,7 @@ jobs:
         run: bun test --preload ./tests/e2e/preload.ts tests/e2e/api tests/e2e/runtime --timeout 120000
         env:
           TEST_BASE_URL: http://localhost:3000
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   e2e-browser:
     runs-on: ubuntu-latest
