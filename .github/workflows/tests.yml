@@ -91,6 +91,7 @@ jobs:
         env:
           NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
           NEXT_PUBLIC_PRIVY_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_CLIENT_ID }}
+          PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
       - name: Wait for server
         run: |
           timeout 60 bash -c 'until curl -s http://localhost:3000/api/health > /dev/null; do sleep 1; done'
