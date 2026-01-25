@@ -46,15 +46,14 @@ async function generateImage(
 
 test.describe("Image Generation API - /api/v1/generate-image", () => {
   test.describe("Authentication", () => {
-    test("returns error without authentication", async ({ request }) => {
+    test("returns 402 without authentication", async ({ request }) => {
       const response = await generateImage(
         request,
         { prompt: "A simple test image" },
         { authenticated: false },
       );
-      // API supports anonymous users - may return:
-      // 200 (success), 401 (auth required), 402 (no credits), 429 (rate limit), 500 (generation failed)
-      expect([200, 401, 402, 429, 500]).toContain(response.status());
+      // Image generation requires authentication and credits
+      expect(response.status()).toBe(402);
     });
 
     test.describe("with API key", () => {

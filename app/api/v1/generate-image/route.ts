@@ -171,6 +171,17 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
+    // Image generation requires authentication with credits
+    if (isAnonymous || !user.organization_id) {
+      return Response.json(
+        {
+          error:
+            "Image generation requires authentication and available credits",
+        },
+        { status: 402 },
+      );
+    }
+
     // Validate and select image model
     const isModelAllowed =
       requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
@@ -722,4 +733,4 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
