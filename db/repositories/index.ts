@@ -116,3 +116,8 @@ export * from "./seo-requests";
 // ============================================
 export * from "./discord-guilds";
 export * from "./discord-channels";
+
+// ============================================
+// Gallery Domain (Community Submissions)
+// ============================================
+export * from "./gallery-submissions";
