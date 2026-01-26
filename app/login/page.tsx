@@ -79,8 +79,14 @@ function LoginPageContent() {
         const heroInputData = localStorage.getItem("hero-chat-input");
         if (heroInputData) {
           try {
-            const { prompt, mode } = JSON.parse(heroInputData) as { prompt: string; mode: "app" | "agent" };
-            if (prompt && mode) {
+            const parsed = JSON.parse(heroInputData) as Record<string, unknown>;
+            const { prompt, mode } = parsed;
+            
+            // Runtime validation: ensure prompt is string, mode is valid, and prompt isn't too long
+            const isValidPrompt = typeof prompt === "string" && prompt.length > 0 && prompt.length <= 5000;
+            const isValidMode = mode === "app" || mode === "agent";
+            
+            if (isValidPrompt && isValidMode) {
               // Redirect to appropriate page based on mode
               if (mode === "app") {
                 router.push("/dashboard/apps/create");
@@ -89,6 +95,8 @@ function LoginPageContent() {
               }
               return;
             }
+            // Invalid data shape - remove it
+            localStorage.removeItem("hero-chat-input");
           } catch {
             // Malformed JSON in localStorage - remove it and continue to dashboard
             localStorage.removeItem("hero-chat-input");
