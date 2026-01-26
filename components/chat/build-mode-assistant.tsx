@@ -907,12 +907,11 @@ export function BuildModeAssistant({
     pendingMessageProcessedRef.current = true;
     const messageToSend = pendingMessage;
     
-    // Clear pending message from store
-    setPendingMessage(null);
-    
     // Send the message with a small delay to ensure room is fully ready
+    // Clear pending message only after sending to avoid losing the message if component unmounts
     const timeoutId = setTimeout(() => {
       sendElizaMessage(messageToSend);
+      setPendingMessage(null);
     }, 500);
 
     return () => clearTimeout(timeoutId);
