@@ -52,7 +52,7 @@ export function BuildPageClient({
   const pathname = usePathname();
 
   // Initialize store with characters
-  const { setAnonymousSessionToken, initializeState } = useChatStore();
+  const { setAnonymousSessionToken, initializeState, setPendingMessage } = useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -81,6 +81,35 @@ export function BuildPageClient({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- track only on mount
+  }, []);
+
+  // Check for pending prompt from landing page hero chat input
+  // This handles the flow where user types a prompt on landing → signs up → lands here
+  useEffect(() => {
+    // Only check if we're in creator mode (not editing an existing character)
+    if (initialCharacterId) return;
+    
+    const heroInputData = localStorage.getItem("hero-chat-input");
+    if (!heroInputData) return;
+    
+    try {
+      const parsed = JSON.parse(heroInputData) as { prompt?: string; mode?: string };
+      const { prompt, mode } = parsed;
+      
+      // Only use the prompt if it's for agent mode
+      if (mode === "agent" && prompt) {
+        setPendingMessage(prompt);
+      }
+      
+      // Clear localStorage if it was for agent mode (consumed or not)
+      if (mode === "agent") {
+        localStorage.removeItem("hero-chat-input");
+      }
+    } catch {
+      // Malformed JSON - just remove it
+      localStorage.removeItem("hero-chat-input");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
   }, []);
 
   // Initialize store atomically on mount and when props change

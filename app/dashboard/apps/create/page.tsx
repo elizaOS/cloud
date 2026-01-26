@@ -565,6 +565,35 @@ export default function AppCreatorPage() {
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
 
+  // Check for pending prompt from landing page hero chat input
+  // This handles the flow where user types a prompt on landing → signs up → lands here
+  useEffect(() => {
+    // Only check if we're in setup mode (new app, not editing)
+    if (isEditMode || sourceContext) return;
+    
+    const heroInputData = localStorage.getItem("hero-chat-input");
+    if (!heroInputData) return;
+    
+    try {
+      const parsed = JSON.parse(heroInputData) as { prompt?: string; mode?: string };
+      const { prompt, mode } = parsed;
+      
+      // Only use the prompt if it's for app mode and we don't have a description yet
+      if (mode === "app" && prompt && !appDescription) {
+        setAppDescription(prompt);
+      }
+      
+      // Clear localStorage if it was for app mode (consumed or not)
+      if (mode === "app") {
+        localStorage.removeItem("hero-chat-input");
+      }
+    } catch {
+      // Malformed JSON - just remove it
+      localStorage.removeItem("hero-chat-input");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
+  }, []);
+
   // ============================================================================
   // SIMPLE INITIALIZATION FLOW
   // 1. New app (no appId) → show setup wizard

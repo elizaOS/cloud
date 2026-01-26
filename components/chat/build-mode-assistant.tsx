@@ -117,10 +117,8 @@ export function BuildModeAssistant({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
-  // Get store method to update character avatar in sidebar/dropdown
-  const updateCharacterAvatar = useChatStore(
-    (state) => state.updateCharacterAvatar,
-  );
+  // Get store methods
+  const { updateCharacterAvatar, pendingMessage, setPendingMessage } = useChatStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
@@ -890,6 +888,35 @@ export function BuildModeAssistant({
     },
     [inputText, isLoading, sendElizaMessage],
   );
+
+  // Auto-send pending message from landing page (hero chat input) after room is ready
+  // This handles the flow where user types a prompt on landing → signs up → lands on build page
+  const pendingMessageProcessedRef = useRef(false);
+  useEffect(() => {
+    // Only process once, when room is ready and not loading
+    if (
+      !pendingMessage ||
+      !builderRoomId ||
+      isLoading ||
+      !isCreatorMode ||
+      pendingMessageProcessedRef.current
+    ) {
+      return;
+    }
+
+    pendingMessageProcessedRef.current = true;
+    const messageToSend = pendingMessage;
+    
+    // Clear pending message from store
+    setPendingMessage(null);
+    
+    // Send the message with a small delay to ensure room is fully ready
+    const timeoutId = setTimeout(() => {
+      sendElizaMessage(messageToSend);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [pendingMessage, builderRoomId, isLoading, isCreatorMode, sendElizaMessage, setPendingMessage]);
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
