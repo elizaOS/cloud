@@ -511,10 +511,10 @@ export class RuntimeFactory {
     const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
       : await agentLoader.loadCharacter(
-          context.characterId!,
-          context.agentMode,
-          loaderOptions,
-        );
+        context.characterId!,
+        context.agentMode,
+        loaderOptions,
+      );
 
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
@@ -717,10 +717,10 @@ export class RuntimeFactory {
       ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {
-            mcp: this.transformMcpSettings(
-              charSettings.mcp as Record<string, unknown>,
-            ),
-          }
+          mcp: this.transformMcpSettings(
+            charSettings.mcp as Record<string, unknown>,
+          ),
+        }
         : {}),
       USER_ID: context.userId,
       ENTITY_ID: context.entityId,
