@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -121,6 +121,19 @@ export function QuickCreateDialog({
     rest: true,
   });
   const [showAppPrompt, setShowAppPrompt] = useState(false);
+
+  // Reset state when dialog closes to ensure fresh state on reopen
+  useEffect(() => {
+    if (!open) {
+      setStep(defaultType ? "configure" : "type");
+      setSelectedType(defaultType ?? null);
+      setName(defaultType ? generateNameForType(defaultType) : "");
+      setCreatedResult(null);
+      setCopied(false);
+      setServiceEndpoints({ mcp: true, a2a: true, rest: true });
+      setShowAppPrompt(false);
+    }
+  }, [open, defaultType]);
 
   const generateName = (type: QuickCreateType): string =>
     generateNameForType(type);
