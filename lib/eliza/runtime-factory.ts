@@ -32,6 +32,27 @@ import {
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
+/**
+ * MCP servers that should be filtered out at runtime.
+ * These are marked as coming_soon or are known to be unavailable.
+ * This prevents connection errors for servers that don't yet support
+ * the required auth flow or transport.
+ */
+const UNAVAILABLE_MCP_SERVERS = new Set([
+  "eliza-platform", // Requires auth that MCP plugin doesn't yet support (returns 401/404)
+  "web-search", // Coming soon, not yet implemented
+]);
+
+/**
+ * MCP service initialization timeout in milliseconds.
+ * Can be overridden via MCP_INIT_TIMEOUT_MS environment variable.
+ * Default: 2500ms (allows for cold starts with multiple SSE connections)
+ */
+const MCP_INIT_TIMEOUT_MS = parseInt(
+  process.env.MCP_INIT_TIMEOUT_MS || "2500",
+  10,
+);
+
 interface GlobalWithEliza {
   logger?: Logger;
 }
@@ -606,16 +627,50 @@ export class RuntimeFactory {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const transformedServers: Record<string, unknown> = {};
+    const skippedServers: string[] = [];
+    const upgradedServers: string[] = [];
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string }>,
+      mcpSettings.servers as Record<string, { url?: string; type?: string }>,
     )) {
+      // Filter out unavailable servers to prevent connection errors
+      if (UNAVAILABLE_MCP_SERVERS.has(serverId)) {
+        skippedServers.push(serverId);
+        continue;
+      }
+
+      let url = serverConfig.url?.startsWith("/")
+        ? `${baseUrl}${serverConfig.url}`
+        : serverConfig.url;
+
+      let type = serverConfig.type;
+
+      // Auto-upgrade deprecated SSE transport to streamable-http for our internal MCP servers
+      // This reduces timeout issues and follows MCP best practices
+      if (type === "sse" && url?.includes("/api/mcps/")) {
+        type = "streamable-http";
+        // Update URL path from /sse to /streamable-http if needed
+        url = url.replace(/\/sse$/, "/streamable-http");
+        upgradedServers.push(serverId);
+      }
+
       transformedServers[serverId] = {
         ...serverConfig,
-        url: serverConfig.url?.startsWith("/")
-          ? `${baseUrl}${serverConfig.url}`
-          : serverConfig.url,
+        url,
+        ...(type ? { type } : {}),
       };
+    }
+
+    if (skippedServers.length > 0) {
+      elizaLogger.debug(
+        `[RuntimeFactory] Filtered out unavailable MCP servers: ${skippedServers.join(", ")}`,
+      );
+    }
+
+    if (upgradedServers.length > 0) {
+      elizaLogger.debug(
+        `[RuntimeFactory] Auto-upgraded SSE to streamable-http for: ${upgradedServers.join(", ")}`,
+      );
     }
 
     return { ...mcpSettings, servers: transformedServers };
@@ -851,39 +906,56 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 1000; // Reduced from 2s to 1s
+    const maxWaitMs = MCP_INIT_TIMEOUT_MS; // Configurable via env, default 2500ms
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;
 
-    // Check immediately first
-    mcpService = runtime.getService("mcp") as McpService | null;
-
-    // Exponential backoff: 5, 10, 20, 40, 80, 160, 200, 200...
-    while (!mcpService && Date.now() - startTime < maxWaitMs) {
-      await new Promise((r) => setTimeout(r, waitMs));
+    try {
+      // Check immediately first
       mcpService = runtime.getService("mcp") as McpService | null;
-      waitMs = Math.min(waitMs * 2, maxDelay);
-    }
 
-    const elapsed = Date.now() - startTime;
-    if (!mcpService) {
+      // Exponential backoff: 5, 10, 20, 40, 80, 160, 200, 200...
+      while (!mcpService && Date.now() - startTime < maxWaitMs) {
+        await new Promise((r) => setTimeout(r, waitMs));
+        mcpService = runtime.getService("mcp") as McpService | null;
+        waitMs = Math.min(waitMs * 2, maxDelay);
+      }
+
+      const elapsed = Date.now() - startTime;
+      if (!mcpService) {
+        elizaLogger.warn(
+          `[RuntimeFactory] MCP service not available after ${elapsed}ms - continuing without MCP tools`,
+        );
+        return;
+      }
+
+      elizaLogger.debug(`[RuntimeFactory] MCP service found in ${elapsed}ms`);
+
+      if (typeof mcpService.waitForInitialization === "function") {
+        // Wait for initialization with timeout protection
+        const initPromise = mcpService.waitForInitialization();
+        const timeoutPromise = new Promise<void>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("MCP initialization timeout")),
+            Math.max(maxWaitMs - elapsed, 1000),
+          ),
+        );
+
+        await Promise.race([initPromise, timeoutPromise]);
+      }
+
+      const servers = mcpService.getServers?.();
+      if (servers) {
+        elizaLogger.info(
+          `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
+        );
+      }
+    } catch (error) {
+      // MCP initialization errors should not block runtime creation
+      // The agent can still function without MCP tools
       elizaLogger.warn(
-        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
-      );
-      return;
-    }
-
-    elizaLogger.debug(`[RuntimeFactory] MCP service found in ${elapsed}ms`);
-
-    if (typeof mcpService.waitForInitialization === "function") {
-      await mcpService.waitForInitialization();
-    }
-
-    const servers = mcpService.getServers?.();
-    if (servers) {
-      elizaLogger.info(
-        `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
+        `[RuntimeFactory] MCP initialization failed: ${error instanceof Error ? error.message : String(error)} - continuing without MCP tools`,
       );
     }
   }
