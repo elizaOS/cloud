@@ -225,6 +225,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
   if (!response.ok) {
     // Some gateways / deployments do not support the moderations endpoint at all.
     // Vercel AI Gateway has historically returned 405 in that case.
+    // This is expected behavior, not an error - log at debug level only once.
     if (
       backend.backend === "vercel-gateway" &&
       response.status === 405 &&
@@ -232,11 +233,11 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     ) {
       if (!hasLoggedGatewayModerationUnsupported) {
         hasLoggedGatewayModerationUnsupported = true;
-        logger.warn(
-          "[ContentModeration] Vercel Gateway moderations unsupported; falling back to OpenAI",
+        // Use debug level since this is expected behavior, not an issue
+        logger.debug(
+          "[ContentModeration] Vercel Gateway moderations unsupported; using OpenAI fallback",
           {
             status: response.status,
-            statusText: response.statusText,
           },
         );
       }
@@ -253,15 +254,15 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
   if (!response.ok) {
     // Moderation is explicitly non-blocking in this app. If the backend is not permitted
     // (common with gateways / provider accounts), avoid noisy per-request errors.
+    // Log at debug level since this is a graceful degradation, not an error.
     if ([401, 403, 404, 405].includes(response.status)) {
       if (!hasLoggedModerationUnavailable) {
         hasLoggedModerationUnavailable = true;
-        logger.warn(
-          "[ContentModeration] Moderation endpoint unavailable; skipping moderation checks",
+        logger.debug(
+          "[ContentModeration] Moderation endpoint unavailable; content moderation will be skipped",
           {
             backend: usedBackend,
             status: response.status,
-            statusText: response.statusText,
           },
         );
       }
@@ -457,11 +458,11 @@ class ContentModerationService {
     // We use Promise.race with a wrapper that tracks which finished
     type RaceResult =
       | {
-          type: "moderation";
-          result: AsyncModerationResult & {
-            action?: "refused" | "warned" | "flagged_for_ban";
-          };
-        }
+        type: "moderation";
+        result: AsyncModerationResult & {
+          action?: "refused" | "warned" | "flagged_for_ban";
+        };
+      }
       | { type: "work"; result: T };
 
     const moderationRacer: Promise<RaceResult> = moderationPromise.then(
@@ -570,8 +571,8 @@ class ContentModerationService {
     const moderationPromise = this.moderateAsync(text, userId, roomId);
     let moderationResult:
       | (AsyncModerationResult & {
-          action?: "refused" | "warned" | "flagged_for_ban";
-        })
+        action?: "refused" | "warned" | "flagged_for_ban";
+      })
       | null = null;
     let moderationError: Error | null = null;
 

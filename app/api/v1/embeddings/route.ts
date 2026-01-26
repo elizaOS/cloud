@@ -7,11 +7,20 @@
  * Includes 20% platform markup on all costs.
  *
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
+ * RESILIENCE: Uses fallback provider when OIDC/Gateway is unavailable.
  */
 
 import { embed, embedMany } from "ai";
-import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import {
+  getEmbeddingModelWithFallback,
+  getGatewayHealth,
+} from "@/lib/providers/ai-gateway-fallback";
+import {
+  withRetry,
+  classifyError,
+  CircuitBreakerOpenError,
+} from "@/lib/utils/retry";
 import { usageService } from "@/lib/services/usage";
 import {
   reserveCredits,
@@ -140,25 +149,38 @@ async function handlePOST(req: NextRequest) {
       estimatedTokens: estimatedInputTokens,
     });
 
-    // Generate embeddings using AI SDK
+    // Generate embeddings using AI SDK with fallback support
     let embeddings: number[][];
     let actualTokens = 0;
 
+    // Get embedding model with automatic OIDC fallback
+    const embeddingModel = await getEmbeddingModelWithFallback(model);
+
     if (Array.isArray(request.input)) {
-      // Multiple inputs - use embedMany
-      const result = await embedMany({
-        model: gateway.textEmbeddingModel(model),
-        values: request.input,
-      });
+      // Multiple inputs - use embedMany with retry
+      const result = await withRetry(
+        async () =>
+          embedMany({
+            model: embeddingModel,
+            values: request.input as string[],
+          }),
+        "embeddings",
+        { maxRetries: 2 },
+      );
       embeddings = result.embeddings;
       // AI SDK embedMany returns usage per embedding
       actualTokens = result.usage?.tokens || estimatedInputTokens;
     } else {
-      // Single input - use embed
-      const result = await embed({
-        model: gateway.textEmbeddingModel(model),
-        value: request.input,
-      });
+      // Single input - use embed with retry
+      const result = await withRetry(
+        async () =>
+          embed({
+            model: embeddingModel,
+            value: request.input as string,
+          }),
+        "embeddings",
+        { maxRetries: 2 },
+      );
       embeddings = [result.embedding];
       actualTokens = result.usage?.tokens || estimatedInputTokens;
     }
@@ -218,14 +240,71 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error("[Embeddings] Error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Log with appropriate level based on error type
+    if (classified.isOIDCError) {
+      logger.warn("[Embeddings] OIDC authentication error - gateway may be unavailable", {
+        error: errorMessage,
+        gatewayHealth: getGatewayHealth(),
+      });
+    } else {
+      logger.error("[Embeddings] Error", {
+        error: errorMessage,
+        isRetryable: classified.isRetryable,
+      });
+    }
+
+    // Return appropriate status code based on error type
+    if (error instanceof CircuitBreakerOpenError) {
+      return Response.json(
+        {
+          error: {
+            message: "AI service temporarily unavailable. Please retry in a few moments.",
+            type: "service_unavailable",
+            code: "circuit_breaker_open",
+            retry_after: Math.ceil(error.resetTimeMs / 1000),
+          },
+        },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": String(Math.ceil(error.resetTimeMs / 1000)),
+          },
+        },
+      );
+    }
+
+    if (classified.isOIDCError) {
+      return Response.json(
+        {
+          error: {
+            message: "AI Gateway authentication failed. Please retry.",
+            type: "authentication_error",
+            code: "oidc_unavailable",
+          },
+        },
+        { status: 503 },
+      );
+    }
+
+    if (classified.isServiceUnavailable) {
+      return Response.json(
+        {
+          error: {
+            message: "AI service temporarily unavailable.",
+            type: "service_unavailable",
+          },
+        },
+        { status: 503 },
+      );
+    }
+
     return Response.json(
       {
         error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
+          message: errorMessage || "Internal server error",
           type: "api_error",
         },
       },

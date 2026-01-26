@@ -8,6 +8,15 @@ import type { AIProvider } from "./types";
 export * from "./types";
 export { VercelGatewayProvider } from "./vercel-gateway";
 
+// Re-export fallback provider utilities for AI SDK usage
+export {
+  getLanguageModelWithFallback,
+  getEmbeddingModelWithFallback,
+  withGatewayFallback,
+  getGatewayHealth,
+  type GatewayHealthStatus,
+} from "./ai-gateway-fallback";
+
 // Singleton provider instance (lazy initialized)
 let providerInstance: AIProvider | null = null;
 

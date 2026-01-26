@@ -26,6 +26,12 @@ import { generationsService } from "@/lib/services/generations";
 import { organizationsService } from "@/lib/services/organizations";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
+  withRetry,
+  classifyError,
+  CircuitBreakerOpenError,
+} from "@/lib/utils/retry";
+import { getGatewayHealth } from "@/lib/providers/ai-gateway-fallback";
+import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
@@ -49,12 +55,12 @@ interface AISdkRequest {
   input: Array<{
     role: "user" | "system" | "assistant" | "tool";
     content:
-      | string
-      | Array<{
-          type: string;
-          text?: string;
-          image_url?: { url: string };
-        }>;
+    | string
+    | Array<{
+      type: string;
+      text?: string;
+      image_url?: { url: string };
+    }>;
     name?: string;
     tool_calls?: Array<{
       id: string;
@@ -86,9 +92,9 @@ interface AISdkRequest {
     };
   }>;
   tool_choice?:
-    | "auto"
-    | "none"
-    | { type: "function"; function: { name: string } };
+  | "auto"
+  | "none"
+  | { type: "function"; function: { name: string } };
   stream?: boolean;
   // ... other AI SDK specific fields
 }
@@ -321,16 +327,16 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
     usage: openAIResponse.usage
       ? {
-          input_tokens: openAIResponse.usage.prompt_tokens,
-          output_tokens: openAIResponse.usage.completion_tokens,
-          total_tokens: openAIResponse.usage.total_tokens,
-        }
+        input_tokens: openAIResponse.usage.prompt_tokens,
+        output_tokens: openAIResponse.usage.completion_tokens,
+        total_tokens: openAIResponse.usage.total_tokens,
+      }
       : { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
     // Additional AI SDK expected fields
     error: null,
     // Preserve any provider metadata
     ...("provider_metadata" in openAIResponse &&
-    openAIResponse.provider_metadata
+      openAIResponse.provider_metadata
       ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
@@ -707,7 +713,52 @@ async function handlePOST(req: NextRequest) {
       );
     }
   } catch (error) {
-    logger.error("[Responses API] Error:", error);
+    const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Log with context for debugging
+    if (classified.isOIDCError) {
+      logger.warn("[Responses API] OIDC authentication error", {
+        error: errorMessage,
+        gatewayHealth: getGatewayHealth(),
+      });
+    } else {
+      logger.error("[Responses API] Error:", error);
+    }
+
+    // Handle circuit breaker open errors
+    if (error instanceof CircuitBreakerOpenError) {
+      return Response.json(
+        {
+          error: {
+            message: "AI service temporarily unavailable. Please retry in a few moments.",
+            type: "service_unavailable",
+            code: "circuit_breaker_open",
+            retry_after: Math.ceil(error.resetTimeMs / 1000),
+          },
+        },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": String(Math.ceil(error.resetTimeMs / 1000)),
+          },
+        },
+      );
+    }
+
+    // Handle OIDC authentication errors
+    if (classified.isOIDCError) {
+      return Response.json(
+        {
+          error: {
+            message: "AI Gateway authentication temporarily unavailable. Please retry.",
+            type: "service_unavailable",
+            code: "oidc_unavailable",
+          },
+        },
+        { status: 503 },
+      );
+    }
 
     // Check if it's an authentication error
     if (
