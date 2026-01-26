@@ -20,6 +20,11 @@ import { charactersService } from "@/lib/services/characters/characters";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
+import {
+  classifyError,
+  CircuitBreakerOpenError,
+} from "@/lib/utils/retry";
+import { getGatewayHealth } from "@/lib/providers/ai-gateway-fallback";
 import type { NextRequest } from "next/server";
 import {
   validateAppId,
@@ -615,10 +620,24 @@ export async function POST(
         // Send completion event
         await sendEvent("done", { timestamp: Date.now() });
       } catch (error) {
-        logger.error("[Stream Messages] Error:", error);
-        await sendEvent("error", {
-          message: error instanceof Error ? error.message : "Processing failed",
-        });
+        const classified = classifyError(error);
+        const errorMessage = error instanceof Error ? error.message : "Processing failed";
+
+        // Log with appropriate context based on error type
+        if (classified.isOIDCError) {
+          logger.warn("[Stream Messages] OIDC error during processing", {
+            error: errorMessage,
+          });
+          await sendEvent("error", {
+            message: "AI service temporarily unavailable. Please retry.",
+            retryable: true,
+          });
+        } else {
+          logger.error("[Stream Messages] Error:", error);
+          await sendEvent("error", {
+            message: errorMessage,
+          });
+        }
       } finally {
         // Close the writer to signal stream completion
         await writer.close();
@@ -637,10 +656,49 @@ export async function POST(
       },
     });
   } catch (error) {
-    logger.error("[Stream Messages] Request error:", error);
+    const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : "Request failed";
+
+    // Log with appropriate context based on error type
+    if (classified.isOIDCError) {
+      logger.warn("[Stream Messages] OIDC authentication error", {
+        error: errorMessage,
+        gatewayHealth: getGatewayHealth(),
+      });
+    } else {
+      logger.error("[Stream Messages] Request error:", error);
+    }
+
+    // Return appropriate status code based on error type
+    if (error instanceof CircuitBreakerOpenError) {
+      return new Response(
+        JSON.stringify({
+          error: "AI service temporarily unavailable. Please retry in a few moments.",
+          retry_after: Math.ceil(error.resetTimeMs / 1000),
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(Math.ceil(error.resetTimeMs / 1000)),
+          },
+        },
+      );
+    }
+
+    if (classified.isOIDCError) {
+      return new Response(
+        JSON.stringify({
+          error: "AI service temporarily unavailable. Please retry.",
+          retryable: true,
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Request failed",
+        error: errorMessage,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );

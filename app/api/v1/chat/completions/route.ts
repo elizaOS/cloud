@@ -34,6 +34,14 @@ import {
   normalizeModelName,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import {
+  classifyError,
+  CircuitBreakerOpenError,
+} from "@/lib/utils/retry";
+import {
+  getLanguageModelWithFallback,
+  getGatewayHealth,
+} from "@/lib/providers/ai-gateway-fallback";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
@@ -47,8 +55,8 @@ export const maxDuration = 60;
 interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content:
-    | string
-    | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  | string
+  | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -77,9 +85,9 @@ interface ChatRequest {
     };
   }>;
   tool_choice?:
-    | "auto"
-    | "none"
-    | { type: "function"; function: { name: string } };
+  | "auto"
+  | "none"
+  | { type: "function"; function: { name: string } };
 }
 
 // ============================================================================
@@ -345,8 +353,52 @@ async function handlePOST(req: NextRequest) {
       );
     }
   } catch (error) {
+    const classified = classifyError(error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("[Chat Completions] Error", { error: errorMessage });
+
+    // Log with appropriate context
+    if (classified.isOIDCError) {
+      logger.warn("[Chat Completions] OIDC authentication error", {
+        error: errorMessage,
+        gatewayHealth: getGatewayHealth(),
+      });
+    } else {
+      logger.error("[Chat Completions] Error", { error: errorMessage });
+    }
+
+    // Handle circuit breaker open
+    if (error instanceof CircuitBreakerOpenError) {
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message: "AI service temporarily unavailable. Please retry.",
+              type: "service_unavailable",
+              retry_after: Math.ceil(error.resetTimeMs / 1000),
+            },
+          },
+          {
+            status: 503,
+            headers: { "Retry-After": String(Math.ceil(error.resetTimeMs / 1000)) },
+          },
+        ),
+      );
+    }
+
+    // Handle OIDC errors with 503
+    if (classified.isOIDCError) {
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message: "AI Gateway temporarily unavailable. Please retry.",
+              type: "service_unavailable",
+            },
+          },
+          { status: 503 },
+        ),
+      );
+    }
 
     // Determine appropriate status code based on error
     let status = 500;
@@ -405,8 +457,11 @@ async function handleStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
+  // Get model with fallback support
+  const languageModel = await getLanguageModelWithFallback(model);
+
   const result = streamText({
-    model: gateway.languageModel(model),
+    model: languageModel,
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     temperature: request.temperature,
@@ -563,8 +618,11 @@ async function handleNonStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
+  // Get model with fallback support
+  const languageModel = await getLanguageModelWithFallback(model);
+
   const result = await generateText({
-    model: gateway.languageModel(model),
+    model: languageModel,
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     temperature: request.temperature,

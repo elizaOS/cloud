@@ -15,6 +15,14 @@ import {
 import { calculateCost, estimateTokens } from "@/lib/pricing";
 import { resolveModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
+import {
+  classifyError,
+  CircuitBreakerOpenError,
+} from "@/lib/utils/retry";
+import {
+  getLanguageModelWithFallback,
+  getGatewayHealth,
+} from "@/lib/providers/ai-gateway-fallback";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -286,8 +294,11 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
+    // Get model with fallback support for OIDC issues
+    const languageModel = await getLanguageModelWithFallback(selectedModel);
+
     const result = streamText({
-      model: gateway.languageModel(selectedModel),
+      model: languageModel,
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: await convertToModelMessages(messages),
@@ -471,9 +482,50 @@ async function handlePOST(req: NextRequest) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    logger.error("chat-api", "Error processing chat", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    const classified = classifyError(error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    // Log with appropriate context
+    if (classified.isOIDCError) {
+      logger.warn("chat-api", "OIDC authentication error", {
+        error: errorMessage,
+        gatewayHealth: getGatewayHealth(),
+      });
+    } else {
+      logger.error("chat-api", "Error processing chat", {
+        error: errorMessage,
+      });
+    }
+
+    // Return appropriate status code based on error type
+    if (error instanceof CircuitBreakerOpenError) {
+      return new Response(
+        JSON.stringify({
+          error: "AI service temporarily unavailable. Please retry in a few moments.",
+          retry_after: Math.ceil(error.resetTimeMs / 1000),
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(Math.ceil(error.resetTimeMs / 1000)),
+          },
+        },
+      );
+    }
+
+    if (classified.isOIDCError) {
+      return new Response(
+        JSON.stringify({
+          error: "AI Gateway temporarily unavailable. Please retry.",
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     return new Response(JSON.stringify({ error: "Failed to process chat" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
