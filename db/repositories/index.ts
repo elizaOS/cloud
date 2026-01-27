@@ -116,3 +116,8 @@ export * from "./seo-requests";
 // ============================================
 export * from "./discord-guilds";
 export * from "./discord-channels";
+
+// ============================================
+// Generated Workflows (AI Workflow Factory)
+// ============================================
+export * from "./generated-workflows";
