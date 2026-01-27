@@ -3,6 +3,10 @@
 import { TwitterConnection } from "../twitter-connection";
 import { TelegramConnection } from "../telegram-connection";
 import { DiscordConnection } from "../discord-connection";
+import { GoogleConnection } from "../google-connection";
+import { BlooioConnection } from "../blooio-connection";
+import { TwilioConnection } from "../twilio-connection";
+import { PhoneNumberManager } from "../phone-number-manager";
 import {
   Card,
   CardDescription,
@@ -99,6 +103,31 @@ function ComingSoonCard({
 export function ConnectionsTab() {
   return (
     <div className="space-y-8">
+      {/* Messaging & Communication Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">
+            Messaging & Communication
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Connect messaging services for AI-powered conversations via SMS,
+            iMessage, and email.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          <GoogleConnection />
+          <TwilioConnection />
+          <BlooioConnection />
+        </div>
+      </div>
+
+      {/* Phone Number Routing Section */}
+      <div className="space-y-4">
+        <PhoneNumberManager />
+      </div>
+
+      {/* Social Media Section */}
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-white">
