@@ -157,6 +157,7 @@ const publicPaths = [
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",
+  "/api/v1/google/callback",
   "/api/cron",
   "/api/v1/cron",
   "/api/mcps",
@@ -170,6 +171,7 @@ const publicPaths = [
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
+  "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
 ];
 
 const publicPathPatterns = [
