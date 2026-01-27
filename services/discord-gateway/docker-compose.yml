@@ -11,7 +11,9 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - POD_NAME=gateway-local
-      - ELIZA_CLOUD_URL=${ELIZA_CLOUD_URL:-http://host.docker.internal:3000}
+      # URL resolution: ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → default
+      - ELIZA_CLOUD_URL=${ELIZA_CLOUD_URL:-}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://host.docker.internal:3000}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - REDIS_URL=${REDIS_URL}
       - KV_REST_API_URL=${KV_REST_API_URL}

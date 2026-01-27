@@ -29,9 +29,16 @@ if (!process.env.POD_NAME) {
 const port = parseInt(process.env.PORT ?? "3000", 10);
 
 // Initialize gateway manager
+// ELIZA_CLOUD_URL takes precedence, then falls back to NEXT_PUBLIC_APP_URL
+// This allows reusing the same env var as the main app for local development
+const elizaCloudUrl =
+  process.env.ELIZA_CLOUD_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://elizacloud.ai";
+
 const gatewayManager = new GatewayManager({
   podName,
-  elizaCloudUrl: process.env.ELIZA_CLOUD_URL ?? "https://elizacloud.ai",
+  elizaCloudUrl,
   internalApiKey: process.env.INTERNAL_API_KEY ?? "",
   redisUrl: process.env.REDIS_URL ?? process.env.KV_REST_API_URL,
   redisToken: process.env.KV_REST_API_TOKEN,
