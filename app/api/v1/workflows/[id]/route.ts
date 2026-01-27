@@ -10,7 +10,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { generatedWorkflowsRepository } from "@/db/repositories";
+import { generatedWorkflowsRepository, workflowExecutionsRepository } from "@/db/repositories";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -44,6 +44,11 @@ export async function GET(
       );
     }
 
+    // Fetch executions for this workflow
+    const executions = await workflowExecutionsRepository.listByWorkflow(id, {
+      limit: 20,
+    });
+
     return NextResponse.json({
       workflow: {
         id: workflow.id,
@@ -71,6 +76,16 @@ export async function GET(
         updatedAt: workflow.updated_at,
         lastUsedAt: workflow.last_used_at,
       },
+      executions: executions.map((e) => ({
+        id: e.id,
+        status: e.status,
+        startedAt: e.started_at,
+        completedAt: e.completed_at,
+        executionTimeMs: e.execution_time_ms,
+        inputParams: e.input_params,
+        outputResult: e.output_result,
+        errorMessage: e.error_message,
+      })),
     });
   } catch (error) {
     logger.error("[Workflows] Failed to get workflow", {

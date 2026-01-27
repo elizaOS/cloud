@@ -12,7 +12,7 @@ import {
   generatedWorkflowsRepository,
   workflowExecutionsRepository,
 } from "@/db/repositories";
-import { secretsService } from "@/lib/services/secrets";
+import { workflowExecutorService } from "@/lib/services/workflow-executor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute for execution
@@ -90,65 +90,32 @@ export async function POST(
     });
 
     try {
-      // Gather credentials for the workflow's service dependencies
-      const credentials: Record<string, string> = {};
-
-      for (const serviceId of workflow.service_dependencies as string[]) {
-        try {
-          if (serviceId === "google") {
-            const accessToken = await secretsService.getDecryptedValue(
-              user.organization_id,
-              "google_access_token",
-            );
-            if (accessToken) {
-              credentials.google_access_token = accessToken;
-            }
-          } else if (serviceId === "blooio") {
-            const apiKey = await secretsService.getDecryptedValue(
-              user.organization_id,
-              "blooio_api_key",
-            );
-            if (apiKey) {
-              credentials.blooio_api_key = apiKey;
-            }
-          } else if (serviceId === "twilio") {
-            const accountSid = await secretsService.getDecryptedValue(
-              user.organization_id,
-              "twilio_account_sid",
-            );
-            const authToken = await secretsService.getDecryptedValue(
-              user.organization_id,
-              "twilio_auth_token",
-            );
-            if (accountSid && authToken) {
-              credentials.twilio_account_sid = accountSid;
-              credentials.twilio_auth_token = authToken;
-            }
-          }
-        } catch (credError) {
-          logger.warn("[Workflows] Failed to get credentials for service", {
-            serviceId,
-            error:
-              credError instanceof Error ? credError.message : String(credError),
-          });
-        }
-      }
-
-      // Execute the workflow
-      // NOTE: In a production environment, this would run in a sandbox
-      // For now, we'll return a simulated result
-      const result = {
-        success: true,
-        data: {
-          message: "Workflow execution simulated",
-          workflowId: workflow.id,
-          inputParams,
-          servicesAvailable: Object.keys(credentials),
+      // Execute the workflow using the executor service
+      const executionResult = await workflowExecutorService.execute({
+        organizationId: user.organization_id,
+        userId: user.id,
+        workflowId: workflow.id,
+        input: {
+          executionPlan: workflow.execution_plan,
+          params: inputParams,
         },
-        message: `Workflow "${workflow.name}" executed successfully`,
+        dryRun: inputParams.dryRun === true,
+      });
+
+      const result = {
+        success: executionResult.success,
+        data: {
+          output: executionResult.output,
+          steps: executionResult.steps,
+          workflowId: workflow.id,
+        },
+        message: executionResult.success
+          ? `Workflow "${workflow.name}" executed successfully`
+          : `Workflow "${workflow.name}" failed: ${executionResult.error}`,
+        error: executionResult.error,
       };
 
-      const executionTimeMs = Date.now() - startTime;
+      const executionTimeMs = executionResult.executionTimeMs;
 
       // Update execution record
       await workflowExecutionsRepository.complete(

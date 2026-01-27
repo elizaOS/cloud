@@ -1,12 +1,12 @@
 /**
  * Workflow Factory
  *
- * Orchestrates AI-powered workflow generation using Claude.
+ * Orchestrates AI-powered workflow generation using OpenAI GPT-4.
  * Integrates context building, dependency resolution, and code generation.
  * Inspired by plugin-n8n's iterative generation approach.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { logger } from "@/lib/utils/logger";
 import {
   contextBuilder,
@@ -88,30 +88,30 @@ export interface GenerationJob {
 }
 
 /**
- * Default Claude model for workflow generation
+ * Default OpenAI model for workflow generation
  */
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_MODEL = "gpt-4o";
 
 /**
  * Workflow Factory Service
  */
 class WorkflowFactoryService {
-  private anthropic: Anthropic | null = null;
+  private openai: OpenAI | null = null;
   private jobs: Map<string, GenerationJob> = new Map();
 
   /**
    * Initialize the factory with API key
    */
   initialize(apiKey: string): void {
-    this.anthropic = new Anthropic({ apiKey });
-    logger.info("[WorkflowFactory] Initialized with Anthropic API");
+    this.openai = new OpenAI({ apiKey });
+    logger.info("[WorkflowFactory] Initialized with OpenAI API");
   }
 
   /**
    * Check if factory is ready
    */
   isReady(): boolean {
-    return this.anthropic !== null;
+    return this.openai !== null;
   }
 
   /**
@@ -120,7 +120,7 @@ class WorkflowFactoryService {
   async generateWorkflow(
     request: WorkflowGenerationRequest,
   ): Promise<GeneratedWorkflow> {
-    if (!this.anthropic) {
+    if (!this.openai) {
       throw new Error(
         "WorkflowFactory not initialized. Call initialize() with API key first.",
       );
@@ -177,14 +177,14 @@ class WorkflowFactoryService {
         iterations++;
         this.logToJob(jobId, `Generation iteration ${iterations}/${maxIterations}`);
 
-        const response = await this.callClaude(
+        const response = await this.callOpenAI(
           prompt.fullPrompt,
           model,
           iterations > 1 ? generatedCode : undefined,
         );
 
-        generatedCode = this.extractCode(response.content);
-        tokensUsed += response.usage.input_tokens + response.usage.output_tokens;
+        generatedCode = this.extractCodeFromOpenAI(response);
+        tokensUsed += (response.usage?.prompt_tokens || 0) + (response.usage?.completion_tokens || 0);
 
         // Phase 4: Validate
         this.updateJob(jobId, {
@@ -263,18 +263,22 @@ class WorkflowFactoryService {
   }
 
   /**
-   * Call Claude API
+   * Call OpenAI API
    */
-  private async callClaude(
+  private async callOpenAI(
     prompt: string,
     model: string,
     previousCode?: string,
-  ): Promise<Anthropic.Message> {
-    if (!this.anthropic) {
-      throw new Error("Anthropic client not initialized");
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    if (!this.openai) {
+      throw new Error("OpenAI client not initialized");
     }
 
-    const messages: Anthropic.MessageParam[] = [
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: "You are an expert workflow automation engineer. Generate clean, type-safe TypeScript code with proper error handling. Always wrap code in markdown code blocks with ```typescript.",
+      },
       {
         role: "user",
         content: prompt,
@@ -293,7 +297,7 @@ class WorkflowFactoryService {
       });
     }
 
-    return this.anthropic.messages.create({
+    return this.openai.chat.completions.create({
       model,
       max_tokens: 4096,
       temperature: 0,
@@ -302,13 +306,10 @@ class WorkflowFactoryService {
   }
 
   /**
-   * Extract code from Claude response
+   * Extract code from OpenAI response
    */
-  private extractCode(content: Anthropic.ContentBlock[]): string {
-    const textContent = content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("\n");
+  private extractCodeFromOpenAI(response: OpenAI.Chat.Completions.ChatCompletion): string {
+    const textContent = response.choices[0]?.message?.content || "";
 
     // Extract code from markdown code blocks
     const codeBlockRegex = /```(?:typescript|ts|javascript|js)?\s*\n([\s\S]*?)```/g;

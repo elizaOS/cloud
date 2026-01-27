@@ -97,18 +97,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check if Anthropic API key is configured
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) {
+    // Check if OpenAI API key is configured
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
       return NextResponse.json(
-        { error: "AI generation not configured. Please set ANTHROPIC_API_KEY." },
+        { error: "AI generation not configured. Please set OPENAI_API_KEY." },
         { status: 503 },
       );
     }
 
     // Initialize workflow factory if needed
     if (!workflowFactory.isReady()) {
-      workflowFactory.initialize(anthropicKey);
+      workflowFactory.initialize(openaiKey);
     }
 
     // Get connected services

@@ -38,9 +38,27 @@ export interface GoogleCredentials {
   refreshToken?: string;
 }
 
+/**
+ * Execution plan step from workflow
+ */
+export interface ExecutionPlanStep {
+  step: number;
+  serviceId: string;
+  operation: string;
+}
+
+/**
+ * Action execution result
+ */
+export interface ActionResult {
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: string;
+}
+
 class WorkflowExecutorService {
   /**
-   * Execute a workflow with the given context
+   * Execute a workflow with the given execution plan
    */
   async execute(context: WorkflowExecutionContext): Promise<WorkflowExecutionResult> {
     const startTime = Date.now();
@@ -53,12 +71,73 @@ class WorkflowExecutorService {
         dryRun: context.dryRun,
       });
 
-      // For now, we'll return a placeholder result
-      // Real implementation would parse and execute the workflow code
+      // If no execution plan provided in input, return early
+      const executionPlan = context.input.executionPlan as ExecutionPlanStep[] | undefined;
+      if (!executionPlan || executionPlan.length === 0) {
+        return {
+          success: true,
+          output: { message: "No execution plan provided" },
+          executionTimeMs: Date.now() - startTime,
+          steps,
+        };
+      }
+
+      // Execute each step in sequence
+      let previousStepOutput: Record<string, unknown> = context.input.params as Record<string, unknown> || {};
+
+      for (const planStep of executionPlan) {
+        const stepStartTime = Date.now();
+        
+        logger.info("[WorkflowExecutor] Executing step", {
+          step: planStep.step,
+          serviceId: planStep.serviceId,
+          operation: planStep.operation,
+        });
+
+        if (context.dryRun) {
+          // In dry run mode, just log what would happen
+          steps.push({
+            stepName: `${planStep.serviceId}.${planStep.operation}`,
+            success: true,
+            output: { dryRun: true, wouldExecute: planStep },
+            durationMs: Date.now() - stepStartTime,
+          });
+          continue;
+        }
+
+        // Execute the action
+        const actionResult = await this.executeAction(
+          context.organizationId,
+          planStep.serviceId,
+          planStep.operation,
+          previousStepOutput,
+        );
+
+        steps.push({
+          stepName: `${planStep.serviceId}.${planStep.operation}`,
+          success: actionResult.success,
+          output: actionResult.data,
+          error: actionResult.error,
+          durationMs: Date.now() - stepStartTime,
+        });
+
+        if (!actionResult.success) {
+          // Stop execution on first failure
+          return {
+            success: false,
+            error: `Step ${planStep.step} failed: ${actionResult.error}`,
+            executionTimeMs: Date.now() - startTime,
+            steps,
+          };
+        }
+
+        // Pass output to next step
+        previousStepOutput = { ...previousStepOutput, ...actionResult.data };
+      }
 
       return {
         success: true,
-        output: { message: "Workflow executed successfully" },
+        output: previousStepOutput,
         executionTimeMs: Date.now() - startTime,
         steps,
       };
@@ -69,6 +148,146 @@ class WorkflowExecutorService {
         error: error instanceof Error ? error.message : "Unknown error",
         executionTimeMs: Date.now() - startTime,
         steps,
+      };
+    }
+  }
+
+  /**
+   * Execute a single action based on service and operation
+   */
+  async executeAction(
+    organizationId: string,
+    serviceId: string,
+    operation: string,
+    params: Record<string, unknown>,
+  ): Promise<ActionResult> {
+    logger.info("[WorkflowExecutor] Executing action", {
+      organizationId,
+      serviceId,
+      operation,
+    });
+
+    try {
+      switch (`${serviceId}.${operation}`) {
+        // Google Gmail operations
+        case "google.sendEmail": {
+          const emailResult = await this.sendEmail(organizationId, {
+            to: params.to as string | string[],
+            subject: params.subject as string,
+            body: params.body as string,
+            cc: params.cc as string | string[] | undefined,
+            bcc: params.bcc as string | string[] | undefined,
+            isHtml: params.isHtml as boolean | undefined,
+          });
+          return {
+            success: emailResult.success,
+            data: emailResult.messageId ? { messageId: emailResult.messageId } : undefined,
+            error: emailResult.error,
+          };
+        }
+
+        case "google.listEmails": {
+          const listEmailsResult = await this.listEmails(organizationId, {
+            query: params.query as string | undefined,
+            maxResults: params.maxResults as number | undefined,
+            labelIds: params.labelIds as string[] | undefined,
+          });
+          return {
+            success: listEmailsResult.success,
+            data: listEmailsResult.messages ? { messages: listEmailsResult.messages } : undefined,
+            error: listEmailsResult.error,
+          };
+        }
+
+        case "google.getEmail": {
+          const getEmailResult = await this.getEmail(
+            organizationId,
+            params.messageId as string,
+          );
+          return {
+            success: getEmailResult.success,
+            data: getEmailResult.message ? { message: getEmailResult.message } : undefined,
+            error: getEmailResult.error,
+          };
+        }
+
+        // Google Calendar operations
+        case "google.createCalendarEvent": {
+          const calendarResult = await this.createCalendarEvent(organizationId, {
+            summary: params.summary as string,
+            description: params.description as string | undefined,
+            start: params.start as Date | string,
+            end: params.end as Date | string,
+            attendees: params.attendees as string[] | undefined,
+            location: params.location as string | undefined,
+            calendarId: params.calendarId as string | undefined,
+          });
+          return {
+            success: calendarResult.success,
+            data: calendarResult.eventId ? { eventId: calendarResult.eventId } : undefined,
+            error: calendarResult.error,
+          };
+        }
+
+        case "google.listCalendarEvents": {
+          const listEventsResult = await this.listCalendarEvents(organizationId, {
+            calendarId: params.calendarId as string | undefined,
+            timeMin: params.timeMin as Date | string | undefined,
+            timeMax: params.timeMax as Date | string | undefined,
+            maxResults: params.maxResults as number | undefined,
+          });
+          return {
+            success: listEventsResult.success,
+            data: listEventsResult.events ? { events: listEventsResult.events } : undefined,
+            error: listEventsResult.error,
+          };
+        }
+
+        // Twilio SMS operations
+        case "twilio.sendSms": {
+          const smsResult = await this.sendSms(organizationId, {
+            to: params.to as string,
+            from: params.from as string,
+            body: params.body as string,
+            mediaUrls: params.mediaUrls as string[] | undefined,
+          });
+          return {
+            success: smsResult.success,
+            data: smsResult.messageSid ? { messageSid: smsResult.messageSid } : undefined,
+            error: smsResult.error,
+          };
+        }
+
+        // Blooio iMessage operations
+        case "blooio.sendIMessage": {
+          const imessageResult = await this.sendIMessage(organizationId, {
+            to: params.to as string,
+            from: params.from as string,
+            body: params.body as string,
+            mediaUrls: params.mediaUrls as string[] | undefined,
+          });
+          return {
+            success: imessageResult.success,
+            data: imessageResult.messageId ? { messageId: imessageResult.messageId } : undefined,
+            error: imessageResult.error,
+          };
+        }
+
+        default:
+          return {
+            success: false,
+            error: `Unknown operation: ${serviceId}.${operation}`,
+          };
+      }
+    } catch (error) {
+      logger.error("[WorkflowExecutor] Action execution error", {
+        serviceId,
+        operation,
+        error,
+      });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
