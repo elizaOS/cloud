@@ -317,12 +317,12 @@ cd services/discord-gateway
 # Install dependencies
 bun install
 
-# Start with hot reload on a different port (3001) to avoid conflict with Eliza Cloud
-PORT=3001 bun run dev
+# Start with hot reload (runs on port 3001 by default)
+bun run dev
 ```
 
 The gateway will:
-- Start on port 3001 (to avoid conflict with Eliza Cloud on 3000)
+- Start on port 3001 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
 - Poll `http://localhost:3000/api/internal/discord/gateway/assignments` every 30s
 - Forward events to `http://localhost:3000/api/internal/discord/events`
 - Send heartbeats every 15s
@@ -333,8 +333,7 @@ The gateway will:
 #### Option 2: Production Mode
 
 ```bash
-# Run on port 3001 to avoid conflict with Eliza Cloud
-PORT=3001 bun run start
+bun run start  # Runs on port 3001 by default
 ```
 
 #### Option 3: Docker
@@ -435,7 +434,7 @@ INSERT INTO discord_connections (
 **Port Reference:**
 | Running Method | Gateway Port | Notes |
 |----------------|--------------|-------|
-| Local (`PORT=3001 bun run dev`) | `http://localhost:3001` | Use PORT=3001 to avoid conflict with Eliza Cloud |
+| Local (`bun run dev`) | `http://localhost:3001` | Scripts default to port 3001 |
 | Docker (`docker compose up`) | `http://localhost:3001` | Mapped from container's internal port 3000 |
 
 #### 1. Check Gateway Health
@@ -545,11 +544,11 @@ ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → https://elizacloud.ai
 ### Scripts
 
 ```bash
-# Development (uses root ../../.env.local)
+# Development (uses root ../../.env.local, runs on port 3001)
 bun run dev          # Development with hot reload, uses root .env.local
 bun run start        # Production mode, uses root .env.local
 
-# Development (uses local .env in this directory)
+# Development (uses local .env in this directory, runs on port 3001)
 bun run dev:local    # Development with hot reload, uses local .env
 bun run start:local  # Production mode, uses local .env
 
