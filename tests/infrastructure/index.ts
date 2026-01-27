@@ -67,3 +67,21 @@ export {
   type TestApiClientOptions,
   type RequestOptions,
 } from "./http-client";
+
+// Workflow test utilities
+export {
+  generateMockWorkflow,
+  generateMockWorkflowCode,
+  createTestWorkflow,
+  createTestWorkflowExecution,
+  getTestWorkflow,
+  updateTestWorkflowStatus,
+  cleanupTestWorkflows,
+  cleanupTestWorkflow,
+  verifyWorkflowStructure,
+  verifyWorkflowCode,
+  getTestAuthHeaders,
+  waitForCondition,
+  type TestWorkflow,
+  type TestWorkflowExecution,
+} from "./workflow-test-helpers";

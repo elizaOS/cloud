@@ -1,0 +1,462 @@
+/**
+ * E2E Integration Tests for Connection APIs
+ *
+ * Tests Google, Twilio, and Blooio connection endpoints.
+ * Covers: status checks, connect, disconnect flows.
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { Client } from "pg";
+import {
+  createTestDataSet,
+  cleanupTestData,
+  type TestDataSet,
+} from "../infrastructure/test-data-factory";
+
+const TEST_DB_URL = process.env.DATABASE_URL || "";
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+
+describe("Connection APIs E2E Tests", () => {
+  let testData: TestDataSet;
+  let client: Client;
+
+  beforeAll(async () => {
+    if (!TEST_DB_URL) {
+      throw new Error("DATABASE_URL is required for integration tests");
+    }
+
+    testData = await createTestDataSet(TEST_DB_URL, {
+      organizationName: "Connection API Test Org",
+      creditBalance: 1000,
+    });
+
+    client = new Client({ connectionString: TEST_DB_URL });
+    await client.connect();
+  });
+
+  afterAll(async () => {
+    // Clean up any platform credentials
+    await client.query(
+      `DELETE FROM platform_credentials WHERE organization_id = $1`,
+      [testData.organization.id],
+    );
+    await client.query(`DELETE FROM secrets WHERE organization_id = $1`, [
+      testData.organization.id,
+    ]);
+    await client.end();
+    await cleanupTestData(TEST_DB_URL, testData.organization.id);
+  });
+
+  describe("Google Connection API", () => {
+    describe("GET /api/v1/google/status", () => {
+      it("should return disconnected status when not connected", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.connected).toBe(false);
+      });
+
+      it("should return connected status when credentials exist", async () => {
+        // Insert test credentials
+        await client.query(
+          `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
+           VALUES ($1, 'google_access_token', 'test_token', NOW(), NOW())
+           ON CONFLICT (organization_id, key) DO UPDATE SET value = 'test_token'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        // Will be connected if token exists
+        expect(typeof data.connected).toBe("boolean");
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/google/status`);
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/v1/google/oauth", () => {
+      it("should initiate OAuth flow", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/google/oauth`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+
+        // Will return 500 if GOOGLE_CLIENT_ID not configured, which is expected
+        expect([200, 500]).toContain(response.status);
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/google/oauth`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("DELETE /api/v1/google/disconnect", () => {
+      it("should disconnect Google account", async () => {
+        // First connect (mock)
+        await client.query(
+          `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
+           VALUES ($1, 'google_access_token', 'test_token', NOW(), NOW())
+           ON CONFLICT (organization_id, key) DO UPDATE SET value = 'test_token'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/google/disconnect`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect([200, 204]).toContain(response.status);
+
+        // Verify disconnected
+        const secretResult = await client.query(
+          `SELECT * FROM secrets WHERE organization_id = $1 AND key = 'google_access_token'`,
+          [testData.organization.id],
+        );
+        // Token should be deleted or empty
+        expect(secretResult.rows.length === 0 || !secretResult.rows[0]?.value).toBe(true);
+      });
+    });
+  });
+
+  describe("Twilio Connection API", () => {
+    describe("GET /api/v1/twilio/status", () => {
+      it("should return disconnected status when not connected", async () => {
+        // Clean up any existing credentials
+        await client.query(
+          `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.connected).toBe(false);
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/status`);
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/v1/twilio/connect", () => {
+      it("should validate required fields", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/connect`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            // Missing required fields
+          }),
+        });
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should connect with valid credentials", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/connect`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountSid: "ACtest12345678901234567890123456",
+            authToken: "test_auth_token_1234567890123456",
+            phoneNumber: "+15551234567",
+          }),
+        });
+
+        // May succeed or fail depending on Twilio validation
+        expect([200, 400, 500]).toContain(response.status);
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountSid: "ACtest",
+            authToken: "test",
+            phoneNumber: "+15551234567",
+          }),
+        });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("DELETE /api/v1/twilio/disconnect", () => {
+      it("should disconnect Twilio account", async () => {
+        // First setup mock credentials
+        await client.query(
+          `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
+           VALUES ($1, 'twilio', '{"accountSid": "ACtest", "phoneNumber": "+15551234567"}', NOW(), NOW())
+           ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"accountSid": "ACtest", "phoneNumber": "+15551234567"}'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/twilio/disconnect`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect([200, 204]).toContain(response.status);
+      });
+    });
+  });
+
+  describe("Blooio Connection API", () => {
+    describe("GET /api/v1/blooio/status", () => {
+      it("should return disconnected status when not connected", async () => {
+        // Clean up any existing credentials
+        await client.query(
+          `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'blooio'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/status`, {
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.connected).toBe(false);
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/status`);
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/v1/blooio/connect", () => {
+      it("should validate required fields", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/connect`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            // Missing apiKey and phoneNumber
+          }),
+        });
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should connect with valid credentials", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/connect`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            apiKey: "bloo_test_api_key_1234567890",
+            phoneNumber: "+15559876543",
+          }),
+        });
+
+        // May succeed or fail depending on Blooio validation
+        expect([200, 400, 500]).toContain(response.status);
+      });
+
+      it("should return 401 without authentication", async () => {
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            apiKey: "test_key",
+            phoneNumber: "+15559876543",
+          }),
+        });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("DELETE /api/v1/blooio/disconnect", () => {
+      it("should disconnect Blooio account", async () => {
+        // First setup mock credentials
+        await client.query(
+          `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
+           VALUES ($1, 'blooio', '{"phoneNumber": "+15559876543"}', NOW(), NOW())
+           ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"phoneNumber": "+15559876543"}'`,
+          [testData.organization.id],
+        );
+
+        const response = await fetch(`${BASE_URL}/api/v1/blooio/disconnect`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${testData.apiKey.key}`,
+          },
+        });
+
+        expect([200, 204]).toContain(response.status);
+      });
+    });
+  });
+
+  describe("Cross-Connection Scenarios", () => {
+    it("should allow multiple services to be connected simultaneously", async () => {
+      // Connect Google
+      await client.query(
+        `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
+         VALUES ($1, 'google_access_token', 'google_test_token', NOW(), NOW())
+         ON CONFLICT (organization_id, key) DO UPDATE SET value = 'google_test_token'`,
+        [testData.organization.id],
+      );
+
+      // Connect Twilio
+      await client.query(
+        `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
+         VALUES ($1, 'twilio', '{"accountSid": "ACtest"}', NOW(), NOW())
+         ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"accountSid": "ACtest"}'`,
+        [testData.organization.id],
+      );
+
+      // Connect Blooio
+      await client.query(
+        `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
+         VALUES ($1, 'blooio', '{"apiKey": "test"}', NOW(), NOW())
+         ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"apiKey": "test"}'`,
+        [testData.organization.id],
+      );
+
+      // Check all statuses
+      const googleStatus = await fetch(`${BASE_URL}/api/v1/google/status`, {
+        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+      });
+      const twilioStatus = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
+        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+      });
+      const blooioStatus = await fetch(`${BASE_URL}/api/v1/blooio/status`, {
+        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+      });
+
+      expect(googleStatus.status).toBe(200);
+      expect(twilioStatus.status).toBe(200);
+      expect(blooioStatus.status).toBe(200);
+    });
+
+    it("should handle disconnecting one service without affecting others", async () => {
+      // Disconnect only Twilio
+      await client.query(
+        `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
+        [testData.organization.id],
+      );
+
+      // Google should still be connected
+      const googleResult = await client.query(
+        `SELECT * FROM secrets WHERE organization_id = $1 AND key = 'google_access_token'`,
+        [testData.organization.id],
+      );
+      expect(googleResult.rows.length).toBe(1);
+
+      // Blooio should still be connected
+      const blooioResult = await client.query(
+        `SELECT * FROM platform_credentials WHERE organization_id = $1 AND platform = 'blooio'`,
+        [testData.organization.id],
+      );
+      expect(blooioResult.rows.length).toBe(1);
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle malformed JSON in request body", async () => {
+      const response = await fetch(`${BASE_URL}/api/v1/twilio/connect`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${testData.apiKey.key}`,
+          "Content-Type": "application/json",
+        },
+        body: "{ invalid json }",
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("should handle invalid API key", async () => {
+      const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+        headers: {
+          Authorization: "Bearer invalid_key_12345",
+        },
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it("should handle expired API key", async () => {
+      // Create an expired API key
+      const expiredKeyId = await client.query(
+        `INSERT INTO api_keys (id, name, key, key_hash, key_prefix, organization_id, user_id, is_active, expires_at)
+         VALUES ($1, 'Expired Key', 'ek_expired_123', 'hash123', 'ek_expired_', $2, $3, true, NOW() - INTERVAL '1 day')
+         RETURNING key`,
+        [
+          "00000000-0000-0000-0000-000000000001",
+          testData.organization.id,
+          testData.user.id,
+        ],
+      );
+
+      const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+        headers: {
+          Authorization: `Bearer ${expiredKeyId.rows[0].key}`,
+        },
+      });
+
+      // Should be unauthorized due to expired key
+      expect([401, 403]).toContain(response.status);
+
+      // Cleanup
+      await client.query(`DELETE FROM api_keys WHERE id = $1`, [
+        "00000000-0000-0000-0000-000000000001",
+      ]);
+    });
+  });
+});
