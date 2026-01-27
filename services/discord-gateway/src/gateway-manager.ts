@@ -49,8 +49,11 @@ const BOT_POLL_INTERVAL_MS = 30_000;
 /** Interval between heartbeats to Redis (15 seconds) */
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
-/** HTTP request timeout (10 seconds) */
+/** HTTP request timeout for general operations (10 seconds) */
 const HTTP_TIMEOUT_MS = 10_000;
+
+/** HTTP request timeout for event forwarding (60 seconds) - AI processing can take longer */
+const EVENT_FORWARD_TIMEOUT_MS = 60_000;
 
 /** Redis pod state TTL (5 minutes) */
 const POD_STATE_TTL_SECONDS = 300;
@@ -833,6 +836,7 @@ export class GatewayManager {
             "X-Internal-API-Key": this.config.internalApiKey,
           },
           body: JSON.stringify(payload),
+          timeout: EVENT_FORWARD_TIMEOUT_MS, // AI processing can take longer
         },
       );
 
