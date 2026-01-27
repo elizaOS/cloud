@@ -170,6 +170,7 @@ const publicPaths = [
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
+  "/api/internal", // Internal service-to-service API (has own auth via X-Internal-API-Key)
 ];
 
 const publicPathPatterns = [
@@ -200,7 +201,7 @@ export async function proxy(request: NextRequest) {
         "Access-Control-Allow-Methods":
           "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Internal-API-Key",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },
