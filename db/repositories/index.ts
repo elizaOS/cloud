@@ -121,3 +121,8 @@ export * from "./discord-channels";
 // Generated Workflows (AI Workflow Factory)
 // ============================================
 export * from "./generated-workflows";
+
+// ============================================
+// Workflow Triggers (Automatic Workflow Execution)
+// ============================================
+export * from "./workflow-triggers";
