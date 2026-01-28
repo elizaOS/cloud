@@ -91,7 +91,7 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: build
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    # if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: staging
     timeout-minutes: 15
     steps:
