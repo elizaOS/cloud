@@ -26,7 +26,10 @@ import {
   TestTube2,
   AlertCircle,
   CheckCircle,
+  Lock,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 
 interface ExecutionStep {
   step: number;
@@ -40,6 +43,14 @@ interface ExecuteDialogProps {
   workflowName: string;
   executionPlan: ExecutionStep[];
   onExecute: (params: Record<string, unknown>, dryRun: boolean) => Promise<ExecutionResult>;
+}
+
+interface MissingCredential {
+  provider: string;
+  displayName: string;
+  description: string;
+  connectUrl: string;
+  stepNumber?: number;
 }
 
 interface ExecutionResult {
@@ -60,6 +71,12 @@ interface ExecutionResult {
   };
   executionTimeMs?: number;
   error?: string;
+  // Pre-flight failure fields
+  preflightFailure?: boolean;
+  details?: {
+    missingCredentials?: MissingCredential[];
+  };
+  suggestion?: string;
 }
 
 // Infer required parameters from execution plan
@@ -192,17 +209,60 @@ export function ExecuteDialog({
         
         {/* Result Display */}
         {result && (
-          <div className={`rounded-lg p-4 ${result.success ? "bg-green-500/10 border border-green-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
+          <div className={`rounded-lg p-4 ${
+            result.success 
+              ? "bg-green-500/10 border border-green-500/30" 
+              : result.preflightFailure 
+                ? "bg-yellow-500/10 border border-yellow-500/30"
+                : "bg-red-500/10 border border-red-500/30"
+          }`}>
             <div className="flex items-center gap-2 mb-2">
               {result.success ? (
                 <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : result.preflightFailure ? (
+                <Lock className="h-5 w-5 text-yellow-400" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-red-400" />
               )}
               <span className="font-medium">
-                {result.success ? "Execution Successful" : "Execution Failed"}
+                {result.success 
+                  ? "Execution Successful" 
+                  : result.preflightFailure 
+                    ? "Missing Connections" 
+                    : "Execution Failed"}
               </span>
             </div>
+            
+            {/* Pre-flight Failure - Missing Credentials */}
+            {result.preflightFailure && result.details?.missingCredentials && (
+              <div className="space-y-3 mt-3">
+                <p className="text-sm text-muted-foreground">
+                  This workflow requires the following connections to run:
+                </p>
+                {result.details.missingCredentials.map((cred, i) => (
+                  <div 
+                    key={i} 
+                    className="flex items-center justify-between bg-background/50 rounded p-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{cred.displayName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {cred.description}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" asChild className="ml-3 shrink-0">
+                      <Link href={cred.connectUrl}>
+                        Connect
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+                {result.suggestion && (
+                  <p className="text-xs text-yellow-400 mt-2">{result.suggestion}</p>
+                )}
+              </div>
+            )}
             
             {result.result?.steps && result.result.steps.length > 0 && (
               <div className="space-y-2 mt-3">
@@ -225,7 +285,7 @@ export function ExecuteDialog({
               </div>
             )}
             
-            {result.error && (
+            {result.error && !result.preflightFailure && (
               <p className="text-sm text-red-400 mt-2">{result.error}</p>
             )}
             

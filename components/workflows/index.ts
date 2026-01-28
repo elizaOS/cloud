@@ -9,3 +9,5 @@ export { ExecuteDialog } from "./execute-dialog";
 export { ExecutionResult, type ExecutionResultData, type StepResult } from "./execution-result";
 export { TriggerList, type Trigger } from "./trigger-list";
 export { TriggerDialog } from "./trigger-dialog";
+export { UnlockWorkflowDialog, type MissingCredential, type WorkflowInfo } from "./unlock-workflow-dialog";
+export { TemplateBrowser, type WorkflowTemplate } from "./template-browser";
