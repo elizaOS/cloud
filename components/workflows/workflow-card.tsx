@@ -143,7 +143,7 @@ export function WorkflowCard({
           </span>
           {workflow.successRate && (
             <span className="text-green-400">
-              {parseFloat(workflow.successRate).toFixed(0)}% success
+              {Number.parseFloat(workflow.successRate).toFixed(0)}% success
             </span>
           )}
           <span>{timeAgo}</span>

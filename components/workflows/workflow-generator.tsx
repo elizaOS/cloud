@@ -130,7 +130,7 @@ export function WorkflowGenerator({
       <CardContent className="space-y-4">
         {/* Connected services indicator */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Connected Services</label>
+          <p className="text-sm font-medium">Connected Services</p>
           <div className="flex flex-wrap gap-2">
             {connectedServices.map((service) => (
               <Badge
@@ -160,31 +160,56 @@ export function WorkflowGenerator({
 
         {/* Intent textarea */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">What do you want to automate?</label>
+          <label htmlFor="workflow-intent" className="text-sm font-medium">
+            What do you want to automate?
+          </label>
           <Textarea
+            id="workflow-intent"
             placeholder="Describe your workflow in plain English..."
             value={intent}
-            onChange={(e) => setIntent(e.target.value)}
+            onChange={(e) => {
+              e.preventDefault();
+              setIntent(e.target.value);
+            }}
+            onInput={(e) => {
+              // Fallback for cases where onChange might not fire
+              const target = e.target as HTMLTextAreaElement;
+              if (target.value !== intent) {
+                setIntent(target.value);
+              }
+            }}
             className="min-h-[120px] resize-none"
             disabled={isGenerating}
+            data-testid="workflow-intent-input"
           />
-          <p className="text-xs text-muted-foreground">
-            {intent.length}/10 minimum characters
-          </p>
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">
+              <span className={intent.length >= 10 ? "text-green-500" : "text-yellow-500"}>
+                {intent.length}
+              </span>
+              {" "}/ 10 minimum characters
+            </p>
+            {intent.length > 0 && intent.length < 10 && (
+              <p className="text-xs text-yellow-500">
+                Need {10 - intent.length} more characters
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Example prompts */}
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">Try an example:</label>
+          <p className="text-xs text-muted-foreground">Try an example:</p>
           <div className="flex flex-wrap gap-2">
-            {EXAMPLE_PROMPTS.slice(0, 2).map((example, i) => (
+            {EXAMPLE_PROMPTS.slice(0, 2).map((example) => (
               <button
-                key={i}
+                type="button"
+                key={example.substring(0, 20)}
                 onClick={() => handleExampleClick(example)}
                 className="text-xs text-primary hover:underline text-left"
                 disabled={isGenerating}
               >
-                "{example.substring(0, 50)}..."
+                &ldquo;{example.substring(0, 50)}...&rdquo;
               </button>
             ))}
           </div>

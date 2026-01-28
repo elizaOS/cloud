@@ -399,21 +399,74 @@ class WorkflowFactoryService {
     intentAnalysis: ReturnType<typeof dependencyResolver.analyzeIntent>,
     connectedServices: ServiceConnectionStatus[],
   ): GeneratedWorkflow["executionPlan"] {
-    if (!intentAnalysis.targetService) {
-      return [];
+    // If we have a clear target service, use the dependency resolver
+    if (intentAnalysis.targetService) {
+      const resolution = dependencyResolver.resolveDependencies({
+        targetOperation: intentAnalysis.primaryAction,
+        serviceId: intentAnalysis.targetService,
+        connectedServices,
+      });
+
+      return resolution.executionPlan.map((step) => ({
+        step: step.step,
+        serviceId: step.serviceId,
+        operation: step.operation,
+      }));
     }
 
-    const resolution = dependencyResolver.resolveDependencies({
-      targetOperation: intentAnalysis.primaryAction,
-      serviceId: intentAnalysis.targetService,
-      connectedServices,
-    });
+    // Fallback: Build execution plan from potential services
+    if (intentAnalysis.potentialServices.length > 0) {
+      const plan: GeneratedWorkflow["executionPlan"] = [];
+      let stepNum = 1;
 
-    return resolution.executionPlan.map((step) => ({
-      step: step.step,
-      serviceId: step.serviceId,
-      operation: step.operation,
-    }));
+      for (const serviceId of intentAnalysis.potentialServices) {
+        // Determine the operation based on the primary action or default
+        let operation = intentAnalysis.primaryAction || "execute";
+        
+        // Map service to common operations
+        if (serviceId === "google") {
+          if (operation.includes("email") || operation === "unknown") {
+            operation = "sendEmail";
+          } else if (operation.includes("calendar")) {
+            operation = "listCalendarEvents";
+          }
+        } else if (serviceId === "twilio") {
+          operation = "sendSms";
+        } else if (serviceId === "blooio") {
+          operation = "sendIMessage";
+        }
+
+        plan.push({
+          step: stepNum++,
+          serviceId,
+          operation,
+        });
+      }
+
+      logger.info("[WorkflowFactory] Built fallback execution plan", {
+        potentialServices: intentAnalysis.potentialServices,
+        planSteps: plan.length,
+      });
+
+      return plan;
+    }
+
+    // Last resort: Create a generic execution plan for connected services
+    const connectedServiceIds = connectedServices
+      .filter(s => s.connected)
+      .map(s => s.serviceId);
+
+    if (connectedServiceIds.length > 0) {
+      logger.warn("[WorkflowFactory] No target service detected, using first connected service");
+      return [{
+        step: 1,
+        serviceId: connectedServiceIds[0],
+        operation: "execute",
+      }];
+    }
+
+    logger.warn("[WorkflowFactory] Could not build execution plan - no services available");
+    return [];
   }
 
   /**

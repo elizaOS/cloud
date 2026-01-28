@@ -109,9 +109,6 @@ function highlightSyntax(line: string): React.ReactNode {
   // Function calls
   const functions = /\b([a-zA-Z_]\w*)\s*\(/g;
 
-  // Apply highlighting using a simple replace approach
-  let result = line;
-  
   // This is a simplified approach - for production use a proper syntax highlighter
   // We'll just return the raw line with basic coloring
   

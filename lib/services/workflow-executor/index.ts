@@ -65,15 +65,24 @@ class WorkflowExecutorService {
     const steps: StepResult[] = [];
 
     try {
-      logger.info("[WorkflowExecutor] Starting workflow execution", {
+      logger.info("[WorkflowExecutor] ========== STARTING WORKFLOW EXECUTION ==========", {
         organizationId: context.organizationId,
         workflowId: context.workflowId,
         dryRun: context.dryRun,
+        inputKeys: Object.keys(context.input),
       });
 
       // If no execution plan provided in input, return early
       const executionPlan = context.input.executionPlan as ExecutionPlanStep[] | undefined;
+      
+      logger.info("[WorkflowExecutor] Execution plan received", {
+        hasExecutionPlan: !!executionPlan,
+        stepCount: executionPlan?.length || 0,
+        plan: executionPlan,
+      });
+
       if (!executionPlan || executionPlan.length === 0) {
+        logger.warn("[WorkflowExecutor] No execution plan provided, returning early");
         return {
           success: true,
           output: { message: "No execution plan provided" },
@@ -153,6 +162,45 @@ class WorkflowExecutorService {
   }
 
   /**
+   * Normalize operation name to match our switch cases
+   * Handles formats like "calendar.list_events" -> "listCalendarEvents"
+   */
+  private normalizeOperation(serviceId: string, operation: string): string {
+    // Map from dependency resolver format to executor format
+    const operationMap: Record<string, string> = {
+      // Google Calendar
+      "google.calendar.list_events": "google.listCalendarEvents",
+      "google.calendar.create_event": "google.createCalendarEvent",
+      "google.calendar_list_events": "google.listCalendarEvents",
+      "google.calendar_create_event": "google.createCalendarEvent",
+      // Google Gmail
+      "google.gmail.send_email": "google.sendEmail",
+      "google.gmail.list_emails": "google.listEmails",
+      "google.gmail.get_email": "google.getEmail",
+      "google.gmail_send_email": "google.sendEmail",
+      "google.gmail_list_emails": "google.listEmails",
+      // Twilio
+      "twilio.sms.send": "twilio.sendSms",
+      "twilio.send_sms": "twilio.sendSms",
+      // Blooio
+      "blooio.imessage.send": "blooio.sendIMessage",
+      "blooio.send_imessage": "blooio.sendIMessage",
+    };
+
+    const key = `${serviceId}.${operation}`;
+    const normalized = operationMap[key] || key;
+    
+    if (normalized !== key) {
+      logger.info("[WorkflowExecutor] Normalized operation name", {
+        original: key,
+        normalized,
+      });
+    }
+    
+    return normalized;
+  }
+
+  /**
    * Execute a single action based on service and operation
    */
   async executeAction(
@@ -161,14 +209,19 @@ class WorkflowExecutorService {
     operation: string,
     params: Record<string, unknown>,
   ): Promise<ActionResult> {
+    // Normalize the operation name to handle different formats
+    const normalizedOp = this.normalizeOperation(serviceId, operation);
+    
     logger.info("[WorkflowExecutor] Executing action", {
       organizationId,
       serviceId,
       operation,
+      normalizedOperation: normalizedOp,
+      paramKeys: Object.keys(params),
     });
 
     try {
-      switch (`${serviceId}.${operation}`) {
+      switch (normalizedOp) {
         // Google Gmail operations
         case "google.sendEmail": {
           const emailResult = await this.sendEmail(organizationId, {
@@ -274,16 +327,32 @@ class WorkflowExecutorService {
         }
 
         default:
+          logger.error("[WorkflowExecutor] Unknown operation - not mapped", {
+            serviceId,
+            operation,
+            normalizedOperation: normalizedOp,
+            availableOperations: [
+              "google.sendEmail",
+              "google.listEmails", 
+              "google.getEmail",
+              "google.createCalendarEvent",
+              "google.listCalendarEvents",
+              "twilio.sendSms",
+              "blooio.sendIMessage",
+            ],
+          });
           return {
             success: false,
-            error: `Unknown operation: ${serviceId}.${operation}`,
+            error: `Unknown operation: ${serviceId}.${operation} (normalized: ${normalizedOp}). Check logs for available operations.`,
           };
       }
     } catch (error) {
       logger.error("[WorkflowExecutor] Action execution error", {
         serviceId,
         operation,
-        error,
+        normalizedOperation: normalizedOp,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
       return {
         success: false,
@@ -301,13 +370,36 @@ class WorkflowExecutorService {
    * Uses GoogleTokenService for automatic token refresh
    */
   private async getGoogleCredentials(organizationId: string): Promise<GoogleCredentials | null> {
-    const result = await googleTokenService.getValidToken(organizationId);
+    logger.info("[WorkflowExecutor] Fetching Google credentials", { organizationId });
     
-    if (!result) {
+    try {
+      const result = await googleTokenService.getValidToken(organizationId);
+      
+      if (!result) {
+        logger.error("[WorkflowExecutor] Google credentials NOT FOUND", {
+          organizationId,
+          reason: "googleTokenService.getValidToken returned null",
+          hint: "Check platform_credentials table for Google entry with status='active'",
+        });
+        return null;
+      }
+
+      logger.info("[WorkflowExecutor] Google credentials retrieved successfully", {
+        organizationId,
+        hasAccessToken: !!result.accessToken,
+        tokenLength: result.accessToken?.length || 0,
+        email: result.email,
+        expiresAt: result.expiresAt,
+      });
+
+      return { accessToken: result.accessToken };
+    } catch (error) {
+      logger.error("[WorkflowExecutor] Error fetching Google credentials", {
+        organizationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
-
-    return { accessToken: result.accessToken };
   }
 
   /**
@@ -482,10 +574,18 @@ class WorkflowExecutorService {
       maxResults?: number;
     },
   ): Promise<{ success: boolean; events?: Array<Record<string, unknown>>; error?: string }> {
+    logger.info("[WorkflowExecutor] listCalendarEvents called", {
+      organizationId,
+      params,
+    });
+
     try {
       const credentials = await this.getGoogleCredentials(organizationId);
       if (!credentials) {
-        return { success: false, error: "Google not connected" };
+        logger.error("[WorkflowExecutor] listCalendarEvents - No credentials", {
+          organizationId,
+        });
+        return { success: false, error: "Google not connected - check OAuth connection in Settings" };
       }
 
       const calendarId = params.calendarId || "primary";
@@ -688,6 +788,7 @@ class WorkflowExecutorService {
 
   /**
    * Send iMessage via Blooio
+   * Uses Blooio API v2 endpoint: POST /chats/{chatId}/messages
    */
   async sendIMessage(
     organizationId: string,
@@ -699,24 +800,39 @@ class WorkflowExecutorService {
     },
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const apiKey = await secretsService.getDecryptedValue(
+      // Try secrets service first, then fall back to env var
+      let apiKey = await secretsService.getDecryptedValue(
         organizationId,
-        "blooio_api_key",
+        "BLOOIO_API_KEY",
       );
+
+      if (!apiKey) {
+        apiKey = process.env.BLOOIO_API_KEY || null;
+      }
 
       if (!apiKey) {
         return { success: false, error: "Blooio not connected" };
       }
 
-      const response = await fetch("https://api.blooio.com/v1/messages", {
+      // Get from number from secrets or env
+      let fromNumber = await secretsService.getDecryptedValue(
+        organizationId,
+        "BLOOIO_FROM_NUMBER",
+      );
+      if (!fromNumber) {
+        fromNumber = process.env.BLOOIO_FROM_NUMBER || params.from;
+      }
+
+      // Blooio v2 API: POST /chats/{chatId}/messages
+      const chatId = encodeURIComponent(params.to);
+      const response = await fetch(`https://backend.blooio.com/v2/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          ...(fromNumber ? { "X-From-Number": fromNumber } : {}),
         },
         body: JSON.stringify({
-          to: params.to,
-          from: params.from,
           text: params.body,
           attachments: params.mediaUrls?.map((url) => ({ url })),
         }),
@@ -724,11 +840,11 @@ class WorkflowExecutorService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        return { success: false, error: errorText };
+        return { success: false, error: `Blooio API error (${response.status}): ${errorText}` };
       }
 
       const data = await response.json();
-      return { success: true, messageId: data.message_id };
+      return { success: true, messageId: data.message_id || data.message_ids?.[0] };
     } catch (error) {
       return {
         success: false,

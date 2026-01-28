@@ -244,7 +244,10 @@ export function WorkflowsPageClient() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button 
+            onClick={() => setShowCreateDialog(true)}
+            data-testid="create-workflow-button"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Workflow
           </Button>
@@ -285,8 +288,19 @@ export function WorkflowsPageClient() {
       />
 
       {/* Create Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog 
+        open={showCreateDialog} 
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onPointerDownOutside={(e) => {
+            // Prevent closing when clicking inside the dialog
+            e.preventDefault();
+          }}
+        >
           <WorkflowGenerator
             connectedServices={connectedServices}
             onGenerated={handleGenerated}

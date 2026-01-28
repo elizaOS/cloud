@@ -46,6 +46,10 @@ const ACTION_KEYWORDS: Record<
 > = {
   // Email actions
   email: [{ service: "google", resource: "email", operation: "send" }],
+  emails: [{ service: "google", resource: "email", operation: "list" }],
+  gmail: [{ service: "google", resource: "email", operation: "send" }],
+  mail: [{ service: "google", resource: "email", operation: "send" }],
+  inbox: [{ service: "google", resource: "email", operation: "list" }],
   send: [
     { service: "google", resource: "email", operation: "send" },
     { service: "blooio", resource: "message", operation: "send" },
@@ -56,6 +60,30 @@ const ACTION_KEYWORDS: Record<
     { service: "google", resource: "calendar", operation: "list_events" },
   ],
   read: [{ service: "google", resource: "email", operation: "read" }],
+  automate: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  automating: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  automates: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  automation: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  flow: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  workflow: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
 
   // Messaging actions
   text: [
@@ -67,6 +95,14 @@ const ACTION_KEYWORDS: Record<
   message: [
     { service: "blooio", resource: "message", operation: "send" },
     { service: "twilio", resource: "sms", operation: "send" },
+  ],
+  notify: [
+    { service: "twilio", resource: "sms", operation: "send" },
+    { service: "blooio", resource: "message", operation: "send" },
+  ],
+  alert: [
+    { service: "twilio", resource: "sms", operation: "send" },
+    { service: "blooio", resource: "message", operation: "send" },
   ],
 
   // Calendar actions
@@ -82,6 +118,18 @@ const ACTION_KEYWORDS: Record<
   event: [
     { service: "google", resource: "calendar", operation: "create_event" },
   ],
+  events: [
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
+  appointment: [
+    { service: "google", resource: "calendar", operation: "create_event" },
+  ],
+  reminder: [
+    { service: "google", resource: "calendar", operation: "create_event" },
+  ],
+  availability: [
+    { service: "google", resource: "calendar", operation: "list_events" },
+  ],
 
   // Notion actions
   notion: [{ service: "notion", resource: "page", operation: "create" }],
@@ -92,6 +140,17 @@ const ACTION_KEYWORDS: Record<
   // Contact actions
   contact: [{ service: "google", resource: "contacts", operation: "search" }],
   find: [{ service: "google", resource: "contacts", operation: "search" }],
+  
+  // Response/reply actions
+  respond: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "twilio", resource: "sms", operation: "send" },
+  ],
+  reply: [
+    { service: "google", resource: "email", operation: "send" },
+    { service: "twilio", resource: "sms", operation: "send" },
+  ],
+  forward: [{ service: "google", resource: "email", operation: "send" }],
 };
 
 /**

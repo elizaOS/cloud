@@ -1,6 +1,7 @@
 "use client";
 
 import { WorkflowCard, type Workflow } from "./workflow-card";
+export type { Workflow };
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,11 @@ export function WorkflowList({
           what you want to automate.
         </p>
         {onCreate && (
-          <Button onClick={onCreate}>
+          <Button 
+            onClick={onCreate}
+            size="lg"
+            data-testid="create-first-workflow-button"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Your First Workflow
           </Button>
