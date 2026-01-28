@@ -49,16 +49,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       })),
     });
   } catch (error) {
-    const errorDetails = error instanceof Error 
-      ? { message: error.message, stack: error.stack, name: error.name }
-      : { raw: String(error) };
     logger.error("[Phone Numbers] Failed to list", {
-      error: errorDetails,
+      error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    console.error("[Phone Numbers] Full error:", error);
     return NextResponse.json(
-      { error: "Failed to list phone numbers", details: errorDetails },
+      { error: "Failed to list phone numbers" },
       { status: 500 },
     );
   }
