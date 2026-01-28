@@ -28,6 +28,8 @@ class GoogleTokenService {
    * Automatically refreshes if expired or about to expire
    */
   async getValidToken(organizationId: string): Promise<GoogleTokenResult | null> {
+    logger.info("[GoogleToken] getValidToken called", { organizationId });
+    
     try {
       // Find the Google credential for this org
       const [credential] = await dbRead
@@ -43,9 +45,22 @@ class GoogleTokenService {
         .limit(1);
 
       if (!credential) {
-        logger.debug("[GoogleToken] No Google credential found", { organizationId });
+        logger.warn("[GoogleToken] No Google credential found in platform_credentials", { 
+          organizationId,
+          hint: "User needs to connect Google via Settings > Connections",
+        });
         return null;
       }
+      
+      logger.info("[GoogleToken] Found credential", {
+        organizationId,
+        credentialId: credential.id,
+        email: credential.platform_email,
+        hasAccessTokenSecretId: !!credential.access_token_secret_id,
+        hasRefreshTokenSecretId: !!credential.refresh_token_secret_id,
+        tokenExpiresAt: credential.token_expires_at,
+        status: credential.status,
+      });
 
       // Check if token needs refresh
       const needsRefresh = this.tokenNeedsRefresh(credential.token_expires_at);
@@ -190,7 +205,7 @@ class GoogleTokenService {
       }
 
       // Update platform_credentials with new token info
-      await dbReadWrite
+      await dbWrite
         .update(platformCredentials)
         .set({
           access_token_secret_id: newAccessTokenSecretId,
@@ -216,7 +231,7 @@ class GoogleTokenService {
       });
 
       // Mark credential as expired
-      await dbReadWrite
+      await dbWrite
         .update(platformCredentials)
         .set({
           status: "expired",
