@@ -1,4 +1,4 @@
-# HorizontalPodAutoscaler for Discord Gateway
+# HorizontalPodAutoscaler for Gateway Discord
 #
 # Scaling strategy:
 # - Primary: CPU/Memory utilization (works out of the box)
@@ -6,26 +6,26 @@
 #
 # To enable custom metric scaling, deploy prometheus-adapter with config:
 #   rules:
-#     - seriesQuery: 'discord_gateway_bots_total{pod!=""}'
+#     - seriesQuery: 'gateway_discord_bots_total{pod!=""}'
 #       resources:
 #         overrides:
 #           pod: {resource: "pod"}
 #           namespace: {resource: "namespace"}
 #       name:
 #         matches: "^(.*)$"
-#         as: "discord_gateway_bots_total"
+#         as: "gateway_discord_bots_total"
 #       metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (pod)'
 #
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: discord-gateway
-  namespace: discord-gateway
+  name: gateway-discord
+  namespace: gateway-discord
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: discord-gateway
+    name: gateway-discord
   minReplicas: 3
   maxReplicas: 100
   metrics:
@@ -47,7 +47,7 @@ spec:
     - type: Pods
       pods:
         metric:
-          name: discord_gateway_bots_total
+          name: gateway_discord_bots_total
         target:
           type: AverageValue
           averageValue: "50"

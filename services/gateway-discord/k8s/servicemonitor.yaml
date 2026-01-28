@@ -1,14 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: discord-gateway
-  namespace: discord-gateway
+  name: gateway-discord
+  namespace: gateway-discord
   labels:
-    app: discord-gateway
+    app: gateway-discord
 spec:
   selector:
     matchLabels:
-      app: discord-gateway
+      app: gateway-discord
   endpoints:
     - port: http
       path: /metrics

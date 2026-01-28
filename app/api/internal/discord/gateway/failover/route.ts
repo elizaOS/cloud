@@ -7,8 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
-import { FailoverRequestSchema } from "@/lib/services/discord-gateway/schemas";
-import { DEAD_POD_THRESHOLD_MS } from "@/lib/services/discord-gateway/constants";
+import { FailoverRequestSchema } from "@/lib/services/gateway-discord/schemas";
+import { DEAD_POD_THRESHOLD_MS } from "@/lib/services/gateway-discord/constants";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

@@ -1,12 +1,12 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: discord-gateway
-  namespace: discord-gateway
+  name: gateway-discord
+  namespace: gateway-discord
 spec:
   # Allow at most 1 pod unavailable during voluntary disruptions
   # Works better than minAvailable as it scales with replica count
   maxUnavailable: 1
   selector:
     matchLabels:
-      app: discord-gateway
+      app: gateway-discord

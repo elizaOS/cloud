@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos/discord-gateway",
+  "name": "@elizaos/gateway-discord",
   "version": "1.0.0",
   "description": "Multi-tenant Discord gateway service for Eliza Cloud",
   "type": "module",
@@ -12,11 +12,11 @@
     "start:local": "PORT=3001 bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "docker:build": "docker build -t discord-gateway:local .",
-    "docker:run": "docker run -p 3001:3000 --env-file ../../.env.local discord-gateway:local",
+    "docker:build": "docker build -t gateway-discord:local .",
+    "docker:run": "docker run -p 3001:3000 --env-file ../../.env.local gateway-discord:local",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f discord-gateway",
+    "docker:logs": "docker compose logs -f gateway-discord",
     "k8s:apply": "kubectl apply -f k8s/",
     "k8s:delete": "kubectl delete -f k8s/"
   },

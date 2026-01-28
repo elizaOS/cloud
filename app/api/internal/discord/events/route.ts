@@ -7,12 +7,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
-import { routeDiscordEvent } from "@/lib/services/discord-gateway/event-router";
+import { routeDiscordEvent } from "@/lib/services/gateway-discord/event-router";
 import { logger } from "@/lib/utils/logger";
 import {
   DiscordEventPayloadSchema,
   type DiscordEventPayload,
-} from "@/lib/services/discord-gateway/schemas";
+} from "@/lib/services/gateway-discord/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ function validatePayload(body: unknown): { success: true; data: DiscordEventPayl
       if (parsed.success) {
         return { success: true, data: parsed.data };
       }
-      return { success: false, error: parsed.error.errors.map(e => e.message).join(", ") };
+      return { success: false, error: parsed.error.issues.map((e: { message: string }) => e.message).join(", ") };
     }
   } catch (zodError) {
     logger.warn("[Discord Events] Zod validation unavailable, using fallback", {

@@ -12,7 +12,7 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { z } from "zod";
 import { organizations } from "./organizations";
-import { apps } from "./apps";
+import { userCharacters } from "./user-characters";
 
 /**
  * Zod schema for runtime validation of Discord connection metadata.
@@ -74,7 +74,10 @@ export const discordConnections = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
 
-    app_id: uuid("app_id").references(() => apps.id, { onDelete: "set null" }),
+    // Character ID - links to the agent character that will respond
+    character_id: uuid("character_id").references(() => userCharacters.id, {
+      onDelete: "set null",
+    }),
 
     // Discord application info - one connection per application
     application_id: text("application_id").notNull(),
@@ -150,7 +153,7 @@ export const discordConnections = pgTable(
   },
   (table) => [
     index("discord_connections_organization_id_idx").on(table.organization_id),
-    index("discord_connections_app_id_idx").on(table.app_id),
+    index("discord_connections_character_id_idx").on(table.character_id),
     // One bot per Discord application per organization
     uniqueIndex("discord_connections_org_app_unique_idx").on(
       table.organization_id,

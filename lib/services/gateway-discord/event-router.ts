@@ -19,7 +19,7 @@ import {
   type World,
 } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
-import { discordConnectionsRepository, appsRepository } from "@/db/repositories";
+import { discordConnectionsRepository, userCharactersRepository } from "@/db/repositories";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
@@ -216,43 +216,34 @@ async function handleMessageCreate(
     }
   }
 
-  // Get the app to find the character/agent
-  if (!connection.app_id) {
-    logger.warn("[DiscordRouter] Connection has no associated app", {
+  // Get the character directly from the connection
+  if (!connection.character_id) {
+    logger.warn("[DiscordRouter] Connection has no linked character", {
       connectionId: connection.id,
     });
     return { processed: false };
   }
 
-  const app = await appsRepository.findById(connection.app_id);
-  if (!app) {
-    logger.warn("[DiscordRouter] App not found", {
-      appId: connection.app_id,
-    });
-    return { processed: false };
-  }
-
-  // Get runtime for this app's first linked character
-  const characterId = app.linked_character_ids?.[0];
-  if (!characterId) {
-    logger.warn("[DiscordRouter] App has no linked characters", {
-      appId: app.id,
+  const character = await userCharactersRepository.findById(connection.character_id);
+  if (!character) {
+    logger.warn("[DiscordRouter] Character not found", {
+      characterId: connection.character_id,
     });
     return { processed: false };
   }
 
   // Create a system context for Discord
   const context = userContextService.createSystemContext(AgentMode.CHAT);
-  context.characterId = characterId;
-  context.organizationId = app.organization_id;
+  context.characterId = character.id;
+  context.organizationId = connection.organization_id;
 
   let runtime: AgentRuntime;
   try {
     runtime = await runtimeFactory.createRuntimeForUser(context);
   } catch (error) {
     logger.error("[DiscordRouter] Failed to create runtime", {
-      appId: app.id,
-      characterId,
+      characterId: character.id,
+      characterName: character.name,
       error: sanitizeError(error),
     });
     return { processed: false };

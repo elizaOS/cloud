@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateInternalApiKey } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
-import { ConnectionStatusUpdateSchema } from "@/lib/services/discord-gateway/schemas";
+import { ConnectionStatusUpdateSchema } from "@/lib/services/gateway-discord/schemas";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

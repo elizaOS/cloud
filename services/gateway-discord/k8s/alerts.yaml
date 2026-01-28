@@ -1,26 +1,26 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: discord-gateway-alerts
-  namespace: discord-gateway
+  name: gateway-discord-alerts
+  namespace: gateway-discord
   labels:
-    app: discord-gateway
+    app: gateway-discord
     prometheus: kube-prometheus
 spec:
   groups:
-    - name: discord-gateway.rules
+    - name: gateway-discord.rules
       rules:
-        - alert: DiscordGatewayDown
-          expr: up{job="discord-gateway"} == 0
+        - alert: GatewayDiscordDown
+          expr: up{job="gateway-discord"} == 0
           for: 1m
           labels:
             severity: critical
           annotations:
-            summary: "Discord gateway pod is down"
-            description: "Discord gateway pod {{ $labels.pod }} has been down for more than 1 minute."
+            summary: "Gateway Discord pod is down"
+            description: "Gateway Discord pod {{ $labels.pod }} has been down for more than 1 minute."
 
-        - alert: DiscordGatewayNoBotsConnected
-          expr: discord_gateway_bots_connected == 0 and discord_gateway_bots_total > 0
+        - alert: GatewayDiscordNoBotsConnected
+          expr: gateway_discord_bots_connected == 0 and gateway_discord_bots_total > 0
           for: 5m
           labels:
             severity: critical
@@ -28,10 +28,10 @@ spec:
             summary: "No Discord bots connected"
             description: "Pod {{ $labels.pod }} has {{ $value }} bots assigned but none connected for 5 minutes."
 
-        - alert: DiscordGatewayHighDisconnectRate
+        - alert: GatewayDiscordHighDisconnectRate
           expr: |
-            (discord_gateway_bots_total - discord_gateway_bots_connected) / discord_gateway_bots_total > 0.5
-            and discord_gateway_bots_total > 0
+            (gateway_discord_bots_total - gateway_discord_bots_connected) / gateway_discord_bots_total > 0.5
+            and gateway_discord_bots_total > 0
           for: 5m
           labels:
             severity: warning
@@ -39,49 +39,49 @@ spec:
             summary: "High Discord bot disconnect rate"
             description: "Pod {{ $labels.pod }} has more than 50% bots disconnected."
 
-        - alert: DiscordGatewayPodUnhealthy
+        - alert: GatewayDiscordPodUnhealthy
           expr: |
             kube_pod_container_status_ready{container="gateway"} == 0
           for: 2m
           labels:
             severity: warning
           annotations:
-            summary: "Discord gateway pod not ready"
+            summary: "Gateway Discord pod not ready"
             description: "Pod {{ $labels.pod }} has not been ready for 2 minutes."
 
-        - alert: DiscordGatewayHighMemory
+        - alert: GatewayDiscordHighMemory
           expr: |
             container_memory_usage_bytes{container="gateway"} / container_spec_memory_limit_bytes{container="gateway"} > 0.9
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Discord gateway high memory usage"
+            summary: "Gateway Discord high memory usage"
             description: "Pod {{ $labels.pod }} memory usage is above 90%."
 
-        - alert: DiscordGatewayHighCPU
+        - alert: GatewayDiscordHighCPU
           expr: |
             rate(container_cpu_usage_seconds_total{container="gateway"}[5m]) / container_spec_cpu_quota{container="gateway"} * 100000 > 90
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Discord gateway high CPU usage"
+            summary: "Gateway Discord high CPU usage"
             description: "Pod {{ $labels.pod }} CPU usage is above 90%."
 
-        - alert: DiscordGatewayRestarting
+        - alert: GatewayDiscordRestarting
           expr: |
             increase(kube_pod_container_status_restarts_total{container="gateway"}[1h]) > 3
           labels:
             severity: warning
           annotations:
-            summary: "Discord gateway restarting frequently"
+            summary: "Gateway Discord restarting frequently"
             description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour."
 
-        - alert: DiscordGatewayEventRoutingFailures
+        - alert: GatewayDiscordEventRoutingFailures
           expr: |
-            rate(discord_gateway_events_routed[5m]) == 0
-            and rate(discord_gateway_events_received[5m]) > 0
+            rate(gateway_discord_events_routed[5m]) == 0
+            and rate(gateway_discord_events_received[5m]) > 0
           for: 5m
           labels:
             severity: critical
@@ -89,12 +89,12 @@ spec:
             summary: "Discord events not being routed"
             description: "Connection {{ $labels.connection }} is receiving events but none are being routed."
 
-        - alert: DiscordGatewaySlowStart
+        - alert: GatewayDiscordSlowStart
           expr: |
-            time() - kube_pod_start_time{pod=~"discord-gateway.*"} > 300
+            time() - kube_pod_start_time{pod=~"gateway-discord.*"} > 300
             and kube_pod_container_status_ready{container="gateway"} == 0
           labels:
             severity: warning
           annotations:
-            summary: "Discord gateway slow to start"
+            summary: "Gateway Discord slow to start"
             description: "Pod {{ $labels.pod }} has been starting for more than 5 minutes."

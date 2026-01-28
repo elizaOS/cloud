@@ -1,8 +1,8 @@
 /**
- * Discord Gateway Assignments API
+ * Gateway Discord Assignments API
  *
  * Returns bot assignments for a gateway pod.
- * Called by the discord-gateway service to get bots to connect.
+ * Called by the gateway-discord service to get bots to connect.
  */
 
 import { NextRequest, NextResponse } from "next/server";

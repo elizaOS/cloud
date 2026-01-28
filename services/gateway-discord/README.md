@@ -1,4 +1,4 @@
-# Discord Gateway Service
+# Gateway Discord Service
 
 Multi-tenant Discord gateway that maintains WebSocket connections to Discord and forwards events to Eliza Cloud for processing.
 
@@ -100,7 +100,7 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 │  │           ▼                                                                                        │ │
 │  │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐  │ │
 │  │  │                            Eliza Agent Runtime                                               │  │ │
-│  │  │  1. Create/Get runtime for app's character                                                   │  │ │
+│  │  │  1. Create/Get runtime for character directly                                                   │  │ │
 │  │  │  2. Ensure world, room, entity exist                                                         │  │ │
 │  │  │  3. Create Memory for user message                                                           │  │ │
 │  │  │  4. Emit MESSAGE_RECEIVED event → Agent processes → Generate response                        │  │ │
@@ -117,12 +117,12 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 │  ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐   │
 │  │                                  discord_connections table                                       │   │
 │  │                                                                                                   │   │
-│  │  id                 │ organization_id │ app_id   │ application_id │ bot_user_id                   │   │
+│  │  id                 │ organization_id │ character_id   │ application_id │ bot_user_id                   │   │
 │  │  bot_token_encrypted│ encrypted_dek   │ token_nonce │ token_auth_tag │ encryption_key_id          │   │
 │  │  assigned_pod       │ status          │ error_message │ guild_count │ events_received             │   │
 │  │  last_heartbeat     │ connected_at    │ intents  │ is_active │ metadata (enabledChannels, etc.)  │   │
 │  │                                                                                                   │   │
-│  │  Indexes: organization_id, app_id, assigned_pod, status, is_active                               │   │
+│  │  Indexes: organization_id, character_id, assigned_pod, status, is_active                               │   │
 │  │  Unique: (organization_id, application_id)                                                        │   │
 │  └─────────────────────────────────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -246,13 +246,13 @@ The gateway already picks up these existing variables from root `.env.local`:
 
 Then run with:
 ```bash
-cd services/discord-gateway
+cd services/gateway-discord
 bun run dev  # Uses ../../.env.local automatically
 ```
 
 **Option B: Create a separate `.env` file in this directory**
 
-Create a `.env` file in `services/discord-gateway/`:
+Create a `.env` file in `services/gateway-discord/`:
 
 ```bash
 # Required
@@ -282,7 +282,7 @@ LOG_LEVEL=info                              # debug | info | warn | error
 
 Then run with:
 ```bash
-cd services/discord-gateway
+cd services/gateway-discord
 bun run dev:local  # Uses local .env file
 ```
 
@@ -312,7 +312,7 @@ This starts the Next.js app on `http://localhost:3000`
 
 In a new terminal:
 ```bash
-cd services/discord-gateway
+cd services/gateway-discord
 
 # Install dependencies
 bun install
@@ -351,8 +351,8 @@ bun run docker:down
 
 Or manually:
 ```bash
-docker build -t discord-gateway:local .
-docker run -p 3001:3000 --env-file .env discord-gateway:local
+docker build -t gateway-discord:local .
+docker run -p 3001:3000 --env-file .env gateway-discord:local
 ```
 
 #### Option 4: Docker Compose
@@ -377,7 +377,7 @@ import { discordConnectionsRepository } from "@/db/repositories";
 async function addTestConnection() {
   const connection = await discordConnectionsRepository.create({
     organizationId: "your-org-uuid",        // From your user's organization
-    appId: "your-app-uuid",                 // Optional: link to an Eliza app
+    characterId: "your-app-uuid",           // Optional: link to an Eliza agent character
     applicationId: "YOUR_DISCORD_APP_ID",   // From Discord Developer Portal
     botToken: "YOUR_BOT_TOKEN",             // From Discord Developer Portal
     intents: undefined,                     // Uses default intents
@@ -406,7 +406,7 @@ bun run scripts/add-discord-connection.ts
 -- Note: Bot token must be encrypted. This is for reference only.
 INSERT INTO discord_connections (
   organization_id,
-  app_id,
+  character_id,
   application_id,
   bot_token_encrypted,
   encrypted_dek,
@@ -509,7 +509,7 @@ Eliza Cloud logs show:
 |-------|-------|----------|
 | Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (or `http://host.docker.internal:3000` in Docker) |
 | `401 Unauthorized` on API calls | API key mismatch | Ensure `INTERNAL_API_KEY` matches in both services |
-| Bot connects but doesn't respond | No linked app/character | Ensure the connection has `app_id` linked to an app with a character |
+| Bot connects but doesn't respond | No linked app/character | Ensure the connection has `character_id` linked to an app with a character |
 | Bot connects but doesn't respond | Response mode filtering | Check `metadata.responseMode` and channel filters |
 | `Connection not found` error | Invalid connection ID | Create connection via repository first |
 | No assignments returned | Connection inactive | Check `is_active=true` in database |
@@ -586,7 +586,7 @@ CREATE TABLE "discord_connections" (
   -- ═══════════════════════════════════════════════════════════════
   "id" uuid PRIMARY KEY,                    -- Unique connection ID
   "organization_id" uuid NOT NULL,          -- Links to user's organization (CASCADE delete)
-  "app_id" uuid,                            -- Links to Eliza app (SET NULL on delete)
+  "character_id" uuid,                      -- Links to Eliza agent character (SET NULL on delete)
   "application_id" text NOT NULL,           -- Discord Application ID (from Developer Portal)
   "bot_user_id" text,                       -- Discord Bot User ID (set after connection)
                                             -- ⚠️ Different from application_id!
@@ -629,7 +629,7 @@ CREATE TABLE "discord_connections" (
   -- ═══════════════════════════════════════════════════════════════
   -- CONFIGURATION
   -- ═══════════════════════════════════════════════════════════════
-  "intents" integer DEFAULT 38401,          -- Discord Gateway Intents bitmask
+  "intents" integer DEFAULT 38401,          -- Gateway Discord Intents bitmask
                                             -- Default: GUILDS | GUILD_MESSAGES | 
                                             -- GUILD_MESSAGE_REACTIONS | DIRECT_MESSAGES |
                                             -- MESSAGE_CONTENT
@@ -664,7 +664,7 @@ interface DiscordConnectionMetadata {
 | Index | Purpose |
 |-------|---------|
 | `organization_id_idx` | Fast lookup by organization |
-| `app_id_idx` | Fast lookup by Eliza app |
+| `character_id_idx` | Fast lookup by Eliza agent |
 | `assigned_pod_idx` | Find all connections for a pod |
 | `status_idx` | Filter by connection status |
 | `is_active_idx` | Filter active connections |
@@ -835,7 +835,7 @@ All endpoints require the `X-Internal-API-Key` header for authentication.
 1. Validates payload with Zod schemas
 2. Routes to `routeDiscordEvent()` which:
    - Checks channel filters and response mode
-   - Gets the linked Eliza app and character
+   - Gets the linked Eliza agent and character
    - Creates an `AgentRuntime` for the character
    - Processes message through the agent
    - Sends response back to Discord via REST API
@@ -853,20 +853,19 @@ This section explains how the system determines which character/agent to use for
 │                        DISCORD BOT → CHARACTER MAPPING                                                   │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
-│  discord_connections│      │        apps         │      │     characters      │      │  AgentRuntime   │
-│                     │      │                     │      │                     │      │                 │
-│  id: conn-uuid      │      │  id: app-uuid       │      │  id: char-uuid      │      │  agentId: ...   │
-│  app_id: app-uuid ──┼─────►│  linked_character_  │──────│  name: "MyBot"      │──────│  character: {}  │
-│  organization_id    │      │  ids: [char-uuid]   │      │  bio: "..."         │      │  memory: ...    │
-│  bot_token_encrypted│      │  organization_id    │      │  personality: ...   │      │                 │
-│                     │      │                     │      │  knowledge: [...]   │      │                 │
-└─────────────────────┘      └─────────────────────┘      └─────────────────────┘      └─────────────────┘
+┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
+│  discord_connections│      │   user_characters   │      │  AgentRuntime   │
+│                     │      │                     │      │                 │
+│  id: conn-uuid      │      │  id: char-uuid      │      │  agentId: ...   │
+│  character_id ──────┼─────►│  name: "MyBot"      │─────►│  character: {}  │
+│  organization_id    │      │  bio: "..."         │      │  memory: ...    │
+│  bot_token_encrypted│      │  personality: ...   │      │                 │
+│                     │      │  knowledge: [...]   │      │                 │
+└─────────────────────┘      └─────────────────────┘      └─────────────────┘
 
 LOOKUP CHAIN:
-1. connection.app_id           → Gets the Eliza App
-2. app.linked_character_ids[0] → Gets the Character ID  
-3. runtimeFactory.createRuntimeForUser(context) → Creates AgentRuntime with character
+1. connection.character_id           → Gets the Character directly
+2. runtimeFactory.createRuntimeForUser(context) → Creates AgentRuntime with character
 ```
 
 **Code Flow:**
@@ -875,18 +874,15 @@ LOOKUP CHAIN:
 // 1. Get the discord connection by ID
 const connection = await discordConnectionsRepository.findById(payload.connection_id);
 
-// 2. Get the linked app
-const app = await appsRepository.findById(connection.app_id);
+// 2. Get the linked character directly
+const character = await userCharactersRepository.findById(connection.character_id);
 
-// 3. Get the first linked character
-const characterId = app.linked_character_ids?.[0];
-
-// 4. Create runtime context with the character
+// 3. Create runtime context with the character
 const context = userContextService.createSystemContext(AgentMode.CHAT);
-context.characterId = characterId;
-context.organizationId = app.organization_id;
+context.characterId = character.id;
+context.organizationId = connection.organization_id;
 
-// 5. Create AgentRuntime for this character
+// 4. Create AgentRuntime for this character
 const runtime = await runtimeFactory.createRuntimeForUser(context);
 ```
 
@@ -983,28 +979,18 @@ await runtime.createMemory(responseMemory, "messages");
 │                              COMPLETE RELATIONSHIP DIAGRAM                                               │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
- Organizations                Apps                    Characters              Discord Connections
- ─────────────               ────                    ──────────              ───────────────────
- ┌───────────┐         ┌─────────────────┐      ┌──────────────────┐      ┌────────────────────┐
- │ org-uuid  │◄────────│ organization_id │      │ character-uuid   │      │ connection-uuid    │
- │           │         │                 │      │                  │      │                    │
- │ User's    │         │ linked_character│──────►│ name: "AI Helper"│      │ organization_id ───┼──►(org)
- │ workspace │         │ _ids: [...]     │      │ bio: "I help..." │      │ app_id ────────────┼──►(app)
- │           │         │                 │      │ system_prompt    │      │ application_id     │
- └───────────┘         └─────────────────┘      │ knowledge: [...]  │      │ bot_token_encrypted│
-                              ▲                 │ settings: {...}  │      │                    │
-                              │                 └──────────────────┘      └────────────────────┘
-                              │
-                              │
-                     ┌────────┴────────┐
-                     │ Eliza App       │
-                     │                 │
-                     │ • Has character │
-                     │ • Has Discord   │
-                     │   connection    │
-                     │ • Belongs to    │
-                     │   organization  │
-                     └─────────────────┘
+ Organizations                Characters                    Discord Connections
+ ─────────────               ──────────                    ───────────────────
+ ┌───────────┐         ┌──────────────────┐            ┌────────────────────┐
+ │ org-uuid  │◄────────│ organization_id  │◄───────────│ organization_id    │
+ │           │         │                  │            │                    │
+ │ User's    │         │ character-uuid   │◄───────────│ character_id       │
+ │ workspace │         │ name: "AI Helper"│            │ connection-uuid    │
+ │           │         │ bio: "I help..." │            │ application_id     │
+ └───────────┘         │ system_prompt    │            │ bot_token_encrypted│
+                       │ knowledge: [...]  │            │                    │
+                       │ settings: {...}  │            └────────────────────┘
+                       └──────────────────┘
 
 
  Rooms (Channels)            Entities (Users)           Memories (Messages)
@@ -1032,7 +1018,7 @@ await runtime.createMemory(responseMemory, "messages");
 
 | Concept | How It Works |
 |---------|--------------|
-| **Bot → Character** | `discord_connections.app_id` → `apps.linked_character_ids[0]` |
+| **Bot → Character** | `discord_connections.character_id` → `user_characters.id` (direct link) |
 | **User Identity** | Deterministic UUID from Discord user ID: `stringToUuid("discord-user-{id}")` |
 | **Channel History** | Deterministic UUID from org + channel: `stringToUuid("discord-{org}-{channel}")` |
 | **Message Storage** | Both user and agent messages saved as `Memory` in the room |
@@ -1060,7 +1046,7 @@ User Dashboard                          Eliza Cloud                      Postgre
      │                                       │                               │
      │  POST /api/discord/connections        │                               │
      │  {                                    │                               │
-     │    appId: "eliza-app-uuid",           │                               │
+     │    characterId: "eliza-app-uuid",           │                               │
      │    applicationId: "discord-app-id",   │                               │
      │    botToken: "Bot MTIz..."            │                               │
      │  }                                    │                               │
@@ -1382,7 +1368,7 @@ kubectl delete -f k8s/
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Namespace: discord-gateway                                          │
+│ Namespace: gateway-discord                                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
@@ -1425,8 +1411,8 @@ kubectl delete -f k8s/
 
 Create a Kubernetes secret before deploying:
 ```bash
-kubectl create secret generic discord-gateway-secrets \
-  --namespace discord-gateway \
+kubectl create secret generic gateway-discord-secrets \
+  --namespace gateway-discord \
   --from-literal=INTERNAL_API_KEY=your-key \
   --from-literal=KV_REST_API_TOKEN=your-redis-token
 ```

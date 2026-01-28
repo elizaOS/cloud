@@ -11,7 +11,7 @@ import { logger } from "@/lib/utils/logger";
 
 interface CreateConnectionInput {
   organizationId: string;
-  appId?: string;
+  characterId?: string;
   applicationId: string;
   botToken: string;
   intents?: number;
@@ -44,7 +44,7 @@ export const discordConnectionsRepository = {
       .insert(discordConnections)
       .values({
         organization_id: input.organizationId,
-        app_id: input.appId,
+        character_id: input.characterId,
         application_id: input.applicationId,
         bot_token_encrypted: encryptedValue,
         encrypted_dek: encryptedDek,

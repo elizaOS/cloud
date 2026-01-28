@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS "discord_connections" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "organization_id" uuid NOT NULL REFERENCES "organizations"("id") ON DELETE CASCADE,
-  "app_id" uuid REFERENCES "apps"("id") ON DELETE SET NULL,
+  "character_id" uuid REFERENCES "user_characters"("id") ON DELETE SET NULL,
   "application_id" text NOT NULL,
   "bot_user_id" text, -- Set when bot connects, used for mention detection
   
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS "discord_connections" (
 
 -- Indexes for efficient queries
 CREATE INDEX IF NOT EXISTS "discord_connections_organization_id_idx" ON "discord_connections" ("organization_id");
-CREATE INDEX IF NOT EXISTS "discord_connections_app_id_idx" ON "discord_connections" ("app_id");
+CREATE INDEX IF NOT EXISTS "discord_connections_character_id_idx" ON "discord_connections" ("character_id");
 CREATE INDEX IF NOT EXISTS "discord_connections_assigned_pod_idx" ON "discord_connections" ("assigned_pod");
 CREATE INDEX IF NOT EXISTS "discord_connections_status_idx" ON "discord_connections" ("status");
 CREATE INDEX IF NOT EXISTS "discord_connections_is_active_idx" ON "discord_connections" ("is_active");

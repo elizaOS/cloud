@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: discord-gateway
-  namespace: discord-gateway
+  name: gateway-discord
+  namespace: gateway-discord
   labels:
-    app: discord-gateway
+    app: gateway-discord
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: discord-gateway
+      app: gateway-discord
   template:
     metadata:
       labels:
-        app: discord-gateway
+        app: gateway-discord
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "3000"
@@ -22,7 +22,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: gateway
-          image: ghcr.io/elizacloud/eliza-cloud/discord-gateway:latest
+          image: ghcr.io/elizacloud/eliza-cloud/gateway-discord:latest
           ports:
             - containerPort: 3000
               name: http
@@ -38,27 +38,27 @@ spec:
             - name: ELIZA_CLOUD_URL
               valueFrom:
                 secretKeyRef:
-                  name: discord-gateway-secrets
+                  name: gateway-discord-secrets
                   key: eliza-cloud-url
             - name: INTERNAL_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: discord-gateway-secrets
+                  name: gateway-discord-secrets
                   key: internal-api-key
             - name: KV_REST_API_URL
               valueFrom:
                 secretKeyRef:
-                  name: discord-gateway-secrets
+                  name: gateway-discord-secrets
                   key: redis-url
             - name: KV_REST_API_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: discord-gateway-secrets
+                  name: gateway-discord-secrets
                   key: redis-token
             - name: BLOB_READ_WRITE_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: discord-gateway-secrets
+                  name: gateway-discord-secrets
                   key: blob-token
                   optional: true
             - name: MAX_BOTS_PER_POD
@@ -102,13 +102,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: discord-gateway
-  namespace: discord-gateway
+  name: gateway-discord
+  namespace: gateway-discord
   labels:
-    app: discord-gateway
+    app: gateway-discord
 spec:
   selector:
-    app: discord-gateway
+    app: gateway-discord
   ports:
     - port: 3000
       targetPort: 3000
