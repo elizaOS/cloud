@@ -26,8 +26,6 @@ env:
   BUN_VERSION: "1.2"
   IMAGE_NAME: gateway-discord
   REGISTRY: ghcr.io
-  GATEWAY_AWS_REGION: us-east-1
-  GATEWAY_CLUSTER_NAME: elizaos-cluster
 
 jobs:
   # test:
