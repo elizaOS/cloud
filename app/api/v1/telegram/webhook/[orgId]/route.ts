@@ -3,6 +3,9 @@
  *
  * Receives updates from Telegram for a specific organization's bot.
  * Each organization has their own webhook URL with their orgId.
+ *
+ * Now includes workflow trigger support - incoming messages are checked
+ * against configured triggers before falling back to app automation.
  */
 
 import { NextResponse } from "next/server";
@@ -10,6 +13,8 @@ import { Telegraf } from "telegraf";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
+import { workflowTriggerService } from "@/lib/services/workflow-triggers";
+import type { IncomingMessageContext } from "@/lib/services/workflow-triggers";
 import { logger } from "@/lib/utils/logger";
 import { isCommand } from "@/lib/utils/telegram-helpers";
 import type { Update, Message, ChatMemberUpdated } from "telegraf/types";
@@ -27,7 +32,16 @@ export async function POST(
 ): Promise<NextResponse> {
   const { orgId } = await params;
 
-  const botToken = await telegramAutomationService.getBotToken(orgId);
+  let botToken = await telegramAutomationService.getBotToken(orgId);
+  
+  // DEV ONLY: Fallback to env variable for testing
+  if (!botToken && process.env.NODE_ENV === "development") {
+    botToken = process.env.TELEGRAM_BOT_TOKEN || null;
+    if (botToken) {
+      logger.info("[Telegram Webhook] Using fallback bot token from env", { orgId });
+    }
+  }
+  
   if (!botToken) {
     logger.warn("[Telegram Webhook] No bot token for organization", { orgId });
     return NextResponse.json({ error: "Bot not configured" }, { status: 404 });
@@ -257,6 +271,68 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
     const chatId = ctx.chat.id;
     const userName = ctx.from?.first_name;
 
+    // Build message context for workflow trigger matching
+    const messageContext: IncomingMessageContext = {
+      from: String(ctx.from?.id || chatId),
+      to: String(ctx.botInfo?.id || "bot"),
+      body: text,
+      provider: "telegram",
+      providerMessageId: String(message.message_id),
+      messageType: "telegram",
+      metadata: {
+        chatId,
+        chatType: ctx.chat.type,
+        userName,
+        telegramUserId: ctx.from?.id,
+      },
+    };
+
+    // Check workflow triggers FIRST
+    try {
+      const triggerMatch = await workflowTriggerService.matchTriggers(
+        messageContext,
+        orgId,
+      );
+
+      if (triggerMatch) {
+        logger.info("[Telegram Webhook] Workflow trigger matched", {
+          orgId,
+          triggerId: triggerMatch.trigger.id,
+          triggerName: triggerMatch.trigger.name,
+          matchedOn: triggerMatch.matchedOn,
+          chatId,
+        });
+
+        const result = await workflowTriggerService.executeTrigger(
+          triggerMatch,
+          messageContext,
+        );
+
+        if (result.response) {
+          await ctx.reply(result.response);
+        } else if (result.success) {
+          await ctx.reply("Workflow executed successfully.");
+        } else {
+          logger.error("[Telegram Webhook] Trigger execution failed", {
+            orgId,
+            triggerId: triggerMatch.trigger.id,
+            error: result.error,
+          });
+        }
+
+        // Don't continue to app automation - trigger handled the message
+        return;
+      }
+    } catch (error) {
+      logger.error("[Telegram Webhook] Error checking workflow triggers", {
+        orgId,
+        chatId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      // Continue to app automation on error
+    }
+
+    // No workflow trigger matched - fall back to existing app automation logic
     const matchingApp = activeApps.find(
       (app) =>
         app.telegram_automation?.channelId === String(chatId) ||

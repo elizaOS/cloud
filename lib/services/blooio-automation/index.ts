@@ -64,10 +64,9 @@ class BlooioAutomationService {
     }
 
     try {
-      // Make a simple API request to validate the key
-      // Blooio doesn't have a dedicated "validate" endpoint, so we'll check by making a request
-      // that should succeed with a valid key
-      await blooioApiRequest(apiKey, "GET", "/health");
+      // Use the /me endpoint which returns auth context and validates the key
+      // This endpoint returns organization info, devices, and usage
+      await blooioApiRequest(apiKey, "GET", "/me");
 
       logger.info("[BlooioAutomation] API key validated successfully");
       return { valid: true };
@@ -198,23 +197,35 @@ class BlooioAutomationService {
 
   /**
    * Get API key for an organization.
+   * Falls back to env var if not found in secrets.
    */
   async getApiKey(organizationId: string): Promise<string | null> {
-    return secretsService.get(organizationId, "BLOOIO_API_KEY");
+    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_API_KEY");
+    if (fromSecrets) return fromSecrets;
+    // Fall back to env var for development/testing
+    return process.env.BLOOIO_API_KEY || null;
   }
 
   /**
    * Get webhook secret for an organization.
+   * Falls back to env var if not found in secrets.
    */
   async getWebhookSecret(organizationId: string): Promise<string | null> {
-    return secretsService.get(organizationId, "BLOOIO_WEBHOOK_SECRET");
+    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_WEBHOOK_SECRET");
+    if (fromSecrets) return fromSecrets;
+    // Fall back to env var for development/testing
+    return process.env.BLOOIO_WEBHOOK_SECRET || null;
   }
 
   /**
    * Get from number for an organization.
+   * Falls back to env var if not found in secrets.
    */
   async getFromNumber(organizationId: string): Promise<string | null> {
-    return secretsService.get(organizationId, "BLOOIO_FROM_NUMBER");
+    const fromSecrets = await secretsService.get(organizationId, "BLOOIO_FROM_NUMBER");
+    if (fromSecrets) return fromSecrets;
+    // Fall back to env var for development/testing
+    return process.env.BLOOIO_FROM_NUMBER || null;
   }
 
   /**
@@ -233,9 +244,10 @@ class BlooioAutomationService {
       }
     }
 
+    // Use helper methods which fall back to env vars
     const [apiKey, fromNumber] = await Promise.all([
-      secretsService.get(organizationId, "BLOOIO_API_KEY"),
-      secretsService.get(organizationId, "BLOOIO_FROM_NUMBER"),
+      this.getApiKey(organizationId),
+      this.getFromNumber(organizationId),
     ]);
 
     if (!apiKey) {

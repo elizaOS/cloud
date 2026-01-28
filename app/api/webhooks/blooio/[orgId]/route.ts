@@ -135,6 +135,7 @@ async function handleIncomingMessage(
   event: BlooioWebhookEvent,
 ): Promise<void> {
   const { messageRouterService } = await import("@/lib/services/message-router");
+  const { workflowTriggerService } = await import("@/lib/services/workflow-triggers");
 
   const chatId = event.external_id || event.sender;
 
@@ -170,21 +171,73 @@ async function handleIncomingMessage(
     typeof a === "string" ? a : a.url
   );
 
-  // Route the message to find the appropriate agent
-  const routeResult = await messageRouterService.routeIncomingMessage({
+  // Build message context for trigger matching
+  const messageContext = {
     from: event.sender,
     to: recipient,
     body: text || "",
-    provider: "blooio",
+    provider: "blooio" as const,
     providerMessageId: event.message_id,
     mediaUrls: extractedMediaUrls,
-    messageType: "imessage",
+    messageType: "imessage" as const,
     metadata: {
       protocol: event.protocol,
       external_id: event.external_id,
       timestamp: event.timestamp,
     },
-  });
+  };
+
+  // Check for workflow triggers FIRST
+  const triggerMatch = await workflowTriggerService.matchTriggers(messageContext, orgId);
+
+  if (triggerMatch) {
+    logger.info("[BlooioWebhook] Workflow trigger matched", {
+      orgId,
+      triggerId: triggerMatch.trigger.id,
+      triggerName: triggerMatch.trigger.name,
+      matchedOn: triggerMatch.matchedOn,
+    });
+
+    // Execute the triggered workflow
+    const triggerResult = await workflowTriggerService.executeTrigger(
+      triggerMatch,
+      messageContext,
+    );
+
+    // Send response if workflow executed successfully and response is configured
+    if (triggerResult.response) {
+      const sent = await messageRouterService.sendMessage({
+        to: event.sender,
+        from: recipient,
+        body: triggerResult.response,
+        provider: "blooio",
+        organizationId: orgId,
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      if (sent) {
+        logger.info("[BlooioWebhook] Workflow response sent", {
+          orgId,
+          chatId,
+          responseTime,
+          triggerId: triggerMatch.trigger.id,
+        });
+      } else {
+        logger.error("[BlooioWebhook] Failed to send workflow response", {
+          orgId,
+          chatId,
+          triggerId: triggerMatch.trigger.id,
+        });
+      }
+    }
+
+    // Workflow trigger handled the message, don't route to agent
+    return;
+  }
+
+  // No trigger matched, route to agent as usual
+  const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
 
   if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
     logger.warn("[BlooioWebhook] Failed to route message", {

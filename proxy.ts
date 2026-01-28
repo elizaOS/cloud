@@ -172,6 +172,7 @@ const publicPaths = [
   "/app-auth",
   "/.well-known",
   "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
+  "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
 ];
 
 const publicPathPatterns = [

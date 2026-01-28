@@ -38,9 +38,10 @@ export async function POST(
 
     const event = webhookData as unknown as TwilioWebhookEvent;
 
-    // Verify signature if auth token is available
+    // Verify signature if auth token is available (skip in development)
+    const isDev = process.env.NODE_ENV === "development";
     const authToken = await twilioAutomationService.getAuthToken(orgId);
-    if (authToken) {
+    if (authToken && !isDev) {
       const signature = request.headers.get("X-Twilio-Signature") || "";
       const url = request.url;
 
@@ -55,6 +56,8 @@ export async function POST(
         logger.warn("[TwilioWebhook] Signature validation failed", { orgId });
         return new NextResponse("Invalid signature", { status: 401 });
       }
+    } else if (isDev) {
+      logger.info("[TwilioWebhook] Skipping signature validation in development");
     }
 
     // Log the event
@@ -97,6 +100,7 @@ async function handleIncomingMessage(
   event: TwilioWebhookEvent,
 ): Promise<void> {
   const { messageRouterService } = await import("@/lib/services/message-router");
+  const { workflowTriggerService } = await import("@/lib/services/workflow-triggers");
 
   const from = event.From;
   const to = event.To;
@@ -121,22 +125,76 @@ async function handleIncomingMessage(
 
   const startTime = Date.now();
 
-  // Route the message to find the appropriate agent
-  const routeResult = await messageRouterService.routeIncomingMessage({
+  // Build message context for trigger matching
+  const messageContext = {
     from,
     to,
     body: body || "",
-    provider: "twilio",
+    provider: "twilio" as const,
     providerMessageId: event.MessageSid,
     mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-    messageType: mediaUrls.length > 0 ? "mms" : "sms",
+    messageType: (mediaUrls.length > 0 ? "mms" : "sms") as "sms" | "mms",
     metadata: {
       fromCity: event.FromCity,
       fromState: event.FromState,
       fromCountry: event.FromCountry,
       accountSid: event.AccountSid,
     },
-  });
+  };
+
+  // Check for workflow triggers FIRST
+  const triggerMatch = await workflowTriggerService.matchTriggers(messageContext, orgId);
+
+  if (triggerMatch) {
+    logger.info("[TwilioWebhook] Workflow trigger matched", {
+      orgId,
+      triggerId: triggerMatch.trigger.id,
+      triggerName: triggerMatch.trigger.name,
+      matchedOn: triggerMatch.matchedOn,
+    });
+
+    // Execute the triggered workflow
+    const triggerResult = await workflowTriggerService.executeTrigger(
+      triggerMatch,
+      messageContext,
+    );
+
+    // Send response if workflow executed successfully and response is configured
+    if (triggerResult.response) {
+      const sent = await messageRouterService.sendMessage({
+        to: from,
+        from: to,
+        body: triggerResult.response,
+        provider: "twilio",
+        organizationId: orgId,
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      if (sent) {
+        logger.info("[TwilioWebhook] Workflow response sent", {
+          orgId,
+          from,
+          to,
+          responseTime,
+          triggerId: triggerMatch.trigger.id,
+        });
+      } else {
+        logger.error("[TwilioWebhook] Failed to send workflow response", {
+          orgId,
+          from,
+          to,
+          triggerId: triggerMatch.trigger.id,
+        });
+      }
+    }
+
+    // Workflow trigger handled the message, don't route to agent
+    return;
+  }
+
+  // No trigger matched, route to agent as usual
+  const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
 
   if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
     logger.warn("[TwilioWebhook] Failed to route message", {
