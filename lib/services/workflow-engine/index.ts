@@ -88,3 +88,25 @@ export {
   type ShareWorkflowOptions,
   type ShareResult,
 } from "./workflow-sharing";
+
+// Secret Dependency Extraction
+export {
+  secretDependencyExtractor,
+  type ExtractedRequirement,
+  type ExecutionPlanStep,
+} from "./secret-dependency-extractor";
+
+// Workflow Provider (Agent Context)
+export {
+  workflowProviderService,
+  type MissingRequirement,
+  type WorkflowAvailability,
+  type UnlockSuggestion,
+  type WorkflowProviderContext,
+} from "./workflow-provider";
+
+// Workflow Template Search (Semantic Search & Reuse)
+export {
+  workflowTemplateSearchService,
+  type TemplateMatchResult,
+} from "./workflow-template-search";

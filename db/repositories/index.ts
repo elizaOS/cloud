@@ -126,3 +126,13 @@ export * from "./generated-workflows";
 // Workflow Triggers (Automatic Workflow Execution)
 // ============================================
 export * from "./workflow-triggers";
+
+// ============================================
+// Workflow Secret Requirements (Credential Tracking)
+// ============================================
+export * from "./workflow-secret-requirements";
+
+// ============================================
+// Workflow Templates (Semantic Search & Reuse)
+// ============================================
+export * from "./workflow-templates";
