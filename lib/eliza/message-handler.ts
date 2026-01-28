@@ -1,12 +1,11 @@
 /**
- * Message Handler - Processes messages through ElizaOS runtime.
+ * Message Handler - Processes messages through ElizaOS runtime via CloudBootstrapMessageService.
  */
 
 import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
   ChannelType,
-  EventType,
   Memory,
   MemoryType,
   stringToUuid,
@@ -27,6 +26,7 @@ import { generateRoomTitle } from "@/lib/services/room-title";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 import type { DialogueMetadata } from "@/lib/types/message-content";
+import type { CloudMessageOptions } from "./plugin-cloud-bootstrap/types";
 
 export interface UsageInfo {
   inputTokens: number;
@@ -46,7 +46,7 @@ export type StreamChunkCallback = (
 
 export type ReasoningChunkCallback = (
   chunk: string,
-  phase: "planning" | "actions" | "response",
+  phase: "planning" | "actions" | "response" | "thinking",
   messageId?: UUID,
 ) => Promise<void>;
 
@@ -80,7 +80,7 @@ export class MessageHandler {
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
     elizaLogger.info(
-      `[MessageHandler] Processing: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}, streaming=${!!onStreamChunk}`,
+      `[MessageHandler] Processing via messageService: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}, streaming=${!!onStreamChunk}`,
     );
 
     await this.ensureConnectionForCloud(roomId, entityId);
@@ -92,47 +92,93 @@ export class MessageHandler {
     let responseMemory: Memory | undefined;
     let usage: MessageResult["usage"];
 
-    await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-      runtime: this.runtime,
-      message: userMessage,
-      agentModeConfig: modeConfig,
+    const callback = async (content: Content) => {
+      if (content.text) {
+        responseMemory = {
+          id: createUniqueUuid(
+            this.runtime,
+            (userMessage.id ?? uuidv4()) as UUID,
+          ),
+          entityId: this.runtime.agentId,
+          agentId: this.runtime.agentId,
+          roomId: roomId as UUID,
+          createdAt: Date.now(),
+          content: {
+            ...content,
+            source: content.source || "agent",
+            inReplyTo: userMessage.id,
+          },
+          metadata: {
+            type: MemoryType.MESSAGE,
+            role: "agent",
+            dialogueType: "message",
+            visibility: "visible",
+            agentMode: modeConfig.mode,
+          } as DialogueMetadata,
+        };
+        await this.runtime.createMemory(responseMemory, "messages");
+      }
+
+      if ("usage" in content && content.usage) {
+        usage = content.usage as UsageInfo;
+      }
+      return [];
+    };
+
+    const messageOptions: CloudMessageOptions = {
+      useMultiStep: true, // Enable multi-step by default for cloud
       onStreamChunk,
       onReasoningChunk,
-      callback: async (content: Content) => {
-        if (content.text) {
-          responseMemory = {
-            id: createUniqueUuid(
-              this.runtime,
-              (userMessage.id ?? uuidv4()) as UUID,
-            ),
-            entityId: this.runtime.agentId,
-            agentId: this.runtime.agentId,
-            roomId: roomId as UUID,
-            createdAt: Date.now(),
-            content: {
-              ...content,
-              source: content.source || "agent",
-              inReplyTo: userMessage.id,
-            },
-            metadata: {
-              type: MemoryType.MESSAGE,
-              role: "agent",
-              dialogueType: "message",
-              visibility: "visible",
-              agentMode: modeConfig.mode,
-            } as DialogueMetadata,
-          };
-          await this.runtime.createMemory(responseMemory, "messages");
-        }
+    };
 
-        if ("usage" in content && content.usage) {
-          usage = content.usage as UsageInfo;
-        }
-        return [];
-      },
-    });
+    if (!this.runtime.messageService) {
+      throw new Error(
+        "[MessageHandler] No messageService available. Ensure CloudBootstrapPlugin is loaded.",
+      );
+    }
 
-    // Fallback if no response was generated
+    const result = await this.runtime.messageService.handleMessage(
+      this.runtime,
+      userMessage,
+      callback,
+      messageOptions,
+    );
+
+    if (
+      !responseMemory &&
+      result &&
+      result.responseMessages &&
+      result.responseMessages.length > 0
+    ) {
+      responseMemory = result.responseMessages[0];
+    }
+
+    if (!responseMemory && result && result.responseContent) {
+      responseMemory = {
+        id: createUniqueUuid(
+          this.runtime,
+          (userMessage.id ?? uuidv4()) as UUID,
+        ),
+        entityId: this.runtime.agentId,
+        agentId: this.runtime.agentId,
+        roomId: roomId as UUID,
+        createdAt: Date.now(),
+        content: {
+          ...result.responseContent,
+          source: result.responseContent.source || "agent",
+          inReplyTo: userMessage.id,
+        },
+        metadata: {
+          type: MemoryType.MESSAGE,
+          role: "agent",
+          dialogueType: "message",
+          visibility: "visible",
+          agentMode: modeConfig.mode,
+        } as DialogueMetadata,
+      };
+      await this.runtime.createMemory(responseMemory, "messages");
+    }
+
     if (!responseMemory) {
       responseMemory = {
         id: uuidv4() as UUID,
@@ -161,7 +207,7 @@ export class MessageHandler {
       responseText,
       options.characterId,
     ).catch((e) => {
-      elizaLogger.debug(`[MessageHandler] Discord send failed: ${e}`);
+      elizaLogger.warn(`[MessageHandler] Discord thread sync failed for room ${roomId}: ${e}`);
     });
 
     await generateRoomTitle(roomId);
@@ -191,9 +237,6 @@ export class MessageHandler {
       displayName,
     ].filter(Boolean) as string[];
 
-    // Batch all independent operations together.
-    // World/Agent entities have no deps. Room needs worldId/serverId (but we have them).
-    // User entity has no deps on room. Participants depend on room/user existing.
     await Promise.all([
       this.ensureWorldExists(worldId, serverId),
       this.ensureAgentEntity(),
@@ -201,12 +244,10 @@ export class MessageHandler {
       this.ensureUserEntity(entityUuid, names, displayName),
     ]);
 
-    // Participants depend on room and user existing
     await this.ensureParticipants(roomUuid, entityUuid);
 
-    // Fire-and-forget cache update
     connectionCache.markEstablished(roomId, entityId).catch((e) => {
-      elizaLogger.debug(`[MessageHandler] Cache mark failed: ${e}`);
+      elizaLogger.warn(`[MessageHandler] Connection cache update failed for room ${roomId}, entity ${entityId}: ${e}`);
     });
   }
 
@@ -240,11 +281,9 @@ export class MessageHandler {
 
     if (existingRoom) {
       if (!existingRoom.worldId || !existingRoom.serverId) {
-        // DO NOT UPDATE ROOM NAME. SHOULD BE DONE BY AGENT.
         await this.runtime.updateRoom({ ...existingRoom, worldId, serverId });
       }
     } else {
-      // We set the name to "New Chat" to and leave that for the agent to update.
       await this.runtime.ensureRoomExists({
         id: roomId,
         name: "New Chat",
@@ -334,7 +373,7 @@ export class MessageHandler {
           metadata: mergedMetadata,
         })
         .catch((e) => {
-          elizaLogger.debug(`[MessageHandler] Entity update failed: ${e}`);
+          elizaLogger.warn(`[MessageHandler] Entity update failed for ${entityUuid} - user metadata may be stale: ${e}`);
         });
     }
   }
@@ -347,10 +386,10 @@ export class MessageHandler {
       this.runtime
         .ensureParticipantInRoom(this.runtime.agentId, roomId)
         .catch((e) => {
-          elizaLogger.debug(`[MessageHandler] Agent participant failed: ${e}`);
+          elizaLogger.warn(`[MessageHandler] Agent participant setup failed for room ${roomId} - messages may not be attributed correctly: ${e}`);
         }),
       this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch((e) => {
-        elizaLogger.debug(`[MessageHandler] User participant failed: ${e}`);
+        elizaLogger.warn(`[MessageHandler] User participant setup failed for entity ${entityUuid} in room ${roomId}: ${e}`);
       }),
     ]);
   }
