@@ -87,7 +87,7 @@ Create a file `github-actions-role-trust-policy.json`:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:elizaos/eliza-cloud-v2:*"
+          "token.actions.githubusercontent.com:sub": "repo:elizaOS/eliza-cloud-v2:*"
         }
       }
     }
@@ -253,7 +253,7 @@ To deploy manually without CI/CD:
 
 ```bash
 # Set the image
-export IMAGE="ghcr.io/elizaos/eliza-cloud-v2/gateway-discord:<tag>"
+export IMAGE="ghcr.io/elizaOS/eliza-cloud-v2/gateway-discord:<tag>"
 
 # Deploy
 kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
