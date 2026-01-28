@@ -184,7 +184,7 @@ class GoogleAutomationService {
       source: "google-automation",
     };
 
-    const accessTokenSecretId = await secretsService.create(
+    const accessTokenSecret = await secretsService.create(
       {
         organizationId,
         name: `GOOGLE_ACCESS_TOKEN_REFRESHED_${Date.now()}`,
@@ -197,7 +197,7 @@ class GoogleAutomationService {
 
     // Update credential record
     const updates: Record<string, unknown> = {
-      access_token_secret_id: accessTokenSecretId,
+      access_token_secret_id: accessTokenSecret.id,
       token_expires_at: expiresAt,
       last_refreshed_at: new Date(),
       updated_at: new Date(),
@@ -205,7 +205,7 @@ class GoogleAutomationService {
 
     // If we got a new refresh token, store it
     if (tokens.refresh_token) {
-      const refreshTokenSecretId = await secretsService.create(
+      const refreshTokenSecret = await secretsService.create(
         {
           organizationId,
           name: `GOOGLE_REFRESH_TOKEN_REFRESHED_${Date.now()}`,
@@ -215,7 +215,7 @@ class GoogleAutomationService {
         },
         audit,
       );
-      updates.refresh_token_secret_id = refreshTokenSecretId;
+      updates.refresh_token_secret_id = refreshTokenSecret.id;
     }
 
     await dbWrite
