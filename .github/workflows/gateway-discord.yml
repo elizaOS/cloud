@@ -26,6 +26,8 @@ env:
   BUN_VERSION: "1.2"
   IMAGE_NAME: gateway-discord
   REGISTRY: ghcr.io
+  # GHCR requires lowercase - github.repository preserves case which causes InvalidImageName
+  IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
 
 jobs:
   # test:
@@ -70,7 +72,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_REPO }}
           tags: |
             type=ref,event=branch
             type=sha,prefix=
@@ -114,7 +116,7 @@ jobs:
 
       - name: Deploy to staging
         run: |
-          export IMAGE="${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.digest }}"
+          export IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
           kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
           kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
 
@@ -150,7 +152,7 @@ jobs:
 
       - name: Deploy to production
         run: |
-          export IMAGE="${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.digest }}"
+          export IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
           kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
           kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
 

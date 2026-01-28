@@ -247,7 +247,7 @@ To deploy manually without CI/CD:
 
 ```bash
 # Set the image
-export IMAGE="ghcr.io/elizaOS/eliza-cloud-v2/gateway-discord:<tag>"
+export IMAGE="ghcr.io/elizaos/eliza-cloud-v2/gateway-discord:<tag>"
 
 # Deploy
 kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord

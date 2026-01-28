@@ -24,7 +24,7 @@ spec:
         - name: ghcr-credentials
       containers:
         - name: gateway
-          image: ghcr.io/elizaOS/eliza-cloud-v2/gateway-discord:latest
+          image: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord:latest
           ports:
             - containerPort: 3000
               name: http
