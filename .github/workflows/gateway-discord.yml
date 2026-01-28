@@ -12,6 +12,7 @@ on:
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
+      - ".github/workflows/gateway-discord.yml"
   workflow_dispatch:
     inputs:
       environment:
