@@ -208,7 +208,14 @@ export function MessagingPageClient() {
             phoneNumber={selectedConversation?.phoneNumber || ""}
             messages={messages}
             agentInfo={agentInfo}
+            phoneNumberId={selectedConversation?.phoneNumberId}
             isLoading={isLoadingThread}
+            onMessageSent={() => {
+              // Refresh the thread after sending
+              if (selectedConversation) {
+                fetchThread(selectedConversation.phoneNumber, selectedConversation.phoneNumberId);
+              }
+            }}
           />
         </Card>
       </div>

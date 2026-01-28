@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageBubble, type Message } from "./message-bubble";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Phone, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { MessageSquare, Phone, Bot, Send, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface MessageThreadProps {
   phoneNumber: string;
@@ -15,7 +18,9 @@ interface MessageThreadProps {
     agentPhoneNumber: string;
     provider: string;
   } | null;
+  phoneNumberId?: string;
   isLoading?: boolean;
+  onMessageSent?: () => void;
 }
 
 function ThreadSkeleton() {
@@ -44,9 +49,13 @@ export function MessageThread({
   phoneNumber,
   messages,
   agentInfo,
+  phoneNumberId,
   isLoading = false,
+  onMessageSent,
 }: MessageThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -54,6 +63,47 @@ export function MessageThread({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Send message handler
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !phoneNumber || isSending) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/v1/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: phoneNumber,
+          body: messageInput.trim(),
+          phoneNumberId,
+          provider: agentInfo?.provider,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send message");
+      }
+
+      toast.success("Message sent!");
+      setMessageInput("");
+      onMessageSent?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send message");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle Enter key to send
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -128,6 +178,38 @@ export function MessageThread({
           )}
         </div>
       </ScrollArea>
+
+      {/* Message Input */}
+      <div className="border-t p-4 bg-background">
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Type a message..."
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isSending || !agentInfo}
+            className="flex-1"
+            data-testid="message-input"
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={isSending || !messageInput.trim() || !agentInfo}
+            size="icon"
+            data-testid="send-button"
+          >
+            {isSending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        {!agentInfo && phoneNumber && (
+          <p className="text-xs text-muted-foreground mt-2">
+            No agent phone number available. Please set up a phone number in Settings.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

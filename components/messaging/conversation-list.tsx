@@ -99,6 +99,7 @@ export function ConversationList({
 
         return (
           <button
+            type="button"
             key={`${conversation.phoneNumber}-${conversation.phoneNumberId}`}
             onClick={() => onSelect(conversation)}
             data-testid="conversation-item"
