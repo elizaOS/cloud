@@ -2,7 +2,7 @@ name: Gateway Discord Service
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, feat/discord-gateway]
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
