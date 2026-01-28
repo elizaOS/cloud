@@ -11,8 +11,10 @@ import { logger } from "@/lib/utils/logger";
 import {
   generatedWorkflowsRepository,
   workflowExecutionsRepository,
+  workflowTemplatesRepository,
 } from "@/db/repositories";
 import { workflowExecutorService } from "@/lib/services/workflow-executor";
+import { workflowTemplateSearchService } from "@/lib/services/workflow-engine";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 1 minute for execution
@@ -102,6 +104,53 @@ export async function POST(
         dryRun: inputParams.dryRun === true,
       });
 
+      // Handle pre-flight validation failure (missing credentials)
+      if (executionResult.preflightFailure && executionResult.missingCredentials) {
+        const executionTimeMs = executionResult.executionTimeMs;
+
+        // Update execution record with credential failure
+        await workflowExecutionsRepository.complete(
+          execution.id,
+          {
+            success: false,
+            error: "Missing required credentials",
+            message: "Workflow execution blocked - missing connections",
+          },
+          executionTimeMs,
+        );
+
+        const missingProviders = executionResult.missingCredentials.map(
+          (c) => c.displayName || c.provider,
+        );
+
+        logger.warn("[Workflows] Workflow blocked by missing credentials", {
+          workflowId: workflow.id,
+          executionId: execution.id,
+          missingProviders,
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            executionId: execution.id,
+            error: "Cannot execute workflow - missing connections",
+            preflightFailure: true,
+            details: {
+              missingCredentials: executionResult.missingCredentials.map((c) => ({
+                provider: c.provider,
+                displayName: c.displayName || c.provider,
+                description: c.description,
+                connectUrl: c.authUrl,
+                stepNumber: c.stepNumber,
+              })),
+            },
+            suggestion: `Connect ${missingProviders[0]} to run this workflow`,
+            executionTimeMs,
+          },
+          { status: 400 },
+        );
+      }
+
       const result = {
         success: executionResult.success,
         data: {
@@ -137,6 +186,67 @@ export async function POST(
         success: result.success,
         executionTimeMs,
       });
+
+      // Auto-cache successful workflows as templates (Shaw's vision)
+      // Criteria: 3+ uses, 80%+ success rate, not already a template
+      if (result.success) {
+        const updatedWorkflow = await generatedWorkflowsRepository.getById(workflow.id);
+        if (updatedWorkflow) {
+          const successRate = parseFloat(updatedWorkflow.success_rate || "0");
+          const shouldCache =
+            updatedWorkflow.usage_count >= 3 &&
+            successRate >= 80 &&
+            !updatedWorkflow.is_public; // Don't auto-template if already shared
+
+          if (shouldCache) {
+            // Check if template already exists
+            const existingTemplate = await workflowTemplatesRepository.existsForWorkflow(
+              workflow.id,
+            );
+
+            if (!existingTemplate) {
+              // Save as template asynchronously (don't block response)
+              workflowTemplateSearchService
+                .saveAsTemplate(updatedWorkflow, {
+                  description: updatedWorkflow.description || undefined,
+                })
+                .then(() => {
+                  logger.info("[Workflows] Auto-cached workflow as template", {
+                    workflowId: workflow.id,
+                    usageCount: updatedWorkflow.usage_count,
+                    successRate,
+                  });
+                })
+                .catch((err) => {
+                  logger.error("[Workflows] Failed to auto-cache as template", {
+                    workflowId: workflow.id,
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                });
+            }
+          }
+        }
+      }
+
+      // If execution failed (but not preflight), provide helpful error details
+      if (!executionResult.success) {
+        const failedStep = executionResult.steps?.find((s) => !s.success);
+        return NextResponse.json(
+          {
+            success: false,
+            executionId: execution.id,
+            result,
+            executionTimeMs,
+            failedStep: failedStep
+              ? {
+                  name: failedStep.stepName,
+                  error: failedStep.error,
+                }
+              : undefined,
+          },
+          { status: 500 },
+        );
+      }
 
       return NextResponse.json({
         success: true,

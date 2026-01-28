@@ -3,11 +3,15 @@
  *
  * Executes generated workflows with real API calls.
  * Supports Google (Gmail, Calendar, Contacts), Notion, and messaging services.
+ *
+ * Includes pre-flight validation to check credentials before execution,
+ * returning actionable errors if credentials are missing.
  */
 
 import { logger } from "@/lib/utils/logger";
 import { secretsService } from "@/lib/services/secrets";
 import { googleTokenService } from "@/lib/services/google-token";
+import { credentialValidator, type MissingCredential } from "@/lib/services/workflow-engine/credential-validator";
 
 export interface WorkflowExecutionContext {
   organizationId: string;
@@ -23,6 +27,8 @@ export interface WorkflowExecutionResult {
   error?: string;
   executionTimeMs: number;
   steps?: StepResult[];
+  preflightFailure?: boolean;
+  missingCredentials?: MissingCredential[];
 }
 
 export interface StepResult {
@@ -60,21 +66,28 @@ class WorkflowExecutorService {
   /**
    * Execute a workflow with the given execution plan
    */
-  async execute(context: WorkflowExecutionContext): Promise<WorkflowExecutionResult> {
+  async execute(
+    context: WorkflowExecutionContext,
+  ): Promise<WorkflowExecutionResult> {
     const startTime = Date.now();
     const steps: StepResult[] = [];
 
     try {
-      logger.info("[WorkflowExecutor] ========== STARTING WORKFLOW EXECUTION ==========", {
-        organizationId: context.organizationId,
-        workflowId: context.workflowId,
-        dryRun: context.dryRun,
-        inputKeys: Object.keys(context.input),
-      });
+      logger.info(
+        "[WorkflowExecutor] ========== STARTING WORKFLOW EXECUTION ==========",
+        {
+          organizationId: context.organizationId,
+          workflowId: context.workflowId,
+          dryRun: context.dryRun,
+          inputKeys: Object.keys(context.input),
+        },
+      );
 
       // If no execution plan provided in input, return early
-      const executionPlan = context.input.executionPlan as ExecutionPlanStep[] | undefined;
-      
+      const executionPlan = context.input.executionPlan as
+        | ExecutionPlanStep[]
+        | undefined;
+
       logger.info("[WorkflowExecutor] Execution plan received", {
         hasExecutionPlan: !!executionPlan,
         stepCount: executionPlan?.length || 0,
@@ -82,7 +95,9 @@ class WorkflowExecutorService {
       });
 
       if (!executionPlan || executionPlan.length === 0) {
-        logger.warn("[WorkflowExecutor] No execution plan provided, returning early");
+        logger.warn(
+          "[WorkflowExecutor] No execution plan provided, returning early",
+        );
         return {
           success: true,
           output: { message: "No execution plan provided" },
@@ -91,12 +106,46 @@ class WorkflowExecutorService {
         };
       }
 
+      // Pre-flight validation: Check credentials before starting execution
+      if (context.workflowId && !context.dryRun) {
+        logger.info("[WorkflowExecutor] Running pre-flight validation", {
+          workflowId: context.workflowId,
+        });
+
+        const validation = await credentialValidator.preflightValidation(
+          context.organizationId,
+          context.workflowId,
+        );
+
+        if (!validation.valid) {
+          logger.warn("[WorkflowExecutor] Pre-flight validation failed", {
+            workflowId: context.workflowId,
+            missingCount: validation.missing.length,
+            missingProviders: validation.missing.map((m) => m.provider),
+          });
+
+          return {
+            success: false,
+            error: "Missing required credentials",
+            preflightFailure: true,
+            missingCredentials: validation.missing,
+            executionTimeMs: Date.now() - startTime,
+            steps: [],
+          };
+        }
+
+        logger.info("[WorkflowExecutor] Pre-flight validation passed", {
+          workflowId: context.workflowId,
+        });
+      }
+
       // Execute each step in sequence
-      let previousStepOutput: Record<string, unknown> = context.input.params as Record<string, unknown> || {};
+      let previousStepOutput: Record<string, unknown> =
+        (context.input.params as Record<string, unknown>) || {};
 
       for (const planStep of executionPlan) {
         const stepStartTime = Date.now();
-        
+
         logger.info("[WorkflowExecutor] Executing step", {
           step: planStep.step,
           serviceId: planStep.serviceId,
@@ -189,14 +238,14 @@ class WorkflowExecutorService {
 
     const key = `${serviceId}.${operation}`;
     const normalized = operationMap[key] || key;
-    
+
     if (normalized !== key) {
       logger.info("[WorkflowExecutor] Normalized operation name", {
         original: key,
         normalized,
       });
     }
-    
+
     return normalized;
   }
 
@@ -211,7 +260,7 @@ class WorkflowExecutorService {
   ): Promise<ActionResult> {
     // Normalize the operation name to handle different formats
     const normalizedOp = this.normalizeOperation(serviceId, operation);
-    
+
     logger.info("[WorkflowExecutor] Executing action", {
       organizationId,
       serviceId,
@@ -234,7 +283,9 @@ class WorkflowExecutorService {
           });
           return {
             success: emailResult.success,
-            data: emailResult.messageId ? { messageId: emailResult.messageId } : undefined,
+            data: emailResult.messageId
+              ? { messageId: emailResult.messageId }
+              : undefined,
             error: emailResult.error,
           };
         }
@@ -247,7 +298,9 @@ class WorkflowExecutorService {
           });
           return {
             success: listEmailsResult.success,
-            data: listEmailsResult.messages ? { messages: listEmailsResult.messages } : undefined,
+            data: listEmailsResult.messages
+              ? { messages: listEmailsResult.messages }
+              : undefined,
             error: listEmailsResult.error,
           };
         }
@@ -259,39 +312,51 @@ class WorkflowExecutorService {
           );
           return {
             success: getEmailResult.success,
-            data: getEmailResult.message ? { message: getEmailResult.message } : undefined,
+            data: getEmailResult.message
+              ? { message: getEmailResult.message }
+              : undefined,
             error: getEmailResult.error,
           };
         }
 
         // Google Calendar operations
         case "google.createCalendarEvent": {
-          const calendarResult = await this.createCalendarEvent(organizationId, {
-            summary: params.summary as string,
-            description: params.description as string | undefined,
-            start: params.start as Date | string,
-            end: params.end as Date | string,
-            attendees: params.attendees as string[] | undefined,
-            location: params.location as string | undefined,
-            calendarId: params.calendarId as string | undefined,
-          });
+          const calendarResult = await this.createCalendarEvent(
+            organizationId,
+            {
+              summary: params.summary as string,
+              description: params.description as string | undefined,
+              start: params.start as Date | string,
+              end: params.end as Date | string,
+              attendees: params.attendees as string[] | undefined,
+              location: params.location as string | undefined,
+              calendarId: params.calendarId as string | undefined,
+            },
+          );
           return {
             success: calendarResult.success,
-            data: calendarResult.eventId ? { eventId: calendarResult.eventId } : undefined,
+            data: calendarResult.eventId
+              ? { eventId: calendarResult.eventId }
+              : undefined,
             error: calendarResult.error,
           };
         }
 
         case "google.listCalendarEvents": {
-          const listEventsResult = await this.listCalendarEvents(organizationId, {
-            calendarId: params.calendarId as string | undefined,
-            timeMin: params.timeMin as Date | string | undefined,
-            timeMax: params.timeMax as Date | string | undefined,
-            maxResults: params.maxResults as number | undefined,
-          });
+          const listEventsResult = await this.listCalendarEvents(
+            organizationId,
+            {
+              calendarId: params.calendarId as string | undefined,
+              timeMin: params.timeMin as Date | string | undefined,
+              timeMax: params.timeMax as Date | string | undefined,
+              maxResults: params.maxResults as number | undefined,
+            },
+          );
           return {
             success: listEventsResult.success,
-            data: listEventsResult.events ? { events: listEventsResult.events } : undefined,
+            data: listEventsResult.events
+              ? { events: listEventsResult.events }
+              : undefined,
             error: listEventsResult.error,
           };
         }
@@ -306,7 +371,9 @@ class WorkflowExecutorService {
           });
           return {
             success: smsResult.success,
-            data: smsResult.messageSid ? { messageSid: smsResult.messageSid } : undefined,
+            data: smsResult.messageSid
+              ? { messageSid: smsResult.messageSid }
+              : undefined,
             error: smsResult.error,
           };
         }
@@ -321,7 +388,9 @@ class WorkflowExecutorService {
           });
           return {
             success: imessageResult.success,
-            data: imessageResult.messageId ? { messageId: imessageResult.messageId } : undefined,
+            data: imessageResult.messageId
+              ? { messageId: imessageResult.messageId }
+              : undefined,
             error: imessageResult.error,
           };
         }
@@ -333,7 +402,7 @@ class WorkflowExecutorService {
             normalizedOperation: normalizedOp,
             availableOperations: [
               "google.sendEmail",
-              "google.listEmails", 
+              "google.listEmails",
               "google.getEmail",
               "google.createCalendarEvent",
               "google.listCalendarEvents",
@@ -369,12 +438,16 @@ class WorkflowExecutorService {
    * Get Google credentials for an organization
    * Uses GoogleTokenService for automatic token refresh
    */
-  private async getGoogleCredentials(organizationId: string): Promise<GoogleCredentials | null> {
-    logger.info("[WorkflowExecutor] Fetching Google credentials", { organizationId });
-    
+  private async getGoogleCredentials(
+    organizationId: string,
+  ): Promise<GoogleCredentials | null> {
+    logger.info("[WorkflowExecutor] Fetching Google credentials", {
+      organizationId,
+    });
+
     try {
       const result = await googleTokenService.getValidToken(organizationId);
-      
+
       if (!result) {
         logger.error("[WorkflowExecutor] Google credentials NOT FOUND", {
           organizationId,
@@ -384,13 +457,16 @@ class WorkflowExecutorService {
         return null;
       }
 
-      logger.info("[WorkflowExecutor] Google credentials retrieved successfully", {
-        organizationId,
-        hasAccessToken: !!result.accessToken,
-        tokenLength: result.accessToken?.length || 0,
-        email: result.email,
-        expiresAt: result.expiresAt,
-      });
+      logger.info(
+        "[WorkflowExecutor] Google credentials retrieved successfully",
+        {
+          organizationId,
+          hasAccessToken: !!result.accessToken,
+          tokenLength: result.accessToken?.length || 0,
+          email: result.email,
+          expiresAt: result.expiresAt,
+        },
+      );
 
       return { accessToken: result.accessToken };
     } catch (error) {
@@ -422,7 +498,9 @@ class WorkflowExecutorService {
         return { success: false, error: "Google not connected" };
       }
 
-      const toAddresses = Array.isArray(params.to) ? params.to.join(", ") : params.to;
+      const toAddresses = Array.isArray(params.to)
+        ? params.to.join(", ")
+        : params.to;
       const ccAddresses = params.cc
         ? Array.isArray(params.cc)
           ? params.cc.join(", ")
@@ -435,10 +513,7 @@ class WorkflowExecutorService {
         : undefined;
 
       // Build email content
-      const emailContent = [
-        `To: ${toAddresses}`,
-        `Subject: ${params.subject}`,
-      ];
+      const emailContent = [`To: ${toAddresses}`, `Subject: ${params.subject}`];
 
       if (ccAddresses) {
         emailContent.push(`Cc: ${ccAddresses}`);
@@ -470,7 +545,9 @@ class WorkflowExecutorService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error("[WorkflowExecutor] Gmail send failed", { error: errorText });
+        logger.error("[WorkflowExecutor] Gmail send failed", {
+          error: errorText,
+        });
         return { success: false, error: errorText };
       }
 
@@ -511,8 +588,10 @@ class WorkflowExecutorService {
       }
 
       const calendarId = params.calendarId || "primary";
-      const startDate = params.start instanceof Date ? params.start : new Date(params.start);
-      const endDate = params.end instanceof Date ? params.end : new Date(params.end);
+      const startDate =
+        params.start instanceof Date ? params.start : new Date(params.start);
+      const endDate =
+        params.end instanceof Date ? params.end : new Date(params.end);
 
       const event = {
         summary: params.summary,
@@ -543,7 +622,9 @@ class WorkflowExecutorService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error("[WorkflowExecutor] Calendar event creation failed", { error: errorText });
+        logger.error("[WorkflowExecutor] Calendar event creation failed", {
+          error: errorText,
+        });
         return { success: false, error: errorText };
       }
 
@@ -573,7 +654,11 @@ class WorkflowExecutorService {
       timeMax?: Date | string;
       maxResults?: number;
     },
-  ): Promise<{ success: boolean; events?: Array<Record<string, unknown>>; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    events?: Array<Record<string, unknown>>;
+    error?: string;
+  }> {
     logger.info("[WorkflowExecutor] listCalendarEvents called", {
       organizationId,
       params,
@@ -585,18 +670,27 @@ class WorkflowExecutorService {
         logger.error("[WorkflowExecutor] listCalendarEvents - No credentials", {
           organizationId,
         });
-        return { success: false, error: "Google not connected - check OAuth connection in Settings" };
+        return {
+          success: false,
+          error: "Google not connected - check OAuth connection in Settings",
+        };
       }
 
       const calendarId = params.calendarId || "primary";
       const queryParams = new URLSearchParams();
 
       if (params.timeMin) {
-        const date = params.timeMin instanceof Date ? params.timeMin : new Date(params.timeMin);
+        const date =
+          params.timeMin instanceof Date
+            ? params.timeMin
+            : new Date(params.timeMin);
         queryParams.set("timeMin", date.toISOString());
       }
       if (params.timeMax) {
-        const date = params.timeMax instanceof Date ? params.timeMax : new Date(params.timeMax);
+        const date =
+          params.timeMax instanceof Date
+            ? params.timeMax
+            : new Date(params.timeMax);
         queryParams.set("timeMax", date.toISOString());
       }
       if (params.maxResults) {
@@ -637,7 +731,11 @@ class WorkflowExecutorService {
       maxResults?: number;
       labelIds?: string[];
     },
-  ): Promise<{ success: boolean; messages?: Array<Record<string, unknown>>; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    messages?: Array<Record<string, unknown>>;
+    error?: string;
+  }> {
     try {
       const credentials = await this.getGoogleCredentials(organizationId);
       if (!credentials) {
@@ -687,7 +785,11 @@ class WorkflowExecutorService {
   async getEmail(
     organizationId: string,
     messageId: string,
-  ): Promise<{ success: boolean; message?: Record<string, unknown>; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    message?: Record<string, unknown>;
+    error?: string;
+  }> {
     try {
       const credentials = await this.getGoogleCredentials(organizationId);
       if (!credentials) {
@@ -752,7 +854,7 @@ class WorkflowExecutorService {
       formData.set("To", params.to);
       formData.set("From", params.from);
       formData.set("Body", params.body);
-      
+
       if (params.mediaUrls) {
         for (const url of params.mediaUrls) {
           formData.append("MediaUrl", url);
@@ -825,26 +927,35 @@ class WorkflowExecutorService {
 
       // Blooio v2 API: POST /chats/{chatId}/messages
       const chatId = encodeURIComponent(params.to);
-      const response = await fetch(`https://backend.blooio.com/v2/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          ...(fromNumber ? { "X-From-Number": fromNumber } : {}),
+      const response = await fetch(
+        `https://backend.blooio.com/v2/api/chats/${chatId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            ...(fromNumber ? { "X-From-Number": fromNumber } : {}),
+          },
+          body: JSON.stringify({
+            text: params.body,
+            attachments: params.mediaUrls?.map((url) => ({ url })),
+          }),
         },
-        body: JSON.stringify({
-          text: params.body,
-          attachments: params.mediaUrls?.map((url) => ({ url })),
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        return { success: false, error: `Blooio API error (${response.status}): ${errorText}` };
+        return {
+          success: false,
+          error: `Blooio API error (${response.status}): ${errorText}`,
+        };
       }
 
       const data = await response.json();
-      return { success: true, messageId: data.message_id || data.message_ids?.[0] };
+      return {
+        success: true,
+        messageId: data.message_id || data.message_ids?.[0],
+      };
     } catch (error) {
       return {
         success: false,
