@@ -574,5 +574,496 @@ describe("Webhook Handlers E2E Tests", () => {
       // All requests should succeed
       expect(statuses.every((s) => s === 200)).toBe(true);
     });
+
+    it("should respond within acceptable time", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "Performance test");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
+
+      const startTime = Date.now();
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+      const duration = Date.now() - startTime;
+
+      expect(response.status).toBe(200);
+      // Should respond within 5 seconds for webhook acknowledgment
+      expect(duration).toBeLessThan(5000);
+    });
+  });
+
+  describe("Edge Cases - Twilio", () => {
+    it("should handle missing MessageSid", async () => {
+      const formData = new URLSearchParams();
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "No MessageSid");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+
+      // Should handle gracefully
+      expect([200, 400]).toContain(response.status);
+    });
+
+    it("should handle very long message body", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "A".repeat(10000));
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle unicode in message body", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "Hello 世界! 🎉 ñ é ü");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle multiple media URLs", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "MM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "Multiple media");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "3");
+      formData.append("MediaUrl0", "https://example.com/image1.jpg");
+      formData.append("MediaUrl1", "https://example.com/image2.jpg");
+      formData.append("MediaUrl2", "https://example.com/image3.jpg");
+      formData.append("MediaContentType0", "image/jpeg");
+      formData.append("MediaContentType1", "image/jpeg");
+      formData.append("MediaContentType2", "image/jpeg");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle status callback webhook", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("MessageStatus", "delivered");
+      formData.append("To", "+15551234567");
+      formData.append("From", "+15559876543");
+      formData.append("AccountSid", "ACtest123");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        },
+      );
+
+      expect([200, 400]).toContain(response.status);
+    });
+  });
+
+  describe("Edge Cases - Blooio", () => {
+    it("should handle missing sender in message.received", async () => {
+      const payload = {
+        event: "message.received",
+        message_id: "bloo_" + uuidv4(),
+        text: "No sender",
+        timestamp: new Date().toISOString(),
+        protocol: "imessage",
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      // Should handle gracefully
+      expect([200, 400]).toContain(response.status);
+    });
+
+    it("should handle unknown event type", async () => {
+      const payload = {
+        event: "unknown.event",
+        message_id: "bloo_" + uuidv4(),
+        timestamp: new Date().toISOString(),
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle message with only attachments", async () => {
+      const payload = {
+        event: "message.received",
+        message_id: "bloo_" + uuidv4(),
+        sender: "+15559876543",
+        text: "",
+        timestamp: new Date().toISOString(),
+        protocol: "imessage",
+        attachments: [
+          { url: "https://example.com/document.pdf", name: "document.pdf" },
+        ],
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle group message", async () => {
+      const payload = {
+        event: "message.received",
+        message_id: "bloo_" + uuidv4(),
+        sender: "+15559876543",
+        text: "Group message",
+        timestamp: new Date().toISOString(),
+        protocol: "imessage",
+        group_id: "grp_123456",
+        participants: ["+15559876543", "+15551111111"],
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle typing indicator event", async () => {
+      const payload = {
+        event: "typing.started",
+        sender: "+15559876543",
+        timestamp: new Date().toISOString(),
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should handle email-based iMessage sender", async () => {
+      const payload = {
+        event: "message.received",
+        message_id: "bloo_" + uuidv4(),
+        sender: "user@icloud.com",
+        text: "iMessage from email",
+        timestamp: new Date().toISOString(),
+        protocol: "imessage",
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("Signature Verification Edge Cases", () => {
+    it("should handle missing signature header for Twilio", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "No signature header");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            // No X-Twilio-Signature header
+          },
+          body: formData,
+        },
+      );
+
+      // Should work in development (signature validation may be skipped)
+      expect([200, 401]).toContain(response.status);
+    });
+
+    it("should handle empty signature header for Twilio", async () => {
+      const formData = new URLSearchParams();
+      formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+      formData.append("From", "+15559876543");
+      formData.append("To", "+15551234567");
+      formData.append("Body", "Empty signature");
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Twilio-Signature": "",
+          },
+          body: formData,
+        },
+      );
+
+      expect([200, 401]).toContain(response.status);
+    });
+
+    it("should handle malformed signature for Blooio", async () => {
+      const payload = {
+        event: "message.received",
+        message_id: "bloo_" + uuidv4(),
+        sender: "+15559876543",
+        text: "Malformed signature test",
+        timestamp: new Date().toISOString(),
+      };
+
+      const response = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Blooio-Signature": "not-a-valid-signature",
+            "X-Blooio-Timestamp": Math.floor(Date.now() / 1000).toString(),
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      // Should work if no webhook secret configured, or fail validation
+      expect([200, 401]).toContain(response.status);
+    });
+  });
+
+  describe("Rate Limiting Behavior", () => {
+    it("should handle rapid sequential requests", async () => {
+      const responses = [];
+
+      for (let i = 0; i < 20; i++) {
+        const formData = new URLSearchParams();
+        formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
+        formData.append("From", "+15559876543");
+        formData.append("To", "+15551234567");
+        formData.append("Body", `Rapid request ${i}`);
+        formData.append("AccountSid", "ACtest123");
+        formData.append("NumMedia", "0");
+
+        const response = await fetch(
+          `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: formData,
+          },
+        );
+
+        responses.push(response.status);
+      }
+
+      // Should not crash or rate limit under reasonable load
+      expect(responses.every((s) => s === 200 || s === 429)).toBe(true);
+    });
+  });
+
+  describe("Idempotency", () => {
+    it("should handle duplicate Twilio message SID", async () => {
+      const messageSid = "SM" + uuidv4().replace(/-/g, "");
+
+      const formData1 = new URLSearchParams();
+      formData1.append("MessageSid", messageSid);
+      formData1.append("From", "+15559876543");
+      formData1.append("To", "+15551234567");
+      formData1.append("Body", "First send");
+      formData1.append("AccountSid", "ACtest123");
+      formData1.append("NumMedia", "0");
+
+      const formData2 = new URLSearchParams();
+      formData2.append("MessageSid", messageSid);
+      formData2.append("From", "+15559876543");
+      formData2.append("To", "+15551234567");
+      formData2.append("Body", "Duplicate send");
+      formData2.append("AccountSid", "ACtest123");
+      formData2.append("NumMedia", "0");
+
+      const response1 = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData1,
+        },
+      );
+
+      const response2 = await fetch(
+        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData2,
+        },
+      );
+
+      // Both should succeed (webhook should be idempotent)
+      expect(response1.status).toBe(200);
+      expect(response2.status).toBe(200);
+    });
+
+    it("should handle duplicate Blooio message ID", async () => {
+      const messageId = "bloo_" + uuidv4();
+
+      const payload1 = {
+        event: "message.received",
+        message_id: messageId,
+        sender: "+15559876543",
+        text: "First delivery",
+        timestamp: new Date().toISOString(),
+      };
+
+      const payload2 = {
+        event: "message.received",
+        message_id: messageId,
+        sender: "+15559876543",
+        text: "Duplicate delivery",
+        timestamp: new Date().toISOString(),
+      };
+
+      const response1 = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload1),
+        },
+      );
+
+      const response2 = await fetch(
+        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload2),
+        },
+      );
+
+      // Both should succeed (webhook should be idempotent)
+      expect(response1.status).toBe(200);
+      expect(response2.status).toBe(200);
+    });
   });
 });

@@ -116,23 +116,3 @@ export * from "./seo-requests";
 // ============================================
 export * from "./discord-guilds";
 export * from "./discord-channels";
-
-// ============================================
-// Generated Workflows (AI Workflow Factory)
-// ============================================
-export * from "./generated-workflows";
-
-// ============================================
-// Workflow Triggers (Automatic Workflow Execution)
-// ============================================
-export * from "./workflow-triggers";
-
-// ============================================
-// Workflow Secret Requirements (Credential Tracking)
-// ============================================
-export * from "./workflow-secret-requirements";
-
-// ============================================
-// Workflow Templates (Semantic Search & Reuse)
-// ============================================
-export * from "./workflow-templates";

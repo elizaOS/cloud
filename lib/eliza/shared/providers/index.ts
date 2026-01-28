@@ -5,4 +5,3 @@
 export { recentMessagesProvider } from "./recent-messages";
 export { appConfigProvider } from "./app-config";
 export { characterProvider } from "./character";
-export { workflowStateProvider } from "./workflow-state";

@@ -100,7 +100,6 @@ async function handleIncomingMessage(
   event: TwilioWebhookEvent,
 ): Promise<void> {
   const { messageRouterService } = await import("@/lib/services/message-router");
-  const { workflowTriggerService } = await import("@/lib/services/workflow-triggers");
 
   const from = event.From;
   const to = event.To;
@@ -125,7 +124,7 @@ async function handleIncomingMessage(
 
   const startTime = Date.now();
 
-  // Build message context for trigger matching
+  // Build message context for routing
   const messageContext = {
     from,
     to,
@@ -142,58 +141,7 @@ async function handleIncomingMessage(
     },
   };
 
-  // Check for workflow triggers FIRST
-  const triggerMatch = await workflowTriggerService.matchTriggers(messageContext, orgId);
-
-  if (triggerMatch) {
-    logger.info("[TwilioWebhook] Workflow trigger matched", {
-      orgId,
-      triggerId: triggerMatch.trigger.id,
-      triggerName: triggerMatch.trigger.name,
-      matchedOn: triggerMatch.matchedOn,
-    });
-
-    // Execute the triggered workflow
-    const triggerResult = await workflowTriggerService.executeTrigger(
-      triggerMatch,
-      messageContext,
-    );
-
-    // Send response if workflow executed successfully and response is configured
-    if (triggerResult.response) {
-      const sent = await messageRouterService.sendMessage({
-        to: from,
-        from: to,
-        body: triggerResult.response,
-        provider: "twilio",
-        organizationId: orgId,
-      });
-
-      const responseTime = Date.now() - startTime;
-
-      if (sent) {
-        logger.info("[TwilioWebhook] Workflow response sent", {
-          orgId,
-          from,
-          to,
-          responseTime,
-          triggerId: triggerMatch.trigger.id,
-        });
-      } else {
-        logger.error("[TwilioWebhook] Failed to send workflow response", {
-          orgId,
-          from,
-          to,
-          triggerId: triggerMatch.trigger.id,
-        });
-      }
-    }
-
-    // Workflow trigger handled the message, don't route to agent
-    return;
-  }
-
-  // No trigger matched, route to agent as usual
+  // Route to agent
   const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
 
   if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
