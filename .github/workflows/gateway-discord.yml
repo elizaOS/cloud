@@ -1,0 +1,145 @@
+name: Gateway Discord Service
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-discord/**"
+      - "lib/services/gateway-discord/**"
+      - ".github/workflows/gateway-discord.yml"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-discord/**"
+      - "lib/services/gateway-discord/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options: [staging, production]
+
+env:
+  BUN_VERSION: "1.2"
+  IMAGE_NAME: gateway-discord
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install dependencies
+        run: cd services/gateway-discord && bun install --frozen-lockfile
+      - name: Run tests
+        run: cd services/gateway-discord && bun test
+
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: services/gateway-discord
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" > ~/.kube/config
+
+      - name: Deploy to staging
+        run: |
+          export IMAGE="${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.digest }}"
+          kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
+          kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n gateway-discord -l app=gateway-discord
+          kubectl rollout status deployment/gateway-discord -n gateway-discord
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.PRODUCTION_KUBECONFIG }}" > ~/.kube/config
+
+      - name: Deploy to production
+        run: |
+          export IMAGE="${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.digest }}"
+          kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
+          kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n gateway-discord -l app=gateway-discord
+          kubectl rollout status deployment/gateway-discord -n gateway-discord

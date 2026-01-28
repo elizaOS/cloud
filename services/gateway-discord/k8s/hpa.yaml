@@ -26,8 +26,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: gateway-discord
-  minReplicas: 3
-  maxReplicas: 100
+  minReplicas: 1
+  maxReplicas: 10
   metrics:
     # Primary metrics - work without additional setup
     - type: Resource
@@ -62,5 +62,5 @@ spec:
       stabilizationWindowSeconds: 300
       policies:
         - type: Pods
-          value: 2
+          value: 1
           periodSeconds: 120
