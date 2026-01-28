@@ -104,13 +104,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
-          aws-region: ${{ env.GATEWAY_AWS_REGION }}
+          aws-region: ${{ vars.GATEWAY_AWS_REGION }}
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
       - name: Configure kubectl for EKS
-        run: aws eks update-kubeconfig --name ${{ env.GATEWAY_CLUSTER_NAME }} --region ${{ env.GATEWAY_AWS_REGION }}
+        run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
 
       - name: Deploy to staging
         run: |
@@ -140,13 +140,13 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
-          aws-region: ${{ env.GATEWAY_AWS_REGION }}
+          aws-region: ${{ vars.GATEWAY_AWS_REGION }}
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
       - name: Configure kubectl for EKS
-        run: aws eks update-kubeconfig --name ${{ env.GATEWAY_CLUSTER_NAME }} --region ${{ env.GATEWAY_AWS_REGION }}
+        run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
 
       - name: Deploy to production
         run: |

@@ -185,17 +185,11 @@ aws eks list-access-entries --cluster-name gateway-cluster --region us-east-1
 
 ### Environment Variables (per environment)
 
-| Environment | Variable | Description |
-|-------------|----------|-------------|
-| `staging` | `GATEWAY_AWS_ROLE_ARN` | ARN of the IAM role for OIDC authentication |
-| `production` | `GATEWAY_AWS_ROLE_ARN` | ARN of the IAM role for OIDC authentication |
+Add these variables to each GitHub environment (`staging` and `production`):
 
-### Workflow Environment Variables
-
-These are set in the workflow file and may need adjustment:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable | Example Value | Description |
+|----------|---------------|-------------|
+| `GATEWAY_AWS_ROLE_ARN` | `arn:aws:iam::<ACCOUNT_ID>:role/github-actions-gateway` | ARN of the IAM role for OIDC authentication |
 | `GATEWAY_AWS_REGION` | `us-east-1` | AWS region where EKS cluster is located |
 | `GATEWAY_CLUSTER_NAME` | `gateway-cluster` | Name of your EKS cluster |
 
