@@ -13,6 +13,7 @@ import { logger } from "@/lib/utils/logger";
 import {
   workflowFactory,
   dependencyResolver,
+  secretDependencyExtractor,
   type ServiceConnectionStatus,
 } from "@/lib/services/workflow-engine";
 import { generatedWorkflowsRepository } from "@/db/repositories";
@@ -172,6 +173,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
       status: generatedWorkflow.validation.syntaxValid ? "testing" : "draft",
     });
+
+    // Extract and save secret requirements (async, don't block response)
+    secretDependencyExtractor
+      .extractAndSave(savedWorkflow.id, savedWorkflow.execution_plan as Array<{
+        step: number;
+        serviceId: string;
+        operation: string;
+      }>)
+      .catch((err) => {
+        logger.error("[Workflows] Failed to save secret requirements", {
+          workflowId: savedWorkflow.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
 
     logger.info("[Workflows] Workflow generated and saved", {
       workflowId: savedWorkflow.id,
