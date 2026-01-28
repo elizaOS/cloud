@@ -126,6 +126,8 @@ class GoogleAutomationService {
           organizationId,
           cred.id,
           refreshToken,
+          cred.access_token_secret_id,
+          cred.refresh_token_secret_id,
         );
         if (refreshed) {
           return {
@@ -161,6 +163,8 @@ class GoogleAutomationService {
     organizationId: string,
     credentialId: string,
     refreshToken: string,
+    existingAccessTokenSecretId: string | null,
+    existingRefreshTokenSecretId: string | null,
   ): Promise<GoogleCredentials | null> {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -177,45 +181,37 @@ class GoogleAutomationService {
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Store new access token
     const audit = {
       actorType: "system" as const,
       actorId: "token-refresh",
       source: "google-automation",
     };
 
-    const accessTokenSecret = await secretsService.create(
-      {
+    // Rotate existing access token secret instead of creating new ones
+    if (existingAccessTokenSecretId) {
+      await secretsService.rotate(
+        existingAccessTokenSecretId,
         organizationId,
-        name: `GOOGLE_ACCESS_TOKEN_REFRESHED_${Date.now()}`,
-        value: tokens.access_token,
-        scope: "organization",
-        createdBy: "system",
-      },
-      audit,
-    );
+        tokens.access_token,
+        audit,
+      );
+    }
 
-    // Update credential record
+    // Update credential record (no need to update secret IDs since we rotated in place)
     const updates: Record<string, unknown> = {
-      access_token_secret_id: accessTokenSecret.id,
       token_expires_at: expiresAt,
       last_refreshed_at: new Date(),
       updated_at: new Date(),
     };
 
-    // If we got a new refresh token, store it
-    if (tokens.refresh_token) {
-      const refreshTokenSecret = await secretsService.create(
-        {
-          organizationId,
-          name: `GOOGLE_REFRESH_TOKEN_REFRESHED_${Date.now()}`,
-          value: tokens.refresh_token,
-          scope: "organization",
-          createdBy: "system",
-        },
+    // If we got a new refresh token, rotate it
+    if (tokens.refresh_token && existingRefreshTokenSecretId) {
+      await secretsService.rotate(
+        existingRefreshTokenSecretId,
+        organizationId,
+        tokens.refresh_token,
         audit,
       );
-      updates.refresh_token_secret_id = refreshTokenSecret.id;
     }
 
     await dbWrite
