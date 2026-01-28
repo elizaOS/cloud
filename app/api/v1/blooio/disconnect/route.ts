@@ -13,7 +13,7 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
@@ -42,3 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+// Support both POST and DELETE methods for disconnect
+export const POST = handleDisconnect;
+export const DELETE = handleDisconnect;
