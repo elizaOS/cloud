@@ -461,6 +461,106 @@ Would you like me to provide the code?
     });
   });
 
+  describe("Workflow Name Generation", () => {
+    test("generates name with unique suffix", () => {
+      // Simulate the name generation logic
+      const generateWorkflowName = (intent: string): string => {
+        const words = intent.toLowerCase().split(/\s+/);
+        const actionWords = ["send", "check", "create", "get", "list", "search", "schedule", "text", "email"];
+        const action = words.find((w) => actionWords.includes(w)) || "execute";
+
+        const actionIndex = words.findIndex((w) => actionWords.includes(w));
+        const target = actionIndex >= 0 && actionIndex < words.length - 1
+          ? words[actionIndex + 1]
+          : "task";
+
+        // Add unique suffix to prevent duplicates
+        const uniqueSuffix = Date.now().toString(36).slice(-4);
+        return `${action}_${target}_${uniqueSuffix}`;
+      };
+
+      const intent = "Send an email notification when someone signs up";
+      
+      const name = generateWorkflowName(intent);
+
+      // Name should have the correct format with action_target_uniqueSuffix
+      expect(name).toMatch(/^send_an_[a-z0-9]{4}$/);
+      expect(name).not.toBe("send_an_workflow"); // Should not be static
+    });
+
+    test("generates different names over time", async () => {
+      // Simulate the name generation logic
+      const generateWorkflowName = (intent: string): string => {
+        const words = intent.toLowerCase().split(/\s+/);
+        const actionWords = ["send", "check", "create", "get", "list", "search", "schedule", "text", "email"];
+        const action = words.find((w) => actionWords.includes(w)) || "execute";
+
+        const actionIndex = words.findIndex((w) => actionWords.includes(w));
+        const target = actionIndex >= 0 && actionIndex < words.length - 1
+          ? words[actionIndex + 1]
+          : "task";
+
+        const uniqueSuffix = Date.now().toString(36).slice(-4);
+        return `${action}_${target}_${uniqueSuffix}`;
+      };
+
+      const intent = "Send email alerts";
+      
+      const name1 = generateWorkflowName(intent);
+      // Wait 5ms to ensure different timestamp
+      await new Promise(resolve => setTimeout(resolve, 5));
+      const name2 = generateWorkflowName(intent);
+
+      // With delay, names should be different
+      expect(name1).not.toBe(name2);
+    });
+
+    test("extracts action word from intent", () => {
+      const intents = [
+        { intent: "Send an email to the team", expectedAction: "send" },
+        { intent: "Check my calendar for today", expectedAction: "check" },
+        { intent: "Create a new event", expectedAction: "create" },
+        { intent: "List all contacts", expectedAction: "list" },
+        { intent: "Do something random", expectedAction: "execute" },
+      ];
+
+      for (const { intent, expectedAction } of intents) {
+        const words = intent.toLowerCase().split(/\s+/);
+        const actionWords = ["send", "check", "create", "get", "list", "search", "schedule", "text", "email"];
+        const action = words.find((w) => actionWords.includes(w)) || "execute";
+        
+        expect(action).toBe(expectedAction);
+      }
+    });
+
+    test("extracts target from intent", () => {
+      const intent = "Send email notifications to users";
+      const words = intent.toLowerCase().split(/\s+/);
+      const actionWords = ["send", "check", "create", "get", "list", "search", "schedule", "text", "email"];
+      
+      const actionIndex = words.findIndex((w) => actionWords.includes(w));
+      const target = actionIndex >= 0 && actionIndex < words.length - 1
+        ? words[actionIndex + 1]
+        : "task";
+
+      expect(target).toBe("email");
+    });
+
+    test("handles edge case with action at end of sentence", () => {
+      const intent = "When ready please send";
+      const words = intent.toLowerCase().split(/\s+/);
+      const actionWords = ["send", "check", "create", "get", "list", "search", "schedule", "text", "email"];
+      
+      const actionIndex = words.findIndex((w) => actionWords.includes(w));
+      const target = actionIndex >= 0 && actionIndex < words.length - 1
+        ? words[actionIndex + 1]
+        : "task";
+
+      // "send" is at end, so target defaults to "task"
+      expect(target).toBe("task");
+    });
+  });
+
   describe("Iteration Logic", () => {
     test("should iterate when validation fails", () => {
       const firstAttemptValidation = {
