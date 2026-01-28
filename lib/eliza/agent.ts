@@ -2,7 +2,7 @@ import type { Character } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
-import { assistantPlugin } from "./plugin-assistant";
+import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
 import { cloudBillingPlugin } from "./plugin-cloud-billing";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 
@@ -200,27 +200,23 @@ const character: Character = {
   },
 };
 
-/**
- * Default agent configuration.
- * Note: Plugin resolution is handled by AgentLoader, not here.
- */
 const agent = {
   character,
   plugins: [
     elizaOSCloudPlugin,
     elevenLabsPlugin,
-    assistantPlugin,
+    cloudBootstrapPlugin,
     memoryPlugin,
     cloudBillingPlugin,
   ],
   providers: [
     ...(elevenLabsPlugin.providers || []),
-    ...(assistantPlugin.providers || []),
+    ...(cloudBootstrapPlugin.providers || []),
     ...(cloudBillingPlugin.providers || []),
   ].flat(),
   actions: [
     ...(elevenLabsPlugin.actions || []),
-    ...(assistantPlugin.actions || []),
+    ...(cloudBootstrapPlugin.actions || []),
   ].flat(),
 };
 
