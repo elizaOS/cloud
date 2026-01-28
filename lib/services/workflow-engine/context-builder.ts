@@ -16,6 +16,7 @@ import {
   dependencyResolver,
   type IntentAnalysis,
 } from "./dependency-resolver";
+import type { TemplateMatchResult } from "./workflow-template-search";
 
 /**
  * Context for workflow generation
@@ -33,6 +34,8 @@ export interface WorkflowContext {
   userId?: string;
   /** Additional context from user */
   additionalContext?: string;
+  /** Similar templates found via semantic search */
+  similarTemplates?: TemplateMatchResult[];
 }
 
 /**
@@ -135,6 +138,11 @@ Do NOT include:
     // Connected services section
     sections.push(this.buildServicesSection(context.connectedServices));
 
+    // Similar templates section (if available) - placed before examples for higher priority
+    if (context.similarTemplates && context.similarTemplates.length > 0) {
+      sections.push(this.buildTemplatesSection(context.similarTemplates));
+    }
+
     // Dependencies and execution plan
     sections.push(this.buildDependenciesSection(context));
 
@@ -148,6 +156,43 @@ Do NOT include:
     sections.push(this.buildOutputRequirements(context));
 
     return sections.filter(Boolean).join("\n\n---\n\n");
+  }
+
+  /**
+   * Build section for similar templates found via semantic search
+   * These are proven, working workflows that should be adapted
+   */
+  private buildTemplatesSection(templates: TemplateMatchResult[]): string {
+    if (templates.length === 0) {
+      return "";
+    }
+
+    let section = `## Similar Existing Workflows (Reference These Patterns)
+
+The following workflows accomplish similar tasks and have been proven to work.
+**Use these as your primary reference** when generating the new workflow.
+
+`;
+
+    for (const { template, similarity, matchReason, canAdapt } of templates) {
+      const similarityPct = Math.round(similarity * 100);
+      section += `### ${template.name} (${similarityPct}% similar${canAdapt ? " - HIGH MATCH" : ""})
+
+**Original Intent**: "${template.user_intent}"
+**Match Reason**: ${matchReason}
+**Services Used**: ${template.service_dependencies?.join(", ") || "N/A"}
+
+\`\`\`typescript
+${template.generated_code}
+\`\`\`
+
+`;
+    }
+
+    section += `**Instructions**: Adapt the patterns from these templates to match the user's specific request. 
+Reuse the proven code structure and error handling approaches.`;
+
+    return section;
   }
 
   /**

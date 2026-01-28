@@ -15,6 +15,7 @@ import {
 } from "./context-builder";
 import { dependencyResolver } from "./dependency-resolver";
 import type { ServiceConnectionStatus } from "./service-specs";
+import { workflowTemplateSearchService } from "./workflow-template-search";
 
 /**
  * Workflow generation request
@@ -130,9 +131,36 @@ class WorkflowFactoryService {
     const job = this.createJob(jobId);
 
     try {
-      // Phase 1: Analyze intent
+      // Phase 0: Search for similar templates (Shaw's vision)
       this.updateJob(jobId, {
         status: "generating",
+        currentPhase: "Searching for similar workflows",
+        progress: 5,
+      });
+
+      let similarTemplates;
+      try {
+        similarTemplates = await workflowTemplateSearchService.findSimilar(
+          request.userIntent,
+          request.organizationId,
+          { limit: 3, minSimilarity: 0.7 },
+        );
+        
+        if (similarTemplates.length > 0) {
+          this.logToJob(
+            jobId,
+            `Found ${similarTemplates.length} similar templates (top: ${Math.round(similarTemplates[0].similarity * 100)}% match)`,
+          );
+        } else {
+          this.logToJob(jobId, "No similar templates found, generating fresh");
+        }
+      } catch (searchError) {
+        this.logToJob(jobId, "Template search skipped (not available)");
+        similarTemplates = [];
+      }
+
+      // Phase 1: Analyze intent
+      this.updateJob(jobId, {
         currentPhase: "Analyzing intent",
         progress: 10,
       });
@@ -143,7 +171,7 @@ class WorkflowFactoryService {
         `Intent analyzed: ${intentAnalysis.primaryAction} (confidence: ${intentAnalysis.confidence})`,
       );
 
-      // Phase 2: Build context
+      // Phase 2: Build context (including similar templates)
       this.updateJob(jobId, {
         currentPhase: "Building context",
         progress: 20,
@@ -156,6 +184,7 @@ class WorkflowFactoryService {
         organizationId: request.organizationId,
         userId: request.userId,
         additionalContext: request.additionalContext,
+        similarTemplates, // Include templates in context for AI reference
       };
 
       const prompt = contextBuilder.buildPrompt(context);
@@ -389,7 +418,9 @@ class WorkflowFactoryService {
       ? words[actionIndex + 1]
       : "task";
 
-    return `${action}_${target}_workflow`;
+    // Add short unique suffix to prevent duplicate names
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
+    return `${action}_${target}_${uniqueSuffix}`;
   }
 
   /**
