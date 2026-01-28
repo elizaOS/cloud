@@ -6,17 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { CodeViewer } from "./code-viewer";
 import { ExecutionHistory, type Execution } from "./execution-history";
+import { ExecuteDialog } from "./execute-dialog";
+import { TriggerList, type Trigger } from "./trigger-list";
+import { TriggerDialog } from "./trigger-dialog";
 import {
   ArrowLeft,
   Play,
@@ -31,6 +25,9 @@ import {
   Code2,
   History,
   Info,
+  RefreshCw,
+  Zap,
+  Plus,
 } from "lucide-react";
 
 interface WorkflowDetailProps {
@@ -113,11 +110,13 @@ export function WorkflowDetail({
 }: WorkflowDetailProps) {
   const [workflow, setWorkflow] = useState<WorkflowFull | null>(null);
   const [executions, setExecutions] = useState<Execution[]>([]);
+  const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExecuting, setIsExecuting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [showExecuteDialog, setShowExecuteDialog] = useState(false);
-  const [executeParams, setExecuteParams] = useState("{}");
+  const [showTriggerDialog, setShowTriggerDialog] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState<Trigger | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Fetch workflow details
@@ -139,41 +138,81 @@ export function WorkflowDetail({
     }
   }, [workflowId]);
 
+  // Fetch triggers for this workflow
+  const fetchTriggers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/workflows/${workflowId}/triggers`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch triggers");
+      }
+      const data = await response.json();
+      setTriggers(data.triggers || []);
+    } catch (error) {
+      console.error("Failed to fetch triggers:", error);
+    }
+  }, [workflowId]);
+
   useEffect(() => {
     fetchWorkflow();
-  }, [fetchWorkflow]);
+    fetchTriggers();
+  }, [fetchWorkflow, fetchTriggers]);
+
+  // Handle trigger edit
+  const handleEditTrigger = (trigger: Trigger) => {
+    setEditingTrigger(trigger);
+    setShowTriggerDialog(true);
+  };
+
+  // Handle trigger saved
+  const handleTriggerSaved = () => {
+    fetchTriggers();
+    setEditingTrigger(null);
+  };
 
   // Execute workflow
-  const handleExecute = async () => {
-    setIsExecuting(true);
-    try {
-      let params = {};
-      try {
-        params = JSON.parse(executeParams);
-      } catch {
-        toast.error("Invalid JSON parameters");
-        return;
-      }
+  const handleExecute = async (params: Record<string, unknown>, dryRun: boolean) => {
+    const response = await fetch(`/api/v1/workflows/${workflowId}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ params: { ...params, dryRun } }),
+    });
 
-      const response = await fetch(`/api/v1/workflows/${workflowId}/execute`, {
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Execution failed");
+    }
+
+    // Refresh executions list after successful execution
+    fetchWorkflow();
+    
+    if (data.success) {
+      toast.success(dryRun ? "Dry run completed!" : "Workflow executed successfully!");
+    }
+
+    return data;
+  };
+
+  // Regenerate execution plan
+  const handleRegeneratePlan = async () => {
+    setIsRegenerating(true);
+    try {
+      const response = await fetch(`/api/v1/workflows/${workflowId}/regenerate-plan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ params }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Execution failed");
+        throw new Error(data.error || "Failed to regenerate plan");
       }
 
-      toast.success("Workflow executed successfully!");
-      setShowExecuteDialog(false);
-      fetchWorkflow(); // Refresh to get new execution
+      toast.success(`Execution plan regenerated with ${data.executionPlan.length} step(s)`);
+      fetchWorkflow(); // Refresh to get updated plan
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Execution failed");
+      toast.error(error instanceof Error ? error.message : "Failed to regenerate plan");
     } finally {
-      setIsExecuting(false);
+      setIsRegenerating(false);
     }
   };
 
@@ -277,6 +316,15 @@ export function WorkflowDetail({
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="triggers">
+            <Zap className="h-4 w-4 mr-1" />
+            Triggers
+            {triggers.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5">
+                {triggers.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -308,7 +356,7 @@ export function WorkflowDetail({
               <CardContent className="pt-4">
                 <div className="text-2xl font-bold">
                   {workflow.successRate
-                    ? `${parseFloat(workflow.successRate).toFixed(0)}%`
+                    ? `${Number.parseFloat(workflow.successRate).toFixed(0)}%`
                     : "-"}
                 </div>
                 <p className="text-xs text-muted-foreground">Success Rate</p>
@@ -318,15 +366,28 @@ export function WorkflowDetail({
 
           {/* Execution Plan */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Execution Plan</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRegeneratePlan}
+                disabled={isRegenerating}
+              >
+                {isRegenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                )}
+                {workflow.executionPlan.length > 0 ? "Regenerate" : "Generate Plan"}
+              </Button>
             </CardHeader>
             <CardContent>
               {workflow.executionPlan.length > 0 ? (
                 <div className="space-y-2">
                   {workflow.executionPlan.map((step, i) => (
                     <div
-                      key={i}
+                      key={`step-${step.step}-${step.serviceId}`}
                       className="flex items-center gap-3 p-2 rounded bg-muted/50"
                     >
                       <Badge variant="outline" className="w-6 h-6 p-0 flex items-center justify-center">
@@ -338,7 +399,12 @@ export function WorkflowDetail({
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm">No execution plan available</p>
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground text-sm mb-2">No execution plan available</p>
+                  <p className="text-xs text-muted-foreground">
+                    Click &quot;Generate Plan&quot; to analyze this workflow and create an execution plan.
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -383,8 +449,8 @@ export function WorkflowDetail({
                 </div>
                 {workflow.testResults.warnings && workflow.testResults.warnings.length > 0 && (
                   <div className="mt-3 space-y-1">
-                    {workflow.testResults.warnings.map((warning, i) => (
-                      <p key={i} className="text-xs text-yellow-400">
+                    {workflow.testResults.warnings.map((warning) => (
+                      <p key={warning} className="text-xs text-yellow-400">
                         <AlertCircle className="h-3 w-3 inline mr-1" />
                         {warning}
                       </p>
@@ -403,52 +469,58 @@ export function WorkflowDetail({
         <TabsContent value="executions">
           <ExecutionHistory executions={executions} />
         </TabsContent>
+
+        <TabsContent value="triggers" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Workflow Triggers</CardTitle>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingTrigger(null);
+                  setShowTriggerDialog(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Trigger
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <TriggerList
+                triggers={triggers}
+                workflowId={workflowId}
+                onEdit={handleEditTrigger}
+                onRefresh={fetchTriggers}
+              />
+            </CardContent>
+          </Card>
+          <p className="text-xs text-muted-foreground">
+            Triggers automatically execute this workflow when conditions are met.
+            For example, when someone texts a specific keyword to your phone number.
+          </p>
+        </TabsContent>
       </Tabs>
 
       {/* Execute Dialog */}
-      <Dialog open={showExecuteDialog} onOpenChange={setShowExecuteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Run Workflow</DialogTitle>
-            <DialogDescription>
-              Execute this workflow with optional parameters.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Parameters (JSON)</label>
-              <Textarea
-                value={executeParams}
-                onChange={(e) => setExecuteParams(e.target.value)}
-                placeholder='{"key": "value"}'
-                className="font-mono text-sm"
-                rows={5}
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional. Provide any input parameters as JSON.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExecuteDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleExecute} disabled={isExecuting}>
-              {isExecuting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Run Workflow
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ExecuteDialog
+        open={showExecuteDialog}
+        onOpenChange={setShowExecuteDialog}
+        workflowName={workflow.name}
+        executionPlan={workflow.executionPlan}
+        onExecute={handleExecute}
+      />
+
+      {/* Trigger Dialog */}
+      <TriggerDialog
+        open={showTriggerDialog}
+        onOpenChange={(open) => {
+          setShowTriggerDialog(open);
+          if (!open) setEditingTrigger(null);
+        }}
+        workflowId={workflowId}
+        trigger={editingTrigger}
+        onSaved={handleTriggerSaved}
+      />
     </div>
   );
 }
