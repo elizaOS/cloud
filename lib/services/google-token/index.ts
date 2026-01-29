@@ -197,7 +197,7 @@ class GoogleTokenService {
             organizationId,
             previousSecretId: currentAccessTokenSecretId,
           });
-          newAccessTokenSecretId = await secretsService.create(
+          const newSecret = await secretsService.create(
             {
               organizationId,
               name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
@@ -207,10 +207,11 @@ class GoogleTokenService {
             },
             auditContext,
           );
+          newAccessTokenSecretId = newSecret.id;
         }
       } else {
         // Create new secret
-        newAccessTokenSecretId = await secretsService.create(
+        const newSecret = await secretsService.create(
           {
             organizationId,
             name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
@@ -220,6 +221,7 @@ class GoogleTokenService {
           },
           auditContext,
         );
+        newAccessTokenSecretId = newSecret.id;
       }
 
       // Update platform_credentials with new token info
