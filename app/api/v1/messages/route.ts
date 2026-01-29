@@ -29,8 +29,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const provider = searchParams.get("provider");
     const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
     const parsedOffset = parseInt(searchParams.get("offset") || "0", 10);
-    const limit = Number.isNaN(parsedLimit) ? 50 : parsedLimit;
-    const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
+    // Cap limit at 500 to prevent DoS via large result sets
+    const MAX_LIMIT = 500;
+    const limit = Number.isNaN(parsedLimit) ? 50 : Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
+    const offset = Number.isNaN(parsedOffset) ? 0 : Math.max(0, parsedOffset);
 
     // Build where conditions
     const conditions = [eq(agentPhoneNumbers.organization_id, user.organization_id)];
