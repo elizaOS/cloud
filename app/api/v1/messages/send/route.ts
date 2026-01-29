@@ -110,8 +110,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let result: { success: boolean; messageId?: string; error?: string };
 
     if (fromPhoneNumber.provider === "twilio") {
-      // Send via Twilio
-      result = await twilioAutomationService.sendMessage(
+      // Send via Twilio - map messageSid to messageId
+      const twilioResult = await twilioAutomationService.sendMessage(
         user.organization_id,
         {
           to,
@@ -119,6 +119,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           from: fromPhoneNumber.phone_number,
         }
       );
+      result = {
+        success: twilioResult.success,
+        messageId: twilioResult.messageSid,
+        error: twilioResult.error,
+      };
     } else if (fromPhoneNumber.provider === "blooio") {
       // Send via Blooio
       // For Blooio, we need a chat ID (phone number in E.164 format)
