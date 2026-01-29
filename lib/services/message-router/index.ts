@@ -402,6 +402,7 @@ class MessageRouterService {
   private async sendViaBlooio(params: SendMessageParams): Promise<boolean> {
     try {
       const { secretsService } = await import("@/lib/services/secrets");
+      const { blooioApiRequest } = await import("@/lib/utils/blooio-api");
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
       const { BLOOIO_API_KEY } = await import("@/lib/constants/secrets");
@@ -415,26 +416,19 @@ class MessageRouterService {
         return false;
       }
 
-      // Blooio REST API (placeholder - adjust based on actual Blooio API)
-      const response = await fetch("https://api.blooio.com/v1/messages", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: params.to,
-          from: params.from,
+      // Use the blooioApiRequest helper which uses the correct API base URL
+      await blooioApiRequest(
+        apiKey,
+        "POST",
+        `/chats/${encodeURIComponent(params.to)}/messages`,
+        {
           text: params.body,
-          mediaUrls: params.mediaUrls,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        logger.error("[MessageRouter] Blooio API error", { error });
-        return false;
-      }
+          attachments: params.mediaUrls,
+        },
+        {
+          fromNumber: params.from,
+        }
+      );
 
       logger.info("[MessageRouter] Blooio message sent successfully");
       return true;
