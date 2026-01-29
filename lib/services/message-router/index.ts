@@ -296,13 +296,15 @@ class MessageRouterService {
     try {
       const { secretsService } = await import("@/lib/services/secrets");
 
-      const accountSid = await secretsService.getDecryptedValue(
+      // Use secretsService.get() which looks up by (organizationId, secretName)
+      // Note: getDecryptedValue() takes (secretId, organizationId) - different signature
+      const accountSid = await secretsService.get(
         params.organizationId,
-        "twilio_account_sid",
+        "TWILIO_ACCOUNT_SID",
       );
-      const authToken = await secretsService.getDecryptedValue(
+      const authToken = await secretsService.get(
         params.organizationId,
-        "twilio_auth_token",
+        "TWILIO_AUTH_TOKEN",
       );
 
       if (!accountSid || !authToken) {
@@ -348,9 +350,10 @@ class MessageRouterService {
     try {
       const { secretsService } = await import("@/lib/services/secrets");
 
-      const apiKey = await secretsService.getDecryptedValue(
+      // Use secretsService.get() which looks up by (organizationId, secretName)
+      const apiKey = await secretsService.get(
         params.organizationId,
-        "blooio_api_key",
+        "BLOOIO_API_KEY",
       );
 
       if (!apiKey) {
