@@ -81,9 +81,8 @@ class BlooioAutomationService {
         return { valid: false, error: "Invalid API key" };
       }
 
-      // For other errors, assume the key might be valid but there's a network issue
-      // Return valid to allow the user to proceed
-      return { valid: true };
+      // For network errors, fail-secure: don't allow potentially invalid keys
+      return { valid: false, error: "Validation failed due to network error. Please try again." };
     }
   }
 
