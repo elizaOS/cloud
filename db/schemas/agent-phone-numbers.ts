@@ -159,6 +159,13 @@ export const phoneMessageLog = pgTable(
     from_number_idx: index("phone_message_log_from_number_idx").on(
       table.from_number,
     ),
+    // Composite index for conversation grouping queries
+    // Used by GET /api/v1/messages which groups by (from_number, to_number, phone_number_id)
+    conversation_composite_idx: index("phone_message_log_conversation_idx").on(
+      table.from_number,
+      table.to_number,
+      table.phone_number_id,
+    ),
   }),
 );
 
