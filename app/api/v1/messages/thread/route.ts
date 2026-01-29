@@ -49,7 +49,9 @@ async function handleGetThread(request: NextRequest): Promise<NextResponse> {
     const phoneNumberId = searchParams.get("phoneNumberId");
     const counterparty = searchParams.get("counterparty");
     const parsedLimit = parseInt(searchParams.get("limit") || "100", 10);
-    const limit = Number.isNaN(parsedLimit) ? 100 : parsedLimit;
+    // Cap limit at 500 to prevent DoS via large result sets
+    const MAX_LIMIT = 500;
+    const limit = Number.isNaN(parsedLimit) ? 100 : Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
 
     if (!phoneNumber) {
       return NextResponse.json(
