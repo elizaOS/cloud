@@ -3,6 +3,9 @@
  *
  * CRITICAL: This ensures tests run against local endpoints, NOT production!
  * Without this, tests would hit https://www.elizacloud.ai which is VERY BAD.
+ *
+ * Environment variables:
+ * - SKIP_SERVER_CHECK=true: Skip the local server check (for unit tests in CI)
  */
 
 const LOCAL_SERVER_URL = "http://localhost:3000";
@@ -20,8 +23,16 @@ process.env.TEST_BLOCK_ANONYMOUS = "true";
 /**
  * Verify local server is running before any tests execute
  * This BLOCKS tests from running if the server is down
+ *
+ * Can be skipped by setting SKIP_SERVER_CHECK=true (useful for unit tests in CI)
  */
 async function verifyLocalServerRunning(): Promise<void> {
+  // Skip server check if explicitly disabled (for unit tests that don't need a server)
+  if (process.env.SKIP_SERVER_CHECK === "true") {
+    console.log("\n[Test Setup] Server check skipped (SKIP_SERVER_CHECK=true)");
+    return;
+  }
+
   console.log("\n[Test Setup] Verifying local server is running...");
 
   const controller = new AbortController();
@@ -40,6 +51,8 @@ async function verifyLocalServerRunning(): Promise<void> {
         `Runtime tests require the local server at ${LOCAL_SERVER_URL}\n` +
         `Please start the server first:\n\n` +
         `  bun run dev\n\n` +
+        `Or skip this check for unit tests:\n\n` +
+        `  SKIP_SERVER_CHECK=true bun test ...\n\n` +
         `Error: ${error.message}\n` +
         `${"=".repeat(60)}\n`,
     );

@@ -574,42 +574,43 @@ bun run k8s:delete   # Remove from Kubernetes
 
 The gateway service has comprehensive test coverage including unit tests and e2e tests.
 
+**Note:** Use `SKIP_SERVER_CHECK=true` to skip the local server check (required for unit tests that mock all dependencies).
+
 #### Run All Tests
 
 ```bash
-# From the repository root - runs all gateway-discord tests
-bun test services/gateway-discord/tests/ lib/services/gateway-discord/__tests__/ --timeout 60000
+# From the repository root
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ lib/services/gateway-discord/__tests__/ --timeout 60000
 ```
 
 #### Run Service Tests Only
 
 ```bash
-# Unit tests for gateway-manager, logger, voice-message-handler
-bun test services/gateway-discord/tests/ --timeout 60000
+# Unit tests for gateway-manager, logger, voice-message-handler + e2e tests
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ --timeout 60000
 
 # Run a specific test file
-bun test services/gateway-discord/tests/logger.test.ts
-bun test services/gateway-discord/tests/gateway-manager.test.ts
-bun test services/gateway-discord/tests/voice-message-handler.test.ts
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/logger.test.ts
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/gateway-manager.test.ts
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/voice-message-handler.test.ts
 ```
 
 #### Run E2E Tests Only
 
 ```bash
-# End-to-end tests with mocked dependencies
-bun test services/gateway-discord/tests/e2e/ --timeout 60000
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/e2e/ --timeout 60000
 ```
 
 #### Run Lib Tests Only
 
 ```bash
 # Unit tests for schemas, constants, event-router
-bun test lib/services/gateway-discord/__tests__/ --timeout 60000
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/ --timeout 60000
 
 # Run a specific test file
-bun test lib/services/gateway-discord/__tests__/schemas.test.ts
-bun test lib/services/gateway-discord/__tests__/constants.test.ts
-bun test lib/services/gateway-discord/__tests__/event-router.test.ts
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/schemas.test.ts
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/constants.test.ts
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/event-router.test.ts
 ```
 
 ---
