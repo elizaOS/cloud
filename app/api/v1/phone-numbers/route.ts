@@ -10,6 +10,9 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { messageRouterService } from "@/lib/services/message-router";
 import { logger } from "@/lib/utils/logger";
 import type { AgentPhoneNumber } from "@/db/schemas";
+import { dbRead } from "@/db/client";
+import { apps } from "@/db/schemas";
+import { eq, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -89,6 +92,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!["twilio", "blooio"].includes(provider)) {
       return NextResponse.json(
         { error: "Provider must be 'twilio' or 'blooio'" },
+        { status: 400 },
+      );
+    }
+
+    // Validate that agent belongs to the user's organization
+    const [agent] = await dbRead
+      .select({ id: apps.id })
+      .from(apps)
+      .where(
+        and(
+          eq(apps.id, agentId),
+          eq(apps.organization_id, user.organization_id),
+        ),
+      )
+      .limit(1);
+
+    if (!agent) {
+      return NextResponse.json(
+        { error: "Agent not found or does not belong to your organization" },
         { status: 400 },
       );
     }
