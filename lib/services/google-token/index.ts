@@ -182,20 +182,38 @@ class GoogleTokenService {
       };
 
       if (currentAccessTokenSecretId) {
-        // Update existing secret
-        await secretsService.update(
-          currentAccessTokenSecretId,
-          organizationId,
-          { value: tokens.access_token },
-          auditContext,
-        );
-        newAccessTokenSecretId = currentAccessTokenSecretId;
+        // Try to update existing secret, fall back to create if it was deleted
+        try {
+          await secretsService.update(
+            currentAccessTokenSecretId,
+            organizationId,
+            { value: tokens.access_token },
+            auditContext,
+          );
+          newAccessTokenSecretId = currentAccessTokenSecretId;
+        } catch (updateError) {
+          // Secret may have been deleted - create a new one
+          logger.warn("[GoogleToken] Existing access token secret not found, creating new one", {
+            organizationId,
+            previousSecretId: currentAccessTokenSecretId,
+          });
+          newAccessTokenSecretId = await secretsService.create(
+            {
+              organizationId,
+              name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
+              value: tokens.access_token,
+              scope: "organization",
+              createdBy: "system",
+            },
+            auditContext,
+          );
+        }
       } else {
         // Create new secret
         newAccessTokenSecretId = await secretsService.create(
           {
             organizationId,
-            name: `GOOGLE_ACCESS_TOKEN_REFRESHED_${Date.now()}`,
+            name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
             value: tokens.access_token,
             scope: "organization",
             createdBy: "system",

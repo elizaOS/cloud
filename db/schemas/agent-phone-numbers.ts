@@ -78,6 +78,8 @@ export const agentPhoneNumbers = pgTable(
     can_voice: boolean("can_voice").notNull().default(false),
 
     // Rate limiting
+    // TODO: These should be INTEGER fields for proper validation and queries
+    // Requires database migration - tracked for future update
     max_messages_per_minute: text("max_messages_per_minute").default("60"),
     max_messages_per_day: text("max_messages_per_day").default("1000"),
 

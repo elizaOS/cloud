@@ -203,15 +203,33 @@ class MessageRouterService {
         };
       }
 
-      // Fallback if agent doesn't respond
+      // Fallback if agent doesn't respond (e.g., agent returned null/empty)
+      logger.warn("[MessageRouter] Agent returned no response", { agentId, organizationId });
       return {
-        text: "Thanks for your message! Our AI assistant is currently unavailable. Please try again later.",
+        text: "Thanks for your message! I'm processing it but couldn't generate a response. Please try again.",
       };
     } catch (error) {
-      logger.error("[MessageRouter] Error processing with agent", { error });
-      // Return a user-friendly error message instead of null
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("[MessageRouter] Error processing with agent", {
+        error: errorMessage,
+        agentId,
+        organizationId,
+      });
+
+      // Return differentiated error messages based on error type
+      if (errorMessage.includes("not found") || errorMessage.includes("not configured")) {
+        return {
+          text: "Sorry, this assistant is currently not available. Please contact support if the issue persists.",
+        };
+      }
+      if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
+        return {
+          text: "Sorry, the response is taking longer than expected. Please try again in a moment.",
+        };
+      }
+      // Generic transient error
       return {
-        text: "Sorry, I encountered an error processing your message. Please try again.",
+        text: "Sorry, I encountered a temporary issue. Please try again shortly.",
       };
     }
   }
@@ -298,13 +316,14 @@ class MessageRouterService {
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
       // Note: getDecryptedValue() takes (secretId, organizationId) - different signature
+      const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = await import("@/lib/constants/secrets");
       const accountSid = await secretsService.get(
         params.organizationId,
-        "TWILIO_ACCOUNT_SID",
+        TWILIO_ACCOUNT_SID,
       );
       const authToken = await secretsService.get(
         params.organizationId,
-        "TWILIO_AUTH_TOKEN",
+        TWILIO_AUTH_TOKEN,
       );
 
       if (!accountSid || !authToken) {
@@ -351,9 +370,10 @@ class MessageRouterService {
       const { secretsService } = await import("@/lib/services/secrets");
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
+      const { BLOOIO_API_KEY } = await import("@/lib/constants/secrets");
       const apiKey = await secretsService.get(
         params.organizationId,
-        "BLOOIO_API_KEY",
+        BLOOIO_API_KEY,
       );
 
       if (!apiKey) {
@@ -544,8 +564,15 @@ class MessageRouterService {
 
   /**
    * Normalize phone number to E.164 format
+   *
+   * @param phone - The phone number to normalize
+   * @param defaultCountryCode - Default country code to use for numbers without one
+   *                            Defaults to env DEFAULT_COUNTRY_CODE or "+1" (US/Canada)
    */
-  private normalizePhoneNumber(phone: string): string {
+  private normalizePhoneNumber(
+    phone: string,
+    defaultCountryCode?: string,
+  ): string {
     // If it's an email address (for iMessage), return as-is (lowercase)
     if (phone.includes("@")) {
       return phone.toLowerCase().trim();
@@ -554,13 +581,32 @@ class MessageRouterService {
     // Remove all non-digit characters except leading +
     let normalized = phone.replace(/[^\d+]/g, "");
 
+    // Get default country code from param, env, or fallback to US
+    const countryCode = defaultCountryCode
+      || process.env.DEFAULT_COUNTRY_CODE
+      || "+1";
+
+    // Ensure country code starts with +
+    const normalizedCountryCode = countryCode.startsWith("+")
+      ? countryCode
+      : `+${countryCode}`;
+
     // Ensure it starts with +
     if (!normalized.startsWith("+")) {
-      // Assume US number if no country code
-      if (normalized.length === 10) {
-        normalized = `+1${normalized}`;
-      } else if (normalized.length === 11 && normalized.startsWith("1")) {
-        normalized = `+${normalized}`;
+      // Check for common patterns based on default country code
+      if (normalizedCountryCode === "+1") {
+        // US/Canada: 10-digit or 11-digit starting with 1
+        if (normalized.length === 10) {
+          normalized = `+1${normalized}`;
+        } else if (normalized.length === 11 && normalized.startsWith("1")) {
+          normalized = `+${normalized}`;
+        } else {
+          // Unknown format, prepend country code as best effort
+          normalized = `${normalizedCountryCode}${normalized}`;
+        }
+      } else {
+        // Other countries: just prepend the country code
+        normalized = `${normalizedCountryCode}${normalized}`;
       }
     }
 

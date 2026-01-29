@@ -22,9 +22,10 @@ export const maxDuration = 30;
 
 // Rate limit config for message sending
 // 30 messages per minute per organization to prevent SMS spam and cost amplification
+// Dev limit is 100/min - high enough for testing but realistic enough to catch issues
 const MESSAGE_RATE_LIMIT = {
   windowMs: 60000, // 1 minute
-  maxRequests: process.env.NODE_ENV === "production" ? 30 : 1000, // Prod: 30/min, Dev: relaxed
+  maxRequests: process.env.NODE_ENV === "production" ? 30 : 100,
 };
 
 /**

@@ -228,18 +228,12 @@ async function handleIncomingMessage(
 }
 
 // Health check endpoint for the webhook
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
-  const { orgId } = await params;
-
-  const isConfigured = await twilioAutomationService.isConfigured(orgId);
-
+// Returns minimal info to avoid exposing configuration status
+export async function GET(): Promise<NextResponse> {
+  // Don't expose org-specific configuration status as it could be used for reconnaissance
+  // Just confirm the endpoint exists and is responding
   return NextResponse.json({
     status: "ok",
     service: "twilio-webhook",
-    organizationId: orgId,
-    configured: isConfigured,
   });
 }

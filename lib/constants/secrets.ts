@@ -1,0 +1,48 @@
+/**
+ * Secret Name Constants
+ *
+ * Centralized constants for secret names used throughout the application.
+ * Using constants prevents typos and enables compile-time checking.
+ */
+
+// Twilio secrets
+export const TWILIO_ACCOUNT_SID = "TWILIO_ACCOUNT_SID";
+export const TWILIO_AUTH_TOKEN = "TWILIO_AUTH_TOKEN";
+
+// Blooio secrets
+export const BLOOIO_API_KEY = "BLOOIO_API_KEY";
+export const BLOOIO_WEBHOOK_SECRET = "BLOOIO_WEBHOOK_SECRET";
+export const BLOOIO_FROM_NUMBER = "BLOOIO_FROM_NUMBER";
+
+// Telegram secrets
+export const TELEGRAM_BOT_TOKEN = "TELEGRAM_BOT_TOKEN";
+export const TELEGRAM_BOT_USERNAME = "TELEGRAM_BOT_USERNAME";
+export const TELEGRAM_BOT_ID = "TELEGRAM_BOT_ID";
+export const TELEGRAM_WEBHOOK_SECRET = "TELEGRAM_WEBHOOK_SECRET";
+
+// Google OAuth secrets
+export const GOOGLE_ACCESS_TOKEN = "GOOGLE_ACCESS_TOKEN";
+export const GOOGLE_REFRESH_TOKEN = "GOOGLE_REFRESH_TOKEN";
+
+// Group exports for easy importing
+export const SECRET_NAMES = {
+  TWILIO: {
+    ACCOUNT_SID: TWILIO_ACCOUNT_SID,
+    AUTH_TOKEN: TWILIO_AUTH_TOKEN,
+  },
+  BLOOIO: {
+    API_KEY: BLOOIO_API_KEY,
+    WEBHOOK_SECRET: BLOOIO_WEBHOOK_SECRET,
+    FROM_NUMBER: BLOOIO_FROM_NUMBER,
+  },
+  TELEGRAM: {
+    BOT_TOKEN: TELEGRAM_BOT_TOKEN,
+    BOT_USERNAME: TELEGRAM_BOT_USERNAME,
+    BOT_ID: TELEGRAM_BOT_ID,
+    WEBHOOK_SECRET: TELEGRAM_WEBHOOK_SECRET,
+  },
+  GOOGLE: {
+    ACCESS_TOKEN: GOOGLE_ACCESS_TOKEN,
+    REFRESH_TOKEN: GOOGLE_REFRESH_TOKEN,
+  },
+} as const;
