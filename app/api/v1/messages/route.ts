@@ -53,14 +53,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         messageCount: sql<number>`count(*)::int`,
         lastMessageAt: sql<string>`max(${phoneMessageLog.created_at})`,
         lastMessage: sql<string>`(
-          SELECT message_body FROM phone_message_log pml2 
-          WHERE pml2.from_number = ${phoneMessageLog.from_number} 
+          SELECT message_body FROM phone_message_log pml2
+          WHERE pml2.from_number = ${phoneMessageLog.from_number}
+          AND pml2.to_number = ${phoneMessageLog.to_number}
           AND pml2.phone_number_id = ${phoneMessageLog.phone_number_id}
           ORDER BY pml2.created_at DESC LIMIT 1
         )`,
         lastDirection: sql<string>`(
-          SELECT direction FROM phone_message_log pml3 
-          WHERE pml3.from_number = ${phoneMessageLog.from_number} 
+          SELECT direction FROM phone_message_log pml3
+          WHERE pml3.from_number = ${phoneMessageLog.from_number}
+          AND pml3.to_number = ${phoneMessageLog.to_number}
           AND pml3.phone_number_id = ${phoneMessageLog.phone_number_id}
           ORDER BY pml3.created_at DESC LIMIT 1
         )`,
