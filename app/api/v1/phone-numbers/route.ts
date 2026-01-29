@@ -11,7 +11,7 @@ import { messageRouterService } from "@/lib/services/message-router";
 import { logger } from "@/lib/utils/logger";
 import type { AgentPhoneNumber } from "@/db/schemas";
 import { dbRead } from "@/db/client";
-import { apps } from "@/db/schemas";
+import { apps, agentTable } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -96,8 +96,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate that agent belongs to the user's organization
-    const [agent] = await dbRead
+    // Validate that agent exists in the agents table (FK target)
+    const [agentExists] = await dbRead
+      .select({ id: agentTable.id })
+      .from(agentTable)
+      .where(eq(agentTable.id, agentId))
+      .limit(1);
+
+    if (!agentExists) {
+      return NextResponse.json(
+        { error: "Agent not found" },
+        { status: 400 },
+      );
+    }
+
+    // Validate that agent belongs to the user's organization (authorization via apps table)
+    const [appOwnership] = await dbRead
       .select({ id: apps.id })
       .from(apps)
       .where(
@@ -108,9 +122,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
       .limit(1);
 
-    if (!agent) {
+    if (!appOwnership) {
       return NextResponse.json(
-        { error: "Agent not found or does not belong to your organization" },
+        { error: "Agent does not belong to your organization" },
         { status: 400 },
       );
     }

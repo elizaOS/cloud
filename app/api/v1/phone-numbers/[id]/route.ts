@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { messageRouterService } from "@/lib/services/message-router";
 import { dbRead, dbWrite } from "@/db/client";
-import { agentPhoneNumbers, apps } from "@/db/schemas";
+import { agentPhoneNumbers, apps, agentTable } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
@@ -109,7 +109,22 @@ export async function PATCH(
 
     // Validate agent ownership if agentId is being updated
     if (agentId !== undefined) {
-      const [agent] = await dbRead
+      // Validate that agent exists in the agents table (FK target)
+      const [agentExists] = await dbRead
+        .select({ id: agentTable.id })
+        .from(agentTable)
+        .where(eq(agentTable.id, agentId))
+        .limit(1);
+
+      if (!agentExists) {
+        return NextResponse.json(
+          { error: "Agent not found" },
+          { status: 400 },
+        );
+      }
+
+      // Validate that agent belongs to the user's organization (authorization via apps table)
+      const [appOwnership] = await dbRead
         .select({ id: apps.id })
         .from(apps)
         .where(
@@ -120,9 +135,9 @@ export async function PATCH(
         )
         .limit(1);
 
-      if (!agent) {
+      if (!appOwnership) {
         return NextResponse.json(
-          { error: "Agent not found or does not belong to your organization" },
+          { error: "Agent does not belong to your organization" },
           { status: 400 },
         );
       }
