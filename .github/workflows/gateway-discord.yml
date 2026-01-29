@@ -30,24 +30,28 @@ env:
   IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
 
 jobs:
-  # test:
-  #   name: Test
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: oven-sh/setup-bun@v2
-  #       with:
-  #         bun-version: ${{ env.BUN_VERSION }}
-  #     - name: Install dependencies
-  #       run: cd services/gateway-discord && bun install --frozen-lockfile
-  #     - name: Run tests
-  #       run: cd services/gateway-discord && bun test
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+      - name: Install service dependencies
+        run: cd services/gateway-discord && bun install --frozen-lockfile
+      - name: Run service tests
+        run: bun test services/gateway-discord/tests/ --timeout 60000
+      - name: Run lib tests
+        run: bun test lib/services/gateway-discord/__tests__/ --timeout 60000
 
   build:
     name: Build Image
     runs-on: ubuntu-latest
-    # needs: test
+    needs: test
     permissions:
       contents: read
       packages: write
