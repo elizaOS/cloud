@@ -46,8 +46,13 @@ async function handleTelegramWebhook(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   } else if (process.env.NODE_ENV === "production") {
-    // In production, warn if no secret is configured (should not happen)
-    logger.warn("[Telegram Webhook] No webhook secret configured in production", { orgId });
+    // In production, fail-secure if no secret is configured
+    // This matches the behavior of Blooio and Twilio webhooks
+    logger.error("[Telegram Webhook] No webhook secret configured - rejecting request", { orgId });
+    return NextResponse.json(
+      { error: "Webhook not properly configured" },
+      { status: 500 },
+    );
   }
 
   let botToken = await telegramAutomationService.getBotToken(orgId);
