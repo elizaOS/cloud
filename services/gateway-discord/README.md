@@ -15,6 +15,7 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
   - [Troubleshooting](#troubleshooting)
   - [Configuration Reference](#configuration-reference)
   - [Scripts](#scripts)
+  - [Running Tests](#running-tests)
 - [Complete System Documentation](#complete-system-documentation)
   - [Database Schema](#1-database-table-discord_connections)
   - [API Endpoints](#2-api-endpoints)
@@ -567,6 +568,48 @@ bun run docker:logs  # View container logs
 # Kubernetes
 bun run k8s:apply    # Deploy to Kubernetes
 bun run k8s:delete   # Remove from Kubernetes
+```
+
+### Running Tests
+
+The gateway service has comprehensive test coverage including unit tests and e2e tests.
+
+#### Run All Tests
+
+```bash
+# From the repository root - runs all gateway-discord tests
+bun test services/gateway-discord/tests/ lib/services/gateway-discord/__tests__/ --timeout 60000
+```
+
+#### Run Service Tests Only
+
+```bash
+# Unit tests for gateway-manager, logger, voice-message-handler
+bun test services/gateway-discord/tests/ --timeout 60000
+
+# Run a specific test file
+bun test services/gateway-discord/tests/logger.test.ts
+bun test services/gateway-discord/tests/gateway-manager.test.ts
+bun test services/gateway-discord/tests/voice-message-handler.test.ts
+```
+
+#### Run E2E Tests Only
+
+```bash
+# End-to-end tests with mocked dependencies
+bun test services/gateway-discord/tests/e2e/ --timeout 60000
+```
+
+#### Run Lib Tests Only
+
+```bash
+# Unit tests for schemas, constants, event-router
+bun test lib/services/gateway-discord/__tests__/ --timeout 60000
+
+# Run a specific test file
+bun test lib/services/gateway-discord/__tests__/schemas.test.ts
+bun test lib/services/gateway-discord/__tests__/constants.test.ts
+bun test lib/services/gateway-discord/__tests__/event-router.test.ts
 ```
 
 ---
