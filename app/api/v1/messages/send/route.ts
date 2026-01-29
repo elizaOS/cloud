@@ -51,14 +51,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let fromPhoneNumber: typeof agentPhoneNumbers.$inferSelect | undefined;
 
     if (phoneNumberId) {
-      // Use the specified phone number
+      // Use the specified phone number (must be active)
       const result = await dbRead
         .select()
         .from(agentPhoneNumbers)
         .where(
           and(
             eq(agentPhoneNumbers.id, phoneNumberId),
-            eq(agentPhoneNumbers.organization_id, user.organization_id)
+            eq(agentPhoneNumbers.organization_id, user.organization_id),
+            eq(agentPhoneNumbers.is_active, true)
           )
         )
         .limit(1);
