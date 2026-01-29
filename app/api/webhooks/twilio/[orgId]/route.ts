@@ -87,7 +87,7 @@ async function handleTwilioWebhook(
 
     // Check for duplicate messages (replay attack prevention)
     const idempotencyKey = `twilio:${event.MessageSid}`;
-    if (isAlreadyProcessed(idempotencyKey)) {
+    if (await isAlreadyProcessed(idempotencyKey)) {
       logger.info("[TwilioWebhook] Duplicate message, skipping", {
         orgId,
         messageSid: event.MessageSid,
@@ -117,7 +117,7 @@ async function handleTwilioWebhook(
     await handleIncomingMessage(orgId, event);
 
     // Mark message as processed after successful handling
-    markAsProcessed(idempotencyKey);
+    await markAsProcessed(idempotencyKey, "twilio");
 
     // Return TwiML response (empty response acknowledges receipt)
     return new NextResponse(

@@ -16,6 +16,7 @@ import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { dbRead } from "@/db/client";
 import { agentPhoneNumbers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
+import { normalizeToE164 } from "@/lib/utils/phone-normalization";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -28,46 +29,6 @@ const MESSAGE_RATE_LIMIT = {
   windowMs: 60000, // 1 minute
   maxRequests: process.env.NODE_ENV === "production" ? 30 : 100,
 };
-
-/**
- * Validate E.164 phone number format
- * E.164 format: + followed by country code and subscriber number (max 15 digits total)
- * Examples: +14155552671, +442071838750
- */
-function isValidE164(phoneNumber: string): boolean {
-  // E.164: starts with +, followed by 1-15 digits
-  const e164Regex = /^\+[1-9]\d{1,14}$/;
-  return e164Regex.test(phoneNumber);
-}
-
-/**
- * Normalize phone number to E.164 format if possible
- * Returns null if the number cannot be reasonably converted
- */
-function normalizeToE164(phoneNumber: string): string | null {
-  // Remove all non-digit characters except leading +
-  let normalized = phoneNumber.replace(/[^\d+]/g, "");
-
-  // If it starts with +, validate it's E.164
-  if (normalized.startsWith("+")) {
-    return isValidE164(normalized) ? normalized : null;
-  }
-
-  // If it's 10 digits, assume US/Canada and add +1
-  if (/^\d{10}$/.test(normalized)) {
-    normalized = `+1${normalized}`;
-    return normalized;
-  }
-
-  // If it's 11 digits starting with 1, assume US/Canada
-  if (/^1\d{10}$/.test(normalized)) {
-    normalized = `+${normalized}`;
-    return normalized;
-  }
-
-  // Cannot safely normalize
-  return null;
-}
 
 interface SendMessageRequest {
   to: string;

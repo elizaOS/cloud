@@ -11,7 +11,7 @@ import { dbWrite } from "@/db/client";
 import { agentPhoneNumbers, phoneMessageLog } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
-import { parsePhoneNumberWithError, type CountryCode } from "libphonenumber-js";
+import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 /**
  * Schema for message metadata - allows simple key-value pairs only.
@@ -113,7 +113,7 @@ class MessageRouterService {
         .from(agentPhoneNumbers)
         .where(
           and(
-            eq(agentPhoneNumbers.phone_number, this.normalizePhoneNumber(message.to)),
+            eq(agentPhoneNumbers.phone_number, normalizePhoneNumber(message.to)),
             eq(agentPhoneNumbers.is_active, true),
           ),
         )
@@ -286,7 +286,7 @@ class MessageRouterService {
    * Generate a deterministic entity ID for a phone number
    */
   private generateEntityId(phoneNumber: string): string {
-    const normalized = this.normalizePhoneNumber(phoneNumber);
+    const normalized = normalizePhoneNumber(phoneNumber);
     // Use a simple hash to create a UUID-like ID
     const hash = this.secureHash(normalized);
     return `phone-${hash}`;
@@ -296,8 +296,8 @@ class MessageRouterService {
    * Generate a deterministic room ID for a phone conversation
    */
   private generateRoomId(agentId: string, from: string, to: string): string {
-    const normalizedFrom = this.normalizePhoneNumber(from);
-    const normalizedTo = this.normalizePhoneNumber(to);
+    const normalizedFrom = normalizePhoneNumber(from);
+    const normalizedTo = normalizePhoneNumber(to);
     // Sort to ensure consistency regardless of direction
     const sorted = [normalizedFrom, normalizedTo].sort().join("-");
     const hash = this.secureHash(`${agentId}:${sorted}`);
@@ -474,8 +474,8 @@ class MessageRouterService {
 
     // Normalize phone numbers to prevent SQL injection via malformed data
     // This ensures only valid E.164 formatted numbers are stored
-    const normalizedFrom = this.normalizePhoneNumber(params.from);
-    const normalizedTo = this.normalizePhoneNumber(params.to);
+    const normalizedFrom = normalizePhoneNumber(params.from);
+    const normalizedTo = normalizePhoneNumber(params.to);
 
     const [log] = await dbWrite
       .insert(phoneMessageLog)
@@ -556,7 +556,7 @@ class MessageRouterService {
       .values({
         organization_id: params.organizationId,
         agent_id: params.agentId,
-        phone_number: this.normalizePhoneNumber(params.phoneNumber),
+        phone_number: normalizePhoneNumber(params.phoneNumber),
         friendly_name: params.friendlyName,
         provider: params.provider,
         phone_type: params.phoneType || "sms",
@@ -612,79 +612,6 @@ class MessageRouterService {
       .where(eq(agentPhoneNumbers.id, id));
   }
 
-  /**
-   * Validate email address format
-   * Used for iMessage which can use email addresses
-   */
-  private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  /**
-   * Normalize phone number to E.164 format using libphonenumber-js
-   *
-   * @param phone - The phone number or email to normalize
-   * @param defaultCountry - Default country code (ISO 3166-1 alpha-2) for numbers without country code
-   *                         Defaults to env DEFAULT_COUNTRY_CODE or "US"
-   * @returns Normalized phone number in E.164 format, or lowercase email, or original input if invalid
-   */
-  private normalizePhoneNumber(
-    phone: string,
-    defaultCountry?: string,
-  ): string {
-    const trimmedPhone = phone.trim();
-
-    // If it's an email address (for iMessage), validate and return lowercase
-    if (trimmedPhone.includes("@")) {
-      if (this.isValidEmail(trimmedPhone)) {
-        return trimmedPhone.toLowerCase();
-      }
-      logger.warn("[MessageRouter] Invalid email format", { email: trimmedPhone });
-      return trimmedPhone.toLowerCase();
-    }
-
-    // Get default country from param, env, or fallback to US
-    const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
-
-    try {
-      // Try to parse as E.164 first (if it starts with +)
-      if (trimmedPhone.startsWith("+")) {
-        const parsed = parsePhoneNumberWithError(trimmedPhone);
-        if (parsed && parsed.isValid()) {
-          return parsed.format("E.164");
-        }
-      }
-
-      // Try with default country
-      const parsed = parsePhoneNumberWithError(trimmedPhone, country);
-      if (parsed && parsed.isValid()) {
-        return parsed.format("E.164");
-      }
-
-      // If parsing succeeds but validation fails, still return E.164 format
-      // This handles edge cases where the number is technically parseable but not strictly valid
-      if (parsed) {
-        logger.warn("[MessageRouter] Phone number parsed but not valid, using best-effort format", {
-          phone: trimmedPhone,
-          country,
-        });
-        return parsed.format("E.164");
-      }
-
-      // Fallback: return cleaned version if parsing completely fails
-      logger.warn("[MessageRouter] Could not parse phone number", { phone: trimmedPhone, country });
-      return trimmedPhone.replace(/[^\d+]/g, "");
-    } catch (error) {
-      logger.warn("[MessageRouter] Invalid phone number", {
-        phone: trimmedPhone,
-        country,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Return cleaned version as fallback
-      return trimmedPhone.replace(/[^\d+]/g, "");
-    }
-  }
 }
 
 export const messageRouterService = new MessageRouterService();

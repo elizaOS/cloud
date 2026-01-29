@@ -5,6 +5,18 @@
  * Supports Gmail, Calendar, and Contacts APIs.
  */
 
+/** Default timeout for Google API requests (30 seconds) */
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/**
+ * Create an AbortSignal with a timeout
+ * @param timeoutMs - Timeout in milliseconds
+ * @returns AbortSignal that will abort after the specified timeout
+ */
+function createTimeoutSignal(timeoutMs: number = DEFAULT_TIMEOUT_MS): AbortSignal {
+  return AbortSignal.timeout(timeoutMs);
+}
+
 export const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -132,6 +144,7 @@ export async function exchangeGoogleCode(params: {
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }),
+    signal: createTimeoutSignal(),
   });
 
   if (!response.ok) {
@@ -163,6 +176,7 @@ export async function refreshGoogleToken(params: {
       client_secret: clientSecret,
       grant_type: "refresh_token",
     }),
+    signal: createTimeoutSignal(),
   });
 
   if (!response.ok) {
@@ -183,6 +197,7 @@ export async function getGoogleUserInfo(
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    signal: createTimeoutSignal(),
   });
 
   if (!response.ok) {
@@ -207,6 +222,8 @@ export async function googleApiRequest<T>(
       ...options.headers,
       Authorization: `Bearer ${accessToken}`,
     },
+    // Use provided signal or create timeout signal
+    signal: options.signal || createTimeoutSignal(),
   });
 
   if (!response.ok) {
@@ -235,6 +252,7 @@ export async function revokeGoogleToken(token: string): Promise<{
       body: new URLSearchParams({
         token,
       }),
+      signal: createTimeoutSignal(),
     });
 
     // Google returns 200 on success, even if the token was already invalid

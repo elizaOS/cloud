@@ -97,7 +97,7 @@ async function handleBlooioWebhook(
 
     // Check for duplicate messages (replay attack prevention)
     const idempotencyKey = `blooio:${payload.message_id}`;
-    if (isAlreadyProcessed(idempotencyKey)) {
+    if (await isAlreadyProcessed(idempotencyKey)) {
       logger.info("[BlooioWebhook] Duplicate message, skipping", {
         orgId,
         messageId: payload.message_id,
@@ -155,7 +155,7 @@ async function handleBlooioWebhook(
     }
 
     // Mark message as processed after successful handling
-    markAsProcessed(idempotencyKey);
+    await markAsProcessed(idempotencyKey, "blooio");
 
     return NextResponse.json({ success: true });
   } catch (error) {

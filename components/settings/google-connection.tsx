@@ -90,7 +90,9 @@ export function GoogleConnection() {
       const response = await fetch("/api/v1/google/oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          redirectUrl: "/dashboard/settings?tab=connections",
+        }),
       });
 
       const data = await response.json();

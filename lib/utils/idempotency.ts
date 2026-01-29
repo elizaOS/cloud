@@ -1,60 +1,104 @@
 /**
  * Idempotency Utility for Webhook Handlers
  *
- * Provides in-memory deduplication to prevent replay attacks
- * within the signature validity window (2 minutes).
+ * Database-backed deduplication to prevent replay attacks.
+ * TTL matches the 2-minute webhook signature validity window.
  */
 
-const processedMessages = new Map<string, number>();
-const IDEMPOTENCY_TTL_MS = 2 * 60 * 1000; // 2 minutes - matches signature tolerance
+import { dbRead, dbWrite } from "@/db/client";
+import { idempotencyKeys } from "@/db/schemas/idempotency-keys";
+import { count, eq, gt, lt } from "drizzle-orm";
+import { logger } from "@/lib/utils/logger";
+
+const IDEMPOTENCY_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+/** Extract error message safely */
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : "Unknown error";
 
 /**
  * Check if a message has already been processed within the TTL window.
- * @param key - Unique identifier for the message (e.g., "blooio:message_id")
- * @returns true if the message was already processed, false otherwise
+ * Fails open (returns false) on errors to avoid dropping messages.
  */
-export function isAlreadyProcessed(key: string): boolean {
-  const timestamp = processedMessages.get(key);
-  if (!timestamp) return false;
+export async function isAlreadyProcessed(key: string): Promise<boolean> {
+  try {
+    const [existing] = await dbRead
+      .select({ expires_at: idempotencyKeys.expires_at })
+      .from(idempotencyKeys)
+      .where(eq(idempotencyKeys.key, key))
+      .limit(1);
 
-  // Check if the entry has expired
-  if (Date.now() - timestamp > IDEMPOTENCY_TTL_MS) {
-    processedMessages.delete(key);
+    if (!existing) return false;
+
+    // Check if expired - delete and return false if so
+    if (existing.expires_at < new Date()) {
+      await dbWrite.delete(idempotencyKeys).where(eq(idempotencyKeys.key, key));
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    logger.error("[Idempotency] Error checking key", { key, error: getErrorMessage(error) });
     return false;
   }
-
-  return true;
 }
 
 /**
- * Mark a message as processed and clean up old entries if needed.
- * @param key - Unique identifier for the message
+ * Mark a message as processed. Uses upsert to handle race conditions.
  */
-export function markAsProcessed(key: string): void {
-  processedMessages.set(key, Date.now());
-
-  // Cleanup old entries periodically to prevent memory leaks
-  if (processedMessages.size > 10000) {
-    const now = Date.now();
-    for (const [k, v] of processedMessages) {
-      if (now - v > IDEMPOTENCY_TTL_MS) {
-        processedMessages.delete(k);
-      }
-    }
+export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {
+  try {
+    const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
+    await dbWrite
+      .insert(idempotencyKeys)
+      .values({ key, source, expires_at })
+      .onConflictDoUpdate({ target: idempotencyKeys.key, set: { expires_at } });
+  } catch (error) {
+    logger.error("[Idempotency] Error marking key", { key, source, error: getErrorMessage(error) });
   }
 }
 
 /**
- * Get the current size of the processed messages cache.
- * Useful for monitoring and debugging.
+ * Get count of active (non-expired) idempotency keys. For monitoring.
  */
-export function getProcessedMessagesCount(): number {
-  return processedMessages.size;
+export async function getProcessedMessagesCount(): Promise<number> {
+  try {
+    const [result] = await dbRead
+      .select({ count: count() })
+      .from(idempotencyKeys)
+      .where(gt(idempotencyKeys.expires_at, new Date()));
+    return result?.count ?? 0;
+  } catch (error) {
+    logger.error("[Idempotency] Error getting count", { error: getErrorMessage(error) });
+    return 0;
+  }
 }
 
 /**
- * Clear all processed messages (mainly for testing purposes).
+ * Clean up expired idempotency keys. Call periodically via cron.
  */
-export function clearProcessedMessages(): void {
-  processedMessages.clear();
+export async function cleanupExpiredKeys(): Promise<number> {
+  try {
+    const deleted = await dbWrite
+      .delete(idempotencyKeys)
+      .where(lt(idempotencyKeys.expires_at, new Date()))
+      .returning({ id: idempotencyKeys.id });
+
+    if (deleted.length > 0) {
+      logger.info("[Idempotency] Cleaned up expired keys", { count: deleted.length });
+    }
+    return deleted.length;
+  } catch (error) {
+    logger.error("[Idempotency] Error cleaning up", { error: getErrorMessage(error) });
+    return 0;
+  }
+}
+
+/** Clear all idempotency keys (for testing). */
+export async function clearProcessedMessages(): Promise<void> {
+  try {
+    await dbWrite.delete(idempotencyKeys);
+  } catch (error) {
+    logger.error("[Idempotency] Error clearing keys", { error: getErrorMessage(error) });
+  }
 }
