@@ -39,8 +39,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 // Whitelist of allowed redirect paths to prevent open redirect attacks
+// Uses exact matching to prevent bypass via prefix matching
 const ALLOWED_REDIRECT_PATHS = [
-  "/",
   "/dashboard",
   "/dashboard/settings",
   "/dashboard/connections",
@@ -66,14 +66,16 @@ function normalizePath(path: string): string {
 
 /**
  * Validate that a redirect URL is safe (same origin and allowed path)
+ * Uses exact path matching to prevent open redirect bypass
  */
 function isValidRedirectUrl(url: string, baseUrl: string): boolean {
-  // Allow relative paths that start with allowed prefixes
+  // Allow relative paths that exactly match allowed paths
   if (!url.startsWith("http")) {
     const rawPath = url.startsWith("/") ? url : `/${url}`;
     // Normalize path to prevent traversal attacks (e.g., /dashboard/../../../evil)
     const normalizedPath = normalizePath(rawPath);
-    return ALLOWED_REDIRECT_PATHS.some(allowed => normalizedPath.startsWith(allowed));
+    // Use exact matching to prevent bypass via "/allowed-path-malicious"
+    return ALLOWED_REDIRECT_PATHS.includes(normalizedPath);
   }
 
   // For absolute URLs, ensure same origin and allowed path
@@ -83,8 +85,8 @@ function isValidRedirectUrl(url: string, baseUrl: string): boolean {
     if (parsed.origin !== base.origin) {
       return false;
     }
-    // URL constructor normalizes the pathname, so this is safe
-    return ALLOWED_REDIRECT_PATHS.some(allowed => parsed.pathname.startsWith(allowed));
+    // Use exact matching for pathname as well
+    return ALLOWED_REDIRECT_PATHS.includes(parsed.pathname);
   } catch {
     return false;
   }
