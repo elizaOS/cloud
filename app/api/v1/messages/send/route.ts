@@ -96,7 +96,6 @@ async function handleSendMessage(request: NextRequest): Promise<Response> {
       return NextResponse.json(
         {
           error: "Invalid phone number format. Please use E.164 format (e.g., +14155552671) or a 10-digit US number.",
-          providedNumber: to,
         },
         { status: 400 }
       );
@@ -105,6 +104,16 @@ async function handleSendMessage(request: NextRequest): Promise<Response> {
     if (!messageBody || messageBody.trim().length === 0) {
       return NextResponse.json(
         { error: "Message body is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate message length to prevent DoS and cost amplification
+    // SMS messages are charged per 160-char segment; limit to ~10 segments
+    const MAX_MESSAGE_LENGTH = 1600;
+    if (messageBody.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message too long. Maximum length is ${MAX_MESSAGE_LENGTH} characters.` },
         { status: 400 }
       );
     }
