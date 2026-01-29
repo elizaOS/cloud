@@ -132,7 +132,7 @@ export async function verifyBlooioSignature(
   webhookSecret: string,
   signatureHeader: string,
   rawBody: string,
-  toleranceSeconds = 300,
+  toleranceSeconds = 120, // 2 minutes - industry standard for webhook signatures
 ): Promise<boolean> {
   if (!signatureHeader || !webhookSecret) {
     return false;

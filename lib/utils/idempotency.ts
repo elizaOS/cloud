@@ -2,11 +2,11 @@
  * Idempotency Utility for Webhook Handlers
  *
  * Provides in-memory deduplication to prevent replay attacks
- * within the signature validity window (5 minutes).
+ * within the signature validity window (2 minutes).
  */
 
 const processedMessages = new Map<string, number>();
-const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const IDEMPOTENCY_TTL_MS = 2 * 60 * 1000; // 2 minutes - matches signature tolerance
 
 /**
  * Check if a message has already been processed within the TTL window.
