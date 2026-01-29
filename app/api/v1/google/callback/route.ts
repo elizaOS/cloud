@@ -37,13 +37,31 @@ const ALLOWED_REDIRECT_PATHS = [
 ];
 
 /**
+ * Normalize a path by resolving .. and . segments to prevent path traversal
+ */
+function normalizePath(path: string): string {
+  const segments = path.split("/");
+  const result: string[] = [];
+  for (const segment of segments) {
+    if (segment === "..") {
+      result.pop();
+    } else if (segment !== "." && segment !== "") {
+      result.push(segment);
+    }
+  }
+  return "/" + result.join("/");
+}
+
+/**
  * Validate that a redirect URL is safe (same origin and allowed path)
  */
 function isValidRedirectUrl(url: string, baseUrl: string): boolean {
   // Allow relative paths that start with allowed prefixes
   if (!url.startsWith("http")) {
-    const path = url.startsWith("/") ? url : `/${url}`;
-    return ALLOWED_REDIRECT_PATHS.some(allowed => path.startsWith(allowed));
+    const rawPath = url.startsWith("/") ? url : `/${url}`;
+    // Normalize path to prevent traversal attacks (e.g., /dashboard/../../../evil)
+    const normalizedPath = normalizePath(rawPath);
+    return ALLOWED_REDIRECT_PATHS.some(allowed => normalizedPath.startsWith(allowed));
   }
 
   // For absolute URLs, ensure same origin and allowed path
@@ -53,6 +71,7 @@ function isValidRedirectUrl(url: string, baseUrl: string): boolean {
     if (parsed.origin !== base.origin) {
       return false;
     }
+    // URL constructor normalizes the pathname, so this is safe
     return ALLOWED_REDIRECT_PATHS.some(allowed => parsed.pathname.startsWith(allowed));
   } catch {
     return false;
