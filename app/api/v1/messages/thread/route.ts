@@ -11,13 +11,18 @@ import { dbRead } from "@/db/client";
 import { phoneMessageLog, agentPhoneNumbers } from "@/db/schemas";
 import { eq, and, or, asc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 /**
- * Safely parse JSON with fallback to null for malformed data
+ * Safely parse JSON with type validation to prevent type confusion and XSS.
+ * Only returns string arrays; filters out non-string elements.
  */
 function safeJsonParse(value: string): string[] | null {
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return null;
+    // Filter to only string elements to prevent type confusion
+    return parsed.filter((item): item is string => typeof item === "string");
   } catch {
     return null;
   }
@@ -35,7 +40,7 @@ export const maxDuration = 30;
  *   - counterparty (optional): Explicitly specify the other party (for bidirectional matching)
  *   - limit (optional): Max messages to return (default 100)
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+async function handleGetThread(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
@@ -161,3 +166,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+// Export with rate limiting to prevent enumeration attacks and database DoS
+// Uses STANDARD preset (60 req/min per IP)
+export const GET = withRateLimit(handleGetThread, RateLimitPresets.STANDARD);
