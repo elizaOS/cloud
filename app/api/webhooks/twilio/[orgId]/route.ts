@@ -38,10 +38,16 @@ export async function POST(
 
     const event = webhookData as unknown as TwilioWebhookEvent;
 
-    // Verify signature if auth token is available (skip in development)
-    const isDev = process.env.NODE_ENV === "development";
+    // Verify signature - only skip if explicitly disabled via env var
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true";
     const authToken = await twilioAutomationService.getAuthToken(orgId);
-    if (authToken && !isDev) {
+
+    if (skipVerification) {
+      logger.warn("[TwilioWebhook] Signature validation explicitly disabled via SKIP_WEBHOOK_VERIFICATION", { orgId });
+    } else if (!authToken) {
+      logger.error("[TwilioWebhook] No auth token configured - rejecting webhook", { orgId });
+      return new NextResponse("Webhook not configured", { status: 500 });
+    } else {
       const signature = request.headers.get("X-Twilio-Signature") || "";
       const url = request.url;
 
@@ -56,8 +62,6 @@ export async function POST(
         logger.warn("[TwilioWebhook] Signature validation failed", { orgId });
         return new NextResponse("Invalid signature", { status: 401 });
       }
-    } else if (isDev) {
-      logger.info("[TwilioWebhook] Skipping signature validation in development");
     }
 
     // Log the event
