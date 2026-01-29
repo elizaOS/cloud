@@ -16,7 +16,6 @@ import {
   Wallet,
   Coins,
   Sparkles,
-  MessageSquare,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -67,19 +66,6 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/apps",
         icon: Grid3x3,
         freeAllowed: false,
-      },
-    ],
-  },
-  {
-    title: "Communication",
-    items: [
-      {
-        id: "messaging",
-        label: "Messaging",
-        href: "/dashboard/messaging",
-        icon: MessageSquare,
-        freeAllowed: false,
-        isNew: true,
       },
     ],
   },
