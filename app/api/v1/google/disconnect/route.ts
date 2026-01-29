@@ -50,31 +50,34 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
     // Revoke tokens at Google before deleting locally
     // This ensures leaked tokens cannot be used even during the ~1 hour validity window
     // Revoking the refresh token also revokes all associated access tokens
+    // SECURITY: Token revocation MUST succeed before we delete local secrets
     if (cred.refresh_token_secret_id) {
-      try {
-        const refreshToken = await secretsService.getDecryptedValue(
-          cred.refresh_token_secret_id,
-          user.organization_id,
-        );
-        if (refreshToken) {
-          const revokeResult = await revokeGoogleToken(refreshToken);
-          if (revokeResult.success) {
-            logger.info("[Google Disconnect] Token revoked at Google", {
-              organizationId: user.organization_id,
-            });
-          } else {
-            // Log but don't fail - token might already be invalid
-            logger.warn("[Google Disconnect] Failed to revoke token at Google", {
-              error: revokeResult.error,
-              organizationId: user.organization_id,
-            });
-          }
+      const refreshToken = await secretsService.getDecryptedValue(
+        cred.refresh_token_secret_id,
+        user.organization_id,
+      );
+      if (refreshToken) {
+        const revokeResult = await revokeGoogleToken(refreshToken);
+        if (revokeResult.success) {
+          logger.info("[Google Disconnect] Token revoked at Google", {
+            organizationId: user.organization_id,
+          });
+        } else {
+          // SECURITY: Fail the disconnect if revocation fails
+          // This prevents orphaned valid tokens at Google while DB shows disconnected
+          logger.error("[Google Disconnect] Token revocation failed", {
+            organizationId: user.organization_id,
+            error: revokeResult.error,
+          });
+          return NextResponse.json(
+            {
+              error:
+                "Failed to revoke Google token. Please try again or contact support.",
+              details: revokeResult.error,
+            },
+            { status: 500 },
+          );
         }
-      } catch (err) {
-        logger.warn("[Google Disconnect] Error during token revocation", {
-          error: err instanceof Error ? err.message : String(err),
-          organizationId: user.organization_id,
-        });
       }
     }
 
