@@ -38,12 +38,17 @@ export async function POST(
 
     const event = webhookData as unknown as TwilioWebhookEvent;
 
-    // Verify signature - only skip if explicitly disabled via env var
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true";
+    // Verify signature - only skip if explicitly disabled AND not in production
+    const isProduction = process.env.NODE_ENV === "production";
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const authToken = await twilioAutomationService.getAuthToken(orgId);
 
+    if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
+      logger.error("[TwilioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
+    }
+
     if (skipVerification) {
-      logger.warn("[TwilioWebhook] Signature validation explicitly disabled via SKIP_WEBHOOK_VERIFICATION", { orgId });
+      logger.warn("[TwilioWebhook] Signature validation disabled (non-production)", { orgId });
     } else if (!authToken) {
       logger.error("[TwilioWebhook] No auth token configured - rejecting webhook", { orgId });
       return new NextResponse("Webhook not configured", { status: 500 });

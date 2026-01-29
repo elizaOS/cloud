@@ -34,13 +34,18 @@ export async function POST(
     // Get raw body for signature verification
     const rawBody = await request.text();
 
-    // Verify signature - only skip if explicitly disabled via env var
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true";
+    // Verify signature - only skip if explicitly disabled AND not in production
+    const isProduction = process.env.NODE_ENV === "production";
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const webhookSecret =
       await blooioAutomationService.getWebhookSecret(orgId);
 
+    if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
+      logger.error("[BlooioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
+    }
+
     if (skipVerification) {
-      logger.warn("[BlooioWebhook] Signature validation explicitly disabled via SKIP_WEBHOOK_VERIFICATION", { orgId });
+      logger.warn("[BlooioWebhook] Signature validation disabled (non-production)", { orgId });
     } else if (!webhookSecret) {
       logger.error("[BlooioWebhook] No webhook secret configured - rejecting webhook", { orgId });
       return NextResponse.json(
