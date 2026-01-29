@@ -65,6 +65,19 @@ function normalizePath(path: string): string {
 }
 
 /**
+ * Extract the path portion from a URL string, stripping query strings and fragments
+ */
+function extractPath(url: string): string {
+  // Handle query strings and fragments
+  const queryIndex = url.indexOf("?");
+  const hashIndex = url.indexOf("#");
+  let endIndex = url.length;
+  if (queryIndex !== -1) endIndex = Math.min(endIndex, queryIndex);
+  if (hashIndex !== -1) endIndex = Math.min(endIndex, hashIndex);
+  return url.substring(0, endIndex);
+}
+
+/**
  * Validate that a redirect URL is safe (same origin and allowed path)
  * Uses exact path matching to prevent open redirect bypass
  */
@@ -72,8 +85,10 @@ function isValidRedirectUrl(url: string, baseUrl: string): boolean {
   // Allow relative paths that exactly match allowed paths
   if (!url.startsWith("http")) {
     const rawPath = url.startsWith("/") ? url : `/${url}`;
+    // Extract path without query string or fragment
+    const pathOnly = extractPath(rawPath);
     // Normalize path to prevent traversal attacks (e.g., /dashboard/../../../evil)
-    const normalizedPath = normalizePath(rawPath);
+    const normalizedPath = normalizePath(pathOnly);
     // Use exact matching to prevent bypass via "/allowed-path-malicious"
     return ALLOWED_REDIRECT_PATHS.includes(normalizedPath);
   }
@@ -85,7 +100,7 @@ function isValidRedirectUrl(url: string, baseUrl: string): boolean {
     if (parsed.origin !== base.origin) {
       return false;
     }
-    // Use exact matching for pathname as well
+    // Use exact matching for pathname (URL parser already strips query/fragment from pathname)
     return ALLOWED_REDIRECT_PATHS.includes(parsed.pathname);
   } catch {
     return false;
