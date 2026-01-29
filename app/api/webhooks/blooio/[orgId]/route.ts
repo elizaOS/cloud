@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { verifyBlooioSignature, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -17,11 +18,11 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-export async function POST(
+async function handleBlooioWebhook(
   request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
-  const { orgId } = await params;
+  context?: { params: Promise<RouteParams["params"]> },
+): Promise<Response> {
+  const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
     return NextResponse.json(
@@ -139,6 +140,10 @@ export async function POST(
     );
   }
 }
+
+// Export POST handler with rate limiting (100 requests/min per IP)
+// Uses AGGRESSIVE preset for webhook endpoints
+export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSIVE);
 
 /**
  * Handle incoming message from Blooio

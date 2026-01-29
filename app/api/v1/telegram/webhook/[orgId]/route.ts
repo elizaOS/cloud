@@ -5,13 +5,14 @@
  * Each organization has their own webhook URL with their orgId.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
 import { logger } from "@/lib/utils/logger";
 import { isCommand } from "@/lib/utils/telegram-helpers";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import type { Update, Message, ChatMemberUpdated } from "telegraf/types";
 import type { App } from "@/db/schemas/apps";
 
@@ -21,10 +22,11 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-export async function POST(
-  request: Request,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+async function handleTelegramWebhook(
+  request: NextRequest,
+  context?: { params: Promise<RouteParams["params"]> },
+): Promise<Response> {
+  const { params } = context || { params: Promise.resolve({ orgId: "" }) };
   const { orgId } = await params;
 
   // Verify the webhook secret token from Telegram
@@ -101,6 +103,10 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
+
+// Export POST handler with rate limiting (100 requests/min per IP)
+// Uses AGGRESSIVE preset for webhook endpoints
+export const POST = withRateLimit(handleTelegramWebhook, RateLimitPresets.AGGRESSIVE);
 
 /**
  * Track a chat from a regular message/post.

@@ -12,12 +12,20 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
+import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { dbRead } from "@/db/client";
 import { agentPhoneNumbers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+// Rate limit config for message sending
+// 30 messages per minute per organization to prevent SMS spam and cost amplification
+const MESSAGE_RATE_LIMIT = {
+  windowMs: 60000, // 1 minute
+  maxRequests: process.env.NODE_ENV === "production" ? 30 : 1000, // Prod: 30/min, Dev: relaxed
+};
 
 /**
  * Validate E.164 phone number format
@@ -66,7 +74,7 @@ interface SendMessageRequest {
   provider?: "twilio" | "blooio";
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function handleSendMessage(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
@@ -227,3 +235,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+// Export POST handler with rate limiting
+// Limits to MESSAGE_RATE_LIMIT requests per minute to prevent SMS spam
+export const POST = withRateLimit(handleSendMessage, MESSAGE_RATE_LIMIT);

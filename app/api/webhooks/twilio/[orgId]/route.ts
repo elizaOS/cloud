@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { verifyTwilioSignature, extractMediaUrls, type TwilioWebhookEvent } from "@/lib/utils/twilio-api";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -17,11 +18,11 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-export async function POST(
+async function handleTwilioWebhook(
   request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
-  const { orgId } = await params;
+  context?: { params: Promise<RouteParams["params"]> },
+): Promise<Response> {
+  const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
     return new NextResponse("Organization ID is required", { status: 400 });
@@ -100,6 +101,10 @@ export async function POST(
     return new NextResponse("Internal server error", { status: 500 });
   }
 }
+
+// Export POST handler with rate limiting (100 requests/min per IP)
+// Uses AGGRESSIVE preset for webhook endpoints
+export const POST = withRateLimit(handleTwilioWebhook, RateLimitPresets.AGGRESSIVE);
 
 /**
  * Handle incoming SMS message from Twilio
