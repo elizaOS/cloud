@@ -34,12 +34,20 @@ export async function POST(
     // Get raw body for signature verification
     const rawBody = await request.text();
 
-    // Get webhook secret for this organization
+    // Verify signature - only skip if explicitly disabled via env var
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true";
     const webhookSecret =
       await blooioAutomationService.getWebhookSecret(orgId);
 
-    // Verify signature if webhook secret is configured
-    if (webhookSecret) {
+    if (skipVerification) {
+      logger.warn("[BlooioWebhook] Signature validation explicitly disabled via SKIP_WEBHOOK_VERIFICATION", { orgId });
+    } else if (!webhookSecret) {
+      logger.error("[BlooioWebhook] No webhook secret configured - rejecting webhook", { orgId });
+      return NextResponse.json(
+        { error: "Webhook not configured" },
+        { status: 500 },
+      );
+    } else {
       const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
       const isValid = await verifyBlooioSignature(
         webhookSecret,
