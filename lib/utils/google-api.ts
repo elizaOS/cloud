@@ -45,6 +45,20 @@ export const DEFAULT_GOOGLE_SCOPES = [
   GOOGLE_SCOPES.CONTACTS_READONLY,
 ];
 
+/**
+ * Set of all allowed Google OAuth scopes
+ * Used to validate user-requested scopes
+ */
+export const ALLOWED_GOOGLE_SCOPES = new Set(Object.values(GOOGLE_SCOPES));
+
+/**
+ * Validate and filter requested scopes to only include allowed ones
+ * Returns the filtered list of valid scopes
+ */
+export function validateGoogleScopes(requestedScopes: string[]): string[] {
+  return requestedScopes.filter((scope) => ALLOWED_GOOGLE_SCOPES.has(scope));
+}
+
 export interface GoogleTokenResponse {
   access_token: string;
   refresh_token?: string;
