@@ -4,6 +4,7 @@
  * Shared constants and helpers for Blooio iMessage/SMS API interactions.
  */
 
+import crypto from "crypto";
 import { z } from "zod";
 
 export const BLOOIO_API_BASE = "https://backend.blooio.com/v2/api";
@@ -176,7 +177,13 @@ export async function verifyBlooioSignature(
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
-    return computedSignature === expectedSignature;
+    // Use constant-time comparison to prevent timing attacks
+    if (computedSignature.length !== expectedSignature.length) {
+      return false;
+    }
+    const computedBuffer = Buffer.from(computedSignature, "utf8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+    return crypto.timingSafeEqual(computedBuffer, expectedBuffer);
   } catch {
     return false;
   }
