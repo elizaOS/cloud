@@ -26,8 +26,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       user.organization_id,
     );
 
+    // Map `fromNumber` to `phoneNumber` for frontend compatibility
+    const { fromNumber, ...restStatus } = status;
     return NextResponse.json({
-      ...status,
+      ...restStatus,
+      phoneNumber: fromNumber,
       webhookUrl,
     });
   } catch (error) {

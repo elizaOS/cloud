@@ -19,7 +19,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const body = await request.json();
-    const { apiKey, webhookSecret, fromNumber } = body;
+    // Frontend sends `phoneNumber`, map to internal `fromNumber`
+    const { apiKey, webhookSecret, phoneNumber } = body;
+    const fromNumber = phoneNumber;
 
     if (!apiKey) {
       return NextResponse.json(
