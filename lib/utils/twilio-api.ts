@@ -4,6 +4,7 @@
  * Shared constants and helpers for Twilio SMS/MMS/Voice API interactions.
  */
 
+import crypto from "crypto";
 import { z } from "zod";
 
 export const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
@@ -160,7 +161,13 @@ export async function verifyTwilioSignature(
       String.fromCharCode(...new Uint8Array(signatureBuffer)),
     );
 
-    return computedSignature === signature;
+    // Use constant-time comparison to prevent timing attacks
+    if (computedSignature.length !== signature.length) {
+      return false;
+    }
+    const computedBuffer = Buffer.from(computedSignature, "utf8");
+    const expectedBuffer = Buffer.from(signature, "utf8");
+    return crypto.timingSafeEqual(computedBuffer, expectedBuffer);
   } catch {
     return false;
   }
