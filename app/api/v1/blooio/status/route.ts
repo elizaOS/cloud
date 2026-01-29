@@ -15,31 +15,27 @@ export const maxDuration = 30;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const orgId = user.organization_id;
 
   try {
-    const status = await blooioAutomationService.getConnectionStatus(
-      user.organization_id,
-    );
+    // Fetch status and webhook secret in parallel
+    const [status, webhookSecret] = await Promise.all([
+      blooioAutomationService.getConnectionStatus(orgId),
+      blooioAutomationService.getWebhookSecret(orgId),
+    ]);
 
-    // Include webhook URL for reference
-    const webhookUrl = blooioAutomationService.getWebhookUrl(
-      user.organization_id,
-    );
-
-    // Map properties for frontend compatibility:
-    // - `fromNumber` -> `phoneNumber`
-    // - `configured` -> `webhookConfigured`
     const { fromNumber, configured, ...restStatus } = status;
     return NextResponse.json({
       ...restStatus,
       phoneNumber: fromNumber,
       webhookConfigured: configured,
-      webhookUrl,
+      webhookUrl: blooioAutomationService.getWebhookUrl(orgId),
+      hasWebhookSecret: Boolean(webhookSecret),
     });
   } catch (error) {
     logger.error("[Blooio Status] Failed to get status", {
       error: error instanceof Error ? error.message : String(error),
-      organizationId: user.organization_id,
+      orgId,
     });
     return NextResponse.json(
       { error: "Failed to get Blooio status" },

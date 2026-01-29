@@ -43,6 +43,8 @@ interface BlooioStatus {
   connected: boolean;
   phoneNumber?: string;
   webhookConfigured?: boolean;
+  webhookUrl?: string;
+  hasWebhookSecret?: boolean;
   error?: string;
 }
 
@@ -53,43 +55,31 @@ export function BlooioConnection() {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
   const [showInstructions, setShowInstructions] = useState(false);
+  const [isSavingSecret, setIsSavingSecret] = useState(false);
 
-  const fetchStatus = async () => {
+  const fetchStatus = async (signal?: AbortSignal) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/blooio/status");
-      const data: BlooioStatus = await response.json();
-      setStatus(data);
+      const response = await fetch("/api/v1/blooio/status", { signal });
+      if (!signal?.aborted) {
+        setStatus(await response.json());
+      }
     } catch {
-      toast.error("Failed to fetch Blooio status");
+      if (!signal?.aborted) {
+        toast.error("Failed to fetch Blooio status");
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
     const controller = new AbortController();
-
-    const loadStatus = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/v1/blooio/status", {
-          signal: controller.signal,
-        });
-        if (!controller.signal.aborted) {
-          const data: BlooioStatus = await response.json();
-          setStatus(data);
-          setIsLoading(false);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadStatus();
-
+    fetchStatus(controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -110,16 +100,19 @@ export function BlooioConnection() {
       const response = await fetch("/api/v1/blooio/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, phoneNumber }),
+        body: JSON.stringify({
+          apiKey,
+          phoneNumber,
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast.success("Blooio iMessage connected successfully!");
+        toast.success("Blooio connected! Now set up the webhook.");
         setApiKey("");
         setPhoneNumber("");
-        fetchStatus();
+        void fetchStatus();
       } else {
         toast.error(data.error || "Failed to connect Blooio");
       }
@@ -140,8 +133,8 @@ export function BlooioConnection() {
       });
 
       if (response.ok) {
-        toast.success("Blooio iMessage disconnected");
-        fetchStatus();
+        toast.success("Blooio disconnected");
+        void fetchStatus();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error(data.error || "Failed to disconnect");
@@ -151,6 +144,38 @@ export function BlooioConnection() {
     }
 
     setIsDisconnecting(false);
+  };
+
+  const handleSaveSecret = async () => {
+    if (isSavingSecret) return;
+    if (!webhookSecret.trim()) {
+      toast.error("Please enter the webhook signing secret");
+      return;
+    }
+
+    setIsSavingSecret(true);
+
+    try {
+      const response = await fetch("/api/v1/blooio/webhook-secret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookSecret: webhookSecret.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Webhook secret saved!");
+        setWebhookSecret("");
+        void fetchStatus();
+      } else {
+        toast.error(data.error || "Failed to save webhook secret");
+      }
+    } catch {
+      toast.error("Network error. Please check your connection.");
+    }
+
+    setIsSavingSecret(false);
   };
 
   if (isLoading) {
@@ -204,17 +229,83 @@ export function BlooioConnection() {
               </div>
             </div>
 
-            <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-              <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
-                Your AI agent can now:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Receive and respond to iMessages</li>
-                <li>• Send proactive messages to contacts</li>
-                <li>• Handle multi-turn conversations</li>
-                <li>• Process images and attachments</li>
-              </ul>
-            </div>
+            {status.webhookUrl && (
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Step 1: Copy this webhook URL
+                </Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-background p-2 rounded border overflow-x-auto">
+                    {status.webhookUrl}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(status.webhookUrl!);
+                      toast.success("Webhook URL copied to clipboard");
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {status.webhookUrl && !status.hasWebhookSecret && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400 mb-1">
+                    Step 2: Create a webhook in Blooio
+                  </p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Go to Webhooks in your Blooio dashboard</li>
+                    <li>Click &quot;Create Webhook&quot;</li>
+                    <li>Paste the URL above</li>
+                    <li>Copy the signing secret shown after creating</li>
+                  </ol>
+                </div>
+                <div className="space-y-2 pt-2 border-t border-yellow-500/20">
+                  <Label className="text-xs text-yellow-700 dark:text-yellow-400">
+                    Step 3: Paste signing secret here
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="password"
+                      placeholder="whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={webhookSecret}
+                      onChange={(e) => setWebhookSecret(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleSaveSecret}
+                      disabled={isSavingSecret || !webhookSecret.trim()}
+                      size="sm"
+                    >
+                      {isSavingSecret ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {status.hasWebhookSecret && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                  Your AI agent can now:
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• Receive and respond to iMessages</li>
+                  <li>• Send proactive messages to contacts</li>
+                  <li>• Handle multi-turn conversations</li>
+                  <li>• Process images and attachments</li>
+                </ul>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-2 border-t">
               <div className="text-sm text-muted-foreground">
@@ -283,51 +374,50 @@ export function BlooioConnection() {
                   <li>
                     Go to{" "}
                     <a
-                      href="https://blooio.com"
+                      href="https://app.blooio.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-green-600 hover:underline inline-flex items-center gap-1"
                     >
-                      Blooio.com
+                      app.blooio.com
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </li>
-                  <li>Create an account or sign in</li>
-                  <li>Set up your iMessage integration</li>
-                  <li>Copy your API key from the dashboard</li>
-                  <li>Enter your registered phone number below</li>
+                  <li>Create an account and start a free trial</li>
+                  <li>Go to Numbers section to get your Blooio number</li>
+                  <li>Go to API Keys section and copy your API key</li>
+                  <li>Enter the API key and phone number below</li>
+                  <li>After connecting, you&apos;ll set up the webhook</li>
                 </ol>
               </CollapsibleContent>
             </Collapsible>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="blooioApiKey">Blooio API Key</Label>
-                <Input
-                  id="blooioApiKey"
-                  type="password"
-                  placeholder="bloo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Get this from your Blooio dashboard
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="blooioApiKey">Blooio API Key</Label>
+              <Input
+                id="blooioApiKey"
+                type="password"
+                placeholder="bloo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Get this from your Blooio dashboard
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">iMessage Phone Number</Label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  The phone number registered with Blooio
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Blooio Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                The number Blooio generated for you (in Numbers section)
+              </p>
             </div>
 
             <div className="p-4 bg-muted rounded-lg">

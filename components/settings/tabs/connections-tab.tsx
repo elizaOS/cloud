@@ -1,8 +1,6 @@
 "use client";
 
-import { TwitterConnection } from "../twitter-connection";
 import { TelegramConnection } from "../telegram-connection";
-import { DiscordConnection } from "../discord-connection";
 import { GoogleConnection } from "../google-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
@@ -17,15 +15,12 @@ export function ConnectionsTab() {
             Social Media Connections
           </h2>
           <p className="text-sm text-muted-foreground">
-            Connect your social accounts to enable AI-powered automation and
-            cross-platform posting.
+            Connect your social accounts to enable AI-powered conversations.
           </p>
         </div>
 
         <div className="grid gap-4">
-          <TwitterConnection />
           <TelegramConnection />
-          <DiscordConnection />
         </div>
       </div>
 

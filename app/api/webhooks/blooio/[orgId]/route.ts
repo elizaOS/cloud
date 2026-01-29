@@ -216,8 +216,6 @@ async function handleIncomingMessage(
     protocol: event.protocol,
   });
 
-  const startTime = Date.now();
-
   // Use the configured Blooio phone number as the recipient (the number that received the message)
   // Fall back to external_id only if no from number is configured
   const recipient = blooioFromNumber || event.external_id || chatId;
@@ -242,12 +240,15 @@ async function handleIncomingMessage(
   };
 
   // Route to agent
+  // TODO: Agent routing will be added in next feature
+  // Each user will have RLS isolation with a shared Eliza agent
   const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
 
   if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
-    logger.warn("[BlooioWebhook] Failed to route message", {
+    logger.info("[BlooioWebhook] Message received (agent routing not configured)", {
       orgId,
-      error: routeResult.error,
+      from: event.sender,
+      text: text?.substring(0, 50),
     });
     return;
   }
@@ -278,19 +279,10 @@ async function handleIncomingMessage(
       organizationId: routeResult.organizationId,
     });
 
-    const responseTime = Date.now() - startTime;
-
     if (sent) {
-      logger.info("[BlooioWebhook] Agent response sent", {
-        orgId,
-        chatId,
-        responseTime,
-      });
+      logger.info("[BlooioWebhook] Agent response sent", { orgId, chatId });
     } else {
-      logger.error("[BlooioWebhook] Failed to send agent response", {
-        orgId,
-        chatId,
-      });
+      logger.error("[BlooioWebhook] Failed to send agent response", { orgId, chatId });
     }
   }
 }
