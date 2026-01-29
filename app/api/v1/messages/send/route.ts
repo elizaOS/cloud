@@ -21,7 +21,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 // Rate limit config for message sending
-// 30 messages per minute per organization to prevent SMS spam and cost amplification
+// 30 messages per minute per IP in production to prevent SMS spam and cost amplification
+// Note: Rate limiting is IP-based (applied before authentication), not per-organization
 // Dev limit is 100/min - high enough for testing but realistic enough to catch issues
 const MESSAGE_RATE_LIMIT = {
   windowMs: 60000, // 1 minute
@@ -238,5 +239,5 @@ async function handleSendMessage(request: NextRequest): Promise<Response> {
 }
 
 // Export POST handler with rate limiting
-// Limits to MESSAGE_RATE_LIMIT requests per minute to prevent SMS spam
+// Limits to MESSAGE_RATE_LIMIT requests per minute per IP to prevent SMS spam
 export const POST = withRateLimit(handleSendMessage, MESSAGE_RATE_LIMIT);
