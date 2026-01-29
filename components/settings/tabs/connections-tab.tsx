@@ -8,22 +8,6 @@ import { TwilioConnection } from "../twilio-connection";
 export function ConnectionsTab() {
   return (
     <div className="space-y-8">
-      {/* Social Media Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">
-            Social Media Connections
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Connect your social accounts to enable AI-powered conversations.
-          </p>
-        </div>
-
-        <div className="grid gap-4">
-          <TelegramConnection />
-        </div>
-      </div>
-
       {/* Messaging & Communication Section */}
       <div className="space-y-4">
         <div>
@@ -40,6 +24,22 @@ export function ConnectionsTab() {
           <GoogleConnection />
           <TwilioConnection />
           <BlooioConnection />
+        </div>
+      </div>
+
+      {/* Social Media Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">
+            Social Media Connections
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Connect your social accounts to enable AI-powered conversations.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          <TelegramConnection />
         </div>
       </div>
     </div>
