@@ -26,8 +26,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       user.organization_id,
     );
 
+    // Map properties for frontend compatibility:
+    // - `configured` -> `webhookConfigured`
+    const { configured, ...restStatus } = status;
     return NextResponse.json({
-      ...status,
+      ...restStatus,
+      webhookConfigured: configured,
       webhookUrl,
     });
   } catch (error) {
