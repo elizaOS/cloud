@@ -177,10 +177,12 @@ class TwilioAutomationService {
       "TWILIO_PHONE_NUMBER",
     ];
 
-    // Get secrets by name and delete them by ID
+    // Get all secrets once (not inside the loop) for efficiency
+    const existingSecrets = await secretsService.list(organizationId);
+
+    // Delete each secret by finding it in the cached list
     for (const name of secretNames) {
-      const secrets = await secretsService.list(organizationId);
-      const secret = secrets.find((s) => s.name === name);
+      const secret = existingSecrets.find((s) => s.name === name);
       if (secret) {
         await secretsService.delete(secret.id, organizationId, audit);
         logger.info("[TwilioAutomation] Deleted secret", {
