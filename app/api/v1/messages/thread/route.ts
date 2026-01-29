@@ -38,7 +38,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const phoneNumber = searchParams.get("phoneNumber");
     const phoneNumberId = searchParams.get("phoneNumberId");
-    const limit = parseInt(searchParams.get("limit") || "100", 10);
+    const parsedLimit = parseInt(searchParams.get("limit") || "100", 10);
+    const limit = Number.isNaN(parsedLimit) ? 100 : parsedLimit;
 
     if (!phoneNumber) {
       return NextResponse.json(

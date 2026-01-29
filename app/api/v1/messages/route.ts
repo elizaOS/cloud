@@ -27,8 +27,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get("agentId");
     const provider = searchParams.get("provider");
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
+    const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
+    const parsedOffset = parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Number.isNaN(parsedLimit) ? 50 : parsedLimit;
+    const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
 
     // Build where conditions
     const conditions = [eq(agentPhoneNumbers.organization_id, user.organization_id)];
