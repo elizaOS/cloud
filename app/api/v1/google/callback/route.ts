@@ -142,13 +142,17 @@ async function handleCallback(request: NextRequest): Promise<NextResponse> {
 
   // Verify state is bound to this user's session (CSRF protection)
   if (stateData.organizationId !== currentUser.organization_id) {
-    logger.warn("[Google Callback] State organization mismatch - possible CSRF attack", {
+    // Log at ERROR level for security events - this is a potential attack
+    logger.error("[Google Callback] SECURITY: State organization mismatch - possible CSRF attack", {
       stateOrgId: stateData.organizationId,
       userOrgId: currentUser.organization_id,
+      userId: currentUser.id,
+      ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      userAgent: request.headers.get("user-agent"),
     });
     await cache.del(stateKey);
     return NextResponse.redirect(
-      `${defaultRedirect}&google_error=invalid_state&message=Session mismatch`,
+      `${defaultRedirect}&google_error=invalid_state`,
     );
   }
 
@@ -157,9 +161,11 @@ async function handleCallback(request: NextRequest): Promise<NextResponse> {
 
   // Validate the redirect URL against whitelist
   if (!isValidRedirectUrl(stateRedirectUrl, baseUrl)) {
-    logger.warn("[Google Callback] Invalid redirect URL attempted", {
+    logger.error("[Google Callback] SECURITY: Invalid redirect URL attempted - possible open redirect attack", {
       redirectUrl: stateRedirectUrl,
       organizationId: stateData.organizationId,
+      userId: stateData.userId,
+      ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
     });
     // Fall back to safe default
     return NextResponse.redirect(defaultRedirect);
