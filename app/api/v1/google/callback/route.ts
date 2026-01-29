@@ -3,6 +3,10 @@
  *
  * Handles the OAuth callback from Google after user authorization.
  * Exchanges the authorization code for tokens and stores them securely.
+ *
+ * Security hardening:
+ * - Rate limited to 10 requests per minute per IP to prevent brute-force attacks
+ * - OAuth state is bound to user's organization ID for CSRF protection
  */
 
 import type { NextRequest } from "next/server";
@@ -17,6 +21,8 @@ import {
   exchangeGoogleCode,
   getGoogleUserInfo,
 } from "@/lib/utils/google-api";
+import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -53,7 +59,7 @@ function isValidRedirectUrl(url: string, baseUrl: string): boolean {
   }
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+async function handleCallback(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
@@ -76,6 +82,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Authenticate the user making this callback request
+  let currentUser;
+  try {
+    const authResult = await requireAuthOrApiKeyWithOrg(request);
+    currentUser = authResult.user;
+  } catch (authError) {
+    logger.warn("[Google Callback] Authentication failed", {
+      error: authError instanceof Error ? authError.message : String(authError),
+    });
+    return NextResponse.redirect(
+      `${defaultRedirect}&google_error=authentication_required`,
+    );
+  }
+
   // Retrieve and validate state
   const stateKey = `google_oauth:${state}`;
   const cachedState = await cache.get<{
@@ -92,7 +112,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Handle both object (Upstash auto-deserializes) and string formats
-  const stateData = typeof cachedState === 'string' 
+  const stateData = typeof cachedState === 'string'
     ? JSON.parse(cachedState) as {
         organizationId: string;
         userId: string;
@@ -100,6 +120,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         scopes: string[];
       }
     : cachedState;
+
+  // Verify state is bound to this user's session (CSRF protection)
+  if (stateData.organizationId !== currentUser.organization_id) {
+    logger.warn("[Google Callback] State organization mismatch - possible CSRF attack", {
+      stateOrgId: stateData.organizationId,
+      userOrgId: currentUser.organization_id,
+    });
+    await cache.del(stateKey);
+    return NextResponse.redirect(
+      `${defaultRedirect}&google_error=invalid_state&message=Session mismatch`,
+    );
+  }
 
   // Validate and construct redirect URL (prevent open redirect attacks)
   const stateRedirectUrl = stateData.redirectUrl || "/dashboard/settings?tab=connections";
@@ -379,3 +411,22 @@ function appendError(url: string, error: string): string {
 function appendSuccess(url: string, params: string): string {
   return url.includes("?") ? `${url}&${params}` : `${url}?${params}`;
 }
+
+/**
+ * Get IP address from request for rate limiting
+ */
+function getIpKey(request: NextRequest): string {
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
+  return `oauth:google:callback:ip:${ip}`;
+}
+
+// Export with rate limiting: 10 requests per minute per IP
+// This prevents brute-force attacks on the OAuth callback
+export const GET = withRateLimit(handleCallback, {
+  windowMs: 60000, // 1 minute
+  maxRequests: 10,
+  keyGenerator: getIpKey,
+});
