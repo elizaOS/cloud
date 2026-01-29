@@ -124,5 +124,7 @@ CREATE INDEX IF NOT EXISTS phone_message_log_status_idx
     ON phone_message_log(status);
 CREATE INDEX IF NOT EXISTS phone_message_log_created_at_idx 
     ON phone_message_log(created_at);
-CREATE INDEX IF NOT EXISTS phone_message_log_from_number_idx 
+CREATE INDEX IF NOT EXISTS phone_message_log_from_number_idx
     ON phone_message_log(from_number);
+CREATE INDEX IF NOT EXISTS phone_message_log_provider_msg_idx
+    ON phone_message_log(provider_message_id);
