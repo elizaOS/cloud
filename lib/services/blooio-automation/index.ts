@@ -197,35 +197,44 @@ class BlooioAutomationService {
 
   /**
    * Get API key for an organization.
-   * Falls back to env var if not found in secrets.
+   * Falls back to env var only in non-production environments.
    */
   async getApiKey(organizationId: string): Promise<string | null> {
     const fromSecrets = await secretsService.get(organizationId, "BLOOIO_API_KEY");
     if (fromSecrets) return fromSecrets;
-    // Fall back to env var for development/testing
-    return process.env.BLOOIO_API_KEY || null;
+    // Only fall back to env var in non-production (prevents multi-tenancy violation)
+    if (process.env.NODE_ENV !== "production") {
+      return process.env.BLOOIO_API_KEY || null;
+    }
+    return null;
   }
 
   /**
    * Get webhook secret for an organization.
-   * Falls back to env var if not found in secrets.
+   * No env fallback in production to prevent multi-tenancy violation.
    */
   async getWebhookSecret(organizationId: string): Promise<string | null> {
     const fromSecrets = await secretsService.get(organizationId, "BLOOIO_WEBHOOK_SECRET");
     if (fromSecrets) return fromSecrets;
-    // Fall back to env var for development/testing
-    return process.env.BLOOIO_WEBHOOK_SECRET || null;
+    // Only fall back to env var in non-production (prevents multi-tenancy violation)
+    if (process.env.NODE_ENV !== "production") {
+      return process.env.BLOOIO_WEBHOOK_SECRET || null;
+    }
+    return null;
   }
 
   /**
    * Get from number for an organization.
-   * Falls back to env var if not found in secrets.
+   * Falls back to env var only in non-production environments.
    */
   async getFromNumber(organizationId: string): Promise<string | null> {
     const fromSecrets = await secretsService.get(organizationId, "BLOOIO_FROM_NUMBER");
     if (fromSecrets) return fromSecrets;
-    // Fall back to env var for development/testing
-    return process.env.BLOOIO_FROM_NUMBER || null;
+    // Only fall back to env var in non-production (prevents multi-tenancy violation)
+    if (process.env.NODE_ENV !== "production") {
+      return process.env.BLOOIO_FROM_NUMBER || null;
+    }
+    return null;
   }
 
   /**
