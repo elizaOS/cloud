@@ -86,9 +86,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .offset(offset);
 
     // Get total count for pagination
+    // Count distinct conversation groups (from_number + phone_number_id combinations)
+    // to match the GROUP BY clause in the main query
     const totalResult = await dbRead
       .select({
-        count: sql<number>`count(distinct ${phoneMessageLog.from_number})::int`,
+        count: sql<number>`count(distinct (${phoneMessageLog.from_number}, ${phoneMessageLog.phone_number_id}))::int`,
       })
       .from(phoneMessageLog)
       .innerJoin(
