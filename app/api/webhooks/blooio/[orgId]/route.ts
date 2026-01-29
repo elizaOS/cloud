@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
-import { verifyBlooioSignature, parseBlooioWebhookEvent, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
+import { verifyBlooioSignature, parseBlooioWebhookEvent, extractBlooioMediaUrls, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
@@ -222,10 +222,8 @@ async function handleIncomingMessage(
   // Fall back to external_id only if no from number is configured
   const recipient = blooioFromNumber || event.external_id || chatId;
   
-  // Extract media URLs from attachments
-  const extractedMediaUrls = event.attachments?.map((a) => 
-    typeof a === "string" ? a : a.url
-  );
+  // Extract and validate media URLs from attachments (prevents SSRF)
+  const extractedMediaUrls = extractBlooioMediaUrls(event.attachments);
 
   // Build message context for routing
   const messageContext = {

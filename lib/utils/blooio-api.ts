@@ -190,6 +190,55 @@ export function isE164(phoneNumber: string): boolean {
 }
 
 /**
+ * Allowed media URL domains for Blooio to prevent SSRF attacks.
+ * Only URLs from these domains will be accepted.
+ */
+const ALLOWED_BLOOIO_MEDIA_DOMAINS = [
+  "blooio.com",
+  "backend.blooio.com",
+  "api.blooio.com",
+  "media.blooio.com",
+  "s3.amazonaws.com", // Blooio may use S3 for media storage
+];
+
+/**
+ * Validate that a Blooio media URL is from a trusted domain.
+ * Prevents SSRF attacks via malicious URLs in webhook payloads.
+ */
+export function isValidBlooioMediaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Must be HTTPS
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    // Must be from allowed domain
+    return ALLOWED_BLOOIO_MEDIA_DOMAINS.some(
+      (domain) =>
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extract and validate media URLs from Blooio webhook attachments.
+ * Only returns URLs from trusted domains to prevent SSRF.
+ */
+export function extractBlooioMediaUrls(
+  attachments?: Array<string | { url: string; name?: string }>
+): string[] {
+  if (!attachments || !Array.isArray(attachments)) {
+    return [];
+  }
+
+  return attachments
+    .map((a) => (typeof a === "string" ? a : a.url))
+    .filter((url): url is string => typeof url === "string" && isValidBlooioMediaUrl(url));
+}
+
+/**
  * Validate chat ID format
  * Accepts: E.164 phone numbers, email addresses, or group IDs (grp_*)
  */

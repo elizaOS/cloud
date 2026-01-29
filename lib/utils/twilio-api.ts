@@ -174,7 +174,40 @@ export function isE164PhoneNumber(phoneNumber: string): boolean {
 }
 
 /**
- * Extract media URLs from Twilio webhook event
+ * Allowed media URL domains to prevent SSRF attacks.
+ * Only URLs from these domains will be accepted.
+ */
+const ALLOWED_MEDIA_DOMAINS = [
+  "api.twilio.com",
+  "media.twiliocdn.com",
+  "s3.amazonaws.com", // Twilio sometimes uses S3
+  "s3-external-1.amazonaws.com",
+];
+
+/**
+ * Validate that a media URL is from a trusted domain.
+ * Prevents SSRF attacks via malicious URLs in webhook payloads.
+ */
+export function isValidMediaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Must be HTTPS
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    // Must be from allowed domain
+    return ALLOWED_MEDIA_DOMAINS.some(
+      (domain) =>
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extract media URLs from Twilio webhook event.
+ * Only returns URLs from trusted domains to prevent SSRF.
  */
 export function extractMediaUrls(event: TwilioWebhookEvent): string[] {
   const urls: string[] = [];
@@ -183,7 +216,7 @@ export function extractMediaUrls(event: TwilioWebhookEvent): string[] {
   for (let i = 0; i < numMedia; i++) {
     const urlKey = `MediaUrl${i}` as keyof TwilioWebhookEvent;
     const url = event[urlKey];
-    if (url && typeof url === "string") {
+    if (url && typeof url === "string" && isValidMediaUrl(url)) {
       urls.push(url);
     }
   }
