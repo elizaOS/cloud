@@ -17,9 +17,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    const status = await twilioAutomationService.getConnectionStatus(
-      user.organization_id,
-    );
+    const [status, accountSid] = await Promise.all([
+      twilioAutomationService.getConnectionStatus(user.organization_id),
+      twilioAutomationService.getAccountSid(user.organization_id),
+    ]);
 
     // Include webhook URL for reference
     const webhookUrl = twilioAutomationService.getWebhookUrl(
@@ -28,11 +29,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Map properties for frontend compatibility:
     // - `configured` -> `webhookConfigured`
+    // - Include `accountSid` for UI display
     const { configured, ...restStatus } = status;
     return NextResponse.json({
       ...restStatus,
       webhookConfigured: configured,
       webhookUrl,
+      accountSid: accountSid || undefined,
     });
   } catch (error) {
     logger.error("[Twilio Status] Failed to get status", {
