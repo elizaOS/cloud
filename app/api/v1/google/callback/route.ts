@@ -21,6 +21,38 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+// Whitelist of allowed redirect paths to prevent open redirect attacks
+const ALLOWED_REDIRECT_PATHS = [
+  "/dashboard",
+  "/dashboard/settings",
+  "/dashboard/connections",
+  "/dashboard/agents",
+  "/settings",
+];
+
+/**
+ * Validate that a redirect URL is safe (same origin and allowed path)
+ */
+function isValidRedirectUrl(url: string, baseUrl: string): boolean {
+  // Allow relative paths that start with allowed prefixes
+  if (!url.startsWith("http")) {
+    const path = url.startsWith("/") ? url : `/${url}`;
+    return ALLOWED_REDIRECT_PATHS.some(allowed => path.startsWith(allowed));
+  }
+
+  // For absolute URLs, ensure same origin and allowed path
+  try {
+    const parsed = new URL(url);
+    const base = new URL(baseUrl);
+    if (parsed.origin !== base.origin) {
+      return false;
+    }
+    return ALLOWED_REDIRECT_PATHS.some(allowed => parsed.pathname.startsWith(allowed));
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
@@ -69,10 +101,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     : cachedState;
 
-  // Ensure redirect URL is absolute
+  // Validate and construct redirect URL (prevent open redirect attacks)
   const stateRedirectUrl = stateData.redirectUrl || "/dashboard/settings?tab=connections";
-  const redirectUrl = stateRedirectUrl.startsWith("http") 
-    ? stateRedirectUrl 
+
+  // Validate the redirect URL against whitelist
+  if (!isValidRedirectUrl(stateRedirectUrl, baseUrl)) {
+    logger.warn("[Google Callback] Invalid redirect URL attempted", {
+      redirectUrl: stateRedirectUrl,
+      organizationId: stateData.organizationId,
+    });
+    // Fall back to safe default
+    return NextResponse.redirect(defaultRedirect);
+  }
+
+  const redirectUrl = stateRedirectUrl.startsWith("http")
+    ? stateRedirectUrl
     : `${baseUrl}${stateRedirectUrl.startsWith("/") ? "" : "/"}${stateRedirectUrl}`;
 
   // Get OAuth credentials
