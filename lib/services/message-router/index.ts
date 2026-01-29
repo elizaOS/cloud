@@ -6,10 +6,43 @@
  */
 
 import { createHash } from "crypto";
+import { z } from "zod";
 import { dbWrite } from "@/db/client";
 import { agentPhoneNumbers, phoneMessageLog } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+
+/**
+ * Schema for message metadata - allows simple key-value pairs only.
+ * Prevents deeply nested or malicious objects from being stored.
+ */
+const messageMetadataSchema = z.record(
+  z.string(),
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(z.union([z.string(), z.number(), z.boolean()])),
+  ])
+).optional();
+
+/**
+ * Helper to validate and sanitize metadata before storage
+ */
+function validateMetadata(metadata: unknown): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+
+  try {
+    const parsed = messageMetadataSchema.parse(metadata);
+    return parsed;
+  } catch (error) {
+    logger.warn('[MessageRouter] Invalid metadata format, using empty object', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return {};
+  }
+}
 
 export interface IncomingMessage {
   from: string;
@@ -427,6 +460,9 @@ class MessageRouterService {
     agentResponse?: string;
     responseTimeMs?: number;
   }): Promise<string> {
+    // Validate metadata to prevent malicious nested objects
+    const validatedMetadata = validateMetadata(params.metadata);
+
     const [log] = await dbWrite
       .insert(phoneMessageLog)
       .values({
@@ -438,7 +474,7 @@ class MessageRouterService {
         message_type: params.messageType,
         provider_message_id: params.providerMessageId,
         media_urls: params.mediaUrls ? JSON.stringify(params.mediaUrls) : null,
-        metadata: params.metadata ? JSON.stringify(params.metadata) : "{}",
+        metadata: validatedMetadata ? JSON.stringify(validatedMetadata) : "{}",
         status: params.status || "received",
         agent_response: params.agentResponse,
         response_time_ms: params.responseTimeMs?.toString(),
