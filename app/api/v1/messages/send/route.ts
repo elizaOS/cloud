@@ -19,6 +19,46 @@ import { eq, and } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+/**
+ * Validate E.164 phone number format
+ * E.164 format: + followed by country code and subscriber number (max 15 digits total)
+ * Examples: +14155552671, +442071838750
+ */
+function isValidE164(phoneNumber: string): boolean {
+  // E.164: starts with +, followed by 1-15 digits
+  const e164Regex = /^\+[1-9]\d{1,14}$/;
+  return e164Regex.test(phoneNumber);
+}
+
+/**
+ * Normalize phone number to E.164 format if possible
+ * Returns null if the number cannot be reasonably converted
+ */
+function normalizeToE164(phoneNumber: string): string | null {
+  // Remove all non-digit characters except leading +
+  let normalized = phoneNumber.replace(/[^\d+]/g, "");
+
+  // If it starts with +, validate it's E.164
+  if (normalized.startsWith("+")) {
+    return isValidE164(normalized) ? normalized : null;
+  }
+
+  // If it's 10 digits, assume US/Canada and add +1
+  if (/^\d{10}$/.test(normalized)) {
+    normalized = `+1${normalized}`;
+    return normalized;
+  }
+
+  // If it's 11 digits starting with 1, assume US/Canada
+  if (/^1\d{10}$/.test(normalized)) {
+    normalized = `+${normalized}`;
+    return normalized;
+  }
+
+  // Cannot safely normalize
+  return null;
+}
+
 interface SendMessageRequest {
   to: string;
   body: string;
@@ -36,6 +76,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!to) {
       return NextResponse.json(
         { error: "Recipient phone number (to) is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate and normalize phone number to E.164 format
+    const normalizedTo = normalizeToE164(to);
+    if (!normalizedTo) {
+      return NextResponse.json(
+        {
+          error: "Invalid phone number format. Please use E.164 format (e.g., +14155552671) or a 10-digit US number.",
+          providedNumber: to,
+        },
         { status: 400 }
       );
     }
@@ -102,7 +154,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     logger.info("[Messages] Sending message", {
       organizationId: user.organization_id,
-      to,
+      to: normalizedTo,
       provider: fromPhoneNumber.provider,
       phoneNumberId: fromPhoneNumber.id,
     });
@@ -114,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const twilioResult = await twilioAutomationService.sendMessage(
         user.organization_id,
         {
-          to,
+          to: normalizedTo,
           body: messageBody,
           from: fromPhoneNumber.phone_number,
         }
@@ -129,7 +181,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // For Blooio, we need a chat ID (phone number in E.164 format)
       result = await blooioAutomationService.sendMessage(
         user.organization_id,
-        to, // Use the recipient phone number as chat ID
+        normalizedTo, // Use the normalized phone number as chat ID
         {
           text: messageBody,
         }
@@ -162,7 +214,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       messageId: result.messageId,
       provider: fromPhoneNumber.provider,
       from: fromPhoneNumber.phone_number,
-      to,
+      to: normalizedTo,
     });
   } catch (error) {
     logger.error("[Messages] Failed to send message", {
