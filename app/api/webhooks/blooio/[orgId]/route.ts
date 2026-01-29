@@ -151,10 +151,19 @@ async function handleIncomingMessage(
     return;
   }
 
+  // Get the Blooio phone number configured for this organization (the receiving number)
+  // This is the phone number that received the message, not the sender
+  const blooioFromNumber = await blooioAutomationService.getFromNumber(orgId);
+
+  if (!blooioFromNumber) {
+    logger.warn("[BlooioWebhook] No Blooio phone number configured for org", { orgId });
+  }
+
   logger.info("[BlooioWebhook] Processing incoming message", {
     orgId,
     chatId,
     sender: event.sender,
+    recipient: blooioFromNumber,
     hasText: !!text,
     hasAttachments,
     protocol: event.protocol,
@@ -162,8 +171,9 @@ async function handleIncomingMessage(
 
   const startTime = Date.now();
 
-  // Extract recipient from event or use chatId
-  const recipient = chatId;
+  // Use the configured Blooio phone number as the recipient (the number that received the message)
+  // Fall back to external_id only if no from number is configured
+  const recipient = blooioFromNumber || event.external_id || chatId;
   
   // Extract media URLs from attachments
   const extractedMediaUrls = event.attachments?.map((a) => 
