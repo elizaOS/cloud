@@ -8,7 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
-import { verifyBlooioSignature, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
+import { verifyBlooioSignature, parseBlooioWebhookEvent, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
+import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -70,13 +71,27 @@ async function handleBlooioWebhook(
       }
     }
 
-    // Parse the webhook payload
+    // Parse and validate the webhook payload using Zod schema
     let payload: BlooioWebhookEvent;
     try {
-      payload = JSON.parse(rawBody) as BlooioWebhookEvent;
-    } catch {
-      logger.warn("[BlooioWebhook] Invalid JSON payload", { orgId });
-      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+      const rawPayload = JSON.parse(rawBody);
+      payload = parseBlooioWebhookEvent(rawPayload);
+    } catch (parseError) {
+      if (parseError instanceof SyntaxError) {
+        logger.warn("[BlooioWebhook] Invalid JSON payload", { orgId });
+        return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+      }
+      if (parseError instanceof ZodError) {
+        logger.warn("[BlooioWebhook] Invalid webhook payload schema", {
+          orgId,
+          errors: parseError.errors.map(e => ({ path: e.path, message: e.message })),
+        });
+        return NextResponse.json(
+          { error: "Invalid webhook payload", details: parseError.errors },
+          { status: 400 },
+        );
+      }
+      throw parseError;
     }
 
     // Log the event

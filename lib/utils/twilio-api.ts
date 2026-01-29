@@ -4,6 +4,8 @@
  * Shared constants and helpers for Twilio SMS/MMS/Voice API interactions.
  */
 
+import { z } from "zod";
+
 export const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
 export interface TwilioSendMessageRequest {
@@ -41,6 +43,37 @@ export interface TwilioWebhookEvent {
   FromState?: string;
   FromCountry?: string;
   FromZip?: string;
+}
+
+/**
+ * Zod schema for validating Twilio webhook payloads
+ * Twilio sends form data which is converted to an object
+ */
+export const TwilioWebhookEventSchema = z.object({
+  MessageSid: z.string().min(1, "MessageSid is required"),
+  AccountSid: z.string().min(1, "AccountSid is required"),
+  From: z.string().min(1, "From is required"),
+  To: z.string().min(1, "To is required"),
+  Body: z.string().optional(),
+  NumMedia: z.string().optional(),
+  MediaUrl0: z.string().optional(),
+  MediaUrl1: z.string().optional(),
+  MediaUrl2: z.string().optional(),
+  MediaContentType0: z.string().optional(),
+  MediaContentType1: z.string().optional(),
+  MediaContentType2: z.string().optional(),
+  FromCity: z.string().optional(),
+  FromState: z.string().optional(),
+  FromCountry: z.string().optional(),
+  FromZip: z.string().optional(),
+}).passthrough(); // Allow additional fields Twilio might send
+
+/**
+ * Parse and validate a Twilio webhook payload
+ * Returns the validated payload or throws a ZodError
+ */
+export function parseTwilioWebhookEvent(data: unknown): TwilioWebhookEvent {
+  return TwilioWebhookEventSchema.parse(data) as TwilioWebhookEvent;
 }
 
 /**

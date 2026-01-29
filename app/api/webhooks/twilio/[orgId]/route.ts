@@ -8,7 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
-import { verifyTwilioSignature, extractMediaUrls, type TwilioWebhookEvent } from "@/lib/utils/twilio-api";
+import { verifyTwilioSignature, extractMediaUrls, parseTwilioWebhookEvent, type TwilioWebhookEvent } from "@/lib/utils/twilio-api";
+import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,20 @@ async function handleTwilioWebhook(
       webhookData[key] = value.toString();
     });
 
-    const event = webhookData as unknown as TwilioWebhookEvent;
+    // Validate the webhook payload using Zod schema
+    let event: TwilioWebhookEvent;
+    try {
+      event = parseTwilioWebhookEvent(webhookData);
+    } catch (validationError) {
+      if (validationError instanceof ZodError) {
+        logger.warn("[TwilioWebhook] Invalid webhook payload", {
+          orgId,
+          errors: validationError.errors.map(e => ({ path: e.path, message: e.message })),
+        });
+        return new NextResponse("Invalid webhook payload", { status: 400 });
+      }
+      throw validationError;
+    }
 
     // Verify signature - only skip if explicitly disabled AND not in production
     const isProduction = process.env.NODE_ENV === "production";

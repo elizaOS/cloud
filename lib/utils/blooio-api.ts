@@ -4,6 +4,8 @@
  * Shared constants and helpers for Blooio iMessage/SMS API interactions.
  */
 
+import { z } from "zod";
+
 export const BLOOIO_API_BASE = "https://backend.blooio.com/v2/api";
 
 export interface BlooioSendMessageRequest {
@@ -33,6 +35,40 @@ export interface BlooioWebhookEvent {
   is_group?: boolean;
   received_at?: number;
   timestamp?: number;
+}
+
+/**
+ * Zod schema for validating Blooio webhook payloads
+ * Prevents malformed data from causing runtime errors
+ */
+export const BlooioWebhookEventSchema = z.object({
+  event: z.string().min(1, "Event type is required"),
+  message_id: z.string().optional(),
+  external_id: z.string().optional(),
+  internal_id: z.string().optional(),
+  sender: z.string().optional(),
+  text: z.string().optional(),
+  attachments: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        url: z.string().url(),
+        name: z.string().optional(),
+      }),
+    ])
+  ).optional(),
+  protocol: z.string().optional(),
+  is_group: z.boolean().optional(),
+  received_at: z.number().optional(),
+  timestamp: z.number().optional(),
+});
+
+/**
+ * Parse and validate a Blooio webhook payload
+ * Returns the validated payload or throws a ZodError
+ */
+export function parseBlooioWebhookEvent(data: unknown): BlooioWebhookEvent {
+  return BlooioWebhookEventSchema.parse(data);
 }
 
 /**
