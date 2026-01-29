@@ -28,6 +28,9 @@ const messageMetadataSchema = z.record(
   ])
 ).optional();
 
+// Maximum metadata size to prevent DoS via large payloads (10KB)
+const MAX_METADATA_SIZE = 10 * 1024;
+
 /**
  * Helper to validate and sanitize metadata before storage
  */
@@ -36,6 +39,17 @@ function validateMetadata(metadata: unknown): Record<string, unknown> | undefine
 
   try {
     const parsed = messageMetadataSchema.parse(metadata);
+
+    // Check size to prevent DoS
+    const serialized = JSON.stringify(parsed);
+    if (serialized.length > MAX_METADATA_SIZE) {
+      logger.warn('[MessageRouter] Metadata too large, truncating', {
+        size: serialized.length,
+        maxSize: MAX_METADATA_SIZE,
+      });
+      return {};
+    }
+
     return parsed;
   } catch (error) {
     logger.warn('[MessageRouter] Invalid metadata format, using empty object', {
@@ -458,13 +472,18 @@ class MessageRouterService {
     // Validate metadata to prevent malicious nested objects
     const validatedMetadata = validateMetadata(params.metadata);
 
+    // Normalize phone numbers to prevent SQL injection via malformed data
+    // This ensures only valid E.164 formatted numbers are stored
+    const normalizedFrom = this.normalizePhoneNumber(params.from);
+    const normalizedTo = this.normalizePhoneNumber(params.to);
+
     const [log] = await dbWrite
       .insert(phoneMessageLog)
       .values({
         phone_number_id: params.phoneNumberId,
         direction: params.direction,
-        from_number: params.from,
-        to_number: params.to,
+        from_number: normalizedFrom,
+        to_number: normalizedTo,
         message_body: params.body,
         message_type: params.messageType,
         provider_message_id: params.providerMessageId,
