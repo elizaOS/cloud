@@ -29,7 +29,11 @@ export const maxDuration = 30;
 /**
  * GET /api/v1/messages/thread
  * Get all messages in a conversation thread
- * Query params: phoneNumber (required), phoneNumberId (optional for disambiguation)
+ * Query params:
+ *   - phoneNumber (required): The customer/counterparty phone number
+ *   - phoneNumberId (optional): The agent phone number ID for disambiguation
+ *   - counterparty (optional): Explicitly specify the other party (for bidirectional matching)
+ *   - limit (optional): Max messages to return (default 100)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -38,6 +42,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const phoneNumber = searchParams.get("phoneNumber");
     const phoneNumberId = searchParams.get("phoneNumberId");
+    const counterparty = searchParams.get("counterparty");
     const parsedLimit = parseInt(searchParams.get("limit") || "100", 10);
     const limit = Number.isNaN(parsedLimit) ? 100 : parsedLimit;
 
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Build where conditions - match messages where the phone number is either sender or recipient
+    // Build where conditions
     const baseConditions = [
       eq(agentPhoneNumbers.organization_id, user.organization_id),
     ];
@@ -57,7 +62,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       baseConditions.push(eq(agentPhoneNumbers.id, phoneNumberId));
     }
 
-    // Get messages where this phone number is involved (either as sender or in the to field)
+    // Build message filter conditions
+    // If counterparty is provided, filter to messages between phoneNumber and counterparty
+    // Otherwise, filter to messages where phoneNumber is involved (either as sender or recipient)
+    let messageFilter;
+    if (counterparty) {
+      // Specific conversation: messages between phoneNumber and counterparty
+      messageFilter = or(
+        and(
+          eq(phoneMessageLog.from_number, phoneNumber),
+          eq(phoneMessageLog.to_number, counterparty)
+        ),
+        and(
+          eq(phoneMessageLog.from_number, counterparty),
+          eq(phoneMessageLog.to_number, phoneNumber)
+        )
+      );
+    } else {
+      // General filter: messages where phoneNumber is involved
+      messageFilter = or(
+        eq(phoneMessageLog.from_number, phoneNumber),
+        eq(phoneMessageLog.to_number, phoneNumber)
+      );
+    }
+
+    // Get messages for this conversation
     const messages = await dbRead
       .select({
         id: phoneMessageLog.id,
@@ -86,10 +115,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .where(
         and(
           ...baseConditions,
-          or(
-            eq(phoneMessageLog.from_number, phoneNumber),
-            eq(phoneMessageLog.to_number, phoneNumber)
-          )
+          messageFilter
         )
       )
       .orderBy(asc(phoneMessageLog.created_at))
