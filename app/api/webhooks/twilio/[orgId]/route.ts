@@ -11,6 +11,7 @@ import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { verifyTwilioSignature, extractMediaUrls, parseTwilioWebhookEvent, type TwilioWebhookEvent } from "@/lib/utils/twilio-api";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -84,6 +85,24 @@ async function handleTwilioWebhook(
       }
     }
 
+    // Check for duplicate messages (replay attack prevention)
+    const idempotencyKey = `twilio:${event.MessageSid}`;
+    if (isAlreadyProcessed(idempotencyKey)) {
+      logger.info("[TwilioWebhook] Duplicate message, skipping", {
+        orgId,
+        messageSid: event.MessageSid,
+      });
+      return new NextResponse(
+        '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/xml",
+          },
+        },
+      );
+    }
+
     // Log the event
     logger.info("[TwilioWebhook] Received SMS", {
       orgId,
@@ -96,6 +115,9 @@ async function handleTwilioWebhook(
 
     // Process the incoming message
     await handleIncomingMessage(orgId, event);
+
+    // Mark message as processed after successful handling
+    markAsProcessed(idempotencyKey);
 
     // Return TwiML response (empty response acknowledges receipt)
     return new NextResponse(

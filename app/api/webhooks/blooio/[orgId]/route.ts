@@ -11,6 +11,7 @@ import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { verifyBlooioSignature, parseBlooioWebhookEvent, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -94,6 +95,16 @@ async function handleBlooioWebhook(
       throw parseError;
     }
 
+    // Check for duplicate messages (replay attack prevention)
+    const idempotencyKey = `blooio:${payload.message_id}`;
+    if (isAlreadyProcessed(idempotencyKey)) {
+      logger.info("[BlooioWebhook] Duplicate message, skipping", {
+        orgId,
+        messageId: payload.message_id,
+      });
+      return NextResponse.json({ success: true, status: "already_processed" });
+    }
+
     // Log the event
     logger.info("[BlooioWebhook] Received event", {
       orgId,
@@ -142,6 +153,9 @@ async function handleBlooioWebhook(
           event: payload.event,
         });
     }
+
+    // Mark message as processed after successful handling
+    markAsProcessed(idempotencyKey);
 
     return NextResponse.json({ success: true });
   } catch (error) {
