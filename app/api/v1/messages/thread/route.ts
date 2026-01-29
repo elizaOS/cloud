@@ -12,6 +12,17 @@ import { phoneMessageLog, agentPhoneNumbers } from "@/db/schemas";
 import { eq, and, or, asc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Safely parse JSON with fallback to null for malformed data
+ */
+function safeJsonParse(value: string): string[] | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
@@ -106,7 +117,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         agentResponse: msg.agentResponse,
         responseTimeMs: msg.responseTimeMs ? parseInt(msg.responseTimeMs, 10) : null,
         providerMessageId: msg.providerMessageId,
-        mediaUrls: msg.mediaUrls ? JSON.parse(msg.mediaUrls) : null,
+        mediaUrls: msg.mediaUrls ? safeJsonParse(msg.mediaUrls) : null,
         createdAt: msg.createdAt,
         respondedAt: msg.respondedAt,
       })),
