@@ -10,6 +10,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { dbRead, dbWrite } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { secretsService } from "@/lib/services/secrets";
+import { revokeGoogleToken } from "@/lib/utils/google-api";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
@@ -45,6 +46,37 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
       actorId: user.id,
       source: "google-disconnect",
     };
+
+    // Revoke tokens at Google before deleting locally
+    // This ensures leaked tokens cannot be used even during the ~1 hour validity window
+    // Revoking the refresh token also revokes all associated access tokens
+    if (cred.refresh_token_secret_id) {
+      try {
+        const refreshToken = await secretsService.getDecryptedValue(
+          cred.refresh_token_secret_id,
+          user.organization_id,
+        );
+        if (refreshToken) {
+          const revokeResult = await revokeGoogleToken(refreshToken);
+          if (revokeResult.success) {
+            logger.info("[Google Disconnect] Token revoked at Google", {
+              organizationId: user.organization_id,
+            });
+          } else {
+            // Log but don't fail - token might already be invalid
+            logger.warn("[Google Disconnect] Failed to revoke token at Google", {
+              error: revokeResult.error,
+              organizationId: user.organization_id,
+            });
+          }
+        }
+      } catch (err) {
+        logger.warn("[Google Disconnect] Error during token revocation", {
+          error: err instanceof Error ? err.message : String(err),
+          organizationId: user.organization_id,
+        });
+      }
+    }
 
     // Delete access token secret
     if (cred.access_token_secret_id) {

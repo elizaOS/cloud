@@ -7,6 +7,7 @@
 
 export const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 /**
@@ -200,4 +201,39 @@ export async function googleApiRequest<T>(
   }
 
   return response.json();
+}
+
+/**
+ * Revoke a Google OAuth token
+ * This should be called when disconnecting to ensure the token is invalidated at Google's end
+ * See: https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke
+ */
+export async function revokeGoogleToken(token: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const response = await fetch(GOOGLE_REVOKE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        token,
+      }),
+    });
+
+    // Google returns 200 on success, even if the token was already invalid
+    if (response.ok) {
+      return { success: true };
+    }
+
+    const error = await response.text();
+    return { success: false, error: `Token revocation failed: ${error}` };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
