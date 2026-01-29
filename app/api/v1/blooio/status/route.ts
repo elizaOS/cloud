@@ -26,11 +26,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       user.organization_id,
     );
 
-    // Map `fromNumber` to `phoneNumber` for frontend compatibility
-    const { fromNumber, ...restStatus } = status;
+    // Map properties for frontend compatibility:
+    // - `fromNumber` -> `phoneNumber`
+    // - `configured` -> `webhookConfigured`
+    const { fromNumber, configured, ...restStatus } = status;
     return NextResponse.json({
       ...restStatus,
       phoneNumber: fromNumber,
+      webhookConfigured: configured,
       webhookUrl,
     });
   } catch (error) {
