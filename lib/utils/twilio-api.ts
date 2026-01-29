@@ -162,12 +162,18 @@ export async function verifyTwilioSignature(
     );
 
     // Use constant-time comparison to prevent timing attacks
-    if (computedSignature.length !== signature.length) {
-      return false;
-    }
-    const computedBuffer = Buffer.from(computedSignature, "utf8");
-    const expectedBuffer = Buffer.from(signature, "utf8");
-    return crypto.timingSafeEqual(computedBuffer, expectedBuffer);
+    // Pad both strings to the same length to avoid timing leaks from length differences
+    const maxLen = Math.max(computedSignature.length, signature.length);
+    const computedBuffer = Buffer.alloc(maxLen);
+    const expectedBuffer = Buffer.alloc(maxLen);
+    Buffer.from(computedSignature, "utf8").copy(computedBuffer);
+    Buffer.from(signature, "utf8").copy(expectedBuffer);
+
+    // timingSafeEqual requires same length buffers - we've ensured this above
+    // Also verify actual lengths match (after constant-time comparison)
+    const signaturesMatch = crypto.timingSafeEqual(computedBuffer, expectedBuffer);
+    const lengthsMatch = computedSignature.length === signature.length;
+    return signaturesMatch && lengthsMatch;
   } catch {
     return false;
   }
