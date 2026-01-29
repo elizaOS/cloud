@@ -56,3 +56,4 @@ src-tauri/Cargo.lock
 
 ignore/
 .env*.local
+package-lock.json
