@@ -27,8 +27,29 @@ export async function POST(
 ): Promise<NextResponse> {
   const { orgId } = await params;
 
+  // Verify the webhook secret token from Telegram
+  // See: https://core.telegram.org/bots/api#setwebhook
+  const secretToken = request.headers.get("x-telegram-bot-api-secret-token");
+  const storedSecret = await telegramAutomationService.getWebhookSecret(orgId);
+
+  // In production, require secret token verification
+  // In development, allow requests without secret for testing (but log a warning)
+  if (storedSecret) {
+    if (!secretToken) {
+      logger.warn("[Telegram Webhook] Missing secret token header", { orgId });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (secretToken !== storedSecret) {
+      logger.warn("[Telegram Webhook] Invalid secret token", { orgId });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    // In production, warn if no secret is configured (should not happen)
+    logger.warn("[Telegram Webhook] No webhook secret configured in production", { orgId });
+  }
+
   let botToken = await telegramAutomationService.getBotToken(orgId);
-  
+
   // DEV ONLY: Fallback to env variable for testing
   if (!botToken && process.env.NODE_ENV === "development") {
     botToken = process.env.TELEGRAM_BOT_TOKEN || null;
@@ -36,7 +57,7 @@ export async function POST(
       logger.info("[Telegram Webhook] Using fallback bot token from env", { orgId });
     }
   }
-  
+
   if (!botToken) {
     logger.warn("[Telegram Webhook] No bot token for organization", { orgId });
     return NextResponse.json({ error: "Bot not configured" }, { status: 404 });
