@@ -5,6 +5,7 @@
  * and handles sending responses back through the correct channel.
  */
 
+import { createHash } from "crypto";
 import { dbWrite } from "@/db/client";
 import { agentPhoneNumbers, phoneMessageLog } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
@@ -221,7 +222,7 @@ class MessageRouterService {
   private generateEntityId(phoneNumber: string): string {
     const normalized = this.normalizePhoneNumber(phoneNumber);
     // Use a simple hash to create a UUID-like ID
-    const hash = this.simpleHash(normalized);
+    const hash = this.secureHash(normalized);
     return `phone-${hash}`;
   }
 
@@ -233,22 +234,19 @@ class MessageRouterService {
     const normalizedTo = this.normalizePhoneNumber(to);
     // Sort to ensure consistency regardless of direction
     const sorted = [normalizedFrom, normalizedTo].sort().join("-");
-    const hash = this.simpleHash(`${agentId}:${sorted}`);
+    const hash = this.secureHash(`${agentId}:${sorted}`);
     return `room-phone-${hash}`;
   }
 
   /**
-   * Simple hash function for generating IDs
+   * Secure hash function for generating deterministic IDs
+   * Uses SHA-256 for collision resistance and unpredictability
    */
-  private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    // Convert to hex and pad
-    return Math.abs(hash).toString(16).padStart(8, "0");
+  private secureHash(str: string): string {
+    return createHash("sha256")
+      .update(str)
+      .digest("hex")
+      .substring(0, 16);
   }
 
   /**
