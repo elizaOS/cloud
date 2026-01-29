@@ -11,6 +11,7 @@ import { dbWrite } from "@/db/client";
 import { agentPhoneNumbers, phoneMessageLog } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { parsePhoneNumberWithError, type CountryCode } from "libphonenumber-js";
 
 /**
  * Schema for message metadata - allows simple key-value pairs only.
@@ -599,54 +600,77 @@ class MessageRouterService {
   }
 
   /**
-   * Normalize phone number to E.164 format
+   * Validate email address format
+   * Used for iMessage which can use email addresses
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Normalize phone number to E.164 format using libphonenumber-js
    *
-   * @param phone - The phone number to normalize
-   * @param defaultCountryCode - Default country code to use for numbers without one
-   *                            Defaults to env DEFAULT_COUNTRY_CODE or "+1" (US/Canada)
+   * @param phone - The phone number or email to normalize
+   * @param defaultCountry - Default country code (ISO 3166-1 alpha-2) for numbers without country code
+   *                         Defaults to env DEFAULT_COUNTRY_CODE or "US"
+   * @returns Normalized phone number in E.164 format, or lowercase email, or original input if invalid
    */
   private normalizePhoneNumber(
     phone: string,
-    defaultCountryCode?: string,
+    defaultCountry?: string,
   ): string {
-    // If it's an email address (for iMessage), return as-is (lowercase)
-    if (phone.includes("@")) {
-      return phone.toLowerCase().trim();
-    }
+    const trimmedPhone = phone.trim();
 
-    // Remove all non-digit characters except leading +
-    let normalized = phone.replace(/[^\d+]/g, "");
-
-    // Get default country code from param, env, or fallback to US
-    const countryCode = defaultCountryCode
-      || process.env.DEFAULT_COUNTRY_CODE
-      || "+1";
-
-    // Ensure country code starts with +
-    const normalizedCountryCode = countryCode.startsWith("+")
-      ? countryCode
-      : `+${countryCode}`;
-
-    // Ensure it starts with +
-    if (!normalized.startsWith("+")) {
-      // Check for common patterns based on default country code
-      if (normalizedCountryCode === "+1") {
-        // US/Canada: 10-digit or 11-digit starting with 1
-        if (normalized.length === 10) {
-          normalized = `+1${normalized}`;
-        } else if (normalized.length === 11 && normalized.startsWith("1")) {
-          normalized = `+${normalized}`;
-        } else {
-          // Unknown format, prepend country code as best effort
-          normalized = `${normalizedCountryCode}${normalized}`;
-        }
-      } else {
-        // Other countries: just prepend the country code
-        normalized = `${normalizedCountryCode}${normalized}`;
+    // If it's an email address (for iMessage), validate and return lowercase
+    if (trimmedPhone.includes("@")) {
+      if (this.isValidEmail(trimmedPhone)) {
+        return trimmedPhone.toLowerCase();
       }
+      logger.warn("[MessageRouter] Invalid email format", { email: trimmedPhone });
+      return trimmedPhone.toLowerCase();
     }
 
-    return normalized;
+    // Get default country from param, env, or fallback to US
+    const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
+
+    try {
+      // Try to parse as E.164 first (if it starts with +)
+      if (trimmedPhone.startsWith("+")) {
+        const parsed = parsePhoneNumberWithError(trimmedPhone);
+        if (parsed && parsed.isValid()) {
+          return parsed.format("E.164");
+        }
+      }
+
+      // Try with default country
+      const parsed = parsePhoneNumberWithError(trimmedPhone, country);
+      if (parsed && parsed.isValid()) {
+        return parsed.format("E.164");
+      }
+
+      // If parsing succeeds but validation fails, still return E.164 format
+      // This handles edge cases where the number is technically parseable but not strictly valid
+      if (parsed) {
+        logger.warn("[MessageRouter] Phone number parsed but not valid, using best-effort format", {
+          phone: trimmedPhone,
+          country,
+        });
+        return parsed.format("E.164");
+      }
+
+      // Fallback: return cleaned version if parsing completely fails
+      logger.warn("[MessageRouter] Could not parse phone number", { phone: trimmedPhone, country });
+      return trimmedPhone.replace(/[^\d+]/g, "");
+    } catch (error) {
+      logger.warn("[MessageRouter] Invalid phone number", {
+        phone: trimmedPhone,
+        country,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      // Return cleaned version as fallback
+      return trimmedPhone.replace(/[^\d+]/g, "");
+    }
   }
 }
 

@@ -133,6 +133,7 @@
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^2.35.0",
+    "libphonenumber-js": "^1.12.35",
     "lucide-react": "^0.562.0",
     "mcp-handler": "^1.0.7",
     "motion": "^12.29.0",
