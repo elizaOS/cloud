@@ -24,6 +24,14 @@ import {
   waitForDevServer,
 } from "./sandbox/index";
 
+// Import snapshot service for faster sandbox creation
+import {
+  getValidSnapshot,
+  recordSnapshotUsage,
+  DEFAULT_TEMPLATE_KEY,
+  isSnapshotsEnabled,
+} from "./sandbox-snapshots";
+
 // Re-export types for consumers
 export type {
   SandboxInstance,
@@ -256,6 +264,29 @@ export class SandboxService {
       onProgress,
     } = config;
 
+    // Extract snapshot-related config options
+    const {
+      snapshotId: configSnapshotId,
+      templateKey = DEFAULT_TEMPLATE_KEY,
+      skipSnapshotLookup = false,
+    } = config;
+
+    // Try to find an existing snapshot if not skipped and no explicit snapshot provided
+    let useSnapshotId = configSnapshotId;
+    let createdFromSnapshot = false;
+
+    if (!skipSnapshotLookup && !useSnapshotId && isSnapshotsEnabled()) {
+      const existingSnapshot = await getValidSnapshot(templateKey);
+      if (existingSnapshot) {
+        useSnapshotId = existingSnapshot.snapshotId;
+        logger.info("Found valid snapshot for template", {
+          templateKey,
+          snapshotId: useSnapshotId,
+          expiresAt: existingSnapshot.expiresAt,
+        });
+      }
+    }
+
     const mergedEnv = { ...env };
     const creds = getSandboxCredentials();
 
@@ -270,8 +301,11 @@ export class SandboxService {
     logger.info("Creating sandbox", { templateUrl, vcpus });
     onProgress?.({ step: "creating", message: "Creating sandbox instance..." });
 
+    // Configure sandbox source: use snapshot if available, otherwise git
     const createOptions: Record<string, unknown> = {
-      source: { url: templateUrl, type: "git" },
+      source: useSnapshotId
+        ? { type: "snapshot", snapshotId: useSnapshotId }
+        : { url: templateUrl, type: "git" },
       resources: { vcpus },
       timeout,
       ports,
@@ -363,6 +397,15 @@ export class SandboxService {
     getActiveSandboxes().set(sandboxId, sandbox);
     onProgress?.({ step: "creating", message: "Sandbox instance created" });
 
+    // Track if created from snapshot
+    if (useSnapshotId) {
+      createdFromSnapshot = true;
+      await recordSnapshotUsage(useSnapshotId);
+      logger.info("Sandbox created from snapshot", { sandboxId, snapshotId: useSnapshotId });
+    }
+
+    // Skip bun install and dependencies if created from snapshot (already included)
+    if (!createdFromSnapshot) {
     // Install bun runtime
     logger.info("Installing bun runtime", { sandboxId });
     onProgress?.({ step: "installing", message: "Installing bun runtime..." });
@@ -394,6 +437,10 @@ export class SandboxService {
     }
 
     onProgress?.({ step: "installing", message: "Dependencies installed" });
+    } else {
+      logger.info("Skipping bun install and dependencies (created from snapshot)", { sandboxId });
+      onProgress?.({ step: "installing", message: "Using pre-installed dependencies from snapshot" });
+    }
 
     // SDK injection logic
     const markerCheck = await sandbox.runCommand({
@@ -586,6 +633,7 @@ export class SandboxService {
       status: "ready",
       devServerUrl,
       startedAt: new Date(),
+      createdFromSnapshot,
     };
   }
 
@@ -1012,6 +1060,66 @@ export class SandboxService {
     }
 
     return false;
+  }
+
+
+  // ============================================================================
+  // Snapshot Operations
+  // ============================================================================
+
+  /**
+   * Create a snapshot from a running sandbox for faster future startups.
+   * NOTE: This will STOP the sandbox! The sandbox becomes unreachable after snapshotting.
+   * 
+   * @param sandboxId - The sandbox to snapshot
+   * @param options - Options for the snapshot
+   * @returns The snapshot ID if successful, null otherwise
+   */
+  async createSnapshot(
+    sandboxId: string,
+    options: {
+      templateKey?: string;
+      githubRepo?: string;
+    } = {},
+  ): Promise<string | null> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      logger.warn("Cannot create snapshot: sandbox not found", { sandboxId });
+      return null;
+    }
+
+    // Stop the dev server before snapshotting for a clean state
+    logger.info("Stopping dev server before snapshot", { sandboxId });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pkill -f 'next dev' 2>/dev/null || true; pkill -f 'node.*next' 2>/dev/null || true"],
+    });
+    await new Promise((r) => setTimeout(r, 2000));
+
+    // Import snapshot service and create snapshot
+    const { createSnapshotFromSandbox } = await import("./sandbox-snapshots");
+    
+    const snapshotSandbox = sandbox as unknown as {
+      sandboxId: string;
+      snapshot: () => Promise<{ snapshotId: string }>;
+    };
+
+    const result = await createSnapshotFromSandbox(snapshotSandbox, {
+      templateKey: options.templateKey || DEFAULT_TEMPLATE_KEY,
+      githubRepo: options.githubRepo,
+    });
+
+    if (result) {
+      // Remove from active sandboxes (sandbox is stopped after snapshot)
+      getActiveSandboxes().delete(sandboxId);
+      logger.info("Snapshot created and sandbox stopped", {
+        sandboxId,
+        snapshotId: result.snapshot_id,
+      });
+      return result.snapshot_id;
+    }
+
+    return null;
   }
 
   static isConfigured(): boolean {

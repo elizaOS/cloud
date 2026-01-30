@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 
 export function useTypingPlaceholder(
   sentences: string[],
+  resetKey?: string,
   typingSpeed = 60,
   deletingSpeed = 20,
   pauseAfterTyping = 5000,
@@ -15,6 +16,13 @@ export function useTypingPlaceholder(
   const [placeholder, setPlaceholder] = useState("");
   const [sentenceIndex, setSentenceIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
+
+  // Reset when resetKey changes
+  useEffect(() => {
+    setPlaceholder("");
+    setSentenceIndex(0);
+    setIsTyping(true);
+  }, [resetKey]);
 
   useEffect(() => {
     const currentSentence = sentences[sentenceIndex];

@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useChatInput, useModelSelection } from "@/lib/app-builder/store";
+import { nanoid } from "nanoid";
+import { generateRandomName } from "@/lib/utils/random-names";
+import { useChatInput, useModelSelection, type ImageAttachment } from "@/lib/app-builder/store";
 import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
 import { markdownComponents } from "@/lib/app-builder/markdown-components";
 import type {
@@ -24,7 +26,6 @@ import {
   ChatInput,
   HistoryTab,
   SessionLoader,
-  AgentPicker,
   WebTerminal,
 } from "@/components/app-builder";
 import {
@@ -74,7 +75,6 @@ import {
   RefreshCw,
   ExternalLink,
   ArrowLeft,
-  ArrowRight,
   Bot,
   Square,
   Copy,
@@ -95,20 +95,14 @@ import {
   History,
   Cloud,
   CloudOff,
-  ChevronLeft,
-  ChevronRight,
   Rocket,
   FolderCode,
   MessageSquare,
   FileCode,
   Globe,
   Wand2,
-  DollarSign,
-  LineChart,
   X,
   MoreVertical,
-  Users,
-  Database,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -141,7 +135,7 @@ interface ChatMessageProps {
   index: number;
   session: SessionData | null;
   status: SessionStatus;
-  sendPrompt: (promptText?: string) => void;
+  sendPrompt: (promptText?: string, images?: ImageAttachment[]) => void;
 }
 
 const ChatMessage = memo(function ChatMessage({
@@ -180,14 +174,38 @@ const ChatMessage = memo(function ChatMessage({
             </span>
           </div>
         )}
-        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={markdownComponents}
-          >
-            {msg.content}
-          </ReactMarkdown>
-        </div>
+        
+        {/* Image attachments preview */}
+        {msg.images && msg.images.length > 0 && (
+          <div className={`flex flex-wrap gap-2 ${msg.content ? 'mb-2' : ''}`}>
+            {msg.images.map((img) => (
+              <div
+                key={img.id}
+                className="relative rounded-lg overflow-hidden border border-white/[0.1] bg-white/[0.04] group/img cursor-pointer"
+                onClick={() => window.open(img.previewUrl, '_blank')}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.previewUrl}
+                  alt="Attached image"
+                  className="w-20 h-20 xl:w-24 xl:h-24 object-cover hover:opacity-90 transition-opacity"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Text content */}
+        {msg.content && (
+          <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto [&>*:last-child]:mb-0">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
+              {msg.content}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {/* Per-operation accordions with reasoning */}
         {msg.role === "assistant" &&
@@ -462,22 +480,10 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
-  // Setup wizard steps: 1 = template, 2 = details, 3 = agents
-  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
-  // Agent selection for the app
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
-  const [availableAgents, setAvailableAgents] = useState<
-    Array<{
-      id: string;
-      name: string;
-      username?: string | null;
-      avatar_url?: string | null;
-      bio?: string | string[];
-      is_public?: boolean;
-    }>
-  >([]);
-  const [loadingAgents, setLoadingAgents] = useState(true);
+  // Agent selection removed - agents can be added later from the app builder
+  const selectedAgentIds: string[] = [];
+  // App name is auto-generated when building starts (user doesn't need to provide it)
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
   );
@@ -486,20 +492,6 @@ export default function AppCreatorPage() {
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
       : "",
   );
-  // Name validation state
-  const [nameValidation, setNameValidation] = useState<{
-    isChecking: boolean;
-    isAvailable: boolean | null;
-    error: string | null;
-    suggestedName: string | null;
-  }>({
-    isChecking: false,
-    isAvailable: null,
-    error: null,
-    suggestedName: null,
-  });
-  const nameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Minimum description length
   const MIN_DESCRIPTION_LENGTH = 10;
 
@@ -510,10 +502,9 @@ export default function AppCreatorPage() {
   );
   const [includeMonetization, setIncludeMonetization] = useState(true);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
-  const [includePersistentStorage, setIncludePersistentStorage] = useState(false);
+  const [includePersistentStorage, setIncludePersistentStorage] =
+    useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-  const [templatePage, setTemplatePage] = useState(0);
-  const TEMPLATES_PER_PAGE = 4;
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
@@ -521,7 +512,7 @@ export default function AppCreatorPage() {
   // Input is managed by Zustand for isolated re-renders - see useChatInput
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
   const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -530,6 +521,9 @@ export default function AppCreatorPage() {
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   // Track iframe loading state to prevent white flash
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  // Track if first generation has completed (to hide template preview until then)
+  const [hasCompletedFirstGeneration, setHasCompletedFirstGeneration] =
+    useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -572,135 +566,6 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   // ============================================================================
-  // DEBOUNCED APP NAME AVAILABILITY CHECK
-  // ============================================================================
-  useEffect(() => {
-    // Clear any pending timeout
-    if (nameCheckTimeoutRef.current) {
-      clearTimeout(nameCheckTimeoutRef.current);
-    }
-
-    const trimmedName = appName.trim();
-
-    // Reset validation if name is empty or too short
-    if (!trimmedName || trimmedName.length < 2) {
-      setNameValidation({
-        isChecking: false,
-        isAvailable: null,
-        error:
-          trimmedName.length > 0 && trimmedName.length < 2
-            ? "Name must be at least 2 characters"
-            : null,
-        suggestedName: null,
-      });
-      return;
-    }
-
-    // Set checking state
-    setNameValidation((prev) => ({
-      ...prev,
-      isChecking: true,
-      error: null,
-    }));
-
-    // Debounce the API call
-    nameCheckTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/v1/apps/check-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setNameValidation({
-            isChecking: false,
-            isAvailable: data.available,
-            error: data.available
-              ? null
-              : data.conflictType === "subdomain"
-                ? "This name would create a subdomain that is already in use"
-                : "An app with this name already exists",
-            suggestedName: data.suggestedName || null,
-          });
-        } else {
-          setNameValidation({
-            isChecking: false,
-            isAvailable: null,
-            error: null,
-            suggestedName: null,
-          });
-        }
-      } catch {
-        setNameValidation({
-          isChecking: false,
-          isAvailable: null,
-          error: null,
-          suggestedName: null,
-        });
-      }
-    }, 500); // 500ms debounce
-
-    return () => {
-      if (nameCheckTimeoutRef.current) {
-        clearTimeout(nameCheckTimeoutRef.current);
-      }
-    };
-  }, [appName]);
-
-  // ============================================================================
-  // FETCH USER'S AGENTS FOR APP AGENT SELECTION
-  // ============================================================================
-  useEffect(() => {
-    // Only fetch when we reach the agents step (step 3) or when in building mode
-    if (setupStep === 3 || step === "building") {
-      const fetchAgents = async () => {
-        if (availableAgents.length > 0) return; // Already fetched
-        setLoadingAgents(true);
-        try {
-          const response = await fetchWithRetry(
-            "/api/my-agents/characters?limit=100",
-          );
-          if (response.ok) {
-            const data = await response.json();
-            if (
-              data.success &&
-              data.data?.characters &&
-              Array.isArray(data.data.characters)
-            ) {
-              setAvailableAgents(
-                data.data.characters.map(
-                  (agent: {
-                    id: string;
-                    name: string;
-                    username?: string | null;
-                    avatar_url?: string | null;
-                    bio?: string | string[];
-                    is_public?: boolean;
-                  }) => ({
-                    id: agent.id,
-                    name: agent.name,
-                    username: agent.username,
-                    avatar_url: agent.avatar_url,
-                    bio: agent.bio,
-                    is_public: agent.is_public,
-                  }),
-                ),
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch agents:", error);
-        } finally {
-          setLoadingAgents(false);
-        }
-      };
-      fetchAgents();
-    }
-  }, [setupStep, step, availableAgents.length]);
-
-  // ============================================================================
   // SIMPLE INITIALIZATION FLOW
   // 1. New app (no appId) → show setup wizard
   // 2. Edit app (appId) → load app data, then start/connect to session
@@ -723,6 +588,7 @@ export default function AppCreatorPage() {
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
       setIframeLoaded(false);
+      setHasCompletedFirstGeneration(false);
 
       if (appChanged) {
         setAppData(null);
@@ -839,6 +705,8 @@ export default function AppCreatorPage() {
           clearTimeout(timeout);
           setStatus("ready");
           setSandboxHealthy(true);
+          // Reconnecting to existing session - app likely already generated
+          setHasCompletedFirstGeneration(true);
         } catch {
           // Sandbox not responding - needs recovery
           setStatus("recovering");
@@ -1369,6 +1237,8 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
+                // Restored session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1407,6 +1277,8 @@ export default function AppCreatorPage() {
       if (errorMsg.includes("Current status: ready")) {
         addLog("Session is already ready", "info");
         setStatus("ready");
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         return;
       }
 
@@ -1531,6 +1403,8 @@ export default function AppCreatorPage() {
                 setStatus("ready");
                 setSandboxHealthy(true);
                 healthCheckFailCountRef.current = 0;
+                // Recovered session - app already generated
+                setHasCompletedFirstGeneration(true);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1566,6 +1440,8 @@ export default function AppCreatorPage() {
         setStatus("ready");
         setSandboxHealthy(true);
         healthCheckFailCountRef.current = 0;
+        // Existing ready session - app already generated
+        setHasCompletedFirstGeneration(true);
         toast.dismiss(toastId);
         return;
       }
@@ -1726,6 +1602,16 @@ export default function AppCreatorPage() {
   }, [session, status]);
 
   const startSession = useCallback(async () => {
+    // Auto-generate app name with unique suffix for new apps
+    const generatedAppName = !isEditMode
+      ? `${generateRandomName()}-${nanoid(6)}`
+      : appName;
+    
+    // Update the appName state so it's available for display
+    if (!isEditMode) {
+      setAppName(generatedAppName);
+    }
+
     setIsLoading(true);
     setStatus("initializing");
     addLog("Starting sandbox environment...", "info");
@@ -1735,10 +1621,27 @@ export default function AppCreatorPage() {
 
     const shouldAutoScaffold =
       !isEditMode && (appDescription || templateType !== "blank");
+    
+    // Check if description is too vague/short to build meaningfully
+    const isDescriptionVague = appDescription && (
+      appDescription.trim().length < 20 ||
+      appDescription.trim().split(/\s+/).length < 4 ||
+      /^[a-z]{10,}$/i.test(appDescription.trim()) || // gibberish like "sjhfbvjslahdfbljashfbl"
+      /^[bcdfghjklmnpqrstvwxyz]{5,}$/i.test(appDescription.trim()) // all consonants
+    );
+    
+    // User's message (what they see in chat) - just their raw input
     const initialPrompt = shouldAutoScaffold
       ? appDescription
-        ? `Set up the initial app structure based on these requirements:\n\n**Template:** ${templateType}\n**Description:** ${appDescription}\n\nPlease scaffold the project with all necessary components, pages, and styling to match this description.`
+        ? appDescription // Just show their raw description
         : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
+      : undefined;
+    
+    // Description sent to system prompt - includes clarification instructions if vague
+    const effectiveDescription = appDescription
+      ? isDescriptionVague
+        ? `IMPORTANT: The user's input "${appDescription}" appears to be vague, a typo, or placeholder text. DO NOT try to build anything yet. Instead, respond conversationally and ask clarifying questions to understand what they actually want. Ask about: what problem to solve, who will use it, and 2-3 key features. Be friendly and helpful. Only start building once you understand their needs.`
+        : appDescription
       : undefined;
 
     try {
@@ -1747,8 +1650,8 @@ export default function AppCreatorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appId: appIdFromUrl || undefined,
-          appName: isEditMode ? undefined : appName,
-          appDescription: isEditMode ? undefined : appDescription,
+          appName: isEditMode ? undefined : generatedAppName,
+          appDescription: isEditMode ? undefined : effectiveDescription,
           initialPrompt,
           templateType,
           includeMonetization,
@@ -1879,6 +1782,10 @@ export default function AppCreatorPage() {
                     } as Message,
                   ]);
                 } else {
+                  // In edit mode, app already exists - show preview immediately
+                  if (isEditMode) {
+                    setHasCompletedFirstGeneration(true);
+                  }
                   const contextMessage = sourceContext
                     ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
                     : "";
@@ -2033,6 +1940,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
+                // Only mark first generation complete if actual files were modified
+                if (data.session.initialPromptResult?.filesAffected?.length > 0) {
+                  setHasCompletedFirstGeneration(true);
+                }
 
                 if (
                   data.session.initialPromptResult &&
@@ -2054,9 +1965,20 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
                   const hasBuildErrors =
                     result.output?.includes("BUILD ERRORS");
 
+
+                  // Check if we have a meaningful LLM response (not just default text)
+                  const llmOutput = result.output?.trim();
+                  const hasLLMOutput =
+                    llmOutput &&
+                    llmOutput !== "Changes applied!" &&
+                    !llmOutput.startsWith("Error:") &&
+                    !hasBuildErrors;
                   let assistantContent = "";
                   if (hasBuildErrors) {
                     assistantContent = `I've scaffolded your app but encountered some build errors that need fixing.\n\n⚠️ **Build Issues Detected**\n\nTry asking me to "fix the build errors" and I'll help resolve them.`;
+                  } else if (hasLLMOutput) {
+                    // Use the actual LLM response (e.g., clarifying questions for vague prompts)
+                    assistantContent = llmOutput;
                   } else if (fileCount > 0) {
                     assistantContent = `I've set up your **${appName}** app! Created ${fileCount} file${fileCount !== 1 ? "s" : ""} to get you started.\n\nCheck out the preview to see it in action!`;
                   } else {
@@ -2195,25 +2117,38 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
   ]);
 
   const sendPrompt = useCallback(
-    async (promptText?: string) => {
-      // Get input and model from Zustand store for isolation
+    async (promptText?: string, images?: ImageAttachment[]) => {
+      // Get input, images, and model from Zustand store for isolation
       const currentInput = useChatInput.getState().input;
+      const currentImages = images || useChatInput.getState().images;
       const selectedModel = useModelSelection.getState().selectedModel;
       const text = promptText || currentInput.trim();
-      if (!text || !session || isLoading) return;
+      
+      // Allow sending with text or images (or both)
+      const hasContent = text || currentImages.length > 0;
+      if (!hasContent || !session || isLoading) return;
 
       setIsLoading(true);
       setStatus("generating");
 
+      // Log with image count if applicable
+      const imageInfo = currentImages.length > 0 ? ` [${currentImages.length} image(s)]` : "";
       addLog(
-        `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
+        `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"${imageInfo}`,
         "info",
       );
 
+      // Build user message with image previews (use blobUrl for persistence)
       const userMessage: Message = {
         role: "user",
-        content: text,
+        content: text || "",
         timestamp: new Date().toISOString(),
+        images: currentImages.length > 0 
+          ? currentImages.map(img => ({ 
+              id: img.id, 
+              previewUrl: img.blobUrl || img.previewUrl // Use blobUrl for persistence, fallback to previewUrl
+            }))
+          : undefined,
       };
       setMessages((prev) => [...prev, userMessage]);
       // Clear input using Zustand
@@ -2342,7 +2277,14 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: text, model: selectedModel }),
+            body: JSON.stringify({ 
+              prompt: text || "Please analyze the attached image(s) and help me with this design.", 
+              model: selectedModel,
+              images: currentImages.filter(img => img.base64).map(img => ({
+                base64: img.base64,
+                mimeType: img.file.type,
+              })),
+            }),
             signal: generationAbortControllerRef.current.signal,
           },
         );
@@ -2566,6 +2508,10 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
 
         setStatus("ready");
 
+        // Only mark first generation complete if actual files were modified (not just clarifications)
+        if (finalData.filesAffected && finalData.filesAffected.length > 0) {
+          setHasCompletedFirstGeneration(true);
+        }
         // Refresh git status after prompt completes
         // (auto-commit may have already pushed changes to GitHub)
         checkGitStatus();
@@ -2918,93 +2864,10 @@ ANTHROPIC_API_KEY=your_key_here`}
     }
   };
 
-  // Get the selected template data
-  const selectedTemplate = TEMPLATE_OPTIONS.find(
-    (t) => t.value === templateType,
-  );
-
   if (viewState === "setup") {
     return (
       <ScrollArea className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A]">
-        <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-6">
-          {/* Step indicators */}
-          <div className="flex items-center justify-center mb-6">
-            {/* Mobile step indicator */}
-            <div className="flex md:hidden items-center gap-1.5">
-              {[1, 2, 3].map((num) => (
-                <div
-                  key={num}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    setupStep === num
-                      ? "bg-[#FF5800] w-6"
-                      : setupStep > num
-                        ? "bg-white/40 w-2"
-                        : "bg-white/10 w-2"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Desktop step indicator */}
-            <div className="hidden md:flex items-center gap-1">
-              {[
-                { num: 1, label: "Template" },
-                { num: 2, label: "Details" },
-                { num: 3, label: "Agents" },
-              ].map((s, i) => (
-                <div key={s.num} className="flex items-center">
-                  <button
-                    onClick={() => {
-                      if (
-                        s.num === 1 ||
-                        (s.num === 2 && templateType) ||
-                        (s.num === 3 && appName.trim())
-                      ) {
-                        setSetupStep(s.num as 1 | 2 | 3);
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border transition-all duration-300 ${
-                      setupStep === s.num
-                        ? "bg-white/10 border-white/20"
-                        : setupStep > s.num
-                          ? "text-white/60 hover:text-white/80 hover:bg-white/5 border-transparent"
-                          : "text-white/30 border-transparent"
-                    }`}
-                    disabled={s.num > 1 && !templateType && s.num !== setupStep}
-                  >
-                    <span
-                      className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-300 ${
-                        setupStep === s.num
-                          ? "bg-[#FF5800] text-white"
-                          : setupStep > s.num
-                            ? "bg-white/20 text-white"
-                            : "bg-white/5 text-white/40"
-                      }`}
-                    >
-                      {setupStep > s.num ? (
-                        <Check className="h-3 w-3" />
-                      ) : (
-                        s.num
-                      )}
-                    </span>
-                    <span
-                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
-                    >
-                      {s.label}
-                    </span>
-                  </button>
-                  {i < 2 && (
-                    <div
-                      className={`w-3 h-px ml-1 transition-colors duration-300 ${
-                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
+        <div className="relative max-w-5xl mx-auto px-4 md:px-6 min-h-[calc(100vh-88px)] md:min-h-[calc(100vh-100px)] flex flex-col items-center justify-center py-8 md:py-12">
           {sourceContext && (
             <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
@@ -3029,624 +2892,102 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
           )}
 
-          {/* STEP 1: Template Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 1 && (
-              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
-                {/* Header */}
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    What are you building?
-                  </h2>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Choose a template to get started
-                  </p>
+          {/* Simplified App Creation - Just Name and Prompt */}
+          <div className="max-w-3xl w-full space-y-4 md:space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                Create your app
+              </h2>
+              <p className="text-white/50 text-sm mt-0.5 md:mt-1">
+                Tell us what you want to build
+              </p>
+            </div>
+
+            <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
+              {/* Main Prompt - Only input needed */}
+              <div className="space-y-2">
+                <div className="flex items-end justify-between">
+                  <Label className="text-white/60 text-xs font-medium">
+                    What do you want to build?
+                  </Label>
+                  <span
+                    className={`text-[10px] font-mono ${
+                      appDescription.length > 500
+                        ? "text-red-400"
+                        : appDescription.length < MIN_DESCRIPTION_LENGTH &&
+                            appDescription.length > 0
+                          ? "text-amber-400"
+                          : "text-white/40"
+                    }`}
+                  >
+                    {appDescription.length}/500
+                  </span>
                 </div>
-
-                {/* Template cards - 2x3 grid showing all 6 templates */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-                  {TEMPLATE_OPTIONS.map((template, idx) => {
-                    const Icon = template.icon;
-                    const isSelected = templateType === template.value;
-                    const isDisabled = template.comingSoon;
-
-                    return (
-                      <button
-                        key={template.value}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            setTemplateType(template.value);
-                            setSetupStep(2);
-                          }
-                        }}
-                        disabled={isDisabled}
-                        className={`group relative p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                          isDisabled
-                            ? "border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed"
-                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                        }`}
-                      >
-                        {/* Coming soon badge */}
-                        {isDisabled && (
-                          <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 bg-white/10 border border-white/10 rounded-full">
-                            <span className="text-[10px] font-medium text-white/40 uppercase">
-                              Soon
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Mobile: horizontal layout / Desktop: vertical layout */}
-                        <div className="flex items-start gap-3 md:block">
-                          {/* Icon */}
-                          <div className="flex-shrink-0 md:mb-3">
-                            <div className="inline-flex p-2 md:p-2.5 rounded-xl bg-white/5 group-hover:bg-white/10 transition-all duration-300">
-                              <Icon
-                                className="h-4 w-4 md:h-5 md:w-5"
-                                style={{ color: template.color }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-white mb-0.5 md:mb-1">
-                              {template.label}
-                            </h3>
-                            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed">
-                              {template.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Tech stack */}
-                        <div className="hidden md:flex flex-wrap gap-1 mt-3 pt-3 border-t border-white/[0.06]">
-                          {template.techStack.map((tech) => (
-                            <span
-                              key={tech}
-                              className="px-1.5 py-0.5 text-[10px] text-white/50 bg-black/80 rounded"
-                            >
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* STEP 2: App Details */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 2 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-white">
-                    Name your app
-                  </h2>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Give it a memorable identity
-                  </p>
-                </div>
-
-                <div className="space-y-4 p-5 rounded-xl bg-white/5 border border-white/10">
-                  {/* App Name */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60 text-xs font-medium">
-                        App Name <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        {nameValidation.isChecking && (
-                          <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                        )}
-                        {!nameValidation.isChecking &&
-                          nameValidation.isAvailable === true &&
-                          appName.trim().length >= 2 && (
-                            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                              <Check className="h-3 w-3" />
-                              Available
-                            </span>
-                          )}
-                        {!nameValidation.isChecking &&
-                          nameValidation.isAvailable === false && (
-                            <span className="flex items-center gap-1 text-[10px] text-red-400">
-                              <AlertCircle className="h-3 w-3" />
-                              Taken
-                            </span>
-                          )}
-                        <span
-                          className={`text-[10px] font-mono ${
-                            appName.length > 100
-                              ? "text-red-400"
-                              : appName.length > 80
-                                ? "text-amber-400"
-                                : "text-white/40"
-                          }`}
-                        >
-                          {appName.length}/100
-                        </span>
-                      </div>
-                    </div>
-                    <Input
-                      value={appName}
-                      onChange={(e) => setAppName(e.target.value)}
-                      placeholder="My Awesome App"
-                      className={`h-11 bg-black/40 text-white placeholder:text-white/30 rounded-xl transition-all duration-300 ${
-                        nameValidation.error
-                          ? "border-red-500/50 focus:border-red-500"
-                          : nameValidation.isAvailable === true &&
-                              appName.trim().length >= 2
-                            ? "border-emerald-500/30 focus:border-emerald-500"
-                            : "border-white/10 focus:border-[#FF5800]"
-                      }`}
-                      maxLength={100}
-                    />
-                    {nameValidation.error && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {nameValidation.error}
-                        {nameValidation.suggestedName && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAppName(nameValidation.suggestedName!)
-                            }
-                            className="ml-1 text-[#FF5800] hover:underline"
-                          >
-                            Try &quot;{nameValidation.suggestedName}&quot;
-                          </button>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <div className="flex items-end justify-between">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-white/60 text-xs font-medium">
-                          Description <span className="text-red-400">*</span>
-                        </Label>
-                        <button
-                          onClick={generateAIDescription}
-                          disabled={isGeneratingDescription || !appName.trim()}
-                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {isGeneratingDescription ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Wand2 className="h-3 w-3" />
-                          )}
-                          Generate
-                        </button>
-                      </div>
-                      <span
-                        className={`text-[10px] font-mono ${
-                          appDescription.length > 500
-                            ? "text-red-400"
-                            : appDescription.length < MIN_DESCRIPTION_LENGTH &&
-                                appDescription.length > 0
-                              ? "text-amber-400"
-                              : "text-white/40"
-                        }`}
-                      >
-                        {appDescription.length}/500
-                      </span>
-                    </div>
-                    <Textarea
-                      value={appDescription}
-                      onChange={(e) => setAppDescription(e.target.value)}
-                      placeholder="Describe what your app should do... (minimum 10 characters)"
-                      className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
-                        appDescription.length > 500
-                          ? "border-red-500/50 focus:border-red-500"
-                          : appDescription.length > 0 &&
-                              appDescription.length < MIN_DESCRIPTION_LENGTH
-                            ? "border-amber-500/30 focus:border-amber-500"
-                            : appDescription.length >= MIN_DESCRIPTION_LENGTH
-                              ? "border-emerald-500/30 focus:border-emerald-500"
-                              : "border-white/10 focus:border-[#FF5800]"
-                      }`}
-                    />
-                    {appDescription.length > 0 &&
-                      appDescription.length < MIN_DESCRIPTION_LENGTH && (
-                        <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          Description must be at least {
-                            MIN_DESCRIPTION_LENGTH
-                          }{" "}
-                          characters (
-                          {MIN_DESCRIPTION_LENGTH - appDescription.length} more
-                          needed)
-                        </p>
-                      )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  {selectedTemplate && (
-                    <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl bg-white/5 border border-white/10">
-                      <selectedTemplate.icon
-                        className="h-3.5 w-3.5 md:h-4 md:w-4"
-                        style={{ color: selectedTemplate.color }}
-                      />
-                      <span className="text-xs md:text-sm text-white/60">
-                        {selectedTemplate.label}
-                      </span>
-                      <button
-                        onClick={() => setSetupStep(1)}
-                        className="text-[10px] md:text-xs text-[#FF5800] hover:text-[#FF5800]/80 transition-colors"
-                      >
-                        Change
-                      </button>
-                    </div>
+                <Textarea
+                  value={appDescription}
+                  onChange={(e) => setAppDescription(e.target.value)}
+                  placeholder="Describe what you want to build..."
+                  className={`min-h-[120px] bg-black/40 text-white text-sm placeholder:text-white/30 rounded-xl resize-none transition-all duration-300 leading-relaxed ${
+                    appDescription.length > 500
+                      ? "border-red-500/50 focus:border-red-500"
+                      : appDescription.length > 0 &&
+                          appDescription.length < MIN_DESCRIPTION_LENGTH
+                        ? "border-amber-500/30 focus:border-amber-500"
+                        : appDescription.length >= MIN_DESCRIPTION_LENGTH
+                          ? "border-emerald-500/30 focus:border-emerald-500"
+                          : "border-white/10 focus:border-[#FF5800]"
+                  }`}
+                />
+                {appDescription.length > 0 &&
+                  appDescription.length < MIN_DESCRIPTION_LENGTH && (
+                    <p className="text-xs text-amber-400 flex items-center gap-1.5 animate-scale-fade">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Description must be at least {MIN_DESCRIPTION_LENGTH}{" "}
+                      characters (
+                      {MIN_DESCRIPTION_LENGTH - appDescription.length} more
+                      needed)
+                    </p>
                   )}
-                  <button
-                    onClick={() => setSetupStep(3)}
-                    disabled={
-                      !appName.trim() ||
-                      appName.trim().length < 2 ||
-                      appName.length > 100 ||
-                      nameValidation.isChecking ||
-                      nameValidation.isAvailable === false ||
-                      appDescription.length < MIN_DESCRIPTION_LENGTH
-                    }
-                    className="group flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-xs md:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
-                  >
-                    {nameValidation.isChecking ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
-                        Checking...
-                      </>
-                    ) : (
-                      <>
-                        Continue
-                        <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4 group-enabled:group-hover:translate-x-0.5 transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
-            )}
-          </div>
+            </div>
 
-
-          {/* STEP 3: Agent Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      Power-ups
-                    </h2>
-                    {/* App summary */}
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
-                      {selectedTemplate && (
-                        <selectedTemplate.icon
-                          className="h-3 w-3 md:h-3.5 md:w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      )}
-                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
-                        {appName || "Your App"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Add optional integrations
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                  {/* Monetization - Premium toggle card */}
-                  <button
-                    onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeMonetization
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeMonetization ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <DollarSign
-                          className={`h-5 w-5 transition-colors ${
-                            includeMonetization
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeMonetization ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeMonetization
-                              ? "translate-x-4"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Monetization
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Accept payments & subscriptions
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Stripe
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Billing
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Analytics toggle card */}
-                  <button
-                    onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`group relative p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
-                      includeAnalytics
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includeAnalytics ? "bg-[#FF5800]/20" : "bg-white/5"
-                        }`}
-                      >
-                        <LineChart
-                          className={`h-5 w-5 transition-colors ${
-                            includeAnalytics
-                              ? "text-[#FF5800]"
-                              : "text-neutral-500"
-                          }`}
-                        />
-                      </div>
-                      {/* Toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includeAnalytics ? "bg-[#FF5800]" : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                            includeAnalytics ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-white">
-                      Analytics
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      Track users & events in real-time
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Real-time
-                      </span>
-                      <span className="px-2 py-1 text-[10px] bg-white/5 border border-white/10 rounded-lg text-white/40">
-                        Events
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Persistent Storage - Premium toggle card */}
-                  <button
-                    onClick={() => setIncludePersistentStorage(!includePersistentStorage)}
-                    className={`group relative p-4 md:p-5 rounded-2xl text-left transition-all duration-500 border touch-manipulation animate-stagger-fade stagger-4 col-span-2 md:col-span-1 ${
-                      includePersistentStorage
-                        ? "bg-gradient-to-br from-violet-500/15 to-violet-500/5 border-violet-500/30 shadow-lg shadow-violet-500/10"
-                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/15"
-                    }`}
-                  >
-                    {includePersistentStorage && (
-                      <div className="absolute inset-0 rounded-2xl bg-violet-500/5 blur-xl -z-10" />
-                    )}
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className={`p-2.5 rounded-xl transition-all duration-300 ${
-                          includePersistentStorage
-                            ? "bg-violet-500/20 shadow-lg shadow-violet-500/20"
-                            : "bg-white/[0.04]"
-                        }`}
-                      >
-                        <Database
-                          className={`h-5 w-5 transition-colors ${
-                            includePersistentStorage ? "text-violet-400" : "text-white/40"
-                          }`}
-                        />
-                      </div>
-                      {/* Premium toggle switch */}
-                      <div
-                        className={`w-10 h-6 rounded-full transition-all duration-300 flex items-center p-1 ${
-                          includePersistentStorage
-                            ? "bg-gradient-to-r from-violet-500 to-violet-400 shadow-lg shadow-violet-500/30"
-                            : "bg-white/10"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            includePersistentStorage ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <h3
-                      className="text-sm md:text-base font-semibold text-white"
-                      style={{ fontFamily: "var(--font-sf-pro)" }}
-                    >
-                      Persistent Storage
-                    </h3>
-                    <p className="text-xs text-white/45 mt-1 leading-relaxed">
-                      Save data with PostgreSQL database
-                    </p>
-                    <div className="hidden md:flex gap-1.5 mt-3">
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
-                        PostgreSQL
-                      </span>
-                      <span className="px-2 py-1 text-[10px] font-medium bg-white/[0.04] border border-white/[0.08] rounded-lg text-white/40">
-                        Drizzle ORM
-                      </span>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-3 md:pt-4 animate-stagger-fade stagger-5">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
-                  >
-                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setSetupStep(4)}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium transition-all duration-300"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* STEP 4: Agent Selection */}
-          <div
-            className={`transition-all duration-300 ${setupStep === 4 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
-          >
-            {setupStep === 4 && (
-              <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      Add AI Agents
-                    </h2>
-                    {/* App summary */}
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-xl bg-white/5 border border-white/10 flex-shrink-0">
-                      {selectedTemplate && (
-                        <selectedTemplate.icon
-                          className="h-3 w-3 md:h-3.5 md:w-3.5"
-                          style={{ color: selectedTemplate.color }}
-                        />
-                      )}
-                      <span className="text-[11px] md:text-xs text-white/60 truncate max-w-[130px] md:max-w-[150px]">
-                        {appName || "Your App"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-white/50 text-sm mt-0.5 md:mt-1">
-                    Choose agents to power your app (optional)
-                  </p>
-                </div>
-
-                {/* Agent Picker container */}
-                <div className="p-3 md:p-5 rounded-xl bg-white/5 border border-white/10">
-                  <AgentPicker
-                    agents={availableAgents}
-                    selectedIds={selectedAgentIds}
-                    onSelectionChange={setSelectedAgentIds}
-                    maxSelection={4}
-                    loading={loadingAgents}
-                  />
-                </div>
-
-                {/* Skip note */}
-                {availableAgents.length === 0 && !loadingAgents && (
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <p className="text-sm text-white/60">
-                      <span className="font-medium text-white/80">
-                        No agents yet?
-                      </span>{" "}
-                      No worries — you can skip this step and add agents later
-                      from the app builder.
-                    </p>
-                  </div>
+            {/* Launch Button */}
+            <div className="flex items-center justify-end pt-4">
+              <button
+                onClick={startSession}
+                disabled={
+                  isLoading ||
+                  appDescription.length < MIN_DESCRIPTION_LENGTH
+                }
+                className="group flex items-center gap-2 px-6 py-2.5 bg-[#FF5800] enabled:hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Launching...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    Start Building
+                  </>
                 )}
+              </button>
+            </div>
 
-                <div className="flex items-center justify-between pt-4">
-                  <button
-                    onClick={() => setSetupStep(2)}
-                    className="group flex items-center gap-2 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors rounded-xl hover:bg-white/5"
-                  >
-                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-                    Back
-                  </button>
-                  <div className="flex items-center gap-3">
-                    {selectedAgentIds.length === 0 &&
-                      availableAgents.length > 0 && (
-                        <button
-                          onClick={startSession}
-                          disabled={isLoading}
-                          className="text-sm text-white/50 hover:text-white transition-colors"
-                        >
-                          Skip
-                        </button>
-                      )}
-                    {/* Launch Button */}
-                    <button
-                      onClick={startSession}
-                      disabled={isLoading}
-                      className="group flex items-center gap-2 px-4 py-2.5 bg-[#FF5800] hover:bg-[#FF5800]/90 rounded-xl text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Launching...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-4 w-4" />
-                          {selectedAgentIds.length > 0
-                            ? `Launch with ${selectedAgentIds.length} Agent${selectedAgentIds.length > 1 ? "s" : ""}`
-                            : "Start Building"}
-                        </>
-                      )}
-                    </button>
+            {/* Summary footer */}
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
+              {["Live sandbox", "Hot reload", "AI assist", "GitHub sync"].map(
+                (feature) => (
+                  <div key={feature} className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                    <span className="text-[11px] md:text-xs text-white/50 font-medium">
+                      {feature}
+                    </span>
                   </div>
-                </div>
-
-                {/* Summary footer */}
-                <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
-                  {[
-                    "Live sandbox",
-                    "Hot reload",
-                    "AI assist",
-                    "GitHub sync",
-                  ].map((feature) => (
-                    <div key={feature} className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                      <span className="text-[11px] md:text-xs text-white/50 font-medium">
-                        {feature}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                ),
+              )}
+            </div>
           </div>
         </div>
 
@@ -4241,22 +3582,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setPreviewTab("agents")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  previewTab === "agents"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                <Users className="h-3.5 w-3.5" />
-                Agents
-                {selectedAgentIds.length > 0 && (
-                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
-                    {selectedAgentIds.length}
-                  </span>
-                )}
-              </button>
             </div>
             {/* Mobile/Tablet action buttons */}
             <div className="flex items-center gap-1 ml-auto flex-shrink-0">
@@ -4347,22 +3672,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setPreviewTab("agents")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  previewTab === "agents"
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:text-white/70"
-                }`}
-              >
-                <Users className="h-3.5 w-3.5" />
-                Agents
-                {selectedAgentIds.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px]">
-                    {selectedAgentIds.length}
-                  </span>
-                )}
-              </button>
             </div>
             {previewTab === "console" && consoleLogs.length > 0 && (
               <Button
@@ -4405,27 +3714,39 @@ ANTHROPIC_API_KEY=your_key_here`}
                     : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
-                {/* Loading overlay - Premium */}
+                {/* Building overlay - Show until first generation completes */}
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0b] to-[#080809] flex items-center justify-center transition-opacity duration-500 ${
-                    iframeLoaded && previewTab === "preview"
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 z-20 ${
+                    iframeLoaded && previewTab === "preview" && hasCompletedFirstGeneration
                       ? "opacity-0 pointer-events-none"
                       : "opacity-100"
                   }`}
                 >
-                  <div className="text-center">
-                    <div className="relative inline-block mb-5">
-                      <Loader2 className="h-10 w-10 animate-spin text-[#FF5800] mx-auto" />
-                      <div className="absolute inset-0 bg-[#FF5800] rounded-full blur-xl opacity-30 animate-pulse" />
+                  {/* Background with gradient and grid */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f12] via-[#0a0a0d] to-[#080810]" />
+                  {/* Subtle grid pattern */}
+                  <div 
+                    className="absolute inset-0 opacity-[0.03]"
+                    style={{
+                      backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                      backgroundSize: '40px 40px'
+                    }}
+                  />
+                  {/* Subtle radial glow */}
+                  <div className="absolute inset-0 bg-gradient-radial from-[#FF5800]/5 via-transparent to-transparent" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,88,0,0.08) 0%, transparent 50%)' }} />
+                  
+                  <div className="text-center relative z-10">
+                    <div className="mb-6">
+                      <Sparkles className="h-12 w-12 text-[#FF5800] mx-auto animate-pulse" style={{ opacity: 0.4 }} strokeWidth={1.5} />
                     </div>
                     <p
-                      className="text-white/60 text-sm font-medium"
+                      className="text-white/50 text-lg font-medium tracking-wide"
                       style={{ fontFamily: "var(--font-sf-pro)" }}
                     >
-                      Loading preview...
+                      {hasCompletedFirstGeneration ? "Loading preview..." : "Building your dream..."}
                     </p>
-                    <p className="text-white/25 text-xs mt-1">
-                      Your app is starting up
+                    <p className="text-white/20 text-sm mt-2">
+                      {hasCompletedFirstGeneration ? "Your app is starting up" : "AI is generating your app"}
                     </p>
                   </div>
                 </div>
@@ -4506,37 +3827,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
               ))}
-
-            {/* Agents tab */}
-            {previewTab === "agents" && (
-              <div className="h-full p-4 overflow-auto animate-in fade-in duration-200">
-                <AgentPicker
-                  agents={availableAgents}
-                  selectedIds={selectedAgentIds}
-                  onSelectionChange={async (ids) => {
-                    setSelectedAgentIds(ids);
-                    // Save to app if we have an app ID
-                    if (appData?.id) {
-                      try {
-                        await fetchWithRetry(`/api/v1/apps/${appData.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ linked_character_ids: ids }),
-                        });
-                        toast.success(
-                          ids.length > 0 ? "Agents updated" : "Agents removed",
-                        );
-                      } catch (error) {
-                        console.error("Failed to update agents:", error);
-                        toast.error("Failed to update agents");
-                      }
-                    }
-                  }}
-                  maxSelection={4}
-                  loading={loadingAgents}
-                />
-              </div>
-            )}
 
             {/* Console tab - Split screen: Logs (top) + Terminal (bottom) */}
             {previewTab === "console" && (
