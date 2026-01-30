@@ -193,14 +193,16 @@ class GoogleTokenService {
           newAccessTokenSecretId = currentAccessTokenSecretId;
         } catch (updateError) {
           // Secret may have been deleted - create a new one
+          // Use credentialId for consistent naming with OAuth callback
           logger.warn("[GoogleToken] Existing access token secret not found, creating new one", {
             organizationId,
             previousSecretId: currentAccessTokenSecretId,
+            credentialId,
           });
           const newSecret = await secretsService.create(
             {
               organizationId,
-              name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
+              name: `GOOGLE_ACCESS_TOKEN_${credentialId}`,
               value: tokens.access_token,
               scope: "organization",
               createdBy: "system",
@@ -210,11 +212,11 @@ class GoogleTokenService {
           newAccessTokenSecretId = newSecret.id;
         }
       } else {
-        // Create new secret
+        // Create new secret using credentialId for consistent naming
         const newSecret = await secretsService.create(
           {
             organizationId,
-            name: `GOOGLE_ACCESS_TOKEN_${Date.now()}`,
+            name: `GOOGLE_ACCESS_TOKEN_${credentialId}`,
             value: tokens.access_token,
             scope: "organization",
             createdBy: "system",
