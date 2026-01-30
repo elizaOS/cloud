@@ -141,6 +141,7 @@ interface HealthStatus {
   disconnectedBots: number;
   totalGuilds: number;
   uptime: number;
+  draining: boolean;
   controlPlane: {
     consecutiveFailures: number;
     lastSuccessfulPoll: string | null;
@@ -188,6 +189,9 @@ export class GatewayManager {
   private voiceHandler: VoiceMessageHandler;
   private consecutivePollFailures: number = 0;
   private lastSuccessfulPoll: Date | null = null;
+  /** Pod is draining - no new assignments, waiting for failover */
+  private draining: boolean = false;
+  private drainingStartedAt: Date | null = null;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -323,6 +327,62 @@ export class GatewayManager {
     logger.info("Gateway manager shutdown complete");
   }
 
+  /**
+   * Start draining this pod.
+   *
+   * When draining:
+   * 1. Readiness probe returns unhealthy (stops new bot assignments)
+   * 2. Existing bots continue running (liveness probe still healthy)
+   * 3. Database is notified to reassign bots to other pods
+   * 4. After failover detection window (45-75s), bots will be picked up elsewhere
+   *
+   * Called by preStop lifecycle hook before SIGTERM.
+   */
+  async startDraining(): Promise<void> {
+    if (this.draining) {
+      logger.info("Already draining", { podName: this.config.podName });
+      return;
+    }
+
+    this.draining = true;
+    this.drainingStartedAt = new Date();
+    logger.info("Pod entering draining state", {
+      podName: this.config.podName,
+      botCount: this.connections.size,
+    });
+
+    // Notify backend that this pod is draining so it can reassign bots
+    // This is proactive - doesn't wait for heartbeat timeout
+    try {
+      await fetchWithTimeout(
+        `${this.config.elizaCloudUrl}/api/internal/discord/gateway/drain`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-API-Key": this.config.internalApiKey,
+          },
+          body: JSON.stringify({
+            pod_name: this.config.podName,
+            connection_ids: Array.from(this.connections.keys()),
+          }),
+        },
+      );
+      logger.info("Notified backend of draining state", {
+        podName: this.config.podName,
+      });
+    } catch (error) {
+      // Log but don't fail - failover will still work via heartbeat timeout
+      logger.error("Failed to notify backend of draining state", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  isDraining(): boolean {
+    return this.draining;
+  }
+
   private removeAllListeners(conn: BotConnection): void {
     for (const [event, listener] of conn.listeners) {
       conn.client.removeListener(event, listener);
@@ -331,6 +391,14 @@ export class GatewayManager {
   }
 
   private async pollForBots(): Promise<void> {
+    // Don't poll for new assignments when draining - let other pods pick them up
+    if (this.draining) {
+      logger.debug("Skipping bot poll - pod is draining", {
+        podName: this.config.podName,
+      });
+      return;
+    }
+
     try {
       // Include current/max counts so backend only claims new connections if we have capacity
       const currentCount = this.connections.size;
@@ -1078,6 +1146,8 @@ export class GatewayManager {
     const controlPlaneLost =
       this.consecutivePollFailures >= CRITICAL_FAILURE_THRESHOLD;
 
+    // Note: draining pods are still "healthy" for liveness (don't restart)
+    // but will fail readiness (don't accept new work)
     const status: HealthStatus["status"] = controlPlaneLost
       ? "unhealthy"
       : totalBots > 0 && connectedBots === 0
@@ -1094,6 +1164,7 @@ export class GatewayManager {
       disconnectedBots,
       totalGuilds,
       uptime: Date.now() - this.startTime.getTime(),
+      draining: this.draining,
       controlPlane: {
         consecutiveFailures: this.consecutivePollFailures,
         lastSuccessfulPoll: this.lastSuccessfulPoll?.toISOString() ?? null,
@@ -1136,6 +1207,13 @@ export class GatewayManager {
         Math.floor(h.uptime / 1000),
       ),
       metric(
+        "discord_gateway_draining",
+        "gauge",
+        "Pod is draining (1=draining, 0=active)",
+        pod,
+        h.draining ? 1 : 0,
+      ),
+      metric(
         "discord_gateway_control_plane_failures",
         "gauge",
         "Consecutive control plane poll failures",
@@ -1172,6 +1250,8 @@ export class GatewayManager {
       podName: this.config.podName,
       startTime: this.startTime.toISOString(),
       uptime: Date.now() - this.startTime.getTime(),
+      draining: this.draining,
+      drainingStartedAt: this.drainingStartedAt?.toISOString() ?? null,
       controlPlane: {
         consecutiveFailures: this.consecutivePollFailures,
         lastSuccessfulPoll: this.lastSuccessfulPoll?.toISOString() ?? null,

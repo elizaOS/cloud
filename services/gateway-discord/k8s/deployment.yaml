@@ -19,7 +19,13 @@ spec:
         prometheus.io/port: "3000"
         prometheus.io/path: "/metrics"
     spec:
-      terminationGracePeriodSeconds: 60
+      # Increased to 120s to allow for:
+      # 1. Draining period (stop accepting new assignments)
+      # 2. Graceful disconnect of all bots
+      # 3. Failover detection window (45-75s) to complete
+      # This prevents message loss during scale-down by ensuring bots are
+      # reassigned to healthy pods before this pod terminates
+      terminationGracePeriodSeconds: 120
       imagePullSecrets:
         - name: ghcr-credentials
       containers:
@@ -97,9 +103,17 @@ spec:
           lifecycle:
             preStop:
               exec:
-                # Allow time for graceful shutdown (save state, close connections)
-                # Should be less than terminationGracePeriodSeconds (60s)
-                command: ["/bin/sh", "-c", "sleep 45"]
+                # Graceful shutdown sequence:
+                # 1. POST /drain - marks pod as draining, stops accepting new assignments
+                # 2. Sleep 90s - allows failover detection (45-75s) + buffer
+                # 3. SIGTERM - triggers shutdown() which saves state and disconnects bots
+                # Total time should be less than terminationGracePeriodSeconds (120s)
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    curl -sf -X POST http://localhost:3000/drain || true
+                    sleep 90
 ---
 apiVersion: v1
 kind: Service

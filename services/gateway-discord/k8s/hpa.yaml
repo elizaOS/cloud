@@ -59,8 +59,13 @@ spec:
           value: 5
           periodSeconds: 60
     scaleDown:
+      # Stabilization window prevents thrashing during load fluctuations.
+      # Combined with terminationGracePeriodSeconds (120s) and draining mechanism,
+      # this ensures bots have time to fail over to healthy pods before termination.
+      # Sequence: HPA decides -> preStop drain (90s) -> SIGTERM -> graceful shutdown
       stabilizationWindowSeconds: 300
       policies:
+        # Conservative scale-down: 1 pod per 120s to give failover time to complete
         - type: Pods
           value: 1
           periodSeconds: 120

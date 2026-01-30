@@ -54,14 +54,24 @@ app.get("/health", (c) => {
 });
 
 // Readiness check - can this pod accept new work?
-// Returns 503 for degraded/unhealthy to deprioritize in load balancing
+// Returns 503 for degraded/unhealthy/draining to deprioritize in load balancing
+// Draining pods are explicitly not ready to prevent new bot assignments
 app.get("/ready", (c) => {
   const health = gatewayManager.getHealth();
   const ready =
+    !health.draining &&
     health.status === "healthy" &&
     health.controlPlane.healthy &&
     (health.totalBots === 0 || health.connectedBots > 0);
   return c.json({ ready, ...health }, ready ? 200 : 503);
+});
+
+// Drain endpoint - called by preStop hook before shutdown
+// Marks pod as draining to prevent new assignments while allowing existing bots to continue
+// This enables graceful failover without message loss
+app.post("/drain", async (c) => {
+  await gatewayManager.startDraining();
+  return c.json({ draining: true, podName });
 });
 
 // Metrics endpoint for Prometheus
