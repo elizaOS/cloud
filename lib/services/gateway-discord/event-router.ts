@@ -41,9 +41,15 @@ import {
 /** Maximum Discord message length */
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 
-/** Discord bot token pattern for sanitization */
+/**
+ * Discord bot token pattern for sanitization.
+ * Tokens have format: base64(bot_id).base64(timestamp).base64(hmac)
+ * - Part 1 (bot ID): 18-30 characters (varies by ID length)
+ * - Part 2 (timestamp): 6 characters
+ * - Part 3 (HMAC): 27-40 characters
+ */
 const DISCORD_TOKEN_PATTERN =
-  /[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27}/g;
+  /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
 
 /**
  * Sanitize error messages to prevent accidental token exposure in logs.
@@ -740,11 +746,11 @@ async function sendDiscordResponse(
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const errorBody = await response.json().catch(() => ({}));
     logger.error("[DiscordRouter] Discord API error", {
       channelId,
       status: response.status,
-      error,
+      error: sanitizeError(JSON.stringify(errorBody)),
     });
   }
 }

@@ -17,6 +17,25 @@ import {
 // ============================================
 
 /**
+ * Discord bot token pattern for sanitization.
+ * Tokens have format: base64(bot_id).base64(timestamp).base64(hmac)
+ * - Part 1 (bot ID): 18-30 characters (varies by ID length)
+ * - Part 2 (timestamp): 6 characters
+ * - Part 3 (HMAC): 27-40 characters
+ */
+const DISCORD_TOKEN_PATTERN =
+  /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
+
+/**
+ * Sanitize error messages to prevent accidental token exposure in logs.
+ * Discord bot tokens have a specific format that we can detect and redact.
+ */
+function sanitizeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(DISCORD_TOKEN_PATTERN, "[REDACTED_TOKEN]");
+}
+
+/**
  * Parse an integer from environment variable with validation.
  * Throws if the value is not a valid integer to fail fast on misconfiguration.
  */
@@ -226,13 +245,13 @@ export class GatewayManager {
       await this.pollForBots();
     } catch (error) {
       logger.error("Initial pollForBots failed, will retry on interval", {
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
     this.pollInterval = setInterval(() => {
       this.pollForBots().catch((error) => {
         logger.error("Error in pollForBots interval", {
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       });
     }, BOT_POLL_INTERVAL_MS);
@@ -241,7 +260,7 @@ export class GatewayManager {
     this.heartbeatInterval = setInterval(() => {
       this.sendHeartbeat().catch((error) => {
         logger.error("Error in sendHeartbeat interval", {
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       });
     }, HEARTBEAT_INTERVAL_MS);
@@ -251,7 +270,7 @@ export class GatewayManager {
       this.failoverInterval = setInterval(() => {
         this.checkForDeadPods().catch((error) => {
           logger.error("Error in checkForDeadPods interval", {
-            error: error instanceof Error ? error.message : String(error),
+            error: sanitizeError(error),
           });
         });
       }, FAILOVER_CHECK_INTERVAL_MS);
@@ -309,7 +328,7 @@ export class GatewayManager {
     } catch (error) {
       // Log but don't fail shutdown - failover will handle orphaned connections
       logger.error("Failed to release connections in database", {
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
 
@@ -321,7 +340,7 @@ export class GatewayManager {
       } catch (error) {
         // Log but don't fail shutdown - stale Redis state will expire via TTL
         logger.error("Failed to clear Redis state during shutdown", {
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       }
     }
@@ -377,7 +396,7 @@ export class GatewayManager {
     } catch (error) {
       // Log but don't fail - failover will still work via heartbeat timeout
       logger.error("Failed to notify backend of draining state", {
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }
@@ -490,7 +509,7 @@ export class GatewayManager {
           this.connections.delete(assignment.connectionId);
           logger.error("Failed to connect bot during assignment", {
             connectionId: assignment.connectionId,
-            error: error instanceof Error ? error.message : String(error),
+            error: sanitizeError(error),
           });
         }
       }
@@ -506,7 +525,7 @@ export class GatewayManager {
     } catch (error) {
       this.consecutivePollFailures++;
       logger.error("Error polling for bots", {
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
         consecutiveFailures: this.consecutivePollFailures,
       });
       this.logControlPlaneHealth();
@@ -569,7 +588,7 @@ export class GatewayManager {
         } catch (error) {
           logger.error(`Error in ${eventName} handler`, {
             connectionId: assignment.connectionId,
-            error: error instanceof Error ? error.message : String(error),
+            error: sanitizeError(error),
           });
         }
       };
@@ -792,7 +811,7 @@ export class GatewayManager {
     try {
       await client.login(assignment.botToken);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = sanitizeError(error);
       logger.error("Failed to login bot", {
         connectionId: assignment.connectionId,
         error: errorMessage,
@@ -912,7 +931,7 @@ export class GatewayManager {
         logger.error("Failed to process voice attachments", {
           connectionId,
           messageId: message.id,
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       }
     }
@@ -972,7 +991,7 @@ export class GatewayManager {
       logger.error("Error forwarding event", {
         connectionId,
         eventType,
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
         totalFailed: conn.eventsFailed,
         consecutiveFailures: conn.consecutiveFailures,
       });
@@ -1008,7 +1027,7 @@ export class GatewayManager {
       logger.error("Failed to update connection status", {
         connectionId,
         status,
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }
@@ -1039,7 +1058,7 @@ export class GatewayManager {
     } catch (error) {
       logger.error("Failed to save session state", {
         connectionId,
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }
@@ -1069,7 +1088,7 @@ export class GatewayManager {
         );
       } catch (error) {
         logger.error("Failed to update database heartbeat", {
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       }
     }
@@ -1090,7 +1109,7 @@ export class GatewayManager {
         await this.redis.sadd("discord:active_pods", this.config.podName);
       } catch (error) {
         logger.error("Failed to send Redis heartbeat", {
-          error: error instanceof Error ? error.message : String(error),
+          error: sanitizeError(error),
         });
       }
     }
@@ -1124,7 +1143,7 @@ export class GatewayManager {
       }
     } catch (error) {
       logger.error("Error checking for dead pods", {
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }
@@ -1173,7 +1192,7 @@ export class GatewayManager {
     } catch (error) {
       logger.error("Error claiming orphaned connections", {
         deadPodId,
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizeError(error),
       });
     }
   }

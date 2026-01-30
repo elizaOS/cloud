@@ -14,27 +14,45 @@ import { MessageCreateDataSchema } from "../schemas";
 // Test the helper functions and logic without complex mocking
 
 describe("sanitizeError logic", () => {
-  // Replicate the sanitizeError function
-  const DISCORD_TOKEN_PATTERN = /[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27}/g;
-  
+  /**
+   * Discord bot token pattern for sanitization.
+   * Tokens have format: base64(bot_id).base64(timestamp).base64(hmac)
+   * - Part 1 (bot ID): 18-30 characters (varies by ID length)
+   * - Part 2 (timestamp): 6 characters
+   * - Part 3 (HMAC): 27-40 characters
+   */
+  const DISCORD_TOKEN_PATTERN_GLOBAL =
+    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
+
+  // Non-global version for single matching tests
+  const DISCORD_TOKEN_PATTERN =
+    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
+
   const sanitizeError = (error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
-    return message.replace(DISCORD_TOKEN_PATTERN, "[REDACTED_TOKEN]");
+    return message.replace(DISCORD_TOKEN_PATTERN_GLOBAL, "[REDACTED_TOKEN]");
   };
 
+  // Fake Discord tokens for testing (same format as real tokens: ~26.6.38 chars)
+  // DO NOT use real tokens in tests
+  const SAMPLE_TOKENS = [
+    "MTE0NzU5OTI0NzM5NjEyNjcyMA.G1xK2z.FAKE_TOKEN_abcdefghijklmnopqrstuvwxyz12",
+    "MTE0NzU5OTI0NzM5NjEyNjcyMQ.H2yL3a.TEST_TOKEN_ABCDEFGHIJKLMNOPQRSTUVWXYZ34",
+    "MTE0NzU5OTI0NzM5NjEyNjcyMg.I3zM4b.MOCK_TOKEN_0123456789abcdefghijklmno56",
+  ];
+
+  test("regex matches Discord token format", () => {
+    for (const token of SAMPLE_TOKENS) {
+      expect(token).toMatch(DISCORD_TOKEN_PATTERN);
+    }
+  });
+
   test("redacts Discord bot tokens from error messages", () => {
-    // Create a token that exactly matches the pattern (exactly 24.6.27 chars)
-    const fakeToken = "ABCDEFGHIJKLMNOPQRSTUVWX.ABCDEF.ABCDEFGHIJKLMNOPQRSTUVWXYZA";
-    
-    // Verify the structure
-    const parts = fakeToken.split(".");
-    expect(parts.length).toBe(3);
-    expect(parts[0].length).toBe(24);
-    expect(parts[1].length).toBe(6);
-    expect(parts[2].length).toBe(27);
-    
-    const sanitized = sanitizeError(fakeToken);
-    expect(sanitized).toBe("[REDACTED_TOKEN]");
+    for (const token of SAMPLE_TOKENS) {
+      const sanitized = sanitizeError(token);
+      expect(sanitized).toBe("[REDACTED_TOKEN]");
+      expect(sanitized).not.toContain(token);
+    }
   });
 
   test("preserves non-token text in error messages", () => {
@@ -44,23 +62,43 @@ describe("sanitizeError logic", () => {
   });
 
   test("token embedded in error message is redacted", () => {
-    const token = "ABCDEFGHIJKLMNOPQRSTUVWX.ABCDEF.ABCDEFGHIJKLMNOPQRSTUVWXYZA";
+    const token = SAMPLE_TOKENS[0];
     const message = `Failed to authenticate with token: ${token}`;
     const sanitized = sanitizeError(message);
     expect(sanitized).toBe("Failed to authenticate with token: [REDACTED_TOKEN]");
-    expect(sanitized.includes(token)).toBe(false);
+    expect(sanitized).not.toContain(token);
   });
 
   test("handles Error objects", () => {
-    const token = "ABCDEFGHIJKLMNOPQRSTUVWX.ABCDEF.ABCDEFGHIJKLMNOPQRSTUVWXYZA";
+    const token = SAMPLE_TOKENS[1];
     const error = new Error(`Auth failed: ${token}`);
     const sanitized = sanitizeError(error);
     expect(sanitized).toBe("Auth failed: [REDACTED_TOKEN]");
   });
 
+  test("handles multiple tokens in one message", () => {
+    const msg = `Token1: ${SAMPLE_TOKENS[0]}, Token2: ${SAMPLE_TOKENS[1]}`;
+    const sanitized = sanitizeError(msg);
+    expect(sanitized).not.toContain(SAMPLE_TOKENS[0]);
+    expect(sanitized).not.toContain(SAMPLE_TOKENS[1]);
+    expect(sanitized).toBe("Token1: [REDACTED_TOKEN], Token2: [REDACTED_TOKEN]");
+  });
+
   test("handles non-Error objects", () => {
     const sanitized = sanitizeError({ message: "error" });
     expect(sanitized).toBe("[object Object]");
+  });
+
+  test("regex does not match non-token strings", () => {
+    const nonTokens = [
+      "short.str.ing",
+      "this is a normal error message",
+      "123.456.789",
+      "abc.def.ghi",
+    ];
+    for (const str of nonTokens) {
+      expect(str).not.toMatch(DISCORD_TOKEN_PATTERN);
+    }
   });
 });
 

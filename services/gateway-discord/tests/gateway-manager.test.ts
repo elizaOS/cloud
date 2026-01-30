@@ -362,6 +362,103 @@ describe("Bot connection state transitions", () => {
   });
 });
 
+describe("Token sanitization", () => {
+  /**
+   * Discord bot token pattern for sanitization.
+   * Tokens have format: base64(bot_id).base64(timestamp).base64(hmac)
+   * - Part 1 (bot ID): 18-30 characters (varies by ID length)
+   * - Part 2 (timestamp): 6 characters
+   * - Part 3 (HMAC): 27-40 characters
+   *
+   * Note: Use /g flag only with replace(), not with test() or match() in loops
+   * as the global flag maintains state between calls.
+   */
+  const DISCORD_TOKEN_PATTERN_GLOBAL =
+    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
+
+  // Non-global version for single matching tests
+  const DISCORD_TOKEN_PATTERN =
+    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
+
+  const sanitizeError = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.replace(DISCORD_TOKEN_PATTERN_GLOBAL, "[REDACTED_TOKEN]");
+  };
+
+  // Fake Discord tokens for testing (same format as real tokens: 26.6.38 chars)
+  // DO NOT use real tokens in tests
+  const SAMPLE_TOKENS = [
+    "MTE0NzU5OTI0NzM5NjEyNjcyMA.G1xK2z.FAKE_TOKEN_abcdefghijklmnopqrstuvwxyz12",
+    "MTE0NzU5OTI0NzM5NjEyNjcyMQ.H2yL3a.TEST_TOKEN_ABCDEFGHIJKLMNOPQRSTUVWXYZ34",
+    "MTE0NzU5OTI0NzM5NjEyNjcyMg.I3zM4b.MOCK_TOKEN_0123456789abcdefghijklmno56",
+  ];
+
+  test("regex matches real Discord token formats", () => {
+    for (const token of SAMPLE_TOKENS) {
+      // Use non-global pattern to avoid state issues in loops
+      expect(token).toMatch(DISCORD_TOKEN_PATTERN);
+    }
+  });
+
+  test("sanitizeError redacts tokens from error messages", () => {
+    for (const token of SAMPLE_TOKENS) {
+      const errorMsg = `Invalid token: ${token}`;
+      const sanitized = sanitizeError(errorMsg);
+      expect(sanitized).not.toContain(token);
+      expect(sanitized).toContain("[REDACTED_TOKEN]");
+    }
+  });
+
+  test("sanitizeError handles Error objects", () => {
+    const token = SAMPLE_TOKENS[0];
+    const error = new Error(`Authentication failed with token ${token}`);
+    const sanitized = sanitizeError(error);
+    expect(sanitized).not.toContain(token);
+    expect(sanitized).toBe("Authentication failed with token [REDACTED_TOKEN]");
+  });
+
+  test("sanitizeError handles multiple tokens in one message", () => {
+    const msg = `Token1: ${SAMPLE_TOKENS[0]}, Token2: ${SAMPLE_TOKENS[1]}`;
+    const sanitized = sanitizeError(msg);
+    expect(sanitized).not.toContain(SAMPLE_TOKENS[0]);
+    expect(sanitized).not.toContain(SAMPLE_TOKENS[1]);
+    expect(sanitized).toBe("Token1: [REDACTED_TOKEN], Token2: [REDACTED_TOKEN]");
+  });
+
+  test("sanitizeError preserves messages without tokens", () => {
+    const msg = "Connection failed: network timeout";
+    expect(sanitizeError(msg)).toBe(msg);
+  });
+
+  test("regex does not match non-token strings", () => {
+    const nonTokens = [
+      "short.str.ing",
+      "this is a normal error message",
+      "123.456.789",
+      "abc.def.ghi",
+    ];
+    for (const str of nonTokens) {
+      expect(str).not.toMatch(DISCORD_TOKEN_PATTERN);
+    }
+  });
+
+  test("regex handles tokens with underscores and hyphens", () => {
+    // Tokens can contain _ and - in base64url encoding
+    const tokenWithSpecialChars = "MTQ2NjQ5NTA0ODYz_Dg1OTY0MQ.GZvM1D.znUSUF-WfyV_p7g3gt9V2jxxVEKa4ery5ITiz4";
+    expect(tokenWithSpecialChars).toMatch(DISCORD_TOKEN_PATTERN);
+  });
+
+  test("sanitizeError works with all sample tokens", () => {
+    // Test that the global pattern works correctly with replace
+    for (const token of SAMPLE_TOKENS) {
+      const msg = `Error: ${token}`;
+      const sanitized = sanitizeError(msg);
+      expect(sanitized).toBe("Error: [REDACTED_TOKEN]");
+      expect(sanitized).not.toContain(token);
+    }
+  });
+});
+
 describe("Event forwarding", () => {
   test("supported event types", () => {
     const supportedEvents = [
