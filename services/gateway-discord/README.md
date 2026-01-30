@@ -594,6 +594,7 @@ curl -X POST http://localhost:3000/api/v1/discord/connections \
     "applicationId": "YOUR_DISCORD_APPLICATION_ID",
     "botToken": "YOUR_BOT_TOKEN",
     "characterId": "YOUR_CHARACTER_UUID",
+    "organizationId": "YOUR_ORGANIZATION_UUID",
     "metadata": {
       "responseMode": "always"
     }
