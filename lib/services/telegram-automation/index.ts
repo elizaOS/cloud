@@ -43,6 +43,7 @@ export interface TelegramCredentials {
   botToken: string;
   botUsername: string;
   botId: number;
+  webhookSecret?: string;
 }
 
 class TelegramAutomationService {
@@ -143,6 +144,19 @@ class TelegramAutomationService {
       audit,
     );
 
+    // Generate and store a webhook secret for signature verification
+    const webhookSecret = credentials.webhookSecret || crypto.randomUUID();
+    await secretsService.create(
+      {
+        organizationId,
+        name: "TELEGRAM_WEBHOOK_SECRET",
+        value: webhookSecret,
+        scope: "organization",
+        createdBy: userId,
+      },
+      audit,
+    );
+
     // Invalidate cache so next status check fetches fresh data
     this.invalidateStatusCache(organizationId);
 
@@ -175,6 +189,7 @@ class TelegramAutomationService {
       "TELEGRAM_BOT_TOKEN",
       "TELEGRAM_BOT_USERNAME",
       "TELEGRAM_BOT_ID",
+      "TELEGRAM_WEBHOOK_SECRET",
     ];
 
     // Get secrets by name and delete them by ID
@@ -201,6 +216,13 @@ class TelegramAutomationService {
    */
   async getBotToken(organizationId: string): Promise<string | null> {
     return secretsService.get(organizationId, "TELEGRAM_BOT_TOKEN");
+  }
+
+  /**
+   * Get webhook secret for an organization.
+   */
+  async getWebhookSecret(organizationId: string): Promise<string | null> {
+    return secretsService.get(organizationId, "TELEGRAM_WEBHOOK_SECRET");
   }
 
   /**
@@ -301,6 +323,9 @@ class TelegramAutomationService {
       const bot = new Telegraf(botToken);
       const webhookUrl = `${WEBHOOK_BASE_URL}/api/v1/telegram/webhook/${organizationId}`;
 
+      // Get the webhook secret for signature verification
+      const webhookSecret = await this.getWebhookSecret(organizationId);
+
       await bot.telegram.setWebhook(webhookUrl, {
         allowed_updates: [
           "message",
@@ -309,11 +334,13 @@ class TelegramAutomationService {
           "my_chat_member",
         ],
         drop_pending_updates: true,
+        secret_token: webhookSecret || undefined,
       });
 
       logger.info("[TelegramAutomation] Webhook set", {
         organizationId,
         webhookUrl,
+        hasSecretToken: !!webhookSecret,
       });
 
       return { success: true };
@@ -367,7 +394,7 @@ class TelegramAutomationService {
       parseMode?: "MarkdownV2" | "HTML";
       replyMarkup?: {
         inline_keyboard: Array<
-          Array<{ text: string; url?: string; callback_data?: string }>
+          Array<{ text: string; url: string } | { text: string; callback_data: string }>
         >;
       };
       disableWebPagePreview?: boolean;
