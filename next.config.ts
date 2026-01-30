@@ -2,6 +2,25 @@ import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
 
+// =============================================================================
+// CRITICAL SECURITY VALIDATION
+// =============================================================================
+// Fail fast if SKIP_WEBHOOK_VERIFICATION is enabled in production.
+// This environment variable bypasses webhook signature verification and must
+// NEVER be enabled in production environments.
+// =============================================================================
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.SKIP_WEBHOOK_VERIFICATION === "true"
+) {
+  throw new Error(
+    "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
+      "This is a critical security misconfiguration that would allow " +
+      "unauthenticated webhook requests. Remove this environment variable " +
+      "from your production deployment."
+  );
+}
+
 const withNextra = nextra({
   // Only scan the content directory for MDX files
   contentDirBasePath: "/docs",

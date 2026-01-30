@@ -599,7 +599,7 @@ Maximum 300 characters.`;
    * Get all apps with active Telegram automation.
    */
   async getAppsWithActiveAutomation(organizationId: string): Promise<App[]> {
-    const apps = await appsRepository.findByOrganization(organizationId);
+    const apps = await appsRepository.listByOrganization(organizationId);
     return apps.filter((app) => app.telegram_automation?.enabled);
   }
 

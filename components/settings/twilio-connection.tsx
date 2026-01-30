@@ -32,77 +32,103 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  ExternalLink,
   ChevronDown,
-  Bot,
+  Phone,
   MessageSquare,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface TelegramStatus {
-  configured: boolean;
+interface TwilioStatus {
   connected: boolean;
-  botUsername?: string;
-  botId?: number;
+  phoneNumber?: string;
+  accountSid?: string;
+  webhookConfigured?: boolean;
   error?: string;
 }
 
-export function TelegramConnection() {
-  const [status, setStatus] = useState<TelegramStatus | null>(null);
+export function TwilioConnection() {
+  const [status, setStatus] = useState<TwilioStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
-  const [botToken, setBotToken] = useState("");
+  const [accountSid, setAccountSid] = useState("");
+  const [authToken, setAuthToken] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [showInstructions, setShowInstructions] = useState(false);
 
-  const fetchStatus = async (signal?: AbortSignal) => {
+  const fetchStatus = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/telegram/status", { signal });
-      if (!signal?.aborted) {
-        setStatus(await response.json());
-      }
+      const response = await fetch("/api/v1/twilio/status");
+      const data: TwilioStatus = await response.json();
+      setStatus(data);
     } catch {
-      if (!signal?.aborted) {
-        toast.error("Failed to fetch Telegram status");
-      }
-    } finally {
-      if (!signal?.aborted) {
-        setIsLoading(false);
-      }
+      toast.error("Failed to fetch Twilio status");
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchStatus(controller.signal);
+
+    const loadStatus = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/v1/twilio/status", {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          const data: TwilioStatus = await response.json();
+          setStatus(data);
+          setIsLoading(false);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadStatus();
+
     return () => controller.abort();
   }, []);
 
   const handleConnect = async () => {
     if (isConnecting) return;
-    if (!botToken.trim()) {
-      toast.error("Please enter a bot token");
+    if (!accountSid.trim()) {
+      toast.error("Please enter your Twilio Account SID");
+      return;
+    }
+    if (!authToken.trim()) {
+      toast.error("Please enter your Twilio Auth Token");
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      toast.error("Please enter your Twilio phone number");
       return;
     }
 
     setIsConnecting(true);
 
     try {
-      const response = await fetch("/api/v1/telegram/connect", {
+      const response = await fetch("/api/v1/twilio/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botToken }),
+        body: JSON.stringify({ accountSid, authToken, phoneNumber }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast.success(`Telegram bot @${data.botUsername} connected!`);
-        setBotToken("");
-        void fetchStatus();
+        toast.success("Twilio SMS/Voice connected successfully!");
+        setAccountSid("");
+        setAuthToken("");
+        setPhoneNumber("");
+        fetchStatus();
       } else {
-        toast.error(data.error || "Failed to connect bot");
+        toast.error(data.error || "Failed to connect Twilio");
       }
     } catch {
       toast.error("Network error. Please check your connection.");
@@ -116,13 +142,13 @@ export function TelegramConnection() {
     setIsDisconnecting(true);
 
     try {
-      const response = await fetch("/api/v1/telegram/disconnect", {
+      const response = await fetch("/api/v1/twilio/disconnect", {
         method: "DELETE",
       });
 
       if (response.ok) {
-        toast.success("Telegram bot disconnected");
-        void fetchStatus();
+        toast.success("Twilio disconnected");
+        fetchStatus();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error(data.error || "Failed to disconnect");
@@ -150,11 +176,11 @@ export function TelegramConnection() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-[#0088cc]" />
-              Telegram Bot
+              <Phone className="h-5 w-5 text-red-500" />
+              Twilio SMS & Voice
             </CardTitle>
             <CardDescription>
-              Connect your Telegram bot for AI-powered automation
+              Connect Twilio for SMS, MMS, and voice call automation
             </CardDescription>
           </div>
           {status?.connected && (
@@ -169,46 +195,37 @@ export function TelegramConnection() {
         {status?.connected ? (
           <div className="space-y-4">
             <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-              <div className="h-12 w-12 rounded-full bg-[#0088cc] flex items-center justify-center">
-                <Bot className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Phone className="h-6 w-6 text-red-600" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold">@{status.botUsername}</div>
+                <div className="font-semibold">{status.phoneNumber}</div>
                 <div className="text-sm text-muted-foreground">
-                  Bot ID: {status.botId}
+                  Twilio Number Connected
                 </div>
-                {status.error && (
-                  <div className="text-sm text-yellow-600 mt-1">
-                    ⚠️ {status.error}
-                  </div>
+                {status.webhookConfigured && (
+                  <Badge variant="outline" className="mt-1 text-xs">
+                    Webhook Active
+                  </Badge>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  window.open(`https://t.me/${status.botUsername}`, "_blank")
-                }
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                Open Bot
-              </Button>
             </div>
 
-            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
-                Next: Start chatting with your bot
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                Your AI agent can now:
               </p>
-              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Open Telegram and search for @{status.botUsername}</li>
-                <li>Click &quot;Start&quot; to begin a conversation</li>
-                <li>Send a message - your AI agent will respond</li>
-              </ol>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>• Send and receive SMS messages</li>
+                <li>• Handle MMS with images</li>
+                <li>• Make and receive voice calls</li>
+                <li>• Build conversational IVR systems</li>
+              </ul>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t">
               <div className="text-sm text-muted-foreground">
-                Chats are auto-detected when bot is added.
+                Account: {status.accountSid?.slice(0, 8)}...
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -228,12 +245,10 @@ export function TelegramConnection() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Disconnect Telegram Bot?
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>Disconnect Twilio?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove your bot credentials. Any active Telegram
-                      automation will stop working until you reconnect.
+                      This will stop your AI agent from sending and receiving
+                      SMS/Voice calls. You can reconnect at any time.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -261,7 +276,7 @@ export function TelegramConnection() {
                   className="w-full justify-between p-4 h-auto bg-muted"
                 >
                   <span className="font-medium">
-                    How to create a Telegram bot
+                    How to get Twilio credentials
                   </span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
@@ -273,67 +288,87 @@ export function TelegramConnection() {
               <CollapsibleContent className="p-4 bg-muted rounded-b-lg border-t">
                 <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
                   <li>
-                    Open Telegram and search for{" "}
+                    Go to{" "}
                     <a
-                      href="https://t.me/BotFather"
+                      href="https://console.twilio.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#0088cc] hover:underline"
+                      className="text-red-600 hover:underline inline-flex items-center gap-1"
                     >
-                      @BotFather
+                      Twilio Console
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   </li>
-                  <li>
-                    Send{" "}
-                    <code className="bg-background px-1 rounded">/newbot</code>{" "}
-                    command
-                  </li>
-                  <li>
-                    Choose a name for your bot (e.g., &quot;My App Bot&quot;)
-                  </li>
-                  <li>
-                    Choose a username ending in &quot;bot&quot; (e.g.,
-                    &quot;myapp_bot&quot;)
-                  </li>
-                  <li>
-                    Copy the <strong>API token</strong> BotFather gives you
-                  </li>
-                  <li>Paste the token below</li>
+                  <li>Create an account or sign in</li>
+                  <li>Copy your Account SID and Auth Token from the dashboard</li>
+                  <li>Buy or use an existing phone number</li>
+                  <li>Enter your credentials below</li>
                 </ol>
               </CollapsibleContent>
             </Collapsible>
 
-            <div className="space-y-2">
-              <Label htmlFor="botToken">Bot Token</Label>
-              <Input
-                id="botToken"
-                type="password"
-                placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-                value={botToken}
-                onChange={(e) => setBotToken(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-              />
-              <p className="text-xs text-muted-foreground">
-                Get this from @BotFather after creating your bot
-              </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="accountSid">Account SID</Label>
+                <Input
+                  id="accountSid"
+                  type="text"
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={accountSid}
+                  onChange={(e) => setAccountSid(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="authToken">Auth Token</Label>
+                <Input
+                  id="authToken"
+                  type="password"
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={authToken}
+                  onChange={(e) => setAuthToken(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Found in your Twilio Console dashboard
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="twilioPhoneNumber">Twilio Phone Number</Label>
+                <Input
+                  id="twilioPhoneNumber"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your Twilio phone number with SMS capability
+                </p>
+              </div>
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
               <h4 className="font-medium mb-2">
-                What you can do with Telegram automation:
+                What you can do with Twilio:
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Post AI-generated announcements to channels</li>
-                <li>• Auto-reply to messages in groups</li>
-                <li>• Welcome new members with custom messages</li>
-                <li>• Handle commands like /help and /about</li>
+                <li>• Send and receive SMS/MMS messages</li>
+                <li>• Create voice call automations</li>
+                <li>• Build two-factor authentication</li>
+                <li>• Handle customer support via text</li>
               </ul>
             </div>
 
             <Button
               onClick={handleConnect}
-              disabled={isConnecting || !botToken.trim()}
-              className="w-full bg-[#0088cc] hover:bg-[#0077b5]"
+              disabled={
+                isConnecting ||
+                !accountSid.trim() ||
+                !authToken.trim() ||
+                !phoneNumber.trim()
+              }
+              className="w-full bg-red-600 hover:bg-red-700"
             >
               {isConnecting ? (
                 <>
@@ -343,7 +378,7 @@ export function TelegramConnection() {
               ) : (
                 <>
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Connect Telegram Bot
+                  Connect Twilio
                 </>
               )}
             </Button>

@@ -157,6 +157,7 @@ const publicPaths = [
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",
+  "/api/v1/google/callback",
   "/api/cron",
   "/api/v1/cron",
   "/api/mcps",
@@ -171,6 +172,8 @@ const publicPaths = [
   "/app-auth",
   "/.well-known",
   "/api/internal", // Internal service-to-service API (has own auth via X-Internal-API-Key)
+  "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
+  "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
 ];
 
 const publicPathPatterns = [
