@@ -76,7 +76,7 @@ export const oauthConnectAction: ActionWithParams = {
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
 
-    const { organizationId } = userResult;
+    const { organizationId, user } = userResult;
     const platformName = capitalize(platform);
 
     if (await oauthService.isPlatformConnected(organizationId, platform)) {
@@ -90,11 +90,25 @@ export const oauthConnectAction: ActionWithParams = {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-    const result = await oauthService.initiateAuth({
-      organizationId,
-      platform,
-      redirectUrl: `${baseUrl}/auth/success`,
-    });
+
+    let result;
+    try {
+      result = await oauthService.initiateAuth({
+        organizationId,
+        userId: user.id,
+        platform,
+        redirectUrl: `${baseUrl}/auth/success`,
+      });
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`[${actionName}] OAuth initiation failed: ${errMsg} (platform=${platform}, org=${organizationId})`);
+      return {
+        text: `Failed to start ${platformName} connection. Please try again later.`,
+        success: false,
+        error: "OAUTH_INITIATION_FAILED",
+        data: { actionName },
+      };
+    }
 
     if (!result.authUrl) {
       logger.error(`[${actionName}] Failed to generate auth URL`);

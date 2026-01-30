@@ -1,8 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CheckCircle, MessageCircle } from "lucide-react";
 
 export default function AuthSuccessPage() {
+  const [canClose, setCanClose] = useState(false);
+
+  useEffect(() => {
+    // Try to close the window after a short delay
+    // This works when the page was opened via window.open()
+    const timer = setTimeout(() => {
+      try {
+        window.close();
+      } catch {
+        // If we can't close, show the manual close message
+        setCanClose(true);
+      }
+      // If window.close() didn't work (opened in new tab), show message
+      setCanClose(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
@@ -24,16 +44,18 @@ export default function AuthSuccessPage() {
             <div className="flex items-center gap-3 text-left">
               <MessageCircle className="h-5 w-5 text-neutral-400 flex-shrink-0" />
               <p className="text-sm text-neutral-300">
-                You can now return to your chat with Eliza and say{" "}
+                Return to your chat and say{" "}
                 <span className="text-white font-medium">&quot;done&quot;</span>{" "}
                 to verify the connection.
               </p>
             </div>
           </div>
 
-          <p className="text-xs text-neutral-600">
-            You can close this window.
-          </p>
+          {canClose && (
+            <p className="text-xs text-neutral-600">
+              You can close this window.
+            </p>
+          )}
         </div>
       </div>
     </div>
