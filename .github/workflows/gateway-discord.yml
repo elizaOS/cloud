@@ -6,12 +6,18 @@ on:
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
+      - "app/api/v1/discord/**"
+      - "app/api/internal/discord/**"
+      - "tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   pull_request:
     branches: [main, dev]
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
+      - "app/api/v1/discord/**"
+      - "app/api/internal/discord/**"
+      - "tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   workflow_dispatch:
     inputs:
@@ -26,7 +32,6 @@ env:
   BUN_VERSION: "1.2"
   IMAGE_NAME: gateway-discord
   REGISTRY: ghcr.io
-  # GHCR requires lowercase - github.repository preserves case which causes InvalidImageName
   IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
 
 jobs:
@@ -49,6 +54,10 @@ jobs:
           SKIP_SERVER_CHECK: "true"
       - name: Run lib tests
         run: bun test lib/services/gateway-discord/__tests__/ --timeout 60000
+        env:
+          SKIP_SERVER_CHECK: "true"
+      - name: Run Discord API unit tests
+        run: bun test tests/unit/discord-connections-api.test.ts --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
 
@@ -97,6 +106,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Output digest
+        run: |
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Image tags: ${{ steps.meta.outputs.tags }}"
+
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
@@ -122,16 +136,19 @@ jobs:
       - name: Configure kubectl for EKS
         run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
 
-      - name: Deploy to staging
+      - name: Deploy to staging with Kustomize
         run: |
-          export IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
-          kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
+          cd services/gateway-discord/k8s
+          echo "Setting image to: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          kustomize edit set image ${{ env.IMAGE_REPO }}=${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}
+          echo "Applying kustomize manifests..."
+          kubectl apply -k .
           kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
 
       - name: Verify deployment
         run: |
           kubectl get pods -n gateway-discord -l app=gateway-discord
-          kubectl rollout status deployment/gateway-discord -n gateway-discord
+          kubectl describe deployment gateway-discord -n gateway-discord | grep Image
 
   deploy-production:
     name: Deploy to Production
@@ -158,13 +175,16 @@ jobs:
       - name: Configure kubectl for EKS
         run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
 
-      - name: Deploy to production
+      - name: Deploy to production with Kustomize
         run: |
-          export IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
-          kubectl set image deployment/gateway-discord gateway=$IMAGE -n gateway-discord
+          cd services/gateway-discord/k8s
+          echo "Setting image to: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          kustomize edit set image ${{ env.IMAGE_REPO }}=${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}
+          echo "Applying kustomize manifests..."
+          kubectl apply -k .
           kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
 
       - name: Verify deployment
         run: |
           kubectl get pods -n gateway-discord -l app=gateway-discord
-          kubectl rollout status deployment/gateway-discord -n gateway-discord
+          kubectl describe deployment gateway-discord -n gateway-discord | grep Image

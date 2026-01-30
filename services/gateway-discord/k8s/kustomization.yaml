@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - servicemonitor.yaml
+  - alerts.yaml
+
+images:
+  - name: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
+    newTag: latest
