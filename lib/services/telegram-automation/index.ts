@@ -394,7 +394,7 @@ class TelegramAutomationService {
       parseMode?: "MarkdownV2" | "HTML";
       replyMarkup?: {
         inline_keyboard: Array<
-          Array<{ text: string; url?: string; callback_data?: string }>
+          Array<{ text: string; url: string } | { text: string; callback_data: string }>
         >;
       };
       disableWebPagePreview?: boolean;
