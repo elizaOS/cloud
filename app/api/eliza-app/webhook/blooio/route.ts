@@ -1,0 +1,204 @@
+/**
+ * Eliza App - Public Blooio Webhook
+ *
+ * Receives iMessages from Blooio and routes them to the default Eliza agent.
+ * Auto-provisions users on first message based on phone number.
+ *
+ * POST /api/eliza-app/webhook/blooio
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
+import { logger } from "@/lib/utils/logger";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { agentsService } from "@/lib/services/agents/agents";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
+import { generateElizaAppRoomId, generateElizaAppEntityId } from "@/lib/utils/deterministic-uuid";
+import {
+  verifyBlooioSignature,
+  parseBlooioWebhookEvent,
+  extractBlooioMediaUrls,
+  blooioApiRequest,
+  type BlooioWebhookEvent,
+  type BlooioSendMessageResponse,
+} from "@/lib/utils/blooio-api";
+import { elizaAppConfig } from "@/lib/services/eliza-app/config";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
+const { apiKey: BLOOIO_API_KEY, webhookSecret: WEBHOOK_SECRET, phoneNumber: BLOOIO_PHONE_NUMBER } = elizaAppConfig.blooio;
+
+async function sendBlooioMessage(
+  toPhone: string,
+  text: string,
+  mediaUrls?: string[],
+): Promise<boolean> {
+  try {
+    const response = await blooioApiRequest<BlooioSendMessageResponse>(
+      BLOOIO_API_KEY,
+      "POST",
+      `/chats/${encodeURIComponent(toPhone)}/messages`,
+      {
+        text,
+        attachments: mediaUrls,
+      },
+      {
+        fromNumber: BLOOIO_PHONE_NUMBER,
+      },
+    );
+
+    logger.info("[ElizaApp BlooioWebhook] Message sent", {
+      toPhone,
+      messageId: response.message_id,
+    });
+
+    return true;
+  } catch (error) {
+    logger.error("[ElizaApp BlooioWebhook] Failed to send message", {
+      toPhone,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
+  if (!event.sender) return;
+  if (event.is_group) return;
+
+  const text = event.text?.trim();
+  const mediaUrls = extractBlooioMediaUrls(event.attachments);
+  if (!text && mediaUrls.length === 0) return;
+
+  const normalizedPhone = normalizePhoneNumber(event.sender);
+  const { user, organization } = await elizaAppUserService.findOrCreateByPhone(normalizedPhone);
+
+  const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, normalizedPhone);
+  const entityId = generateElizaAppEntityId("imessage", normalizedPhone);
+
+  const existingRoom = await roomsService.getRoomSummary(roomId);
+  if (!existingRoom) {
+    await roomsService.createRoom({
+      id: roomId,
+      agentId: DEFAULT_AGENT_ID,
+      entityId,
+      source: "blooio",
+      type: "DM",
+      name: `iMessage: ${normalizedPhone}`,
+      metadata: {
+        channel: "imessage",
+        phoneNumber: normalizedPhone,
+        userId: user.id,
+        organizationId: organization.id,
+      },
+    });
+    await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+  }
+
+  let fullMessage = text || "";
+  if (mediaUrls.length > 0) {
+    fullMessage += `\n\n[Attached media: ${mediaUrls.join(", ")}]`;
+  }
+
+  try {
+    const response = await agentsService.sendMessage({
+      roomId,
+      entityId,
+      message: fullMessage,
+      organizationId: organization.id,
+      streaming: false,
+      attachments: mediaUrls.map((url) => ({ type: "image" as const, url })),
+    });
+
+    if (response.content) {
+      await sendBlooioMessage(normalizedPhone, response.content);
+    }
+  } catch (error) {
+    logger.error("[ElizaApp BlooioWebhook] Agent failed", {
+      error: error instanceof Error ? error.message : String(error),
+      roomId,
+    });
+  }
+}
+
+async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> {
+  const rawBody = await request.text();
+  const skipVerification =
+    process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
+    process.env.NODE_ENV !== "production";
+
+  if (WEBHOOK_SECRET) {
+    const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
+
+    const isValid = await verifyBlooioSignature(
+      WEBHOOK_SECRET,
+      signatureHeader,
+      rawBody,
+    );
+
+    if (!isValid) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+  } else if (!skipVerification) {
+    if (process.env.NODE_ENV === "production") {
+      logger.error("[ElizaApp BlooioWebhook] No webhook secret configured in production");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+  }
+
+  let payload: BlooioWebhookEvent;
+  try {
+    const rawPayload = JSON.parse(rawBody);
+    payload = parseBlooioWebhookEvent(rawPayload);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid JSON payload");
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    if (error instanceof ZodError) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid payload schema", {
+        issues: error.issues,
+      });
+      return NextResponse.json(
+        { error: "Invalid payload", details: error.issues },
+        { status: 400 },
+      );
+    }
+    throw error;
+  }
+
+  if (payload.message_id) {
+    const idempotencyKey = `blooio:eliza-app:${payload.message_id}`;
+    if (await isAlreadyProcessed(idempotencyKey)) {
+      return NextResponse.json({ success: true, status: "already_processed" });
+    }
+  }
+
+  if (payload.event === "message.received") {
+    await handleIncomingMessage(payload);
+  } else if (payload.event === "message.failed") {
+    logger.error("[ElizaApp BlooioWebhook] Delivery failed", { messageId: payload.message_id });
+  }
+
+  if (payload.message_id) {
+    await markAsProcessed(`blooio:eliza-app:${payload.message_id}`, "blooio-eliza-app");
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSIVE);
+
+export async function GET(): Promise<NextResponse> {
+  return NextResponse.json({
+    status: "ok",
+    service: "eliza-app-blooio-webhook",
+    phoneNumber: BLOOIO_PHONE_NUMBER,
+  });
+}

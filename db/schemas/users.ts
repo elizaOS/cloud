@@ -14,6 +14,8 @@ import { organizations } from "./organizations";
  *
  * Stores user accounts with support for both authenticated (Privy) and anonymous users.
  * Anonymous users are tracked via session cookies and have limited functionality.
+ *
+ * Also supports Eliza App authentication via Telegram and phone number (iMessage).
  */
 export const users = pgTable(
   "users",
@@ -26,6 +28,16 @@ export const users = pgTable(
     // Anonymous user support
     is_anonymous: boolean("is_anonymous").notNull().default(false),
     anonymous_session_id: text("anonymous_session_id").unique(), // Links to session cookie
+
+    // Telegram identity (Eliza App)
+    telegram_id: text("telegram_id").unique(), // Telegram user ID (stored as text for bigint safety)
+    telegram_username: text("telegram_username"), // @username without the @
+    telegram_first_name: text("telegram_first_name"), // Display name from Telegram
+    telegram_photo_url: text("telegram_photo_url"), // Profile photo URL
+
+    // Phone identity (Eliza App - iMessage)
+    phone_number: text("phone_number").unique(), // E.164 format: +1234567890
+    phone_verified: boolean("phone_verified").default(false),
 
     // User profile
     email: text("email").unique(),
@@ -74,6 +86,9 @@ export const users = pgTable(
     ),
     expires_at_idx: index("users_expires_at_idx").on(table.expires_at),
     work_function_idx: index("users_work_function_idx").on(table.work_function),
+    // Eliza App identity indexes
+    telegram_id_idx: index("users_telegram_id_idx").on(table.telegram_id),
+    phone_number_idx: index("users_phone_number_idx").on(table.phone_number),
   }),
 );
 
