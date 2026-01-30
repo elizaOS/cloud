@@ -6,6 +6,14 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 
 - [Architecture Overview](#architecture-overview)
 - [Features](#features)
+- [Pod Lifecycle & Communication](#pod-lifecycle--communication)
+  - [Startup Sequence](#startup-sequence)
+  - [Bot Assignment Polling](#bot-assignment-polling)
+  - [Heartbeat System](#heartbeat-system)
+  - [Event Forwarding](#event-forwarding)
+  - [Failover Mechanism](#failover-mechanism)
+  - [Graceful Shutdown](#graceful-shutdown)
+  - [Health Endpoints](#health-endpoints)
 - [How to Run and Test](#how-to-run-and-test)
   - [Prerequisites](#prerequisites)
   - [Running Locally](#running-locally)
@@ -157,6 +165,214 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 - **Graceful shutdown**: Immediate connection release during deployments
 - **Voice support**: Transcribes voice messages before routing
 - **Encrypted tokens**: Bot tokens encrypted at rest with AES-256-GCM
+
+---
+
+## Pod Lifecycle & Communication
+
+This section explains how gateway pods manage their lifecycle, communicate with external services, and handle failover scenarios.
+
+### Overview
+
+```mermaid
+flowchart TB
+    subgraph pod [Gateway Pod]
+        GM[GatewayManager]
+        BC1[BotConnection 1]
+        BC2[BotConnection N]
+        VH[VoiceHandler]
+    end
+    
+    subgraph intervals [Background Tasks]
+        Poll[Poll Interval 30s]
+        HB[Heartbeat Interval 15s]
+        FO[Failover Check 30s]
+    end
+    
+    subgraph external [External Services]
+        EC[Eliza Cloud API]
+        Redis[Redis/Upstash]
+        Discord[Discord WebSocket]
+    end
+    
+    GM --> Poll
+    GM --> HB
+    GM --> FO
+    
+    Poll --> EC
+    HB --> EC
+    HB --> Redis
+    FO --> Redis
+    FO --> EC
+    
+    BC1 --> Discord
+    BC2 --> Discord
+```
+
+### Startup Sequence
+
+When a gateway pod starts, it follows this initialization sequence:
+
+1. **Initialize GatewayManager** with config (`podName`, `elizaCloudUrl`, `internalApiKey`)
+2. **Initialize Redis client** for failover coordination (if configured)
+3. **Start HTTP server** (Hono) with endpoints: `/health`, `/ready`, `/metrics`, `/status`
+4. **Start background intervals**:
+   - `pollForBots()` every 30 seconds
+   - `sendHeartbeat()` every 15 seconds
+   - `checkForDeadPods()` every 30 seconds (if Redis available)
+5. **Start voice message cleanup job** (if enabled)
+
+### Bot Assignment Polling
+
+Every 30 seconds, the pod polls Eliza Cloud for bot assignments:
+
+```mermaid
+sequenceDiagram
+    participant Pod
+    participant ElizaCloud
+    participant Discord
+    
+    Pod->>ElizaCloud: GET /api/internal/discord/gateway/assignments
+    Note right of Pod: ?pod=X&current=N&max=100
+    ElizaCloud-->>Pod: assignments array with botTokens
+    
+    loop For each new assignment
+        Pod->>Discord: Connect WebSocket with botToken
+        Discord-->>Pod: ClientReady event
+        Pod->>ElizaCloud: POST /gateway/status
+        Note right of Pod: status: connected, bot_user_id
+    end
+    
+    loop For removed assignments
+        Pod->>Discord: Disconnect WebSocket
+        Pod->>ElizaCloud: POST /gateway/status
+        Note right of Pod: status: disconnected
+    end
+```
+
+**Key behaviors:**
+
+| Behavior | Description |
+|----------|-------------|
+| Capacity limit | Respects `MAX_BOTS_PER_POD` (default: 100) to prevent resource exhaustion |
+| Failure tracking | Tracks `consecutivePollFailures` - after 5 failures, marks pod as "unhealthy" |
+| Cleanup | Disconnects bots that are no longer in the assignment list |
+
+### Heartbeat System
+
+The gateway uses a **dual heartbeat** mechanism for reliability:
+
+| Target | Endpoint | Purpose | Data |
+|--------|----------|---------|------|
+| **Eliza Cloud** | `POST /gateway/heartbeat` | Update `last_heartbeat` in PostgreSQL | `pod_name`, `connection_ids[]` |
+| **Redis** | `SETEX discord:pod:{name}` | Fast failover detection | `{podId, connections[], lastHeartbeat}` with 5min TTL |
+
+**Redis Key Structure:**
+
+```
+discord:pod:{podName}       # Pod state with TTL (5 min)
+discord:active_pods         # Set of all active pod names
+discord:session:{connId}    # Session state (preserved on disconnect, 1 hour TTL)
+```
+
+### Event Forwarding
+
+When a Discord event arrives (MESSAGE_CREATE, etc.), it's forwarded to Eliza Cloud:
+
+```mermaid
+sequenceDiagram
+    participant Discord
+    participant Pod
+    participant ElizaCloud
+    participant Agent
+    
+    Discord->>Pod: MESSAGE_CREATE event
+    Pod->>Pod: Process voice attachments if any
+    Pod->>ElizaCloud: POST /api/internal/discord/events
+    Note right of ElizaCloud: 60s timeout for AI processing
+    ElizaCloud->>Agent: Route to AgentRuntime
+    Agent-->>ElizaCloud: Response text
+    ElizaCloud-->>Pod: 200 OK
+    Pod->>Pod: Increment eventsRouted counter
+```
+
+**Failure handling:**
+- Tracks `consecutiveFailures` per connection
+- Logs failures but doesn't disconnect (allows temporary network issues to recover)
+- Uses 60-second timeout for AI processing (longer than standard 10s for other calls)
+
+### Failover Mechanism
+
+When a pod dies, other pods detect it and claim orphaned connections:
+
+```mermaid
+sequenceDiagram
+    participant PodA as Pod A - alive
+    participant PodB as Pod B - dead
+    participant Redis
+    participant ElizaCloud
+    
+    PodA->>Redis: SMEMBERS discord:active_pods
+    Redis-->>PodA: podA, podB
+    PodA->>Redis: GET discord:pod:podB
+    Redis-->>PodA: lastHeartbeat stale > 45s
+    
+    PodA->>ElizaCloud: POST /gateway/failover
+    Note right of PodA: claiming_pod: A, dead_pod: B
+    Note right of ElizaCloud: Validates heartbeat staleness
+    Note right of ElizaCloud: Atomically reassigns connections
+    ElizaCloud-->>PodA: claimed: 5
+    
+    PodA->>Redis: SREM discord:active_pods podB
+    PodA->>Redis: DEL discord:pod:podB
+```
+
+**Timing configuration:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `DEAD_POD_THRESHOLD_MS` | 45,000ms | Time since last heartbeat to consider pod dead |
+| `FAILOVER_CHECK_INTERVAL_MS` | 30,000ms | How often to check for dead pods |
+| **Max failover latency** | 75s | Worst case: 45s + 30s |
+
+The threshold should be at least 2x the heartbeat interval (15s) to avoid false positives during network blips.
+
+### Graceful Shutdown
+
+When a pod receives `SIGTERM` or `SIGINT`, it performs a graceful shutdown:
+
+1. **Clear all intervals** (poll, heartbeat, failover)
+2. **Stop voice cleanup job**
+3. **For each bot connection:**
+   - Save session state to Redis (stats, guild count)
+   - Remove event listeners
+   - Destroy Discord client
+4. **POST `/gateway/shutdown`** to release connections in DB
+   - Allows other pods to claim connections immediately
+5. **Clean up Redis state:**
+   - `DEL discord:pod:{podName}`
+   - `SREM discord:active_pods {podName}`
+
+### Health Endpoints
+
+| Endpoint | Purpose | Returns 503 When |
+|----------|---------|------------------|
+| `/health` | Liveness probe (K8s restarts pod if 503) | `status === "unhealthy"` (control plane lost OR all bots disconnected) |
+| `/ready` | Readiness probe (K8s stops traffic if 503) | `status !== "healthy"` OR control plane unhealthy |
+| `/metrics` | Prometheus metrics scraping | Never (always returns metrics text) |
+| `/status` | Detailed debug information | Never (always returns JSON status) |
+
+### Communication Summary
+
+| From | To | Endpoint | Frequency | Purpose |
+|------|-----|----------|-----------|---------|
+| Pod | Eliza Cloud | `GET /gateway/assignments` | 30s | Get bot assignments |
+| Pod | Eliza Cloud | `POST /gateway/status` | On connect/disconnect | Update connection status |
+| Pod | Eliza Cloud | `POST /gateway/heartbeat` | 15s | Update DB heartbeat |
+| Pod | Eliza Cloud | `POST /gateway/failover` | On dead pod detection | Claim orphaned connections |
+| Pod | Eliza Cloud | `POST /gateway/shutdown` | On graceful shutdown | Release connections |
+| Pod | Eliza Cloud | `POST /discord/events` | Per Discord event | Forward events for processing |
+| Pod | Redis | Various keys | 15s + on-demand | Fast failover coordination |
 
 ---
 
