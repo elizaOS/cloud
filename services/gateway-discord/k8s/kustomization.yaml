@@ -6,8 +6,9 @@ resources:
   - deployment.yaml
   - hpa.yaml
   - pdb.yaml
-  - servicemonitor.yaml
-  - alerts.yaml
+  # Uncomment when Prometheus Operator is installed:
+  # - servicemonitor.yaml
+  # - alerts.yaml
 
 images:
   - name: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
