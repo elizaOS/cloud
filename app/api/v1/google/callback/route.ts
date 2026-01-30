@@ -285,7 +285,7 @@ async function handleCallback(request: NextRequest): Promise<NextResponse> {
       );
       accessTokenSecretId = existingCreds[0].access_token_secret_id;
 
-      // Update refresh token if provided
+      // Update refresh token if provided, otherwise preserve existing reference
       if (tokens.refresh_token && existingCreds[0].refresh_token_secret_id) {
         await secretsService.rotate(
           existingCreds[0].refresh_token_secret_id,
@@ -308,6 +308,9 @@ async function handleCallback(request: NextRequest): Promise<NextResponse> {
         );
         refreshTokenSecretId = refreshTokenSecret.id;
         newlyCreatedSecretIds.push(refreshTokenSecret.id);
+      } else if (existingCreds[0].refresh_token_secret_id) {
+        // No new refresh token provided, preserve existing reference
+        refreshTokenSecretId = existingCreds[0].refresh_token_secret_id;
       }
     } else {
       // Create new secrets (or find existing orphaned secrets)
