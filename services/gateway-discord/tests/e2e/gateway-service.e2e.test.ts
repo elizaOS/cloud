@@ -24,6 +24,10 @@ const mockDiscordClient = {
     return mockDiscordClient;
   }),
   removeListener: mock(() => mockDiscordClient),
+  removeAllListeners: mock(() => {
+    mockDiscordClient._handlers.clear();
+    return mockDiscordClient;
+  }),
   _handlers: new Map<string, (...args: unknown[]) => void>(),
   emit: (event: string, ...args: unknown[]) => {
     const handler = mockDiscordClient._handlers.get(event);
@@ -139,6 +143,7 @@ function resetMocks() {
   mockDiscordClient.login.mockClear();
   mockDiscordClient.destroy.mockClear();
   mockDiscordClient.on.mockClear();
+  mockDiscordClient.removeAllListeners.mockClear();
   mockRedisData.clear();
   mockRedisSet.clear();
   mockRedis.setex.mockClear();
