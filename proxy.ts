@@ -173,6 +173,9 @@ const publicPaths = [
   "/.well-known",
   "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
   "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
+  "/api/eliza-app/auth", // Eliza App public auth endpoints
+  "/api/eliza-app/webhook", // Eliza App webhooks (they verify their own signatures)
+  "/api/eliza-app/user", // Eliza App user endpoints (uses own session validation)
 ];
 
 const publicPathPatterns = [
