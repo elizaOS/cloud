@@ -324,6 +324,24 @@ export const discordConnectionsRepository = {
     return result.length;
   },
 
+  /**
+   * Update a connection's fields.
+   */
+  async update(
+    id: string,
+    updates: Partial<typeof discordConnections.$inferInsert>,
+  ): Promise<DiscordConnection> {
+    const [connection] = await db
+      .update(discordConnections)
+      .set({
+        ...updates,
+        updated_at: new Date(),
+      })
+      .where(eq(discordConnections.id, id))
+      .returning();
+    return connection;
+  },
+
   async delete(id: string): Promise<boolean> {
     const result = await db
       .delete(discordConnections)

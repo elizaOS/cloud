@@ -582,69 +582,70 @@ This maps port 3001 on your host to 3000 in the container.
 
 ### Registering a Discord Bot Connection
 
-Currently, there's no UI for adding Discord connections. Use one of these methods:
+Use the Discord Connections API to manage bot connections.
 
-#### Method A: Database Script
+**Create a connection:**
 
-Create `scripts/add-discord-connection.ts` in the root project:
-
-```typescript
-import { discordConnectionsRepository } from "@/db/repositories";
-
-async function addTestConnection() {
-  const connection = await discordConnectionsRepository.create({
-    organizationId: "your-org-uuid",        // From your user's organization
-    characterId: "your-app-uuid",           // Optional: link to an Eliza agent character
-    applicationId: "YOUR_DISCORD_APP_ID",   // From Discord Developer Portal
-    botToken: "YOUR_BOT_TOKEN",             // From Discord Developer Portal
-    intents: undefined,                     // Uses default intents
-    metadata: {
-      responseMode: "always",               // "always" | "mention" | "keyword"
-      // enabledChannels: ["channel-id"],   // Optional: limit to specific channels
-      // disabledChannels: ["channel-id"],  // Optional: block specific channels
-      // keywords: ["help", "bot"],         // Required if responseMode is "keyword"
-    },
-  });
-  
-  console.log("Created connection:", connection.id);
-}
-
-addTestConnection();
-```
-
-Run it:
 ```bash
-bun run scripts/add-discord-connection.ts
+curl -X POST http://localhost:3000/api/v1/discord/connections \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+  -d '{
+    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
+    "botToken": "YOUR_BOT_TOKEN",
+    "characterId": "YOUR_CHARACTER_UUID",
+    "metadata": {
+      "responseMode": "always"
+    }
+  }'
 ```
 
-#### Method B: Direct SQL Insert
-
-```sql
--- Note: Bot token must be encrypted. This is for reference only.
-INSERT INTO discord_connections (
-  organization_id,
-  character_id,
-  application_id,
-  bot_token_encrypted,
-  encrypted_dek,
-  token_nonce,
-  token_auth_tag,
-  encryption_key_id,
-  is_active,
-  metadata
-) VALUES (
-  'your-org-uuid',
-  'your-app-uuid',
-  'discord-application-id',
-  'encrypted-token',
-  'encrypted-dek',
-  'nonce',
-  'auth-tag',
-  'key-id',
-  true,
-  '{"responseMode": "always"}'::jsonb
-);
+**Response:**
+```json
+{
+  "success": true,
+  "connection": {
+    "id": "connection-uuid",
+    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
+    "characterId": "character-uuid",
+    "status": "pending",
+    "isActive": true,
+    "createdAt": "2024-01-15T12:00:00.000Z"
+  },
+  "message": "Connection created. The gateway will pick it up within 30 seconds."
+}
 ```
+
+**API Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/discord/connections` | List all connections |
+| `POST` | `/api/v1/discord/connections` | Create a new connection |
+| `GET` | `/api/v1/discord/connections/:id` | Get a single connection |
+| `PATCH` | `/api/v1/discord/connections/:id` | Update a connection |
+| `DELETE` | `/api/v1/discord/connections/:id` | Delete a connection |
+
+**Create Connection Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `applicationId` | string | Yes | Discord Application ID from Developer Portal |
+| `botToken` | string | Yes | Bot token from Discord Developer Portal |
+| `characterId` | string (uuid) | Yes | Character ID for AI responses |
+| `intents` | number | No | Discord gateway intents (default: 38401) |
+| `metadata.responseMode` | string | No | `"always"`, `"mention"`, or `"keyword"` |
+| `metadata.enabledChannels` | string[] | No | Only respond in these channels |
+| `metadata.disabledChannels` | string[] | No | Ignore these channels |
+| `metadata.keywords` | string[] | No | Required if responseMode is `"keyword"` |
+
+**Update Connection Request Body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `characterId` | string (uuid) or null | Change or remove the linked character |
+| `isActive` | boolean | Enable/disable the connection |
+| `metadata` | object | Update response behavior |
 
 ### Verifying the Setup
 
