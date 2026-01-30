@@ -50,6 +50,12 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "mastodon",
   "twilio",
   "google_calendar",
+  // New integrations
+  "blooio",
+  "whatsapp",
+  "notion",
+  "airtable",
+  "webhook",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum(

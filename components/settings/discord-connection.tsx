@@ -155,10 +155,8 @@ export function DiscordConnection() {
     setDisconnectingGuildId(guildId);
 
     try {
-      const response = await fetch("/api/v1/discord/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guildId }),
+      const response = await fetch(`/api/v1/discord/disconnect?guildId=${encodeURIComponent(guildId)}`, {
+        method: "DELETE",
       });
 
       if (response.ok) {

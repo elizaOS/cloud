@@ -2,45 +2,30 @@
  * Discord Disconnect API
  *
  * Disconnects the bot from a Discord guild or all guilds.
+ * 
+ * Query params:
+ * - guildId (optional): Specific guild to disconnect. If not provided, disconnects all.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { discordAutomationService } from "@/lib/services/discord-automation";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
 
-const disconnectSchema = z.object({
-  guildId: z.string().optional(),
-});
-
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  let body: z.infer<typeof disconnectSchema>;
-  try {
-    const rawBody = await request.json();
-    body = disconnectSchema.parse(rawBody);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.flatten() },
-        { status: 400 },
-      );
-    }
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
-  }
+  // Get guildId from query params (DELETE requests shouldn't have body)
+  const guildId = request.nextUrl.searchParams.get("guildId");
 
-  if (body.guildId) {
+  if (guildId) {
     // Disconnect specific guild
     const guild = await discordAutomationService.getGuild(
       user.organization_id,
-      body.guildId,
+      guildId,
     );
     if (!guild) {
       return NextResponse.json({ error: "Guild not found" }, { status: 404 });
@@ -48,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const result = await discordAutomationService.disconnect(
       user.organization_id,
-      body.guildId,
+      guildId,
     );
 
     if (!result.success) {
@@ -57,18 +42,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     logger.info("[Discord Disconnect] Guild disconnected", {
       organizationId: user.organization_id,
-      guildId: body.guildId,
-    });
-
-    return NextResponse.json({ success: true });
-  } else {
-    // Disconnect all guilds
-    await discordAutomationService.disconnectAll(user.organization_id);
-
-    logger.info("[Discord Disconnect] All guilds disconnected", {
-      organizationId: user.organization_id,
+      guildId,
     });
 
     return NextResponse.json({ success: true });
   }
+
+  // Disconnect all guilds
+  await discordAutomationService.disconnectAll(user.organization_id);
+
+  logger.info("[Discord Disconnect] All guilds disconnected", {
+    organizationId: user.organization_id,
+  });
+
+  return NextResponse.json({ success: true });
 }

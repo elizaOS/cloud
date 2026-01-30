@@ -13,7 +13,7 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {

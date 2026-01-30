@@ -6,6 +6,10 @@ import { DiscordConnection } from "../discord-connection";
 import { GoogleConnection } from "../google-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
+import { SlackConnection } from "../slack-connection";
+import { WhatsAppConnection } from "../whatsapp-connection";
+import { NotionConnection } from "../notion-connection";
+import { AirtableConnection } from "../airtable-connection";
 import { PhoneNumberManager } from "../phone-number-manager";
 import {
   Card,
@@ -119,12 +123,32 @@ export function ConnectionsTab() {
           <GoogleConnection />
           <TwilioConnection />
           <BlooioConnection />
+          <SlackConnection />
+          <WhatsAppConnection />
         </div>
       </div>
 
       {/* Phone Number Routing Section */}
       <div className="space-y-4">
         <PhoneNumberManager />
+      </div>
+
+      {/* Productivity Tools Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">
+            Productivity Tools
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Connect productivity apps for knowledge management and data
+            automation.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          <NotionConnection />
+          <AirtableConnection />
+        </div>
       </div>
 
       {/* Social Media Section */}
