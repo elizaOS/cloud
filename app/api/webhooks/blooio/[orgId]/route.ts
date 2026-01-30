@@ -96,13 +96,18 @@ async function handleBlooioWebhook(
     }
 
     // Check for duplicate messages (replay attack prevention)
-    const idempotencyKey = `blooio:${payload.message_id}`;
-    if (await isAlreadyProcessed(idempotencyKey)) {
-      logger.info("[BlooioWebhook] Duplicate message, skipping", {
-        orgId,
-        messageId: payload.message_id,
-      });
-      return NextResponse.json({ success: true, status: "already_processed" });
+    // Only perform idempotency check if message_id is present to avoid key collision
+    if (payload.message_id) {
+      const idempotencyKey = `blooio:${payload.message_id}`;
+      if (await isAlreadyProcessed(idempotencyKey)) {
+        logger.info("[BlooioWebhook] Duplicate message, skipping", {
+          orgId,
+          messageId: payload.message_id,
+        });
+        return NextResponse.json({ success: true, status: "already_processed" });
+      }
+    } else {
+      logger.warn("[BlooioWebhook] No message_id in payload, skipping idempotency check", { orgId });
     }
 
     // Log the event
@@ -154,8 +159,10 @@ async function handleBlooioWebhook(
         });
     }
 
-    // Mark message as processed after successful handling
-    await markAsProcessed(idempotencyKey, "blooio");
+    // Mark message as processed after successful handling (only if we have a message_id)
+    if (payload.message_id) {
+      await markAsProcessed(`blooio:${payload.message_id}`, "blooio");
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
