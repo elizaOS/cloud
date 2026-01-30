@@ -84,6 +84,20 @@ const SESSION_STATE_TTL_SECONDS = 3600;
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 
 /**
+ * Stale connection cleanup threshold (10 minutes).
+ * Connections in "disconnected" or "error" state for longer than this
+ * are removed to prevent memory leaks when control plane is unreachable.
+ */
+const STALE_CONNECTION_THRESHOLD_MS = 10 * 60 * 1000;
+
+/**
+ * TTL for failover lock in seconds.
+ * Lock prevents multiple pods from simultaneously claiming the same dead pod.
+ * Set to 30s - should be enough for the failover operation, with safety margin.
+ */
+const FAILOVER_LOCK_TTL_SECONDS = 30;
+
+/**
  * Failover timing configuration.
  *
  * Maximum failover latency = DEAD_POD_THRESHOLD_MS + FAILOVER_CHECK_INTERVAL_MS
@@ -147,6 +161,8 @@ interface BotConnection {
   consecutiveFailures: number;
   lastHeartbeat: Date;
   connectedAt?: Date;
+  /** Timestamp when status changed to disconnected/error (for stale cleanup) */
+  statusChangedAt?: Date;
   error?: string;
   // Store listener references for cleanup
   listeners: Map<string, (...args: unknown[]) => void>;
@@ -771,6 +787,7 @@ export class GatewayManager {
       Events.Error,
       createHandler(Events.Error, async (error: Error) => {
         conn.status = "error";
+        conn.statusChangedAt = new Date();
         conn.error = error.message;
         logger.error("Bot error", {
           connectionId: assignment.connectionId,
@@ -788,6 +805,7 @@ export class GatewayManager {
       Events.ShardDisconnect,
       createHandler(Events.ShardDisconnect, async () => {
         conn.status = "disconnected";
+        conn.statusChangedAt = new Date();
         logger.warn("Bot disconnected", {
           connectionId: assignment.connectionId,
         });
@@ -844,6 +862,53 @@ export class GatewayManager {
     }
     this.connections.delete(connectionId);
     await this.updateConnectionStatus(connectionId, "disconnected");
+  }
+
+  /**
+   * Clean up stale connections that have been in disconnected/error state
+   * for longer than STALE_CONNECTION_THRESHOLD_MS.
+   *
+   * This prevents memory leaks when the control plane is unreachable
+   * and connections accumulate in disconnected state without being
+   * removed by the normal poll cycle.
+   *
+   * Called during heartbeat when control plane is unhealthy.
+   */
+  private cleanupStaleConnections(): void {
+    const now = Date.now();
+    const staleConnections: string[] = [];
+
+    for (const [connectionId, conn] of this.connections) {
+      // Only cleanup disconnected/error connections with a timestamp
+      if (
+        (conn.status === "disconnected" || conn.status === "error") &&
+        conn.statusChangedAt
+      ) {
+        const staleDuration = now - conn.statusChangedAt.getTime();
+        if (staleDuration > STALE_CONNECTION_THRESHOLD_MS) {
+          staleConnections.push(connectionId);
+        }
+      }
+    }
+
+    if (staleConnections.length > 0) {
+      logger.warn("Cleaning up stale connections", {
+        count: staleConnections.length,
+        connectionIds: staleConnections,
+        thresholdMs: STALE_CONNECTION_THRESHOLD_MS,
+      });
+
+      for (const connectionId of staleConnections) {
+        const conn = this.connections.get(connectionId);
+        if (conn) {
+          this.removeAllListeners(conn);
+          if (conn.client) {
+            conn.client.destroy();
+          }
+          this.connections.delete(connectionId);
+        }
+      }
+    }
   }
 
   private async handleMessage(
@@ -1113,6 +1178,13 @@ export class GatewayManager {
         });
       }
     }
+
+    // Clean up stale connections when control plane is unhealthy
+    // to prevent memory leaks from accumulating disconnected connections
+    const CRITICAL_FAILURE_THRESHOLD = 5;
+    if (this.consecutivePollFailures >= CRITICAL_FAILURE_THRESHOLD) {
+      this.cleanupStaleConnections();
+    }
   }
 
   private async checkForDeadPods(): Promise<void> {
@@ -1151,7 +1223,27 @@ export class GatewayManager {
   private async claimOrphanedConnections(deadPodId: string): Promise<void> {
     if (!this.redis) return;
 
-    logger.info("Claiming orphaned connections from dead pod", { deadPodId });
+    // Acquire distributed lock to prevent multiple pods from claiming simultaneously
+    // Uses SETNX semantics - only one pod can acquire the lock
+    const lockKey = `discord:failover:lock:${deadPodId}`;
+    const lockAcquired = await this.redis.set(
+      lockKey,
+      this.config.podName,
+      { ex: FAILOVER_LOCK_TTL_SECONDS, nx: true },
+    );
+
+    if (!lockAcquired) {
+      logger.debug("Failover lock already held by another pod", {
+        deadPodId,
+        lockKey,
+      });
+      return;
+    }
+
+    logger.info("Claiming orphaned connections from dead pod", {
+      deadPodId,
+      lockAcquired: true,
+    });
 
     try {
       // Report to backend that this pod is taking over orphaned connections
@@ -1193,6 +1285,13 @@ export class GatewayManager {
       logger.error("Error claiming orphaned connections", {
         deadPodId,
         error: sanitizeError(error),
+      });
+    } finally {
+      // Release lock after operation completes (or let it expire naturally)
+      // Using DEL is safe here - if another pod somehow got the lock, it means
+      // the TTL expired and our operation took too long anyway
+      await this.redis.del(lockKey).catch(() => {
+        // Ignore errors releasing lock - TTL will handle cleanup
       });
     }
   }

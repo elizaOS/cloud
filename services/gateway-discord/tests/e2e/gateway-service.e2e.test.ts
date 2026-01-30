@@ -68,6 +68,14 @@ const mockRedis = {
     mockRedisData.set(key, value);
     return Promise.resolve("OK");
   }),
+  set: mock((key: string, value: string, options?: { ex?: number; nx?: boolean }) => {
+    // SETNX semantics: only set if key doesn't exist
+    if (options?.nx && mockRedisData.has(key)) {
+      return Promise.resolve(null);
+    }
+    mockRedisData.set(key, value);
+    return Promise.resolve("OK");
+  }),
   get: mock((key: string) => Promise.resolve(mockRedisData.get(key) ?? null)),
   del: mock((key: string) => {
     mockRedisData.delete(key);
@@ -147,6 +155,7 @@ function resetMocks() {
   mockRedisData.clear();
   mockRedisSet.clear();
   mockRedis.setex.mockClear();
+  mockRedis.set.mockClear();
   mockRedis.get.mockClear();
   mockRedis.del.mockClear();
   mockFetchResponses.length = 0;
@@ -577,6 +586,41 @@ describe("Discord Gateway Service E2E", () => {
       await manager.checkForDeadPods();
 
       // Should NOT call failover endpoint
+      const failoverCall = mockFetchCalls.find(c => 
+        c.url.includes("/api/internal/discord/gateway/failover")
+      );
+
+      expect(failoverCall).toBeUndefined();
+    });
+
+    test("skips failover when another pod holds the lock", async () => {
+      // Setup dead pod
+      const deadPodState = JSON.stringify({
+        podId: "dead-pod",
+        connections: ["conn-1"],
+        lastHeartbeat: Date.now() - 60_000, // 60s ago - dead
+      });
+      
+      mockRedisData.set("discord:pod:dead-pod", deadPodState);
+      mockRedisData.set("discord:active_pods:dead-pod", "dead-pod");
+      
+      // Another pod already has the failover lock
+      mockRedisData.set("discord:failover:lock:dead-pod", "other-pod");
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        internalApiKey: "test-key",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // @ts-expect-error - accessing private for test
+      await manager.checkForDeadPods();
+
+      // Should NOT call failover endpoint because lock is held
       const failoverCall = mockFetchCalls.find(c => 
         c.url.includes("/api/internal/discord/gateway/failover")
       );
