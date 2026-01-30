@@ -101,7 +101,9 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   try {
     const cached = await client.get<string>(`proxy:auth:${hashToken(token)}`);
     return cached ? JSON.parse(cached) : null;
-  } catch {
+  } catch (error) {
+    // Log Redis read errors but don't block auth - fall back to uncached
+    console.warn("[Proxy] Redis cache read failed:", error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -115,8 +117,9 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
       AUTH_CACHE_TTL,
       JSON.stringify(auth),
     );
-  } catch {
-    /* ignore */
+  } catch (error) {
+    // Log Redis write errors but don't block auth - caching is best-effort
+    console.warn("[Proxy] Redis cache write failed:", error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -168,6 +171,8 @@ const publicPaths = [
   "/api/v1/track",
   "/api/v1/discovery", // Public discovery endpoint for agents/MCPs
   "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
+  "/api/v1/twitter/callback", // Twitter OAuth callback
+  "/api/v1/oauth/providers", // Public endpoint - list available OAuth providers
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
@@ -181,6 +186,7 @@ const publicPaths = [
 const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
+  /^\/api\/v1\/oauth\/[^/]+\/callback$/, // Generic OAuth callbacks (redirects from providers)
 ];
 
 const protectedPaths = [
