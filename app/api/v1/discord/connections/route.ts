@@ -120,30 +120,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Check if connection already exists for this application ID
-  const existing = await discordConnectionsRepository.findByApplicationId(
-    user.organization_id,
-    data.applicationId,
-  );
-  if (existing) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "A connection already exists for this Discord application",
-        existingConnectionId: existing.id,
-      },
-      { status: 409 },
-    );
-  }
+  // Create connection - rely on database unique constraint to prevent duplicates
+  // This avoids TOCTOU race where two requests could pass the "check if exists"
+  // step before either creates the connection
+  let connection;
+  try {
+    connection = await discordConnectionsRepository.create({
+      organizationId: user.organization_id,
+      characterId: data.characterId,
+      applicationId: data.applicationId,
+      botToken: data.botToken,
+      intents: data.intents ?? DISCORD_DEFAULT_INTENTS,
+      metadata: data.metadata,
+    });
+  } catch (error) {
+    // Handle PostgreSQL unique constraint violation (discord_connections_org_app_unique_idx)
+    const isUniqueViolation =
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "23505";
 
-  const connection = await discordConnectionsRepository.create({
-    organizationId: user.organization_id,
-    characterId: data.characterId,
-    applicationId: data.applicationId,
-    botToken: data.botToken,
-    intents: data.intents ?? DISCORD_DEFAULT_INTENTS,
-    metadata: data.metadata,
-  });
+    if (isUniqueViolation) {
+      // Fetch existing connection to provide helpful response
+      const existing = await discordConnectionsRepository.findByApplicationId(
+        user.organization_id,
+        data.applicationId,
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: "A connection already exists for this Discord application",
+          existingConnectionId: existing?.id,
+        },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   logger.info("[Discord Connections] Created connection", {
     connectionId: connection.id,

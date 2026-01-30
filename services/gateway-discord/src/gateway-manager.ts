@@ -392,9 +392,10 @@ export class GatewayManager {
       conn.listeners.clear();
       return;
     }
-    for (const [event, listener] of conn.listeners) {
-      conn.client.removeListener(event, listener);
-    }
+    // Use client.removeAllListeners() to ensure ALL listeners are removed,
+    // even if some weren't tracked in conn.listeners (e.g., due to errors during registration)
+    // This prevents memory leaks on repeated login failures
+    conn.client.removeAllListeners();
     conn.listeners.clear();
   }
 
@@ -496,10 +497,11 @@ export class GatewayManager {
 
       // Disconnect bots no longer assigned
       const assignedIds = new Set(data.assignments.map((a) => a.connectionId));
-      for (const [connectionId] of this.connections) {
-        if (!assignedIds.has(connectionId)) {
-          await this.disconnectBot(connectionId);
-        }
+      const toDisconnect = [...this.connections.entries()]
+        .filter(([id]) => !assignedIds.has(id))
+        .map(([id]) => id);
+      for (const connectionId of toDisconnect) {
+        await this.disconnectBot(connectionId);
       }
     } catch (error) {
       this.consecutivePollFailures++;
