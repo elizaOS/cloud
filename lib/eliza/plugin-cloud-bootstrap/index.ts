@@ -15,6 +15,13 @@ import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message
 import { actionStateProvider, actionsProvider } from "./providers";
 import { generateImageAction } from "./actions";
 import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import {
+  oauthConnectAction,
+  oauthListAction,
+  oauthGetAction,
+  oauthRevokeAction,
+  userAuthStatusProvider,
+} from "../plugin-oauth";
 
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
@@ -91,8 +98,20 @@ const events = {
 export const cloudBootstrapPlugin: Plugin = {
   name: "cloud-bootstrap",
   description: "Multi-step message execution with action params for eliza-cloud-v2",
-  actions: [generateImageAction],
-  providers: [actionStateProvider, actionsProvider, characterProvider, recentMessagesProvider],
+  actions: [
+    generateImageAction,
+    oauthConnectAction,
+    oauthListAction,
+    oauthGetAction,
+    oauthRevokeAction,
+  ],
+  providers: [
+    actionStateProvider,
+    actionsProvider,
+    characterProvider,
+    recentMessagesProvider,
+    userAuthStatusProvider,
+  ],
   events,
   services: [MessageServiceInstaller],
 };
