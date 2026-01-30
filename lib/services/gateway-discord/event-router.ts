@@ -24,9 +24,15 @@ import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import type { DiscordEventPayload, MessageCreateData } from "./schemas";
-import { MessageCreateDataSchema, DiscordAuthorSchema } from "./schemas";
+import { MessageCreateDataSchema } from "./schemas";
 import { DISCORD_API_BASE, discordBotHeaders } from "@/lib/utils/discord-api";
 import { getEncryptionService } from "@/lib/services/secrets/encryption";
+import {
+  DISCORD_RATE_LIMIT_REQUESTS,
+  DISCORD_RATE_LIMIT_WINDOW_MS,
+  DISCORD_RATE_LIMIT_MAX_QUEUE,
+  DISCORD_RATE_LIMIT_DEFAULT_RETRY_MS,
+} from "./constants";
 
 // ============================================
 // Constants
@@ -73,6 +79,168 @@ function truncateUtf16Safe(str: string, maxLength: number): string {
 
 /** HTTP request timeout for Discord API calls */
 const DISCORD_API_TIMEOUT_MS = 10_000;
+
+// ============================================
+// Rate Limiter
+// ============================================
+
+interface RateLimitState {
+  tokens: number;
+  lastRefill: number;
+  retryAfter: number | null;
+  queue: Array<{
+    resolve: (value: void) => void;
+    reject: (error: Error) => void;
+  }>;
+}
+
+/**
+ * Per-bot rate limiter using token bucket algorithm.
+ * Discord enforces 50 requests/second globally per bot.
+ */
+class DiscordRateLimiter {
+  private limiters: Map<string, RateLimitState> = new Map();
+
+  /**
+   * Get or create rate limit state for a bot.
+   */
+  private getState(botToken: string): RateLimitState {
+    // Use first 10 chars of token as key (safe identifier, not full token)
+    const key = botToken.slice(0, 10);
+    let state = this.limiters.get(key);
+    if (!state) {
+      state = {
+        tokens: DISCORD_RATE_LIMIT_REQUESTS,
+        lastRefill: Date.now(),
+        retryAfter: null,
+        queue: [],
+      };
+      this.limiters.set(key, state);
+    }
+    return state;
+  }
+
+  /**
+   * Refill tokens based on elapsed time.
+   */
+  private refillTokens(state: RateLimitState): void {
+    const now = Date.now();
+    const elapsed = now - state.lastRefill;
+    const tokensToAdd = Math.floor(
+      (elapsed / DISCORD_RATE_LIMIT_WINDOW_MS) * DISCORD_RATE_LIMIT_REQUESTS
+    );
+    if (tokensToAdd > 0) {
+      state.tokens = Math.min(
+        DISCORD_RATE_LIMIT_REQUESTS,
+        state.tokens + tokensToAdd
+      );
+      state.lastRefill = now;
+    }
+  }
+
+  /**
+   * Process queued requests when tokens become available.
+   */
+  private processQueue(state: RateLimitState): void {
+    while (state.queue.length > 0 && state.tokens > 0) {
+      const request = state.queue.shift();
+      if (request) {
+        state.tokens--;
+        request.resolve();
+      }
+    }
+  }
+
+  /**
+   * Acquire a rate limit token. Waits if necessary.
+   * Throws if queue is full to prevent memory exhaustion.
+   */
+  async acquire(botToken: string): Promise<void> {
+    const state = this.getState(botToken);
+
+    // Check if we're in a forced retry-after period
+    if (state.retryAfter !== null && Date.now() < state.retryAfter) {
+      const waitTime = state.retryAfter - Date.now();
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      state.retryAfter = null;
+    }
+
+    // Refill tokens based on elapsed time
+    this.refillTokens(state);
+
+    // If tokens available, consume one immediately
+    if (state.tokens > 0) {
+      state.tokens--;
+      return;
+    }
+
+    // Check queue size to prevent memory exhaustion
+    if (state.queue.length >= DISCORD_RATE_LIMIT_MAX_QUEUE) {
+      throw new Error(
+        `Discord rate limit queue full (${DISCORD_RATE_LIMIT_MAX_QUEUE} pending requests)`
+      );
+    }
+
+    // Queue the request and wait for a token
+    return new Promise<void>((resolve, reject) => {
+      state.queue.push({ resolve, reject });
+
+      // Schedule token refill and queue processing
+      const waitTime = Math.ceil(
+        DISCORD_RATE_LIMIT_WINDOW_MS / DISCORD_RATE_LIMIT_REQUESTS
+      );
+      setTimeout(() => {
+        this.refillTokens(state);
+        this.processQueue(state);
+      }, waitTime);
+    });
+  }
+
+  /**
+   * Handle a 429 response by setting the retry-after delay.
+   * Returns the retry delay in milliseconds.
+   */
+  handleRateLimit(botToken: string, retryAfterSeconds?: number): number {
+    const state = this.getState(botToken);
+    const retryMs = retryAfterSeconds
+      ? retryAfterSeconds * 1000
+      : DISCORD_RATE_LIMIT_DEFAULT_RETRY_MS;
+
+    state.retryAfter = Date.now() + retryMs;
+    state.tokens = 0; // Drain all tokens on rate limit
+
+    logger.warn("[DiscordRateLimiter] Rate limited by Discord", {
+      retryAfterMs: retryMs,
+      queueSize: state.queue.length,
+    });
+
+    return retryMs;
+  }
+
+  /**
+   * Clean up old rate limiters to prevent memory leaks.
+   * Call periodically (e.g., every 5 minutes).
+   */
+  cleanup(): void {
+    const now = Date.now();
+    const staleThreshold = 5 * 60 * 1000; // 5 minutes
+
+    for (const [key, state] of this.limiters) {
+      if (
+        state.queue.length === 0 &&
+        now - state.lastRefill > staleThreshold
+      ) {
+        this.limiters.delete(key);
+      }
+    }
+  }
+}
+
+/** Singleton rate limiter instance */
+const discordRateLimiter = new DiscordRateLimiter();
+
+// Cleanup stale rate limiters periodically
+setInterval(() => discordRateLimiter.cleanup(), 5 * 60 * 1000);
 
 // ============================================
 // Types
@@ -503,7 +671,12 @@ async function sendToRuntime(
 }
 
 /**
- * Send a response message back to Discord.
+ * Send a response message back to Discord with rate limiting.
+ *
+ * Implements:
+ * - Proactive rate limiting (token bucket, 45 req/s per bot)
+ * - Reactive 429 handling with Retry-After support
+ * - Single retry on rate limit
  */
 async function sendDiscordResponse(
   botToken: string,
@@ -521,32 +694,57 @@ async function sendDiscordResponse(
     };
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    DISCORD_API_TIMEOUT_MS,
-  );
+  // Acquire rate limit token (waits if necessary)
+  await discordRateLimiter.acquire(botToken);
 
-  try {
-    const response = await fetch(
-      `${DISCORD_API_BASE}/channels/${channelId}/messages`,
-      {
-        method: "POST",
-        headers: discordBotHeaders(botToken),
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      },
+  const makeRequest = async (): Promise<Response> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      DISCORD_API_TIMEOUT_MS,
     );
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      logger.error("[DiscordRouter] Discord API error", {
-        channelId,
-        status: response.status,
-        error,
-      });
+    try {
+      return await fetch(
+        `${DISCORD_API_BASE}/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: discordBotHeaders(botToken),
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      clearTimeout(timeoutId);
     }
-  } finally {
-    clearTimeout(timeoutId);
+  };
+
+  let response = await makeRequest();
+
+  // Handle rate limit with single retry
+  if (response.status === 429) {
+    const retryAfterHeader = response.headers.get("Retry-After");
+    const retryAfterSeconds = retryAfterHeader
+      ? parseFloat(retryAfterHeader)
+      : undefined;
+
+    const retryMs = discordRateLimiter.handleRateLimit(
+      botToken,
+      retryAfterSeconds,
+    );
+
+    // Wait and retry once
+    await new Promise((resolve) => setTimeout(resolve, retryMs));
+    await discordRateLimiter.acquire(botToken);
+    response = await makeRequest();
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    logger.error("[DiscordRouter] Discord API error", {
+      channelId,
+      status: response.status,
+      error,
+    });
   }
 }

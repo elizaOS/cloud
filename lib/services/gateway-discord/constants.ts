@@ -16,3 +16,22 @@
  * This default must match the K8s deployment configuration.
  */
 export const DEAD_POD_THRESHOLD_MS = 45_000; // 45 seconds
+
+// ============================================
+// Discord API Rate Limiting
+// ============================================
+
+/**
+ * Discord enforces 50 requests per second per bot globally.
+ * We use 45 to leave headroom for other operations.
+ */
+export const DISCORD_RATE_LIMIT_REQUESTS = 45;
+
+/** Rate limit window in milliseconds (1 second) */
+export const DISCORD_RATE_LIMIT_WINDOW_MS = 1_000;
+
+/** Maximum queue size per bot before rejecting requests */
+export const DISCORD_RATE_LIMIT_MAX_QUEUE = 100;
+
+/** Default retry delay when rate limited without Retry-After header */
+export const DISCORD_RATE_LIMIT_DEFAULT_RETRY_MS = 1_000;
