@@ -282,7 +282,10 @@ export class GatewayManager {
     for (const [connectionId, conn] of this.connections) {
       await this.saveSessionState(connectionId, conn);
       this.removeAllListeners(conn);
-      conn.client.destroy();
+      // Guard against placeholder connections with null client
+      if (conn.client) {
+        conn.client.destroy();
+      }
       logger.info("Disconnected bot", { connectionId });
     }
 
@@ -384,6 +387,11 @@ export class GatewayManager {
   }
 
   private removeAllListeners(conn: BotConnection): void {
+    // Guard against placeholder connections with null client
+    if (!conn.client) {
+      conn.listeners.clear();
+      return;
+    }
     for (const [event, listener] of conn.listeners) {
       conn.client.removeListener(event, listener);
     }
@@ -440,8 +448,13 @@ export class GatewayManager {
       };
 
       for (const assignment of data.assignments) {
-        // Check capacity FIRST before each assignment to prevent TOCTOU race
-        // (capacity could change during async connectBot operations)
+        // Skip if already connected
+        if (this.connections.has(assignment.connectionId)) {
+          continue;
+        }
+
+        // Check capacity and reserve slot atomically to prevent TOCTOU race
+        // Without this, concurrent operations could both pass the check before either adds to the map
         if (this.connections.size >= MAX_BOTS_PER_POD) {
           logger.warn("MAX_BOTS_PER_POD limit reached, skipping remaining assignments", {
             currentBots: this.connections.size,
@@ -450,8 +463,34 @@ export class GatewayManager {
           });
           break;
         }
-        if (!this.connections.has(assignment.connectionId)) {
+
+        // Reserve the slot immediately with a placeholder to prevent concurrent operations
+        // from exceeding capacity. connectBot will overwrite with the real connection.
+        const placeholder: BotConnection = {
+          connectionId: assignment.connectionId,
+          organizationId: assignment.organizationId,
+          applicationId: assignment.applicationId,
+          client: null as unknown as Client,
+          status: "connecting",
+          guildCount: 0,
+          eventsReceived: 0,
+          eventsRouted: 0,
+          eventsFailed: 0,
+          consecutiveFailures: 0,
+          lastHeartbeat: new Date(),
+          listeners: new Map(),
+        };
+        this.connections.set(assignment.connectionId, placeholder);
+
+        try {
           await this.connectBot(assignment);
+        } catch (error) {
+          // Clean up placeholder if connectBot throws before setting real connection
+          this.connections.delete(assignment.connectionId);
+          logger.error("Failed to connect bot during assignment", {
+            connectionId: assignment.connectionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -778,7 +817,10 @@ export class GatewayManager {
     logger.info("Disconnecting bot", { connectionId });
     await this.saveSessionState(connectionId, conn);
     this.removeAllListeners(conn);
-    conn.client.destroy();
+    // Guard against placeholder connections with null client
+    if (conn.client) {
+      conn.client.destroy();
+    }
     this.connections.delete(connectionId);
     await this.updateConnectionStatus(connectionId, "disconnected");
   }
