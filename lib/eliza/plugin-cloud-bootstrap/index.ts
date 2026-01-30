@@ -14,7 +14,8 @@ import {
 import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
 import { actionStateProvider, actionsProvider } from "./providers";
 import { generateImageAction } from "./actions";
-import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import { recentMessagesProvider } from "../shared/providers";
+import { characterProvider } from "./providers/character";
 import {
   oauthConnectAction,
   oauthListAction,
