@@ -15,7 +15,6 @@ import {
   Shield,
   Wallet,
   Coins,
-  Workflow,
   Sparkles,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -67,14 +66,6 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/apps",
         icon: Grid3x3,
         freeAllowed: false,
-      },
-      {
-        id: "workflows",
-        label: "Workflows",
-        href: "/dashboard/workflows",
-        icon: Workflow,
-        freeAllowed: false,
-        comingSoon: true,
       },
     ],
   },

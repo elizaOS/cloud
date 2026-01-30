@@ -56,6 +56,4 @@ src-tauri/Cargo.lock
 
 ignore/
 .env*.local
-
-.claude/*
-claudedocs
+package-lock.json
