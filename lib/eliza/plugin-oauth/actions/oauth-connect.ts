@@ -14,7 +14,7 @@ import {
 import { oauthService } from "@/lib/services/oauth";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
-  SUPPORTED_PLATFORMS,
+  getSupportedPlatforms,
   isSupportedPlatform,
   extractPlatform,
   lookupUser,
@@ -65,8 +65,9 @@ export const oauthConnectAction: ActionWithParams = {
     }
 
     if (!isSupportedPlatform(platform)) {
+      const supported = getSupportedPlatforms();
       return {
-        text: `Platform '${platform}' is not available. Supported: ${SUPPORTED_PLATFORMS.join(", ")}`,
+        text: `Platform '${platform}' is not available. Supported: ${supported.length > 0 ? supported.join(", ") : "none configured"}`,
         success: false,
         error: "UNSUPPORTED_PLATFORM",
         data: { actionName },

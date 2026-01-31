@@ -5,12 +5,16 @@
 import type { Memory, State, ActionResult } from "@elizaos/core";
 import { logger } from "@elizaos/core";
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
+import { getConfiguredOAuthProviders } from "@/lib/services/oauth/provider-registry";
 
-export const SUPPORTED_PLATFORMS = ["google"] as const;
-export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+/** Configured OAuth platform IDs (platforms with valid credentials). */
+export function getSupportedPlatforms(): string[] {
+  return getConfiguredOAuthProviders().map(p => p.id);
+}
 
-export function isSupportedPlatform(platform: string): platform is SupportedPlatform {
-  return SUPPORTED_PLATFORMS.includes(platform.toLowerCase() as SupportedPlatform);
+/** Check if a platform is configured and available for OAuth. */
+export function isSupportedPlatform(platform: string): boolean {
+  return getSupportedPlatforms().includes(platform.toLowerCase());
 }
 
 export function capitalize(str: string): string {

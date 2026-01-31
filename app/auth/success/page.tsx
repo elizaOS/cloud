@@ -1,10 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, MessageCircle } from "lucide-react";
+
+// Platform display names
+const platformNames: Record<string, string> = {
+  google: "Google",
+  linear: "Linear",
+  notion: "Notion",
+  github: "GitHub",
+  slack: "Slack",
+  twitter: "Twitter",
+  discord: "Discord",
+};
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 export default function AuthSuccessPage() {
   const [canClose, setCanClose] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Get platform from URL params (e.g., ?platform=linear or ?google_connected=true)
+  const platform = searchParams.get("platform")
+    || Array.from(searchParams.keys()).find(k => k.endsWith("_connected"))?.replace("_connected", "")
+    || null;
+
+  const platformDisplay = platform
+    ? (platformNames[platform.toLowerCase()] || capitalize(platform))
+    : null;
 
   useEffect(() => {
     // Try to close the window after a short delay
@@ -33,10 +59,13 @@ export default function AuthSuccessPage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-white">
-              Connection Successful
+              {platformDisplay ? `${platformDisplay} Connected` : "Connection Successful"}
             </h2>
             <p className="text-sm text-neutral-400">
-              Your account has been connected successfully.
+              {platformDisplay
+                ? `Your ${platformDisplay} account has been connected successfully.`
+                : "Your account has been connected successfully."
+              }
             </p>
           </div>
 
