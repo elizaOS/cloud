@@ -223,14 +223,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       prompt: "consent",
     },
     storage: "platform_credentials",
-    // Legacy routes - Google still uses old routes for now
-    routes: {
-      initiate: "/api/v1/google/oauth",
-      callback: "/api/v1/google/callback",
-      status: "/api/v1/google/status",
-      disconnect: "/api/v1/google/disconnect",
-    },
-    useGenericRoutes: false,
+    useGenericRoutes: true,
   },
 
   linear: {

@@ -31,8 +31,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface GoogleConnection {
+  id: string;
+  platform: string;
+  email?: string;
+  displayName?: string;
+  scopes?: string[];
+  status: string;
+}
+
 interface GoogleStatus {
   connected: boolean;
+  connectionId?: string;
   email?: string;
   scopes?: string[];
   error?: string;
@@ -47,9 +57,18 @@ export function GoogleConnection() {
   const fetchStatus = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/google/status");
-      const data: GoogleStatus = await response.json();
-      setStatus(data);
+      // Use generic OAuth connections endpoint
+      const response = await fetch("/api/v1/oauth/connections?platform=google");
+      const data = await response.json();
+      const connections: GoogleConnection[] = data.connections || [];
+      const activeConnection = connections.find((c) => c.status === "active");
+
+      setStatus({
+        connected: !!activeConnection,
+        connectionId: activeConnection?.id,
+        email: activeConnection?.email,
+        scopes: activeConnection?.scopes,
+      });
     } catch {
       toast.error("Failed to fetch Google status");
     }
@@ -62,12 +81,21 @@ export function GoogleConnection() {
     const loadStatus = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/v1/google/status", {
+        // Use generic OAuth connections endpoint
+        const response = await fetch("/api/v1/oauth/connections?platform=google", {
           signal: controller.signal,
         });
         if (!controller.signal.aborted) {
-          const data: GoogleStatus = await response.json();
-          setStatus(data);
+          const data = await response.json();
+          const connections: GoogleConnection[] = data.connections || [];
+          const activeConnection = connections.find((c) => c.status === "active");
+
+          setStatus({
+            connected: !!activeConnection,
+            connectionId: activeConnection?.id,
+            email: activeConnection?.email,
+            scopes: activeConnection?.scopes,
+          });
           setIsLoading(false);
         }
       } catch {
@@ -87,7 +115,8 @@ export function GoogleConnection() {
     setIsConnecting(true);
 
     try {
-      const response = await fetch("/api/v1/google/oauth", {
+      // Use generic OAuth initiate route
+      const response = await fetch("/api/v1/oauth/google/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,11 +140,12 @@ export function GoogleConnection() {
   };
 
   const handleDisconnect = async () => {
-    if (isDisconnecting) return;
+    if (isDisconnecting || !status?.connectionId) return;
     setIsDisconnecting(true);
 
     try {
-      const response = await fetch("/api/v1/google/disconnect", {
+      // Use generic OAuth connections endpoint
+      const response = await fetch(`/api/v1/oauth/connections/${status.connectionId}`, {
         method: "DELETE",
       });
 

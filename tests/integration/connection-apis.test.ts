@@ -47,30 +47,16 @@ describe("Connection APIs E2E Tests", () => {
     await cleanupTestData(TEST_DB_URL, testData.organization.id);
   });
 
-  describe("Google Connection API", () => {
-    describe("GET /api/v1/google/status", () => {
-      it("should return disconnected status when not connected", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
-          headers: {
-            Authorization: `Bearer ${testData.apiKey.key}`,
-          },
-        });
-
-        expect(response.status).toBe(200);
-        const data = await response.json();
-        expect(data.connected).toBe(false);
-      });
-
-      it("should return connected status when credentials exist", async () => {
-        // Insert test credentials
+  describe("Google Connection API (via generic OAuth routes)", () => {
+    describe("GET /api/v1/oauth/connections?platform=google", () => {
+      it("should return empty connections when not connected", async () => {
+        // Clean up any existing Google connections
         await client.query(
-          `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
-           VALUES ($1, 'google_access_token', 'test_token', NOW(), NOW())
-           ON CONFLICT (organization_id, key) DO UPDATE SET value = 'test_token'`,
+          `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'google'`,
           [testData.organization.id],
         );
 
-        const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
           headers: {
             Authorization: `Bearer ${testData.apiKey.key}`,
           },
@@ -78,19 +64,18 @@ describe("Connection APIs E2E Tests", () => {
 
         expect(response.status).toBe(200);
         const data = await response.json();
-        // Will be connected if token exists
-        expect(typeof data.connected).toBe("boolean");
+        expect(data.connections).toEqual([]);
       });
 
       it("should return 401 without authentication", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/google/status`);
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`);
         expect(response.status).toBe(401);
       });
     });
 
-    describe("POST /api/v1/google/oauth", () => {
+    describe("POST /api/v1/oauth/google/initiate", () => {
       it("should initiate OAuth flow", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/google/oauth`, {
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/google/initiate`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${testData.apiKey.key}`,
@@ -99,12 +84,12 @@ describe("Connection APIs E2E Tests", () => {
           body: JSON.stringify({}),
         });
 
-        // Will return 500 if GOOGLE_CLIENT_ID not configured, which is expected
-        expect([200, 500]).toContain(response.status);
+        // Will return 400 if GOOGLE_CLIENT_ID not configured, which is expected
+        expect([200, 400]).toContain(response.status);
       });
 
       it("should return 401 without authentication", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/google/oauth`, {
+        const response = await fetch(`${BASE_URL}/api/v1/oauth/google/initiate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -113,35 +98,6 @@ describe("Connection APIs E2E Tests", () => {
         });
 
         expect(response.status).toBe(401);
-      });
-    });
-
-    describe("DELETE /api/v1/google/disconnect", () => {
-      it("should disconnect Google account", async () => {
-        // First connect (mock)
-        await client.query(
-          `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
-           VALUES ($1, 'google_access_token', 'test_token', NOW(), NOW())
-           ON CONFLICT (organization_id, key) DO UPDATE SET value = 'test_token'`,
-          [testData.organization.id],
-        );
-
-        const response = await fetch(`${BASE_URL}/api/v1/google/disconnect`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${testData.apiKey.key}`,
-          },
-        });
-
-        expect([200, 204]).toContain(response.status);
-
-        // Verify disconnected
-        const secretResult = await client.query(
-          `SELECT * FROM secrets WHERE organization_id = $1 AND key = 'google_access_token'`,
-          [testData.organization.id],
-        );
-        // Token should be deleted or empty
-        expect(secretResult.rows.length === 0 || !secretResult.rows[0]?.value).toBe(true);
       });
     });
   });
@@ -344,14 +300,6 @@ describe("Connection APIs E2E Tests", () => {
 
   describe("Cross-Connection Scenarios", () => {
     it("should allow multiple services to be connected simultaneously", async () => {
-      // Connect Google
-      await client.query(
-        `INSERT INTO secrets (organization_id, key, value, created_at, updated_at)
-         VALUES ($1, 'google_access_token', 'google_test_token', NOW(), NOW())
-         ON CONFLICT (organization_id, key) DO UPDATE SET value = 'google_test_token'`,
-        [testData.organization.id],
-      );
-
       // Connect Twilio
       await client.query(
         `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
@@ -369,9 +317,6 @@ describe("Connection APIs E2E Tests", () => {
       );
 
       // Check all statuses
-      const googleStatus = await fetch(`${BASE_URL}/api/v1/google/status`, {
-        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-      });
       const twilioStatus = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
         headers: { Authorization: `Bearer ${testData.apiKey.key}` },
       });
@@ -379,7 +324,6 @@ describe("Connection APIs E2E Tests", () => {
         headers: { Authorization: `Bearer ${testData.apiKey.key}` },
       });
 
-      expect(googleStatus.status).toBe(200);
       expect(twilioStatus.status).toBe(200);
       expect(blooioStatus.status).toBe(200);
     });
@@ -390,13 +334,6 @@ describe("Connection APIs E2E Tests", () => {
         `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
         [testData.organization.id],
       );
-
-      // Google should still be connected
-      const googleResult = await client.query(
-        `SELECT * FROM secrets WHERE organization_id = $1 AND key = 'google_access_token'`,
-        [testData.organization.id],
-      );
-      expect(googleResult.rows.length).toBe(1);
 
       // Blooio should still be connected
       const blooioResult = await client.query(
@@ -422,7 +359,7 @@ describe("Connection APIs E2E Tests", () => {
     });
 
     it("should handle invalid API key", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
         headers: {
           Authorization: "Bearer invalid_key_12345",
         },
@@ -444,7 +381,7 @@ describe("Connection APIs E2E Tests", () => {
         ],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
         headers: {
           Authorization: `Bearer ${expiredKeyId.rows[0].key}`,
         },
@@ -490,12 +427,13 @@ describe("Connection APIs E2E Tests", () => {
     });
   });
 
-  describe("Google OAuth Callback Edge Cases", () => {
+  describe("Google OAuth Callback Edge Cases (via generic route)", () => {
     it("should reject callback with missing code parameter", async () => {
       const response = await fetch(
-        `${BASE_URL}/api/v1/google/callback?state=test_state`,
+        `${BASE_URL}/api/v1/oauth/google/callback?state=test_state`,
         {
           method: "GET",
+          redirect: "manual",
         },
       );
 
@@ -505,9 +443,10 @@ describe("Connection APIs E2E Tests", () => {
 
     it("should reject callback with missing state parameter", async () => {
       const response = await fetch(
-        `${BASE_URL}/api/v1/google/callback?code=test_code`,
+        `${BASE_URL}/api/v1/oauth/google/callback?code=test_code`,
         {
           method: "GET",
+          redirect: "manual",
         },
       );
 
@@ -517,9 +456,10 @@ describe("Connection APIs E2E Tests", () => {
 
     it("should reject callback with invalid state parameter", async () => {
       const response = await fetch(
-        `${BASE_URL}/api/v1/google/callback?code=test_code&state=invalid_state_token`,
+        `${BASE_URL}/api/v1/oauth/google/callback?code=test_code&state=invalid_state_token`,
         {
           method: "GET",
+          redirect: "manual",
         },
       );
 
@@ -527,11 +467,12 @@ describe("Connection APIs E2E Tests", () => {
       expect([302, 400]).toContain(response.status);
     });
 
-    it("should handle Google error parameter in callback", async () => {
+    it("should handle error parameter in callback", async () => {
       const response = await fetch(
-        `${BASE_URL}/api/v1/google/callback?error=access_denied&error_description=User%20denied%20access`,
+        `${BASE_URL}/api/v1/oauth/google/callback?error=access_denied&error_description=User%20denied%20access`,
         {
           method: "GET",
+          redirect: "manual",
         },
       );
 
@@ -701,20 +642,22 @@ describe("Connection APIs E2E Tests", () => {
   });
 
   describe("Connection Status Response Format", () => {
-    it("should return consistent structure for Google status", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/google/status`, {
+    it("should return consistent structure for Google connections", async () => {
+      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
         headers: { Authorization: `Bearer ${testData.apiKey.key}` },
       });
 
       expect(response.status).toBe(200);
       const data = await response.json();
 
-      expect(data).toHaveProperty("connected");
-      expect(typeof data.connected).toBe("boolean");
+      expect(data).toHaveProperty("connections");
+      expect(Array.isArray(data.connections)).toBe(true);
 
-      if (data.connected) {
-        // When connected, should have additional fields
-        expect(typeof data.email === "string" || data.email === undefined).toBe(true);
+      if (data.connections.length > 0) {
+        const conn = data.connections[0];
+        expect(conn).toHaveProperty("id");
+        expect(conn).toHaveProperty("platform");
+        expect(conn).toHaveProperty("status");
       }
     });
 
@@ -744,26 +687,6 @@ describe("Connection APIs E2E Tests", () => {
   });
 
   describe("Disconnect Idempotency", () => {
-    it("should succeed when disconnecting already disconnected Google", async () => {
-      // Ensure no Google connection
-      await client.query(
-        `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'google'`,
-        [testData.organization.id],
-      );
-      await client.query(
-        `DELETE FROM secrets WHERE organization_id = $1 AND key LIKE 'google_%'`,
-        [testData.organization.id],
-      );
-
-      const response = await fetch(`${BASE_URL}/api/v1/google/disconnect`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-      });
-
-      // Should succeed even when already disconnected
-      expect([200, 204]).toContain(response.status);
-    });
-
     it("should succeed when disconnecting already disconnected Twilio", async () => {
       await client.query(
         `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
@@ -798,7 +721,7 @@ describe("Connection APIs E2E Tests", () => {
       const startTime = Date.now();
 
       const responses = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/google/status`, {
+        fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
           headers: { Authorization: `Bearer ${testData.apiKey.key}` },
         }),
         fetch(`${BASE_URL}/api/v1/twilio/status`, {
