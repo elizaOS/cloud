@@ -211,6 +211,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/contacts.readonly",
     ],
     userInfoMapping: {
       id: "id",
@@ -318,7 +319,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       userInfo: "https://slack.com/api/users.identity",
       revoke: "https://slack.com/api/auth.revoke",
     },
-    defaultScopes: ["users:read", "chat:write", "channels:read"],
+    defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
     userInfoMapping: {
       id: "user.id",
       email: "user.email",

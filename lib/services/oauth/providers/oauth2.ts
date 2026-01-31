@@ -427,6 +427,48 @@ function extractUserInfo(
 }
 
 /**
+ * Create a secret, or rotate it if one with the same name already exists.
+ * Handles orphaned secrets from failed previous OAuth attempts.
+ */
+async function createOrRotateSecret(
+  organizationId: string,
+  name: string,
+  value: string,
+  userId: string,
+  audit: { actorType: "user"; actorId: string; source: string },
+  newlyCreatedSecretIds: string[]
+): Promise<{ id: string }> {
+  try {
+    const secret = await secretsService.create(
+      {
+        organizationId,
+        name,
+        value,
+        scope: "organization",
+        createdBy: userId,
+      },
+      audit
+    );
+    newlyCreatedSecretIds.push(secret.id);
+    return secret;
+  } catch (error) {
+    // If secret already exists (orphaned from previous failed attempt), find and rotate it
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes("already exists") || errorMsg.includes("duplicate") || errorMsg.includes("unique constraint")) {
+      logger.info(`[OAuth2] Secret "${name}" already exists, attempting to rotate`, { organizationId });
+      // Find the existing secret by listing and filtering
+      const allSecrets = await secretsService.list(organizationId);
+      const existingSecret = allSecrets.find((s) => s.name === name);
+      if (existingSecret) {
+        await secretsService.rotate(existingSecret.id, organizationId, value, audit);
+        return { id: existingSecret.id };
+      }
+    }
+    throw error;
+  }
+}
+
+/**
  * Store OAuth connection in database.
  */
 async function storeConnection(
@@ -497,33 +539,48 @@ async function storeConnection(
       refreshTokenSecretId = existing[0].refresh_token_secret_id;
     }
   } else {
-    // Create new secrets
-    const accessSecret = await secretsService.create(
-      {
+    // Create new secrets with cleanup on partial failure
+    try {
+      const accessSecret = await createOrRotateSecret(
         organizationId,
-        name: `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
-        value: tokens.access_token,
-        scope: "organization",
-        createdBy: userId,
-      },
-      audit
-    );
-    accessTokenSecretId = accessSecret.id;
-    newlyCreatedSecretIds.push(accessSecret.id);
-
-    if (tokens.refresh_token) {
-      const refreshSecret = await secretsService.create(
-        {
-          organizationId,
-          name: `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
-          value: tokens.refresh_token,
-          scope: "organization",
-          createdBy: userId,
-        },
-        audit
+        `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
+        tokens.access_token,
+        userId,
+        audit,
+        newlyCreatedSecretIds
       );
-      refreshTokenSecretId = refreshSecret.id;
-      newlyCreatedSecretIds.push(refreshSecret.id);
+      accessTokenSecretId = accessSecret.id;
+
+      if (tokens.refresh_token) {
+        const refreshSecret = await createOrRotateSecret(
+          organizationId,
+          `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+          tokens.refresh_token,
+          userId,
+          audit,
+          newlyCreatedSecretIds
+        );
+        refreshTokenSecretId = refreshSecret.id;
+      }
+    } catch (secretError) {
+      // Clean up any secrets we created before the failure
+      if (newlyCreatedSecretIds.length > 0) {
+        logger.warn(`[OAuth2] Secret creation failed, cleaning up ${newlyCreatedSecretIds.length} secret(s)`, {
+          providerId: provider.id,
+          organizationId,
+          error: secretError instanceof Error ? secretError.message : String(secretError),
+        });
+        for (const secretId of newlyCreatedSecretIds) {
+          try {
+            await secretsService.delete(secretId, organizationId, audit);
+          } catch (cleanupError) {
+            logger.error(`[OAuth2] Failed to cleanup secret ${secretId}`, {
+              error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+            });
+          }
+        }
+      }
+      throw secretError;
     }
   }
 
