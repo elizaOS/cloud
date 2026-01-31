@@ -568,6 +568,7 @@ export class RuntimeFactory {
 
   private transformMcpSettings(
     mcpSettings: Record<string, unknown>,
+    apiKey?: string,
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
@@ -575,13 +576,27 @@ export class RuntimeFactory {
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string }>,
+      mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> }>,
     )) {
+      const isHttpTransport = serverConfig.type && ["http", "streamable-http", "sse"].includes(serverConfig.type);
+      const transformedUrl = serverConfig.url?.startsWith("/")
+        ? `${baseUrl}${serverConfig.url}`
+        : serverConfig.url;
+
+      // Auto-inject API key header for HTTP MCP servers on our domain
+      const shouldInjectAuth = isHttpTransport && apiKey && transformedUrl?.startsWith(baseUrl);
+
+      elizaLogger.info(`[MCP Transform] Server ${serverId}: isHttp=${isHttpTransport}, hasApiKey=${!!apiKey}, startsWithBase=${transformedUrl?.startsWith(baseUrl)}, shouldInjectAuth=${shouldInjectAuth}`);
+
       transformedServers[serverId] = {
         ...serverConfig,
-        url: serverConfig.url?.startsWith("/")
-          ? `${baseUrl}${serverConfig.url}`
-          : serverConfig.url,
+        url: transformedUrl,
+        ...(shouldInjectAuth && {
+          headers: {
+            ...serverConfig.headers,
+            "X-API-Key": apiKey,
+          },
+        }),
       };
     }
 
@@ -630,6 +645,7 @@ export class RuntimeFactory {
         ? {
             mcp: this.transformMcpSettings(
               charSettings.mcp as Record<string, unknown>,
+              context.apiKey,
             ),
           }
         : {}),
@@ -817,7 +833,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 1000; // Reduced from 2s to 1s
+    const maxWaitMs = 2500; // Allow time for MCP server connections
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;
@@ -851,6 +867,15 @@ export class RuntimeFactory {
       elizaLogger.info(
         `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
+      for (const server of servers as any[]) {
+        elizaLogger.info(
+          `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || 'none'}`,
+        );
+      }
+    }
+    const providerData = mcpService.getProviderData?.();
+    if (providerData) {
+      elizaLogger.info(`[RuntimeFactory] MCP Provider text: ${providerData.text?.substring(0, 200)}...`);
     }
   }
 }
