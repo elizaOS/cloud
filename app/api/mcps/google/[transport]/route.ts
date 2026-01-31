@@ -183,7 +183,7 @@ async function getGoogleMcpHandler() {
       });
     },
     { capabilities: { tools: {} } },
-    { redisUrl: process.env.REDIS_URL, basePath: "/api/mcps/google", maxDuration: 60 },
+    { basePath: "/api/mcps/google", maxDuration: 60 },
   );
 
   return mcpHandler;
@@ -206,6 +206,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     return new Response(bodyText, { status: mcpResponse.status, headers });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    logger.error(`[GoogleMCP] ${msg}`);
     const isAuth = msg.includes("API key") || msg.includes("auth") || msg.includes("Unauthorized");
     return new Response(JSON.stringify({ error: isAuth ? "authentication_required" : "internal_error", message: msg }), { status: isAuth ? 401 : 500, headers: { "Content-Type": "application/json" } });
   }

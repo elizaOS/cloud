@@ -544,10 +544,20 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     const originalSystemPrompt = runtime.character.system;
 
+    // Wait for MCP service to finish initializing (registering tool actions)
+    const mcpService = runtime.getService("mcp");
+    if (mcpService && "waitForInitialization" in mcpService) {
+      logger.debug("[MultiStep] Waiting for MCP service initialization...");
+      await (mcpService as { waitForInitialization: () => Promise<void> }).waitForInitialization();
+      logger.debug("[MultiStep] MCP service ready");
+    }
+
     accumulatedState = await runtime.composeState(message, [
       "RECENT_MESSAGES",
       "ACTION_STATE",
       "ACTIONS",
+      // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
+      // via McpService.registerToolsAsActions() and appear in ACTIONS provider
     ], true);
     accumulatedState.data.actionResults = traceActionResult;
 
@@ -592,6 +602,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           "RECENT_MESSAGES",
           "ACTION_STATE",
           "ACTIONS",
+          // NOTE: "MCP" provider removed - MCP tools are now native actions
         ], true);
         // Also set on state.data for consistency
         accumulatedState.data.actionResults = traceActionResult;
