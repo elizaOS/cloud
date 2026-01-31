@@ -17,39 +17,15 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Validate payload with Zod, falling back to basic validation if Zod fails
- * (Turbopack can have module loading issues with Zod schemas)
+ * Validate payload with Zod schema.
+ * Fails hard if Zod is unavailable - no unsafe fallback validation.
  */
 function validatePayload(body: unknown): { success: true; data: DiscordEventPayload } | { success: false; error: string } {
-  // Try Zod validation first
-  try {
-    if (DiscordEventPayloadSchema?.safeParse) {
-      const parsed = DiscordEventPayloadSchema.safeParse(body);
-      if (parsed.success) {
-        return { success: true, data: parsed.data };
-      }
-      return { success: false, error: parsed.error.issues.map((e: { message: string }) => e.message).join(", ") };
-    }
-  } catch (zodError) {
-    logger.warn("[Discord Events] Zod validation unavailable, using fallback", {
-      error: zodError instanceof Error ? zodError.message : String(zodError),
-    });
+  const parsed = DiscordEventPayloadSchema.safeParse(body);
+  if (parsed.success) {
+    return { success: true, data: parsed.data };
   }
-
-  // Fallback to basic validation
-  const payload = body as DiscordEventPayload;
-  if (!payload?.connection_id || !payload?.event_type || !payload?.data) {
-    return {
-      success: false,
-      error: `Missing required fields: ${[
-        !payload?.connection_id && "connection_id",
-        !payload?.event_type && "event_type",
-        !payload?.data && "data",
-      ].filter(Boolean).join(", ")}`,
-    };
-  }
-
-  return { success: true, data: payload };
+  return { success: false, error: parsed.error.issues.map((e) => e.message).join(", ") };
 }
 
 export async function POST(request: NextRequest) {
