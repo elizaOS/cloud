@@ -121,7 +121,8 @@ async function handleMessage(message: Message): Promise<void> {
     }
   }
 
-  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
+  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
+  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
     maxRetries: 10,
     initialDelayMs: 100,
     maxDelayMs: 2000,
