@@ -151,6 +151,13 @@ export class MessageHandler {
       result.responseMessages.length > 0
     ) {
       responseMemory = result.responseMessages[0];
+      // Persist if not already saved (callback may not have been invoked)
+      if (responseMemory && responseMemory.id) {
+        const existing = await this.runtime.getMemoryById(responseMemory.id);
+        if (!existing) {
+          await this.runtime.createMemory(responseMemory, "messages");
+        }
+      }
     }
 
     if (!responseMemory && result && result.responseContent) {
@@ -189,8 +196,18 @@ export class MessageHandler {
         content: {
           text: "I'm sorry, I couldn't generate a response.",
           source: "agent",
+          inReplyTo: userMessage.id,
         },
+        metadata: {
+          type: MemoryType.MESSAGE,
+          role: "agent",
+          dialogueType: "message",
+          visibility: "visible",
+          agentMode: modeConfig.mode,
+        } as DialogueMetadata,
       };
+      // Persist fallback response to ensure conversation history is complete
+      await this.runtime.createMemory(responseMemory, "messages");
     }
 
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
