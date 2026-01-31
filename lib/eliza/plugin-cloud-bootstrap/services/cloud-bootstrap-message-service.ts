@@ -139,6 +139,8 @@ export class CloudBootstrapMessageService implements IMessageService {
   ): Promise<MessageProcessingResult> {
     const timeoutDuration = options?.timeoutDuration ?? 60 * 60 * 1000; // 1 hour default
     let timeoutId: NodeJS.Timeout | undefined;
+    let runId: UUID | undefined;
+    let startTime: number | undefined;
 
     try {
       logger.info(
@@ -161,8 +163,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       agentResponses.set(message.roomId, responseId);
 
       // Start run tracking
-      const runId = runtime.startRun(message.roomId) as UUID;
-      const startTime = Date.now();
+      runId = runtime.startRun(message.roomId) as UUID;
+      startTime = Date.now();
 
       await runtime.emitEvent(EventType.RUN_STARTED, {
         runtime,
@@ -211,6 +213,24 @@ export class CloudBootstrapMessageService implements IMessageService {
       return result;
     } catch (error) {
       cleanupRaceTracking(runtime.agentId, message.roomId);
+
+      // Emit RUN_ENDED event on error so tracking is complete
+      if (runId && startTime) {
+        await runtime.emitEvent(EventType.RUN_ENDED, {
+          runtime,
+          runId,
+          messageId: message.id!,
+          roomId: message.roomId,
+          entityId: message.entityId,
+          startTime,
+          status: "error",
+          endTime: Date.now(),
+          duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : String(error),
+          source: "CloudBootstrapMessageService",
+        } as never);
+      }
+
       throw error;
     } finally {
       clearTimeout(timeoutId);
