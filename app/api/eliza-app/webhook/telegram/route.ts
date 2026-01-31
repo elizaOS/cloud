@@ -139,7 +139,8 @@ async function handleMessage(message: Message): Promise<void> {
 async function handleCommand(message: Message): Promise<void> {
   if (!("text" in message)) return;
 
-  const command = message.text!.split(" ")[0].toLowerCase();
+  // Trim to handle leading whitespace (matching handleMessage's detection logic)
+  const command = message.text!.trim().split(" ")[0].toLowerCase();
   const chatId = message.chat.id;
 
   switch (command) {
