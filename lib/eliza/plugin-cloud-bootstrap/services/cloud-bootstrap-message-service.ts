@@ -445,6 +445,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Race check before sending response
     if (agentResponses.get(message.roomId) !== responseId) {
       logger.info(`[CloudBootstrap] Response discarded - newer message being processed`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "race-discarded");
       return { didRespond: false, responseContent: null, responseMessages: [], state, mode: "none" };
     }
 
