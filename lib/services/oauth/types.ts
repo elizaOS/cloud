@@ -90,6 +90,8 @@ export interface TokenResult {
 export interface InitiateAuthParams {
   /** Organization requesting the connection */
   organizationId: string;
+  /** User ID initiating the connection (required for callback to link credentials) */
+  userId: string;
   /** Platform to connect (e.g., 'google', 'twitter') */
   platform: string;
   /** URL to redirect to after OAuth completes */

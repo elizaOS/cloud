@@ -3,6 +3,7 @@
  *
  * Receives iMessages from Blooio and routes them to the default Eliza agent.
  * Auto-provisions users on first message based on phone number.
+ * Uses ASSISTANT mode for full multi-step action execution.
  *
  * POST /api/eliza-app/webhook/blooio
  */
@@ -12,7 +13,6 @@ import { ZodError } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
-import { agentsService } from "@/lib/services/agents/agents";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -26,9 +26,16 @@ import {
   type BlooioSendMessageResponse,
 } from "@/lib/utils/blooio-api";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { userContextService } from "@/lib/eliza/user-context";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { v4 as uuidv4 } from "uuid";
+import { ContentType } from "@elizaos/core";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 120; // Extended for ASSISTANT mode multi-step execution
 
 const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { apiKey: BLOOIO_API_KEY, webhookSecret: WEBHOOK_SECRET, phoneNumber: BLOOIO_PHONE_NUMBER } = elizaAppConfig.blooio;
@@ -67,13 +74,13 @@ async function sendBlooioMessage(
   }
 }
 
-async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
-  if (!event.sender) return;
-  if (event.is_group) return;
+async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean> {
+  if (!event.sender) return true; // Not applicable, mark as processed
+  if (event.is_group) return true; // Not applicable, mark as processed
 
   const text = event.text?.trim();
   const mediaUrls = extractBlooioMediaUrls(event.attachments);
-  if (!text && mediaUrls.length === 0) return;
+  if (!text && mediaUrls.length === 0) return true; // Not applicable, mark as processed
 
   const normalizedPhone = normalizePhoneNumber(event.sender);
   const { user, organization } = await elizaAppUserService.findOrCreateByPhone(normalizedPhone);
@@ -114,24 +121,67 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
     fullMessage += `\n\n[Attached media: ${mediaUrls.join(", ")}]`;
   }
 
+  // Acquire distributed lock to prevent concurrent message processing
+  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
+  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
+    maxRetries: 10,
+    initialDelayMs: 100,
+    maxDelayMs: 2000,
+  });
+
+  if (!lock) {
+    logger.error("[ElizaApp BlooioWebhook] Failed to acquire room lock", { roomId });
+    return false; // Don't mark as processed - allow retry
+  }
+
   try {
-    const response = await agentsService.sendMessage({
+    const userContext = await userContextService.buildContext({
+      user: { ...user, organization } as never,
+      isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
+    });
+    userContext.characterId = DEFAULT_AGENT_ID;
+    userContext.webSearchEnabled = true;
+
+    logger.info("[ElizaApp BlooioWebhook] Processing message", {
+      userId: user.id,
       roomId,
-      entityId,
-      message: fullMessage,
-      organizationId: organization.id,
-      streaming: false,
-      attachments: mediaUrls.map((url) => ({ type: "image" as const, url })),
+      mode: "assistant",
     });
 
-    if (response.content) {
-      await sendBlooioMessage(normalizedPhone, response.content);
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    const messageHandler = createMessageHandler(runtime, userContext);
+
+    const result = await messageHandler.process({
+      roomId,
+      text: fullMessage,
+      attachments: mediaUrls.map((url) => ({
+        id: uuidv4(),
+        url,
+        contentType: ContentType.IMAGE,
+        title: "Attached image",
+      })),
+      agentModeConfig: { mode: AgentMode.ASSISTANT },
+    });
+
+    const responseContent = result.message.content;
+    const responseText =
+      typeof responseContent === "string"
+        ? responseContent
+        : responseContent?.text || "";
+
+    if (responseText) {
+      await sendBlooioMessage(normalizedPhone, responseText);
     }
+    return true;
   } catch (error) {
     logger.error("[ElizaApp BlooioWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
+    return true; // Processing attempted, mark as processed to avoid infinite retry
+  } finally {
+    await lock.release();
   }
 }
 
@@ -187,14 +237,24 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     }
   }
 
+  let processed = true;
   if (payload.event === "message.received") {
-    await handleIncomingMessage(payload);
+    processed = await handleIncomingMessage(payload);
   } else if (payload.event === "message.failed") {
     logger.error("[ElizaApp BlooioWebhook] Delivery failed", { messageId: payload.message_id });
   }
 
-  if (payload.message_id) {
+  // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
+  if (processed && payload.message_id) {
     await markAsProcessed(`blooio:eliza-app:${payload.message_id}`, "blooio-eliza-app");
+  }
+
+  // Return 503 on lock failure to trigger webhook retry from Blooio
+  if (!processed) {
+    return NextResponse.json(
+      { success: false, error: "Service temporarily unavailable" },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json({ success: true });

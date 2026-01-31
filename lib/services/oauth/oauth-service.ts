@@ -41,7 +41,7 @@ class OAuthService {
 
   /** Initiate OAuth flow for a platform */
   async initiateAuth(params: InitiateAuthParams): Promise<InitiateAuthResult> {
-    const { organizationId, platform, redirectUrl, scopes } = params;
+    const { organizationId, userId, platform, redirectUrl, scopes } = params;
 
     const provider = getProvider(platform);
     if (!provider) throw Errors.platformNotSupported(platform);
@@ -53,9 +53,9 @@ class OAuthService {
 
     switch (platform) {
       case "google":
-        return this.initiateGoogleAuth(organizationId, redirectUrl, scopes);
+        return this.initiateGoogleAuth(organizationId, userId, redirectUrl, scopes);
       case "twitter":
-        return this.initiateTwitterAuth(organizationId, redirectUrl);
+        return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
       default:
         throw Errors.platformNotSupported(platform);
     }
@@ -63,6 +63,7 @@ class OAuthService {
 
   private async initiateGoogleAuth(
     organizationId: string,
+    userId: string,
     redirectUrl?: string,
     scopes?: string[],
   ): Promise<InitiateAuthResult> {
@@ -74,7 +75,7 @@ class OAuthService {
 
     await cache.set(
       `google_oauth:${state}`,
-      { organizationId, redirectUrl: redirectUrl || DEFAULT_REDIRECT, scopes: finalScopes, source: "unified-oauth-api" },
+      { organizationId, userId, redirectUrl: redirectUrl || DEFAULT_REDIRECT, scopes: finalScopes },
       STATE_TTL,
     );
 
@@ -91,7 +92,7 @@ class OAuthService {
     return { authUrl, state };
   }
 
-  private async initiateTwitterAuth(organizationId: string, redirectUrl?: string): Promise<InitiateAuthResult> {
+  private async initiateTwitterAuth(organizationId: string, userId: string, redirectUrl?: string): Promise<InitiateAuthResult> {
     const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -99,7 +100,7 @@ class OAuthService {
 
     await cache.set(
       `twitter_oauth:${result.oauthToken}`,
-      { organizationId, oauthTokenSecret: result.oauthTokenSecret, redirectUrl: redirectUrl || DEFAULT_REDIRECT, source: "unified-oauth-api" },
+      { organizationId, userId, oauthTokenSecret: result.oauthTokenSecret, redirectUrl: redirectUrl || DEFAULT_REDIRECT },
       STATE_TTL,
     );
 

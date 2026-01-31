@@ -46,6 +46,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/dashboard/connections",
   "/dashboard/agents",
   "/settings",
+  "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
 ];
 
 /**

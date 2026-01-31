@@ -3,6 +3,7 @@
  *
  * Receives messages from Telegram and routes them to the default Eliza agent.
  * Auto-provisions users on first message.
+ * Uses ASSISTANT mode for full multi-step action execution.
  *
  * POST /api/eliza-app/webhook/telegram
  */
@@ -12,15 +13,19 @@ import { timingSafeEqual } from "crypto";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
-import { agentsService } from "@/lib/services/agents/agents";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId, generateElizaAppEntityId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { userContextService } from "@/lib/eliza/user-context";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { distributedLocks } from "@/lib/cache/distributed-locks";
 import type { Update, Message } from "telegraf/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
@@ -57,14 +62,14 @@ async function sendTelegramMessage(
   return true;
 }
 
-async function handleMessage(message: Message): Promise<void> {
-  if (!("text" in message) || !message.text) return;
-  if (message.chat.type !== "private") return;
+async function handleMessage(message: Message): Promise<boolean> {
+  if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
+  if (message.chat.type !== "private") return true; // Not applicable, mark as processed
 
   // Defensive check - message.from should exist in private chats but validate anyway
   if (!message.from) {
     logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
-    return;
+    return true; // Not applicable, mark as processed
   }
 
   const telegramUserId = String(message.from.id);
@@ -72,7 +77,7 @@ async function handleMessage(message: Message): Promise<void> {
 
   if (text.startsWith("/")) {
     await handleCommand(message);
-    return;
+    return true; // Command handled, mark as processed
   }
 
   const { user, organization } = await elizaAppUserService.findOrCreateByTelegram({
@@ -116,23 +121,60 @@ async function handleMessage(message: Message): Promise<void> {
     }
   }
 
+  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
+  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
+    maxRetries: 10,
+    initialDelayMs: 100,
+    maxDelayMs: 2000,
+  });
+
+  if (!lock) {
+    logger.error("[ElizaApp TelegramWebhook] Failed to acquire room lock", { roomId });
+    return false; // Don't mark as processed - allow retry
+  }
+
   try {
-    const response = await agentsService.sendMessage({
+    const userContext = await userContextService.buildContext({
+      user: { ...user, organization } as never,
+      isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
+    });
+    userContext.characterId = DEFAULT_AGENT_ID;
+    userContext.webSearchEnabled = true;
+
+    logger.info("[ElizaApp TelegramWebhook] Processing message", {
+      userId: user.id,
       roomId,
-      entityId,
-      message: text,
-      organizationId: organization.id,
-      streaming: false,
+      mode: "assistant",
     });
 
-    if (response.content) {
-      await sendTelegramMessage(message.chat.id, response.content, message.message_id);
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    const messageHandler = createMessageHandler(runtime, userContext);
+
+    const result = await messageHandler.process({
+      roomId,
+      text,
+      agentModeConfig: { mode: AgentMode.ASSISTANT },
+    });
+
+    const responseContent = result.message.content;
+    const responseText =
+      typeof responseContent === "string"
+        ? responseContent
+        : responseContent?.text || "";
+
+    if (responseText) {
+      await sendTelegramMessage(message.chat.id, responseText, message.message_id);
     }
+    return true;
   } catch (error) {
     logger.error("[ElizaApp TelegramWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
+    return true; // Processing attempted, mark as processed to avoid infinite retry
+  } finally {
+    await lock.release();
   }
 }
 
@@ -225,11 +267,23 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
+  let processed = true;
   if ("message" in update && update.message) {
-    await handleMessage(update.message);
+    processed = await handleMessage(update.message);
   }
 
-  await markAsProcessed(idempotencyKey, "telegram-eliza-app");
+  // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
+  if (processed) {
+    await markAsProcessed(idempotencyKey, "telegram-eliza-app");
+  }
+
+  // Return 503 on lock failure to trigger webhook retry from Telegram
+  if (!processed) {
+    return NextResponse.json(
+      { ok: false, error: "Service temporarily unavailable" },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

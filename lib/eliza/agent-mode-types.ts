@@ -96,6 +96,7 @@ export const AGENT_MODE_PLUGINS = {
   [AgentMode.ASSISTANT]: [
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-assistant",
+    "@eliza-cloud/plugin-oauth",
     "@elizaos/plugin-memory",
   ],
 } as const;
