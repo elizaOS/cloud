@@ -873,10 +873,6 @@ export class RuntimeFactory {
         );
       }
     }
-    const providerData = mcpService.getProviderData?.();
-    if (providerData) {
-      elizaLogger.info(`[RuntimeFactory] MCP Provider text: ${providerData.text?.substring(0, 200)}...`);
-    }
   }
 }
 
