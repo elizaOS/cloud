@@ -30,6 +30,7 @@ describe("MCP Tools Registration", () => {
     expect(tools.registerKnowledgeTools).toBeDefined();
     expect(tools.registerRedemptionTools).toBeDefined();
     expect(tools.registerAnalyticsTools).toBeDefined();
+    expect(tools.registerGoogleTools).toBeDefined();
   });
 
   test("lib modules import without errors", async () => {

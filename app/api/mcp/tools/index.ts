@@ -15,3 +15,4 @@ export { registerUserTools } from "./user";
 export { registerKnowledgeTools } from "./knowledge";
 export { registerRedemptionTools } from "./redemption";
 export { registerAnalyticsTools } from "./analytics";
+export { registerGoogleTools } from "./google";
