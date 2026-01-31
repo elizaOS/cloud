@@ -1135,9 +1135,19 @@ export class GatewayManager {
       conn.lastHeartbeat = now;
     }
 
-    // Update database heartbeat for failover detection
+    // Update database heartbeat for failover detection (includes stats)
     if (this.connections.size > 0) {
       try {
+        // Collect stats for each connection
+        const connectionStats = Array.from(this.connections.entries()).map(
+          ([id, conn]) => ({
+            id,
+            guildCount: conn.guildCount,
+            eventsReceived: conn.eventsReceived,
+            eventsRouted: conn.eventsRouted,
+          }),
+        );
+
         await fetchWithTimeout(
           `${this.config.elizaCloudUrl}/api/internal/discord/gateway/heartbeat`,
           {
@@ -1149,6 +1159,7 @@ export class GatewayManager {
             body: JSON.stringify({
               pod_name: this.config.podName,
               connection_ids: Array.from(this.connections.keys()),
+              connection_stats: connectionStats,
             }),
           },
         );

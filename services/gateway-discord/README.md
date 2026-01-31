@@ -443,7 +443,7 @@ When Eliza Cloud needs to send a response back to Discord, it uses the **same bo
    - `SERVER MEMBERS INTENT` (optional)
 7. Generate OAuth2 URL and invite bot to your test server:
    - Scopes: `bot`
-   - Permissions: `Send Messages`, `Read Message History`
+   - Permissions: `Send Messages`, `Read Message History`, `Add Reactions`
 
 #### 2. Environment Variables
 

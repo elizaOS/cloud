@@ -1,6 +1,7 @@
 "use client";
 
 import { TelegramConnection } from "../telegram-connection";
+import { DiscordGatewayConnection } from "../discord-gateway-connection";
 import { GoogleConnection } from "../google-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
@@ -39,6 +40,7 @@ export function ConnectionsTab() {
         </div>
 
         <div className="grid gap-4">
+          <DiscordGatewayConnection />
           <TelegramConnection />
         </div>
       </div>

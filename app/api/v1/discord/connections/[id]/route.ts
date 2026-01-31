@@ -22,6 +22,9 @@ const UpdateConnectionSchema = z.object({
   // Character to use for responses
   characterId: z.string().uuid().nullable().optional(),
 
+  // Bot token (re-encrypt if changed)
+  botToken: z.string().min(1).optional(),
+
   // Whether the connection is active
   isActive: z.boolean().optional(),
 
@@ -150,7 +153,18 @@ export async function PATCH(
     }
   }
 
-  // Build update object
+  // Handle bot token update separately (requires re-encryption)
+  if (data.botToken) {
+    await discordConnectionsRepository.updateBotToken(id, data.botToken);
+    // Force reconnection by clearing pod assignment
+    await discordConnectionsRepository.update(id, {
+      assigned_pod: null,
+      status: "pending",
+      updated_at: new Date(),
+    });
+  }
+
+  // Build update object for other fields
   const updates: Record<string, unknown> = {
     updated_at: new Date(),
   };
@@ -172,7 +186,14 @@ export async function PATCH(
     updates.metadata = data.metadata;
   }
 
-  const updated = await discordConnectionsRepository.update(id, updates);
+  // Only call update if there are non-token fields to update
+  let updated = connection;
+  if (Object.keys(updates).length > 1) {
+    updated = await discordConnectionsRepository.update(id, updates);
+  } else if (data.botToken) {
+    // Re-fetch if only token was updated
+    updated = (await discordConnectionsRepository.findById(id))!;
+  }
 
   logger.info("[Discord Connections] Updated connection", {
     connectionId: id,
