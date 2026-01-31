@@ -796,11 +796,25 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     await streamThinking("response", "\n--- Generating final response ---\n");
 
-    accumulatedState = await runtime.composeState(message, [
+    // Inject actionResults into message metadata BEFORE composeState
+    // so ACTION_STATE provider can read them during state composition
+    const summaryMessageWithResults = {
+      ...message,
+      content: {
+        ...message.content,
+        metadata: {
+          ...(message.content.metadata || {}),
+          actionResults: traceActionResult,
+        },
+      },
+    };
+
+    accumulatedState = await runtime.composeState(summaryMessageWithResults, [
       "RECENT_MESSAGES",
       "ACTION_STATE",
       "CHARACTER",
     ], true);
+    // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
 
     const summaryPrompt = composePromptFromState({
