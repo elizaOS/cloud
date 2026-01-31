@@ -66,7 +66,13 @@ async function handleMessage(message: Message): Promise<void> {
   if (!("text" in message) || !message.text) return;
   if (message.chat.type !== "private") return;
 
-  const telegramUserId = String(message.from?.id);
+  // Defensive check - message.from should exist in private chats but validate anyway
+  if (!message.from) {
+    logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
+    return;
+  }
+
+  const telegramUserId = String(message.from.id);
   const text = message.text.trim();
 
   if (text.startsWith("/")) {
@@ -75,10 +81,10 @@ async function handleMessage(message: Message): Promise<void> {
   }
 
   const { user, organization } = await elizaAppUserService.findOrCreateByTelegram({
-    id: message.from!.id,
-    first_name: message.from!.first_name,
-    last_name: message.from?.last_name,
-    username: message.from?.username,
+    id: message.from.id,
+    first_name: message.from.first_name,
+    last_name: message.from.last_name,
+    username: message.from.username,
     auth_date: Math.floor(Date.now() / 1000),
     hash: "",
   });
@@ -103,7 +109,16 @@ async function handleMessage(message: Message): Promise<void> {
         organizationId: organization.id,
       },
     });
+  }
+  // Always ensure participant exists (handles partial failures on retry)
+  try {
     await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+  } catch (error) {
+    // Ignore "already exists" errors, re-throw others
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+      throw error;
+    }
   }
 
   const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
@@ -163,7 +178,8 @@ async function handleMessage(message: Message): Promise<void> {
 async function handleCommand(message: Message): Promise<void> {
   if (!("text" in message)) return;
 
-  const command = message.text!.split(" ")[0].toLowerCase();
+  // Trim to handle leading whitespace (matching handleMessage's detection logic)
+  const command = message.text!.trim().split(" ")[0].toLowerCase();
   const chatId = message.chat.id;
 
   switch (command) {
@@ -209,7 +225,19 @@ async function handleCommand(message: Message): Promise<void> {
 }
 
 async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse> {
-  if (WEBHOOK_SECRET) {
+  // Fail closed: require webhook secret unless explicitly skipped in dev
+  const skipVerification =
+    process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
+    process.env.NODE_ENV !== "production";
+
+  if (!WEBHOOK_SECRET) {
+    if (skipVerification) {
+      logger.warn("[ElizaApp TelegramWebhook] Signature verification skipped (dev mode)");
+    } else {
+      logger.error("[ElizaApp TelegramWebhook] WEBHOOK_SECRET is required");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+  } else {
     const secretToken = request.headers.get("x-telegram-bot-api-secret-token");
 
     if (!secretToken) {
@@ -227,9 +255,6 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
       logger.warn("[ElizaApp TelegramWebhook] Invalid secret token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  } else if (process.env.NODE_ENV === "production") {
-    logger.error("[ElizaApp TelegramWebhook] No webhook secret configured in production");
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
   const update: Update = await request.json();

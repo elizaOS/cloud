@@ -104,7 +104,16 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
         organizationId: organization.id,
       },
     });
+  }
+  // Always ensure participant exists (handles partial failures on retry)
+  try {
     await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+  } catch (error) {
+    // Ignore "already exists" errors, re-throw others
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+      throw error;
+    }
   }
 
   let fullMessage = text || "";
@@ -179,23 +188,21 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
     process.env.NODE_ENV !== "production";
 
-  if (WEBHOOK_SECRET) {
+  // Fail closed: require webhook secret unless explicitly skipped in dev
+  if (!WEBHOOK_SECRET) {
+    if (skipVerification) {
+      logger.warn("[ElizaApp BlooioWebhook] Signature verification skipped (dev mode)");
+    } else {
+      logger.error("[ElizaApp BlooioWebhook] WEBHOOK_SECRET is required");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+  } else {
     const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
-
-    const isValid = await verifyBlooioSignature(
-      WEBHOOK_SECRET,
-      signatureHeader,
-      rawBody,
-    );
+    const isValid = await verifyBlooioSignature(WEBHOOK_SECRET, signatureHeader, rawBody);
 
     if (!isValid) {
       logger.warn("[ElizaApp BlooioWebhook] Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
-  } else if (!skipVerification) {
-    if (process.env.NODE_ENV === "production") {
-      logger.error("[ElizaApp BlooioWebhook] No webhook secret configured in production");
-      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
     }
   }
 

@@ -80,10 +80,23 @@ function getRetryDelay(attempt: number): number {
   return Math.min(delay, RETRY_CONFIG.maxDelayMs);
 }
 
-function cleanupRaceTracking(agentId: string, roomId: string): void {
+/**
+ * Clean up race tracking entry, but only if it still belongs to the given responseId.
+ * This prevents a completed message A from deleting the tracking entry of a newer message B.
+ */
+function cleanupRaceTracking(agentId: string, roomId: string, responseId?: string): void {
   const agentResponses = latestResponseIds.get(agentId);
   if (!agentResponses) return;
-  
+
+  // If responseId provided, only delete if it still matches (ownership check)
+  if (responseId) {
+    const currentResponseId = agentResponses.get(roomId);
+    if (currentResponseId !== responseId) {
+      // A newer message has taken over - don't delete their entry
+      return;
+    }
+  }
+
   agentResponses.delete(roomId);
   if (agentResponses.size === 0) {
     latestResponseIds.delete(agentId);
@@ -139,13 +152,14 @@ export class CloudBootstrapMessageService implements IMessageService {
   ): Promise<MessageProcessingResult> {
     const timeoutDuration = options?.timeoutDuration ?? 60 * 60 * 1000; // 1 hour default
     let timeoutId: NodeJS.Timeout | undefined;
+    let runId: UUID | undefined;
+    let startTime: number | undefined;
+    const responseId = v4();
 
     try {
       logger.info(
         `[CloudBootstrap] Message received from ${message.entityId} in room ${message.roomId}`
       );
-
-      const responseId = v4();
 
       // Set up response tracking
       if (!latestResponseIds.has(runtime.agentId)) {
@@ -161,8 +175,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       agentResponses.set(message.roomId, responseId);
 
       // Start run tracking
-      const runId = runtime.startRun(message.roomId) as UUID;
-      const startTime = Date.now();
+      runId = runtime.startRun(message.roomId) as UUID;
+      startTime = Date.now();
 
       await runtime.emitEvent(EventType.RUN_STARTED, {
         runtime,
@@ -210,7 +224,25 @@ export class CloudBootstrapMessageService implements IMessageService {
       clearTimeout(timeoutId);
       return result;
     } catch (error) {
-      cleanupRaceTracking(runtime.agentId, message.roomId);
+      cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
+
+      // Emit RUN_ENDED event on error so tracking is complete
+      if (runId && startTime) {
+        await runtime.emitEvent(EventType.RUN_ENDED, {
+          runtime,
+          runId,
+          messageId: message.id!,
+          roomId: message.roomId,
+          entityId: message.entityId,
+          startTime,
+          status: "error",
+          endTime: Date.now(),
+          duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : String(error),
+          source: "CloudBootstrapMessageService",
+        } as never);
+      }
+
       throw error;
     } finally {
       clearTimeout(timeoutId);
@@ -413,6 +445,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Race check before sending response
     if (agentResponses.get(message.roomId) !== responseId) {
       logger.info(`[CloudBootstrap] Response discarded - newer message being processed`);
+      await this.emitRunEnded(runtime, runId, message, startTime, "race-discarded");
       return { didRespond: false, responseContent: null, responseMessages: [], state, mode: "none" };
     }
 
@@ -445,8 +478,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     }
 
-    // Clean up response ID tracking
-    cleanupRaceTracking(runtime.agentId, message.roomId);
+    // Clean up response ID tracking (only if we still own it)
+    cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
 
     // Run evaluators
     await runtime.evaluate(
@@ -542,11 +575,25 @@ export class CloudBootstrapMessageService implements IMessageService {
 
         await streamThinking("thinking", `\n--- Step ${iterationCount}/${maxIterations} ---\n`);
 
-        accumulatedState = await runtime.composeState(message, [
+        // Inject actionResults into message metadata BEFORE composeState
+        // so ACTION_STATE provider can read it during state composition
+        const messageWithResults = {
+          ...message,
+          content: {
+            ...message.content,
+            metadata: {
+              ...(message.content.metadata || {}),
+              actionResults: traceActionResult,
+            },
+          },
+        };
+
+        accumulatedState = await runtime.composeState(messageWithResults, [
           "RECENT_MESSAGES",
           "ACTION_STATE",
           "ACTIONS",
         ], true);
+        // Also set on state.data for consistency
         accumulatedState.data.actionResults = traceActionResult;
 
         const stateWithIterationContext = {
@@ -762,11 +809,25 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     await streamThinking("response", "\n--- Generating final response ---\n");
 
-    accumulatedState = await runtime.composeState(message, [
+    // Inject actionResults into message metadata BEFORE composeState
+    // so ACTION_STATE provider can read them during state composition
+    const summaryMessageWithResults = {
+      ...message,
+      content: {
+        ...message.content,
+        metadata: {
+          ...(message.content.metadata || {}),
+          actionResults: traceActionResult,
+        },
+      },
+    };
+
+    accumulatedState = await runtime.composeState(summaryMessageWithResults, [
       "RECENT_MESSAGES",
       "ACTION_STATE",
       "CHARACTER",
     ], true);
+    // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
 
     const summaryPrompt = composePromptFromState({
@@ -839,12 +900,18 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     } else {
       logger.warn(`[MultiStep] No valid summary generated, using fallback`);
+      const fallbackText = "I completed the requested actions, but encountered an issue generating the summary.";
       responseContent = {
         actions: ["MULTI_STEP_SUMMARY"],
-        text: "I completed the requested actions, but encountered an issue generating the summary.",
+        text: fallbackText,
         thought: "Summary generation failed after retries.",
         simple: true,
       };
+
+      // Stream fallback text for consistent user experience
+      if (options?.onStreamChunk) {
+        await options.onStreamChunk(fallbackText, message.id as UUID);
+      }
     }
 
     const responseMessages: Memory[] = responseContent

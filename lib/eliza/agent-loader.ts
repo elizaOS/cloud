@@ -287,9 +287,14 @@ export class AgentLoader {
       ...conditionalPlugins,
     ];
 
-    if (options?.hasKnowledge) {
+    // Load knowledge plugin for ASSISTANT mode to enable both:
+    // - Knowledge queries (if documents exist)
+    // - Uploading new documents (even if none exist yet)
+    if (options?.hasKnowledge || agentMode === AgentMode.ASSISTANT) {
       allPluginNames.push("@elizaos/plugin-knowledge");
-      logger.info("[AgentLoader] Loading knowledge plugin - documents found");
+      logger.info(
+        `[AgentLoader] Loading knowledge plugin - ${options?.hasKnowledge ? "documents found" : "ASSISTANT mode (enables uploads)"}`
+      );
     }
 
     for (const pluginName of allPluginNames) {

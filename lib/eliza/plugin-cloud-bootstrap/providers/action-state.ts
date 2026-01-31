@@ -79,7 +79,15 @@ export const actionStateProvider: Provider = {
   position: 150,
 
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const actionResults = (state.data?.actionResults || []) as MultiStepActionResult[];
+    // Check state.data first, then message metadata as fallback
+    // This handles the timing issue where actionResults may be in message metadata
+    // before state is fully composed
+    const messageMetadata = (message.content?.metadata || {}) as Record<string, unknown>;
+    const actionResults = (
+      state.data?.actionResults ||
+      messageMetadata.actionResults ||
+      []
+    ) as MultiStepActionResult[];
     const workingMemory = (state.data?.workingMemory || {}) as Record<string, unknown>;
 
     // Format action results
