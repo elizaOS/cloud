@@ -99,6 +99,56 @@ export class UsersRepository {
   }
 
   /**
+   * Finds a user by Telegram ID.
+   */
+  async findByTelegramId(telegramId: string): Promise<User | undefined> {
+    return await dbRead.query.users.findFirst({
+      where: eq(users.telegram_id, telegramId),
+    });
+  }
+
+  /**
+   * Finds a user by Telegram ID with organization data.
+   */
+  async findByTelegramIdWithOrganization(
+    telegramId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbRead.query.users.findFirst({
+      where: eq(users.telegram_id, telegramId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
+   * Finds a user by phone number (E.164 format).
+   */
+  async findByPhoneNumber(phoneNumber: string): Promise<User | undefined> {
+    return await dbRead.query.users.findFirst({
+      where: eq(users.phone_number, phoneNumber),
+    });
+  }
+
+  /**
+   * Finds a user by phone number with organization data.
+   */
+  async findByPhoneNumberWithOrganization(
+    phoneNumber: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbRead.query.users.findFirst({
+      where: eq(users.phone_number, phoneNumber),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
    * Finds a user by wallet address with organization data.
    */
   async findByWalletAddressWithOrganization(

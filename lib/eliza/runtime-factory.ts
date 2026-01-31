@@ -1,7 +1,6 @@
 /**
  * Runtime Factory - Creates configured ElizaOS runtimes per user/agent context.
  */
-
 import {
   AgentRuntime,
   stringToUuid,
@@ -38,6 +37,7 @@ interface GlobalWithEliza {
 
 interface RuntimeSettings {
   ELIZAOS_API_KEY?: string;
+  ELIZAOS_CLOUD_API_KEY?: string;
   USER_ID?: string;
   ENTITY_ID?: string;
   ORGANIZATION_ID?: string;
@@ -69,10 +69,7 @@ const safeClose = async (
     .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
 };
 
-/**
- * Stop a runtime's services without closing the database adapter.
- * This is the safe way to evict a runtime since the adapter shares a global connection pool.
- */
+/** Stop runtime services without closing the shared database adapter pool. */
 async function stopRuntimeServices(
   runtime: AgentRuntime,
   id: string,
@@ -176,10 +173,7 @@ class RuntimeCache {
     );
   }
 
-  /**
-   * Remove a runtime from cache WITHOUT closing its database adapter.
-   * The adapter shares a global connection pool that should remain active.
-   */
+  /** Remove runtime from cache (keeps adapter pool alive). */
   async remove(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (!entry) return false;
@@ -192,11 +186,7 @@ class RuntimeCache {
     return true;
   }
 
-  /**
-   * Delete a runtime from cache AND close it completely.
-   * Use this only for full shutdown scenarios where you want to terminate
-   * the database connection.
-   */
+  /** Delete runtime and close completely. Use only for full shutdown. */
   async delete(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (entry) {
@@ -211,7 +201,14 @@ class RuntimeCache {
   }
 
   has(agentId: string): boolean {
-    return this.cache.has(agentId);
+    // Cache keys are now composite: ${agentId}:${orgId}${webSearchSuffix}
+    // Check if any key starts with this agentId
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(agentId)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private async evictOldest(): Promise<void> {
@@ -237,10 +234,7 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
-  /**
-   * Clear all cached runtimes and close their adapters.
-   * WARNING: This closes the shared connection pool. Only use for full shutdown.
-   */
+  /** Clear all cached runtimes. WARNING: Closes shared connection pool. */
   async clear(): Promise<void> {
     await Promise.all(
       Array.from(this.cache.entries()).map(([id, entry]) =>
@@ -314,9 +308,6 @@ class DbAdapterPool {
   async checkHealth(agentId: UUID): Promise<boolean> {
     const key = agentId as string;
     const adapter = this.adapters.get(key);
-    // If adapter doesn't exist (e.g., removed by another cache entry's eviction),
-    // return false to force runtime recreation with a fresh adapter.
-    // Multiple cache keys can share the same agentId (e.g., "abc123" and "abc123:ws").
     if (!adapter) return false;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
@@ -362,11 +353,7 @@ class DbAdapterPool {
     return adapter;
   }
 
-  /**
-   * Remove an adapter from tracking WITHOUT closing it.
-   * Use this for invalidation - the adapter shares a global connection pool
-   * that should NOT be terminated.
-   */
+  /** Remove adapter reference without closing the shared connection pool. */
   removeAdapter(agentId: string): void {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
@@ -375,11 +362,7 @@ class DbAdapterPool {
     );
   }
 
-  /**
-   * Close and remove an adapter completely.
-   * Use this only for full shutdown scenarios.
-   * WARNING: This will close the shared connection pool!
-   */
+  /** Close adapter completely. WARNING: Closes shared connection pool! */
   async closeAdapter(agentId: string): Promise<void> {
     const adapter = this.adapters.get(agentId);
     if (adapter) {
@@ -389,15 +372,9 @@ class DbAdapterPool {
     adapterEmbeddingDimensions.delete(agentId);
   }
 
-  /**
-   * @deprecated Use removeAdapter() for invalidation or closeAdapter() for shutdown.
-   * This method closes the adapter which terminates the shared connection pool.
-   */
+  /** @deprecated Use removeAdapter() or closeAdapter() instead. */
   async invalidateAdapter(agentId: string): Promise<void> {
-    // For backward compatibility, but logs a warning
-    elizaLogger.warn(
-      `[DbAdapterPool] invalidateAdapter() is deprecated - use removeAdapter() instead to avoid closing shared pool`,
-    );
+    elizaLogger.warn(`[DbAdapterPool] invalidateAdapter() deprecated - use removeAdapter()`);
     await this.closeAdapter(agentId);
   }
 }
@@ -433,20 +410,7 @@ export class RuntimeFactory {
   }
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
-    // IMPORTANT: We intentionally DON'T close the adapter here.
-    //
-    // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
-    // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
-    //
-    // Instead, we:
-    // 1. Remove the runtime from cache (using stop(), not close())
-    // 2. Remove the adapter reference from our pool (without closing it)
-    // 3. Let garbage collection clean up the orphaned adapter
-    // 4. The shared connection pool stays alive for other agents
-    //
-    // On the next request, a fresh runtime will be created with a new adapter
-    // that reuses the same underlying connection pool.
-
+    // Don't close adapter - it shares a global connection pool with all agents
     const wasInMemoryBase = await runtimeCache.remove(agentId);
     const wasInMemoryWs = await runtimeCache.remove(`${agentId}:ws`);
     const wasInMemory = wasInMemoryBase || wasInMemoryWs;
@@ -506,7 +470,8 @@ export class RuntimeFactory {
     ) as UUID;
 
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
-    const cacheKey = `${agentId}${webSearchSuffix}`;
+    // Include organizationId to prevent cross-org API key pollution
+    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}`;
 
     const cachedRuntime = await runtimeCache.getWithHealthCheck(
       cacheKey,
@@ -537,6 +502,7 @@ export class RuntimeFactory {
     const runtimeSecrets = {
       ...(baseSettings.secrets as Record<string, unknown> | undefined),
       ELIZAOS_API_KEY: context.apiKey,
+      ELIZAOS_CLOUD_API_KEY: context.apiKey,
     };
 
     const runtime = new AgentRuntime({
@@ -576,6 +542,7 @@ export class RuntimeFactory {
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
     const settings = (runtime.character.settings || {}) as RuntimeSettings;
     settings.ELIZAOS_API_KEY = context.apiKey;
+    settings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
     settings.USER_ID = context.userId;
     settings.ENTITY_ID = context.entityId;
     settings.ORGANIZATION_ID = context.organizationId;
@@ -633,7 +600,6 @@ export class RuntimeFactory {
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
-    // Get embedding dimension from known model dimensions (skips 500ms API call)
     const embeddingModel =
       (charSettings.OPENAI_EMBEDDING_MODEL as string) ||
       (charSettings.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
@@ -643,9 +609,9 @@ export class RuntimeFactory {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
-      // Pass embedding dimension to runtime so it skips the embedding API call
       EMBEDDING_DIMENSION: String(embeddingDimension),
       ELIZAOS_API_KEY: context.apiKey,
+      ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
         context.modelPreferences?.smallModel ||
@@ -907,40 +873,13 @@ export function isRuntimeCached(agentId: string): boolean {
 
 export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };
 
-// ============================================================================
-// TEST EXPORTS - Only for integration testing, do not use in production code
-// ============================================================================
-
-/**
- * Internal access for testing pool lifecycle and race conditions.
- * WARNING: These exports bypass normal safety mechanisms and should
- * only be used in test files.
- */
+// Test exports - only for integration testing
 export const _testing = {
-  /**
-   * Get the internal RuntimeCache instance
-   */
   getRuntimeCache: () => runtimeCache,
-
-  /**
-   * Get the internal DbAdapterPool instance
-   */
   getDbAdapterPool: () => dbAdapterPool,
-
-  /**
-   * Access the safeClose function for testing
-   */
   safeClose,
-
-  /**
-   * Access the stopRuntimeServices function for testing
-   */
   stopRuntimeServices,
 
-  /**
-   * Force cache eviction using the FIXED behavior (runtime.stop(), no pool close).
-   * Use this to verify the fix works correctly.
-   */
   async forceEvictRuntime(agentId: string): Promise<void> {
     const entry = runtimeCache["cache"].get(agentId);
     if (entry) {
@@ -949,10 +888,6 @@ export const _testing = {
     }
   },
 
-  /**
-   * Force cache eviction using the OLD (buggy) behavior that closes the pool.
-   * Use this to verify that closing the pool causes failures.
-   */
   async forceEvictRuntimeOld(agentId: string): Promise<void> {
     const entry = runtimeCache["cache"].get(agentId);
     if (entry) {
@@ -961,9 +896,6 @@ export const _testing = {
     }
   },
 
-  /**
-   * Get raw cache entries for inspection
-   */
   getCacheEntries(): Map<
     string,
     { runtime: AgentRuntime; lastUsed: number; createdAt: number }
@@ -971,17 +903,10 @@ export const _testing = {
     return new Map(runtimeCache["cache"]);
   },
 
-  /**
-   * Get adapter pool entries for inspection
-   */
   getAdapterEntries(): Map<string, IDatabaseAdapter> {
     return new Map(dbAdapterPool["adapters"]);
   },
 
-  /**
-   * Directly close an adapter (bypassing normal cleanup)
-   * This simulates what happens during eviction
-   */
   async closeAdapterDirectly(agentId: string): Promise<void> {
     const adapter = dbAdapterPool["adapters"].get(agentId);
     if (adapter) {

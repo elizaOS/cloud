@@ -41,7 +41,10 @@
     "admin:list": "bun run scripts/promote-admin.ts --list",
     "admin:revoke": "bun run scripts/promote-admin.ts --revoke",
     "test:runtime": "bun test tests/runtime --timeout 120000",
-    "test:mcp": "bun test tests/runtime/mcp-loading.test.ts --timeout 120000"
+    "test:mcp": "bun test tests/runtime/mcp-loading.test.ts --timeout 120000",
+    "test:oauth": "bun test tests/integration/unified-oauth-api.test.ts --timeout 120000",
+    "test:oauth:manual": "./tests/manual/oauth-manual-test.sh",
+    "test:integration": "bun test tests/integration --timeout 120000"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.22",
