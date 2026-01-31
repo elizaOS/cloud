@@ -186,6 +186,7 @@ const publicPaths = [
 const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
+  /^\/api\/v1\/oauth\/[^/]+\/callback$/, // Generic OAuth callbacks (redirects from providers)
 ];
 
 const protectedPaths = [

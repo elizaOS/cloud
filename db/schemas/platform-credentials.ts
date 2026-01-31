@@ -50,6 +50,17 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "mastodon",
   "twilio",
   "google_calendar",
+  // Generic OAuth providers (added via migration 0023)
+  "linear",
+  "notion",
+  "hubspot",
+  "salesforce",
+  "jira",
+  "asana",
+  "airtable",
+  "dropbox",
+  "spotify",
+  "zoom",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum(

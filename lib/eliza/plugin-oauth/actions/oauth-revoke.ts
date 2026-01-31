@@ -14,7 +14,7 @@ import {
 import { oauthService } from "@/lib/services/oauth";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
-  SUPPORTED_PLATFORMS,
+  getSupportedPlatforms,
   isSupportedPlatform,
   extractPlatform,
   lookupUser,
@@ -66,8 +66,9 @@ export const oauthRevokeAction: ActionWithParams = {
     }
 
     if (!isSupportedPlatform(platform)) {
+      const supported = getSupportedPlatforms();
       return {
-        text: `Platform '${platform}' is not recognized. Supported: ${SUPPORTED_PLATFORMS.join(", ")}`,
+        text: `Platform '${platform}' is not recognized. Supported: ${supported.length > 0 ? supported.join(", ") : "none configured"}`,
         success: false,
         error: "UNSUPPORTED_PLATFORM",
         data: { actionName },

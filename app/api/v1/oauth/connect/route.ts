@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await oauthService.initiateAuth({
       organizationId: user.organization_id,
+      userId: user.id,
       platform: body.platform,
       redirectUrl: body.redirectUrl,
       scopes: body.scopes,
