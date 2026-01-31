@@ -80,10 +80,23 @@ function getRetryDelay(attempt: number): number {
   return Math.min(delay, RETRY_CONFIG.maxDelayMs);
 }
 
-function cleanupRaceTracking(agentId: string, roomId: string): void {
+/**
+ * Clean up race tracking entry, but only if it still belongs to the given responseId.
+ * This prevents a completed message A from deleting the tracking entry of a newer message B.
+ */
+function cleanupRaceTracking(agentId: string, roomId: string, responseId?: string): void {
   const agentResponses = latestResponseIds.get(agentId);
   if (!agentResponses) return;
-  
+
+  // If responseId provided, only delete if it still matches (ownership check)
+  if (responseId) {
+    const currentResponseId = agentResponses.get(roomId);
+    if (currentResponseId !== responseId) {
+      // A newer message has taken over - don't delete their entry
+      return;
+    }
+  }
+
   agentResponses.delete(roomId);
   if (agentResponses.size === 0) {
     latestResponseIds.delete(agentId);
@@ -141,13 +154,12 @@ export class CloudBootstrapMessageService implements IMessageService {
     let timeoutId: NodeJS.Timeout | undefined;
     let runId: UUID | undefined;
     let startTime: number | undefined;
+    const responseId = v4();
 
     try {
       logger.info(
         `[CloudBootstrap] Message received from ${message.entityId} in room ${message.roomId}`
       );
-
-      const responseId = v4();
 
       // Set up response tracking
       if (!latestResponseIds.has(runtime.agentId)) {
@@ -212,7 +224,7 @@ export class CloudBootstrapMessageService implements IMessageService {
       clearTimeout(timeoutId);
       return result;
     } catch (error) {
-      cleanupRaceTracking(runtime.agentId, message.roomId);
+      cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
 
       // Emit RUN_ENDED event on error so tracking is complete
       if (runId && startTime) {
@@ -465,8 +477,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     }
 
-    // Clean up response ID tracking
-    cleanupRaceTracking(runtime.agentId, message.roomId);
+    // Clean up response ID tracking (only if we still own it)
+    cleanupRaceTracking(runtime.agentId, message.roomId, responseId);
 
     // Run evaluators
     await runtime.evaluate(
