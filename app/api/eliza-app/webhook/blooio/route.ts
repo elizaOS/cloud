@@ -97,7 +97,16 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
         organizationId: organization.id,
       },
     });
+  }
+  // Always ensure participant exists (handles partial failures on retry)
+  try {
     await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+  } catch (error) {
+    // Ignore "already exists" errors, re-throw others
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+      throw error;
+    }
   }
 
   let fullMessage = text || "";
