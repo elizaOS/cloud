@@ -49,12 +49,18 @@ async function getGoogleMcpHandler() {
 
   function extractBody(payload: any): string {
     if (payload?.body?.data) return Buffer.from(payload.body.data, "base64").toString("utf-8");
-    if (payload?.parts) {
+    if (payload?.parts && Array.isArray(payload.parts)) {
+      // Prefer text/plain over text/html
       for (const mime of ["text/plain", "text/html"]) {
         for (const part of payload.parts) {
           if (part.mimeType === mime && part.body?.data) return Buffer.from(part.body.data, "base64").toString("utf-8");
           if (part.mimeType?.startsWith("multipart/")) { const n = extractBody(part); if (n) return n; }
         }
+      }
+      // Fallback: try any part that has body content
+      for (const part of payload.parts) {
+        const nested = extractBody(part);
+        if (nested) return nested;
       }
     }
     return "";
