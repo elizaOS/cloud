@@ -11,7 +11,8 @@ function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
   if (fallback !== undefined && !isProduction) return fallback;
-  if (isProduction) {
+  // Throw in production, or when no fallback is provided (truly required)
+  if (isProduction || fallback === undefined) {
     throw new Error(`[ElizaApp] Required env var ${name} is not set`);
   }
   return fallback || "";
@@ -34,9 +35,9 @@ export const elizaAppConfig = {
     phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
   },
 
-  // JWT configuration
+  // JWT configuration - secret required in all environments
   jwt: {
-    secret: requireEnv("ELIZA_APP_JWT_SECRET", "dev-secret-not-for-production-use"),
+    secret: requireEnv("ELIZA_APP_JWT_SECRET"),
   },
 } as const;
 
