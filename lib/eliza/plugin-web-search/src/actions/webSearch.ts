@@ -137,9 +137,7 @@ async function extractSearchParams(
       template,
     });
 
-    console.log("prompt", prompt);
     const response = await runtime.useModel(ModelType.TEXT_SMALL, { prompt });
-    console.log("response", response);
     const parsed = parseKeyValueXml(response || "");
 
     if (parsed?.query) {
