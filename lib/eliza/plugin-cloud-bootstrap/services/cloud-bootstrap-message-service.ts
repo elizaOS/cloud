@@ -899,12 +899,18 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     } else {
       logger.warn(`[MultiStep] No valid summary generated, using fallback`);
+      const fallbackText = "I completed the requested actions, but encountered an issue generating the summary.";
       responseContent = {
         actions: ["MULTI_STEP_SUMMARY"],
-        text: "I completed the requested actions, but encountered an issue generating the summary.",
+        text: fallbackText,
         thought: "Summary generation failed after retries.",
         simple: true,
       };
+
+      // Stream fallback text for consistent user experience
+      if (options?.onStreamChunk) {
+        await options.onStreamChunk(fallbackText, message.id as UUID);
+      }
     }
 
     const responseMessages: Memory[] = responseContent
