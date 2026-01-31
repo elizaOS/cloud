@@ -170,7 +170,19 @@ async function handleCommand(message: Message): Promise<void> {
 }
 
 async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse> {
-  if (WEBHOOK_SECRET) {
+  // Fail closed: require webhook secret unless explicitly skipped in dev
+  const skipVerification =
+    process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
+    process.env.NODE_ENV !== "production";
+
+  if (!WEBHOOK_SECRET) {
+    if (skipVerification) {
+      logger.warn("[ElizaApp TelegramWebhook] Signature verification skipped (dev mode)");
+    } else {
+      logger.error("[ElizaApp TelegramWebhook] WEBHOOK_SECRET is required");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+  } else {
     const secretToken = request.headers.get("x-telegram-bot-api-secret-token");
 
     if (!secretToken) {
@@ -188,9 +200,6 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
       logger.warn("[ElizaApp TelegramWebhook] Invalid secret token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  } else if (process.env.NODE_ENV === "production") {
-    logger.error("[ElizaApp TelegramWebhook] No webhook secret configured in production");
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
   const update: Update = await request.json();
