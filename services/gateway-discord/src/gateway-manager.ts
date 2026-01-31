@@ -152,7 +152,8 @@ interface BotConnection {
   connectionId: string;
   organizationId: string;
   applicationId: string;
-  client: Client;
+  /** Discord.js client instance. Undefined for placeholder connections reserving capacity. */
+  client?: Client;
   status: "connecting" | "connected" | "disconnected" | "error";
   guildCount: number;
   eventsReceived: number;
@@ -164,7 +165,7 @@ interface BotConnection {
   /** Timestamp when status changed to disconnected/error (for stale cleanup) */
   statusChangedAt?: Date;
   error?: string;
-  // Store listener references for cleanup
+  /** Store listener references for cleanup */
   listeners: Map<string, (...args: unknown[]) => void>;
 }
 
@@ -506,7 +507,7 @@ export class GatewayManager {
           connectionId: assignment.connectionId,
           organizationId: assignment.organizationId,
           applicationId: assignment.applicationId,
-          client: null as unknown as Client,
+          client: undefined,
           status: "connecting",
           guildCount: 0,
           eventsReceived: 0,
