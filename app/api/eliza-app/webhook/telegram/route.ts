@@ -277,6 +277,14 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
     await markAsProcessed(idempotencyKey, "telegram-eliza-app");
   }
 
+  // Return 503 on lock failure to trigger webhook retry from Telegram
+  if (!processed) {
+    return NextResponse.json(
+      { ok: false, error: "Service temporarily unavailable" },
+      { status: 503 }
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }
 

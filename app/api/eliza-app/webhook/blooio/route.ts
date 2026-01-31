@@ -249,6 +249,14 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     await markAsProcessed(`blooio:eliza-app:${payload.message_id}`, "blooio-eliza-app");
   }
 
+  // Return 503 on lock failure to trigger webhook retry from Blooio
+  if (!processed) {
+    return NextResponse.json(
+      { success: false, error: "Service temporarily unavailable" },
+      { status: 503 }
+    );
+  }
+
   return NextResponse.json({ success: true });
 }
 
