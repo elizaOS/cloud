@@ -61,7 +61,13 @@ async function handleMessage(message: Message): Promise<void> {
   if (!("text" in message) || !message.text) return;
   if (message.chat.type !== "private") return;
 
-  const telegramUserId = String(message.from?.id);
+  // Defensive check - message.from should exist in private chats but validate anyway
+  if (!message.from) {
+    logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
+    return;
+  }
+
+  const telegramUserId = String(message.from.id);
   const text = message.text.trim();
 
   if (text.startsWith("/")) {
@@ -70,10 +76,10 @@ async function handleMessage(message: Message): Promise<void> {
   }
 
   const { user, organization } = await elizaAppUserService.findOrCreateByTelegram({
-    id: message.from!.id,
-    first_name: message.from!.first_name,
-    last_name: message.from?.last_name,
-    username: message.from?.username,
+    id: message.from.id,
+    first_name: message.from.first_name,
+    last_name: message.from.last_name,
+    username: message.from.username,
     auth_date: Math.floor(Date.now() / 1000),
     hash: "",
   });
