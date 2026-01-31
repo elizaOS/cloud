@@ -76,6 +76,11 @@ async function getGoogleMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   }
 
+  /** Sanitize email header values to prevent CRLF injection attacks. */
+  function sanitizeHeaderValue(value: string): string {
+    return value.replace(/[\r\n]/g, "");
+  }
+
   function errorResult(msg: string) {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
@@ -101,7 +106,7 @@ async function getGoogleMcpHandler() {
       }, async ({ to, subject, body, isHtml = false, cc, bcc }) => {
         try {
           const orgId = getOrgId();
-          const headers = [`To: ${to}`, `Subject: ${subject}`, `Content-Type: ${isHtml ? "text/html" : "text/plain"}; charset=utf-8`, ...(cc ? [`Cc: ${cc}`] : []), ...(bcc ? [`Bcc: ${bcc}`] : [])];
+          const headers = [`To: ${sanitizeHeaderValue(to)}`, `Subject: ${sanitizeHeaderValue(subject)}`, `Content-Type: ${isHtml ? "text/html" : "text/plain"}; charset=utf-8`, ...(cc ? [`Cc: ${sanitizeHeaderValue(cc)}`] : []), ...(bcc ? [`Bcc: ${sanitizeHeaderValue(bcc)}`] : [])];
           const raw = Buffer.from([...headers, "", body].join("\r\n")).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
           const res = await googleFetch(orgId, "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ raw }) });
           const result = await res.json();

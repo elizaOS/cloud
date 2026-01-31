@@ -45,6 +45,11 @@ function errMsg(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+/** Sanitize email header values to prevent CRLF injection attacks. */
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]/g, "");
+}
+
 /** Recursively extract text body from Gmail payload (handles nested multipart). */
 function extractBody(payload: any): string {
   if (payload?.body?.data) {
@@ -123,11 +128,11 @@ export function registerGoogleTools(server: McpServer): void {
     async ({ to, subject, body, isHtml = false, cc, bcc }) => {
       try {
         const headers = [
-          `To: ${to}`,
-          `Subject: ${subject}`,
+          `To: ${sanitizeHeaderValue(to)}`,
+          `Subject: ${sanitizeHeaderValue(subject)}`,
           `Content-Type: ${isHtml ? "text/html" : "text/plain"}; charset=utf-8`,
-          ...(cc ? [`Cc: ${cc}`] : []),
-          ...(bcc ? [`Bcc: ${bcc}`] : []),
+          ...(cc ? [`Cc: ${sanitizeHeaderValue(cc)}`] : []),
+          ...(bcc ? [`Bcc: ${sanitizeHeaderValue(bcc)}`] : []),
         ];
 
         const message = [...headers, "", body].join("\r\n");
