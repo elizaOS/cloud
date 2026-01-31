@@ -443,6 +443,9 @@ async function storeConnection(
     source: `oauth2-${provider.id}-callback`,
   };
 
+  // Track newly created secrets for cleanup on failure
+  const newlyCreatedSecretIds: string[] = [];
+
   // Check for existing connection
   const existing = await dbWrite
     .select({ id: platformCredentials.id, access_token_secret_id: platformCredentials.access_token_secret_id, refresh_token_secret_id: platformCredentials.refresh_token_secret_id })
@@ -489,6 +492,7 @@ async function storeConnection(
         audit
       );
       refreshTokenSecretId = refreshSecret.id;
+      newlyCreatedSecretIds.push(refreshSecret.id);
     } else if (existing[0].refresh_token_secret_id) {
       refreshTokenSecretId = existing[0].refresh_token_secret_id;
     }
@@ -505,6 +509,7 @@ async function storeConnection(
       audit
     );
     accessTokenSecretId = accessSecret.id;
+    newlyCreatedSecretIds.push(accessSecret.id);
 
     if (tokens.refresh_token) {
       const refreshSecret = await secretsService.create(
@@ -518,6 +523,7 @@ async function storeConnection(
         audit
       );
       refreshTokenSecretId = refreshSecret.id;
+      newlyCreatedSecretIds.push(refreshSecret.id);
     }
   }
 
@@ -526,34 +532,15 @@ async function storeConnection(
     ? new Date(Date.now() + tokens.expires_in * 1000)
     : undefined;
 
-  // Upsert connection
-  const result = await dbWrite
-    .insert(platformCredentials)
-    .values({
-      organization_id: organizationId,
-      user_id: userId,
-      platform: provider.id as "google",
-      platform_user_id: userInfo.id,
-      platform_username: userInfo.username || undefined,
-      platform_display_name: userInfo.displayName || undefined,
-      platform_avatar_url: userInfo.avatarUrl || undefined,
-      platform_email: userInfo.email || undefined,
-      status: "active",
-      access_token_secret_id: accessTokenSecretId,
-      refresh_token_secret_id: refreshTokenSecretId,
-      token_expires_at: tokenExpiresAt,
-      scopes,
-      profile_data: userInfo.raw,
-      source_type: "web",
-      linked_at: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [
-        platformCredentials.organization_id,
-        platformCredentials.platform,
-        platformCredentials.platform_user_id,
-      ],
-      set: {
+  // Upsert connection with cleanup on failure
+  try {
+    const result = await dbWrite
+      .insert(platformCredentials)
+      .values({
+        organization_id: organizationId,
+        user_id: userId,
+        platform: provider.id as "google",
+        platform_user_id: userInfo.id,
         platform_username: userInfo.username || undefined,
         platform_display_name: userInfo.displayName || undefined,
         platform_avatar_url: userInfo.avatarUrl || undefined,
@@ -564,12 +551,51 @@ async function storeConnection(
         token_expires_at: tokenExpiresAt,
         scopes,
         profile_data: userInfo.raw,
-        updated_at: new Date(),
-      },
-    })
-    .returning({ id: platformCredentials.id });
+        source_type: "web",
+        linked_at: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [
+          platformCredentials.organization_id,
+          platformCredentials.platform,
+          platformCredentials.platform_user_id,
+        ],
+        set: {
+          platform_username: userInfo.username || undefined,
+          platform_display_name: userInfo.displayName || undefined,
+          platform_avatar_url: userInfo.avatarUrl || undefined,
+          platform_email: userInfo.email || undefined,
+          status: "active",
+          access_token_secret_id: accessTokenSecretId,
+          refresh_token_secret_id: refreshTokenSecretId,
+          token_expires_at: tokenExpiresAt,
+          scopes,
+          profile_data: userInfo.raw,
+          updated_at: new Date(),
+        },
+      })
+      .returning({ id: platformCredentials.id });
 
-  return result[0].id;
+    return result[0].id;
+  } catch (error) {
+    // Clean up newly created secrets on database failure
+    if (newlyCreatedSecretIds.length > 0) {
+      logger.warn(`[OAuth2] Database insert failed, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`, {
+        providerId: provider.id,
+        organizationId,
+      });
+      for (const secretId of newlyCreatedSecretIds) {
+        try {
+          await secretsService.delete(secretId, organizationId, audit);
+        } catch (cleanupError) {
+          logger.error(`[OAuth2] Failed to cleanup secret ${secretId}`, {
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          });
+        }
+      }
+    }
+    throw error;
+  }
 }
 
 /**
