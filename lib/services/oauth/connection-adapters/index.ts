@@ -18,7 +18,6 @@ export interface ConnectionAdapter {
   ownsConnection(connectionId: string): Promise<boolean>;
 }
 
-import { googleAdapter } from "./google-adapter";
 import { twitterAdapter } from "./twitter-adapter";
 import { twilioAdapter } from "./twilio-adapter";
 import { blooioAdapter } from "./blooio-adapter";
@@ -29,6 +28,9 @@ import {
   githubAdapter,
   slackAdapter,
 } from "./generic-adapter";
+
+// Google now uses the generic adapter (migrated from legacy google-adapter)
+const googleAdapter = createGenericAdapter("google");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {

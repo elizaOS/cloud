@@ -91,21 +91,8 @@ describe("Generic OAuth Provider E2E Tests", () => {
       expect(data.error).toBe("PLATFORM_NOT_SUPPORTED");
     });
 
-    it("should return PLATFORM_HAS_LEGACY_ROUTES for Google (legacy provider)", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/google/initiate`, {
-        method: "POST",
-        headers: {
-          "X-API-Key": testData.apiKey.key,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toBe("PLATFORM_HAS_LEGACY_ROUTES");
-      expect(data.message).toContain("legacy routes");
-    });
+    // Google now uses generic routes (migrated from legacy)
+    // Test is in the "should return auth URL for configured provider" section
 
     it("should return PLATFORM_HAS_LEGACY_ROUTES for Twitter (legacy provider)", async () => {
       const response = await fetch(`${BASE_URL}/api/v1/oauth/twitter/initiate`, {

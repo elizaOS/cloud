@@ -6,7 +6,6 @@
  */
 
 import { cache } from "@/lib/cache/client";
-import { generateGoogleAuthUrl, DEFAULT_GOOGLE_SCOPES } from "@/lib/utils/google-api";
 import { logger } from "@/lib/utils/logger";
 import { OAUTH_PROVIDERS, getProvider, isProviderConfigured } from "./provider-registry";
 import { getAllAdapters, getAdapter } from "./connection-adapters";
@@ -64,46 +63,13 @@ class OAuthService {
       return { authUrl: result.authUrl, state: result.state };
     }
 
-    // Legacy provider-specific handlers
+    // Legacy provider-specific handlers (only Twitter remains - uses OAuth 1.0a)
     switch (platform) {
-      case "google":
-        return this.initiateGoogleAuth(organizationId, userId, redirectUrl, scopes);
       case "twitter":
         return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
       default:
         throw Errors.platformNotSupported(platform);
     }
-  }
-
-  private async initiateGoogleAuth(
-    organizationId: string,
-    userId: string,
-    redirectUrl?: string,
-    scopes?: string[],
-  ): Promise<InitiateAuthResult> {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) throw Errors.platformNotConfigured("google");
-
-    const state = crypto.randomUUID();
-    const finalScopes = scopes || OAUTH_PROVIDERS.google.defaultScopes || DEFAULT_GOOGLE_SCOPES;
-
-    await cache.set(
-      `google_oauth:${state}`,
-      { organizationId, userId, redirectUrl: redirectUrl || DEFAULT_REDIRECT, scopes: finalScopes },
-      STATE_TTL,
-    );
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-    const authUrl = generateGoogleAuthUrl({
-      clientId,
-      redirectUri: `${baseUrl}/api/v1/google/callback`,
-      scopes: finalScopes,
-      state,
-      accessType: "offline",
-      prompt: "consent",
-    });
-
-    return { authUrl, state };
   }
 
   private async initiateTwitterAuth(organizationId: string, userId: string, redirectUrl?: string): Promise<InitiateAuthResult> {
