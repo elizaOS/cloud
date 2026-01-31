@@ -74,13 +74,13 @@ async function sendBlooioMessage(
   }
 }
 
-async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
-  if (!event.sender) return;
-  if (event.is_group) return;
+async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean> {
+  if (!event.sender) return true; // Not applicable, mark as processed
+  if (event.is_group) return true; // Not applicable, mark as processed
 
   const text = event.text?.trim();
   const mediaUrls = extractBlooioMediaUrls(event.attachments);
-  if (!text && mediaUrls.length === 0) return;
+  if (!text && mediaUrls.length === 0) return true; // Not applicable, mark as processed
 
   const normalizedPhone = normalizePhoneNumber(event.sender);
   const { user, organization } = await elizaAppUserService.findOrCreateByPhone(normalizedPhone);
@@ -131,7 +131,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
 
   if (!lock) {
     logger.error("[ElizaApp BlooioWebhook] Failed to acquire room lock", { roomId });
-    return;
+    return false; // Don't mark as processed - allow retry
   }
 
   try {
@@ -173,11 +173,13 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<void> {
     if (responseText) {
       await sendBlooioMessage(normalizedPhone, responseText);
     }
+    return true;
   } catch (error) {
     logger.error("[ElizaApp BlooioWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
+    return true; // Processing attempted, mark as processed to avoid infinite retry
   } finally {
     await lock.release();
   }
@@ -235,13 +237,15 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     }
   }
 
+  let processed = true;
   if (payload.event === "message.received") {
-    await handleIncomingMessage(payload);
+    processed = await handleIncomingMessage(payload);
   } else if (payload.event === "message.failed") {
     logger.error("[ElizaApp BlooioWebhook] Delivery failed", { messageId: payload.message_id });
   }
 
-  if (payload.message_id) {
+  // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
+  if (processed && payload.message_id) {
     await markAsProcessed(`blooio:eliza-app:${payload.message_id}`, "blooio-eliza-app");
   }
 
