@@ -576,8 +576,9 @@ export class RuntimeFactory {
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> }>,
+      mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> } | null>,
     )) {
+      if (!serverConfig) continue; // Skip malformed/null server entries
       const isHttpTransport = serverConfig.type && ["http", "streamable-http", "sse"].includes(serverConfig.type);
       const transformedUrl = serverConfig.url?.startsWith("/")
         ? `${baseUrl}${serverConfig.url}`
