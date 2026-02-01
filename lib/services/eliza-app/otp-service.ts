@@ -48,6 +48,7 @@ export const DEV_OTP = "123456";
 // In-memory OTP storage fallback for local dev (when Redis not available)
 const inMemoryOTPStore = new Map<string, OTPRecord>();
 
+// Range 100000-999999 intentionally avoids leading zeros for better UX
 export function generateOTP(): string {
   const min = Math.pow(10, OTP_LENGTH - 1);
   const max = Math.pow(10, OTP_LENGTH) - 1;
@@ -88,7 +89,7 @@ class OTPService {
 
       if (cooldownActive) {
         logger.warn("[OTP] Cooldown active for phone", {
-          phone: normalizedPhone.slice(-4),
+          phone: `***${normalizedPhone.slice(-2)}`,
         });
         return {
           success: false,
@@ -115,7 +116,7 @@ class OTPService {
       inMemoryOTPStore.set(otpKey, record);
 
       logger.info("[OTP] DEV MODE - OTP set to 123456", {
-        phone: normalizedPhone.slice(-4),
+        phone: `***${normalizedPhone.slice(-2)}`,
       });
 
       return { success: true };
@@ -135,10 +136,8 @@ class OTPService {
 
     await cache.set(otpKey, record, OTP_EXPIRY_SECONDS);
 
-    const cooldownKey = `${COOLDOWN_KEY_PREFIX}${normalizedPhone}`;
-    await cache.set(cooldownKey, true, COOLDOWN_SECONDS);
-
     const message = `Your Eliza verification code is: ${otp}. It expires in 5 minutes.`;
+    const idempotencyKey = `otp-${normalizedPhone}-${now}`;
 
     try {
       await blooioApiRequest<BlooioSendMessageResponse>(
@@ -146,17 +145,21 @@ class OTPService {
         "POST",
         `/chats/${encodeURIComponent(normalizedPhone)}/messages`,
         { text: message },
-        { fromNumber: this.blooioPhoneNumber }
+        { fromNumber: this.blooioPhoneNumber, idempotencyKey }
       );
 
+      // Set cooldown only after successful send
+      const cooldownKey = `${COOLDOWN_KEY_PREFIX}${normalizedPhone}`;
+      await cache.set(cooldownKey, true, COOLDOWN_SECONDS);
+
       logger.info("[OTP] Sent OTP via iMessage", {
-        phone: normalizedPhone.slice(-4),
+        phone: `***${normalizedPhone.slice(-2)}`,
       });
 
       return { success: true };
     } catch (error) {
       logger.error("[OTP] Failed to send OTP via Blooio", {
-        phone: normalizedPhone.slice(-4),
+        phone: `***${normalizedPhone.slice(-2)}`,
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -180,7 +183,7 @@ class OTPService {
 
     if (!record) {
       logger.warn("[OTP] No OTP found for phone", {
-        phone: normalizedPhone.slice(-4),
+        phone: `***${normalizedPhone.slice(-2)}`,
       });
       return {
         valid: false,
@@ -218,7 +221,7 @@ class OTPService {
       const attemptsRemaining = MAX_ATTEMPTS - record.attempts;
 
       logger.warn("[OTP] Invalid OTP attempt", {
-        phone: normalizedPhone.slice(-4),
+        phone: `***${normalizedPhone.slice(-2)}`,
         attempts: record.attempts,
         attemptsRemaining,
       });
@@ -234,7 +237,7 @@ class OTPService {
     if (IS_DEV_MODE) inMemoryOTPStore.delete(otpKey);
 
     logger.info("[OTP] OTP verified successfully", {
-      phone: normalizedPhone.slice(-4),
+      phone: `***${normalizedPhone.slice(-2)}`,
     });
 
     return { valid: true };

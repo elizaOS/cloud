@@ -147,7 +147,7 @@ async function handleVerifyOTP(
 
     logger.info("[ElizaApp PhoneAuth] Phone linked to existing account", {
       userId: user.id,
-      phone: normalizedPhone.slice(-4),
+      phone: `***${normalizedPhone.slice(-2)}`,
     });
   } else {
     const result = await elizaAppUserService.findOrCreateByPhone(normalizedPhone);
@@ -157,7 +157,7 @@ async function handleVerifyOTP(
 
     logger.info("[ElizaApp PhoneAuth] Authentication successful", {
       userId: user.id,
-      phone: normalizedPhone.slice(-4),
+      phone: `***${normalizedPhone.slice(-2)}`,
       isNewUser: isNew,
     });
   }
@@ -172,7 +172,7 @@ async function handleVerifyOTP(
     success: true,
     user: {
       id: user.id,
-      phone_number: user.phone_number!,
+      phone_number: normalizedPhone,
       name: user.name,
       organization_id: organization.id,
     },

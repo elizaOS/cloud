@@ -77,7 +77,7 @@ async function handleSendOTP(
   }
 
   logger.info("[ElizaApp PhoneAuth] OTP sent", {
-    phone: phoneValidation.normalized.slice(-4),
+    phone: `***${phoneValidation.normalized.slice(-2)}`,
   });
 
   return NextResponse.json({
