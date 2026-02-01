@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateInternalApiKey } from "@/lib/auth/internal-api";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { routeDiscordEvent } from "@/lib/services/gateway-discord/event-router";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -28,10 +28,7 @@ function validatePayload(body: unknown): { success: true; data: DiscordEventPayl
   return { success: false, error: parsed.error.issues.map((e) => e.message).join(", ") };
 }
 
-export async function POST(request: NextRequest) {
-  const authError = validateInternalApiKey(request);
-  if (authError) return authError;
-
+export const POST = withInternalAuth(async (request: NextRequest) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -86,4 +83,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

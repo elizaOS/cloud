@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { validateInternalApiKey } from "@/lib/auth/internal-api";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 
@@ -23,10 +23,7 @@ const ShutdownRequestSchema = z.object({
     .regex(/^[a-zA-Z0-9-]+$/, "Pod name must be alphanumeric with hyphens"),
 });
 
-export async function POST(request: NextRequest) {
-  const authError = validateInternalApiKey(request);
-  if (authError) return authError;
-
+export const POST = withInternalAuth(async (request: NextRequest) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -61,4 +58,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ released });
-}
+});

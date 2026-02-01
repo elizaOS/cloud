@@ -48,11 +48,12 @@ spec:
                 secretKeyRef:
                   name: gateway-discord-secrets
                   key: eliza-cloud-url
-            - name: INTERNAL_API_KEY
+            # JWT Authentication - Gateway exchanges bootstrap secret for JWT tokens
+            - name: GATEWAY_BOOTSTRAP_SECRET
               valueFrom:
                 secretKeyRef:
                   name: gateway-discord-secrets
-                  key: internal-api-key
+                  key: gateway-bootstrap-secret
             - name: KV_REST_API_URL
               valueFrom:
                 secretKeyRef:

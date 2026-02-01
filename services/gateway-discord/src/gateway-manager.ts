@@ -143,10 +143,20 @@ const metric = (
 interface GatewayConfig {
   podName: string;
   elizaCloudUrl: string;
-  internalApiKey: string;
+  gatewayBootstrapSecret: string;
   redisUrl?: string;
   redisToken?: string;
 }
+
+/** JWT token response from token endpoint */
+interface TokenResponse {
+  access_token: string;
+  token_type: "Bearer";
+  expires_in: number;
+}
+
+/** Percentage of token lifetime at which to refresh (80% = refresh at 48min for 1hr token) */
+const TOKEN_REFRESH_PERCENTAGE = 0.8;
 
 interface BotConnection {
   connectionId: string;
@@ -222,12 +232,17 @@ export class GatewayManager {
   private pollInterval: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private failoverInterval: NodeJS.Timeout | null = null;
+  private tokenRefreshTimeout: NodeJS.Timeout | null = null;
   private voiceHandler: VoiceMessageHandler;
   private consecutivePollFailures: number = 0;
   private lastSuccessfulPoll: Date | null = null;
   /** Pod is draining - no new assignments, waiting for failover */
   private draining: boolean = false;
   private drainingStartedAt: Date | null = null;
+  /** JWT access token for API authentication */
+  private accessToken: string | null = null;
+  /** Token expiration timestamp */
+  private tokenExpiresAt: Date | null = null;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -254,8 +269,136 @@ export class GatewayManager {
     }
   }
 
+  /**
+   * Acquire a JWT token from the token endpoint using the bootstrap secret.
+   * This must be called before any API operations.
+   */
+  private async acquireToken(): Promise<void> {
+    logger.info("Acquiring JWT token", { podName: this.config.podName });
+
+    const response = await fetchWithTimeout(
+      `${this.config.elizaCloudUrl}/api/internal/auth/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Gateway-Secret": this.config.gatewayBootstrapSecret,
+        },
+        body: JSON.stringify({
+          pod_name: this.config.podName,
+          service: "discord-gateway",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to acquire token: ${response.status} - ${error}`);
+    }
+
+    const data = (await response.json()) as TokenResponse;
+    this.accessToken = data.access_token;
+    this.tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+    logger.info("JWT token acquired", {
+      podName: this.config.podName,
+      expiresAt: this.tokenExpiresAt.toISOString(),
+    });
+
+    // Schedule token refresh at 80% of lifetime
+    this.scheduleTokenRefresh(data.expires_in);
+  }
+
+  /**
+   * Refresh the JWT token before it expires.
+   */
+  private async refreshToken(): Promise<void> {
+    if (!this.accessToken) {
+      // No token to refresh, acquire new one
+      await this.acquireToken();
+      return;
+    }
+
+    logger.info("Refreshing JWT token", { podName: this.config.podName });
+
+    try {
+      const response = await fetchWithTimeout(
+        `${this.config.elizaCloudUrl}/api/internal/auth/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        // Token refresh failed, try to acquire new token
+        logger.warn("Token refresh failed, acquiring new token", {
+          status: response.status,
+        });
+        await this.acquireToken();
+        return;
+      }
+
+      const data = (await response.json()) as TokenResponse;
+      this.accessToken = data.access_token;
+      this.tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+      logger.info("JWT token refreshed", {
+        podName: this.config.podName,
+        expiresAt: this.tokenExpiresAt.toISOString(),
+      });
+
+      // Schedule next refresh
+      this.scheduleTokenRefresh(data.expires_in);
+    } catch (error) {
+      logger.error("Error refreshing token, attempting re-acquisition", {
+        error: sanitizeError(error),
+      });
+      // Retry with exponential backoff could be added here
+      await this.acquireToken();
+    }
+  }
+
+  /**
+   * Schedule token refresh at 80% of token lifetime.
+   */
+  private scheduleTokenRefresh(expiresInSeconds: number): void {
+    if (this.tokenRefreshTimeout) {
+      clearTimeout(this.tokenRefreshTimeout);
+    }
+
+    const refreshInMs = expiresInSeconds * 1000 * TOKEN_REFRESH_PERCENTAGE;
+    this.tokenRefreshTimeout = setTimeout(() => {
+      this.refreshToken().catch((error) => {
+        logger.error("Token refresh failed", { error: sanitizeError(error) });
+      });
+    }, refreshInMs);
+
+    logger.debug("Token refresh scheduled", {
+      refreshInMs,
+      refreshInMinutes: Math.round(refreshInMs / 60000),
+    });
+  }
+
+  /**
+   * Get the Authorization header for API requests.
+   * Throws if no token is available.
+   */
+  private getAuthHeader(): { Authorization: string } {
+    if (!this.accessToken) {
+      throw new Error("No access token available - call acquireToken first");
+    }
+    return { Authorization: `Bearer ${this.accessToken}` };
+  }
+
   async start(): Promise<void> {
     logger.info("Starting gateway manager", { podName: this.config.podName });
+
+    // Acquire JWT token before any API calls - fail fast if this fails
+    await this.acquireToken();
 
     // Start polling for assigned bots (with retry on startup failure)
     try {
@@ -312,6 +455,7 @@ export class GatewayManager {
     if (this.pollInterval) clearInterval(this.pollInterval);
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.failoverInterval) clearInterval(this.failoverInterval);
+    if (this.tokenRefreshTimeout) clearTimeout(this.tokenRefreshTimeout);
     this.voiceHandler.stopCleanupJob();
 
     // Save session state and disconnect all bots
@@ -334,7 +478,7 @@ export class GatewayManager {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-API-Key": this.config.internalApiKey,
+            ...this.getAuthHeader(),
           },
           body: JSON.stringify({ pod_name: this.config.podName }),
         },
@@ -399,7 +543,7 @@ export class GatewayManager {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-API-Key": this.config.internalApiKey,
+            ...this.getAuthHeader(),
           },
           body: JSON.stringify({
             pod_name: this.config.podName,
@@ -455,9 +599,7 @@ export class GatewayManager {
       url.searchParams.set("max", MAX_BOTS_PER_POD.toString());
 
       const response = await fetchWithTimeout(url.toString(), {
-        headers: {
-          "X-Internal-API-Key": this.config.internalApiKey,
-        },
+        headers: this.getAuthHeader(),
       });
 
       if (!response.ok) {
@@ -1030,7 +1172,7 @@ export class GatewayManager {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-API-Key": this.config.internalApiKey,
+            ...this.getAuthHeader(),
           },
           body: JSON.stringify(payload),
           timeout: EVENT_FORWARD_TIMEOUT_MS, // AI processing can take longer
@@ -1077,7 +1219,7 @@ export class GatewayManager {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-API-Key": this.config.internalApiKey,
+            ...this.getAuthHeader(),
           },
           body: JSON.stringify({
             connection_id: connectionId,
@@ -1154,7 +1296,7 @@ export class GatewayManager {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Internal-API-Key": this.config.internalApiKey,
+              ...this.getAuthHeader(),
             },
             body: JSON.stringify({
               pod_name: this.config.podName,
@@ -1265,7 +1407,7 @@ export class GatewayManager {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Internal-API-Key": this.config.internalApiKey,
+            ...this.getAuthHeader(),
           },
           body: JSON.stringify({
             claiming_pod: this.config.podName,

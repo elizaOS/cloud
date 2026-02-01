@@ -6,16 +6,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateInternalApiKey } from "@/lib/auth/internal-api";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const authError = validateInternalApiKey(request);
-  if (authError) return authError;
-
+export const GET = withInternalAuth(async (request: NextRequest) => {
   const podName = request.nextUrl.searchParams.get("pod");
   // Validate pod name: alphanumeric with hyphens, max 253 chars (K8s limit)
   if (!podName || !/^[a-zA-Z0-9-]+$/.test(podName) || podName.length > 253) {
@@ -57,4 +54,4 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({ assignments });
-}
+});

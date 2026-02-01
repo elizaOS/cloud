@@ -29,15 +29,15 @@ if (!process.env.POD_NAME) {
 const port = parseInt(process.env.PORT ?? "3000", 10);
 
 // Validate required environment variables - fail fast on misconfiguration
-// INTERNAL_API_KEY is required for all communication with Eliza Cloud
-if (!process.env.INTERNAL_API_KEY) {
+// GATEWAY_BOOTSTRAP_SECRET is required for initial JWT token acquisition
+if (!process.env.GATEWAY_BOOTSTRAP_SECRET) {
   logger.error(
-    "INTERNAL_API_KEY environment variable is required. " +
-      "This key authenticates the gateway with Eliza Cloud internal APIs.",
+    "GATEWAY_BOOTSTRAP_SECRET environment variable is required. " +
+      "This secret is used to acquire JWT tokens for API authentication.",
   );
   process.exit(1);
 }
-const internalApiKey = process.env.INTERNAL_API_KEY;
+const gatewayBootstrapSecret = process.env.GATEWAY_BOOTSTRAP_SECRET;
 
 // Initialize gateway manager
 // ELIZA_CLOUD_URL takes precedence, then falls back to NEXT_PUBLIC_APP_URL
@@ -50,7 +50,7 @@ const elizaCloudUrl =
 const gatewayManager = new GatewayManager({
   podName,
   elizaCloudUrl,
-  internalApiKey,
+  gatewayBootstrapSecret,
   redisUrl: process.env.REDIS_URL ?? process.env.KV_REST_API_URL,
   redisToken: process.env.KV_REST_API_TOKEN,
 });

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateInternalApiKey } from "@/lib/auth/internal-api";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
@@ -27,10 +27,7 @@ const HeartbeatSchema = z.object({
   connection_stats: z.array(ConnectionStatsSchema).optional(),
 });
 
-export async function POST(request: NextRequest) {
-  const authError = validateInternalApiKey(request);
-  if (authError) return authError;
-
+export const POST = withInternalAuth(async (request: NextRequest) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -90,4 +87,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

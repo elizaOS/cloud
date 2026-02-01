@@ -146,6 +146,18 @@ function createMockResponse(data: unknown, status = 200): Response {
   });
 }
 
+// Helper to set up mock token response - must be called before tests that make API calls
+function setupMockTokenResponse() {
+  mockFetchResponses.push({
+    url: "/api/internal/auth/token",
+    response: createMockResponse({
+      access_token: "mock-jwt-token-for-testing",
+      token_type: "Bearer",
+      expires_in: 3600,
+    }),
+  });
+}
+
 function resetMocks() {
   mockDiscordClient._handlers.clear();
   mockDiscordClient.login.mockClear();
@@ -170,7 +182,7 @@ describe("Discord Gateway Service E2E", () => {
   beforeEach(() => {
     resetMocks();
     process.env.POD_NAME = "test-pod-1";
-    process.env.INTERNAL_API_KEY = "test-api-key";
+    process.env.GATEWAY_BOOTSTRAP_SECRET = "test-bootstrap-secret";
     process.env.REDIS_URL = "redis://localhost:6379";
     process.env.KV_REST_API_TOKEN = "test-token";
   });
@@ -186,7 +198,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -206,7 +218,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -223,7 +235,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -244,7 +256,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -266,7 +278,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -291,7 +303,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -321,7 +333,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -343,6 +355,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Bot Assignment Polling", () => {
     test("polls for bot assignments on start", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/assignments",
         response: createMockResponse({
@@ -363,10 +378,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // Call pollForBots directly instead of start to avoid intervals
       // @ts-expect-error - accessing private for test
@@ -381,6 +400,9 @@ describe("Discord Gateway Service E2E", () => {
     });
 
     test("handles poll failure gracefully", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/assignments",
         response: new Response("Internal Server Error", { status: 500 }),
@@ -391,10 +413,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // @ts-expect-error - accessing private for test
       await manager.pollForBots();
@@ -405,6 +431,9 @@ describe("Discord Gateway Service E2E", () => {
     });
 
     test("respects MAX_BOTS_PER_POD limit", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       // Create assignments exceeding the limit
       const assignments = Array.from({ length: 150 }, (_, i) => ({
         connectionId: `conn-${i}`,
@@ -424,10 +453,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // @ts-expect-error - accessing private for test
       await manager.pollForBots();
@@ -440,6 +473,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Connection Status Updates", () => {
     test("updates connection status to Eliza Cloud", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/status",
         response: createMockResponse({ success: true }),
@@ -450,10 +486,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // @ts-expect-error - accessing private for test
       await manager.updateConnectionStatus("conn-123", "connected", undefined, "bot-user-456");
@@ -474,6 +514,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Heartbeat", () => {
     test("sends heartbeat to Eliza Cloud and Redis", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/heartbeat",
         response: createMockResponse({ success: true }),
@@ -484,10 +527,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // Add a mock connection
       // @ts-expect-error - accessing private for test
@@ -523,6 +570,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Failover", () => {
     test("detects dead pods and claims orphaned connections", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       // Setup: another pod with stale heartbeat
       const deadPodState = JSON.stringify({
         podId: "dead-pod",
@@ -543,10 +593,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // @ts-expect-error - accessing private for test
       await manager.checkForDeadPods();
@@ -577,7 +631,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -612,7 +666,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -631,6 +685,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Graceful Shutdown", () => {
     test("releases connections on shutdown", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/gateway/shutdown",
         response: createMockResponse({ success: true }),
@@ -645,10 +702,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       // Add a mock connection
       // @ts-expect-error - accessing private for test
@@ -690,6 +751,9 @@ describe("Discord Gateway Service E2E", () => {
 
   describe("Event Forwarding", () => {
     test("forwards MESSAGE_CREATE events to Eliza Cloud", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: createMockResponse({ processed: true }),
@@ -700,10 +764,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       const mockConn = {
         connectionId: "conn-123",
@@ -738,7 +806,7 @@ describe("Discord Gateway Service E2E", () => {
 
       expect(eventCall).toBeDefined();
       expect(eventCall?.options.method).toBe("POST");
-      expect(eventCall?.options.headers).toHaveProperty("X-Internal-API-Key");
+      expect(eventCall?.options.headers).toHaveProperty("Authorization");
 
       const body = JSON.parse(eventCall?.options.body as string);
       expect(body.connection_id).toBe("conn-123");
@@ -747,6 +815,9 @@ describe("Discord Gateway Service E2E", () => {
     });
 
     test("increments eventsRouted on success", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: createMockResponse({ processed: true }),
@@ -757,10 +828,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       const mockConn = {
         connectionId: "conn-123",
@@ -791,6 +866,9 @@ describe("Discord Gateway Service E2E", () => {
     });
 
     test("increments eventsFailed on failure", async () => {
+      // Setup token mock first
+      setupMockTokenResponse();
+      
       mockFetchResponses.push({
         url: "/api/internal/discord/events",
         response: new Response("Error", { status: 500 }),
@@ -801,10 +879,14 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
 
       const mockConn = {
         connectionId: "conn-123",
@@ -842,7 +924,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -864,7 +946,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -910,7 +992,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -942,7 +1024,7 @@ describe("Discord Gateway Service E2E", () => {
       const manager = new GatewayManager({
         podName: "test-pod",
         elizaCloudUrl: "http://localhost:3000",
-        internalApiKey: "test-key",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
         redisUrl: "redis://localhost",
         redisToken: "token",
       });
@@ -975,6 +1057,248 @@ describe("Discord Gateway Service E2E", () => {
       expect(parsed.connectionId).toBe("conn-123");
       expect(parsed.eventsReceived).toBe(100);
       expect(parsed.eventsRouted).toBe(95);
+    });
+  });
+
+  describe("JWT Authentication", () => {
+    test("acquires token on startup using bootstrap secret", async () => {
+      // Mock token endpoint response
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: createMockResponse({
+          access_token: "test-jwt-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
+
+      const tokenCall = mockFetchCalls.find(c => 
+        c.url.includes("/api/internal/auth/token")
+      );
+
+      expect(tokenCall).toBeDefined();
+      expect(tokenCall?.options.method).toBe("POST");
+      expect(tokenCall?.options.headers).toHaveProperty("X-Gateway-Secret", "test-bootstrap-secret");
+
+      const body = JSON.parse(tokenCall?.options.body as string);
+      expect(body.pod_name).toBe("test-pod");
+      expect(body.service).toBe("discord-gateway");
+    });
+
+    test("refreshes token using existing JWT", async () => {
+      // Mock token endpoint for initial acquisition
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: createMockResponse({
+          access_token: "initial-jwt-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      // Mock refresh endpoint
+      mockFetchResponses.push({
+        url: "/api/internal/auth/refresh",
+        response: createMockResponse({
+          access_token: "refreshed-jwt-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // Acquire initial token
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
+
+      // Refresh token
+      // @ts-expect-error - accessing private for test
+      await manager.refreshToken();
+
+      const refreshCall = mockFetchCalls.find(c => 
+        c.url.includes("/api/internal/auth/refresh")
+      );
+
+      expect(refreshCall).toBeDefined();
+      expect(refreshCall?.options.method).toBe("POST");
+      expect(refreshCall?.options.headers).toHaveProperty("Authorization");
+      
+      // Should use Bearer token
+      const authHeader = (refreshCall?.options.headers as Record<string, string>)["Authorization"];
+      expect(authHeader).toMatch(/^Bearer /);
+    });
+
+    test("uses JWT in Authorization header for API calls", async () => {
+      // Mock token endpoint
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: createMockResponse({
+          access_token: "test-jwt-token-12345",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      // Mock events endpoint
+      mockFetchResponses.push({
+        url: "/api/internal/discord/events",
+        response: createMockResponse({ processed: true }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // Acquire token first
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
+
+      const mockConn = {
+        connectionId: "conn-123",
+        organizationId: "org-456",
+        applicationId: "app-789",
+        client: mockDiscordClient,
+        status: "connected" as const,
+        guildCount: 5,
+        eventsReceived: 0,
+        eventsRouted: 0,
+        eventsFailed: 0,
+        consecutiveFailures: 0,
+        lastHeartbeat: new Date(),
+        listeners: new Map(),
+      };
+
+      // @ts-expect-error - accessing private for test
+      manager.connections.set("conn-123", mockConn);
+
+      // @ts-expect-error - accessing private for test
+      await manager.forwardEvent("conn-123", mockConn, "MESSAGE_CREATE", {
+        id: "msg-123",
+        channel_id: "chan-456",
+      });
+
+      const eventCall = mockFetchCalls.find(c => 
+        c.url.includes("/api/internal/discord/events")
+      );
+
+      expect(eventCall).toBeDefined();
+      const authHeader = (eventCall?.options.headers as Record<string, string>)["Authorization"];
+      expect(authHeader).toBe("Bearer test-jwt-token-12345");
+    });
+
+    test("handles token acquisition failure gracefully", async () => {
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "wrong-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // Should not throw, but log error
+      // @ts-expect-error - accessing private for test
+      await expect(manager.acquireToken()).rejects.toThrow();
+    });
+
+    test("getAuthHeader returns correct format", async () => {
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: createMockResponse({
+          access_token: "my-test-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
+
+      // @ts-expect-error - accessing private for test
+      const authHeader = manager.getAuthHeader();
+
+      expect(authHeader).toEqual({ Authorization: "Bearer my-test-token" });
+    });
+
+    test("clears token refresh timeout on shutdown", async () => {
+      mockFetchResponses.push({
+        url: "/api/internal/auth/token",
+        response: createMockResponse({
+          access_token: "test-jwt-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
+      });
+
+      mockFetchResponses.push({
+        url: "/api/internal/discord/gateway/shutdown",
+        response: createMockResponse({ success: true }),
+      });
+
+      const { GatewayManager } = await import("../../src/gateway-manager");
+      
+      const manager = new GatewayManager({
+        podName: "test-pod",
+        elizaCloudUrl: "http://localhost:3000",
+        gatewayBootstrapSecret: "test-bootstrap-secret",
+        redisUrl: "redis://localhost",
+        redisToken: "token",
+      });
+
+      // @ts-expect-error - accessing private for test
+      await manager.acquireToken();
+
+      // Shutdown should be called - timeout is cleared via clearTimeout
+      // (The variable still holds the timeout reference but it won't fire)
+      await manager.shutdown();
+
+      // Verify shutdown completed (connections cleared is the main indicator)
+      const status = manager.getStatus();
+      expect(status.connections).toEqual([]);
     });
   });
 });

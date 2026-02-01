@@ -225,11 +225,13 @@ kubectl create secret docker-registry ghcr-credentials \
 kubectl create secret generic gateway-discord-secrets \
   --namespace=gateway-discord \
   --from-literal=eliza-cloud-url="https://your-eliza-cloud-url.com" \
-  --from-literal=internal-api-key="your-internal-api-key" \
+  --from-literal=gateway-bootstrap-secret="your-bootstrap-secret" \
   --from-literal=redis-url="https://your-redis-url" \
   --from-literal=redis-token="your-redis-token" \
   --from-literal=blob-token="your-blob-token"
 ```
+
+**Note**: The gateway uses JWT authentication. The `gateway-bootstrap-secret` is exchanged for a JWT token at startup. The Eliza Cloud API must have the corresponding JWT signing keys configured (`JWT_SIGNING_PRIVATE_KEY`, `JWT_SIGNING_PUBLIC_KEY`).
 
 ### 4. Apply Manifests
 

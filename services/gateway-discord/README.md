@@ -86,8 +86,10 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 │                                    ELIZA CLOUD (Next.js Application)                                    │
 │                                                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                              Internal API (X-Internal-API-Key auth)                              │   │
+│  │                              Internal API (JWT Bearer Token auth)                                │   │
 │  │                                                                                                   │   │
+│  │  POST /api/internal/auth/token              ← Exchange bootstrap secret for JWT                  │   │
+│  │  POST /api/internal/auth/refresh            ← Refresh JWT before expiry                          │   │
 │  │  POST /api/internal/discord/events          ← Receive & route Discord events                     │   │
 │  │  GET  /api/internal/discord/gateway/assignments  ← Return bot assignments for pod               │   │
 │  │  POST /api/internal/discord/gateway/status       ← Update connection status                     │   │
@@ -213,14 +215,16 @@ flowchart TB
 
 When a gateway pod starts, it follows this initialization sequence:
 
-1. **Initialize GatewayManager** with config (`podName`, `elizaCloudUrl`, `internalApiKey`)
+1. **Initialize GatewayManager** with config (`podName`, `elizaCloudUrl`, `gatewayBootstrapSecret`)
 2. **Initialize Redis client** for failover coordination (if configured)
-3. **Start HTTP server** (Hono) with endpoints: `/health`, `/ready`, `/metrics`, `/status`
-4. **Start background intervals**:
+3. **Acquire JWT token** by exchanging bootstrap secret with `/api/internal/auth/token`
+4. **Start HTTP server** (Hono) with endpoints: `/health`, `/ready`, `/metrics`, `/status`
+5. **Start background intervals**:
    - `pollForBots()` every 30 seconds
    - `sendHeartbeat()` every 15 seconds
    - `checkForDeadPods()` every 30 seconds (if Redis available)
-5. **Start voice message cleanup job** (if enabled)
+   - Token refresh at 80% of token lifetime (48 minutes for 1-hour tokens)
+6. **Start voice message cleanup job** (if enabled)
 
 ### Bot Assignment Polling
 
@@ -449,11 +453,18 @@ When Eliza Cloud needs to send a response back to Discord, it uses the **same bo
 
 **Option A: Use root `.env.local` (Recommended for local development)**
 
-The gateway can use the same `.env.local` file as the main Eliza Cloud app. Just add `INTERNAL_API_KEY` to your root `.env.local`:
+The gateway can use the same `.env.local` file as the main Eliza Cloud app. Add the required variables to your root `.env.local`:
 
 ```bash
 # Add to your root .env.local file:
-INTERNAL_API_KEY=your_random_secret_here    # Generate with: openssl rand -hex 32
+
+# Gateway authentication (JWT-based)
+GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Generate with: openssl rand -hex 32
+
+# JWT signing keys for Eliza Cloud (required for token issuance)
+# Generate with: openssl ecparam -name prime256v1 -genkey -noout | openssl ec -outform PEM
+JWT_SIGNING_PRIVATE_KEY="base64-encoded-private-key"
+JWT_SIGNING_PUBLIC_KEY="base64-encoded-public-key"
 ```
 
 The gateway already picks up these existing variables from root `.env.local`:
@@ -472,8 +483,8 @@ bun run dev  # Uses ../../.env.local automatically
 Create a `.env` file in `services/gateway-discord/`:
 
 ```bash
-# Required
-INTERNAL_API_KEY=your_random_secret_here    # Must match Eliza Cloud's INTERNAL_API_KEY
+# Required - JWT Authentication
+GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Exchanged for JWT at startup
 
 # Eliza Cloud URL (pick ONE of these options):
 # Option A: Use dedicated env var (recommended for production)
@@ -508,9 +519,17 @@ bun run dev:local  # Uses local .env file
 2. `NEXT_PUBLIC_APP_URL` (fallback)
 3. `https://elizacloud.ai` (default)
 
-Generate a secure `INTERNAL_API_KEY`:
+Generate secure secrets:
 ```bash
+# Generate bootstrap secret
 openssl rand -hex 32
+
+# Generate ES256 key pair for JWT signing (run on Eliza Cloud side)
+openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+openssl ec -in private.pem -pubout -out public.pem
+# Base64 encode for environment variables
+base64 -w 0 private.pem  # JWT_SIGNING_PRIVATE_KEY
+base64 -w 0 public.pem   # JWT_SIGNING_PUBLIC_KEY
 ```
 
 ### Running Locally
@@ -727,7 +746,8 @@ Eliza Cloud logs show:
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (or `http://host.docker.internal:3000` in Docker) |
-| `401 Unauthorized` on API calls | API key mismatch | Ensure `INTERNAL_API_KEY` matches in both services |
+| `401 Unauthorized` on API calls | JWT authentication failed | Check `GATEWAY_BOOTSTRAP_SECRET` matches on both sides, verify JWT signing keys are configured |
+| Gateway fails on startup | Token acquisition failed | Ensure Eliza Cloud is running and has `JWT_SIGNING_PRIVATE_KEY`/`JWT_SIGNING_PUBLIC_KEY` configured |
 | Bot connects but doesn't respond | No linked app/character | Ensure the connection has `character_id` linked to an app with a character |
 | Bot connects but doesn't respond | Response mode filtering | Check `metadata.responseMode` and channel filters |
 | `Connection not found` error | Invalid connection ID | Create connection via repository first |
@@ -737,9 +757,11 @@ Eliza Cloud logs show:
 
 ### Configuration Reference
 
+#### Gateway Environment Variables
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `INTERNAL_API_KEY` | Yes | - | Shared secret with Eliza Cloud |
+| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Secret exchanged for JWT at startup |
 | `ELIZA_CLOUD_URL` | No* | - | Main Eliza Cloud app URL (takes precedence) |
 | `NEXT_PUBLIC_APP_URL` | No* | - | Fallback URL if `ELIZA_CLOUD_URL` not set |
 | `KV_REST_API_URL` | No | - | Redis URL for failover |
@@ -752,6 +774,15 @@ Eliza Cloud logs show:
 | `LOG_LEVEL` | No | `info` | Logging verbosity |
 | `DEAD_POD_THRESHOLD_MS` | No | `45000` | Failover detection threshold |
 | `FAILOVER_CHECK_INTERVAL_MS` | No | `30000` | How often to check for dead pods |
+
+#### Eliza Cloud Environment Variables (for JWT authentication)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Must match gateway's bootstrap secret |
+| `JWT_SIGNING_PRIVATE_KEY` | Yes | - | Base64-encoded ES256 private key (PKCS#8) |
+| `JWT_SIGNING_PUBLIC_KEY` | Yes | - | Base64-encoded ES256 public key (SPKI) |
+| `JWT_SIGNING_KEY_ID` | No | `primary` | Key identifier for JWKS rotation |
 
 **\*** At least one of `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` should be set. If neither is set, defaults to `https://elizacloud.ai`.
 
@@ -937,9 +968,55 @@ interface DiscordConnectionMetadata {
 
 ### 2. API Endpoints
 
-All endpoints require the `X-Internal-API-Key` header for authentication.
+#### Authentication Endpoints
 
-#### 2.1 `GET /api/internal/discord/gateway/assignments`
+##### `POST /api/internal/auth/token`
+
+**Purpose**: Exchange bootstrap secret for JWT token (called once at pod startup).
+
+**Request Headers**:
+- `X-Gateway-Secret`: The bootstrap secret
+
+**Request Body**:
+```json
+{
+  "pod_name": "gateway-pod-abc123",
+  "service": "discord-gateway"
+}
+```
+
+**Response**:
+```json
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+##### `POST /api/internal/auth/refresh`
+
+**Purpose**: Refresh JWT token before expiry (called at 80% of token lifetime).
+
+**Request Headers**:
+- `Authorization: Bearer {current_jwt}`
+
+**Response**:
+```json
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+---
+
+#### Gateway Endpoints
+
+All gateway endpoints require the `Authorization: Bearer {jwt}` header for authentication.
+
+##### `GET /api/internal/discord/gateway/assignments`
 
 **Purpose**: Gateway pods call this to get bots to connect.
 
@@ -1675,6 +1752,11 @@ Create a Kubernetes secret before deploying:
 ```bash
 kubectl create secret generic gateway-discord-secrets \
   --namespace gateway-discord \
-  --from-literal=INTERNAL_API_KEY=your-key \
-  --from-literal=KV_REST_API_TOKEN=your-redis-token
+  --from-literal=eliza-cloud-url="https://your-eliza-cloud-url.com" \
+  --from-literal=gateway-bootstrap-secret="your-bootstrap-secret" \
+  --from-literal=redis-url="https://your-redis-url" \
+  --from-literal=redis-token="your-redis-token" \
+  --from-literal=blob-token="your-blob-token"
 ```
+
+**Note**: The gateway uses JWT authentication. The `gateway-bootstrap-secret` is exchanged for a JWT token at startup. The Eliza Cloud API must have the corresponding JWT signing keys configured.

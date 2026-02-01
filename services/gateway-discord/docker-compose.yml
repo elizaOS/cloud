@@ -14,7 +14,8 @@ services:
       # URL resolution: ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → default
       - ELIZA_CLOUD_URL=${ELIZA_CLOUD_URL:-}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://host.docker.internal:3000}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      # JWT Authentication - Gateway exchanges bootstrap secret for JWT tokens
+      - GATEWAY_BOOTSTRAP_SECRET=${GATEWAY_BOOTSTRAP_SECRET}
       - REDIS_URL=${REDIS_URL}
       - KV_REST_API_URL=${KV_REST_API_URL}
       - KV_REST_API_TOKEN=${KV_REST_API_TOKEN}

@@ -5,17 +5,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateInternalApiKey } from "@/lib/auth/internal-api";
+import { withInternalAuth } from "@/lib/auth/internal-api";
 import { discordConnectionsRepository } from "@/db/repositories";
 import { ConnectionStatusUpdateSchema } from "@/lib/services/gateway-discord/schemas";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
-  const authError = validateInternalApiKey(request);
-  if (authError) return authError;
-
+export const POST = withInternalAuth(async (request: NextRequest) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -61,4 +58,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

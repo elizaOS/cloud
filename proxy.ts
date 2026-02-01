@@ -171,7 +171,7 @@ const publicPaths = [
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
-  "/api/internal", // Internal service-to-service API (has own auth via X-Internal-API-Key)
+  "/api/internal", // Internal service-to-service API (has own auth via JWT Bearer token)
   "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
   "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
 ];
@@ -204,7 +204,7 @@ export async function proxy(request: NextRequest) {
         "Access-Control-Allow-Methods":
           "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Internal-API-Key",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },
