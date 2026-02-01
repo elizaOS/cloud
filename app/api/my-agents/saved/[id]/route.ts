@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 
@@ -9,17 +9,18 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/my-agents/saved/[id]
  * Get details about a specific saved agent including confirmation info for deletion.
+ * Supports both Privy session and API key authentication.
  *
  * @param request - The request object.
  * @param params - Route params containing the agent ID.
  * @returns Agent details with conversation stats.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: agentId } = await params;
 
     logger.debug("[Saved Agents API] Getting saved agent details:", {
@@ -72,6 +73,7 @@ export async function GET(
 /**
  * DELETE /api/my-agents/saved/[id]
  * Remove a saved agent from the user's list.
+ * Supports both Privy session and API key authentication.
  *
  * This permanently deletes:
  * - All conversation history (memories) between user and agent
@@ -82,11 +84,11 @@ export async function GET(
  * @returns Success status and deletion stats.
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: agentId } = await params;
 
     logger.info("[Saved Agents API] Removing saved agent:", {

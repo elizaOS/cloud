@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/my-agents/saved
  * Lists public agents the user has chatted with but doesn't own.
+ * Supports both Privy session and API key authentication.
  *
  * Data is derived from the memories table - finds distinct agent_ids
  * where entity_id = current user, excluding agents owned by the user,
@@ -15,9 +16,9 @@ export const dynamic = "force-dynamic";
  *
  * @returns List of saved agents with their details and last interaction time.
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     logger.debug("[Saved Agents API] Fetching saved agents for user:", {
       userId: user.id,

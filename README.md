@@ -982,7 +982,33 @@ POST /api/eliza/rooms/{roomId}/messages
 }
 ```
 
-### 8. API Key Management
+### 8. Developer API & Programmatic Access
+
+**Location**: All `/api/v1/` and `/api/my-agents/` endpoints
+
+The platform provides comprehensive API key authentication across all endpoints, enabling:
+
+- **Programmatic Agent Management**: Create, update, delete, and clone agents via API
+- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications
+- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
+- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
+
+**Why API Keys for Everything?**
+
+Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across all management endpoints because:
+
+1. **Developer Experience**: Developers can build integrations without browser-based auth flows
+2. **Agent Autonomy**: AI agents need to manage their own resources (credits, other agents, voices) autonomously
+3. **Automation**: CI/CD pipelines, scripts, and external systems can interact with the platform programmatically
+4. **No Vendor Lock-in**: Generic endpoint paths (`/api/v1/voice/` instead of provider-specific paths) allow switching providers without breaking integrations
+
+**Generic Voice API**: Voice endpoints use provider-agnostic paths (`/api/v1/voice/tts` instead of `/api/elevenlabs/tts`) so your code doesn't need to change if the underlying provider changes. Legacy paths are preserved for backwards compatibility.
+
+**Billing Management**: Agents and developers can configure auto-top-up settings programmatically, ensuring autonomous agents never stop working due to insufficient credits.
+
+---
+
+### 9. API Key Management
 
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 

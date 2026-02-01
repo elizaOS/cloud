@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 
 export const dynamic = "force-dynamic";
@@ -7,13 +7,14 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/my-agents/characters/[id]/stats
  * Get statistics for a character.
+ * Supports both Privy session and API key authentication.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     const character = await charactersService.getByIdForUser(id, user.id);

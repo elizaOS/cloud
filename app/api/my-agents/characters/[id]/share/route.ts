@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 
@@ -14,13 +14,14 @@ const ShareSchema = z.object({
 /**
  * GET /api/my-agents/characters/[id]/share
  * Get the current sharing status of a character.
+ * Supports both Privy session and API key authentication.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     const character = await charactersService.getByIdForUser(id, user.id);
@@ -64,6 +65,7 @@ export async function GET(
 /**
  * PUT /api/my-agents/characters/[id]/share
  * Toggle the public sharing status of a character.
+ * Supports both Privy session and API key authentication.
  *
  * This is a simpler alternative to the full /api/v1/agents/[agentId]/publish
  * endpoint which also handles monetization settings.
@@ -81,7 +83,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     // Verify ownership
