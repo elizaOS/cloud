@@ -6,8 +6,13 @@ on:
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
+      - "lib/auth/jwks.ts"
+      - "lib/auth/jwt-internal.ts"
+      - "lib/auth/internal-api.ts"
       - "app/api/v1/discord/**"
       - "app/api/internal/discord/**"
+      - "app/api/internal/auth/**"
+      - "app/api/.well-known/jwks.json/**"
       - "tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   pull_request:
@@ -15,8 +20,13 @@ on:
     paths:
       - "services/gateway-discord/**"
       - "lib/services/gateway-discord/**"
+      - "lib/auth/jwks.ts"
+      - "lib/auth/jwt-internal.ts"
+      - "lib/auth/internal-api.ts"
       - "app/api/v1/discord/**"
       - "app/api/internal/discord/**"
+      - "app/api/internal/auth/**"
+      - "app/api/.well-known/jwks.json/**"
       - "tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   workflow_dispatch:
