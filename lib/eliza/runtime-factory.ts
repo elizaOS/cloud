@@ -585,9 +585,20 @@ export class RuntimeFactory {
         : serverConfig.url;
 
       // Auto-inject API key header for HTTP MCP servers on our domain
-      const shouldInjectAuth = isHttpTransport && apiKey && transformedUrl?.startsWith(baseUrl);
+      // Use URL origin comparison to prevent leaking API key to lookalike domains
+      const isSameOrigin = (() => {
+        if (!transformedUrl) return false;
+        try {
+          const targetOrigin = new URL(transformedUrl).origin;
+          const baseOrigin = new URL(baseUrl).origin;
+          return targetOrigin === baseOrigin;
+        } catch {
+          return false;
+        }
+      })();
+      const shouldInjectAuth = isHttpTransport && apiKey && isSameOrigin;
 
-      elizaLogger.info(`[MCP Transform] Server ${serverId}: isHttp=${isHttpTransport}, hasApiKey=${!!apiKey}, startsWithBase=${transformedUrl?.startsWith(baseUrl)}, shouldInjectAuth=${shouldInjectAuth}`);
+      elizaLogger.info(`[MCP Transform] Server ${serverId}: isHttp=${isHttpTransport}, hasApiKey=${!!apiKey}, isSameOrigin=${isSameOrigin}, shouldInjectAuth=${shouldInjectAuth}`);
 
       transformedServers[serverId] = {
         ...serverConfig,

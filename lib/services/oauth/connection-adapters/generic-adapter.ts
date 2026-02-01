@@ -148,6 +148,8 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
             source: "generic-adapter",
           };
 
+          // Store tokens atomically - if any step fails after access token rotation,
+          // log error but continue since the new access token is already valid
           await secretsService.rotate(
             cred.access_token_secret_id,
             organizationId,
@@ -156,13 +158,24 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           );
 
           // Store new refresh token if provided
+          // Critical: Some providers invalidate old refresh tokens, so this must succeed
           if (refreshResult.newRefreshToken && cred.refresh_token_secret_id) {
-            await secretsService.rotate(
-              cred.refresh_token_secret_id,
-              organizationId,
-              refreshResult.newRefreshToken,
-              audit,
-            );
+            try {
+              await secretsService.rotate(
+                cred.refresh_token_secret_id,
+                organizationId,
+                refreshResult.newRefreshToken,
+                audit,
+              );
+            } catch (refreshTokenError) {
+              // Log but don't throw - access token is still valid for this request
+              // Future refreshes may fail if provider invalidated the old refresh token
+              logger.error(`[GenericAdapter] Failed to store new refresh token for ${platform}`, {
+                connectionId,
+                organizationId,
+                error: refreshTokenError instanceof Error ? refreshTokenError.message : String(refreshTokenError),
+              });
+            }
           }
 
           // Update credential record

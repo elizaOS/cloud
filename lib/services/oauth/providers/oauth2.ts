@@ -359,6 +359,14 @@ async function fetchUserInfo(
   }
 
   const data = await response.json();
+
+  // Check for GraphQL errors (GraphQL APIs return 200 even on errors)
+  if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+    const errorMessage = data.errors.map((e: { message?: string }) => e.message).join(", ");
+    logger.error(`[OAuth2] GraphQL error for ${provider.id}`, { errors: data.errors });
+    throw new Error(`GraphQL error: ${errorMessage}`);
+  }
+
   return extractUserInfo(provider.userInfoMapping, data);
 }
 
@@ -523,18 +531,16 @@ async function storeConnection(
       );
       refreshTokenSecretId = existing[0].refresh_token_secret_id;
     } else if (tokens.refresh_token) {
-      const refreshSecret = await secretsService.create(
-        {
-          organizationId,
-          name: `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
-          value: tokens.refresh_token,
-          scope: "organization",
-          createdBy: userId,
-        },
-        audit
+      // Use createOrRotateSecret to handle orphaned secrets from failed previous attempts
+      const refreshSecret = await createOrRotateSecret(
+        organizationId,
+        `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+        tokens.refresh_token,
+        userId,
+        audit,
+        newlyCreatedSecretIds
       );
       refreshTokenSecretId = refreshSecret.id;
-      newlyCreatedSecretIds.push(refreshSecret.id);
     } else if (existing[0].refresh_token_secret_id) {
       refreshTokenSecretId = existing[0].refresh_token_secret_id;
     }
