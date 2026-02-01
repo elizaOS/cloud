@@ -200,8 +200,8 @@ async function handleTelegramAuth(
   });
 }
 
-// Export with rate limiting (10 requests/min per IP - stricter for auth)
-export const POST = withRateLimit(handleTelegramAuth, RateLimitPresets.STRICT);
+// Export with rate limiting (60 requests/min per API key)
+export const POST = withRateLimit(handleTelegramAuth, RateLimitPresets.STANDARD);
 
 // Health check
 export async function GET(): Promise<NextResponse> {
