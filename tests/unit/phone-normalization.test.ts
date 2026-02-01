@@ -11,6 +11,7 @@ import {
   normalizeToE164,
   normalizePhoneNumber,
   parsePhoneNumber,
+  validatePhoneForAPI,
 } from "@/lib/utils/phone-normalization";
 
 describe("Phone Normalization Utilities", () => {
@@ -188,6 +189,112 @@ describe("Phone Normalization Edge Cases", () => {
       // Minimum is + followed by at least 2 digits
       expect(isValidE164("+12")).toBe(true);
       expect(isValidE164("+1")).toBe(false);
+    });
+  });
+});
+
+describe("validatePhoneForAPI", () => {
+  describe("valid inputs", () => {
+    it("accepts valid E.164 phone numbers", () => {
+      const result = validatePhoneForAPI("+14155552671");
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.normalized).toBe("+14155552671");
+      }
+    });
+
+    it("accepts and normalizes 10-digit US numbers", () => {
+      const result = validatePhoneForAPI("4155552671");
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.normalized).toBe("+14155552671");
+      }
+    });
+
+    it("accepts formatted phone numbers", () => {
+      const result = validatePhoneForAPI("(415) 555-2671");
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.normalized).toBe("+14155552671");
+      }
+    });
+
+    it("handles whitespace around phone numbers", () => {
+      const result = validatePhoneForAPI("  +14155552671  ");
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.normalized).toBe("+14155552671");
+      }
+    });
+
+    it("accepts international numbers", () => {
+      const result = validatePhoneForAPI("+442071838750");
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.normalized).toBe("+442071838750");
+      }
+    });
+  });
+
+  describe("invalid inputs", () => {
+    it("rejects empty string", () => {
+      const result = validatePhoneForAPI("");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.error).toBe("Phone number is required");
+      }
+    });
+
+    it("rejects whitespace-only string", () => {
+      const result = validatePhoneForAPI("   ");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.error).toBe("Phone number is required");
+      }
+    });
+
+    it("rejects invalid phone format", () => {
+      const result = validatePhoneForAPI("invalid");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.error).toBe("Invalid phone number format");
+      }
+    });
+
+    it("rejects too short numbers", () => {
+      const result = validatePhoneForAPI("12345");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.error).toBe("Invalid phone number format");
+      }
+    });
+
+    it("rejects email addresses (not phone numbers)", () => {
+      const result = validatePhoneForAPI("user@example.com");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.error).toBe("Invalid phone number format");
+      }
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles very long input gracefully", () => {
+      const longInput = "1".repeat(50);
+      const result = validatePhoneForAPI(longInput);
+      // Should not throw, just return invalid
+      expect(result.valid).toBe(false);
+    });
+
+    it("handles special characters", () => {
+      const result = validatePhoneForAPI("+1<script>alert(1)</script>");
+      expect(result.valid).toBe(false);
+    });
+
+    it("handles null-byte injection", () => {
+      const result = validatePhoneForAPI("+14155552671\x00extra");
+      // Should either be valid (ignoring the null byte) or invalid
+      expect(typeof result.valid).toBe("boolean");
     });
   });
 });

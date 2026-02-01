@@ -199,6 +199,75 @@ class ElizaAppUserService {
       updated_at: new Date(),
     });
   }
+
+  async linkPhoneToUser(
+    userId: string,
+    phoneNumber: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+
+    if (existingPhoneUser && existingPhoneUser.id !== userId) {
+      logger.warn("[ElizaAppUserService] Phone already linked to another user", {
+        userId,
+        existingUserId: existingPhoneUser.id,
+        phone: normalizedPhone.slice(-4),
+      });
+      return {
+        success: false,
+        error: "This phone number is already linked to another account",
+      };
+    }
+
+    await usersRepository.update(userId, {
+      phone_number: normalizedPhone,
+      phone_verified: true,
+      updated_at: new Date(),
+    });
+
+    logger.info("[ElizaAppUserService] Linked phone to user", {
+      userId,
+      phone: normalizedPhone.slice(-4),
+    });
+
+    return { success: true };
+  }
+
+  async linkTelegramToUser(
+    userId: string,
+    telegramData: TelegramAuthData
+  ): Promise<{ success: boolean; error?: string }> {
+    const telegramId = String(telegramData.id);
+    const existingTelegramUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
+
+    if (existingTelegramUser && existingTelegramUser.id !== userId) {
+      logger.warn("[ElizaAppUserService] Telegram already linked to another user", {
+        userId,
+        existingUserId: existingTelegramUser.id,
+        telegramId,
+      });
+      return {
+        success: false,
+        error: "This Telegram account is already linked to another account",
+      };
+    }
+
+    await usersRepository.update(userId, {
+      telegram_id: telegramId,
+      telegram_username: telegramData.username,
+      telegram_first_name: telegramData.first_name,
+      telegram_photo_url: telegramData.photo_url,
+      updated_at: new Date(),
+    });
+
+    logger.info("[ElizaAppUserService] Linked Telegram to user", {
+      userId,
+      telegramId,
+      username: telegramData.username,
+    });
+
+    return { success: true };
+  }
 }
 
 export const elizaAppUserService = new ElizaAppUserService();
