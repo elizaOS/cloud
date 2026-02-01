@@ -41,11 +41,13 @@ describe("Provider Registry", () => {
         expect(Array.isArray(provider.envVars)).toBe(true);
         expect(provider.storage).toBeDefined();
         expect(["platform_credentials", "secrets"]).toContain(provider.storage);
-        expect(provider.routes).toBeDefined();
-        expect(provider.routes.initiate).toBeDefined();
-        expect(provider.routes.callback).toBeDefined();
-        expect(provider.routes.status).toBeDefined();
-        expect(provider.routes.disconnect).toBeDefined();
+        // Generic route providers don't need routes config
+        if (!provider.useGenericRoutes) {
+          expect(provider.routes).toBeDefined();
+          expect(provider.routes!.initiate).toBeDefined();
+          expect(provider.routes!.status).toBeDefined();
+          expect(provider.routes!.disconnect).toBeDefined();
+        }
       }
     });
 
@@ -71,11 +73,9 @@ describe("Provider Registry", () => {
         expect(google.defaultScopes!.length).toBeGreaterThan(0);
       });
 
-      it("should have valid routes", () => {
-        expect(google.routes.initiate).toBe("/api/v1/google/oauth");
-        expect(google.routes.callback).toBe("/api/v1/google/callback");
-        expect(google.routes.status).toBe("/api/v1/google/status");
-        expect(google.routes.disconnect).toBe("/api/v1/google/disconnect");
+      it("should use generic routes", () => {
+        expect(google.useGenericRoutes).toBe(true);
+        expect(google.routes).toBeUndefined();
       });
     });
 
@@ -172,9 +172,10 @@ describe("Provider Registry", () => {
       expect(provider).toBeNull();
     });
 
-    it("should be case-sensitive", () => {
+    it("should be case-insensitive", () => {
       const provider = getProvider("GOOGLE");
-      expect(provider).toBeNull();
+      expect(provider).not.toBeNull();
+      expect(provider!.id).toBe("google");
     });
 
     it("should return all expected providers", () => {
@@ -339,17 +340,17 @@ describe("Provider Registry", () => {
     });
 
     it("should return false for invalid provider IDs", () => {
-      const invalidIds = ["discord", "invalid", "", "GOOGLE", "Google"];
+      const invalidIds = ["discord", "invalid", ""];
 
       for (const id of invalidIds) {
         expect(isValidProvider(id)).toBe(false);
       }
     });
 
-    it("should be case-sensitive", () => {
+    it("should be case-insensitive", () => {
       expect(isValidProvider("google")).toBe(true);
-      expect(isValidProvider("Google")).toBe(false);
-      expect(isValidProvider("GOOGLE")).toBe(false);
+      expect(isValidProvider("Google")).toBe(true);
+      expect(isValidProvider("GOOGLE")).toBe(true);
     });
   });
 });

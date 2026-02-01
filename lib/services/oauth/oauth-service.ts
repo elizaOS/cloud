@@ -6,12 +6,12 @@
  */
 
 import { cache } from "@/lib/cache/client";
-import { generateGoogleAuthUrl, DEFAULT_GOOGLE_SCOPES } from "@/lib/utils/google-api";
 import { logger } from "@/lib/utils/logger";
 import { OAUTH_PROVIDERS, getProvider, isProviderConfigured } from "./provider-registry";
 import { getAllAdapters, getAdapter } from "./connection-adapters";
 import { tokenCache } from "./token-cache";
 import { Errors } from "./errors";
+import { initiateOAuth2 } from "./providers";
 import type {
   OAuthProviderInfo,
   OAuthConnection,
@@ -47,49 +47,29 @@ class OAuthService {
     if (!provider) throw Errors.platformNotSupported(platform);
     if (!isProviderConfigured(provider)) throw Errors.platformNotConfigured(platform);
 
+    // API key providers return a form URL
     if (provider.type === "api_key") {
-      return { authUrl: provider.routes.initiate, requiresCredentials: true };
+      return { authUrl: provider.routes?.initiate || "", requiresCredentials: true };
     }
 
+    // Use generic OAuth2 flow for providers that opt-in
+    if (provider.useGenericRoutes && provider.type === "oauth2") {
+      const result = await initiateOAuth2(provider, {
+        organizationId,
+        userId,
+        redirectUrl,
+        scopes,
+      });
+      return { authUrl: result.authUrl, state: result.state };
+    }
+
+    // Legacy provider-specific handlers (only Twitter remains - uses OAuth 1.0a)
     switch (platform) {
-      case "google":
-        return this.initiateGoogleAuth(organizationId, userId, redirectUrl, scopes);
       case "twitter":
         return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
       default:
         throw Errors.platformNotSupported(platform);
     }
-  }
-
-  private async initiateGoogleAuth(
-    organizationId: string,
-    userId: string,
-    redirectUrl?: string,
-    scopes?: string[],
-  ): Promise<InitiateAuthResult> {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) throw Errors.platformNotConfigured("google");
-
-    const state = crypto.randomUUID();
-    const finalScopes = scopes || OAUTH_PROVIDERS.google.defaultScopes || DEFAULT_GOOGLE_SCOPES;
-
-    await cache.set(
-      `google_oauth:${state}`,
-      { organizationId, userId, redirectUrl: redirectUrl || DEFAULT_REDIRECT, scopes: finalScopes },
-      STATE_TTL,
-    );
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-    const authUrl = generateGoogleAuthUrl({
-      clientId,
-      redirectUri: `${baseUrl}/api/v1/google/callback`,
-      scopes: finalScopes,
-      state,
-      accessType: "offline",
-      prompt: "consent",
-    });
-
-    return { authUrl, state };
   }
 
   private async initiateTwitterAuth(organizationId: string, userId: string, redirectUrl?: string): Promise<InitiateAuthResult> {
@@ -110,20 +90,14 @@ class OAuthService {
   /** List all OAuth connections for an organization */
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
     const { organizationId, platform } = params;
-    const adaptersToQuery = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
+    const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
+    const results = await Promise.allSettled(adapters.map((a) => a!.listConnections(organizationId)));
 
-    const results = await Promise.allSettled(adaptersToQuery.map((a) => a!.listConnections(organizationId)));
-
-    const connections: OAuthConnection[] = [];
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        connections.push(...result.value);
-      } else {
-        logger.warn("[OAuthService] Adapter query failed", {
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-        });
-      }
-    }
+    const connections = results.flatMap((r) => {
+      if (r.status === "fulfilled") return r.value;
+      logger.warn("[OAuthService] Adapter query failed", { error: r.reason?.message || String(r.reason) });
+      return [];
+    });
 
     return this.sortConnectionsByRecency(connections);
   }
