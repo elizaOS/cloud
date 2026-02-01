@@ -513,23 +513,69 @@ async function storeConnection(
   let refreshTokenSecretId: string | undefined;
 
   if (existing.length > 0 && existing[0].access_token_secret_id) {
-    // Update existing secrets
-    await secretsService.rotate(
-      existing[0].access_token_secret_id,
-      organizationId,
-      tokens.access_token,
-      audit
-    );
-    accessTokenSecretId = existing[0].access_token_secret_id;
-
-    if (tokens.refresh_token && existing[0].refresh_token_secret_id) {
+    // Update existing secrets - handle orphaned secret references gracefully
+    try {
       await secretsService.rotate(
-        existing[0].refresh_token_secret_id,
+        existing[0].access_token_secret_id,
         organizationId,
-        tokens.refresh_token,
+        tokens.access_token,
         audit
       );
-      refreshTokenSecretId = existing[0].refresh_token_secret_id;
+      accessTokenSecretId = existing[0].access_token_secret_id;
+    } catch (rotateError) {
+      // If secret doesn't exist (orphaned reference), create a new one
+      const errorMsg = rotateError instanceof Error ? rotateError.message : String(rotateError);
+      if (errorMsg.includes("not found")) {
+        logger.warn(`[OAuth2] Access token secret not found (orphaned reference), creating new secret`, {
+          providerId: provider.id,
+          organizationId,
+          oldSecretId: existing[0].access_token_secret_id,
+        });
+        const accessSecret = await createOrRotateSecret(
+          organizationId,
+          `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
+          tokens.access_token,
+          userId,
+          audit,
+          newlyCreatedSecretIds
+        );
+        accessTokenSecretId = accessSecret.id;
+      } else {
+        throw rotateError;
+      }
+    }
+
+    if (tokens.refresh_token && existing[0].refresh_token_secret_id) {
+      try {
+        await secretsService.rotate(
+          existing[0].refresh_token_secret_id,
+          organizationId,
+          tokens.refresh_token,
+          audit
+        );
+        refreshTokenSecretId = existing[0].refresh_token_secret_id;
+      } catch (rotateError) {
+        // If secret doesn't exist (orphaned reference), create a new one
+        const errorMsg = rotateError instanceof Error ? rotateError.message : String(rotateError);
+        if (errorMsg.includes("not found")) {
+          logger.warn(`[OAuth2] Refresh token secret not found (orphaned reference), creating new secret`, {
+            providerId: provider.id,
+            organizationId,
+            oldSecretId: existing[0].refresh_token_secret_id,
+          });
+          const refreshSecret = await createOrRotateSecret(
+            organizationId,
+            `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+            tokens.refresh_token,
+            userId,
+            audit,
+            newlyCreatedSecretIds
+          );
+          refreshTokenSecretId = refreshSecret.id;
+        } else {
+          throw rotateError;
+        }
+      }
     } else if (tokens.refresh_token) {
       // Use createOrRotateSecret to handle orphaned secrets from failed previous attempts
       const refreshSecret = await createOrRotateSecret(
