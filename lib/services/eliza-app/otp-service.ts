@@ -207,6 +207,7 @@ class OTPService {
       return {
         valid: false,
         error: "Too many attempts. Please request a new code.",
+        attemptsRemaining: 0,
       };
     }
 
@@ -255,16 +256,6 @@ class OTPService {
 
     const now = Math.floor(Date.now() / 1000);
     return now <= record.expiresAt && record.attempts < MAX_ATTEMPTS;
-  }
-
-  async getCooldownRemaining(phoneNumber: string): Promise<number> {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const cooldownKey = `${COOLDOWN_KEY_PREFIX}${normalizedPhone}`;
-    const cooldownActive = await cache.get<boolean>(cooldownKey);
-
-    // If cooldown is active, we don't know exact remaining time without Redis TTL
-    // Return full cooldown as estimate
-    return cooldownActive ? COOLDOWN_SECONDS : 0;
   }
 }
 
