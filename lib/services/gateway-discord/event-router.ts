@@ -112,8 +112,8 @@ class DiscordRateLimiter {
    * Get or create rate limit state for a bot.
    */
   private getState(botToken: string): RateLimitState {
-    // Use SHA-256 hash of token as key to avoid timing attacks from prefix comparison
-    const key = createHash("sha256").update(botToken).digest("hex").slice(0, 16);
+    // Use full SHA-256 hash of token as key to avoid timing attacks and collisions
+    const key = createHash("sha256").update(botToken).digest("hex");
     let state = this.limiters.get(key);
     if (!state) {
       state = {
