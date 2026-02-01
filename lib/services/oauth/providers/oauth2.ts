@@ -731,8 +731,13 @@ export async function refreshOAuth2Token(
   const data = await response.json();
   const tokenMapping = provider.tokenMapping;
 
+  const accessToken = data[tokenMapping?.accessToken || "access_token"];
+  if (!accessToken) {
+    throw new Error("Token refresh response missing access_token");
+  }
+
   return {
-    accessToken: data[tokenMapping?.accessToken || "access_token"],
+    accessToken,
     expiresIn: data[tokenMapping?.expiresIn || "expires_in"],
     newRefreshToken: data[tokenMapping?.refreshToken || "refresh_token"],
   };

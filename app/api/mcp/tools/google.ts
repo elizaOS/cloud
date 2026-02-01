@@ -179,7 +179,10 @@ export function registerGoogleTools(server: McpServer): void {
       try {
         const params = new URLSearchParams({ maxResults: String(maxResults) });
         if (query) params.set("q", query);
-        if (labelIds) params.set("labelIds", labelIds);
+        if (labelIds) {
+          // Gmail API expects repeated labelIds params, not comma-separated
+          labelIds.split(",").forEach((id) => params.append("labelIds", id.trim()));
+        }
 
         const listResponse = await googleFetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`,
@@ -398,8 +401,8 @@ export function registerGoogleTools(server: McpServer): void {
           ...(summary && { summary }),
           ...(description !== undefined && { description }),
           ...(location !== undefined && { location }),
-          ...(start && { start: { dateTime: start } }),
-          ...(end && { end: { dateTime: end } }),
+          ...(start && { start: { ...existing.start, dateTime: start } }),
+          ...(end && { end: { ...existing.end, dateTime: end } }),
         };
 
         const response = await googleFetch(`${baseUrl}?sendUpdates=${sendUpdates}`, {
