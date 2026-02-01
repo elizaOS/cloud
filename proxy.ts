@@ -99,8 +99,21 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   const client = getRedis();
   if (!client) return null;
   try {
-    const cached = await client.get<string>(`proxy:auth:${hashToken(token)}`);
-    return cached ? JSON.parse(cached) : null;
+    const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
+    if (!cached) return null;
+    // Handle both old string format and new object format
+    if (typeof cached === "string") {
+      // Skip corrupted cache entries (e.g., "[object Object]")
+      if (cached === "[object Object]" || !cached.startsWith("{")) {
+        return null;
+      }
+      return JSON.parse(cached);
+    }
+    // Validate it's actually a CachedAuth object
+    if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
+      return cached;
+    }
+    return null;
   } catch (error) {
     // Log Redis read errors but don't block auth - fall back to uncached
     console.warn("[Proxy] Redis cache read failed:", error instanceof Error ? error.message : String(error));
