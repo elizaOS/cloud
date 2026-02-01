@@ -396,13 +396,15 @@ export function registerGoogleTools(server: McpServer): void {
 
         const existing = await (await googleFetch(baseUrl)).json();
 
+        // When updating start/end, remove 'date' property if setting 'dateTime'
+        // (Google Calendar uses 'date' for all-day events, 'dateTime' for timed events - can't have both)
         const updated = {
           ...existing,
           ...(summary && { summary }),
           ...(description !== undefined && { description }),
           ...(location !== undefined && { location }),
-          ...(start && { start: { ...existing.start, dateTime: start } }),
-          ...(end && { end: { ...existing.end, dateTime: end } }),
+          ...(start && { start: { ...existing.start, dateTime: start, date: undefined } }),
+          ...(end && { end: { ...existing.end, dateTime: end, date: undefined } }),
         };
 
         const response = await googleFetch(`${baseUrl}?sendUpdates=${sendUpdates}`, {

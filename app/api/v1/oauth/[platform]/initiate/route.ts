@@ -11,6 +11,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   getProvider,
   isProviderConfigured,
@@ -31,7 +32,7 @@ interface RouteParams {
   }>;
 }
 
-export async function POST(
+async function handleInitiate(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
@@ -140,3 +141,22 @@ export async function POST(
     );
   }
 }
+
+/**
+ * Get IP address from request for rate limiting
+ */
+function getIpKey(request: NextRequest): string {
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
+  return `oauth:generic:initiate:ip:${ip}`;
+}
+
+// Export with rate limiting: 10 requests per minute per IP
+// Prevents state cache flooding attacks
+export const POST = withRateLimit(handleInitiate, {
+  windowMs: 60000, // 1 minute
+  maxRequests: 10,
+  keyGenerator: getIpKey,
+});

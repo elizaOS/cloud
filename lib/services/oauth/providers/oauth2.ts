@@ -590,9 +590,13 @@ async function storeConnection(
     }
   }
 
-  // Calculate token expiry
-  const tokenExpiresAt = tokens.expires_in
-    ? new Date(Date.now() + tokens.expires_in * 1000)
+  // Calculate token expiry with bounds validation
+  // Clamp expires_in between 60 seconds and 1 year to handle malformed responses
+  const expiresInSeconds = tokens.expires_in
+    ? Math.max(Math.min(tokens.expires_in, 86400 * 365), 60)
+    : undefined;
+  const tokenExpiresAt = expiresInSeconds
+    ? new Date(Date.now() + expiresInSeconds * 1000)
     : undefined;
 
   // Upsert connection with cleanup on failure
