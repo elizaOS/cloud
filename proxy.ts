@@ -115,8 +115,14 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
     }
     return null;
   } catch (error) {
-    // Log Redis read errors but don't block auth - fall back to uncached
-    console.warn("[Proxy] Redis cache read failed:", error instanceof Error ? error.message : String(error));
+    // Silently ignore corrupted cache entries (e.g., "[object Object]" stored incorrectly)
+    // This happens when Upstash tries to auto-parse invalid JSON - just fall back to fresh auth
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("is not valid JSON")) {
+      return null;
+    }
+    // Log other unexpected Redis errors but don't block auth
+    console.warn("[Proxy] Redis cache read failed:", errorMessage);
     return null;
   }
 }
@@ -173,7 +179,6 @@ const publicPaths = [
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",
-  "/api/v1/google/callback",
   "/api/cron",
   "/api/v1/cron",
   "/api/mcps",
