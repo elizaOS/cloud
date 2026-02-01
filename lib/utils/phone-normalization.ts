@@ -87,6 +87,28 @@ export function normalizePhoneNumber(phone: string, defaultCountry?: string): st
 }
 
 /**
+ * Validate phone number for API requests.
+ * Returns normalized phone on success, or error message on failure.
+ */
+export function validatePhoneForAPI(
+  phoneNumber: string
+): { valid: true; normalized: string } | { valid: false; error: string } {
+  const trimmed = phoneNumber.trim();
+
+  if (!trimmed) {
+    return { valid: false, error: "Phone number is required" };
+  }
+
+  const parsed = parsePhoneNumber(trimmed);
+
+  if (!parsed || !parsed.isValid) {
+    return { valid: false, error: "Invalid phone number format" };
+  }
+
+  return { valid: true, normalized: parsed.formatted };
+}
+
+/**
  * Parse phone number and return structured data.
  * Returns null if the phone number cannot be parsed.
  */

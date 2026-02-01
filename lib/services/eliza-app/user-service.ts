@@ -17,6 +17,16 @@ import type { Organization } from "@/db/schemas/organizations";
 
 const ELIZA_APP_INITIAL_CREDITS = 1.0;
 
+function isUniqueConstraintError(error: unknown): boolean {
+  if (error instanceof Error) {
+    // PostgreSQL unique violation error code
+    return error.message.includes("unique constraint") ||
+           error.message.includes("duplicate key") ||
+           (error as { code?: string }).code === "23505";
+  }
+  return false;
+}
+
 export interface FindOrCreateResult {
   user: User;
   organization: Organization;
@@ -169,16 +179,30 @@ class ElizaAppUserService {
     const displayName = `User ***${lastFour}`;
     const organizationName = `User ***${lastFour}'s Workspace`;
 
-    return createUserWithOrganization({
-      userData: {
-        phone_number: normalizedPhone,
-        phone_verified: true, // Phone verified by virtue of being able to send iMessage
-        name: displayName,
-        is_anonymous: false,
-      },
-      organizationName,
-      slugGenerator: () => generateSlugFromPhone(normalizedPhone),
-    });
+    try {
+      return await createUserWithOrganization({
+        userData: {
+          phone_number: normalizedPhone,
+          phone_verified: true,
+          name: displayName,
+          is_anonymous: false,
+        },
+        organizationName,
+        slugGenerator: () => generateSlugFromPhone(normalizedPhone),
+      });
+    } catch (error) {
+      // Handle race condition: another request created the user first
+      if (isUniqueConstraintError(error)) {
+        const user = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        if (user && user.organization) {
+          logger.info("[ElizaAppUserService] Recovered from race condition", {
+            phone: `***${normalizedPhone.slice(-2)}`,
+          });
+          return { user, organization: user.organization, isNew: false };
+        }
+      }
+      throw error;
+    }
   }
 
   async getById(userId: string): Promise<UserWithOrganization | undefined> {
@@ -198,6 +222,108 @@ class ElizaAppUserService {
       ...data,
       updated_at: new Date(),
     });
+  }
+
+  async linkPhoneToUser(
+    userId: string,
+    phoneNumber: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+
+    if (existingPhoneUser) {
+      if (existingPhoneUser.id === userId) {
+        return { success: true };
+      }
+      logger.warn("[ElizaAppUserService] Phone already linked to another user", {
+        userId,
+        existingUserId: existingPhoneUser.id,
+        phone: `***${normalizedPhone.slice(-2)}`,
+      });
+      return {
+        success: false,
+        error: "This phone number is already linked to another account",
+      };
+    }
+
+    try {
+      await usersRepository.update(userId, {
+        phone_number: normalizedPhone,
+        phone_verified: true,
+        updated_at: new Date(),
+      });
+    } catch (error) {
+      // Handle race condition: another request linked this phone first
+      if (isUniqueConstraintError(error)) {
+        logger.warn("[ElizaAppUserService] Phone linking race condition", {
+          userId,
+          phone: `***${normalizedPhone.slice(-2)}`,
+        });
+        return {
+          success: false,
+          error: "This phone number is already linked to another account",
+        };
+      }
+      throw error;
+    }
+
+    logger.info("[ElizaAppUserService] Linked phone to user", {
+      userId,
+      phone: `***${normalizedPhone.slice(-2)}`,
+    });
+
+    return { success: true };
+  }
+
+  async linkTelegramToUser(
+    userId: string,
+    telegramData: TelegramAuthData
+  ): Promise<{ success: boolean; error?: string }> {
+    const telegramId = String(telegramData.id);
+    const existingTelegramUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
+
+    if (existingTelegramUser && existingTelegramUser.id !== userId) {
+      logger.warn("[ElizaAppUserService] Telegram already linked to another user", {
+        userId,
+        existingUserId: existingTelegramUser.id,
+        telegramId,
+      });
+      return {
+        success: false,
+        error: "This Telegram account is already linked to another account",
+      };
+    }
+
+    try {
+      await usersRepository.update(userId, {
+        telegram_id: telegramId,
+        telegram_username: telegramData.username,
+        telegram_first_name: telegramData.first_name,
+        telegram_photo_url: telegramData.photo_url,
+        updated_at: new Date(),
+      });
+    } catch (error) {
+      // Handle race condition: another request linked this Telegram first
+      if (isUniqueConstraintError(error)) {
+        logger.warn("[ElizaAppUserService] Telegram linking race condition", {
+          userId,
+          telegramId,
+        });
+        return {
+          success: false,
+          error: "This Telegram account is already linked to another account",
+        };
+      }
+      throw error;
+    }
+
+    logger.info("[ElizaAppUserService] Linked Telegram to user", {
+      userId,
+      telegramId,
+      username: telegramData.username,
+    });
+
+    return { success: true };
   }
 }
 
