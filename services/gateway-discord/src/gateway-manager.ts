@@ -37,14 +37,17 @@ function sanitizeError(error: unknown): string {
 
 /**
  * Parse an integer from environment variable with validation.
- * Throws if the value is not a valid integer to fail fast on misconfiguration.
+ * Throws if the value is not a valid integer or below minimum to fail fast on misconfiguration.
  */
-function parseIntEnv(name: string, defaultValue: number): number {
+function parseIntEnv(name: string, defaultValue: number, minValue: number = 1): number {
   const value = process.env[name];
   if (value === undefined) return defaultValue;
   const parsed = parseInt(value, 10);
   if (Number.isNaN(parsed)) {
     throw new Error(`Invalid ${name} environment variable: "${value}" is not a valid integer`);
+  }
+  if (parsed < minValue) {
+    throw new Error(`Invalid ${name} environment variable: ${parsed} is below minimum value of ${minValue}`);
   }
   return parsed;
 }

@@ -4,6 +4,7 @@
  * Routes Discord events to the appropriate Eliza agent runtime.
  */
 
+import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
@@ -111,8 +112,8 @@ class DiscordRateLimiter {
    * Get or create rate limit state for a bot.
    */
   private getState(botToken: string): RateLimitState {
-    // Use first 10 chars of token as key (safe identifier, not full token)
-    const key = botToken.slice(0, 10);
+    // Use SHA-256 hash of token as key to avoid timing attacks from prefix comparison
+    const key = createHash("sha256").update(botToken).digest("hex").slice(0, 16);
     let state = this.limiters.get(key);
     if (!state) {
       state = {
