@@ -462,7 +462,7 @@ The gateway can use the same `.env.local` file as the main Eliza Cloud app. Add 
 GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Generate with: openssl rand -hex 32
 
 # JWT signing keys for Eliza Cloud (required for token issuance)
-# Generate with: openssl ecparam -name prime256v1 -genkey -noout | openssl ec -outform PEM
+# Generate PKCS#8 key with: openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt
 JWT_SIGNING_PRIVATE_KEY="base64-encoded-private-key"
 JWT_SIGNING_PUBLIC_KEY="base64-encoded-public-key"
 ```
@@ -524,8 +524,9 @@ Generate secure secrets:
 # Generate bootstrap secret
 openssl rand -hex 32
 
-# Generate ES256 key pair for JWT signing (run on Eliza Cloud side)
-openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+# Generate ES256 key pair for JWT signing in PKCS#8 format (run on Eliza Cloud side)
+# Note: PKCS#8 format (-----BEGIN PRIVATE KEY-----) is required by jose library
+openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out private.pem
 openssl ec -in private.pem -pubout -out public.pem
 # Base64 encode for environment variables
 base64 -w 0 private.pem  # JWT_SIGNING_PRIVATE_KEY
