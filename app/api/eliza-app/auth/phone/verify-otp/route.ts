@@ -27,7 +27,7 @@ import { validatePhoneForAPI } from "@/lib/utils/phone-normalization";
 
 const verifyOTPSchema = z.object({
   phone_number: z.string().min(1, "Phone number is required"),
-  otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must be numeric"),
+  otp: z.string().trim().length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must be numeric"),
 });
 
 interface VerifyOTPSuccessResponse {

@@ -215,7 +215,7 @@ class OTPService {
 
     if (!isValid) {
       record.attempts += 1;
-      const remainingTTL = record.expiresAt - now;
+      const remainingTTL = Math.max(1, record.expiresAt - now);
       await cache.set(otpKey, record, remainingTTL);
       if (IS_DEV_MODE) inMemoryOTPStore.set(otpKey, record);
 

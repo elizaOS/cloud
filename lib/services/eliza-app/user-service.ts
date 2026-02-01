@@ -231,7 +231,10 @@ class ElizaAppUserService {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
-    if (existingPhoneUser && existingPhoneUser.id !== userId) {
+    if (existingPhoneUser) {
+      if (existingPhoneUser.id === userId) {
+        return { success: true };
+      }
       logger.warn("[ElizaAppUserService] Phone already linked to another user", {
         userId,
         existingUserId: existingPhoneUser.id,
