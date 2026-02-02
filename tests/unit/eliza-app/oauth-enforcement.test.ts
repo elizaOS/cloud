@@ -25,6 +25,12 @@ import {
   generateElizaAppEntityId,
 } from "@/lib/utils/deterministic-uuid";
 
+import {
+  isValidEmail,
+  normalizeEmail,
+  maskEmailForLogging,
+} from "@/lib/utils/email-validation";
+
 function extractMessagesFromWebhook(): {
   telegramRejection: string;
   statusNotConnected: string;
@@ -376,36 +382,82 @@ describe("Idempotency Key Format - Verified Against Webhook", () => {
   });
 });
 
+describe("Email Validation - ACTUAL isValidEmail()", () => {
+  // Tests call the REAL isValidEmail function from email-validation.ts
+
+  test("valid email formats", () => {
+    expect(isValidEmail("user@example.com")).toBe(true);
+    expect(isValidEmail("berta.benjamin@gmail.com")).toBe(true);
+    expect(isValidEmail("test+tag@icloud.com")).toBe(true);
+    expect(isValidEmail("a@b.co")).toBe(true);
+  });
+
+  test("invalid email formats - missing parts", () => {
+    expect(isValidEmail("@")).toBe(false);
+    expect(isValidEmail("@@")).toBe(false);
+    expect(isValidEmail("test@")).toBe(false);
+    expect(isValidEmail("@test")).toBe(false);
+    expect(isValidEmail("@test.com")).toBe(false);
+    expect(isValidEmail("test@.com")).toBe(false);
+  });
+
+  test("invalid email formats - no TLD", () => {
+    expect(isValidEmail("test@domain")).toBe(false);
+    expect(isValidEmail("a@b")).toBe(false);
+  });
+
+  test("invalid email formats - empty/null", () => {
+    expect(isValidEmail("")).toBe(false);
+    expect(isValidEmail("   ")).toBe(false);
+    expect(isValidEmail(null as unknown as string)).toBe(false);
+    expect(isValidEmail(undefined as unknown as string)).toBe(false);
+  });
+
+  test("invalid email formats - too short/long", () => {
+    expect(isValidEmail("a@b.")).toBe(false); // too short
+    expect(isValidEmail("a".repeat(255) + "@test.com")).toBe(false); // too long
+  });
+});
+
+describe("Email Normalization - ACTUAL normalizeEmail()", () => {
+  test("lowercases and trims", () => {
+    expect(normalizeEmail("User@Example.COM")).toBe("user@example.com");
+    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe("berta.benjamin@gmail.com");
+    expect(normalizeEmail("TEST@GMAIL.COM")).toBe("test@gmail.com");
+  });
+});
+
+describe("Email Masking - ACTUAL maskEmailForLogging()", () => {
+  test("standard emails (5+ char prefix)", () => {
+    expect(maskEmailForLogging("benjamin@gmail.com")).toBe("be***in@gmail.com");
+    expect(maskEmailForLogging("berta.benjamin@icloud.com")).toBe("be***in@icloud.com");
+  });
+
+  test("short prefixes (3-4 chars)", () => {
+    expect(maskEmailForLogging("test@gmail.com")).toBe("t***@gmail.com");
+    expect(maskEmailForLogging("abc@gmail.com")).toBe("a***@gmail.com");
+  });
+
+  test("very short prefixes (1-2 chars)", () => {
+    expect(maskEmailForLogging("ab@gmail.com")).toBe("***@gmail.com");
+    expect(maskEmailForLogging("a@b.co")).toBe("***@b.co");
+  });
+
+  test("handles invalid formats gracefully", () => {
+    expect(maskEmailForLogging("invalid")).toBe("***@***");
+    expect(maskEmailForLogging("@")).toBe("***@***");
+  });
+});
+
 describe("Blooio Auto-Provision Logic", () => {
   // Blooio (iMessage) auto-provisions users based on sender identifier type
 
   test("phone sender detection", () => {
-    const isEmail = (sender: string) => sender.includes("@");
+    const isEmailSender = (sender: string) => sender.includes("@");
 
-    expect(isEmail("+14155551234")).toBe(false);
-    expect(isEmail("4155551234")).toBe(false);
-    expect(isEmail("user@example.com")).toBe(true);
-    expect(isEmail("berta.benjamin@gmail.com")).toBe(true);
-  });
-
-  test("email normalization", () => {
-    const normalizeEmail = (email: string) => email.toLowerCase().trim();
-
-    expect(normalizeEmail("User@Example.COM")).toBe("user@example.com");
-    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe("berta.benjamin@gmail.com");
-  });
-
-  test("email masking for display name", () => {
-    const maskEmail = (email: string) => {
-      const prefix = email.split("@")[0];
-      return prefix.length > 4
-        ? `${prefix.slice(0, 2)}***${prefix.slice(-2)}`
-        : `${prefix.slice(0, 1)}***`;
-    };
-
-    expect(maskEmail("benjamin")).toBe("be***in");
-    expect(maskEmail("berta.benjamin")).toBe("be***in");
-    expect(maskEmail("abc")).toBe("a***");
-    expect(maskEmail("ab")).toBe("a***");
+    expect(isEmailSender("+14155551234")).toBe(false);
+    expect(isEmailSender("4155551234")).toBe(false);
+    expect(isEmailSender("user@example.com")).toBe(true);
+    expect(isEmailSender("berta.benjamin@gmail.com")).toBe(true);
   });
 });
