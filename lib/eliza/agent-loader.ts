@@ -17,10 +17,12 @@ import {
   AgentMode,
   AGENT_MODE_PLUGINS,
   SETTINGS_PLUGIN_MAP,
+  ASSISTANT_REQUIRED_PLUGINS,
   getConditionalPlugins,
   requiresAssistantMode,
   hasAffiliateData,
 } from "./agent-mode-types";
+import { cloudN8nPlugin } from "./plugin-n8n";
 
 // Plugin cache - preloaded at module init to eliminate dynamic import latency
 let _knowledgePlugin: Plugin | null = null;
@@ -109,6 +111,14 @@ async function resolveEffectiveMode(
     };
   }
 
+  if (characterPlugins.some((p) => ASSISTANT_REQUIRED_PLUGINS.has(p))) {
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "explicit_plugin",
+      documentCount,
+    };
+  }
+
   if (documentCount > 0) {
     return {
       mode: AgentMode.ASSISTANT,
@@ -151,6 +161,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
   "@elizaos/plugin-memory": asPlugin(memoryPlugin),
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
+  "@elizaos/plugin-n8n-workflow": cloudN8nPlugin,
   "@eliza-cloud/plugin-assistant": cloudBootstrapPlugin,
   "@eliza-cloud/plugin-affiliate": affiliatePlugin,
   "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,

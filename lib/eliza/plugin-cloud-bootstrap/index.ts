@@ -23,8 +23,6 @@ import {
   oauthRevokeAction,
   userAuthStatusProvider,
 } from "../plugin-oauth";
-import { N8nCredentialBridge } from "../plugin-n8n-bridge";
-
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
 export * from "./types";
@@ -116,7 +114,7 @@ export const cloudBootstrapPlugin: Plugin = {
     userAuthStatusProvider,
   ],
   events,
-  services: [MessageServiceInstaller, N8nCredentialBridge],
+  services: [MessageServiceInstaller],
 };
 
 export default cloudBootstrapPlugin;

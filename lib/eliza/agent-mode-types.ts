@@ -144,6 +144,14 @@ export const SETTINGS_PLUGIN_MAP = {
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
+ * Plugins that require ASSISTANT mode when listed in a character's plugins array.
+ * These plugins have actions/services that need planning-based message processing.
+ */
+export const ASSISTANT_REQUIRED_PLUGINS = new Set([
+  "@elizaos/plugin-n8n-workflow",
+]);
+
+/**
  * Validates that conditional plugin settings have actual configuration.
  * Prevents injecting plugins when settings exist but are empty (e.g., { mcp: { servers: {} } }).
  */
