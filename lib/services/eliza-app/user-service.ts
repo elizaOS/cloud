@@ -1,8 +1,13 @@
 /**
  * Eliza App User Service
  *
- * Manages user accounts for Eliza App authentication via Telegram and phone (iMessage).
+ * Manages user accounts for Eliza App authentication.
+ * Primary auth: Telegram OAuth + phone number (entered by user in frontend).
  * Auto-creates organizations for new users with initial credit balance.
+ *
+ * Cross-platform support:
+ * - Telegram bot: lookup by telegram_id
+ * - iMessage: lookup by phone_number (same phone entered during Telegram OAuth)
  */
 
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
@@ -45,6 +50,13 @@ function generateSlugFromPhone(phoneNumber: string): string {
   const random = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now().toString(36).slice(-4);
   return `phone-${lastFour}-${timestamp}${random}`;
+}
+
+function generateSlugFromEmail(email: string): string {
+  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `email-${prefix}-${timestamp}${random}`;
 }
 
 async function ensureUniqueSlug(
@@ -113,38 +125,95 @@ async function createUserWithOrganization(params: {
 }
 
 class ElizaAppUserService {
-  async findOrCreateByTelegram(telegramData: TelegramAuthData): Promise<FindOrCreateResult> {
+  /**
+   * Find or create user by Telegram OAuth data WITH phone number.
+   * This is the primary authentication method - requires both Telegram and phone.
+   * Phone number enables cross-platform messaging (iMessage lookup).
+   *
+   * Cross-platform linking scenarios:
+   * 1. User exists by telegram_id → update profile, ensure phone is set
+   * 2. User exists by phone_number (iMessage-first) → link Telegram to that user
+   * 3. Neither exists → create new user with both
+   */
+  async findOrCreateByTelegramWithPhone(
+    telegramData: TelegramAuthData,
+    phoneNumber: string
+  ): Promise<FindOrCreateResult> {
     const telegramId = String(telegramData.id);
-    const existingUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
 
-    if (existingUser && existingUser.organization) {
-      const shouldUpdate =
-        existingUser.telegram_username !== telegramData.username ||
-        existingUser.telegram_first_name !== telegramData.first_name ||
-        existingUser.telegram_photo_url !== telegramData.photo_url;
+    // Scenario 1: Check if user exists by telegram_id (returning Telegram user)
+    const existingTelegramUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
 
-      if (shouldUpdate) {
-        await usersRepository.update(existingUser.id, {
-          telegram_username: telegramData.username || existingUser.telegram_username,
-          telegram_first_name: telegramData.first_name,
-          telegram_photo_url: telegramData.photo_url || existingUser.telegram_photo_url,
-          updated_at: new Date(),
-        });
+    if (existingTelegramUser && existingTelegramUser.organization) {
+      // Update Telegram profile data and ensure phone is set
+      const updates: Partial<NewUser> = {
+        telegram_username: telegramData.username || existingTelegramUser.telegram_username,
+        telegram_first_name: telegramData.first_name,
+        telegram_photo_url: telegramData.photo_url || existingTelegramUser.telegram_photo_url,
+        updated_at: new Date(),
+      };
+
+      // Set phone number if not already set
+      if (!existingTelegramUser.phone_number) {
+        updates.phone_number = normalizedPhone;
+        updates.phone_verified = true;
       }
 
-      logger.info("[ElizaAppUserService] Found existing Telegram user", {
-        userId: existingUser.id,
+      await usersRepository.update(existingTelegramUser.id, updates);
+
+      logger.info("[ElizaAppUserService] Found existing Telegram user, updated", {
+        userId: existingTelegramUser.id,
         telegramId,
-        updated: shouldUpdate,
+        phoneAdded: !existingTelegramUser.phone_number,
       });
 
+      // Refetch to get updated data
+      const updatedUser = await usersRepository.findByTelegramIdWithOrganization(telegramId);
       return {
-        user: existingUser,
-        organization: existingUser.organization,
+        user: updatedUser!,
+        organization: updatedUser!.organization!,
         isNew: false,
       };
     }
 
+    // Scenario 2: Check if user exists by phone_number (iMessage-first user linking Telegram)
+    const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+
+    if (existingPhoneUser && existingPhoneUser.organization) {
+      // Link Telegram to the existing phone-only user
+      // Note: The auth endpoint already verified this phone isn't linked to a DIFFERENT Telegram account
+      await usersRepository.update(existingPhoneUser.id, {
+        telegram_id: telegramId,
+        telegram_username: telegramData.username,
+        telegram_first_name: telegramData.first_name,
+        telegram_photo_url: telegramData.photo_url,
+        // Update name if user only had phone-based name like "User ***1234"
+        name: existingPhoneUser.name?.startsWith("User ***")
+          ? (telegramData.last_name
+              ? `${telegramData.first_name} ${telegramData.last_name}`
+              : telegramData.first_name)
+          : existingPhoneUser.name,
+        updated_at: new Date(),
+      });
+
+      logger.info("[ElizaAppUserService] Linked Telegram to existing phone user (iMessage-first)", {
+        userId: existingPhoneUser.id,
+        telegramId,
+        username: telegramData.username,
+        phone: `***${normalizedPhone.slice(-4)}`,
+      });
+
+      // Refetch to get updated data
+      const updatedUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+      return {
+        user: updatedUser!,
+        organization: updatedUser!.organization!,
+        isNew: false,
+      };
+    }
+
+    // Scenario 3: Neither exists - create new user with both Telegram and phone
     const displayName = telegramData.last_name
       ? `${telegramData.first_name} ${telegramData.last_name}`
       : telegramData.first_name;
@@ -159,6 +228,8 @@ class ElizaAppUserService {
         telegram_username: telegramData.username,
         telegram_first_name: telegramData.first_name,
         telegram_photo_url: telegramData.photo_url,
+        phone_number: normalizedPhone,
+        phone_verified: true,
         name: displayName,
         is_anonymous: false,
       },
@@ -205,6 +276,53 @@ class ElizaAppUserService {
     }
   }
 
+  /**
+   * Find or create user by email (Apple ID).
+   * Used for iMessage users who send from their Apple ID email instead of phone.
+   * These users can later link their phone via Telegram OAuth for cross-platform.
+   */
+  async findOrCreateByEmail(email: string): Promise<FindOrCreateResult> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await usersRepository.findByEmailWithOrganization(normalizedEmail);
+
+    if (existingUser && existingUser.organization) {
+      return { user: existingUser, organization: existingUser.organization, isNew: false };
+    }
+
+    // Create display name from email (mask middle part)
+    const emailPrefix = normalizedEmail.split("@")[0];
+    const maskedPrefix = emailPrefix.length > 4
+      ? `${emailPrefix.slice(0, 2)}***${emailPrefix.slice(-2)}`
+      : `${emailPrefix.slice(0, 1)}***`;
+    const displayName = `User ${maskedPrefix}`;
+    const organizationName = `${maskedPrefix}'s Workspace`;
+
+    try {
+      return await createUserWithOrganization({
+        userData: {
+          email: normalizedEmail,
+          email_verified: true, // Verified via iMessage delivery
+          name: displayName,
+          is_anonymous: false,
+        },
+        organizationName,
+        slugGenerator: () => generateSlugFromEmail(normalizedEmail),
+      });
+    } catch (error) {
+      // Handle race condition: another request created the user first
+      if (isUniqueConstraintError(error)) {
+        const user = await usersRepository.findByEmailWithOrganization(normalizedEmail);
+        if (user && user.organization) {
+          logger.info("[ElizaAppUserService] Recovered from race condition (email)", {
+            email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
+          });
+          return { user, organization: user.organization, isNew: false };
+        }
+      }
+      throw error;
+    }
+  }
+
   async getById(userId: string): Promise<UserWithOrganization | undefined> {
     return usersRepository.findWithOrganization(userId);
   }
@@ -215,6 +333,27 @@ class ElizaAppUserService {
 
   async getByPhoneNumber(phoneNumber: string): Promise<UserWithOrganization | undefined> {
     return usersRepository.findByPhoneNumberWithOrganization(normalizePhoneNumber(phoneNumber));
+  }
+
+  async getByEmail(email: string): Promise<UserWithOrganization | undefined> {
+    return usersRepository.findByEmailWithOrganization(email.toLowerCase().trim());
+  }
+
+  /**
+   * Look up user by phone number OR email.
+   * Detects which type of identifier was provided based on format.
+   * Used by Blooio webhook since iMessage can identify users by either phone or Apple ID email.
+   */
+  async getByPhoneOrEmail(identifier: string): Promise<UserWithOrganization | undefined> {
+    const trimmed = identifier.trim();
+
+    // If it contains @, treat as email
+    if (trimmed.includes("@")) {
+      return this.getByEmail(trimmed);
+    }
+
+    // Otherwise treat as phone number
+    return this.getByPhoneNumber(trimmed);
   }
 
   async updateUser(userId: string, data: Partial<NewUser>): Promise<User | undefined> {
@@ -270,6 +409,67 @@ class ElizaAppUserService {
     logger.info("[ElizaAppUserService] Linked phone to user", {
       userId,
       phone: `***${normalizedPhone.slice(-2)}`,
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Link an email (e.g., Apple ID) to a user account.
+   * Used for iMessage support where users may message from their Apple ID email.
+   */
+  async linkEmailToUser(
+    userId: string,
+    email: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Basic email validation
+    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+      return { success: false, error: "Invalid email format" };
+    }
+
+    const existingEmailUser = await usersRepository.findByEmailWithOrganization(normalizedEmail);
+
+    if (existingEmailUser) {
+      if (existingEmailUser.id === userId) {
+        return { success: true };
+      }
+      logger.warn("[ElizaAppUserService] Email already linked to another user", {
+        userId,
+        existingUserId: existingEmailUser.id,
+        email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"), // Mask for logs
+      });
+      return {
+        success: false,
+        error: "This email is already linked to another account",
+      };
+    }
+
+    try {
+      await usersRepository.update(userId, {
+        email: normalizedEmail,
+        email_verified: true,
+        updated_at: new Date(),
+      });
+    } catch (error) {
+      // Handle race condition: another request linked this email first
+      if (isUniqueConstraintError(error)) {
+        logger.warn("[ElizaAppUserService] Email linking race condition", {
+          userId,
+          email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
+        });
+        return {
+          success: false,
+          error: "This email is already linked to another account",
+        };
+      }
+      throw error;
+    }
+
+    logger.info("[ElizaAppUserService] Linked email to user", {
+      userId,
+      email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
     });
 
     return { success: true };
