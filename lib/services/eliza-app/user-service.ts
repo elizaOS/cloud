@@ -16,6 +16,7 @@ import { creditsService } from "@/lib/services/credits";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
+import { maskEmailForLogging } from "@/lib/utils/email-validation";
 import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
@@ -314,7 +315,7 @@ class ElizaAppUserService {
         const user = await usersRepository.findByEmailWithOrganization(normalizedEmail);
         if (user && user.organization) {
           logger.info("[ElizaAppUserService] Recovered from race condition (email)", {
-            email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
+            email: maskEmailForLogging(normalizedEmail),
           });
           return { user, organization: user.organization, isNew: false };
         }
@@ -438,7 +439,7 @@ class ElizaAppUserService {
       logger.warn("[ElizaAppUserService] Email already linked to another user", {
         userId,
         existingUserId: existingEmailUser.id,
-        email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"), // Mask for logs
+        email: maskEmailForLogging(normalizedEmail), // Mask for logs
       });
       return {
         success: false,
@@ -457,7 +458,7 @@ class ElizaAppUserService {
       if (isUniqueConstraintError(error)) {
         logger.warn("[ElizaAppUserService] Email linking race condition", {
           userId,
-          email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
+          email: maskEmailForLogging(normalizedEmail),
         });
         return {
           success: false,
@@ -469,7 +470,7 @@ class ElizaAppUserService {
 
     logger.info("[ElizaAppUserService] Linked email to user", {
       userId,
-      email: normalizedEmail.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      email: maskEmailForLogging(normalizedEmail),
     });
 
     return { success: true };
