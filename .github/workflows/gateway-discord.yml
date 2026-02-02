@@ -149,7 +149,7 @@ jobs:
       - name: Check if deployment should run
         id: should_deploy
         run: |
-          # TODO: Uncomment the conditional logic below after testing
+          # TODO: Uncomment after testing - this respects branch rules (main→prod, dev→staging)
           # SHOULD_DEPLOY="false"
           # if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
           #   SHOULD_DEPLOY="true"
@@ -157,8 +157,12 @@ jobs:
           #   SHOULD_DEPLOY="true"
           # fi
           
-          # TEMPORARY: Force deploy for testing
-          SHOULD_DEPLOY="true"
+          # TEMPORARY: Force deploy to staging only for testing
+          if [[ "${{ matrix.environment }}" == "staging" ]]; then
+            SHOULD_DEPLOY="true"
+          else
+            SHOULD_DEPLOY="false"
+          fi
           
           echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
           echo "Should deploy to ${{ matrix.environment }}: $SHOULD_DEPLOY"
