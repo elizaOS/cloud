@@ -1,8 +1,0 @@
-{{- if .Values.createNamespace }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ include "gateway-discord.namespace" . }}
-  labels:
-    {{- include "gateway-discord.labels" . | nindent 4 }}
-{{- end }}

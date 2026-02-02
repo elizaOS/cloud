@@ -5,9 +5,8 @@ nameOverride: ""
 fullnameOverride: "gateway-discord"
 
 # Namespace configuration
+# Note: Use helm upgrade --install --create-namespace to create the namespace
 namespace: "gateway-discord"
-# Set to false - namespace should be created manually or via --create-namespace flag
-createNamespace: false
 
 # Image configuration
 image:

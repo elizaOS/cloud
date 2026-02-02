@@ -21,16 +21,16 @@ Before deploying, ensure you have:
 2. **kubectl** configured for your cluster
 3. **Kubernetes secrets** created (see below)
 
-### 1. Create the Namespace
+### 1. Create GHCR Pull Secret
 
+The deployment pulls images from GitHub Container Registry (GHCR), which requires authentication.
+
+First, create the namespace (or use `--create-namespace` flag with helm):
 ```bash
 kubectl create namespace gateway-discord
 ```
 
-### 2. Create GHCR Pull Secret
-
-The deployment pulls images from GitHub Container Registry (GHCR), which requires authentication:
-
+Then create the pull secret:
 ```bash
 # Create a GitHub PAT with read:packages scope at:
 # https://github.com/settings/tokens/new?scopes=read:packages
@@ -43,7 +43,7 @@ kubectl create secret docker-registry ghcr-credentials \
   --docker-email=<email>
 ```
 
-### 3. Create Application Secrets
+### 2. Create Application Secrets
 
 ```bash
 kubectl create secret generic gateway-discord-secrets \
@@ -72,15 +72,17 @@ kubectl create secret generic gateway-discord-secrets \
 Once prerequisites are in place, deploy with Helm:
 
 ```bash
-# Deploy to staging
+# Deploy to staging (--create-namespace creates the namespace if it doesn't exist)
 helm upgrade --install gateway-discord . \
   --namespace gateway-discord \
+  --create-namespace \
   -f values.yaml \
   -f values-staging.yaml
 
 # Deploy to production
 helm upgrade --install gateway-discord . \
   --namespace gateway-discord \
+  --create-namespace \
   -f values.yaml \
   -f values-production.yaml
 ```
@@ -90,6 +92,7 @@ helm upgrade --install gateway-discord . \
 ```bash
 helm upgrade --install gateway-discord . \
   --namespace gateway-discord \
+  --create-namespace \
   -f values.yaml \
   -f values-production.yaml \
   --set image.tag="sha-abc123"

@@ -1761,7 +1761,6 @@ helm get values gateway-discord -n gateway-discord
 
 | Resource | Helm Template | Purpose |
 |----------|---------------|---------|
-| Namespace | `chart/templates/namespace.yaml` | Isolates gateway resources |
 | Deployment | `chart/templates/deployment.yaml` | Pod specification with probes |
 | Service | `chart/templates/deployment.yaml` | ClusterIP service |
 | HPA | `chart/templates/hpa.yaml` | Auto-scaling (configurable replicas) |
