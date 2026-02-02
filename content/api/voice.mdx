@@ -25,7 +25,7 @@ Voice APIs are available at two paths:
 | `/api/v1/voice/*` | **Recommended** - Generic, provider-agnostic endpoints | New integrations, programmatic access |
 | `/api/elevenlabs/*` | Legacy endpoints (still supported) | Existing integrations, backwards compatibility |
 
-Only `/api/v1/voice/*` endpoints support API key authentication. Legacy `/api/elevenlabs/*` endpoints are session-based only.
+API key authentication is available only on `/api/v1/voice/*`. Legacy `/api/elevenlabs/*` endpoints require session-based auth and do not accept API keys.
 
 ---
 

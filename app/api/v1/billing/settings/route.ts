@@ -53,10 +53,13 @@ const UpdateSettingsSchema = z.object({
     .optional(),
 });
 
-const isAuthenticationError = (message: string) =>
-  message.includes("Unauthorized") ||
-  message.includes("Authentication required") ||
-  message.includes("Forbidden");
+function isAuthenticationError(message: string): boolean {
+  return (
+    message.includes("Unauthorized") ||
+    message.includes("Authentication required") ||
+    message.includes("Forbidden")
+  );
+}
 
 /**
  * GET /api/v1/billing/settings

@@ -25,14 +25,16 @@ export async function GET(
       );
     }
 
-    // Return basic stats - detailed stats were part of marketplace service
+    // Return basic stats. These are placeholders and follow the
+    // documented field names: `views`, `interactions`, `messageCount`.
+    // Do not include legacy field names to avoid API confusion.
     return NextResponse.json({
       success: true,
       data: {
         stats: {
-          viewCount: 0,
-          interactionCount: 0,
-          cloneCount: 0,
+          views: 0,
+          interactions: 0,
+          messageCount: 0,
         },
       },
     });
