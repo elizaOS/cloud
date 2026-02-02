@@ -179,7 +179,19 @@ class ElizaAppUserService {
         throw new Error("PHONE_MISMATCH");
       }
 
-      await usersRepository.update(existingTelegramUser.id, updates);
+      try {
+        await usersRepository.update(existingTelegramUser.id, updates);
+      } catch (error) {
+        // Handle race condition: unique constraint violation on phone_number
+        if (isUniqueConstraintError(error)) {
+          logger.warn("[ElizaAppUserService] Race condition on phone update", {
+            telegramId,
+            phone: `***${normalizedPhone.slice(-4)}`,
+          });
+          throw new Error("PHONE_ALREADY_LINKED");
+        }
+        throw error;
+      }
 
       logger.info("[ElizaAppUserService] Found existing Telegram user, updated", {
         userId: existingTelegramUser.id,
@@ -212,19 +224,31 @@ class ElizaAppUserService {
       }
 
       // Link Telegram to the existing phone-only user
-      await usersRepository.update(existingPhoneUser.id, {
-        telegram_id: telegramId,
-        telegram_username: telegramData.username,
-        telegram_first_name: telegramData.first_name,
-        telegram_photo_url: telegramData.photo_url,
-        // Update name if user only had phone-based name like "User ***1234"
-        name: existingPhoneUser.name?.startsWith("User ***")
-          ? (telegramData.last_name
-              ? `${telegramData.first_name} ${telegramData.last_name}`
-              : telegramData.first_name)
-          : existingPhoneUser.name,
-        updated_at: new Date(),
-      });
+      try {
+        await usersRepository.update(existingPhoneUser.id, {
+          telegram_id: telegramId,
+          telegram_username: telegramData.username,
+          telegram_first_name: telegramData.first_name,
+          telegram_photo_url: telegramData.photo_url,
+          // Update name if user only had phone-based name like "User ***1234"
+          name: existingPhoneUser.name?.startsWith("User ***")
+            ? (telegramData.last_name
+                ? `${telegramData.first_name} ${telegramData.last_name}`
+                : telegramData.first_name)
+            : existingPhoneUser.name,
+          updated_at: new Date(),
+        });
+      } catch (error) {
+        // Handle race condition: unique constraint violation on telegram_id
+        if (isUniqueConstraintError(error)) {
+          logger.warn("[ElizaAppUserService] Race condition on telegram link", {
+            telegramId,
+            phoneUserId: existingPhoneUser.id,
+          });
+          throw new Error("PHONE_ALREADY_LINKED");
+        }
+        throw error;
+      }
 
       logger.info("[ElizaAppUserService] Linked Telegram to existing phone user (iMessage-first)", {
         userId: existingPhoneUser.id,
