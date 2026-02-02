@@ -173,6 +173,17 @@ jobs:
           fi
           echo "Image digest verified: $DIGEST"
 
+      - name: Verify image exists in registry
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        run: |
+          IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          echo "Verifying image exists: $IMAGE"
+          if ! docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "Error: Image not found in registry: $IMAGE"
+            exit 1
+          fi
+          echo "Image verified in registry"
+
       - name: Configure AWS credentials via OIDC
         if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: aws-actions/configure-aws-credentials@v4
