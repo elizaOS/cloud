@@ -2,8 +2,13 @@
  * Eliza App - Public Blooio Webhook
  *
  * Receives iMessages from Blooio and routes them to the default Eliza agent.
- * Auto-provisions users on first message based on phone number.
+ * Auto-provisions users on first message based on sender identifier:
+ * - Phone number: Carrier-verified via iMessage delivery
+ * - Apple ID email: User sends from their Apple ID instead of phone
  * Uses ASSISTANT mode for full multi-step action execution.
+ *
+ * Cross-platform: If user later does Telegram OAuth with same phone, accounts are linked.
+ * Email-based accounts can also link phone via Telegram OAuth.
  *
  * POST /api/eliza-app/webhook/blooio
  */
@@ -15,8 +20,9 @@ import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
-import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
-import { generateElizaAppRoomId, generateElizaAppEntityId } from "@/lib/utils/deterministic-uuid";
+import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
+import { isValidEmail, normalizeEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
+import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import {
   verifyBlooioSignature,
   parseBlooioWebhookEvent,
@@ -90,11 +96,70 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   const mediaUrls = extractBlooioMediaUrls(event.attachments);
   if (!text && mediaUrls.length === 0) return true; // Not applicable, mark as processed
 
-  const normalizedPhone = normalizePhoneNumber(event.sender);
-  const { user, organization } = await elizaAppUserService.findOrCreateByPhone(normalizedPhone);
+  // Determine sender type: phone number or Apple ID email
+  const senderRaw = event.sender.trim();
+  const isEmailSender = senderRaw.includes("@");
 
-  const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, normalizedPhone);
-  const entityId = generateElizaAppEntityId("imessage", normalizedPhone);
+  let userWithOrg: Awaited<ReturnType<typeof elizaAppUserService.findOrCreateByPhone>>["user"];
+  let organization: Awaited<ReturnType<typeof elizaAppUserService.findOrCreateByPhone>>["organization"];
+  let isNew: boolean;
+  let senderIdentifier: string;
+
+  if (isEmailSender) {
+    // Apple ID email sender - auto-provision by email
+    // Note: Email accounts can later link phone via Telegram OAuth for cross-platform
+    const email = normalizeEmail(senderRaw);
+
+    if (!isValidEmail(email)) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid email format", {
+        sender: maskEmailForLogging(senderRaw),
+      });
+      return true; // Mark as processed - invalid format
+    }
+
+    logger.info("[ElizaApp BlooioWebhook] Auto-provisioning user by email", {
+      email: maskEmailForLogging(email),
+    });
+    const result = await elizaAppUserService.findOrCreateByEmail(email);
+    userWithOrg = result.user;
+    organization = result.organization;
+    isNew = result.isNew;
+    senderIdentifier = email;
+    logger.info("[ElizaApp BlooioWebhook] User provisioned (email)", {
+      userId: userWithOrg.id,
+      organizationId: organization.id,
+      isNewUser: isNew,
+      email: maskEmailForLogging(email),
+    });
+  } else {
+    // Phone number sender - auto-provision by phone (carrier-verified)
+    const phoneNumber = normalizePhoneNumber(senderRaw);
+    if (!isValidE164(phoneNumber)) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid phone number format", {
+        sender: senderRaw,
+        normalized: phoneNumber,
+      });
+      return true; // Mark as processed - invalid format
+    }
+
+    logger.info("[ElizaApp BlooioWebhook] Auto-provisioning user by phone", {
+      phoneNumber: `***${phoneNumber.slice(-4)}`
+    });
+    const result = await elizaAppUserService.findOrCreateByPhone(phoneNumber);
+    userWithOrg = result.user;
+    organization = result.organization;
+    isNew = result.isNew;
+    senderIdentifier = phoneNumber;
+    logger.info("[ElizaApp BlooioWebhook] User provisioned (phone)", {
+      userId: userWithOrg.id,
+      organizationId: organization.id,
+      isNewUser: isNew,
+      phoneNumber: `***${phoneNumber.slice(-4)}`,
+    });
+  }
+
+  const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, senderIdentifier);
+  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {
@@ -104,11 +169,12 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
       entityId,
       source: "blooio",
       type: "DM",
-      name: `iMessage: ${normalizedPhone}`,
+      name: `iMessage: ${senderIdentifier}`,
       metadata: {
         channel: "imessage",
-        phoneNumber: normalizedPhone,
-        userId: user.id,
+        identifier: senderIdentifier,
+        identifierType: isEmailSender ? "email" : "phone",
+        userId: entityId,
         organizationId: organization.id,
       },
     });
@@ -144,7 +210,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
 
   try {
     const userContext = await userContextService.buildContext({
-      user: { ...user, organization } as never,
+      user: { ...userWithOrg, organization } as never,
       isAnonymous: false,
       agentMode: AgentMode.ASSISTANT,
     });
@@ -152,7 +218,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
     userContext.webSearchEnabled = true;
 
     logger.info("[ElizaApp BlooioWebhook] Processing message", {
-      userId: user.id,
+      userId: entityId,
       roomId,
       mode: "assistant",
     });
@@ -179,7 +245,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
         : responseContent?.text || "";
 
     if (responseText) {
-      await sendBlooioMessage(normalizedPhone, responseText);
+      await sendBlooioMessage(senderIdentifier, responseText);
     }
     return true;
   } catch (error) {
@@ -238,18 +304,37 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     throw error;
   }
 
+  // Log every webhook event for debugging - show ALL fields to understand what Blooio sends
+  logger.info("[ElizaApp BlooioWebhook] Received event", {
+    event: payload.event,
+    messageId: payload.message_id,
+    sender: payload.sender || "none",
+    external_id: payload.external_id || "none",
+    internal_id: payload.internal_id || "none",
+    protocol: payload.protocol || "none",
+    hasText: !!payload.text,
+    textPreview: payload.text?.slice(0, 20) || "none",
+  });
+
   if (payload.message_id) {
     const idempotencyKey = `blooio:eliza-app:${payload.message_id}`;
     if (await isAlreadyProcessed(idempotencyKey)) {
+      logger.info("[ElizaApp BlooioWebhook] Skipping duplicate", { messageId: payload.message_id });
       return NextResponse.json({ success: true, status: "already_processed" });
     }
   }
 
   let processed = true;
   if (payload.event === "message.received") {
+    logger.info("[ElizaApp BlooioWebhook] Processing message.received", {
+      sender: payload.sender,
+      textLength: payload.text?.length || 0,
+    });
     processed = await handleIncomingMessage(payload);
   } else if (payload.event === "message.failed") {
     logger.error("[ElizaApp BlooioWebhook] Delivery failed", { messageId: payload.message_id });
+  } else {
+    logger.info("[ElizaApp BlooioWebhook] Ignoring event type", { event: payload.event });
   }
 
   // Only mark as processed if handler succeeded (prevents lost messages on lock failure)

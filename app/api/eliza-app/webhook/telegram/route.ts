@@ -2,7 +2,7 @@
  * Eliza App - Public Telegram Webhook
  *
  * Receives messages from Telegram and routes them to the default Eliza agent.
- * Auto-provisions users on first message.
+ * Requires OAuth registration at eliza.app before messaging.
  * Uses ASSISTANT mode for full multi-step action execution.
  *
  * POST /api/eliza-app/webhook/telegram
@@ -15,7 +15,7 @@ import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
-import { generateElizaAppRoomId, generateElizaAppEntityId } from "@/lib/utils/deterministic-uuid";
+import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
@@ -80,17 +80,19 @@ async function handleMessage(message: Message): Promise<boolean> {
     return true; // Command handled, mark as processed
   }
 
-  const { user, organization } = await elizaAppUserService.findOrCreateByTelegram({
-    id: message.from.id,
-    first_name: message.from.first_name,
-    last_name: message.from.last_name,
-    username: message.from.username,
-    auth_date: Math.floor(Date.now() / 1000),
-    hash: "",
-  });
+  // Look up user - they must have completed OAuth first
+  const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
+  if (!userWithOrg?.organization) {
+    await sendTelegramMessage(
+      message.chat.id,
+      "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started",
+    );
+    return true; // Mark as processed - don't retry
+  }
+  const { organization } = userWithOrg;
 
   const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
-  const entityId = generateElizaAppEntityId("telegram", telegramUserId);
+  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {
@@ -100,12 +102,12 @@ async function handleMessage(message: Message): Promise<boolean> {
       entityId,
       source: "telegram",
       type: "DM",
-      name: `Telegram: ${message.from?.first_name || telegramUserId}`,
+      name: `Telegram: ${message.from.first_name || telegramUserId}`,
       metadata: {
         channel: "telegram",
         telegramUserId,
         telegramChatId: message.chat.id,
-        userId: user.id,
+        userId: entityId,
         organizationId: organization.id,
       },
     });
@@ -135,7 +137,7 @@ async function handleMessage(message: Message): Promise<boolean> {
 
   try {
     const userContext = await userContextService.buildContext({
-      user: { ...user, organization } as never,
+      user: { ...userWithOrg, organization } as never,
       isAnonymous: false,
       agentMode: AgentMode.ASSISTANT,
     });
@@ -143,7 +145,7 @@ async function handleMessage(message: Message): Promise<boolean> {
     userContext.webSearchEnabled = true;
 
     logger.info("[ElizaApp TelegramWebhook] Processing message", {
-      userId: user.id,
+      userId: entityId,
       roomId,
       mode: "assistant",
     });
@@ -213,7 +215,7 @@ async function handleCommand(message: Message): Promise<void> {
       } else {
         await sendTelegramMessage(
           chatId,
-          `*Account Status*\n\n❌ Not connected yet\n\nSend me a message to create your account!`,
+          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: https://eliza.app/get-started`,
         );
       }
       break;
