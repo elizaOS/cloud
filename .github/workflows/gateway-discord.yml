@@ -121,96 +121,107 @@ jobs:
           echo "Image digest: ${{ steps.build.outputs.digest }}"
           echo "Image tags: ${{ steps.meta.outputs.tags }}"
 
-  deploy-staging:
-    name: Deploy to Staging
+  deploy:
+    name: Deploy to ${{ matrix.environment }}
     runs-on: ubuntu-latest
     needs: build
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - environment: staging
+            branch: refs/heads/dev
+            values_file: values-staging.yaml
+          - environment: production
+            branch: refs/heads/main
+            values_file: values-production.yaml
+      fail-fast: false
+    environment: ${{ matrix.environment }}
     permissions:
       id-token: write
       contents: read
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Verify image digest exists
+      - name: Check if deployment should run
+        id: should_deploy
         run: |
-          if [ -z "${{ needs.build.outputs.digest }}" ]; then
+          SHOULD_DEPLOY="false"
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
+            SHOULD_DEPLOY="true"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
+            SHOULD_DEPLOY="true"
+          fi
+          
+          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+          echo "Should deploy to ${{ matrix.environment }}: $SHOULD_DEPLOY"
+
+      - uses: actions/checkout@v4
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+
+      - name: Verify image digest exists and is valid
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        run: |
+          DIGEST="${{ needs.build.outputs.digest }}"
+          if [ -z "$DIGEST" ]; then
             echo "Error: Image digest is empty. Build may have failed to push."
             exit 1
           fi
-          echo "Image digest: ${{ needs.build.outputs.digest }}"
+          # Validate sha256 format (sha256: followed by 64 hex characters)
+          if ! [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Error: Invalid digest format. Expected sha256:<64-hex-chars>, got: $DIGEST"
+            exit 1
+          fi
+          echo "Image digest verified: $DIGEST"
+
+      - name: Verify image exists in registry
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        run: |
+          IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          echo "Verifying image exists: $IMAGE"
+          if ! docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "Error: Image not found in registry: $IMAGE"
+            exit 1
+          fi
+          echo "Image verified in registry"
 
       - name: Configure AWS credentials via OIDC
+        if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
           aws-region: ${{ vars.GATEWAY_AWS_REGION }}
 
       - name: Set up kubectl
+        if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: azure/setup-kubectl@v4
 
-      - name: Configure kubectl for EKS
-        run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
-
-      - name: Deploy to staging with Kustomize
-        run: |
-          cd services/gateway-discord/k8s
-          echo "Setting image to: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
-          kustomize edit set image ${{ env.IMAGE_REPO }}=${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}
-          echo "Applying kustomize manifests..."
-          kubectl apply -k .
-          kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods -n gateway-discord -l app=gateway-discord
-          kubectl describe deployment gateway-discord -n gateway-discord | grep Image
-
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: build
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
-    permissions:
-      id-token: write
-      contents: read
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Verify image digest exists
-        run: |
-          if [ -z "${{ needs.build.outputs.digest }}" ]; then
-            echo "Error: Image digest is empty. Build may have failed to push."
-            exit 1
-          fi
-          echo "Image digest: ${{ needs.build.outputs.digest }}"
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Set up Helm
+        if: steps.should_deploy.outputs.should_deploy == 'true'
+        uses: azure/setup-helm@v4
         with:
-          role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
-          aws-region: ${{ vars.GATEWAY_AWS_REGION }}
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+          version: "v3.14.0"
 
       - name: Configure kubectl for EKS
+        if: steps.should_deploy.outputs.should_deploy == 'true'
         run: aws eks update-kubeconfig --name ${{ vars.GATEWAY_CLUSTER_NAME }} --region ${{ vars.GATEWAY_AWS_REGION }}
 
-      - name: Deploy to production with Kustomize
+      - name: Deploy to ${{ matrix.environment }} with Helm
+        if: steps.should_deploy.outputs.should_deploy == 'true'
         run: |
-          cd services/gateway-discord/k8s
-          echo "Setting image to: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
-          kustomize edit set image ${{ env.IMAGE_REPO }}=${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}
-          echo "Applying kustomize manifests..."
-          kubectl apply -k .
-          kubectl rollout status deployment/gateway-discord -n gateway-discord --timeout=300s
+          echo "Deploying to ${{ matrix.environment }} with image: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          helm upgrade --install gateway-discord ./services/gateway-discord/chart \
+            --namespace gateway-discord \
+            --create-namespace \
+            -f ./services/gateway-discord/chart/values.yaml \
+            -f ./services/gateway-discord/chart/${{ matrix.values_file }} \
+            --set image.repository=${{ env.IMAGE_REPO }} \
+            --set image.digest="${{ needs.build.outputs.digest }}" \
+            --wait \
+            --timeout 5m
 
       - name: Verify deployment
+        if: steps.should_deploy.outputs.should_deploy == 'true'
         run: |
           kubectl get pods -n gateway-discord -l app=gateway-discord
+          helm status gateway-discord -n gateway-discord
           kubectl describe deployment gateway-discord -n gateway-discord | grep Image

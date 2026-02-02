@@ -114,6 +114,9 @@ serve({ fetch: app.fetch, port }, () => {
 
 // Start gateway manager
 gatewayManager.start().catch((err) => {
-  logger.error("Failed to start gateway manager", { error: err });
+  logger.error("Failed to start gateway manager", {
+    error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
   process.exit(1);
 });
