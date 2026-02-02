@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
-import { verifyBlooioSignature, parseBlooioWebhookEvent, extractBlooioMediaUrls, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
+import { verifyBlooioSignature, parseBlooioWebhookEvent, extractBlooioMediaUrls, markChatAsRead, type BlooioWebhookEvent } from "@/lib/utils/blooio-api";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
@@ -205,12 +205,24 @@ async function handleIncomingMessage(
     return;
   }
 
-  // Get the Blooio phone number configured for this organization (the receiving number)
-  // This is the phone number that received the message, not the sender
-  const blooioFromNumber = await blooioAutomationService.getFromNumber(orgId);
+  // Get the Blooio API key and phone number for this organization
+  const [apiKey, blooioFromNumber] = await Promise.all([
+    blooioAutomationService.getApiKey(orgId),
+    blooioAutomationService.getFromNumber(orgId),
+  ]);
 
   if (!blooioFromNumber) {
     logger.warn("[BlooioWebhook] No Blooio phone number configured for org", { orgId });
+  }
+
+  // Mark the chat as read immediately for better UX (sends read receipt)
+  if (apiKey && event.sender) {
+    markChatAsRead(apiKey, event.sender, { fromNumber: blooioFromNumber || undefined })
+      .catch((err) => logger.warn("[BlooioWebhook] Failed to mark chat as read", {
+        orgId,
+        chatId,
+        error: err instanceof Error ? err.message : String(err),
+      }));
   }
 
   logger.info("[BlooioWebhook] Processing incoming message", {

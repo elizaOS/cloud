@@ -24,6 +24,10 @@ export interface BlooioSendMessageResponse {
   status?: string;
 }
 
+export interface BlooioMarkReadResponse {
+  success?: boolean;
+}
+
 export interface BlooioWebhookEvent {
   event: string;
   message_id?: string;
@@ -249,6 +253,24 @@ export function extractBlooioMediaUrls(
   return attachments
     .map((a) => (typeof a === "string" ? a : a.url))
     .filter((url): url is string => typeof url === "string" && isValidBlooioMediaUrl(url));
+}
+
+/**
+ * Mark a chat as read in Blooio.
+ * Sends a read receipt to the sender for better UX.
+ */
+export async function markChatAsRead(
+  apiKey: string,
+  chatId: string,
+  options?: { fromNumber?: string },
+): Promise<void> {
+  await blooioApiRequest<BlooioMarkReadResponse>(
+    apiKey,
+    "POST",
+    `/chats/${encodeURIComponent(chatId)}/read`,
+    undefined,
+    { fromNumber: options?.fromNumber },
+  );
 }
 
 /**

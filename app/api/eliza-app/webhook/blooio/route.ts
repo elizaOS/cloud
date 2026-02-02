@@ -22,6 +22,7 @@ import {
   parseBlooioWebhookEvent,
   extractBlooioMediaUrls,
   blooioApiRequest,
+  markChatAsRead,
   type BlooioWebhookEvent,
   type BlooioSendMessageResponse,
 } from "@/lib/utils/blooio-api";
@@ -77,6 +78,13 @@ async function sendBlooioMessage(
 async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean> {
   if (!event.sender) return true; // Not applicable, mark as processed
   if (event.is_group) return true; // Not applicable, mark as processed
+
+  // Mark the chat as read immediately for better UX (sends read receipt)
+  markChatAsRead(BLOOIO_API_KEY, event.sender, { fromNumber: BLOOIO_PHONE_NUMBER })
+    .catch((err) => logger.warn("[ElizaApp BlooioWebhook] Failed to mark chat as read", {
+      sender: event.sender,
+      error: err instanceof Error ? err.message : String(err),
+    }));
 
   const text = event.text?.trim();
   const mediaUrls = extractBlooioMediaUrls(event.attachments);
