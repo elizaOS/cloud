@@ -174,7 +174,9 @@ export class AgentLoader {
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
-    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
+    // Strip MCP from characterSettings - MCP plugin loading is handled dynamically
+    // by RuntimeFactory based on user's OAuth connections, not persisted character settings
+    const { mcp: _stripMcp, ...characterSettings } = (elizaCharacter.settings ?? {}) as Record<
       string,
       unknown
     >;
