@@ -176,15 +176,27 @@ async function handleTelegramAuth(
   try {
     result = await elizaAppUserService.findOrCreateByTelegramWithPhone(authData, phoneNumber);
   } catch (error) {
-    if (error instanceof Error && error.message === "PHONE_ALREADY_LINKED") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This phone number is already linked to a different account",
-          code: "PHONE_ALREADY_LINKED",
-        },
-        { status: 409 },
-      );
+    if (error instanceof Error) {
+      if (error.message === "PHONE_ALREADY_LINKED") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This phone number is already linked to a different account",
+            code: "PHONE_ALREADY_LINKED",
+          },
+          { status: 409 },
+        );
+      }
+      if (error.message === "PHONE_MISMATCH") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Your Telegram account is already linked to a different phone number",
+            code: "PHONE_MISMATCH",
+          },
+          { status: 409 },
+        );
+      }
     }
     throw error;
   }

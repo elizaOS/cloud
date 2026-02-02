@@ -169,6 +169,14 @@ class ElizaAppUserService {
         }
         updates.phone_number = normalizedPhone;
         updates.phone_verified = true;
+      } else if (existingTelegramUser.phone_number !== normalizedPhone) {
+        // User already has a different phone linked - reject the mismatch
+        logger.warn("[ElizaAppUserService] Telegram user has different phone linked", {
+          telegramId,
+          existingPhone: `***${existingTelegramUser.phone_number.slice(-4)}`,
+          requestedPhone: `***${normalizedPhone.slice(-4)}`,
+        });
+        throw new Error("PHONE_MISMATCH");
       }
 
       await usersRepository.update(existingTelegramUser.id, updates);
@@ -192,8 +200,18 @@ class ElizaAppUserService {
     const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
     if (existingPhoneUser && existingPhoneUser.organization) {
+      // Re-check telegram_id to prevent race condition (TOCTOU)
+      // Another request may have linked a different Telegram account between auth check and now
+      if (existingPhoneUser.telegram_id && existingPhoneUser.telegram_id !== telegramId) {
+        logger.warn("[ElizaAppUserService] Phone user already linked to different Telegram (race)", {
+          phoneUserId: existingPhoneUser.id,
+          existingTelegramId: existingPhoneUser.telegram_id,
+          newTelegramId: telegramId,
+        });
+        throw new Error("PHONE_ALREADY_LINKED");
+      }
+
       // Link Telegram to the existing phone-only user
-      // Note: The auth endpoint already verified this phone isn't linked to a DIFFERENT Telegram account
       await usersRepository.update(existingPhoneUser.id, {
         telegram_id: telegramId,
         telegram_username: telegramData.username,
