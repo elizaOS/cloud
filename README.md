@@ -993,6 +993,8 @@ The platform provides API key authentication across these documented management 
 - **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
 - **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
 
+Session-based auth only (no API key support yet): `/api/v1/api-keys`, `/api/v1/apps/[id]/deploy`, `/api/v1/dashboard`, `/api/my-agents/characters/[id]/track-interaction`.
+
 **Why API Keys for Management Endpoints?**
 
 Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:
