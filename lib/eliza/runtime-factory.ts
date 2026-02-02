@@ -570,7 +570,7 @@ export class RuntimeFactory {
   }
 
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
-    const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
+    const charSettings = (runtime.character.settings || {}) as RuntimeSettings & { mcp?: unknown };
 
     // Update character.settings (takes precedence in getSetting())
     charSettings.ELIZAOS_API_KEY = context.apiKey;
@@ -579,6 +579,12 @@ export class RuntimeFactory {
     charSettings.ENTITY_ID = context.entityId;
     charSettings.ORGANIZATION_ID = context.organizationId;
     charSettings.IS_ANONYMOUS = context.isAnonymous;
+
+    // Clear MCP from character settings if user has no OAuth connections
+    // This ensures MCP is disabled when user disconnects OAuth
+    if (!this.shouldEnableMcp(context)) {
+      delete charSettings.mcp;
+    }
 
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
@@ -603,6 +609,10 @@ export class RuntimeFactory {
     const runtimeSettings = (runtime as unknown as { settings: Record<string, unknown> }).settings;
     if (runtimeSettings) {
       const mcpSettings = this.buildMcpSettings({}, context);
+      // Explicitly clear MCP if user has no OAuth connections (Object.assign won't clear existing keys)
+      if (!mcpSettings.mcp) {
+        delete runtimeSettings.mcp;
+      }
       Object.assign(runtimeSettings, {
         ELIZAOS_API_KEY: context.apiKey,
         ELIZAOS_CLOUD_API_KEY: context.apiKey,
