@@ -145,12 +145,17 @@ jobs:
       - name: Check if deployment should run
         id: should_deploy
         run: |
-          SHOULD_DEPLOY="false"
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
-            SHOULD_DEPLOY="true"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
-            SHOULD_DEPLOY="true"
-          fi
+          # TODO: Uncomment the conditional logic below after testing
+          # SHOULD_DEPLOY="false"
+          # if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
+          #   SHOULD_DEPLOY="true"
+          # elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
+          #   SHOULD_DEPLOY="true"
+          # fi
+          
+          # TEMPORARY: Force deploy for testing
+          SHOULD_DEPLOY="true"
+          
           echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
           echo "Should deploy to ${{ matrix.environment }}: $SHOULD_DEPLOY"
 
