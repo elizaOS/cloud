@@ -13,6 +13,8 @@ createNamespace: false
 image:
   repository: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
   tag: latest
+  # Digest takes precedence over tag when set (e.g., sha256:abc123...)
+  digest: ""
   pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries

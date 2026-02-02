@@ -38,8 +38,8 @@ spec:
       {{- end }}
       containers:
         - name: gateway
-          {{- if hasPrefix "sha256:" .Values.image.tag }}
-          image: "{{ .Values.image.repository }}@{{ .Values.image.tag }}"
+          {{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
           {{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           {{- end }}

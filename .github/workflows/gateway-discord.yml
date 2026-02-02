@@ -198,7 +198,7 @@ jobs:
             -f ./services/gateway-discord/chart/values.yaml \
             -f ./services/gateway-discord/chart/${{ matrix.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
-            --set image.tag="${{ needs.build.outputs.digest }}" \
+            --set image.digest="${{ needs.build.outputs.digest }}" \
             --wait \
             --timeout 5m
 
