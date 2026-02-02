@@ -1,23 +1,24 @@
+{{- if and .Values.prometheus.enabled .Values.prometheus.alerts.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: gateway-discord-alerts
-  namespace: gateway-discord
+  name: {{ include "gateway-discord.fullname" . }}-alerts
+  namespace: {{ include "gateway-discord.namespace" . }}
   labels:
-    app: gateway-discord
+    {{- include "gateway-discord.labels" . | nindent 4 }}
     prometheus: kube-prometheus
 spec:
   groups:
     - name: gateway-discord.rules
       rules:
         - alert: GatewayDiscordDown
-          expr: up{job="gateway-discord"} == 0
+          expr: up{job="{{ include "gateway-discord.fullname" . }}"} == 0
           for: 1m
           labels:
             severity: critical
           annotations:
             summary: "Gateway Discord pod is down"
-            description: "Gateway Discord pod {{ $labels.pod }} has been down for more than 1 minute."
+            description: "Gateway Discord pod {{ "{{" }} $labels.pod {{ "}}" }} has been down for more than 1 minute."
 
         - alert: GatewayDiscordNoBotsConnected
           expr: gateway_discord_bots_connected == 0 and gateway_discord_bots_total > 0
@@ -26,7 +27,7 @@ spec:
             severity: critical
           annotations:
             summary: "No Discord bots connected"
-            description: "Pod {{ $labels.pod }} has {{ $value }} bots assigned but none connected for 5 minutes."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has {{ "{{" }} $value {{ "}}" }} bots assigned but none connected for 5 minutes."
 
         - alert: GatewayDiscordHighDisconnectRate
           expr: |
@@ -37,7 +38,7 @@ spec:
             severity: warning
           annotations:
             summary: "High Discord bot disconnect rate"
-            description: "Pod {{ $labels.pod }} has more than 50% bots disconnected."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has more than 50% bots disconnected."
 
         - alert: GatewayDiscordPodUnhealthy
           expr: |
@@ -47,7 +48,7 @@ spec:
             severity: warning
           annotations:
             summary: "Gateway Discord pod not ready"
-            description: "Pod {{ $labels.pod }} has not been ready for 2 minutes."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has not been ready for 2 minutes."
 
         - alert: GatewayDiscordHighMemory
           expr: |
@@ -57,7 +58,7 @@ spec:
             severity: warning
           annotations:
             summary: "Gateway Discord high memory usage"
-            description: "Pod {{ $labels.pod }} memory usage is above 90%."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} memory usage is above 90%."
 
         - alert: GatewayDiscordHighCPU
           expr: |
@@ -67,7 +68,7 @@ spec:
             severity: warning
           annotations:
             summary: "Gateway Discord high CPU usage"
-            description: "Pod {{ $labels.pod }} CPU usage is above 90%."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} CPU usage is above 90%."
 
         - alert: GatewayDiscordRestarting
           expr: |
@@ -76,7 +77,7 @@ spec:
             severity: warning
           annotations:
             summary: "Gateway Discord restarting frequently"
-            description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has restarted {{ "{{" }} $value {{ "}}" }} times in the last hour."
 
         - alert: GatewayDiscordEventRoutingFailures
           expr: |
@@ -87,7 +88,7 @@ spec:
             severity: critical
           annotations:
             summary: "Discord events not being routed"
-            description: "Connection {{ $labels.connection }} is receiving events but none are being routed."
+            description: "Connection {{ "{{" }} $labels.connection {{ "}}" }} is receiving events but none are being routed."
 
         - alert: GatewayDiscordSlowStart
           expr: |
@@ -97,4 +98,5 @@ spec:
             severity: warning
           annotations:
             summary: "Gateway Discord slow to start"
-            description: "Pod {{ $labels.pod }} has been starting for more than 5 minutes."
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} has been starting for more than 5 minutes."
+{{- end }}

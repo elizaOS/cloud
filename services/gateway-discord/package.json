@@ -16,9 +16,7 @@
     "docker:run": "docker run -p 3001:3000 --env-file ../../.env.local gateway-discord:local",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f gateway-discord",
-    "k8s:apply": "kubectl apply -f k8s/",
-    "k8s:delete": "kubectl delete -f k8s/"
+    "docker:logs": "docker compose logs -f gateway-discord"
   },
   "dependencies": {
     "discord.js": "14.25.1",

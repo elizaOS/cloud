@@ -815,9 +815,7 @@ bun run docker:up    # Start with docker-compose
 bun run docker:down  # Stop docker-compose
 bun run docker:logs  # View container logs
 
-# Kubernetes
-bun run k8s:apply    # Deploy to Kubernetes
-bun run k8s:delete   # Remove from Kubernetes
+# Kubernetes - see chart/README.md for Helm deployment commands
 ```
 
 ### Running Tests
@@ -1691,24 +1689,47 @@ Kubernetes             Gateway Pod (gw-1)         Redis         Eliza Cloud
 
 ## Kubernetes Deployment
 
-Deploy to Kubernetes:
-```bash
-# Apply all resources
-bun run k8s:apply
-# or
-kubectl apply -f k8s/
+The gateway is deployed to Kubernetes using **Helm charts** (recommended) for better release management and environment-specific configuration.
 
-# Delete all resources
-bun run k8s:delete
-# or
-kubectl delete -f k8s/
+### Quick Start with Helm
+
+```bash
+# Deploy to staging
+helm upgrade --install gateway-discord ./chart \
+  --namespace gateway-discord \
+  --create-namespace \
+  -f ./chart/values.yaml \
+  -f ./chart/values-staging.yaml
+
+# Deploy to production
+helm upgrade --install gateway-discord ./chart \
+  --namespace gateway-discord \
+  --create-namespace \
+  -f ./chart/values.yaml \
+  -f ./chart/values-production.yaml
+
+# Uninstall
+helm uninstall gateway-discord -n gateway-discord
+```
+
+### Release Management
+
+```bash
+# View release history
+helm history gateway-discord -n gateway-discord
+
+# Rollback to previous version
+helm rollback gateway-discord -n gateway-discord
+
+# View current deployed values
+helm get values gateway-discord -n gateway-discord
 ```
 
 ### K8s Resources
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Namespace: gateway-discord                                          │
+│ Namespace: gateway-discord (Helm Release: gateway-discord)          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
@@ -1738,19 +1759,30 @@ kubectl delete -f k8s/
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-| Resource | File | Purpose |
-|----------|------|---------|
-| Namespace | `namespace.yaml` | Isolates gateway resources |
-| Deployment | `deployment.yaml` | Pod specification with probes |
-| HPA | `hpa.yaml` | Auto-scaling (2-10 replicas) |
-| PDB | `pdb.yaml` | Ensures HA during updates |
-| ServiceMonitor | `servicemonitor.yaml` | Prometheus scraping |
-| PrometheusRule | `alerts.yaml` | Alerting rules |
+| Resource | Helm Template | Purpose |
+|----------|---------------|---------|
+| Namespace | `chart/templates/namespace.yaml` | Isolates gateway resources |
+| Deployment | `chart/templates/deployment.yaml` | Pod specification with probes |
+| Service | `chart/templates/deployment.yaml` | ClusterIP service |
+| HPA | `chart/templates/hpa.yaml` | Auto-scaling (configurable replicas) |
+| PDB | `chart/templates/pdb.yaml` | Ensures HA during updates |
+| ServiceMonitor | `chart/templates/servicemonitor.yaml` | Prometheus scraping (conditional) |
+| PrometheusRule | `chart/templates/alerts.yaml` | Alerting rules (conditional) |
+
+### Values Files
+
+| File | Description |
+|------|-------------|
+| `chart/values.yaml` | Default values for all environments |
+| `chart/values-staging.yaml` | Staging overrides (smaller resources) |
+| `chart/values-production.yaml` | Production overrides (more resources, Prometheus enabled) |
 
 ### Required Secrets
 
 Create a Kubernetes secret before deploying:
 ```bash
+kubectl create namespace gateway-discord
+
 kubectl create secret generic gateway-discord-secrets \
   --namespace gateway-discord \
   --from-literal=eliza-cloud-url="https://your-eliza-cloud-url.com" \
@@ -1761,3 +1793,5 @@ kubectl create secret generic gateway-discord-secrets \
 ```
 
 **Note**: The gateway uses JWT authentication. The `gateway-bootstrap-secret` is exchanged for a JWT token at startup. The Eliza Cloud API must have the corresponding JWT signing keys configured.
+
+For detailed deployment instructions, see [chart/README.md](./chart/README.md).
