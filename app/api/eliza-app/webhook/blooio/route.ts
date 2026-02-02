@@ -21,6 +21,7 @@ import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
+import { isValidEmail, normalizeEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import {
   verifyBlooioSignature,
@@ -107,9 +108,17 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   if (isEmailSender) {
     // Apple ID email sender - auto-provision by email
     // Note: Email accounts can later link phone via Telegram OAuth for cross-platform
-    const email = senderRaw.toLowerCase();
+    const email = normalizeEmail(senderRaw);
+
+    if (!isValidEmail(email)) {
+      logger.warn("[ElizaApp BlooioWebhook] Invalid email format", {
+        sender: maskEmailForLogging(senderRaw),
+      });
+      return true; // Mark as processed - invalid format
+    }
+
     logger.info("[ElizaApp BlooioWebhook] Auto-provisioning user by email", {
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2")
+      email: maskEmailForLogging(email),
     });
     const result = await elizaAppUserService.findOrCreateByEmail(email);
     userWithOrg = result.user;
@@ -120,7 +129,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
       userId: userWithOrg.id,
       organizationId: organization.id,
       isNewUser: isNew,
-      email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      email: maskEmailForLogging(email),
     });
   } else {
     // Phone number sender - auto-provision by phone (carrier-verified)
