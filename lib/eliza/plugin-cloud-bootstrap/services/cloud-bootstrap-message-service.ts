@@ -153,7 +153,8 @@ export class CloudBootstrapMessageService implements IMessageService {
     const timeoutDuration = options?.timeoutDuration ?? 60 * 60 * 1000; // 1 hour default
     let timeoutId: NodeJS.Timeout | undefined;
     let runId: UUID | undefined;
-    let startTime: number | undefined;
+    // Initialize startTime at declaration to avoid non-null assertion in timeout callback
+    const startTime = Date.now();
     const responseId = v4();
 
     try {
@@ -176,7 +177,6 @@ export class CloudBootstrapMessageService implements IMessageService {
 
       // Start run tracking
       runId = runtime.startRun(message.roomId) as UUID;
-      startTime = Date.now();
 
       await runtime.emitEvent(EventType.RUN_STARTED, {
         runtime,
@@ -556,6 +556,7 @@ export class CloudBootstrapMessageService implements IMessageService {
       "RECENT_MESSAGES",
       "ACTION_STATE",
       "ACTIONS",
+      "USER_AUTH_STATUS",
       // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
       // via McpService.registerToolsAsActions() and appear in ACTIONS provider
     ], true);
@@ -602,6 +603,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           "RECENT_MESSAGES",
           "ACTION_STATE",
           "ACTIONS",
+          "USER_AUTH_STATUS",
           // NOTE: "MCP" provider removed - MCP tools are now native actions
         ], true);
         // Also set on state.data for consistency
@@ -837,6 +839,7 @@ export class CloudBootstrapMessageService implements IMessageService {
       "RECENT_MESSAGES",
       "ACTION_STATE",
       "CHARACTER",
+      "USER_AUTH_STATUS",
     ], true);
     // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;

@@ -22,6 +22,12 @@ export const elizaAppConfig = {
   // Agent configuration
   defaultAgentId: process.env.ELIZA_APP_DEFAULT_AGENT_ID || "b850bc30-45f8-0041-a00a-83df46d8555d",
 
+  // Model preferences for webhook channels (Telegram, iMessage)
+  modelPreferences: {
+    smallModel: "anthropic/claude-sonnet-4.5",
+    largeModel: "anthropic/claude-sonnet-4.5",
+  },
+
   // Telegram configuration
   telegram: {
     botToken: requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", ""),

@@ -552,7 +552,7 @@ export async function POST(
             agent_mode: agentModeConfig.mode,
             has_attachments: !!(attachments && attachments.length > 0),
             message_length: text.length,
-          });
+          } as const);
         }
 
         // Extract content - the full Content object is now stored in memory

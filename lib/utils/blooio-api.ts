@@ -30,42 +30,45 @@ export interface BlooioMarkReadResponse {
 
 export interface BlooioWebhookEvent {
   event: string;
-  message_id?: string;
-  external_id?: string;
-  internal_id?: string;
-  sender?: string;
-  text?: string;
-  attachments?: Array<string | { url: string; name?: string }>;
-  protocol?: string;
-  is_group?: boolean;
-  received_at?: number;
-  timestamp?: number;
+  message_id?: string | null;
+  external_id?: string | null;
+  internal_id?: string | null;
+  sender?: string | null;
+  text?: string | null;
+  attachments?: Array<string | { url: string; name?: string | null }> | null;
+  protocol?: string | null;
+  is_group?: boolean | null;
+  received_at?: number | null;
+  timestamp?: number | null;
 }
 
 /**
  * Zod schema for validating Blooio webhook payloads
  * Prevents malformed data from causing runtime errors
+ *
+ * Uses .nullish() instead of .optional() because Blooio sends explicit null
+ * values for absent fields (e.g., "text": null instead of omitting the field)
  */
 export const BlooioWebhookEventSchema = z.object({
   event: z.string().min(1, "Event type is required"),
-  message_id: z.string().optional(),
-  external_id: z.string().optional(),
-  internal_id: z.string().optional(),
-  sender: z.string().optional(),
-  text: z.string().optional(),
+  message_id: z.string().nullish(),
+  external_id: z.string().nullish(),
+  internal_id: z.string().nullish(),
+  sender: z.string().nullish(),
+  text: z.string().nullish(),
   attachments: z.array(
     z.union([
       z.string(),
       z.object({
         url: z.string().url(),
-        name: z.string().optional(),
+        name: z.string().nullish(),
       }),
     ])
-  ).optional(),
-  protocol: z.string().optional(),
-  is_group: z.boolean().optional(),
-  received_at: z.number().optional(),
-  timestamp: z.number().optional(),
+  ).nullish(),
+  protocol: z.string().nullish(),
+  is_group: z.boolean().nullish(),
+  received_at: z.number().nullish(),
+  timestamp: z.number().nullish(),
 });
 
 /**
@@ -244,7 +247,7 @@ export function isValidBlooioMediaUrl(url: string): boolean {
  * Only returns URLs from trusted domains to prevent SSRF.
  */
 export function extractBlooioMediaUrls(
-  attachments?: Array<string | { url: string; name?: string }>
+  attachments?: Array<string | { url: string; name?: string | null }> | null
 ): string[] {
   if (!attachments || !Array.isArray(attachments)) {
     return [];

@@ -216,6 +216,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
     });
     userContext.characterId = DEFAULT_AGENT_ID;
     userContext.webSearchEnabled = true;
+    userContext.modelPreferences = elizaAppConfig.modelPreferences;
 
     logger.info("[ElizaApp BlooioWebhook] Processing message", {
       userId: entityId,

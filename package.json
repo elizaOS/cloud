@@ -36,6 +36,7 @@
     "bootstrapper:build": "cd bootstrapper && ./build.sh",
     "cache:clear": "tsx scripts/clear-cache.ts",
     "cache:health": "tsx scripts/cache-health-check.ts",
+    "eliza-app:cleanup": "bun run scripts/cleanup-eliza-app-user.ts",
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "admin:promote": "bun run scripts/promote-admin.ts",
     "admin:list": "bun run scripts/promote-admin.ts --list",
