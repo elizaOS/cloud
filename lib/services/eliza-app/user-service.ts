@@ -302,7 +302,7 @@ class ElizaAppUserService {
       return await createUserWithOrganization({
         userData: {
           email: normalizedEmail,
-          email_verified: true, // Verified via iMessage delivery
+          email_verified: false, // iMessage delivery doesn't prove email ownership
           name: displayName,
           is_anonymous: false,
         },
@@ -450,7 +450,7 @@ class ElizaAppUserService {
     try {
       await usersRepository.update(userId, {
         email: normalizedEmail,
-        email_verified: true,
+        email_verified: false, // Not verified until user confirms via email link
         updated_at: new Date(),
       });
     } catch (error) {
