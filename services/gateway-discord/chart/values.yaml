@@ -99,8 +99,9 @@ hpa:
       enabled: true
       averageUtilization: 80
     # Custom metric for bot count (requires prometheus-adapter)
+    # Disabled by default - enable only when prometheus-adapter is installed
     customBotMetric:
-      enabled: true
+      enabled: false
       metricName: "gateway_discord_bots_total"
       targetAverageValue: "50"
   behavior:
