@@ -129,49 +129,9 @@ async function handleTelegramAuth(
     );
   }
 
-  // Check if phone number is already linked to a different user
-  const existingPhoneUser = await elizaAppUserService.getByPhoneNumber(phoneNumber);
-  if (existingPhoneUser) {
-    const existingTelegramId = existingPhoneUser.telegram_id;
-    if (existingTelegramId && existingTelegramId !== String(authData.id)) {
-      logger.warn("[ElizaApp TelegramAuth] Phone already linked to different Telegram account", {
-        phoneNumber: `***${phoneNumber.slice(-4)}`,
-        existingTelegramId,
-        newTelegramId: authData.id,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This phone number is already linked to a different account",
-          code: "PHONE_ALREADY_LINKED",
-        },
-        { status: 409 },
-      );
-    }
-  }
-
-  // Check if Telegram is already linked to a different phone number
-  const existingTelegramUser = await elizaAppUserService.getByTelegramId(String(authData.id));
-  if (existingTelegramUser) {
-    const existingPhone = existingTelegramUser.phone_number;
-    if (existingPhone && existingPhone !== phoneNumber) {
-      logger.warn("[ElizaApp TelegramAuth] Telegram already linked to different phone", {
-        telegramId: authData.id,
-        existingPhone: `***${existingPhone.slice(-4)}`,
-        newPhone: `***${phoneNumber.slice(-4)}`,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This Telegram account is already linked to a different phone number",
-          code: "TELEGRAM_ALREADY_LINKED",
-        },
-        { status: 409 },
-      );
-    }
-  }
-
   // Find or create user with both Telegram and phone number
+  // Note: Conflict checks are handled in the service layer with database constraints
+  // to avoid TOCTOU race conditions. The service returns proper error codes.
   let result;
   try {
     result = await elizaAppUserService.findOrCreateByTelegramWithPhone(authData, phoneNumber);
@@ -198,7 +158,19 @@ async function handleTelegramAuth(
         );
       }
     }
-    throw error;
+    // Log unexpected errors and return generic 500
+    logger.error("[ElizaApp TelegramAuth] Unexpected error during authentication", {
+      error: error instanceof Error ? error.message : String(error),
+      telegramId: authData.id,
+    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "An unexpected error occurred",
+        code: "INTERNAL_ERROR",
+      },
+      { status: 500 },
+    );
   }
   const { user, organization, isNew } = result;
 

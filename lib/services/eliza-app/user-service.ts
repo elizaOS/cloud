@@ -16,7 +16,7 @@ import { creditsService } from "@/lib/services/credits";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
-import { maskEmailForLogging } from "@/lib/utils/email-validation";
+import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
 import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
@@ -293,13 +293,23 @@ class ElizaAppUserService {
     } catch (error) {
       // Handle race condition: another request created the user first
       if (isUniqueConstraintError(error)) {
-        // Try to find the user that was created by the other request
-        const user = await usersRepository.findByTelegramIdWithOrganization(telegramId);
-        if (user && user.organization) {
+        // Try to find the user that was created by the other request (by telegram_id)
+        const userByTelegram = await usersRepository.findByTelegramIdWithOrganization(telegramId);
+        if (userByTelegram && userByTelegram.organization) {
           logger.info("[ElizaAppUserService] Recovered from race condition (telegram)", {
             telegramId,
           });
-          return { user, organization: user.organization, isNew: false };
+          return { user: userByTelegram, organization: userByTelegram.organization, isNew: false };
+        }
+
+        // Constraint may have been on phone_number (same phone, different Telegram ID)
+        const userByPhone = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        if (userByPhone && userByPhone.organization) {
+          logger.warn("[ElizaAppUserService] Phone already linked by race condition", {
+            telegramId,
+            phone: `***${normalizedPhone.slice(-4)}`,
+          });
+          throw new Error("PHONE_ALREADY_LINKED");
         }
       }
       throw error;
@@ -492,8 +502,8 @@ class ElizaAppUserService {
   ): Promise<{ success: boolean; error?: string }> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Basic email validation
-    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+    // Email validation using shared utility
+    if (!isValidEmail(normalizedEmail)) {
       return { success: false, error: "Invalid email format" };
     }
 
