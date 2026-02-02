@@ -508,7 +508,8 @@ export class RuntimeFactory {
 
     // Build MCP settings separately - these will be passed via opts.settings
     // to avoid being persisted to the database via character.settings
-    const mcpSettings = this.buildMcpSettings({}, context);
+    // Pass character.settings to preserve any pre-configured MCP servers
+    const mcpSettings = this.buildMcpSettings(character.settings || {}, context);
 
     // Add MCP plugin if user has OAuth connections for any MCP server
     // This is necessary because plugin loading happens before MCP settings injection
