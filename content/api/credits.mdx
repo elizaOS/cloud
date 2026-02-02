@@ -318,33 +318,42 @@ Get credit transaction history.
 
 ### Query Parameters
 
-| Parameter | Type    | Description                    |
-| --------- | ------- | ------------------------------ |
-| `limit`   | integer | Results per page (default: 20) |
-| `offset`  | integer | Pagination offset              |
+| Parameter | Type    | Description                              |
+| --------- | ------- | ---------------------------------------- |
+| `limit`   | integer | Results per page (default: 100)          |
+| `hours`   | integer | Limit results to the last N hours        |
 
 ### Response
 
 ```json
 {
-  "success": true,
   "transactions": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
+      "organization_id": "550e8400-e29b-41d4-a716-446655440100",
       "type": "usage",
       "amount": -0.05,
       "description": "Chat completion (gpt-4o)",
+      "metadata": {},
+      "stripe_payment_intent_id": null,
       "created_at": "2024-01-15T10:30:00Z"
     },
     {
       "id": "550e8400-e29b-41d4-a716-446655440001",
+      "organization_id": "550e8400-e29b-41d4-a716-446655440100",
       "type": "topup",
       "amount": 50.0,
       "description": "Stripe payment",
+      "metadata": {},
+      "stripe_payment_intent_id": "pi_1234567890",
       "created_at": "2024-01-14T08:00:00Z"
     }
   ],
-  "total": 150
+  "total": 2,
+  "period": {
+    "start": "2024-01-14T08:00:00Z",
+    "end": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 

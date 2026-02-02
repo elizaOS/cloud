@@ -12,8 +12,8 @@ import { Callout, Tabs } from "nextra/components";
 Text-to-speech generation and voice cloning capabilities.
 
 <Callout type="info">
-  **API Key Support:** All voice endpoints support both session-based authentication and API key authentication. 
-  This enables developers to build voice-enabled applications programmatically and allows AI agents to use voice capabilities autonomously.
+  **API Key Support:** `/api/v1/voice/*` endpoints support both session-based authentication and API key authentication.
+  Legacy `/api/elevenlabs/*` endpoints are session-based only.
 </Callout>
 
 ## Endpoint Patterns
@@ -25,7 +25,7 @@ Voice APIs are available at two paths:
 | `/api/v1/voice/*` | **Recommended** - Generic, provider-agnostic endpoints | New integrations, programmatic access |
 | `/api/elevenlabs/*` | Legacy endpoints (still supported) | Existing integrations, backwards compatibility |
 
-Both patterns support API key authentication and provide identical functionality.
+Only `/api/v1/voice/*` endpoints support API key authentication. Legacy `/api/elevenlabs/*` endpoints are session-based only.
 
 ---
 
@@ -151,9 +151,8 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/stt" \
 
 ```json
 {
-  "text": "Hello, this is a transcription test.",
-  "language": "en",
-  "confidence": 0.95
+  "transcript": "Hello, this is a transcription test.",
+  "duration_ms": 3245
 }
 ```
 
@@ -188,7 +187,7 @@ Get your cloned voices with pagination and filtering.
   "success": true,
   "voices": [
     {
-      "id": "voice_abc123",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
       "elevenlabsVoiceId": "xyz789",
       "name": "My Custom Voice",
       "description": "A professional voice clone",
@@ -238,7 +237,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
 
 ```json
 {
-  "id": "voice_xyz789",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
   "name": "My Voice",
   "status": "processing"
 }
@@ -267,7 +266,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
 Get details for a specific voice by its internal UUID.
 
 ```bash
-curl "https://elizacloud.ai/api/v1/voice/voice_xyz789" \
+curl "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -283,7 +282,7 @@ curl "https://elizacloud.ai/api/v1/voice/voice_xyz789" \
 Update a voice's metadata.
 
 ```bash
-curl -X PATCH "https://elizacloud.ai/api/v1/voice/voice_xyz789" \
+curl -X PATCH "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Voice Name", "isActive": true}'
@@ -305,7 +304,7 @@ curl -X PATCH "https://elizacloud.ai/api/v1/voice/voice_xyz789" \
 Delete a cloned voice from your account.
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/voice/voice_xyz789" \
+curl -X DELETE "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 

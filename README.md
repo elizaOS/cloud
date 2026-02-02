@@ -984,18 +984,18 @@ POST /api/eliza/rooms/{roomId}/messages
 
 ### 8. Developer API & Programmatic Access
 
-**Location**: All `/api/v1/` and `/api/my-agents/` endpoints
+**Location**: Documented `/api/v1/` and `/api/my-agents/` management endpoints that support API keys
 
-The platform provides comprehensive API key authentication across all endpoints, enabling:
+The platform provides API key authentication across these documented management endpoints, enabling:
 
 - **Programmatic Agent Management**: Create, update, delete, and clone agents via API
 - **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications
 - **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
 - **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
 
-**Why API Keys for Everything?**
+**Why API Keys for Management Endpoints?**
 
-Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across all management endpoints because:
+Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:
 
 1. **Developer Experience**: Developers can build integrations without browser-based auth flows
 2. **Agent Autonomy**: AI agents need to manage their own resources (credits, other agents, voices) autonomously

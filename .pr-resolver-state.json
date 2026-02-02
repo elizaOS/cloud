@@ -1,0 +1,259 @@
+{
+  "pr": "elizaOS/eliza-cloud-v2#265",
+  "branch": "odi-et",
+  "headSha": "797743798b2713dc487f80b9e42f9620dcd11c48",
+  "startedAt": "2026-02-02T22:59:05.566Z",
+  "lastUpdated": "2026-02-02T23:05:23.884Z",
+  "iterations": [
+    {
+      "timestamp": "2026-02-02T23:03:31.335Z",
+      "commentsAddressed": [
+        "PRRC_kwDOP6BTDM6j7vtC",
+        "PRRC_kwDOP6BTDM6j7vtD",
+        "PRRC_kwDOP6BTDM6j7vtE",
+        "PRRC_kwDOP6BTDM6j7vwC",
+        "PRRC_kwDOP6BTDM6j7vwG",
+        "PRRC_kwDOP6BTDM6j7vwQ",
+        "PRRC_kwDOP6BTDM6j7vwU"
+      ],
+      "changesMade": [],
+      "verificationResults": {
+        "PRRC_kwDOP6BTDM6j7vwK": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vtC": {
+          "passed": true,
+          "reason": "UUID validation was added to PATCH handler with proper 400 response for invalid formats, matching GET/DELETE behavior, and database UUID errors are caught with appropriate error handling"
+        },
+        "PRRC_kwDOP6BTDM6j7vtD": {
+          "passed": true,
+          "reason": "Authentication error handling was added to TTS endpoint to catch API key and auth-related errors and return 401 instead of generic 500"
+        },
+        "PRRC_kwDOP6BTDM6j7vtE": {
+          "passed": true,
+          "reason": "UUID regex was extracted to module-level constant and duplicated definitions in GET and DELETE handlers were removed"
+        },
+        "PRRC_kwDOP6BTDM6j7vtF": {
+          "passed": false,
+          "reason": "Verification result not found in LLM response"
+        },
+        "PRRC_kwDOP6BTDM6j7vwC": {
+          "passed": true,
+          "reason": "Helper function `isAuthenticationError` was created to eliminate duplication of auth error checking logic between handleGET and handlePUT"
+        },
+        "PRRC_kwDOP6BTDM6j7vwF": {
+          "passed": false,
+          "reason": "Verification result not found in LLM response"
+        },
+        "PRRC_kwDOP6BTDM6j7vwG": {
+          "passed": true,
+          "reason": "Transaction history documentation was updated to reflect actual API implementation with `hours` parameter, removed `offset`, and corrected response structure to include `period` field without `success` flag"
+        },
+        "PRRC_kwDOP6BTDM6j7vwM": {
+          "passed": false,
+          "reason": "The README change softens the claim about \"all\" endpoints supporting API keys but doesn't explicitly list which routes still require session-based auth only, leaving some ambiguity about coverage"
+        },
+        "PRRC_kwDOP6BTDM6j7vwQ": {
+          "passed": true,
+          "reason": "Voice API documentation was clarified to specify that only `/api/v1/voice/*` endpoints support API key authentication while `/api/elevenlabs/*` are session-based legacy routes"
+        },
+        "PRRC_kwDOP6BTDM6j7vwU": {
+          "passed": true,
+          "reason": "STT response example was corrected to show actual fields (`transcript` and `duration_ms`) instead of outdated schema (`text`, `language`, `confidence`)"
+        }
+      }
+    }
+  ],
+  "lessonsLearned": [],
+  "verifiedFixed": [
+    "PRRC_kwDOP6BTDM6j7vtC",
+    "PRRC_kwDOP6BTDM6j7vtD",
+    "PRRC_kwDOP6BTDM6j7vtE",
+    "PRRC_kwDOP6BTDM6j7vwC",
+    "PRRC_kwDOP6BTDM6j7vwG",
+    "PRRC_kwDOP6BTDM6j7vwQ",
+    "PRRC_kwDOP6BTDM6j7vwU"
+  ],
+  "verifiedComments": [
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+      "verifiedAt": "2026-02-02T23:05:23.883Z",
+      "verifiedAtIteration": 1
+    }
+  ],
+  "dismissedIssues": [
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwK",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-02T23:05:17.689Z",
+      "dismissedAtIteration": 1,
+      "category": "file-unchanged",
+      "filePath": "app/api/my-agents/characters/[id]/stats/route.ts",
+      "line": 15,
+      "commentBody": "The stats endpoint currently returns a stubbed payload with `data.stats.viewCount`, `interactionCount`, and `cloneCount` all hard-coded to 0, while the public docs (content/api/agents.mdx) describe a response with `views`, `interactions`, and `messageCount`. To avoid confusing API consumers, either implement real stats that match the documented shape or update the documentation to clearly mark this as a placeholder with the actual field names used here."
+    }
+  ],
+  "modelPerformance": {
+    "codex/gpt-5.2-codex": {
+      "fixes": 7,
+      "failures": 4,
+      "noChanges": 0,
+      "errors": 0,
+      "lastUsed": "2026-02-02T23:05:23.883Z"
+    }
+  },
+  "issueAttempts": {
+    "PRRC_kwDOP6BTDM6j7vtC": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtD": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtE": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtF": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "failed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwC": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwF": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "failed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwG": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwM": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwM",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "failed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwQ": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwU": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vwK": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwK",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "no-changes"
+      }
+    ]
+  },
+  "noProgressCycles": 0,
+  "totalTimings": {
+    "Fetch PR info": 1362,
+    "Fetch comments": 481,
+    "Analyze issues": 15708,
+    "Run fixer": 106335,
+    "Verify fixes": 6202
+  },
+  "totalTokenUsage": [
+    {
+      "phase": "Analyze issues",
+      "inputTokens": 5946,
+      "outputTokens": 1505,
+      "calls": 1
+    },
+    {
+      "phase": "Verify fixes",
+      "inputTokens": 18074,
+      "outputTokens": 481,
+      "calls": 1
+    }
+  ]
+}

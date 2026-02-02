@@ -260,6 +260,16 @@ export async function POST(request: NextRequest) {
       };
       const errorBody = errorWithBody.body?.detail?.message || "";
 
+      if (
+        errorMessage.includes("invalid or expired api key") ||
+        errorMessage.includes("api key is inactive") ||
+        errorMessage.includes("unauthorized") ||
+        errorMessage.includes("authentication required") ||
+        errorMessage.includes("forbidden")
+      ) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       if (errorMessage.includes("rate limit")) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Please try again in a moment." },

@@ -204,15 +204,19 @@ Create a copy of an existing agent.
 
 Get usage statistics for an agent.
 
+Currently returns placeholder stats.
+
 ### Response
 
 ```json
 {
   "success": true,
   "data": {
-    "views": 500,
-    "interactions": 1200,
-    "messageCount": 1500
+    "stats": {
+      "viewCount": 0,
+      "interactionCount": 0,
+      "cloneCount": 0
+    }
   }
 }
 ```

@@ -26,6 +26,9 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * GET /api/v1/voice/[id]
  * Gets details for a specific voice by its internal UUID.
@@ -46,8 +49,6 @@ export async function GET(
 
     logger.info(`[Voice API] Getting voice ${voiceId} for user ${user.id}`);
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(voiceId)) {
       logger.warn(
         `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
@@ -133,8 +134,6 @@ export async function DELETE(
 
     logger.info(`[Voice API] Deleting voice ${voiceId} for user ${user.id}`);
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(voiceId)) {
       logger.warn(
         `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
@@ -221,10 +220,25 @@ export async function PATCH(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const params = await context.params;
     const voiceId = params.id;
-    const body = await request.json();
 
     logger.info(`[Voice API] Updating voice ${voiceId} for user ${user.id}`);
 
+    if (!uuidRegex.test(voiceId)) {
+      logger.warn(
+        `[Voice API] Invalid voice ID format for update: ${voiceId}`,
+      );
+      return NextResponse.json(
+        {
+          error: "Invalid voice ID format",
+          message:
+            "Please use the internal voice ID (UUID format) from the 'List Voices' endpoint.",
+          hint: "Call GET /api/v1/voice/list to get your voice IDs",
+        },
+        { status: 400 },
+      );
+    }
+
+    const body = await request.json();
     const { name, description, settings, isActive } = body;
 
     const updatedVoice = await voiceCloningService.updateVoice(
@@ -252,6 +266,21 @@ export async function PATCH(
 
       if (error.message.includes("Unauthorized")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (
+        error.message.includes("invalid input syntax for type uuid") ||
+        error.message.includes("uuid")
+      ) {
+        return NextResponse.json(
+          {
+            error: "Invalid voice ID format",
+            message:
+              "The voice ID must be in UUID format. Use the 'id' field from 'List Voices' response.",
+            hint: "Call GET /api/v1/voice/list to get your voice IDs",
+          },
+          { status: 400 },
+        );
       }
     }
 

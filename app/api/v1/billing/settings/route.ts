@@ -53,6 +53,11 @@ const UpdateSettingsSchema = z.object({
     .optional(),
 });
 
+const isAuthenticationError = (message: string) =>
+  message.includes("Unauthorized") ||
+  message.includes("Authentication required") ||
+  message.includes("Forbidden");
+
 /**
  * GET /api/v1/billing/settings
  * Gets billing settings for the authenticated user's organization.
@@ -92,10 +97,7 @@ async function handleGET(req: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to get billing settings";
 
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Forbidden");
+    const isAuthError = isAuthenticationError(errorMessage);
 
     return NextResponse.json(
       { success: false, error: isAuthError ? "Unauthorized" : errorMessage },
@@ -176,10 +178,7 @@ async function handlePUT(req: NextRequest) {
         ? error.message
         : "Failed to update billing settings";
 
-    const isAuthError =
-      errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
-      errorMessage.includes("Forbidden");
+    const isAuthError = isAuthenticationError(errorMessage);
 
     const isValidationError =
       errorMessage.includes("Cannot enable") ||

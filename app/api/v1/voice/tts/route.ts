@@ -207,6 +207,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error) {
+      if (
+        error.message.includes("Invalid or expired API key") ||
+        error.message.includes("API key is inactive") ||
+        error.message.includes("Unauthorized") ||
+        error.message.includes("Authentication required") ||
+        error.message.includes("Forbidden")
+      ) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
       if (error.message.includes("rate limit")) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Please try again in a moment." },
