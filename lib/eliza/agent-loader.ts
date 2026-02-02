@@ -17,7 +17,6 @@ import {
   AgentMode,
   AGENT_MODE_PLUGINS,
   SETTINGS_PLUGIN_MAP,
-  ASSISTANT_REQUIRED_PLUGINS,
   getConditionalPlugins,
   requiresAssistantMode,
   hasAffiliateData,
@@ -55,7 +54,6 @@ preloadPlugins();
 
 export type ModeUpgradeReason =
   | "settings_plugin"
-  | "explicit_plugin"
   | "has_knowledge"
   | "none";
 
@@ -106,15 +104,7 @@ async function resolveEffectiveMode(
   if (hasExplicitSettingsPlugin(characterPlugins)) {
     return {
       mode: AgentMode.ASSISTANT,
-      upgradeReason: "explicit_plugin",
-      documentCount,
-    };
-  }
-
-  if (characterPlugins.some((p) => ASSISTANT_REQUIRED_PLUGINS.has(p))) {
-    return {
-      mode: AgentMode.ASSISTANT,
-      upgradeReason: "explicit_plugin",
+      upgradeReason: "settings_plugin",
       documentCount,
     };
   }

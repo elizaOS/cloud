@@ -132,6 +132,7 @@ export interface ConditionalPluginSettings {
   webSearch?: {
     enabled: boolean;
   };
+  n8n?: Record<string, unknown>;
 }
 
 /**
@@ -141,15 +142,8 @@ export interface ConditionalPluginSettings {
 export const SETTINGS_PLUGIN_MAP = {
   mcp: "@elizaos/plugin-mcp",
   webSearch: "@elizaos/plugin-web-search",
+  n8n: "@elizaos/plugin-n8n-workflow",
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
-
-/**
- * Plugins that require ASSISTANT mode when listed in a character's plugins array.
- * These plugins have actions/services that need planning-based message processing.
- */
-export const ASSISTANT_REQUIRED_PLUGINS = new Set([
-  "@elizaos/plugin-n8n-workflow",
-]);
 
 /**
  * Validates that conditional plugin settings have actual configuration.
@@ -159,6 +153,16 @@ function hasValidConfiguration(
   key: keyof typeof SETTINGS_PLUGIN_MAP,
   settings: Record<string, unknown>,
 ): boolean {
+  // n8n uses top-level N8N_API_KEY + N8N_HOST, not a nested settings.n8n object
+  if (key === "n8n") {
+    return (
+      typeof settings.N8N_API_KEY === "string" &&
+      settings.N8N_API_KEY.length > 0 &&
+      typeof settings.N8N_HOST === "string" &&
+      settings.N8N_HOST.length > 0
+    );
+  }
+
   const value = settings[key];
   if (value == null) return false;
 
