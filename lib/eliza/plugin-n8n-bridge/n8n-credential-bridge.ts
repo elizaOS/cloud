@@ -148,11 +148,30 @@ export class N8nCredentialBridge extends Service {
       return { status: "needs_auth", authUrl: result.authUrl };
     }
 
-    const { token, connectionId } =
-      await oauthService.getValidTokenByPlatformWithConnectionId({
-        organizationId,
+    let token: { accessToken: string; expiresAt?: Date };
+    let connectionId: string;
+    try {
+      ({ token, connectionId } =
+        await oauthService.getValidTokenByPlatformWithConnectionId({
+          organizationId,
+          platform,
+        }));
+    } catch (error) {
+      // Connection revoked between isPlatformConnected check and token retrieval
+      logger.warn("[N8nCredentialBridge] Token retrieval failed after connection check", {
         platform,
+        error: error instanceof Error ? error.message : String(error),
       });
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+      const result = await oauthService.initiateAuth({
+        organizationId,
+        userId: user.id,
+        platform,
+        redirectUrl: `${baseUrl}/dashboard/settings?tab=connections`,
+      });
+      return { status: "needs_auth", authUrl: result.authUrl };
+    }
 
     // Get refresh token from secrets via platform_credentials row
     const [credential] = await dbRead
@@ -174,6 +193,11 @@ export class N8nCredentialBridge extends Service {
           source: "n8n-credential-bridge",
         },
       );
+    } else {
+      logger.debug("[N8nCredentialBridge] No refresh token for connection", {
+        connectionId,
+        platform,
+      });
     }
 
     const clientId = getClientId(provider);
