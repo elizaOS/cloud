@@ -194,6 +194,7 @@ const publicPaths = [
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
+  "/api/.well-known", // JWKS endpoint for JWT verification
   "/api/internal", // Internal service-to-service API (has own auth via JWT Bearer token)
   "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
   "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
