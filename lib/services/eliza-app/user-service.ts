@@ -155,8 +155,18 @@ class ElizaAppUserService {
         updated_at: new Date(),
       };
 
-      // Set phone number if not already set
+      // Set phone number if not already set - but first check it's not taken
       if (!existingTelegramUser.phone_number) {
+        const phoneOwner = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        if (phoneOwner && phoneOwner.id !== existingTelegramUser.id) {
+          // Phone is owned by a different user - this is a conflict
+          logger.warn("[ElizaAppUserService] Phone already owned by another user", {
+            telegramUserId: existingTelegramUser.id,
+            phoneOwnerId: phoneOwner.id,
+            phone: `***${normalizedPhone.slice(-4)}`,
+          });
+          throw new Error("PHONE_ALREADY_LINKED");
+        }
         updates.phone_number = normalizedPhone;
         updates.phone_verified = true;
       }
@@ -223,20 +233,35 @@ class ElizaAppUserService {
       ? `${telegramData.username}'s Workspace`
       : `${telegramData.first_name}'s Workspace`;
 
-    return createUserWithOrganization({
-      userData: {
-        telegram_id: telegramId,
-        telegram_username: telegramData.username,
-        telegram_first_name: telegramData.first_name,
-        telegram_photo_url: telegramData.photo_url,
-        phone_number: normalizedPhone,
-        phone_verified: true,
-        name: displayName,
-        is_anonymous: false,
-      },
-      organizationName,
-      slugGenerator: () => generateSlugFromTelegram(telegramData.username, telegramId),
-    });
+    try {
+      return await createUserWithOrganization({
+        userData: {
+          telegram_id: telegramId,
+          telegram_username: telegramData.username,
+          telegram_first_name: telegramData.first_name,
+          telegram_photo_url: telegramData.photo_url,
+          phone_number: normalizedPhone,
+          phone_verified: true,
+          name: displayName,
+          is_anonymous: false,
+        },
+        organizationName,
+        slugGenerator: () => generateSlugFromTelegram(telegramData.username, telegramId),
+      });
+    } catch (error) {
+      // Handle race condition: another request created the user first
+      if (isUniqueConstraintError(error)) {
+        // Try to find the user that was created by the other request
+        const user = await usersRepository.findByTelegramIdWithOrganization(telegramId);
+        if (user && user.organization) {
+          logger.info("[ElizaAppUserService] Recovered from race condition (telegram)", {
+            telegramId,
+          });
+          return { user, organization: user.organization, isNew: false };
+        }
+      }
+      throw error;
+    }
   }
 
   async findOrCreateByPhone(phoneNumber: string): Promise<FindOrCreateResult> {

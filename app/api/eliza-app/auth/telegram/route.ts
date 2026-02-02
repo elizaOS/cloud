@@ -172,7 +172,22 @@ async function handleTelegramAuth(
   }
 
   // Find or create user with both Telegram and phone number
-  const result = await elizaAppUserService.findOrCreateByTelegramWithPhone(authData, phoneNumber);
+  let result;
+  try {
+    result = await elizaAppUserService.findOrCreateByTelegramWithPhone(authData, phoneNumber);
+  } catch (error) {
+    if (error instanceof Error && error.message === "PHONE_ALREADY_LINKED") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "This phone number is already linked to a different account",
+          code: "PHONE_ALREADY_LINKED",
+        },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
   const { user, organization, isNew } = result;
 
   logger.info("[ElizaApp TelegramAuth] Authentication successful", {
