@@ -13,6 +13,7 @@ import {
   type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
+import mcpPlugin from "@elizaos/plugin-mcp";
 import { agentLoader } from "./agent-loader";
 import {
   getElizaCloudApiUrl,
@@ -30,6 +31,12 @@ import {
 } from "@/lib/cache/edge-runtime-cache";
 
 const adapterEmbeddingDimensions = new Map<string, number>();
+
+const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
+  google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
+  // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
+  // github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
+};
 
 interface GlobalWithEliza {
   logger?: Logger;
@@ -499,20 +506,44 @@ export class RuntimeFactory {
     const baseSettings = this.buildSettings(character, context);
     const filteredPlugins = this.filterPlugins(plugins);
 
-    const runtimeSecrets = {
-      ...(baseSettings.secrets as Record<string, unknown> | undefined),
+    // Build MCP settings separately - these will be passed via opts.settings
+    // to avoid being persisted to the database via character.settings
+    // Pass character.settings to preserve any pre-configured MCP servers
+    const mcpSettings = this.buildMcpSettings(character.settings || {}, context);
+
+    // Add MCP plugin if user has OAuth connections for any MCP server
+    // This is necessary because plugin loading happens before MCP settings injection
+    if (this.shouldEnableMcp(context) && !filteredPlugins.some((p) => p.name === "mcp")) {
+      filteredPlugins.push(mcpPlugin as Plugin);
+      elizaLogger.info("[RuntimeFactory] Added MCP plugin for OAuth-connected user");
+    }
+
+    // User-specific settings that should NOT be persisted to the database
+    // These are passed via opts.settings so they're ephemeral per-request
+    const ephemeralSettings: Record<string, string | boolean | number | Record<string, unknown>> = {
+      // API keys - must be per-user, not persisted
       ELIZAOS_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
+      // User context - must be per-user, not persisted
+      USER_ID: context.userId,
+      ENTITY_ID: context.entityId,
+      ORGANIZATION_ID: context.organizationId,
+      IS_ANONYMOUS: context.isAnonymous,
+      // MCP settings - based on user's OAuth connections
+      ...mcpSettings,
     };
 
+    // Create runtime with user-specific settings in opts.settings (NOT character.settings)
+    // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
     const runtime = new AgentRuntime({
       character: {
         ...character,
         id: agentId,
-        settings: { ...baseSettings, secrets: runtimeSecrets },
+        settings: baseSettings,
       },
       plugins: filteredPlugins,
       agentId,
+      settings: ephemeralSettings as Record<string, string | boolean | number>,
     });
 
     runtime.registerDatabaseAdapter(dbAdapter);
@@ -540,29 +571,48 @@ export class RuntimeFactory {
   }
 
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
-    const settings = (runtime.character.settings || {}) as RuntimeSettings;
-    settings.ELIZAOS_API_KEY = context.apiKey;
-    settings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
-    settings.USER_ID = context.userId;
-    settings.ENTITY_ID = context.entityId;
-    settings.ORGANIZATION_ID = context.organizationId;
-    settings.IS_ANONYMOUS = context.isAnonymous;
+    const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
+
+    // Update character.settings (takes precedence in getSetting())
+    charSettings.ELIZAOS_API_KEY = context.apiKey;
+    charSettings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
+    charSettings.USER_ID = context.userId;
+    charSettings.ENTITY_ID = context.entityId;
+    charSettings.ORGANIZATION_ID = context.organizationId;
+    charSettings.IS_ANONYMOUS = context.isAnonymous;
 
     if (context.modelPreferences) {
-      settings.ELIZAOS_CLOUD_SMALL_MODEL =
+      charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel ||
-        settings.ELIZAOS_CLOUD_SMALL_MODEL;
-      settings.ELIZAOS_CLOUD_LARGE_MODEL =
+        charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
+      charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
         context.modelPreferences.largeModel ||
-        settings.ELIZAOS_CLOUD_LARGE_MODEL;
+        charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
     if (context.imageModel) {
-      settings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
+      charSettings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
     }
 
     if (context.appPromptConfig) {
-      settings.appPromptConfig = context.appPromptConfig;
+      charSettings.appPromptConfig = context.appPromptConfig;
+    }
+
+    // Also update runtime.settings for MCP (McpService checks this as fallback)
+    // This ensures MCP settings are fresh per-user even on cache hit
+    // TODO: Replace type assertion with public API when AgentRuntime exposes settings accessor
+    const runtimeSettings = (runtime as unknown as { settings: Record<string, unknown> }).settings;
+    if (runtimeSettings) {
+      const mcpSettings = this.buildMcpSettings({}, context);
+      Object.assign(runtimeSettings, {
+        ELIZAOS_API_KEY: context.apiKey,
+        ELIZAOS_CLOUD_API_KEY: context.apiKey,
+        USER_ID: context.userId,
+        ENTITY_ID: context.entityId,
+        ORGANIZATION_ID: context.organizationId,
+        IS_ANONYMOUS: context.isAnonymous,
+        ...mcpSettings,
+      });
     }
   }
 
@@ -615,6 +665,39 @@ export class RuntimeFactory {
     return { ...mcpSettings, servers: transformedServers };
   }
 
+  private getConnectedPlatforms(context: UserContext): Set<string> {
+    return new Set((context.oauthConnections || []).map((c) => c.platform.toLowerCase()));
+  }
+
+  private shouldEnableMcp(context: UserContext): boolean {
+    const connected = this.getConnectedPlatforms(context);
+    return Object.keys(MCP_SERVER_CONFIGS).some((p) => connected.has(p));
+  }
+
+  private buildMcpSettings(
+    charSettings: Record<string, unknown>,
+    context: UserContext,
+  ): { mcp?: Record<string, unknown> } {
+    const connected = this.getConnectedPlatforms(context);
+    const enabledServers = Object.fromEntries(
+      Object.entries(MCP_SERVER_CONFIGS).filter(([p]) => connected.has(p)),
+    );
+
+    if (Object.keys(enabledServers).length === 0) return {};
+
+    elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
+
+    const existingMcp = charSettings.mcp as Record<string, unknown> | undefined;
+    const existingServers =
+      existingMcp?.servers && typeof existingMcp.servers === "object" && !Array.isArray(existingMcp.servers)
+        ? (existingMcp.servers as Record<string, unknown>)
+        : {};
+
+    return {
+      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...enabledServers, ...existingServers } }, context.apiKey),
+    };
+  }
+
   private filterPlugins(plugins: Plugin[]): Plugin[] {
     return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
   }
@@ -623,7 +706,19 @@ export class RuntimeFactory {
     character: Character,
     context: UserContext,
   ): NonNullable<Character["settings"]> {
-    const charSettings = (character.settings || {}) as Record<string, unknown>;
+    // Strip user-specific and ephemeral settings from charSettings
+    // These should NOT come from persisted DB values - they must be fresh per-request
+    const {
+      mcp: _stripMcp,
+      ELIZAOS_API_KEY: _stripApiKey,
+      ELIZAOS_CLOUD_API_KEY: _stripCloudApiKey,
+      USER_ID: _stripUserId,
+      ENTITY_ID: _stripEntityId,
+      ORGANIZATION_ID: _stripOrgId,
+      IS_ANONYMOUS: _stripIsAnon,
+      ...charSettings
+    } = (character.settings || {}) as Record<string, unknown>;
+
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
@@ -632,13 +727,13 @@ export class RuntimeFactory {
       (charSettings.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
     const embeddingDimension = getStaticEmbeddingDimension(embeddingModel);
 
+    // Return only character-level settings that are safe to persist
+    // User-specific settings (API keys, user context, MCP) are passed via opts.settings
     return {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
       EMBEDDING_DIMENSION: String(embeddingDimension),
-      ELIZAOS_API_KEY: context.apiKey,
-      ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
         context.modelPreferences?.smallModel ||
@@ -653,18 +748,8 @@ export class RuntimeFactory {
           DEFAULT_IMAGE_MODEL.modelId,
         ),
       ...buildElevenLabsSettings(charSettings),
-      ...(charSettings.mcp
-        ? {
-            mcp: this.transformMcpSettings(
-              charSettings.mcp as Record<string, unknown>,
-              context.apiKey,
-            ),
-          }
-        : {}),
-      USER_ID: context.userId,
-      ENTITY_ID: context.entityId,
-      ORGANIZATION_ID: context.organizationId,
-      IS_ANONYMOUS: context.isAnonymous,
+      // NOTE: User-specific settings (API keys, user context, MCP) are NOT included here
+      // They're passed via opts.settings to avoid being persisted to the database
       ...(context.appPromptConfig
         ? { appPromptConfig: context.appPromptConfig }
         : {}),

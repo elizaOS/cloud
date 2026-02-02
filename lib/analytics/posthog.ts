@@ -325,6 +325,8 @@ export interface AgentChatMessageSentProps {
   agent_id: string;
   room_id: string;
   agent_name?: string;
+  agent_mode?: string;
+  has_attachments?: boolean;
   message_length: number;
 }
 

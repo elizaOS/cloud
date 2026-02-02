@@ -4,11 +4,16 @@
  */
 
 import { apiKeysService } from "@/lib/services/api-keys";
+import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
 import type { PromptConfig } from "./prompt-presets";
+
+export interface OAuthConnection {
+  platform: string;
+}
 
 export interface UserContext {
   // Core identity
@@ -49,6 +54,9 @@ export interface UserContext {
 
   // Image generation preferences
   imageModel?: string;
+
+  // OAuth connections for MCP injection
+  oauthConnections?: OAuthConnection[];
 }
 
 export class UserContextService {
@@ -94,11 +102,11 @@ export class UserContextService {
       );
     }
 
-    // Get API key once, here (no more fetching at route level)
-    const apiKey = await this.getUserApiKey(
-      authResult.user.id,
-      authResult.user.organization_id,
-    );
+    // Fetch API key and OAuth connections in parallel for efficiency
+    const [apiKey, oauthConnections] = await Promise.all([
+      this.getUserApiKey(authResult.user.id, authResult.user.organization_id),
+      this.getOAuthConnections(authResult.user.organization_id),
+    ]);
 
     if (!apiKey) {
       logger.error(
@@ -125,6 +133,7 @@ export class UserContextService {
       email: authResult.user.email ?? undefined,
       appId: authResult.appId,
       appPromptConfig: authResult.appPromptConfig,
+      oauthConnections,
     };
   }
 
@@ -164,6 +173,18 @@ export class UserContextService {
       `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
     );
     return userKey.key;
+  }
+
+  private async getOAuthConnections(orgId: string): Promise<OAuthConnection[]> {
+    try {
+      const connections = await oauthService.listConnections({ organizationId: orgId });
+      return connections
+        .filter((c) => c.status === "active")
+        .map((c) => ({ platform: c.platform }));
+    } catch (error) {
+      logger.warn(`[UserContext] OAuth fetch failed: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
   }
 
   /**

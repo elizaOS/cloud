@@ -83,6 +83,10 @@ Respond AS {{agentName}}, using their voice and style.
 
 ---
 
+{{characterMessageExamples}}
+
+---
+
 # Conversation Context
 {{recentMessages}}
 

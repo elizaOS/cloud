@@ -143,6 +143,7 @@ async function handleMessage(message: Message): Promise<boolean> {
     });
     userContext.characterId = DEFAULT_AGENT_ID;
     userContext.webSearchEnabled = true;
+    userContext.modelPreferences = elizaAppConfig.modelPreferences;
 
     logger.info("[ElizaApp TelegramWebhook] Processing message", {
       userId: entityId,
