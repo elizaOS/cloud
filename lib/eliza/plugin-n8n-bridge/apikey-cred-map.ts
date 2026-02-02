@@ -1,0 +1,23 @@
+/**
+ * Maps n8n API key credential types to their data builders.
+ *
+ * Separate from the OAuth `cred-type-map.ts`. These credential types
+ * are resolved by reading the user's cloud API key, not via OAuth flow.
+ *
+ * Currently only `openAiApi` — n8n's OpenAI node expects { apiKey, url }.
+ * The cloud's OpenAI-compatible proxy at /api/v1/chat/completions handles
+ * billing, rate limiting, and routing to the Vercel AI Gateway.
+ */
+
+interface ApiKeyCredMapping {
+  buildData(apiKey: string, baseUrl: string): Record<string, unknown>;
+}
+
+export const API_KEY_CRED_TYPES: Record<string, ApiKeyCredMapping> = {
+  openAiApi: {
+    buildData: (apiKey, baseUrl) => ({
+      apiKey,
+      url: `${baseUrl}/api/v1`,
+    }),
+  },
+};
