@@ -1,10 +1,21 @@
 # GitHub OIDC Module for CI/CD Deployments
 
+# Data sources for scoping IAM policies
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 locals {
   # Convert environment name to short suffix (dev/prd)
   env_suffix        = var.environment == "production" ? "prd" : "dev"
   role_name         = "github-actions-gateway-${local.env_suffix}"
   oidc_provider_url = "https://token.actions.githubusercontent.com"
+  account_id        = data.aws_caller_identity.current.account_id
+  region            = data.aws_region.current.name
+}
+
+# Fetch GitHub OIDC thumbprint dynamically
+data "tls_certificate" "github" {
+  url = local.oidc_provider_url
 }
 
 # Check if GitHub OIDC provider already exists in the account
@@ -14,11 +25,12 @@ data "aws_iam_openid_connect_provider" "github_existing" {
 }
 
 # GitHub OIDC Provider - only create if it doesn't exist
+# Uses dynamic thumbprint lookup to handle GitHub certificate rotations
 resource "aws_iam_openid_connect_provider" "github" {
   count           = var.create_oidc_provider ? 1 : 0
   url             = local.oidc_provider_url
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
+  thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
 
   tags = {
     Name = "github-oidc-provider"
@@ -65,7 +77,7 @@ resource "aws_iam_role" "github_actions" {
   }
 }
 
-# Policy for EKS access
+# Policy for EKS access - scoped to specific cluster
 resource "aws_iam_role_policy" "github_actions_eks" {
   name = "${local.role_name}-eks-policy"
   role = aws_iam_role.github_actions.id
@@ -79,13 +91,15 @@ resource "aws_iam_role_policy" "github_actions_eks" {
           "eks:DescribeCluster",
           "eks:ListClusters"
         ]
-        Resource = "*"
+        # Scoped to the specific cluster for this environment
+        Resource = "arn:aws:eks:${local.region}:${local.account_id}:cluster/${var.cluster_name}"
       }
     ]
   })
 }
 
-# Policy for ECR access (if needed)
+# Policy for ECR access - scoped to gateway-discord repositories
+# Note: GetAuthorizationToken requires * resource, but other actions are scoped
 resource "aws_iam_role_policy" "github_actions_ecr" {
   name = "${local.role_name}-ecr-policy"
   role = aws_iam_role.github_actions.id
@@ -94,9 +108,18 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "ECRGetAuthToken"
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken"
+        ]
+        # GetAuthorizationToken must use * resource
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -105,15 +128,17 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
-        Resource = "*"
+        # Scoped to gateway-discord repository pattern
+        Resource = "arn:aws:ecr:${local.region}:${local.account_id}:repository/gateway-discord*"
       }
     ]
   })
 }
 
 # aws-auth ConfigMap data
-# This needs to be applied via Kubernetes provider or eksctl
-# to grant the GitHub Actions role access to the cluster
+# Note: system:masters grants full cluster admin. For production, consider creating
+# a custom ClusterRole with limited permissions (e.g., only gateway-discord namespace).
+# system:masters is used here for initial bootstrap simplicity.
 locals {
   aws_auth_configmap_data = {
     mapRoles = yamlencode([
