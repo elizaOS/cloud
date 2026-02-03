@@ -74,6 +74,7 @@ export interface InitiateOAuth2Result {
 export interface OAuth2CallbackResult {
   connectionId: string;
   organizationId: string;
+  userId: string;
   platformUserId: string;
   email?: string;
   displayName?: string;
@@ -212,6 +213,7 @@ export async function handleOAuth2Callback(
   return {
     connectionId,
     organizationId,
+    userId,
     platformUserId: userInfo.id,
     email: userInfo.email,
     displayName: userInfo.displayName,

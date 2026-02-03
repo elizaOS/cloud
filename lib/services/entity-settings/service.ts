@@ -14,7 +14,7 @@
  * These settings are then injected into the request context and take
  * highest priority in runtime.getSetting() resolution.
  */
-import { db } from "@/db";
+import { dbRead, dbWrite } from "@/db/client";
 import { entitySettings } from "@/db/schemas/entity-settings";
 import { oauthSessions } from "@/db/schemas/secrets";
 import { apiKeys } from "@/db/schemas/api-keys";
@@ -145,7 +145,7 @@ export class EntitySettingsService {
           isNull(entitySettings.agent_id)
         );
 
-    const rows = await db.select().from(entitySettings).where(condition);
+    const rows = await dbRead.select().from(entitySettings).where(condition);
 
     const result = new Map<string, string>();
     const encryption = getEncryptionService();
@@ -170,7 +170,7 @@ export class EntitySettingsService {
     userId: string,
     organizationId: string
   ): Promise<Map<string, string>> {
-    const sessions = await db
+    const sessions = await dbRead
       .select()
       .from(oauthSessions)
       .where(
@@ -212,7 +212,7 @@ export class EntitySettingsService {
     userId: string,
     organizationId: string
   ): Promise<string | null> {
-    const keys = await db
+    const keys = await dbRead
       .select()
       .from(apiKeys)
       .where(
@@ -243,7 +243,7 @@ export class EntitySettingsService {
       await encryption.encrypt(value);
 
     // Upsert the setting
-    await db
+    await dbWrite
       .insert(entitySettings)
       .values({
         user_id: userId,
@@ -300,7 +300,7 @@ export class EntitySettingsService {
           eq(entitySettings.key, key)
         );
 
-    const result = await db.delete(entitySettings).where(condition);
+    const result = await dbWrite.delete(entitySettings).where(condition);
 
     // Invalidate cache
     await entitySettingsCache.invalidateUser(userId);
@@ -339,7 +339,7 @@ export class EntitySettingsService {
       condition = eq(entitySettings.user_id, userId);
     }
 
-    const rows = await db
+    const rows = await dbRead
       .select({
         id: entitySettings.id,
         key: entitySettings.key,

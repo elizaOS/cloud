@@ -21,6 +21,8 @@ import {
   isProviderConfigured,
 } from "@/lib/services/oauth/provider-registry";
 import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
+import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
+import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -198,8 +200,18 @@ async function handleCallback(
     const successParams = `${platform}_connected=true&platform=${platform}&connection_id=${result.connectionId}`;
     const finalUrl = appendParam(finalRedirectUrl, successParams);
 
+    try {
+      await Promise.all([
+        invalidateByOrganization(result.organizationId),
+        entitySettingsCache.invalidateUser(result.userId),
+      ]);
+    } catch (e) {
+      logger.warn(`[OAuth ${platform}] Cache invalidation failed`, { error: String(e) });
+    }
+
     logger.info(`[OAuth ${platform}] Callback successful`, {
       organizationId: result.organizationId,
+      userId: result.userId,
       connectionId: result.connectionId,
       platformUserId: result.platformUserId,
     });

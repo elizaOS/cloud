@@ -118,7 +118,7 @@ async function withRetry<T>(
       }
       logger.warn(`[MultiStep] ${label} validation failed on attempt ${attempt}/${maxRetries}`);
     } catch (error) {
-      logger.error(`[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}`);
+      logger.error(`[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}:`, error);
       if (attempt >= maxRetries) throw error;
     }
     
@@ -669,7 +669,7 @@ export class CloudBootstrapMessageService implements IMessageService {
               }
             }
           } catch (error) {
-            logger.error(`[MultiStep] Error during model call attempt ${parseAttempt}`);
+            logger.error(`[MultiStep] Error during model call attempt ${parseAttempt}:`, error);
             if (parseAttempt >= maxParseRetries) {
               throw error;
             }
@@ -888,7 +888,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           }
         }
       } catch (error) {
-        logger.error(`[MultiStep] Summary generation error on attempt ${summaryAttempt}`);
+        logger.error(`[MultiStep] Summary generation error on attempt ${summaryAttempt}:`, error);
         if (summaryAttempt >= maxSummaryRetries) {
           logger.warn("[MultiStep] Failed to generate summary after all retries");
           break;

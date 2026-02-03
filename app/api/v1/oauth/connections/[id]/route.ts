@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { oauthService, OAuthError, Errors, internalErrorResponse } from "@/lib/services/oauth";
+import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,12 @@ export async function DELETE(
       organizationId: user.organization_id,
       connectionId,
     });
+
+    try {
+      await entitySettingsCache.invalidateUser(user.id);
+    } catch (e) {
+      logger.warn("[API] Cache invalidation failed", { error: String(e) });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

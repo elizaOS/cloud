@@ -241,6 +241,25 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
+  /** Remove all runtimes for an organization. */
+  async removeByOrganization(organizationId: string): Promise<number> {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!organizationId || !UUID_RE.test(organizationId)) {
+      return 0;
+    }
+
+    const entries = Array.from(this.cache.entries())
+      .filter(([key]) => key.includes(`:${organizationId}`));
+
+    await Promise.all(entries.map(async ([key, entry]) => {
+      await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
+      this.cache.delete(key);
+      dbAdapterPool.removeAdapter(entry.agentId as string);
+    }));
+
+    return entries.length;
+  }
+
   /** Clear all cached runtimes. WARNING: Closes shared connection pool. */
   async clear(): Promise<void> {
     await Promise.all(
@@ -445,6 +464,15 @@ export class RuntimeFactory {
 
   isRuntimeCached(agentId: string): boolean {
     return runtimeCache.has(agentId);
+  }
+
+  /** Invalidate all runtimes for an organization (e.g., when OAuth changes). */
+  async invalidateByOrganization(organizationId: string): Promise<number> {
+    const count = await runtimeCache.removeByOrganization(organizationId);
+    if (count > 0) {
+      elizaLogger.info(`[RuntimeFactory] Invalidated ${count} runtime(s) for org ${organizationId}`);
+    }
+    return count;
   }
 
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
@@ -985,6 +1013,11 @@ export async function invalidateRuntime(agentId: string): Promise<boolean> {
 
 export function isRuntimeCached(agentId: string): boolean {
   return runtimeFactory.isRuntimeCached(agentId);
+}
+
+/** Invalidate all cached runtimes for an organization. */
+export async function invalidateByOrganization(organizationId: string): Promise<number> {
+  return runtimeFactory.invalidateByOrganization(organizationId);
 }
 
 export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };

@@ -6,7 +6,7 @@
  */
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
-import type { EntitySettingValue } from "./types";
+import type { EntitySettingValue, EntitySettingSource } from "./types";
 
 /**
  * Cache key prefix for entity settings
@@ -28,7 +28,7 @@ interface CachedSettings {
   /** Timestamp when this was cached */
   cachedAt: number;
   /** Source tracking for debugging */
-  sources: Record<string, string>;
+  sources: Record<string, EntitySettingSource>;
 }
 
 /**
@@ -76,7 +76,7 @@ export class EntitySettingsCache {
     agentId: string | null
   ): Promise<{
     settings: Map<string, EntitySettingValue>;
-    sources: Record<string, string>;
+    sources: Record<string, EntitySettingSource>;
   } | null> {
     const key = buildCacheKey(userId, agentId);
 
@@ -103,7 +103,7 @@ export class EntitySettingsCache {
     userId: string,
     agentId: string | null,
     settings: Map<string, EntitySettingValue>,
-    sources: Record<string, string>
+    sources: Record<string, EntitySettingSource>
   ): Promise<void> {
     const key = buildCacheKey(userId, agentId);
 
