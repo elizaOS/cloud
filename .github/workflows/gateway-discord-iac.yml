@@ -2,18 +2,18 @@ name: Gateway Discord Infrastructure
 
 # Environment-specific variables (set in GitHub Settings > Environments):
 #
-# staging environment:
+# development environment:
 #   Variables:
-#     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (staging account)
+#     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (development account)
 #     - AWS_REGION: us-east-1
 #   Secrets:
 #     - GHCR_USERNAME: GitHub Container Registry username
 #     - GHCR_TOKEN: GitHub Container Registry token
-#     - ELIZA_CLOUD_URL: Staging Eliza Cloud API URL
-#     - GATEWAY_BOOTSTRAP_SECRET: Staging bootstrap secret
-#     - REDIS_URL: Staging Redis URL
-#     - REDIS_TOKEN: Staging Redis token
-#     - BLOB_TOKEN: Staging blob storage token
+#     - ELIZA_CLOUD_URL: Development Eliza Cloud API URL
+#     - GATEWAY_BOOTSTRAP_SECRET: Development bootstrap secret
+#     - REDIS_URL: Development Redis URL
+#     - REDIS_TOKEN: Development Redis token
+#     - BLOB_TOKEN: Development blob storage token
 #
 # production environment:
 #   Variables:
@@ -55,9 +55,9 @@ on:
         required: true
         type: choice
         options:
-          - staging
+          - development
           - production
-        default: staging
+        default: development
 
 env:
   TF_VERSION: "1.7.0"
@@ -70,9 +70,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - environment: staging
+          - environment: development
             branch: refs/heads/dev
-            tfvars_file: staging.tfvars
+            tfvars_file: development.tfvars
           - environment: production
             branch: refs/heads/main
             tfvars_file: production.tfvars

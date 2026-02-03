@@ -6,7 +6,7 @@ This Terraform configuration provisions the AWS infrastructure required for the 
 
 - **VPC**: Virtual Private Cloud with public and private subnets across 3 availability zones
 - **NAT Instance**: Cost-effective NAT using t4g.nano/micro EC2 instances (ARM64)
-  - Staging: Single t4g.nano (~$3/month)
+  - Development: Single t4g.nano (~$3/month)
   - Production: Single t4g.micro (~$6/month)
   - Can be switched to NAT Gateway for high-traffic scenarios (see Cost Considerations)
 - **EKS Cluster**: Kubernetes cluster for running the gateway service
@@ -39,10 +39,10 @@ services/gateway-discord/terraform/
 ├── outputs.tf                 # Output values
 ├── providers.tf               # Provider configuration
 ├── versions.tf                # Required versions
-├── staging.tfvars             # Staging environment values
+├── development.tfvars         # Development environment values
 ├── production.tfvars          # Production environment values
 ├── secrets.tfvars.example     # Example secrets file
-├── backend-staging.hcl        # Backend config for staging
+├── backend-development.hcl    # Backend config for development
 ├── backend-production.hcl     # Backend config for production
 └── modules/
     ├── vpc/                   # VPC module
@@ -53,22 +53,32 @@ services/gateway-discord/terraform/
 
 ## Usage
 
-### 1. Create S3 Backend (First Time Only)
+> **Note**: Infrastructure is managed automatically via GitHub Actions (`.github/workflows/gateway-discord-iac.yml`).
+> - **Push to `dev`** → Auto-applies to development
+> - **Push to `main`** → Auto-applies to production
+> - **Pull Requests** → Runs plan and posts output as PR comment
+> - **Manual dispatch** → Run plan/apply/destroy on demand
+>
+> You only need to complete the **One-Time Setup** below before the workflow can run.
 
-Before using Terraform, create an S3 bucket for state storage:
+### One-Time Setup
+
+#### 1. Create S3 Backend
+
+Before the GitHub Actions workflow can run, create an S3 bucket and DynamoDB table for state storage. A single bucket is shared by both development and production - environments are separated by key prefix.
 
 ```bash
-# Create S3 bucket for state
+# Create S3 bucket for state (shared by all environments)
 aws s3api create-bucket \
-  --bucket eliza-cloud-terraform-state-staging \
+  --bucket eliza-cloud-terraform-state \
   --region us-east-1
 
 # Enable versioning
 aws s3api put-bucket-versioning \
-  --bucket eliza-cloud-terraform-state-staging \
+  --bucket eliza-cloud-terraform-state \
   --versioning-configuration Status=Enabled
 
-# Create DynamoDB table for state locking
+# Create DynamoDB table for state locking (shared by all environments)
 aws dynamodb create-table \
   --table-name terraform-state-lock \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
@@ -77,71 +87,96 @@ aws dynamodb create-table \
   --region us-east-1
 ```
 
-### 2. Initialize Terraform
+**Cost**: S3 + DynamoDB = ~$0/month (state files are tiny, lock operations are rare)
+
+#### 2. Configure GitHub Environments
+
+Create two GitHub Environments (`development` and `production`) in your repository settings with the following:
+
+**Variables** (Settings → Environments → [environment] → Environment variables):
+- `TERRAFORM_AWS_ROLE_ARN`: IAM role ARN for Terraform (needs AWS admin permissions)
+- `AWS_REGION`: `us-east-1`
+
+**Secrets** (Settings → Environments → [environment] → Environment secrets):
+- `GHCR_USERNAME`: GitHub Container Registry username
+- `GHCR_TOKEN`: GitHub Container Registry token (PAT with `read:packages`)
+- `ELIZA_CLOUD_URL`: Eliza Cloud API URL
+- `GATEWAY_BOOTSTRAP_SECRET`: Gateway bootstrap secret
+- `REDIS_URL`: Redis connection URL
+- `REDIS_TOKEN`: Redis authentication token
+- `BLOB_TOKEN`: Blob storage token
+
+#### 3. Bootstrap AWS OIDC (First Deployment)
+
+For the first deployment, you need an IAM role that trusts GitHub OIDC. Create this manually or use an existing admin role, then the Terraform will create the proper OIDC role for subsequent runs.
+
+### Post-Deployment
+
+#### Configure kubectl
+
+After the cluster is created, configure kubectl to access it:
+
+```bash
+# For development
+aws eks update-kubeconfig --name gateway-cluster-dev --region us-east-1
+
+# For production
+aws eks update-kubeconfig --name gateway-cluster-prod --region us-east-1
+```
+
+---
+
+### Local Development (Optional)
+
+If you need to run Terraform locally for debugging or development:
+
+#### Initialize Terraform
 
 ```bash
 cd services/gateway-discord/terraform
 
-# For staging
-terraform init -backend-config=backend-staging.hcl
+# For development
+terraform init -backend-config=backend-development.hcl
 
 # For production
 terraform init -backend-config=backend-production.hcl -reconfigure
 ```
 
-### 3. Create Secrets File
+#### Create Secrets File
 
 ```bash
 cp secrets.tfvars.example secrets.tfvars
 # Edit secrets.tfvars with actual values
 ```
 
-### 4. Plan and Apply
+#### Plan and Apply
 
 ```bash
-# For staging
-terraform plan -var-file=staging.tfvars -var-file=secrets.tfvars
-
-terraform apply -var-file=staging.tfvars -var-file=secrets.tfvars
+# For development
+terraform plan -var-file=development.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
 
 # For production
 terraform plan -var-file=production.tfvars -var-file=secrets.tfvars
-
 terraform apply -var-file=production.tfvars -var-file=secrets.tfvars
 ```
 
-### 5. Configure kubectl
+#### Phased Deployment (Large Infrastructure)
 
-After the cluster is created:
-
-```bash
-aws eks update-kubeconfig --name gateway-cluster-stg --region us-east-1
-```
-
-### 6. Set GitHub Actions Variables
-
-After applying, set these variables in your GitHub repository:
-
-- `GATEWAY_AWS_ROLE_ARN`: Output from `github_actions_role_arn`
-- `GATEWAY_AWS_REGION`: `us-east-1`
-- `GATEWAY_CLUSTER_NAME`: Output from `cluster_name`
-
-## Staged Deployment
-
-For large infrastructure, deploy in stages:
+For initial deployment or debugging, you can deploy in phases:
 
 ```bash
-# Stage 1: VPC and EKS
-terraform apply -var-file=staging.tfvars -var-file=secrets.tfvars \
+# Phase 1: VPC and EKS
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars \
   -target=module.vpc \
   -target=module.eks
 
-# Stage 2: GitHub OIDC
-terraform apply -var-file=staging.tfvars -var-file=secrets.tfvars \
+# Phase 2: GitHub OIDC
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars \
   -target=module.github_oidc
 
-# Stage 3: Kubernetes resources
-terraform apply -var-file=staging.tfvars -var-file=secrets.tfvars
+# Phase 3: Kubernetes resources
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
 ```
 
 ## Outputs
@@ -160,7 +195,7 @@ After applying, Terraform outputs:
 
 ```bash
 # CAUTION: This will destroy all resources
-terraform destroy -var-file=staging.tfvars -var-file=secrets.tfvars
+terraform destroy -var-file=development.tfvars -var-file=secrets.tfvars
 ```
 
 ## Security Notes
@@ -175,7 +210,7 @@ terraform destroy -var-file=staging.tfvars -var-file=secrets.tfvars
 - **EKS Control Plane**: ~$72/month
 - **NAT**:
   - NAT Gateway: ~$32/month per gateway + $0.045/GB data
-  - NAT Instance (t4g.nano): ~$3/month (staging) - significant cost savings
+  - NAT Instance (t4g.nano): ~$3/month (development) - significant cost savings
 - **EC2 Instances (EKS nodes)**: Varies by instance type and count
 - **Data Transfer**: Varies by usage
 
@@ -184,9 +219,9 @@ terraform destroy -var-file=staging.tfvars -var-file=secrets.tfvars
 The infrastructure supports both NAT Gateway and NAT Instance. Configure via `use_nat_instance` variable:
 
 ```hcl
-# Default: NAT Instance for cost savings (both staging and production)
+# Default: NAT Instance for cost savings (both development and production)
 use_nat_instance   = true
-nat_instance_type  = "t4g.nano"   # staging (~$3/month)
+nat_instance_type  = "t4g.nano"   # development (~$3/month)
 nat_instance_type  = "t4g.micro"  # production (~$6/month)
 
 # High-traffic: Switch to NAT Gateway
@@ -215,7 +250,7 @@ Switch to NAT Gateway (`use_nat_instance = false`) if:
 NAT Instance is recommended for:
 
 1. **Discord gateway workloads** - I/O bound, low bandwidth (websockets + API calls)
-2. **Development/staging environments** - Cost optimization priority
+2. **Development environments** - Cost optimization priority
 3. **Low-moderate traffic production** - <1 Gbps sustained outbound traffic
 4. **Cost-sensitive deployments** - Saves ~$26-29/month per NAT
 

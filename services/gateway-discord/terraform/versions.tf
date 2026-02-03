@@ -22,6 +22,6 @@ terraform {
 
   backend "s3" {
     # Configure via backend config file or CLI args
-    # terraform init -backend-config=backend-staging.hcl
+    # terraform init -backend-config=backend-development.hcl
   }
 }

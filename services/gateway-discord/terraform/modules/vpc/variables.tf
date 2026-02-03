@@ -30,7 +30,7 @@ variable "use_nat_instance" {
 }
 
 variable "nat_instance_type" {
-  description = "Instance type for NAT Instance (t4g.nano for staging, t4g.micro for production)"
+  description = "Instance type for NAT Instance (t4g.nano for development, t4g.micro for production)"
   type        = string
   default     = "t4g.nano"
 }

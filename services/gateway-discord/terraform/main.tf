@@ -2,7 +2,7 @@
 # This creates all the AWS infrastructure needed for the Discord gateway service
 
 locals {
-  cluster_name = var.cluster_name != "" ? var.cluster_name : "gateway-cluster-${var.environment == "production" ? "prod" : "stg"}"
+  cluster_name = var.cluster_name != "" ? var.cluster_name : "gateway-cluster-${var.environment == "production" ? "prod" : "dev"}"
 }
 
 # VPC Module
@@ -15,7 +15,7 @@ module "vpc" {
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
 
-  # NAT Configuration - use NAT Instance for staging (cost savings)
+  # NAT Configuration - use NAT Instance for development (cost savings)
   use_nat_instance   = var.use_nat_instance
   nat_instance_type  = var.nat_instance_type
   single_nat_gateway = var.single_nat_gateway

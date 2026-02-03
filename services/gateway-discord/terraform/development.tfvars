@@ -1,7 +1,7 @@
-# Staging Environment Configuration
+# Development Environment Configuration
 
-environment  = "staging"
-cluster_name = "gateway-cluster-stg"
+environment  = "development"
+cluster_name = "gateway-cluster-dev"
 aws_region   = "us-east-1"
 
 # VPC Configuration
@@ -40,7 +40,7 @@ enable_aws_auth_update = true
 
 # Tags
 tags = {
-  Environment = "staging"
+  Environment = "development"
   Project     = "gateway-discord"
   Team        = "elizaos"
 }

@@ -1,10 +1,10 @@
 # Environment and naming
 variable "environment" {
-  description = "Environment name (staging, production)"
+  description = "Environment name (development, production)"
   type        = string
   validation {
-    condition     = contains(["staging", "production"], var.environment)
-    error_message = "Environment must be 'staging' or 'production'"
+    condition     = contains(["development", "production"], var.environment)
+    error_message = "Environment must be 'development' or 'production'"
   }
 }
 
@@ -54,7 +54,7 @@ variable "use_nat_instance" {
 }
 
 variable "nat_instance_type" {
-  description = "Instance type for NAT instance (t4g.nano for staging, t4g.micro for production)"
+  description = "Instance type for NAT instance (t4g.nano for development, t4g.micro for production)"
   type        = string
   default     = "t4g.nano"
 }
