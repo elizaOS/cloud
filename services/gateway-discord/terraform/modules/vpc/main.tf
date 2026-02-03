@@ -211,23 +211,50 @@ resource "aws_instance" "nat" {
 
   user_data = base64encode(<<-EOF
     #!/bin/bash
-    # Enable IP forwarding
+    set -euo pipefail
+    
+    # Log output for debugging via SSM or cloud-init logs
+    exec > >(tee /var/log/nat-setup.log) 2>&1
+    echo "Starting NAT instance configuration..."
+    
+    # Enable IP forwarding (idempotent)
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+    if ! grep -q "^net.ipv4.ip_forward = 1" /etc/sysctl.conf; then
+      echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+    fi
     sysctl -p
     
-    # Configure iptables for NAT
-    yum install -y iptables-services
+    # Install iptables (dnf for AL2023, yum as fallback)
+    if command -v dnf &> /dev/null; then
+      dnf install -y iptables-services
+    else
+      yum install -y iptables-services
+    fi
+    
     systemctl enable iptables
     systemctl start iptables
     
-    # Set up NAT masquerading on the primary interface
-    iptables -t nat -A POSTROUTING -o ens5 -s ${var.vpc_cidr} -j MASQUERADE
-    iptables -F FORWARD
-    iptables -A FORWARD -j ACCEPT
+    # Detect primary network interface dynamically
+    # Get the interface with the default route (usually eth0 or ens5)
+    PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
+    if [ -z "$PRIMARY_IFACE" ]; then
+      echo "ERROR: Could not detect primary network interface"
+      exit 1
+    fi
+    echo "Detected primary interface: $PRIMARY_IFACE"
+    
+    # Set up NAT masquerading (idempotent - check if rule exists)
+    if ! iptables -t nat -C POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE 2>/dev/null; then
+      iptables -t nat -A POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE
+    fi
+    
+    # Allow forwarding (idempotent)
+    iptables -P FORWARD ACCEPT
     
     # Save iptables rules
     service iptables save
+    
+    echo "NAT instance configuration completed successfully"
   EOF
   )
 
