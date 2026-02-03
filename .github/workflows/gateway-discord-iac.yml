@@ -173,17 +173,29 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Truncate plan output if too long to avoid GitHub comment size limits
+            const MAX_PLAN_LENGTH = 60000;
+            let planOutput = `${{ steps.plan.outputs.stdout }}`;
+            let truncated = false;
+            if (planOutput.length > MAX_PLAN_LENGTH) {
+              planOutput = planOutput.substring(0, MAX_PLAN_LENGTH);
+              truncated = true;
+            }
+            
             const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
             
-            <details><summary>Show Plan (${{ matrix.environment }})</summary>
+            > **Note**: Sensitive values (tokens, secrets) are marked as \`sensitive\` in Terraform
+            > and should appear as \`(sensitive value)\` in the plan output below.
+            
+            <details><summary>Show Plan (${{ matrix.environment }})${truncated ? ' - TRUNCATED' : ''}</summary>
             
             \`\`\`terraform
-            ${{ steps.plan.outputs.stdout }}
+            ${planOutput}
             \`\`\`
-            
+            ${truncated ? '\n⚠️ *Plan output was truncated due to size. View full output in the Actions log.*\n' : ''}
             </details>
             
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
