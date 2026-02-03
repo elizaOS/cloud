@@ -1391,7 +1391,7 @@ See `lib/queries/container-quota.ts` for full implementation.
 
 ### Authentication
 
-All API routes support two authentication methods:
+Documented management endpoints that include API key examples support two authentication methods:
 
 1. **Session Cookie** (Privy): Automatic for logged-in users
 2. **API Key Header**: `Authorization: Bearer eliza_your_key`
