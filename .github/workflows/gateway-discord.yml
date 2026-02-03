@@ -1,5 +1,23 @@
 name: Gateway Discord Service
 
+# Environment-specific variables (set in GitHub Settings > Environments):
+#
+# staging environment:
+#   Variables:
+#     - GATEWAY_AWS_ROLE_ARN: IAM role ARN for EKS access (staging)
+#     - GATEWAY_AWS_REGION: AWS region (e.g., us-east-1)
+#     - GATEWAY_CLUSTER_NAME: EKS cluster name (e.g., gateway-cluster-stg)
+#
+# production environment:
+#   Variables:
+#     - GATEWAY_AWS_ROLE_ARN: IAM role ARN for EKS access (production)
+#     - GATEWAY_AWS_REGION: AWS region (e.g., us-east-1)
+#     - GATEWAY_CLUSTER_NAME: EKS cluster name (e.g., gateway-cluster-prod)
+#
+# Branch to environment mapping:
+#   - dev branch    -> staging environment
+#   - main branch   -> production environment
+
 on:
   push:
     branches: [main, dev]
@@ -136,6 +154,7 @@ jobs:
             branch: refs/heads/main
             values_file: values-production.yaml
       fail-fast: false
+    # GitHub Environment - pulls environment-specific vars (GATEWAY_AWS_ROLE_ARN, GATEWAY_AWS_REGION, GATEWAY_CLUSTER_NAME)
     environment: ${{ matrix.environment }}
     permissions:
       id-token: write

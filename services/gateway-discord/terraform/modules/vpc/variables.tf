@@ -1,0 +1,48 @@
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+}
+
+variable "cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
+}
+
+variable "availability_zones" {
+  description = "List of availability zones"
+  type        = list(string)
+}
+
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for public subnets"
+  type        = list(string)
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for private subnets"
+  type        = list(string)
+}
+
+variable "use_nat_instance" {
+  description = "Use NAT Instance instead of NAT Gateway (cost saving for non-prod)"
+  type        = bool
+  default     = false
+}
+
+variable "nat_instance_type" {
+  description = "Instance type for NAT Instance (t4g.nano for staging, t4g.micro for production)"
+  type        = string
+  default     = "t4g.nano"
+}
+
+variable "nat_instance_key_name" {
+  description = "SSH key name for NAT Instance (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT gateway/instance for all AZs (cost savings, less redundancy)"
+  type        = bool
+  default     = true
+}

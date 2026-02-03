@@ -1,0 +1,217 @@
+name: Gateway Discord Infrastructure
+
+# Environment-specific variables (set in GitHub Settings > Environments):
+#
+# staging environment:
+#   Variables:
+#     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (staging account)
+#     - AWS_REGION: us-east-1
+#   Secrets:
+#     - GHCR_USERNAME: GitHub Container Registry username
+#     - GHCR_TOKEN: GitHub Container Registry token
+#     - ELIZA_CLOUD_URL: Staging Eliza Cloud API URL
+#     - GATEWAY_BOOTSTRAP_SECRET: Staging bootstrap secret
+#     - REDIS_URL: Staging Redis URL
+#     - REDIS_TOKEN: Staging Redis token
+#     - BLOB_TOKEN: Staging blob storage token
+#
+# production environment:
+#   Variables:
+#     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (production account)
+#     - AWS_REGION: us-east-1
+#   Secrets:
+#     - GHCR_USERNAME: GitHub Container Registry username
+#     - GHCR_TOKEN: GitHub Container Registry token
+#     - ELIZA_CLOUD_URL: Production Eliza Cloud API URL
+#     - GATEWAY_BOOTSTRAP_SECRET: Production bootstrap secret
+#     - REDIS_URL: Production Redis URL
+#     - REDIS_TOKEN: Production Redis token
+#     - BLOB_TOKEN: Production blob storage token
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-discord/terraform/**"
+      - ".github/workflows/gateway-discord-iac.yml"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "services/gateway-discord/terraform/**"
+      - ".github/workflows/gateway-discord-iac.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to perform"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+env:
+  TF_VERSION: "1.7.0"
+  WORKING_DIR: services/gateway-discord/terraform
+
+jobs:
+  terraform:
+    name: Terraform ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - environment: staging
+            branch: refs/heads/dev
+            tfvars_file: staging.tfvars
+          - environment: production
+            branch: refs/heads/main
+            tfvars_file: production.tfvars
+      fail-fast: false
+    # GitHub Environment - pulls environment-specific vars and secrets
+    environment: ${{ matrix.environment }}
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Check if job should run
+        id: should_run
+        run: |
+          SHOULD_RUN="false"
+          
+          # For push events, only run for matching branch
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
+            SHOULD_RUN="true"
+          fi
+          
+          # For PR events, run plan for both environments
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            SHOULD_RUN="true"
+          fi
+          
+          # For manual dispatch, only run for selected environment
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
+            SHOULD_RUN="true"
+          fi
+          
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+        shell: bash
+        working-directory: .
+
+      - uses: actions/checkout@v4
+        if: steps.should_run.outputs.should_run == 'true'
+
+      - name: Configure AWS credentials via OIDC
+        if: steps.should_run.outputs.should_run == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        if: steps.should_run.outputs.should_run == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        if: steps.should_run.outputs.should_run == 'true'
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        if: steps.should_run.outputs.should_run == 'true'
+        id: init
+        run: terraform init -backend-config=backend-${{ matrix.environment }}.hcl
+
+      - name: Terraform Validate
+        if: steps.should_run.outputs.should_run == 'true'
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        if: steps.should_run.outputs.should_run == 'true'
+        id: plan
+        run: |
+          terraform plan -no-color \
+            -var-file=${{ matrix.tfvars_file }} \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}" \
+            -out=tfplan
+        continue-on-error: true
+
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request' && steps.should_run.outputs.should_run == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            
+            <details><summary>Show Plan (${{ matrix.environment }})</summary>
+            
+            \`\`\`terraform
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            
+            </details>
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure' && steps.should_run.outputs.should_run == 'true'
+        run: exit 1
+
+      - name: Terraform Apply
+        if: |
+          steps.should_run.outputs.should_run == 'true' &&
+          (
+            (github.event_name == 'push' && github.ref == matrix.branch) ||
+            (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+          )
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: |
+          steps.should_run.outputs.should_run == 'true' &&
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.action == 'destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var-file=${{ matrix.tfvars_file }} \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}"
