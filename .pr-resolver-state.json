@@ -3,7 +3,7 @@
   "branch": "odi-et",
   "headSha": "ddfe89a83c0beb1510cd793214d83ee4433d87c3",
   "startedAt": "2026-02-03T23:09:29.181Z",
-  "lastUpdated": "2026-02-03T23:30:23.381Z",
+  "lastUpdated": "2026-02-03T23:37:41.462Z",
   "iterations": [
     {
       "timestamp": "2026-02-03T23:13:05.433Z",
@@ -437,6 +437,68 @@
           "reason": "The description was updated but the actual example response format was not changed to match the implementation. The docs still need to show the correct `{ transcript, duration_ms }` JSON structure instead of the outdated `{ \"text\", \"language\", \"confidence\" }` format."
         }
       }
+    },
+    {
+      "timestamp": "2026-02-03T23:36:25.170Z",
+      "commentsAddressed": [
+        "PRRC_kwDOP6BTDM6j7vtC",
+        "PRRC_kwDOP6BTDM6j7vtE",
+        "PRRC_kwDOP6BTDM6j7vwG",
+        "PRRC_kwDOP6BTDM6kTR0n",
+        "PRRC_kwDOP6BTDM6kTR0s",
+        "PRRC_kwDOP6BTDM6kTcGp"
+      ],
+      "changesMade": [],
+      "verificationResults": {
+        "PRRC_kwDOP6BTDM6j7vtF": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwF": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwK": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwM": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwQ": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwU": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vtC": {
+          "passed": true,
+          "reason": "The PATCH handler now validates UUID format using `getInvalidVoiceIdResponseIfNeeded()` before calling the service, and catches database UUID errors with `isInvalidVoiceIdError()`, matching GET/DELETE behavior"
+        },
+        "PRRC_kwDOP6BTDM6j7vtE": {
+          "passed": true,
+          "reason": "UUID regex duplication is eliminated by extracting validation into the reusable `isValidVoiceId()` helper function, called consistently across all three handlers"
+        },
+        "PRRC_kwDOP6BTDM6j7vwG": {
+          "passed": true,
+          "reason": "The PATCH handler now includes UUID validation via `getInvalidVoiceIdResponseIfNeeded()` and database error handling via `isInvalidVoiceIdError()`, ensuring consistent behavior with GET/DELETE"
+        },
+        "PRRC_kwDOP6BTDM6kTR0n": {
+          "passed": true,
+          "reason": "The `.pr-resolver-state.json` file containing internal PR resolver tooling state has been completely deleted from the repository"
+        },
+        "PRRC_kwDOP6BTDM6kTR0s": {
+          "passed": true,
+          "reason": "UUID validation and error handling duplication is eliminated by extracting into three helper functions (`getInvalidVoiceIdResponseIfNeeded()`, `isInvalidVoiceIdError()`, `createInvalidVoiceIdResponse()`) that are reused across all handlers"
+        },
+        "PRRC_kwDOP6BTDM6kTcGp": {
+          "passed": true,
+          "reason": "The duplicate `createInvalidVoiceIdErrorResponse()` function has been consolidated into a single `createInvalidVoiceIdResponse()` function used consistently across GET/DELETE/PATCH handlers"
+        }
+      }
     }
   ],
   "lessonsLearned": [],
@@ -459,47 +521,7 @@
   ],
   "verifiedComments": [
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtC",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtE",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vtF",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTR0n",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTR0s",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
-      "verifiedAt": "2026-02-03T23:13:04.572Z",
-      "verifiedAtIteration": 0
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTcGp",
       "verifiedAt": "2026-02-03T23:13:04.572Z",
       "verifiedAtIteration": 0
     },
@@ -519,19 +541,59 @@
       "verifiedAtIteration": 2
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwG",
-      "verifiedAt": "2026-02-03T23:17:24.738Z",
-      "verifiedAtIteration": 2
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwU",
       "verifiedAt": "2026-02-03T23:19:14.264Z",
       "verifiedAtIteration": 3
     },
     {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+      "verifiedAt": "2026-02-03T23:36:24.363Z",
+      "verifiedAtIteration": 32
+    },
+    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwC",
-      "verifiedAt": "2026-02-03T23:27:03.154Z",
-      "verifiedAtIteration": 12
+      "verifiedAt": "2026-02-03T23:36:24.363Z",
+      "verifiedAtIteration": 32
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+      "verifiedAt": "2026-02-03T23:36:24.363Z",
+      "verifiedAtIteration": 32
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
+      "verifiedAt": "2026-02-03T23:36:24.363Z",
+      "verifiedAtIteration": 32
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0n",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0s",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTcGp",
+      "verifiedAt": "2026-02-03T23:37:41.462Z",
+      "verifiedAtIteration": 33
     }
   ],
   "dismissedIssues": [
@@ -546,16 +608,6 @@
       "commentBody": "### PATCH handler missing UUID validation unlike GET/DELETE\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `PATCH` handler for `/api/v1/voice/[id]` is missing UUID format validation that exists in both `GET` (lines 49-64) and `DELETE` (lines 136-151) handlers. The docstring at line 203-204 claims \"Validates UUID format and verifies ownership\" but the implementation doesn't validate UUID format. When an invalid UUID is passed, the database throws an error that isn't caught, resulting in a generic 500 response instead of a helpful 400 with guidance to use the list endpoint.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: 24653e63-9836-4c3c-aa7b-f0a29291ea17 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/[id]/route.ts#L215-L263\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmQwOGZhZDk5LTcyYTUtNGRmOS1hNDg5LTgwODczZjFiNzQxMCIsImVuY3J5cHRpb25LZXkiOiJGMnRXaVROeTRFMklpY09KdEl5bFJRNEE3UVV0bnl6QmFweEFDNThlaXFJIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.gkL0G552LB2o3Ur2L2G_JYFHeGN65Ei_33uI6g1uID9qA3hN4lHyOHJ1xV5qMDYw1b_yBxzFq-u5Wfu6hJrTPFKczTt2TWNoWpNHo2nhJ6hWtv3xOtals8Kw5Xs7dYOs7L-l7JUmqeWPc2pvJ0wRVZJE5Pv0pE62guQN_Q7PYTFdlrmim8irmiD3N24-5NLkk8g3MmizyVc-KP49VI_52R_hJLQS-zXF5iXO4N8vKdVDuxnI0oWl2uKoeFfEiAaAijFo_E7p8VaYXWY29dmBwrypug4KSqfRA5fiHgU7ID8t6NDoMb1BJUe9BqEe0_EYO0EfRtZYu5AMU03sCv-6ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmQwOGZhZDk5LTcyYTUtNGRmOS1hNDg5LTgwODczZjFiNzQxMCIsImVuY3J5cHRpb25LZXkiOiJGMnRXaVROeTRFMklpY09KdEl5bFJRNEE3UVV0bnl6QmFweEFDNThlaXFJIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.jP2jjrfRZSgWN-VO8MykRzY0s1ftw5MwPFS1MKiCiUoQSGv-NTMUHh2INJPPJ4S9Wqmn3MMGjnxScHh81fGyjvLfmBtQYNAHE4KP-hyJqB9UZTEbeD6fhdjUssDkvORtPupdxP6qYR4FOHgAmDOzopaGJFpuK2IBr9JArjpce8ao9GAsk73C7c6U9OnT5WSK0oJLgNLki7_g6-sqYY8dDs8pNlc8Fk4zACg20BEGE60P6rewzC0VKJrSLYnS59Xb6doK02eNWnoD-Xs6EIA5SXkza-rT-V8BVRk0L2H2rgqZ0V3ls6p8MCQeWd4kROge_HbrG8uJp4XSPZV-QkYb3Q\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
-      "reason": "Lines 209-254 in the TTS endpoint show comprehensive authentication error handling that checks for \"invalid or expired api key\", \"api key is inactive\", \"unauthorized\", \"authentication required\", and \"forbidden\" messages, returning 401 responses instead of generic 500 errors.",
-      "dismissedAt": "2026-02-03T23:13:04.572Z",
-      "dismissedAtIteration": 0,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/tts/route.ts",
-      "line": 260,
-      "commentBody": "### TTS and STT endpoints missing authentication error handling\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `/api/v1/voice/tts` and `/api/v1/voice/stt` endpoints are missing authentication error handling present in all other new voice endpoints. When `requireAuthOrApiKeyWithOrg` throws errors like \"Invalid or expired API key\" or \"API key is inactive\", these endpoints return a generic 500 error (\"Failed to generate speech\" / \"Failed to transcribe audio\") instead of a proper 401 response. Developers using invalid API keys receive misleading server error messages instead of clear authentication failure responses.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_5b1022f8-fcbe-4015-862a-0fa6bde471d7 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/tts/route.ts#L200-L248\napp/api/v1/voice/stt/route.ts#L246-L307\nLOCATIONS END -->\n<details>\n<summary>Additional Locations (1)</summary>\n\n- [`app/api/v1/voice/stt/route.ts#L246-L307`](https://github.com/elizaOS/eliza-cloud-v2/blob/797743798b2713dc487f80b9e42f9620dcd11c48/app/api/v1/voice/stt/route.ts#L246-L307)\n\n</details>\n\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vjwXdyNXvL0H6y1BD9LkUZoG08DpfyWrqifh-0t2M5VljbLYRYb9uOYsinv0wxFL51bPStsKmk3gB4SqFTIVN_OQWtrCeARKObtamdPEpw-98WXdNgkRz3dBLPEzWg6lyF8vM9TBsr8JuDwVZf6YysA7Nq9AOT0t11Dvp6IQk38hp-0LVbhXCxj70AXzOd1eA2xJZSTmO4qOAtwzT9ZpaPaipQCwZ6tDW9Pdj-Rn3fIIiYopNlpU2yhK7f3f-Jp_RedBdx1TRnGMyesWRhCU0MBK4nkyZE1-kooG5t0_Hf3sHkJnHQTxamT_3QBwlZnvIpxkp87vBJFTy11aZ0Um1g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.hNavEgzdXRmBQ_VGqaNWC56t67TSNVeww4txR_t6JsdHG8gDfW3iV9bhm-qBz7PCYMeB3Omc682IZrLidnQWK73gPiYkkeNxu23nY4-zAx0_obd0G7Mx9GP6osNPREwO4_d2R8xbj3KZ-57ChUqYWz3DXehjKzFS0S3V4rICmoRts_4zcc28ixg2aG72I7DJwX5hnp_sQ9M2DMrqDrJ1hJm1fNlufYteq9BvTjflsHxdMCeIBaitHXSjfqfBXIdrcaaGtRX6NyuiDY67osRaKY9FJbsed0HsIFopa-E0XBqhEJPOXZX80FNQdHt0Sd6QK7ol81IgD6UJbzXUWs4Aug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vtE",
       "reason": "Lines 29-30 show a single module-level `uuidRegex` constant definition that is reused across handlers via the `isValidVoiceId()` helper function, eliminating the duplication described in the issue.",
       "dismissedAt": "2026-02-03T23:13:04.572Z",
@@ -564,16 +616,6 @@
       "filePath": "app/api/v1/voice/[id]/route.ts",
       "line": null,
       "commentBody": "### Duplicated UUID regex in same file\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `uuidRegex` constant is defined identically twice within the same file (lines 49-50 and 136-137). Extract this to a module-level constant, or use the existing `uuid` package's `validate` function which is already imported elsewhere in the codebase (`lib/services/crypto-payments.ts`).\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_33ac61fb-fa64-4a41-b42d-4f014e9b34c6 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/[id]/route.ts#L48-L50\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjhiNGE5YmRiLWE1M2YtNGQxMS1iODRiLWU0OWUwYzUyOWQ4NiIsImVuY3J5cHRpb25LZXkiOiJteVFOVjYwUVktcFJHRU84SXEzMXU0Y2xnOFFBcTYxVTZta29IWnBKVXE4IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.FZbYMrnk_BlBuXuCQCA9hRVuDfTfSDisknxkcyADY26lQu67Flzo1IwFTaMkw_Mk1udocBFulWrLByYhPIvmYoqr3dr7Kqr7S7hiVF_AoQBtG0zMi0l9VOODIhEIjTL3ty_wIRig08Dci42MtrN3r7NfEI57hlPUObobFOpV-71zUGhHCT7kZK3fVscNRUrw99OB6RlEhu5Ps_1v62PotZSvkxhpWj_0YPLsJAQ7SmodWnrINf1kwYMh86VHWnhtaZBs2FTsF4OTzWQNyM-oywuDQrdnzTT4xTLnvsr6Dh8fB-gpc-Q9vpCCDpV5jLQ2z4pD57BlTnvyzK0IqFAAzA\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjhiNGE5YmRiLWE1M2YtNGQxMS1iODRiLWU0OWUwYzUyOWQ4NiIsImVuY3J5cHRpb25LZXkiOiJteVFOVjYwUVktcFJHRU84SXEzMXU0Y2xnOFFBcTYxVTZta29IWnBKVXE4IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.PUZjSPS2lyrl8hwOyyeAtI752vQjB7iRyvumN_LuCgOdCeR1LnzwcEhATMRonxN_P60LTvIMJfI22xoVNcGcSlyYpOS7as8JeDoa3fz05QSYeOopV5_BepFg4U6F4hWV8VG_pogncqThg5U6vnmzQXfueN_HNOrm80pgkLPbJDuSWcNs8WAO_wd54bXVy_C2OBrjRuyKsAUhgAuNhiiwPVARh5mb76LtaPRyWbBAQFAloFcQGz7Q8yxmVvxb082pYgXOin0ISDeTmf8ckSNT0aiCFItJ3UUaICmPPhsteU7I78ec4foOAPUBxGWhigKinSSYAsU2RrGAYrCnyDJgLw\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtF",
-      "reason": "An `isAuthenticationError()` helper function should exist at module level in `app/api/v1/billing/settings/route.ts` that checks for auth-related error messages and is called from both `handleGET` and `handlePUT` handlers, eliminating the duplicated pattern.",
-      "dismissedAt": "2026-02-03T23:13:04.572Z",
-      "dismissedAtIteration": 0,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/billing/settings/route.ts",
-      "line": null,
-      "commentBody": "### Duplicated auth error checking pattern\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nThe `isAuthError` check logic is duplicated between `handleGET` (lines 95-98) and `handlePUT` (lines 179-182). Extract this pattern to a helper function like `isAuthenticationError(message: string): boolean` at the module level or in a shared utility.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_85ca14d9-4827-4f13-b2db-efd7724e6f73 -->\n\n<!-- LOCATIONS START\napp/api/v1/billing/settings/route.ts#L94-L98\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.bwoq1ttKaj5JDAjUAh7iu3s5_viA5jeM6mkgCeR2QngK09txKMdfBneuNX9DGCeQCI4oNqWwcvXT8rePKhQDCZzdecnd1QxIp5EJu9h_S8-87nfzrQTVCQE11CctMq4_W_yMzm8R1SIOoly7duPF6TkOlcSNa0uKCYdGLoh7uakHoQpl2THqCqDS1wer7y5YsqN3NOwxmg-FbYtrCnSzBYEnjAk8Lw2SWFqsOeZUqfOXKVDfF9AF3yniK37yMsdgmSWfOw2LaI3XOB1igOOvHfjrAW-rOjKnN1eqrOhqHaC3vuB90iGWG3mqgBCWZbPg8BJcXQ2tA_XfkKOLDsr_ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vsNWId87Yumn8m4xZwv8pr8JA70q8C1q2I90jVYblrpeXzewTWdQUxWOMNef43B05ZRQRxVuKQWgd1QexUPxiEAqWcpt9-T26RQMQ0UdpSoi0RUSTJHqfzHFnhJc7BDtYr17VadzmdsiVXlIKhFEnSWo4naup-qaddOVD8XgZzUOxJRHhP7lL7oMQvQo_O-tM8J-7bjGxk5Z_ff--ZMNOLEJnjPdYuD6towVKrsKl2CvNZOSwFlFpqvCAkn94EWE2L3IY6mVd5UyZsTdMSCuxZX2CHqQlZtO3af9O_jXkiI8FzlngmXowSMGOPPbD5fBXrTP_edKiggAgHdWlDduBQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
       "commentId": "PRRC_kwDOP6BTDM6kTR0n",
@@ -586,16 +628,6 @@
       "commentBody": "### Internal PR resolver state file accidentally committed\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nThe `.pr-resolver-state.json` file contains internal tooling state including PR iteration tracking, comment IDs, model performance metrics, token usage statistics, and timestamps. This appears to be state from an automated PR resolution tool and shouldn't be committed to the repository.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: 0c721935-415a-4bef-9567-a3a2d5d2dd65 -->\n\n<!-- LOCATIONS START\n.pr-resolver-state.json#L1-L491\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90Ojk0NDU5ODk4LTBiMzUtNGIyYS05MmY3LWYxMTI3NTEzOGJjMiIsImVuY3J5cHRpb25LZXkiOiIyM0tuejdQejZOQS1tdUpLWlVjTjhwMGdrNm8xekg5VnJ2Vk10dm5YSG9ZIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.oNSsY7zhmCYotTVDlZOCAhZjwrSPZe4LjzCfxABlIdBbJkFBwqQIL3fNfpDJJiT6pgnM6pO7FPNhVJDwgi6QCDYtim25wfAEDpkToS59S-JzLDb6c47YuUXhllzAecx5c4w-Mp-4LfoKn2PyEZM8kXHOgBB1FV-cfemdjttDS0y2TNIeffox4HXUzNo-srJR1tCEpFFjW82JRXpDRLidw-IOL6vO3sQx67dLR5U5vpHvm35WDzf4G31CxM1xSXmej_SlXQpJ--apVnRiviXvJWJ9lwJqQKBgHLC35Qh3GwBwwBz8r-Q_UM4Ystdt-X_BJvUfTln5uK1JoIRlWa3blg\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90Ojk0NDU5ODk4LTBiMzUtNGIyYS05MmY3LWYxMTI3NTEzOGJjMiIsImVuY3J5cHRpb25LZXkiOiIyM0tuejdQejZOQS1tdUpLWlVjTjhwMGdrNm8xekg5VnJ2Vk10dm5YSG9ZIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.cBtLAiSu3GK2uemAP6k9Is9yxgr4gDlvVs2QV_CX4SQq5-tsQ2TkPZapjoLFNQylc5EgchbY4VGq9Di8qRXLG76Nzhv9tVUHOQkLLa6KLjIZmF35LMko_TKWklfzT2vSGBjLKzihS966q8khfWknuXZ_KPfi-YF269SjqiWRGcUx9uU8DBNgCEkXpRY1z9mctE9h2jSMPnpisvzfJF-Hfpojwz-wbYB_uHt0gPEbuadCWf4Uk-DWH5T_R3snAXLxacu4M7yuJjpXaayIh1Z7roD4V6HGFnxqA2o921ww58-9RlzPCJy_leyj6l_bxe17wHNhRiRLctjO9M3y-V45ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
-      "reason": "Lines 198-226 show the corrected pattern where `await reservation.reconcile(cost)` is called first, then usage tracking is wrapped in an async IIFE with try-catch (lines 200-226) that prevents failures from affecting the voice creation success response, matching the pattern used in TTS/STT endpoints.",
-      "dismissedAt": "2026-02-03T23:13:04.572Z",
-      "dismissedAtIteration": 0,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/clone/route.ts",
-      "line": null,
-      "commentBody": "### Voice clone returns error after successful creation\n\n**High Severity**\n\n<!-- DESCRIPTION START -->\nIn the voice clone endpoint, `usageService.create()` is awaited inside the try block after `reservation.reconcile(cost)` succeeds. If usage tracking fails, the catch block runs `reservation.reconcile(0)` attempting to refund already-committed credits, and returns an error to the user even though the voice was successfully created. The TTS and STT endpoints correctly use an async IIFE pattern for usage tracking to prevent this. Users may be incorrectly charged or refunded, and receive errors for operations that actually succeeded.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref2_84b0e84f-27b7-470e-b7b3-ee317f00366f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L197-L218\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.mzuasHoMEPZOITp8LwetXcXQQYQLWEcn_feb_Kzql_2f8Y5SXe82chILQ3AnPLzHFkmdSZJZtgbLt1Pyq0NtWsT_DrlvD5igOVQ_e1VDkwdXfAXBMDoiEEeA5TP60aEMZf2DAjTBwlLLutydkF6plj5lXg53qo4uzLhEVbVv2vU5p7IDmtFmE_MlDC-WgV8LA6IJL6MOtr1B5vPJRMF0HEFAn9AXVdJaRfeI7f-UG_sR_CQUK-nPSHNhWd2ZulKok7YFcnu1HkflUnw2mDlsaCTUYFaeqCv2vwtq0MOmgjXcut9PJ_l9eSBqJABG2_Gcvlz8rxbtgiaCJdOVfeZ5lg\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.W1U0ehZ5Vbw8KPMdN32-Mia1mei-Li_XncBpa1UfVTcL-QaU_NygYYvkHEqhBP7KJd5eRxMwc97_0mm4IytORpWG2Kc9nFIk8zBY-LafnM8xpUOFQr1G5CKdYvqFFe9MpXJLo-sXNOMa0kqX0tf1KQlWAQkfrTit0ARMsnwZSBL7SxLa9liVtzf5_Fg2UJszN4ejyScUulWBw00W53sZgl9KKJgJpkujgwbxhQ_RHOWqxvkqsDZ4eJ6s-EXfpU-d0bLUOoHoKY8j2rT1oghuvvfhS_-Hnb_QBt-9PJ9zW0jIAXx7t0gwFaHZDFd7aJw9swrXNeDtNaHu93L2-qP40Q\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6kTR0s",
       "reason": "Lines 32-34 and 36-45 show helper functions `isValidVoiceId()` and `createInvalidVoiceIdResponse()` that are reused across GET/DELETE/PATCH handlers (as confirmed at line 228 stating \"UUID validation and error responses were extracted into three helper functions... and reused across GET/DELETE/PATCH handlers, eliminating six instances of duplication\").",
       "dismissedAt": "2026-02-03T23:13:04.572Z",
@@ -604,16 +636,6 @@
       "filePath": "app/api/v1/voice/[id]/route.ts",
       "line": 73,
       "commentBody": "### UUID validation and error response duplicated six times\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe UUID validation check (`uuidRegex.test`) and its error response are copy-pasted in GET, DELETE, and PATCH handlers (3x). Additionally, identical database UUID error handling appears in all three catch blocks (3x more). Extract these into helper functions like `createInvalidUuidResponse()` to reduce maintenance burden.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_b1d57842-4974-4528-872b-97528832ea89 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/[id]/route.ts#L51-L65\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90Ojk0NGNlZTc2LWIxMGYtNGRlOC04YTZiLWJlMDZiNzM0MmRhMSIsImVuY3J5cHRpb25LZXkiOiJBRDlDYzB1VDlMWEwwV0hXc0JCdERZaXZfUV9nYUs5MHBkTmdmYzR6ejNNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.idnm_Ei1BlGyNAN3Q6kjl5VoSwtPrrxnDOVc5VqM8LadSpEUM4jxBdt0s2lUy99THq66EZQQuoSA7G4Cg_BglkFvGUb8n6s6J0NKELf8tCFrpZk42AmlIBQHPWogj6PdXF3Eu9_E6yV5OdFhsNb0Y5mEdKgvDPvkvz8VMZP8G4xe4T3N6N10yt-TFV2DQ9poYcCxyHRQy0otuOLGEsknz8CjEYs9vVP0tw9fot5fQxYslXFtwsZZubabdJzGFuK_JYBu6OvEqwlVTscRXguGwYW78nubUASeBnrKxzsWuywpW09H-KoGlz37X9uXFYw0-gRWhGi3S12GfRJ0j2Zkbw\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90Ojk0NGNlZTc2LWIxMGYtNGRlOC04YTZiLWJlMDZiNzM0MmRhMSIsImVuY3J5cHRpb25LZXkiOiJBRDlDYzB1VDlMWEwwV0hXc0JCdERZaXZfUV9nYUs5MHBkTmdmYzR6ejNNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.jeNkSYjIg5yoCxmssfSW41_Idz5lDlHXuhMTzD20Z9o2KCF0RGOJy9AWLfOBw7yyHokvAYD1a-yA2uy7k3vUHTxQrjxcoyML_n99CUeeHF67QpByTvCIPss34m9k_iRhdXjqVWWDg10H8yGaGHD_bp3rPOy16hiHeRYXtzf9RJGSgR6Ce27uv-iLFWgXD4VxTgSPv_h7561nKxpTX4qNyzOj5TKGlSVQ46L5xrhM1vojzvy8IatfWYWFFZGl11HpII1r9RxIOBwncgCfgJyLydlc9hS6D-8u6vzrpVHR1a7ca2Gmh_Hw7mwWJSmsz3-dwVG1xtMuBExN06Z-ceGHyQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
-      "reason": "Lines 264-283 show that the failed usage tracking call is wrapped in a try-catch block that catches and logs errors without propagating them, allowing the original voice clone error to be returned at lines 285-321 without masking.",
-      "dismissedAt": "2026-02-03T23:13:04.572Z",
-      "dismissedAtIteration": 0,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/clone/route.ts",
-      "line": null,
-      "commentBody": "### Failed usage tracking masks original voice clone error\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nIn the error handling path for voice cloning failures, `usageService.create` at lines 264-277 is awaited without a try-catch wrapper. If this call fails after a voice clone error, the exception propagates to the outer catch block which returns a generic \"An unexpected error occurred\" message. This masks the original, more specific error (like \"rate limit exceeded\" or \"professional_voice_limit_reached\") that would have been returned at lines 279-321. The success path uses a fire-and-forget pattern with error handling (lines 200-226), but the failure path does not.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_d536dd38-a425-440d-8af1-00027cc3189f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L263-L277\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.bCfEmjBIhcAR1CwA3DCEqMWJBRFlW3nSo0fP1r3iNy5f7q0E6K4QyuVVuqA6wVM2BWzb1sWnQ9nXt7qLH-2YyAOY3ZJ9lONe3puaX2xV91xGlLSZ35CM31voxU-EUMk5I6M4U1gEhiY8mdAnmFHijDJ6AxxEFfnXqfycB9CyfocCpiqoWSEFZAl_2Fa6fxrNkaDauEJlCUSV_1ab0kYAyghPkSdvBrAa-x4Mt_JX3LoaBSFM_v80Z4icSFmyH1jY8FOaKWS4MMx7dXXTSMomSx4wp4a7thej7ocfmBvPl_AnvtufIANOOlCo-EkZ7ixUsAcRERn3wi4XM1k6J7O3ug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiIyMzE4Y2Y2ZGI0YWMwZmIxNWM4ZmEwYzU0ZDVjOTFiNTMwMjJhMTk3IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.X6FY5rdxBHdq0FymV1vklg_R9pL9QUELWo687KS1CUfNJULhZ5oyes7MF0ean2G4hwy51EWU1tyKDDjBDoA4D05keveddK51YAkh6VgS-dKEBFOrgzhDBb1kOajwldJuXQeGm8C1lEl6fSLmqLI-9rwKiWUEarVyFZRPsFpJ28KYNGDIxjUZOF1JZ_C7L_WTH7hiNp-YnOddnIGQxvPVzXzX2hzWYfgGFEUOWzZRiR0xPJVoClRpklb7zJH3wwreCF_T4KacsDtwmX7mddSZHxgvdmPcoBYBOKG3kjzhhbv9SC7bDrxcL5scDfqlHeDYk9R5LcRMy1Kse_CZMy0i9A\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
       "commentId": "PRRC_kwDOP6BTDM6kTcGp",
@@ -626,36 +648,6 @@
       "commentBody": "### Duplicate helper functions with identical purpose\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\n`createInvalidVoiceIdResponse()` and `createInvalidVoiceIdErrorResponse()` are nearly identical functions returning the same error, hint, and status code (400). The only difference is a slightly reworded `message` field conveying the same information. These should be consolidated into a single function.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_0d878274-a982-4e20-83b4-223c7db5c590 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/[id]/route.ts#L35-L58\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjJkZDQ2ZDgxLTljNGItNGFiNi05MmVmLTg0MjA1MjdmOGVjNyIsImVuY3J5cHRpb25LZXkiOiJwVlhLM1BMX3hJenZEMk85Ump0TFZVXzZsMFlEak9DZDhkdGkxbE9LaXdNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.PAQbTJCLPAI3h5xmYS08qSqxOPw_9gYoUaKEyNfbDK3Iq1azBqcSFujV4aNS0pBhP5aFa-L9oy2XqSOOHGIycPBqgtzwcpMoXgq4hZWWY9HamJGbofAlVJgoiEyNeIe2JxuUyDZlVtrmQJ1-4V9ahjT0e4oFNeF1_OxEvii6GnEycg3RdfiFeyMmjz1Z7-aKW5BRguZagD0QQB5q5iz8cJsqUva6zAjILNkIEDaAXWjwCEwFNYNh8HzLCV0NEuCC-hNA1LXLKwtn5DmHT21IZuwdFinC_J6Wp0dVNamN5ClaXfAEw9Q4m11Wma_DkA5KZrZYfepK6V5r4IyblwwZ9g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjJkZDQ2ZDgxLTljNGItNGFiNi05MmVmLTg0MjA1MjdmOGVjNyIsImVuY3J5cHRpb25LZXkiOiJwVlhLM1BMX3hJenZEMk85Ump0TFZVXzZsMFlEak9DZDhkdGkxbE9LaXdNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiIyMzE4Y2Y2ZGI0YWMwZmIxNWM4ZmEwYzU0ZDVjOTFiNTMwMjJhMTk3IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.v6sgm44Lgg4nq_9osbtBe49H0paH-VIUD0hr4iPJZ9PiqVbfLeI_bxJJCBJtAoxPdYqeJjeiAZ5BW4cdE8qaIFAls416jRAHsc2zdWKKi-Gt9FAIOVQFqGyKxOT7OyoAXB_0MterV4fYhJ0YzcrM60N6zwWRlNigwSdJA-9BCF5mAuJaF1DodMis-80DFV6Sxh3EMI-wmAf3gVjesPFxwlTiPX9L90j2xDhSEYYYDeydooltw4whPDEt9xLGW9ZwvUWMvx9blaTO9uc4VEAG7BPAcWY75zvy_h8sRuoD_Vu_YBeZOyUCDCaVZlx2uOB9j3bcf-j5ghmlhEb1Ujl91g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwF",
-      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:13:38.336Z",
-      "dismissedAtIteration": 1,
-      "category": "file-unchanged",
-      "filePath": "README.md",
-      "line": null,
-      "commentBody": "This section states that \"All `/api/v1/` and `/api/my-agents/` endpoints\" provide API key authentication, but several routes still rely on `requireAuthWithOrg` and do not accept API keys (for example: `app/api/v1/api-keys/route.ts`, `app/api/v1/apps/[id]/deploy/route.ts`, `app/api/v1/dashboard/route.ts`, and `app/api/my-agents/characters/[id]/track-interaction/route.ts`). To avoid over-promising to integrators, consider softening or scoping this claim (e.g., \"all documented management endpoints\" or enumerating which `/api/v1` and `/api/my-agents` routes support API keys today).\n```suggestion\n**Location**: Documented `/api/v1/` and `/api/my-agents/` management endpoints\n\nThe platform provides comprehensive API key authentication across these documented endpoints, enabling:\n\n- **Programmatic Agent Management**: Create, update, delete, and clone agents via API\n- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications\n- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically\n- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets\n\n**Why Broad API Key Support?**\n\nTraditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:\n```"
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwM",
-      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:13:38.336Z",
-      "dismissedAtIteration": 1,
-      "category": "file-unchanged",
-      "filePath": "content/api/voice.mdx",
-      "line": null,
-      "commentBody": "The table here says both `/api/v1/voice/*` and `/api/elevenlabs/*` patterns \"support API key authentication\" and offer \"identical functionality\", but the legacy ElevenLabs routes still use `requireAuthWithOrg` and do not accept API keys (e.g., app/api/elevenlabs/tts/route.ts, app/api/elevenlabs/stt/route.ts). To avoid misleading users, consider clarifying that API key support is currently only available on the `/api/v1/voice/*` endpoints and that `/api/elevenlabs/*` remain session-based legacy routes."
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwU",
-      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:13:38.336Z",
-      "dismissedAtIteration": 1,
-      "category": "file-unchanged",
-      "filePath": "content/api/voice.mdx",
-      "line": null,
-      "commentBody": "This example for `GET /api/v1/voice/{id}` shows an ID like `voice_xyz789`, but the backend explicitly validates IDs against a strict UUID regex and returns a 400 \"Invalid voice ID format\" for non‑UUIDs (see app/api/v1/voice/[id]/route.ts). To avoid 400s for users following the docs, update the examples (here and in the list/clone sections) to use a UUID-shaped `id` value that matches what the API actually accepts.\n```suggestion\ncurl \"https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000\" \\\n```"
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwG",
       "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
       "dismissedAt": "2026-02-03T23:16:08.209Z",
@@ -666,43 +658,113 @@
       "commentBody": "The PATCH handler advertises \"Validates UUID format and verifies ownership\" in the JSDoc, but unlike the GET and DELETE handlers above, it does not validate `voiceId` against the UUID regex or map database UUID syntax errors to a 400 response. For consistent behavior and clearer errors, consider adding the same UUID-format check (and corresponding 400 \"Invalid voice ID format\" response) used in GET/DELETE before calling `voiceCloningService.updateVoice`."
     },
     {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+      "reason": "Lines 209-220 in the TTS endpoint now include authentication error handling that checks for \"invalid or expired api key\", \"api key is inactive\", \"unauthorized\", \"authentication required\", and \"forbidden\" messages, returning a 401 response. This matches the pattern requested in the comment for proper authentication error responses.",
+      "dismissedAt": "2026-02-03T23:36:24.363Z",
+      "dismissedAtIteration": 32,
+      "category": "already-fixed",
+      "filePath": "app/api/v1/voice/tts/route.ts",
+      "line": 260,
+      "commentBody": "### TTS and STT endpoints missing authentication error handling\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `/api/v1/voice/tts` and `/api/v1/voice/stt` endpoints are missing authentication error handling present in all other new voice endpoints. When `requireAuthOrApiKeyWithOrg` throws errors like \"Invalid or expired API key\" or \"API key is inactive\", these endpoints return a generic 500 error (\"Failed to generate speech\" / \"Failed to transcribe audio\") instead of a proper 401 response. Developers using invalid API keys receive misleading server error messages instead of clear authentication failure responses.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_5b1022f8-fcbe-4015-862a-0fa6bde471d7 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/tts/route.ts#L200-L248\napp/api/v1/voice/stt/route.ts#L246-L307\nLOCATIONS END -->\n<details>\n<summary>Additional Locations (1)</summary>\n\n- [`app/api/v1/voice/stt/route.ts#L246-L307`](https://github.com/elizaOS/eliza-cloud-v2/blob/797743798b2713dc487f80b9e42f9620dcd11c48/app/api/v1/voice/stt/route.ts#L246-L307)\n\n</details>\n\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vjwXdyNXvL0H6y1BD9LkUZoG08DpfyWrqifh-0t2M5VljbLYRYb9uOYsinv0wxFL51bPStsKmk3gB4SqFTIVN_OQWtrCeARKObtamdPEpw-98WXdNgkRz3dBLPEzWg6lyF8vM9TBsr8JuDwVZf6YysA7Nq9AOT0t11Dvp6IQk38hp-0LVbhXCxj70AXzOd1eA2xJZSTmO4qOAtwzT9ZpaPaipQCwZ6tDW9Pdj-Rn3fIIiYopNlpU2yhK7f3f-Jp_RedBdx1TRnGMyesWRhCU0MBK4nkyZE1-kooG5t0_Hf3sHkJnHQTxamT_3QBwlZnvIpxkp87vBJFTy11aZ0Um1g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.hNavEgzdXRmBQ_VGqaNWC56t67TSNVeww4txR_t6JsdHG8gDfW3iV9bhm-qBz7PCYMeB3Omc682IZrLidnQWK73gPiYkkeNxu23nY4-zAx0_obd0G7Mx9GP6osNPREwO4_d2R8xbj3KZ-57ChUqYWz3DXehjKzFS0S3V4rICmoRts_4zcc28ixg2aG72I7DJwX5hnp_sQ9M2DMrqDrJ1hJm1fNlufYteq9BvTjflsHxdMCeIBaitHXSjfqfBXIdrcaaGtRX6NyuiDY67osRaKY9FJbsed0HsIFopa-E0XBqhEJPOXZX80FNQdHt0Sd6QK7ol81IgD6UJbzXUWs4Aug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+      "reason": "Content/api/credits.mdx has been updated. The Query Parameters table now documents `limit` and `hours` (not `offset`), and the response example shows `{ transactions, total, period }` without a `success` flag, matching the actual implementation in app/api/credits/transactions/route.ts.",
+      "dismissedAt": "2026-02-03T23:36:24.363Z",
+      "dismissedAtIteration": 32,
+      "category": "already-fixed",
+      "filePath": "content/api/credits.mdx",
+      "line": 314,
+      "commentBody": "The Transaction History documentation describes `limit` and `offset` query parameters and a `{ success, transactions, total }` response, but the `/api/credits/transactions` implementation currently accepts `limit` and `hours` (no `offset`) and returns `{ transactions, total, period }` without a `success` flag (see app/api/credits/transactions/route.ts). To prevent client breakage, please align this section with the actual API (document `hours`, remove or clarify `offset`, and adjust the example response structure and field names)."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+      "reason": "Lines 198-226 show the voice clone endpoint now correctly handles usage tracking. Line 198 calls `await reservation.reconcile(cost)` before the fire-and-forget async IIFE at lines 200-226. If `usageService.create()` fails inside the IIFE, it's caught at lines 221-225 and logged without affecting the main response returned at lines 228+. The voice is successfully created and returned before usage tracking is attempted.",
+      "dismissedAt": "2026-02-03T23:36:24.363Z",
+      "dismissedAtIteration": 32,
+      "category": "already-fixed",
+      "filePath": "app/api/v1/voice/clone/route.ts",
+      "line": null,
+      "commentBody": "### Voice clone returns error after successful creation\n\n**High Severity**\n\n<!-- DESCRIPTION START -->\nIn the voice clone endpoint, `usageService.create()` is awaited inside the try block after `reservation.reconcile(cost)` succeeds. If usage tracking fails, the catch block runs `reservation.reconcile(0)` attempting to refund already-committed credits, and returns an error to the user even though the voice was successfully created. The TTS and STT endpoints correctly use an async IIFE pattern for usage tracking to prevent this. Users may be incorrectly charged or refunded, and receive errors for operations that actually succeeded.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref2_84b0e84f-27b7-470e-b7b3-ee317f00366f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L197-L218\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.mzuasHoMEPZOITp8LwetXcXQQYQLWEcn_feb_Kzql_2f8Y5SXe82chILQ3AnPLzHFkmdSZJZtgbLt1Pyq0NtWsT_DrlvD5igOVQ_e1VDkwdXfAXBMDoiEEeA5TP60aEMZf2DAjTBwlLLutydkF6plj5lXg53qo4uzLhEVbVv2vU5p7IDmtFmE_MlDC-WgV8LA6IJL6MOtr1B5vPJRMF0HEFAn9AXVdJaRfeI7f-UG_sR_CQUK-nPSHNhWd2ZulKok7YFcnu1HkflUnw2mDlsaCTUYFaeqCv2vwtq0MOmgjXcut9PJ_l9eSBqJABG2_Gcvlz8rxbtgiaCJdOVfeZ5lg\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.W1U0ehZ5Vbw8KPMdN32-Mia1mei-Li_XncBpa1UfVTcL-QaU_NygYYvkHEqhBP7KJd5eRxMwc97_0mm4IytORpWG2Kc9nFIk8zBY-LafnM8xpUOFQr1G5CKdYvqFFe9MpXJLo-sXNOMa0kqX0tf1KQlWAQkfrTit0ARMsnwZSBL7SxLa9liVtzf5_Fg2UJszN4ejyScUulWBw00W53sZgl9KKJgJpkujgwbxhQ_RHOWqxvkqsDZ4eJ6s-EXfpU-d0bLUOoHoKY8j2rT1oghuvvfhS_-Hnb_QBt-9PJ9zW0jIAXx7t0gwFaHZDFd7aJw9swrXNeDtNaHu93L2-qP40Q\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
+      "reason": "Lines 264-283 now wrap the failure-path `usageService.create()` call in its own try-catch block. The catch at lines 279-283 logs the error without re-throwing, preventing masking of the original voice clone error that gets handled and returned at lines 285-321. The pattern matches the fire-and-forget approach used in the success path.",
+      "dismissedAt": "2026-02-03T23:36:24.363Z",
+      "dismissedAtIteration": 32,
+      "category": "already-fixed",
+      "filePath": "app/api/v1/voice/clone/route.ts",
+      "line": null,
+      "commentBody": "### Failed usage tracking masks original voice clone error\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nIn the error handling path for voice cloning failures, `usageService.create` at lines 264-277 is awaited without a try-catch wrapper. If this call fails after a voice clone error, the exception propagates to the outer catch block which returns a generic \"An unexpected error occurred\" message. This masks the original, more specific error (like \"rate limit exceeded\" or \"professional_voice_limit_reached\") that would have been returned at lines 279-321. The success path uses a fire-and-forget pattern with error handling (lines 200-226), but the failure path does not.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_d536dd38-a425-440d-8af1-00027cc3189f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L263-L277\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.bCfEmjBIhcAR1CwA3DCEqMWJBRFlW3nSo0fP1r3iNy5f7q0E6K4QyuVVuqA6wVM2BWzb1sWnQ9nXt7qLH-2YyAOY3ZJ9lONe3puaX2xV91xGlLSZ35CM31voxU-EUMk5I6M4U1gEhiY8mdAnmFHijDJ6AxxEFfnXqfycB9CyfocCpiqoWSEFZAl_2Fa6fxrNkaDauEJlCUSV_1ab0kYAyghPkSdvBrAa-x4Mt_JX3LoaBSFM_v80Z4icSFmyH1jY8FOaKWS4MMx7dXXTSMomSx4wp4a7thej7ocfmBvPl_AnvtufIANOOlCo-EkZ7ixUsAcRERn3wi4XM1k6J7O3ug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiIyMzE4Y2Y2ZGI0YWMwZmIxNWM4ZmEwYzU0ZDVjOTFiNTMwMjJhMTk3IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.X6FY5rdxBHdq0FymV1vklg_R9pL9QUELWo687KS1CUfNJULhZ5oyes7MF0ean2G4hwy51EWU1tyKDDjBDoA4D05keveddK51YAkh6VgS-dKEBFOrgzhDBb1kOajwldJuXQeGm8C1lEl6fSLmqLI-9rwKiWUEarVyFZRPsFpJ28KYNGDIxjUZOF1JZ_C7L_WTH7hiNp-YnOddnIGQxvPVzXzX2hzWYfgGFEUOWzZRiR0xPJVoClRpklb7zJH3wwreCF_T4KacsDtwmX7mddSZHxgvdmPcoBYBOKG3kjzhhbv9SC7bDrxcL5scDfqlHeDYk9R5LcRMy1Kse_CZMy0i9A\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtF",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/billing/settings/route.ts",
+      "line": null,
+      "commentBody": "### Duplicated auth error checking pattern\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nThe `isAuthError` check logic is duplicated between `handleGET` (lines 95-98) and `handlePUT` (lines 179-182). Extract this pattern to a helper function like `isAuthenticationError(message: string): boolean` at the module level or in a shared utility.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_85ca14d9-4827-4f13-b2db-efd7724e6f73 -->\n\n<!-- LOCATIONS START\napp/api/v1/billing/settings/route.ts#L94-L98\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.bwoq1ttKaj5JDAjUAh7iu3s5_viA5jeM6mkgCeR2QngK09txKMdfBneuNX9DGCeQCI4oNqWwcvXT8rePKhQDCZzdecnd1QxIp5EJu9h_S8-87nfzrQTVCQE11CctMq4_W_yMzm8R1SIOoly7duPF6TkOlcSNa0uKCYdGLoh7uakHoQpl2THqCqDS1wer7y5YsqN3NOwxmg-FbYtrCnSzBYEnjAk8Lw2SWFqsOeZUqfOXKVDfF9AF3yniK37yMsdgmSWfOw2LaI3XOB1igOOvHfjrAW-rOjKnN1eqrOhqHaC3vuB90iGWG3mqgBCWZbPg8BJcXQ2tA_XfkKOLDsr_ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vsNWId87Yumn8m4xZwv8pr8JA70q8C1q2I90jVYblrpeXzewTWdQUxWOMNef43B05ZRQRxVuKQWgd1QexUPxiEAqWcpt9-T26RQMQ0UdpSoi0RUSTJHqfzHFnhJc7BDtYr17VadzmdsiVXlIKhFEnSWo4naup-qaddOVD8XgZzUOxJRHhP7lL7oMQvQo_O-tM8J-7bjGxk5Z_ff--ZMNOLEJnjPdYuD6towVKrsKl2CvNZOSwFlFpqvCAkn94EWE2L3IY6mVd5UyZsTdMSCuxZX2CHqQlZtO3af9O_jXkiI8FzlngmXowSMGOPPbD5fBXrTP_edKiggAgHdWlDduBQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwF",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
+      "category": "file-unchanged",
+      "filePath": "README.md",
+      "line": null,
+      "commentBody": "This section states that \"All `/api/v1/` and `/api/my-agents/` endpoints\" provide API key authentication, but several routes still rely on `requireAuthWithOrg` and do not accept API keys (for example: `app/api/v1/api-keys/route.ts`, `app/api/v1/apps/[id]/deploy/route.ts`, `app/api/v1/dashboard/route.ts`, and `app/api/my-agents/characters/[id]/track-interaction/route.ts`). To avoid over-promising to integrators, consider softening or scoping this claim (e.g., \"all documented management endpoints\" or enumerating which `/api/v1` and `/api/my-agents` routes support API keys today).\n```suggestion\n**Location**: Documented `/api/v1/` and `/api/my-agents/` management endpoints\n\nThe platform provides comprehensive API key authentication across these documented endpoints, enabling:\n\n- **Programmatic Agent Management**: Create, update, delete, and clone agents via API\n- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications\n- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically\n- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets\n\n**Why Broad API Key Support?**\n\nTraditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:\n```"
+    },
+    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwK",
       "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:16:08.209Z",
-      "dismissedAtIteration": 2,
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
       "category": "file-unchanged",
       "filePath": "app/api/my-agents/characters/[id]/stats/route.ts",
       "line": 15,
       "commentBody": "The stats endpoint currently returns a stubbed payload with `data.stats.viewCount`, `interactionCount`, and `cloneCount` all hard-coded to 0, while the public docs (content/api/agents.mdx) describe a response with `views`, `interactions`, and `messageCount`. To avoid confusing API consumers, either implement real stats that match the documented shape or update the documentation to clearly mark this as a placeholder with the actual field names used here."
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+      "commentId": "PRRC_kwDOP6BTDM6j7vwM",
       "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:26:52.582Z",
-      "dismissedAtIteration": 11,
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
       "category": "file-unchanged",
-      "filePath": "content/api/credits.mdx",
-      "line": 314,
-      "commentBody": "The Transaction History documentation describes `limit` and `offset` query parameters and a `{ success, transactions, total }` response, but the `/api/credits/transactions` implementation currently accepts `limit` and `hours` (no `offset`) and returns `{ transactions, total, period }` without a `success` flag (see app/api/credits/transactions/route.ts). To prevent client breakage, please align this section with the actual API (document `hours`, remove or clarify `offset`, and adjust the example response structure and field names)."
+      "filePath": "content/api/voice.mdx",
+      "line": null,
+      "commentBody": "The table here says both `/api/v1/voice/*` and `/api/elevenlabs/*` patterns \"support API key authentication\" and offer \"identical functionality\", but the legacy ElevenLabs routes still use `requireAuthWithOrg` and do not accept API keys (e.g., app/api/elevenlabs/tts/route.ts, app/api/elevenlabs/stt/route.ts). To avoid misleading users, consider clarifying that API key support is currently only available on the `/api/v1/voice/*` endpoints and that `/api/elevenlabs/*` remain session-based legacy routes."
     },
     {
       "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
       "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
-      "dismissedAt": "2026-02-03T23:29:47.416Z",
-      "dismissedAtIteration": 30,
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
       "category": "file-unchanged",
       "filePath": "content/api/voice.mdx",
       "line": 131,
       "commentBody": "The \"Speech to Text\" docs describe the response as `{ \"text\", \"language\", \"confidence\" }`, but the new `/api/v1/voice/stt` implementation returns `{ transcript, duration_ms }` (see app/api/v1/voice/stt/route.ts). This will confuse integrators using the v1 endpoint; consider updating the example response and field names here to match the actual JSON shape (including `transcript` and `duration_ms`)."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T23:37:35.965Z",
+      "dismissedAtIteration": 33,
+      "category": "file-unchanged",
+      "filePath": "content/api/voice.mdx",
+      "line": null,
+      "commentBody": "This example for `GET /api/v1/voice/{id}` shows an ID like `voice_xyz789`, but the backend explicitly validates IDs against a strict UUID regex and returns a 400 \"Invalid voice ID format\" for non‑UUIDs (see app/api/v1/voice/[id]/route.ts). To avoid 400s for users following the docs, update the examples (here and in the list/clone sections) to use a UUID-shaped `id` value that matches what the API actually accepts.\n```suggestion\ncurl \"https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000\" \\\n```"
     }
   ],
   "modelPerformance": {
     "codex/gpt-5.2-codex": {
-      "fixes": 0,
-      "failures": 21,
+      "fixes": 6,
+      "failures": 27,
       "noChanges": 0,
       "errors": 0,
-      "lastUsed": "2026-02-03T23:27:51.443Z"
+      "lastUsed": "2026-02-03T23:37:41.462Z"
     },
     "codex/gpt-5.2": {
       "fixes": 0,
@@ -834,6 +896,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-03T23:13:38.336Z",
         "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwG": [
@@ -850,6 +919,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-03T23:16:10.353Z",
         "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwK": [
@@ -866,6 +942,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-03T23:16:10.353Z",
         "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwK",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwM": [
@@ -874,6 +957,13 @@
         "tool": "codex",
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-03T23:13:38.336Z",
+        "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwM",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
         "result": "no-changes"
       }
     ],
@@ -1094,6 +1184,13 @@
         "model": "claude-haiku-4-5-20251001",
         "timestamp": "2026-02-03T23:30:01.889Z",
         "result": "failed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwU": [
@@ -1117,6 +1214,67 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-03T23:18:01.504Z",
         "result": "failed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "no-changes"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtC": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtE": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0n": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0n",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0s": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0s",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTcGp": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTcGp",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtF": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T23:37:41.462Z",
+        "result": "no-changes"
       }
     ]
   },
@@ -1124,24 +1282,24 @@
   "totalTimings": {
     "Fetch PR info": 1020,
     "Merge base branch": 2033,
-    "Fetch comments": 659,
-    "Analyze issues": 18161,
-    "Run fixer": 523761,
-    "Verify fixes": 13577,
+    "Fetch comments": 1633,
+    "Analyze issues": 43468,
+    "Run fixer": 594537,
+    "Verify fixes": 19083,
     "Push iteration fixes": 846
   },
   "totalTokenUsage": [
     {
       "phase": "Analyze issues",
-      "inputTokens": 37784,
-      "outputTokens": 1422,
-      "calls": 1
+      "inputTokens": 70485,
+      "outputTokens": 3574,
+      "calls": 2
     },
     {
       "phase": "Verify single fix",
-      "inputTokens": 12355,
-      "outputTokens": 1696,
-      "calls": 16
+      "inputTokens": 21429,
+      "outputTokens": 1872,
+      "calls": 17
     },
     {
       "phase": "Analyze failure",
@@ -1151,9 +1309,9 @@
     },
     {
       "phase": "Verify fixes",
-      "inputTokens": 6318,
-      "outputTokens": 656,
-      "calls": 6
+      "inputTokens": 57894,
+      "outputTokens": 1044,
+      "calls": 7
     },
     {
       "phase": "Direct LLM fix",

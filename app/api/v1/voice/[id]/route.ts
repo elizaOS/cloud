@@ -45,6 +45,26 @@ function createInvalidVoiceIdResponse() {
   );
 }
 
+function getInvalidVoiceIdResponseIfNeeded(
+  voiceId: string,
+  logMessage: string,
+) {
+  if (isValidVoiceId(voiceId)) {
+    return null;
+  }
+
+  logger.warn(logMessage);
+  return createInvalidVoiceIdResponse();
+}
+
+function isInvalidVoiceIdError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message.includes("invalid input syntax for type uuid") ||
+      error.message.includes("uuid"))
+  );
+}
+
 /**
  * GET /api/v1/voice/[id]
  * Gets details for a specific voice by its internal UUID.
@@ -65,11 +85,12 @@ export async function GET(
 
     logger.info(`[Voice API] Getting voice ${voiceId} for user ${user.id}`);
 
-    if (!isValidVoiceId(voiceId)) {
-      logger.warn(
-        `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
-      );
-      return createInvalidVoiceIdResponse();
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
     }
 
     const voice = await voiceCloningService.getVoiceById(
@@ -99,11 +120,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (
-      error instanceof Error &&
-      (error.message.includes("invalid input syntax for type uuid") ||
-        error.message.includes("uuid"))
-    ) {
+    if (isInvalidVoiceIdError(error)) {
       return createInvalidVoiceIdResponse();
     }
 
@@ -134,11 +151,12 @@ export async function DELETE(
 
     logger.info(`[Voice API] Deleting voice ${voiceId} for user ${user.id}`);
 
-    if (!isValidVoiceId(voiceId)) {
-      logger.warn(
-        `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
-      );
-      return createInvalidVoiceIdResponse();
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
     }
 
     await voiceCloningService.deleteVoice(voiceId, user.organization_id);
@@ -166,10 +184,7 @@ export async function DELETE(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (
-        error.message.includes("invalid input syntax for type uuid") ||
-        error.message.includes("uuid")
-      ) {
+      if (isInvalidVoiceIdError(error)) {
         return createInvalidVoiceIdResponse();
       }
     }
@@ -207,11 +222,12 @@ export async function PATCH(
 
     logger.info(`[Voice API] Updating voice ${voiceId} for user ${user.id}`);
 
-    if (!isValidVoiceId(voiceId)) {
-      logger.warn(
-        `[Voice API] Invalid voice ID format for update: ${voiceId}`,
-      );
-      return createInvalidVoiceIdResponse();
+    const invalidVoiceIdResponse = getInvalidVoiceIdResponseIfNeeded(
+      voiceId,
+      `[Voice API] Invalid voice ID format for update: ${voiceId}`,
+    );
+    if (invalidVoiceIdResponse) {
+      return invalidVoiceIdResponse;
     }
 
     const body = await request.json();
@@ -244,10 +260,7 @@ export async function PATCH(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (
-        error.message.includes("invalid input syntax for type uuid") ||
-        error.message.includes("uuid")
-      ) {
+      if (isInvalidVoiceIdError(error)) {
         return createInvalidVoiceIdResponse();
       }
     }
