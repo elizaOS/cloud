@@ -89,12 +89,84 @@ aws dynamodb create-table \
 
 **Cost**: S3 + DynamoDB = ~$0/month (state files are tiny, lock operations are rare)
 
-#### 2. Configure GitHub Environments
+#### 2. Create AWS OIDC Role for GitHub Actions (Optional)
 
-Create two GitHub Environments (`development` and `production`) in your repository settings with the following:
+For the GitHub Actions IaC workflow to run, you need an IAM role that trusts GitHub OIDC. This is a one-time manual setup.
+
+> **Alternative**: Skip this step and run Terraform locally using your own AWS credentials. The IaC workflow is optional - you can manage infrastructure locally and only use GitHub Actions for app deployments.
+
+<details>
+<summary><strong>Step 2a: Create OIDC Identity Provider</strong></summary>
+
+```bash
+# Create the GitHub OIDC provider in your AWS account
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com \
+  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+```
+
+Or via AWS Console: **IAM → Identity providers → Add provider** (OpenID Connect)
+</details>
+
+<details>
+<summary><strong>Step 2b: Create IAM Role for Terraform</strong></summary>
+
+Create a file `terraform-role-trust-policy.json`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:elizaos/eliza-cloud-v2:ref:refs/heads/main",
+            "repo:elizaos/eliza-cloud-v2:ref:refs/heads/dev",
+            "repo:elizaos/eliza-cloud-v2:environment:gateway-dev",
+            "repo:elizaos/eliza-cloud-v2:environment:gateway-prd"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+Create the role:
+
+```bash
+# Replace YOUR_ACCOUNT_ID in the JSON file first
+aws iam create-role \
+  --role-name github-actions-terraform \
+  --assume-role-policy-document file://terraform-role-trust-policy.json
+
+# Attach admin policy (required for Terraform to create all resources)
+aws iam attach-role-policy \
+  --role-name github-actions-terraform \
+  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+```
+
+The role ARN will be: `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-terraform`
+</details>
+
+> **Note**: This role needs broad permissions because Terraform creates VPCs, EKS clusters, IAM roles, etc. After Terraform runs, it creates a separate `github-actions-role` with limited EKS-only permissions for app deployments.
+
+#### 3. Configure GitHub Environments
+
+Create two GitHub Environments (`gateway-dev` and `gateway-prd`) in your repository settings with the following:
 
 **Variables** (Settings → Environments → [environment] → Environment variables):
-- `TERRAFORM_AWS_ROLE_ARN`: IAM role ARN for Terraform (needs AWS admin permissions)
+- `TERRAFORM_AWS_ROLE_ARN`: IAM role ARN from Step 2 (e.g., `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-terraform`)
 - `AWS_REGION`: `us-east-1`
 
 **Secrets** (Settings → Environments → [environment] → Environment secrets):
@@ -105,10 +177,6 @@ Create two GitHub Environments (`development` and `production`) in your reposito
 - `REDIS_URL`: Redis connection URL
 - `REDIS_TOKEN`: Redis authentication token
 - `BLOB_TOKEN`: Blob storage token
-
-#### 3. Bootstrap AWS OIDC (First Deployment)
-
-For the first deployment, you need an IAM role that trusts GitHub OIDC. Create this manually or use an existing admin role, then the Terraform will create the proper OIDC role for subsequent runs.
 
 ### Post-Deployment
 
@@ -126,9 +194,13 @@ aws eks update-kubeconfig --name gateway-cluster-prod --region us-east-1
 
 ---
 
-### Local Development (Optional)
+### Local Terraform (Recommended)
 
-If you need to run Terraform locally for debugging or development:
+Running Terraform locally is the simplest approach - no need to set up `TERRAFORM_AWS_ROLE_ARN` or GitHub OIDC for infrastructure.
+
+**Prerequisites:**
+- AWS CLI configured with credentials (`aws configure` or `aws sso login`)
+- Your AWS user/role needs permissions to create VPCs, EKS, IAM roles, etc.
 
 #### Initialize Terraform
 

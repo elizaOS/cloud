@@ -213,7 +213,7 @@ The GitHub Actions workflow at `.github/workflows/gateway-discord.yml` automates
 
 ### Required GitHub Environment Variables
 
-Add these to each GitHub environment (`development` and `production`) under **Settings → Environments**:
+Add these to each GitHub environment (`gateway-dev` and `gateway-prd`) under **Settings → Environments**:
 
 | Variable | Example | Description |
 |----------|---------|-------------|

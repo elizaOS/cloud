@@ -2,7 +2,7 @@ name: Gateway Discord Infrastructure
 
 # Environment-specific variables (set in GitHub Settings > Environments):
 #
-# development environment:
+# gateway-dev environment:
 #   Variables:
 #     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (development account)
 #     - AWS_REGION: us-east-1
@@ -15,7 +15,7 @@ name: Gateway Discord Infrastructure
 #     - REDIS_TOKEN: Development Redis token
 #     - BLOB_TOKEN: Development blob storage token
 #
-# production environment:
+# gateway-prd environment:
 #   Variables:
 #     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform (production account)
 #     - AWS_REGION: us-east-1
@@ -55,9 +55,9 @@ on:
         required: true
         type: choice
         options:
-          - development
-          - production
-        default: development
+          - gateway-dev
+          - gateway-prd
+        default: gateway-dev
 
 env:
   TF_VERSION: "1.7.0"
@@ -70,10 +70,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - environment: development
+          - environment: gateway-dev
             branch: refs/heads/dev
             tfvars_file: development.tfvars
-          - environment: production
+          - environment: gateway-prd
             branch: refs/heads/main
             tfvars_file: production.tfvars
       fail-fast: false
