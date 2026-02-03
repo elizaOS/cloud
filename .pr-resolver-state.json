@@ -1,9 +1,9 @@
 {
   "pr": "elizaOS/eliza-cloud-v2#265",
   "branch": "odi-et",
-  "headSha": "797743798b2713dc487f80b9e42f9620dcd11c48",
+  "headSha": "7eb457d15a97a89dbb8ef7395d3146c038aa7535",
   "startedAt": "2026-02-02T22:59:05.566Z",
-  "lastUpdated": "2026-02-02T23:09:13.150Z",
+  "lastUpdated": "2026-02-03T00:04:13.334Z",
   "iterations": [
     {
       "timestamp": "2026-02-02T23:03:31.335Z",
@@ -162,6 +162,72 @@
           "reason": "The field names were updated to match the documented API schema (`views`, `interactions`, `messageCount`), and a clarifying comment was added to indicate these are placeholder values, resolving the mismatch between implementation and documentation."
         }
       }
+    },
+    {
+      "timestamp": "2026-02-03T00:02:49.590Z",
+      "commentsAddressed": [
+        "PRRC_kwDOP6BTDM6j7vtC",
+        "PRRC_kwDOP6BTDM6j7vtE",
+        "PRRC_kwDOP6BTDM6j7vwG",
+        "PRRC_kwDOP6BTDM6kTR0n",
+        "PRRC_kwDOP6BTDM6kTR0p",
+        "PRRC_kwDOP6BTDM6kTR0s"
+      ],
+      "changesMade": [],
+      "verificationResults": {
+        "PRRC_kwDOP6BTDM6j7vtD": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vtF": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwC": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwF": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwM": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwQ": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwU": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vtC": {
+          "passed": true,
+          "reason": "UUID validation was added to PATCH handler with proper 400 response for invalid formats, matching GET/DELETE behavior, and database UUID errors are caught with appropriate error handling"
+        },
+        "PRRC_kwDOP6BTDM6j7vtE": {
+          "passed": true,
+          "reason": "UUID regex was extracted to module-level constant and is now reused across handlers via helper function, eliminating duplication"
+        },
+        "PRRC_kwDOP6BTDM6j7vwG": {
+          "passed": true,
+          "reason": "PATCH handler now includes UUID format validation before calling voiceCloningService and catches database UUID syntax errors with 400 response, consistent with GET/DELETE"
+        },
+        "PRRC_kwDOP6BTDM6kTR0n": {
+          "passed": true,
+          "reason": "Internal PR resolver state file was deleted, removing all internal tooling metadata from the repository"
+        },
+        "PRRC_kwDOP6BTDM6kTR0p": {
+          "passed": true,
+          "reason": "Usage tracking was moved into an async IIFE with try-catch to prevent user-facing errors when usage creation fails, allowing the voice creation to succeed independently"
+        },
+        "PRRC_kwDOP6BTDM6kTR0s": {
+          "passed": true,
+          "reason": "UUID validation and error responses were extracted into three helper functions (isValidVoiceId, createInvalidVoiceIdResponse, createInvalidVoiceIdErrorResponse) and reused across GET/DELETE/PATCH handlers, eliminating six instances of duplication"
+        }
+      }
     }
   ],
   "lessonsLearned": [],
@@ -176,31 +242,19 @@
     "PRRC_kwDOP6BTDM6j7vwF",
     "PRRC_kwDOP6BTDM6j7vtF",
     "PRRC_kwDOP6BTDM6j7vwM",
-    "PRRC_kwDOP6BTDM6j7vwK"
+    "PRRC_kwDOP6BTDM6j7vwK",
+    "PRRC_kwDOP6BTDM6kTR0n",
+    "PRRC_kwDOP6BTDM6kTR0p",
+    "PRRC_kwDOP6BTDM6kTR0s"
   ],
   "verifiedComments": [
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtC",
-      "verifiedAt": "2026-02-02T23:05:23.883Z",
-      "verifiedAtIteration": 1
-    },
     {
       "commentId": "PRRC_kwDOP6BTDM6j7vtD",
       "verifiedAt": "2026-02-02T23:05:23.883Z",
       "verifiedAtIteration": 1
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtE",
-      "verifiedAt": "2026-02-02T23:05:23.883Z",
-      "verifiedAtIteration": 1
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwC",
-      "verifiedAt": "2026-02-02T23:05:23.883Z",
-      "verifiedAtIteration": 1
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwG",
       "verifiedAt": "2026-02-02T23:05:23.883Z",
       "verifiedAtIteration": 1
     },
@@ -233,29 +287,39 @@
       "commentId": "PRRC_kwDOP6BTDM6j7vwK",
       "verifiedAt": "2026-02-02T23:09:13.150Z",
       "verifiedAtIteration": 9
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+      "verifiedAt": "2026-02-03T00:04:13.333Z",
+      "verifiedAtIteration": 10
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+      "verifiedAt": "2026-02-03T00:04:13.333Z",
+      "verifiedAtIteration": 10
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+      "verifiedAt": "2026-02-03T00:04:13.334Z",
+      "verifiedAtIteration": 10
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0n",
+      "verifiedAt": "2026-02-03T00:04:13.334Z",
+      "verifiedAtIteration": 10
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+      "verifiedAt": "2026-02-03T00:04:13.334Z",
+      "verifiedAtIteration": 10
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0s",
+      "verifiedAt": "2026-02-03T00:04:13.334Z",
+      "verifiedAtIteration": 10
     }
   ],
   "dismissedIssues": [
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtF",
-      "reason": "Fixer tool (codex) reported: Issue 1 already extracted to `isAuthenticationError` in `app/api/v1/billing/settings/route.ts`, removing the duplicated auth check. Issue 2 already documents the placeholder stats with `viewCount`, `interactionCount`, and `cloneCount` in `content/api/agents.mdx`, matching the endpoint response. Issue 3 already clarifies that only `/api/v1/voice/*` supports API keys and `/api/elevenlabs/*` is session-based in `content/api/voice.mdx`.",
-      "dismissedAt": "2026-02-02T23:06:26.650Z",
-      "dismissedAtIteration": 3,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/billing/settings/route.ts",
-      "line": 98,
-      "commentBody": "### Duplicated auth error checking pattern\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nThe `isAuthError` check logic is duplicated between `handleGET` (lines 95-98) and `handlePUT` (lines 179-182). Extract this pattern to a helper function like `isAuthenticationError(message: string): boolean` at the module level or in a shared utility.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_85ca14d9-4827-4f13-b2db-efd7724e6f73 -->\n\n<!-- LOCATIONS START\napp/api/v1/billing/settings/route.ts#L94-L98\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.bwoq1ttKaj5JDAjUAh7iu3s5_viA5jeM6mkgCeR2QngK09txKMdfBneuNX9DGCeQCI4oNqWwcvXT8rePKhQDCZzdecnd1QxIp5EJu9h_S8-87nfzrQTVCQE11CctMq4_W_yMzm8R1SIOoly7duPF6TkOlcSNa0uKCYdGLoh7uakHoQpl2THqCqDS1wer7y5YsqN3NOwxmg-FbYtrCnSzBYEnjAk8Lw2SWFqsOeZUqfOXKVDfF9AF3yniK37yMsdgmSWfOw2LaI3XOB1igOOvHfjrAW-rOjKnN1eqrOhqHaC3vuB90iGWG3mqgBCWZbPg8BJcXQ2tA_XfkKOLDsr_ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vsNWId87Yumn8m4xZwv8pr8JA70q8C1q2I90jVYblrpeXzewTWdQUxWOMNef43B05ZRQRxVuKQWgd1QexUPxiEAqWcpt9-T26RQMQ0UdpSoi0RUSTJHqfzHFnhJc7BDtYr17VadzmdsiVXlIKhFEnSWo4naup-qaddOVD8XgZzUOxJRHhP7lL7oMQvQo_O-tM8J-7bjGxk5Z_ff--ZMNOLEJnjPdYuD6towVKrsKl2CvNZOSwFlFpqvCAkn94EWE2L3IY6mVd5UyZsTdMSCuxZX2CHqQlZtO3af9O_jXkiI8FzlngmXowSMGOPPbD5fBXrTP_edKiggAgHdWlDduBQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwM",
-      "reason": "Fixer tool (codex) reported: Issue 1 already extracted to `isAuthenticationError` in `app/api/v1/billing/settings/route.ts`, removing the duplicated auth check. Issue 2 already documents the placeholder stats with `viewCount`, `interactionCount`, and `cloneCount` in `content/api/agents.mdx`, matching the endpoint response. Issue 3 already clarifies that only `/api/v1/voice/*` supports API keys and `/api/elevenlabs/*` is session-based in `content/api/voice.mdx`.",
-      "dismissedAt": "2026-02-02T23:06:26.650Z",
-      "dismissedAtIteration": 3,
-      "category": "already-fixed",
-      "filePath": "content/api/voice.mdx",
-      "line": 28,
-      "commentBody": "The table here says both `/api/v1/voice/*` and `/api/elevenlabs/*` patterns \"support API key authentication\" and offer \"identical functionality\", but the legacy ElevenLabs routes still use `requireAuthWithOrg` and do not accept API keys (e.g., app/api/elevenlabs/tts/route.ts, app/api/elevenlabs/stt/route.ts). To avoid misleading users, consider clarifying that API key support is currently only available on the `/api/v1/voice/*` endpoints and that `/api/elevenlabs/*` remain session-based legacy routes."
-    },
     {
       "commentId": "PRRC_kwDOP6BTDM6j7vwK",
       "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
@@ -265,15 +329,85 @@
       "filePath": "app/api/my-agents/characters/[id]/stats/route.ts",
       "line": 15,
       "commentBody": "The stats endpoint currently returns a stubbed payload with `data.stats.viewCount`, `interactionCount`, and `cloneCount` all hard-coded to 0, while the public docs (content/api/agents.mdx) describe a response with `views`, `interactions`, and `messageCount`. To avoid confusing API consumers, either implement real stats that match the documented shape or update the documentation to clearly mark this as a placeholder with the actual field names used here."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/voice/tts/route.ts",
+      "line": 258,
+      "commentBody": "### TTS and STT endpoints missing authentication error handling\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `/api/v1/voice/tts` and `/api/v1/voice/stt` endpoints are missing authentication error handling present in all other new voice endpoints. When `requireAuthOrApiKeyWithOrg` throws errors like \"Invalid or expired API key\" or \"API key is inactive\", these endpoints return a generic 500 error (\"Failed to generate speech\" / \"Failed to transcribe audio\") instead of a proper 401 response. Developers using invalid API keys receive misleading server error messages instead of clear authentication failure responses.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_5b1022f8-fcbe-4015-862a-0fa6bde471d7 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/tts/route.ts#L200-L248\napp/api/v1/voice/stt/route.ts#L246-L307\nLOCATIONS END -->\n<details>\n<summary>Additional Locations (1)</summary>\n\n- [`app/api/v1/voice/stt/route.ts#L246-L307`](https://github.com/elizaOS/eliza-cloud-v2/blob/797743798b2713dc487f80b9e42f9620dcd11c48/app/api/v1/voice/stt/route.ts#L246-L307)\n\n</details>\n\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vjwXdyNXvL0H6y1BD9LkUZoG08DpfyWrqifh-0t2M5VljbLYRYb9uOYsinv0wxFL51bPStsKmk3gB4SqFTIVN_OQWtrCeARKObtamdPEpw-98WXdNgkRz3dBLPEzWg6lyF8vM9TBsr8JuDwVZf6YysA7Nq9AOT0t11Dvp6IQk38hp-0LVbhXCxj70AXzOd1eA2xJZSTmO4qOAtwzT9ZpaPaipQCwZ6tDW9Pdj-Rn3fIIiYopNlpU2yhK7f3f-Jp_RedBdx1TRnGMyesWRhCU0MBK4nkyZE1-kooG5t0_Hf3sHkJnHQTxamT_3QBwlZnvIpxkp87vBJFTy11aZ0Um1g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.hNavEgzdXRmBQ_VGqaNWC56t67TSNVeww4txR_t6JsdHG8gDfW3iV9bhm-qBz7PCYMeB3Omc682IZrLidnQWK73gPiYkkeNxu23nY4-zAx0_obd0G7Mx9GP6osNPREwO4_d2R8xbj3KZ-57ChUqYWz3DXehjKzFS0S3V4rICmoRts_4zcc28ixg2aG72I7DJwX5hnp_sQ9M2DMrqDrJ1hJm1fNlufYteq9BvTjflsHxdMCeIBaitHXSjfqfBXIdrcaaGtRX6NyuiDY67osRaKY9FJbsed0HsIFopa-E0XBqhEJPOXZX80FNQdHt0Sd6QK7ol81IgD6UJbzXUWs4Aug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtF",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/billing/settings/route.ts",
+      "line": null,
+      "commentBody": "### Duplicated auth error checking pattern\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nThe `isAuthError` check logic is duplicated between `handleGET` (lines 95-98) and `handlePUT` (lines 179-182). Extract this pattern to a helper function like `isAuthenticationError(message: string): boolean` at the module level or in a shared utility.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: cq_85ca14d9-4827-4f13-b2db-efd7724e6f73 -->\n\n<!-- LOCATIONS START\napp/api/v1/billing/settings/route.ts#L94-L98\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.bwoq1ttKaj5JDAjUAh7iu3s5_viA5jeM6mkgCeR2QngK09txKMdfBneuNX9DGCeQCI4oNqWwcvXT8rePKhQDCZzdecnd1QxIp5EJu9h_S8-87nfzrQTVCQE11CctMq4_W_yMzm8R1SIOoly7duPF6TkOlcSNa0uKCYdGLoh7uakHoQpl2THqCqDS1wer7y5YsqN3NOwxmg-FbYtrCnSzBYEnjAk8Lw2SWFqsOeZUqfOXKVDfF9AF3yniK37yMsdgmSWfOw2LaI3XOB1igOOvHfjrAW-rOjKnN1eqrOhqHaC3vuB90iGWG3mqgBCWZbPg8BJcXQ2tA_XfkKOLDsr_ZQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjRmZTc1NzkyLWJjNjUtNDJkOS04NTFmLWJjZGEzODI4MjE1ZiIsImVuY3J5cHRpb25LZXkiOiJfY1gwLWNIOVJpQ29aT2x1X3RCd2tFWUsycFRuaUdkc0JzVzZvNnBBTmVNIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vsNWId87Yumn8m4xZwv8pr8JA70q8C1q2I90jVYblrpeXzewTWdQUxWOMNef43B05ZRQRxVuKQWgd1QexUPxiEAqWcpt9-T26RQMQ0UdpSoi0RUSTJHqfzHFnhJc7BDtYr17VadzmdsiVXlIKhFEnSWo4naup-qaddOVD8XgZzUOxJRHhP7lL7oMQvQo_O-tM8J-7bjGxk5Z_ff--ZMNOLEJnjPdYuD6towVKrsKl2CvNZOSwFlFpqvCAkn94EWE2L3IY6mVd5UyZsTdMSCuxZX2CHqQlZtO3af9O_jXkiI8FzlngmXowSMGOPPbD5fBXrTP_edKiggAgHdWlDduBQ\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "content/api/credits.mdx",
+      "line": 314,
+      "commentBody": "The Transaction History documentation describes `limit` and `offset` query parameters and a `{ success, transactions, total }` response, but the `/api/credits/transactions` implementation currently accepts `limit` and `hours` (no `offset`) and returns `{ transactions, total, period }` without a `success` flag (see app/api/credits/transactions/route.ts). To prevent client breakage, please align this section with the actual API (document `hours`, remove or clarify `offset`, and adjust the example response structure and field names)."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwF",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "README.md",
+      "line": null,
+      "commentBody": "This section states that \"All `/api/v1/` and `/api/my-agents/` endpoints\" provide API key authentication, but several routes still rely on `requireAuthWithOrg` and do not accept API keys (for example: `app/api/v1/api-keys/route.ts`, `app/api/v1/apps/[id]/deploy/route.ts`, `app/api/v1/dashboard/route.ts`, and `app/api/my-agents/characters/[id]/track-interaction/route.ts`). To avoid over-promising to integrators, consider softening or scoping this claim (e.g., \"all documented management endpoints\" or enumerating which `/api/v1` and `/api/my-agents` routes support API keys today).\n```suggestion\n**Location**: Documented `/api/v1/` and `/api/my-agents/` management endpoints\n\nThe platform provides comprehensive API key authentication across these documented endpoints, enabling:\n\n- **Programmatic Agent Management**: Create, update, delete, and clone agents via API\n- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications\n- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically\n- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets\n\n**Why Broad API Key Support?**\n\nTraditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:\n```"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwM",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "content/api/voice.mdx",
+      "line": null,
+      "commentBody": "The table here says both `/api/v1/voice/*` and `/api/elevenlabs/*` patterns \"support API key authentication\" and offer \"identical functionality\", but the legacy ElevenLabs routes still use `requireAuthWithOrg` and do not accept API keys (e.g., app/api/elevenlabs/tts/route.ts, app/api/elevenlabs/stt/route.ts). To avoid misleading users, consider clarifying that API key support is currently only available on the `/api/v1/voice/*` endpoints and that `/api/elevenlabs/*` remain session-based legacy routes."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "content/api/voice.mdx",
+      "line": 131,
+      "commentBody": "The \"Speech to Text\" docs describe the response as `{ \"text\", \"language\", \"confidence\" }`, but the new `/api/v1/voice/stt` implementation returns `{ transcript, duration_ms }` (see app/api/v1/voice/stt/route.ts). This will confuse integrators using the v1 endpoint; consider updating the example response and field names here to match the actual JSON shape (including `transcript` and `duration_ms`)."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-03T00:04:08.390Z",
+      "dismissedAtIteration": 10,
+      "category": "file-unchanged",
+      "filePath": "content/api/voice.mdx",
+      "line": null,
+      "commentBody": "This example for `GET /api/v1/voice/{id}` shows an ID like `voice_xyz789`, but the backend explicitly validates IDs against a strict UUID regex and returns a 400 \"Invalid voice ID format\" for non‑UUIDs (see app/api/v1/voice/[id]/route.ts). To avoid 400s for users following the docs, update the examples (here and in the list/clone sections) to use a UUID-shaped `id` value that matches what the API actually accepts.\n```suggestion\ncurl \"https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000\" \\\n```"
     }
   ],
   "modelPerformance": {
     "codex/gpt-5.2-codex": {
-      "fixes": 8,
-      "failures": 11,
+      "fixes": 14,
+      "failures": 18,
       "noChanges": 1,
       "errors": 0,
-      "lastUsed": "2026-02-02T23:08:03.733Z"
+      "lastUsed": "2026-02-03T00:04:13.334Z"
     },
     "codex/gpt-5-mini": {
       "fixes": 1,
@@ -291,6 +425,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "fixed"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vtD": [
@@ -300,6 +441,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vtE": [
@@ -308,6 +456,13 @@
         "tool": "codex",
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtE",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
         "result": "fixed"
       }
     ],
@@ -325,6 +480,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:06:03.520Z",
         "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwC": [
@@ -334,6 +496,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwF": [
@@ -350,6 +519,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:06:03.520Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwF",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwG": [
@@ -358,6 +534,13 @@
         "tool": "codex",
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
+        "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwG",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
         "result": "fixed"
       }
     ],
@@ -375,6 +558,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:06:03.520Z",
         "result": "no-changes"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwM",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwQ": [
@@ -384,6 +574,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwU": [
@@ -393,6 +590,13 @@
         "model": "gpt-5.2-codex",
         "timestamp": "2026-02-02T23:05:23.883Z",
         "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwU",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "no-changes"
       }
     ],
     "PRRC_kwDOP6BTDM6j7vwK": [
@@ -452,28 +656,55 @@
         "timestamp": "2026-02-02T23:09:13.150Z",
         "result": "fixed"
       }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0n": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0n",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0p": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "fixed"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0s": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0s",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-03T00:04:13.334Z",
+        "result": "fixed"
+      }
     ]
   },
   "noProgressCycles": 0,
   "totalTimings": {
     "Fetch PR info": 1362,
-    "Fetch comments": 481,
-    "Analyze issues": 15708,
-    "Run fixer": 285700,
-    "Verify fixes": 10387
+    "Fetch comments": 849,
+    "Analyze issues": 33962,
+    "Run fixer": 364479,
+    "Verify fixes": 15340
   },
   "totalTokenUsage": [
     {
       "phase": "Analyze issues",
-      "inputTokens": 5946,
-      "outputTokens": 1505,
-      "calls": 1
+      "inputTokens": 14973,
+      "outputTokens": 2983,
+      "calls": 2
     },
     {
       "phase": "Verify fixes",
-      "inputTokens": 19934,
-      "outputTokens": 755,
-      "calls": 4
+      "inputTokens": 46759,
+      "outputTokens": 1084,
+      "calls": 5
     },
     {
       "phase": "Verify single fix",

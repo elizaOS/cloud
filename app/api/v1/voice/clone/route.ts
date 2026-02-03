@@ -197,25 +197,33 @@ export async function POST(request: NextRequest) {
 
       await reservation.reconcile(cost);
 
-      await usageService.create({
-        organization_id: user.organization_id,
-        user_id: user.id,
-        api_key_id: apiKey?.id ?? null,
-        type: "voice_cloning",
-        model: cloneType,
-        provider: "elevenlabs",
-        input_tokens: 0,
-        output_tokens: 0,
-        input_cost: String(cost),
-        output_cost: String(0),
-        is_successful: true,
-        duration_ms: duration,
-        metadata: {
-          voiceName: name,
-          fileCount: files.length,
-          totalSize,
-        },
-      });
+      (async () => {
+        try {
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id ?? null,
+            type: "voice_cloning",
+            model: cloneType,
+            provider: "elevenlabs",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: String(cost),
+            output_cost: String(0),
+            is_successful: true,
+            duration_ms: duration,
+            metadata: {
+              voiceName: name,
+              fileCount: files.length,
+              totalSize,
+            },
+          });
+        } catch (error) {
+          logger.error("[Voice Clone API] Failed to create usage record", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })();
 
       return NextResponse.json(
         {
