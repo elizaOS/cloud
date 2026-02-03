@@ -23,14 +23,14 @@ variable "private_subnet_cidrs" {
   type        = list(string)
 }
 
-variable "nat_instance_type" {
-  description = "Instance type for NAT instance (t4g.nano for staging, t4g.micro for production)"
-  type        = string
-  default     = "t4g.nano"
+variable "use_nat_instance" {
+  description = "Use NAT Instance instead of NAT Gateway (cost saving for non-prod)"
+  type        = bool
+  default     = false
 }
 
-variable "single_nat_instance" {
-  description = "Instance type for NAT Instance (t4g.nano for development, t4g.micro for production)"
+variable "nat_instance_type" {
+  description = "Instance type for NAT instance (t4g.nano for development, t4g.micro for production)"
   type        = string
   default     = "t4g.nano"
 }
@@ -43,3 +43,6 @@ variable "nat_instance_key_name" {
 
 variable "single_nat_gateway" {
   description = "Use a single NAT gateway/instance for all AZs (cost savings, less redundancy)"
+  type        = bool
+  default     = true
+}

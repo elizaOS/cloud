@@ -139,6 +139,12 @@ variable "github_repo" {
   default     = "eliza-cloud-v2"
 }
 
+variable "create_oidc_provider" {
+  description = "Whether to create the GitHub OIDC provider (set to false if it already exists in the AWS account)"
+  type        = bool
+  default     = true
+}
+
 # Tags
 variable "tags" {
   description = "Additional tags for all resources"

@@ -73,9 +73,11 @@ jobs:
           - environment: gateway-dev
             branch: refs/heads/dev
             tfvars_file: development.tfvars
+            backend_config: backend-development.hcl
           - environment: gateway-prd
             branch: refs/heads/main
             tfvars_file: production.tfvars
+            backend_config: backend-production.hcl
       fail-fast: false
     # GitHub Environment - pulls environment-specific vars and secrets
     environment: ${{ matrix.environment }}
@@ -98,9 +100,15 @@ jobs:
             SHOULD_RUN="true"
           fi
           
-          # For PR events, run plan for both environments
+          # For PR events, only run plan for the environment matching the target branch
+          # PR to dev -> gateway-dev, PR to main -> gateway-prd
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            SHOULD_RUN="true"
+            TARGET_BRANCH="${{ github.base_ref }}"
+            if [[ "$TARGET_BRANCH" == "dev" && "${{ matrix.environment }}" == "gateway-dev" ]]; then
+              SHOULD_RUN="true"
+            elif [[ "$TARGET_BRANCH" == "main" && "${{ matrix.environment }}" == "gateway-prd" ]]; then
+              SHOULD_RUN="true"
+            fi
           fi
           
           # For manual dispatch, only run for selected environment
@@ -137,7 +145,7 @@ jobs:
       - name: Terraform Init
         if: steps.should_run.outputs.should_run == 'true'
         id: init
-        run: terraform init -backend-config=backend-${{ matrix.environment }}.hcl
+        run: terraform init -backend-config=${{ matrix.backend_config }}
 
       - name: Terraform Validate
         if: steps.should_run.outputs.should_run == 'true'

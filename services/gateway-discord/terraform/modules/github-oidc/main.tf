@@ -2,19 +2,32 @@
 
 locals {
   # Convert environment name to short suffix (dev/prd)
-  env_suffix = var.environment == "production" ? "prd" : "dev"
-  role_name  = "github-actions-gateway-${local.env_suffix}"
+  env_suffix        = var.environment == "production" ? "prd" : "dev"
+  role_name         = "github-actions-gateway-${local.env_suffix}"
+  oidc_provider_url = "https://token.actions.githubusercontent.com"
 }
 
-# GitHub OIDC Provider
+# Check if GitHub OIDC provider already exists in the account
+data "aws_iam_openid_connect_provider" "github_existing" {
+  count = var.create_oidc_provider ? 0 : 1
+  url   = local.oidc_provider_url
+}
+
+# GitHub OIDC Provider - only create if it doesn't exist
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
+  count           = var.create_oidc_provider ? 1 : 0
+  url             = local.oidc_provider_url
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 
   tags = {
     Name = "github-oidc-provider"
   }
+}
+
+locals {
+  # Use existing provider ARN if not creating, otherwise use the created one
+  oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github_existing[0].arn
 }
 
 # IAM Role for GitHub Actions
@@ -27,7 +40,7 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = local.oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
