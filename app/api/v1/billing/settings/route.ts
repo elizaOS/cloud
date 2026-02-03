@@ -61,6 +61,16 @@ function isAuthenticationError(message: string): boolean {
   );
 }
 
+function getAuthErrorDetails(
+  error: unknown,
+  fallbackMessage: string,
+): { errorMessage: string; isAuthError: boolean } {
+  const errorMessage =
+    error instanceof Error ? error.message : fallbackMessage;
+
+  return { errorMessage, isAuthError: isAuthenticationError(errorMessage) };
+}
+
 /**
  * GET /api/v1/billing/settings
  * Gets billing settings for the authenticated user's organization.
@@ -97,10 +107,10 @@ async function handleGET(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to get billing settings";
-
-    const isAuthError = isAuthenticationError(errorMessage);
+    const { errorMessage, isAuthError } = getAuthErrorDetails(
+      error,
+      "Failed to get billing settings",
+    );
 
     return NextResponse.json(
       { success: false, error: isAuthError ? "Unauthorized" : errorMessage },
@@ -176,12 +186,10 @@ async function handlePUT(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Failed to update billing settings";
-
-    const isAuthError = isAuthenticationError(errorMessage);
+    const { errorMessage, isAuthError } = getAuthErrorDetails(
+      error,
+      "Failed to update billing settings",
+    );
 
     const isValidationError =
       errorMessage.includes("Cannot enable") ||

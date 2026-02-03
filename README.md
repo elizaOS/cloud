@@ -984,9 +984,9 @@ POST /api/eliza/rooms/{roomId}/messages
 
 ### 8. Developer API & Programmatic Access
 
-**Location**: Documented `/api/v1/` and `/api/my-agents/` management endpoints that support API keys
+**Location**: Documented management endpoints that explicitly note API key support
 
-The platform provides API key authentication across these documented management endpoints, enabling:
+API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`), enabling:
 
 - **Programmatic Agent Management**: Create, update, delete, and clone agents via API
 - **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications

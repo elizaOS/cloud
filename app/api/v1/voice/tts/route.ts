@@ -207,24 +207,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
       if (
-        error.message.includes("Invalid or expired API key") ||
-        error.message.includes("API key is inactive") ||
-        error.message.includes("Unauthorized") ||
-        error.message.includes("Authentication required") ||
-        error.message.includes("Forbidden")
+        errorMessage.includes("invalid or expired api key") ||
+        errorMessage.includes("invalid or expired token") ||
+        errorMessage.includes("api key is inactive") ||
+        errorMessage.includes("unauthorized") ||
+        errorMessage.includes("authentication required") ||
+        errorMessage.includes("forbidden")
       ) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (error.message.includes("rate limit")) {
+      if (errorMessage.includes("rate limit")) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Please try again in a moment." },
           { status: 429 },
         );
       }
 
-      if (error.message.includes("quota")) {
+      if (errorMessage.includes("quota")) {
         return NextResponse.json(
           {
             error:
@@ -236,14 +238,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (error.message.includes("voice")) {
+      if (errorMessage.includes("voice")) {
         return NextResponse.json(
           { error: "Invalid voice ID. Please select a different voice." },
           { status: 400 },
         );
       }
 
-      if (error.message.includes("ELEVENLABS_API_KEY")) {
+      if (errorMessage.includes("elevenlabs_api_key")) {
         return NextResponse.json(
           { error: "Service not configured" },
           { status: 500 },

@@ -314,14 +314,16 @@ Manually trigger an auto-top-up check. Useful for testing or when you want to to
   <span className="path">/api/credits/transactions</span>
 </div>
 
-Get credit transaction history.
+Get credit transaction history for your organization.
 
 ### Query Parameters
 
 | Parameter | Type    | Description                              |
 | --------- | ------- | ---------------------------------------- |
-| `limit`   | integer | Results per page (default: 100)          |
+| `limit`   | integer | Max results returned (default: 100)      |
 | `hours`   | integer | Limit results to the last N hours        |
+
+Note: `offset` is not supported for this endpoint.
 
 ### Response
 
@@ -346,12 +348,12 @@ Get credit transaction history.
       "description": "Stripe payment",
       "metadata": {},
       "stripe_payment_intent_id": "pi_1234567890",
-      "created_at": "2024-01-14T08:00:00Z"
+      "created_at": "2024-01-14T12:00:00Z"
     }
   ],
   "total": 2,
   "period": {
-    "start": "2024-01-14T08:00:00Z",
+    "start": "2024-01-14T10:30:00Z",
     "end": "2024-01-15T10:30:00Z"
   }
 }
