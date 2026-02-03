@@ -189,7 +189,7 @@ Get your cloned voices with pagination and filtering.
   "success": true,
   "voices": [
     {
-      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
       "elevenlabsVoiceId": "xyz789",
       "name": "My Custom Voice",
       "description": "A professional voice clone",
@@ -239,7 +239,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
 
 ```json
 {
-  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
   "name": "My Voice",
   "status": "processing"
 }
@@ -268,7 +268,7 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
 Get details for a specific voice by its internal UUID.
 
 ```bash
-curl "https://elizacloud.ai/api/v1/voice/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+curl "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -284,7 +284,7 @@ curl "https://elizacloud.ai/api/v1/voice/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
 Update a voice's metadata.
 
 ```bash
-curl -X PATCH "https://elizacloud.ai/api/v1/voice/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+curl -X PATCH "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Voice Name", "isActive": true}'
@@ -306,7 +306,7 @@ curl -X PATCH "https://elizacloud.ai/api/v1/voice/f47ac10b-58cc-4372-a567-0e02b2
 Delete a cloned voice from your account.
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/v1/voice/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+curl -X DELETE "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
