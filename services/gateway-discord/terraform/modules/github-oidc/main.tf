@@ -1,5 +1,11 @@
 # GitHub OIDC Module for CI/CD Deployments
 
+locals {
+  # Convert environment name to short suffix (dev/prd)
+  env_suffix = var.environment == "production" ? "prd" : "dev"
+  role_name  = "github-actions-gateway-${local.env_suffix}"
+}
+
 # GitHub OIDC Provider
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
@@ -13,7 +19,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 # IAM Role for GitHub Actions
 resource "aws_iam_role" "github_actions" {
-  name = "${var.cluster_name}-github-actions-role"
+  name = local.role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -42,13 +48,13 @@ resource "aws_iam_role" "github_actions" {
   })
 
   tags = {
-    Name = "${var.cluster_name}-github-actions-role"
+    Name = local.role_name
   }
 }
 
 # Policy for EKS access
 resource "aws_iam_role_policy" "github_actions_eks" {
-  name = "${var.cluster_name}-github-actions-eks-policy"
+  name = "${local.role_name}-eks-policy"
   role = aws_iam_role.github_actions.id
 
   policy = jsonencode({
@@ -68,7 +74,7 @@ resource "aws_iam_role_policy" "github_actions_eks" {
 
 # Policy for ECR access (if needed)
 resource "aws_iam_role_policy" "github_actions_ecr" {
-  name = "${var.cluster_name}-github-actions-ecr-policy"
+  name = "${local.role_name}-ecr-policy"
   role = aws_iam_role.github_actions.id
 
   policy = jsonencode({

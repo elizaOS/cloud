@@ -46,6 +46,7 @@ module "github_oidc" {
   source = "./modules/github-oidc"
 
   cluster_name = local.cluster_name
+  environment  = var.environment
   github_org   = var.github_org
   github_repo  = var.github_repo
 }

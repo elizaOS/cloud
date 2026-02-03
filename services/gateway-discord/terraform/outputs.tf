@@ -84,7 +84,7 @@ output "github_actions_variables" {
   description = "Variables to set in GitHub repository for deployment"
   value = {
     GATEWAY_AWS_ROLE_ARN = module.github_oidc.github_actions_role_arn
-    GATEWAY_AWS_REGION   = var.aws_region
-    GATEWAY_CLUSTER_NAME = module.eks.cluster_name
+    AWS_REGION           = var.aws_region
+    CLUSTER_NAME         = module.eks.cluster_name
   }
 }

@@ -217,9 +217,9 @@ Add these to each GitHub environment (`gateway-dev` and `gateway-prd`) under **S
 
 | Variable | Example | Description |
 |----------|---------|-------------|
-| `GATEWAY_AWS_ROLE_ARN` | `arn:aws:iam::123456789:role/github-actions-gateway` | IAM role for OIDC auth |
-| `GATEWAY_AWS_REGION` | `us-east-1` | AWS region of EKS cluster |
-| `GATEWAY_CLUSTER_NAME` | `gateway-cluster` | EKS cluster name |
+| `GATEWAY_AWS_ROLE_ARN` | `arn:aws:iam::123456789:role/github-actions-gateway-dev` | IAM role for EKS access (created by Terraform) |
+| `AWS_REGION` | `us-east-1` | AWS region of EKS cluster |
+| `CLUSTER_NAME` | `gateway-cluster-dev` | EKS cluster name |
 
 ### AWS OIDC Setup (One-Time)
 

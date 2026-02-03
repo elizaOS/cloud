@@ -3,6 +3,11 @@ variable "cluster_name" {
   type        = string
 }
 
+variable "environment" {
+  description = "Environment name (development, production)"
+  type        = string
+}
+
 variable "github_org" {
   description = "GitHub organization name"
   type        = string

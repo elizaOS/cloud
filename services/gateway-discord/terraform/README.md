@@ -147,16 +147,16 @@ Create the role:
 ```bash
 # Replace YOUR_ACCOUNT_ID in the JSON file first
 aws iam create-role \
-  --role-name github-actions-terraform \
+  --role-name github-actions-gateway-terraform \
   --assume-role-policy-document file://terraform-role-trust-policy.json
 
 # Attach admin policy (required for Terraform to create all resources)
 aws iam attach-role-policy \
-  --role-name github-actions-terraform \
+  --role-name github-actions-gateway-terraform \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 ```
 
-The role ARN will be: `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-terraform`
+The role ARN will be: `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-gateway-terraform`
 </details>
 
 > **Note**: This role needs broad permissions because Terraform creates VPCs, EKS clusters, IAM roles, etc. After Terraform runs, it creates a separate `github-actions-role` with limited EKS-only permissions for app deployments.
