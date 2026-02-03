@@ -45,18 +45,6 @@ function createInvalidVoiceIdResponse() {
   );
 }
 
-function createInvalidVoiceIdErrorResponse() {
-  return NextResponse.json(
-    {
-      error: "Invalid voice ID format",
-      message:
-        "The voice ID must be in UUID format. Use the 'id' field from 'List Voices' response.",
-      hint: "Call GET /api/v1/voice/list to get your voice IDs",
-    },
-    { status: 400 },
-  );
-}
-
 /**
  * GET /api/v1/voice/[id]
  * Gets details for a specific voice by its internal UUID.
@@ -116,7 +104,7 @@ export async function GET(
       (error.message.includes("invalid input syntax for type uuid") ||
         error.message.includes("uuid"))
     ) {
-      return createInvalidVoiceIdErrorResponse();
+      return createInvalidVoiceIdResponse();
     }
 
     return NextResponse.json(
@@ -182,7 +170,7 @@ export async function DELETE(
         error.message.includes("invalid input syntax for type uuid") ||
         error.message.includes("uuid")
       ) {
-        return createInvalidVoiceIdErrorResponse();
+        return createInvalidVoiceIdResponse();
       }
     }
 
@@ -260,7 +248,7 @@ export async function PATCH(
         error.message.includes("invalid input syntax for type uuid") ||
         error.message.includes("uuid")
       ) {
-        return createInvalidVoiceIdErrorResponse();
+        return createInvalidVoiceIdResponse();
       }
     }
 
