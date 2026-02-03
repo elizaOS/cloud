@@ -59,3 +59,4 @@ export * from "./discord-channels";
 export * from "./discord-connections";
 export * from "./agent-phone-numbers";
 export * from "./idempotency-keys";
+export * from "./entity-settings";

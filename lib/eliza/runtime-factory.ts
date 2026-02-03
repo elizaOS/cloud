@@ -570,17 +570,21 @@ export class RuntimeFactory {
     return runtime;
   }
 
+  /**
+   * Apply user-specific context to a cached runtime.
+   *
+   * IMPORTANT: API keys, user IDs, and other settings resolved via getSetting()
+   * are now handled by the request context pattern (see packages/core/src/request-context.ts).
+   * Those settings are prefetched at request start and injected via runWithRequestContext(),
+   * so getSetting() returns the correct user's values without mutating shared state.
+   *
+   * This method only handles settings that are accessed DIRECTLY on character.settings
+   * (not via getSetting()), such as model preferences and app configurations.
+   */
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
     const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
 
-    // Update character.settings (takes precedence in getSetting())
-    charSettings.ELIZAOS_API_KEY = context.apiKey;
-    charSettings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
-    charSettings.USER_ID = context.userId;
-    charSettings.ENTITY_ID = context.entityId;
-    charSettings.ORGANIZATION_ID = context.organizationId;
-    charSettings.IS_ANONYMOUS = context.isAnonymous;
-
+    // Model preferences - accessed directly, not via getSetting()
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel ||
@@ -590,30 +594,24 @@ export class RuntimeFactory {
         charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
+    // Image model - accessed directly
     if (context.imageModel) {
       charSettings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
     }
 
+    // App prompt config - accessed directly
     if (context.appPromptConfig) {
       charSettings.appPromptConfig = context.appPromptConfig;
     }
 
-    // Also update runtime.settings for MCP (McpService checks this as fallback)
-    // This ensures MCP settings are fresh per-user even on cache hit
-    // TODO: Replace type assertion with public API when AgentRuntime exposes settings accessor
-    const runtimeSettings = (runtime as unknown as { settings: Record<string, unknown> }).settings;
-    if (runtimeSettings) {
-      const mcpSettings = this.buildMcpSettings({}, context);
-      Object.assign(runtimeSettings, {
-        ELIZAOS_API_KEY: context.apiKey,
-        ELIZAOS_CLOUD_API_KEY: context.apiKey,
-        USER_ID: context.userId,
-        ENTITY_ID: context.entityId,
-        ORGANIZATION_ID: context.organizationId,
-        IS_ANONYMOUS: context.isAnonymous,
-        ...mcpSettings,
-      });
-    }
+    // NOTE: The following are NO LONGER mutated here because they're resolved
+    // dynamically via getSetting() which checks request context first:
+    // - ELIZAOS_API_KEY / ELIZAOS_CLOUD_API_KEY
+    // - USER_ID / ENTITY_ID / ORGANIZATION_ID / IS_ANONYMOUS
+    // - MCP settings (mcp.servers with X-API-Key headers)
+    //
+    // See: packages/core/src/runtime.ts getSetting() and
+    //      lib/services/entity-settings/service.ts prefetch()
   }
 
   private transformMcpSettings(
