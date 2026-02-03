@@ -61,14 +61,8 @@ function isAuthenticationError(message: string): boolean {
   );
 }
 
-function getAuthErrorDetails(
-  error: unknown,
-  fallbackMessage: string,
-): { errorMessage: string; isAuthError: boolean } {
-  const errorMessage =
-    error instanceof Error ? error.message : fallbackMessage;
-
-  return { errorMessage, isAuthError: isAuthenticationError(errorMessage) };
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  return error instanceof Error ? error.message : fallbackMessage;
 }
 
 /**
@@ -107,10 +101,11 @@ async function handleGET(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
-    const { errorMessage, isAuthError } = getAuthErrorDetails(
+    const errorMessage = getErrorMessage(
       error,
       "Failed to get billing settings",
     );
+    const isAuthError = isAuthenticationError(errorMessage);
 
     return NextResponse.json(
       { success: false, error: isAuthError ? "Unauthorized" : errorMessage },
@@ -186,10 +181,11 @@ async function handlePUT(req: NextRequest) {
   } catch (error) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
-    const { errorMessage, isAuthError } = getAuthErrorDetails(
+    const errorMessage = getErrorMessage(
       error,
       "Failed to update billing settings",
     );
+    const isAuthError = isAuthenticationError(errorMessage);
 
     const isValidationError =
       errorMessage.includes("Cannot enable") ||

@@ -27,15 +27,15 @@ export async function GET(
 
     // Return basic stats. These are placeholders and follow the
     // documented field names: `views`, `interactions`, `messageCount`.
-    // Do not include legacy field names to avoid API confusion.
+    const stats = {
+      views: 0,
+      interactions: 0,
+      messageCount: 0,
+    };
     return NextResponse.json({
       success: true,
       data: {
-        stats: {
-          views: 0,
-          interactions: 0,
-          messageCount: 0,
-        },
+        stats,
       },
     });
   } catch (error) {

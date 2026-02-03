@@ -151,6 +151,11 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/stt" \
 
 Returns JSON with `transcript` and `duration_ms`.
 
+| Field | Type | Description |
+|-------|------|-------------|
+| `transcript` | string | Transcribed text |
+| `duration_ms` | number | Audio duration in milliseconds |
+
 ```json
 {
   "transcript": "Hello, this is a transcription test.",
