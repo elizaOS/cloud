@@ -904,6 +904,17 @@ export class CloudBootstrapMessageService implements IMessageService {
             accumulatedState,
             traceActionResult,
           );
+
+          // Check if action requires user input before continuing
+          const resultData = result?.data as
+            | Record<string, unknown>
+            | undefined;
+          if (resultData?.awaitingUserInput === true) {
+            logger.info(
+              `[MultiStep] Action ${action} awaiting user input, pausing loop`,
+            );
+            break;
+          }
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : String(err);
           logger.error(
