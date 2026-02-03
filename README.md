@@ -1306,27 +1306,41 @@ Integrated into the main database via `@elizaos/plugin-sql` schema. These tables
 
 ### Database Migrations
 
-**Generate migration**:
+See [docs/database-migrations.md](./docs/database-migrations.md) for comprehensive migration documentation.
+
+**Generate migration** (from schema changes):
 
 ```bash
-npm run db:generate
+bun run db:generate
 ```
 
-This creates SQL migration files in `db/migrations/`.
+This creates SQL migration files in `db/migrations/` with proper journal tracking.
 
-**Apply migration**:
+**Apply migrations**:
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
 
-**Push schema (dev only)**:
+**Push schema** (development only, bypasses migration tracking):
 
 ```bash
-npm run db:push
+bun run db:push
 ```
 
-⚠️ **Never use `db:push` in production** - always use migrations.
+⚠️ **Never use `db:push` in production** - it doesn't track which changes were applied.
+
+**Audit migration state**:
+
+```bash
+DATABASE_URL=... bun run scripts/audit-migrations.ts
+```
+
+**Consolidate migrations** (if journal gets out of sync):
+
+```bash
+bun run scripts/consolidate-migrations.ts
+```
 
 ### Race Condition Prevention
 
