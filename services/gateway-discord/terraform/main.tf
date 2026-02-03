@@ -19,6 +19,9 @@ module "vpc" {
   use_nat_instance   = var.use_nat_instance
   nat_instance_type  = var.nat_instance_type
   single_nat_gateway = var.single_nat_gateway
+  # Note: nat_instance_key_name intentionally not passed - SSM-only access is preferred
+  # for security (no SSH keys needed). NAT instance has SSM agent enabled via IAM role.
+  # To enable SSH access, add nat_instance_key_name variable to root module and pass here.
 }
 
 # EKS Module
