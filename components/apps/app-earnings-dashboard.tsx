@@ -7,7 +7,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +27,7 @@ import {
   Zap,
   FlaskConical,
   AlertCircle,
-  Sparkles,
+  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -42,8 +41,6 @@ import {
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import {
-  AnimatedCounter,
-  AnimatedCounterWithLabel,
   MilestoneProgress,
   WithdrawDialog,
 } from "./monetization";
@@ -95,9 +92,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<
-    boolean | null
-  >(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -116,10 +111,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     setError(null);
 
     try {
-      const url = new URL(
-        `/api/v1/apps/${appId}/earnings`,
-        window.location.origin,
-      );
+      const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
       url.searchParams.set("days", period);
 
       if (testDataParam) {
@@ -145,9 +137,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         setError(data.error || "Failed to load earnings data");
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load earnings data",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load earnings data");
     } finally {
       setIsLoading(false);
     }
@@ -178,36 +168,31 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   if (error) {
     return (
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10 text-center py-12">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            Error loading earnings
-          </h3>
-          <p className="text-white/60 mb-4">{error}</p>
-          <Button
-            onClick={fetchEarnings}
-            variant="outline"
-            className="bg-white/5"
-          >
-            Try Again
-          </Button>
-        </div>
-      </BrandCard>
+      <div className="bg-neutral-900 rounded-xl p-8 text-center">
+        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
+        <h3 className="text-lg font-medium text-white mb-2">
+          Error loading earnings
+        </h3>
+        <p className="text-neutral-400 mb-4 text-sm">{error}</p>
+        <Button
+          onClick={fetchEarnings}
+          variant="outline"
+          className="border-white/10 hover:bg-white/10"
+        >
+          Try Again
+        </Button>
+      </div>
     );
   }
 
   const canWithdraw =
-    summary &&
-    summary.withdrawableBalance >=
-      (summary.payoutThreshold || PAYOUT_THRESHOLD);
+    summary && summary.withdrawableBalance >= (summary.payoutThreshold || PAYOUT_THRESHOLD);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {isTestData && (
-        <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-          <FlaskConical className="h-5 w-5 text-amber-500" />
+        <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <FlaskConical className="h-4 w-4 text-amber-400" />
           <p className="text-sm text-amber-400">
             Test Data Mode - Showing sample earnings data
           </p>
@@ -220,10 +205,10 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           value={period}
           onValueChange={(v) => setPeriod(v as typeof period)}
         >
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10">
+          <SelectTrigger className="w-[140px] h-9 bg-neutral-900 border-white/10 rounded-lg">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-neutral-800 border-white/10 rounded-lg">
             <SelectItem value="7">Last 7 days</SelectItem>
             <SelectItem value="30">Last 30 days</SelectItem>
             <SelectItem value="90">Last 90 days</SelectItem>
@@ -233,115 +218,85 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
       {/* Empty State */}
       {!summary && !isLoading && (
-        <BrandCard>
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 text-center py-12">
-            <TrendingUp className="h-16 w-16 mx-auto mb-4 text-white/20" />
-            <h3 className="text-lg font-semibold text-white mb-2">
-              No earnings yet
-            </h3>
-            {monetizationEnabled ? (
-              <p className="text-white/60">
-                Earnings will appear here once users start using your app
+        <div className="bg-neutral-900 rounded-xl p-8 text-center">
+          <TrendingUp className="h-12 w-12 mx-auto mb-4 text-neutral-600" />
+          <h3 className="text-lg font-medium text-neutral-500 mb-2">
+            No earnings yet
+          </h3>
+          {monetizationEnabled ? (
+            <p className="text-neutral-500 text-sm">
+              Earnings will appear here once users start using your app
+            </p>
+          ) : (
+            <>
+              <p className="text-neutral-500 text-sm mb-4">
+                Enable monetization to start earning from your app
               </p>
-            ) : (
-              <>
-                <p className="text-white/60 mb-4">
-                  Enable monetization to start earning from your app
-                </p>
-                <Button
-                  onClick={() => {
-                    router.push(`/dashboard/apps/${appId}?tab=monetization`);
-                  }}
-                  className="bg-gradient-to-r from-[#FF5800] to-purple-600"
-                >
-                  Enable Monetization
-                </Button>
-              </>
-            )}
-          </div>
-        </BrandCard>
+              <Button
+                onClick={() => {
+                  router.push(`/dashboard/apps/${appId}?tab=monetization`);
+                }}
+                className="bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+              >
+                Enable Monetization
+              </Button>
+            </>
+          )}
+        </div>
       )}
 
       {/* Hero Stats Card */}
       {summary && (
-        <div
-          className={cn(
-            "relative overflow-hidden rounded-lg border p-6",
-            canWithdraw
-              ? "bg-gradient-to-br from-green-900/20 via-black/40 to-[#FF5800]/10 border-green-500/30"
-              : "bg-gradient-to-br from-[#FF5800]/10 via-black/40 to-purple-900/10 border-white/10",
-          )}
-        >
-          <CornerBrackets
-            size="lg"
-            color={canWithdraw ? "#22C55E" : "#FF5800"}
-            className="opacity-30"
-          />
-
-          {/* Background decoration */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-[#FF5800]/5 to-transparent rounded-full blur-3xl animate-liquid-orb" />
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          {/* Total Earnings */}
+          <div className="bg-neutral-900 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-neutral-500">Total Lifetime Earnings</p>
+                <p className="text-2xl font-semibold text-white mt-1">
+                  ${summary.totalLifetimeEarnings.toFixed(2)}
+                </p>
+                {breakdown && (
+                  <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3" />
+                    ${breakdown.thisWeek.total.toFixed(2)} this week
+                  </p>
+                )}
+              </div>
+              <TrendingUp className="h-5 w-5 text-[#FF5800]" />
+            </div>
           </div>
 
-          <div className="relative z-10 grid gap-6 md:grid-cols-2">
-            {/* Left: Total Earnings */}
-            <div>
-              <p className="text-xs text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <TrendingUp className="h-3 w-3" />
-                Total Lifetime Earnings
-              </p>
-              <div className="text-4xl font-bold mb-3">
-                <AnimatedCounter
-                  value={summary.totalLifetimeEarnings}
-                  prefix="$"
-                  decimals={2}
-                  className="gradient-text"
-                  duration={2000}
-                />
+          {/* Withdrawable Balance */}
+          <div className={cn(
+            "bg-neutral-900 rounded-xl p-4",
+            canWithdraw && "border border-emerald-500/30"
+          )}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-neutral-500">Ready to Withdraw</p>
+                <p className="text-2xl font-semibold text-emerald-400 mt-1">
+                  ${summary.withdrawableBalance.toFixed(2)}
+                </p>
               </div>
-              {breakdown && (
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-green-400 flex items-center gap-1">
-                    <ArrowUpRight className="h-3 w-3" />$
-                    {breakdown.thisWeek.total.toFixed(2)}
-                  </span>
-                  <span className="text-white/40">this week</span>
-                </div>
-              )}
+              <Wallet className="h-5 w-5 text-emerald-400" />
             </div>
-
-            {/* Right: Withdrawable Balance */}
-            <div className="md:text-right">
-              <p className="text-xs text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5 md:justify-end">
-                <Wallet className="h-3 w-3" />
-                Ready to Withdraw
-              </p>
-              <div className="text-3xl font-bold text-green-400 mb-3">
-                <AnimatedCounter
-                  value={summary.withdrawableBalance}
-                  prefix="$"
-                  decimals={2}
-                  duration={1500}
-                />
-              </div>
-
+            <div className="mt-3">
               {canWithdraw ? (
                 <Button
                   onClick={() => setShowWithdrawDialog(true)}
-                  className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:opacity-90 animate-glow-pulse"
+                  size="sm"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Wallet className="h-4 w-4 mr-2" />
                   Withdraw Now
                 </Button>
               ) : (
-                <div className="md:ml-auto md:max-w-[200px]">
-                  <MilestoneProgress
-                    current={summary.withdrawableBalance}
-                    target={summary.payoutThreshold || PAYOUT_THRESHOLD}
-                    showAmount={false}
-                  />
-                </div>
+                <MilestoneProgress
+                  current={summary.withdrawableBalance}
+                  target={summary.payoutThreshold || PAYOUT_THRESHOLD}
+                  showAmount={false}
+                />
               )}
             </div>
           </div>
@@ -350,18 +305,18 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
       {/* Stats Grid */}
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Pending"
             value={summary.pendingBalance}
             icon={<Clock className="h-5 w-5" />}
-            color="yellow"
+            color="amber"
           />
           <StatCard
             label="Withdrawable"
             value={summary.withdrawableBalance}
             icon={<Wallet className="h-5 w-5" />}
-            color="green"
+            color="emerald"
           />
           <StatCard
             label="From Inference"
@@ -380,156 +335,139 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
       {/* Period Breakdown */}
       {breakdown && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Today", data: breakdown.today },
             { label: "This Week", data: breakdown.thisWeek },
             { label: "This Month", data: breakdown.thisMonth },
             { label: "All Time", data: breakdown.allTime },
-          ].map(({ label, data }, index) => (
-            <BrandCard
-              key={label}
-              className="animate-stagger-fade"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CornerBrackets size="sm" className="opacity-20" />
-              <div className="relative z-10">
-                <p className="text-xs text-white/50 mb-2">{label}</p>
-                <p className="text-xl font-bold text-white mb-2">
-                  ${data.total.toFixed(2)}
-                </p>
-                <div className="flex gap-3 text-xs">
-                  <span className="text-purple-400 flex items-center gap-1">
-                    <Zap className="h-3 w-3" />$
-                    {data.inferenceEarnings.toFixed(2)}
-                  </span>
-                  <span className="text-yellow-400 flex items-center gap-1">
-                    <Coins className="h-3 w-3" />$
-                    {data.purchaseEarnings.toFixed(2)}
-                  </span>
-                </div>
+          ].map(({ label, data }) => (
+            <div key={label} className="bg-neutral-900 rounded-xl p-3">
+              <p className="text-xs text-neutral-500">{label}</p>
+              <p className="text-lg font-semibold text-white mt-1">
+                ${data.total.toFixed(2)}
+              </p>
+              <div className="flex gap-3 text-xs mt-2">
+                <span className="text-purple-400 flex items-center gap-1">
+                  <Zap className="h-3 w-3" />${data.inferenceEarnings.toFixed(2)}
+                </span>
+                <span className="text-amber-400 flex items-center gap-1">
+                  <Coins className="h-3 w-3" />${data.purchaseEarnings.toFixed(2)}
+                </span>
               </div>
-            </BrandCard>
+            </div>
           ))}
         </div>
       )}
 
       {/* Chart */}
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-[#FF5800]" />
-            Earnings Over Time
-          </h3>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.1)"
-                />
-                <XAxis
-                  dataKey="date"
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: "12px" }}
-                />
-                <YAxis
-                  stroke="rgba(255,255,255,0.6)"
-                  style={{ fontSize: "12px" }}
-                  tickFormatter={(value) => `$${value.toFixed(2)}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.9)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                    color: "white",
-                  }}
-                  formatter={(value: number) => `$${value.toFixed(4)}`}
-                />
-                <Legend />
-                <Bar
-                  dataKey="inferenceEarnings"
-                  fill="#a855f7"
-                  name="Inference Markup"
-                  stackId="a"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="purchaseEarnings"
-                  fill="#eab308"
-                  name="Purchase Share"
-                  stackId="a"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="text-center text-white/60 py-12">
-              <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p>No earnings data yet</p>
-            </div>
-          )}
-        </div>
-      </BrandCard>
+      <div className="bg-neutral-900 rounded-xl p-4">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-neutral-400" />
+          Earnings Over Time
+        </h3>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={chartData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="rgba(255,255,255,0.1)"
+              />
+              <XAxis
+                dataKey="date"
+                stroke="rgba(255,255,255,0.4)"
+                style={{ fontSize: "11px" }}
+              />
+              <YAxis
+                stroke="rgba(255,255,255,0.4)"
+                style={{ fontSize: "11px" }}
+                tickFormatter={(value) => `$${value.toFixed(2)}`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#171717",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  color: "white",
+                  fontSize: "12px",
+                }}
+                formatter={(value: number) => `$${value.toFixed(4)}`}
+              />
+              <Legend />
+              <Bar
+                dataKey="inferenceEarnings"
+                fill="#a855f7"
+                name="Inference Markup"
+                stackId="a"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="purchaseEarnings"
+                fill="#f59e0b"
+                name="Purchase Share"
+                stackId="a"
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="text-center text-neutral-500 py-8">
+            <DollarSign className="h-10 w-10 mx-auto mb-3 text-neutral-600" />
+            <p className="text-sm">No earnings data yet</p>
+          </div>
+        )}
+      </div>
 
       {/* Recent Transactions */}
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-white/60" />
-            Recent Earnings
-          </h3>
+      <div className="bg-neutral-900 rounded-xl p-4">
+        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-neutral-400" />
+          Recent Earnings
+        </h3>
 
-          {transactions.length > 0 ? (
-            <div className="space-y-2">
-              {transactions.map((tx, index) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors animate-stagger-fade"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <TransactionIcon type={tx.type} />
-                    <div>
-                      <p className="text-sm text-white">{tx.description}</p>
-                      <p className="text-xs text-white/40">
-                        {formatDistanceToNow(new Date(tx.created_at), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TransactionBadge type={tx.type} />
-                    <span
-                      className={cn(
-                        "font-mono font-semibold",
-                        Number(tx.amount) >= 0
-                          ? "text-green-400"
-                          : "text-red-400",
-                      )}
-                    >
-                      {Number(tx.amount) >= 0 ? "+" : ""}$
-                      {Math.abs(Number(tx.amount)).toFixed(4)}
-                    </span>
+        {transactions.length > 0 ? (
+          <div className="space-y-2">
+            {transactions.map((tx) => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <TransactionIcon type={tx.type} />
+                  <div>
+                    <p className="text-sm text-white">{tx.description}</p>
+                    <p className="text-xs text-neutral-500">
+                      {formatDistanceToNow(new Date(tx.created_at), {
+                        addSuffix: true,
+                      })}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-white/60 py-12">
-              <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p className="text-sm mb-2">No transactions yet</p>
-              <p className="text-xs text-white/40">
-                Transactions will appear here once you start earning
-              </p>
-            </div>
-          )}
-        </div>
-      </BrandCard>
+                <div className="flex items-center gap-2">
+                  <TransactionBadge type={tx.type} />
+                  <span
+                    className={cn(
+                      "font-mono text-sm font-medium",
+                      Number(tx.amount) >= 0 ? "text-emerald-400" : "text-red-400",
+                    )}
+                  >
+                    {Number(tx.amount) >= 0 ? "+" : ""}$
+                    {Math.abs(Number(tx.amount)).toFixed(4)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-neutral-500 py-8">
+            <DollarSign className="h-10 w-10 mx-auto mb-3 text-neutral-600" />
+            <p className="text-sm mb-1">No transactions yet</p>
+            <p className="text-xs text-neutral-600">
+              Transactions will appear here once you start earning
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Withdraw Dialog */}
       {summary && (
@@ -550,40 +488,29 @@ interface StatCardProps {
   label: string;
   value: number;
   icon: React.ReactNode;
-  color: "yellow" | "green" | "purple" | "orange";
+  color: "amber" | "emerald" | "purple" | "orange";
 }
 
 function StatCard({ label, value, icon, color }: StatCardProps) {
   const colorClasses = {
-    yellow: "text-yellow-400 bg-yellow-500/10",
-    green: "text-green-400 bg-green-500/10",
-    purple: "text-purple-400 bg-purple-500/10",
-    orange: "text-[#FF5800] bg-[#FF5800]/10",
+    amber: "text-amber-400",
+    emerald: "text-emerald-400",
+    purple: "text-purple-400",
+    orange: "text-[#FF5800]",
   };
 
   return (
-    <BrandCard>
-      <CornerBrackets size="sm" className="opacity-20" />
-      <div className="relative z-10 flex items-center gap-3">
-        <div className={cn("p-2 rounded-lg", colorClasses[color])}>{icon}</div>
-        <div>
-          <p className="text-xs text-white/50">{label}</p>
-          <p
-            className={cn(
-              "text-lg font-bold",
-              colorClasses[color].split(" ")[0],
-            )}
-          >
-            <AnimatedCounter
-              value={value}
-              prefix="$"
-              decimals={2}
-              duration={1000}
-            />
+    <div className="bg-neutral-900 rounded-xl p-3 md:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs text-neutral-500 truncate">{label}</p>
+          <p className={cn("text-lg md:text-xl font-semibold mt-1 truncate", colorClasses[color])}>
+            ${value.toFixed(2)}
           </p>
         </div>
+        <div className={cn("shrink-0", colorClasses[color])}>{icon}</div>
       </div>
-    </BrandCard>
+    </div>
   );
 }
 
@@ -604,37 +531,25 @@ function TransactionBadge({ type }: { type: string }) {
   switch (type) {
     case "inference_markup":
       return (
-        <Badge
-          variant="secondary"
-          className="bg-purple-500/20 text-purple-400 text-xs"
-        >
+        <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px]">
           Inference
         </Badge>
       );
     case "purchase_share":
       return (
-        <Badge
-          variant="secondary"
-          className="bg-yellow-500/20 text-yellow-400 text-xs"
-        >
+        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
           Purchase
         </Badge>
       );
     case "withdrawal":
       return (
-        <Badge
-          variant="secondary"
-          className="bg-red-500/20 text-red-400 text-xs"
-        >
+        <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
           Withdrawal
         </Badge>
       );
     default:
       return (
-        <Badge
-          variant="secondary"
-          className="bg-gray-500/20 text-gray-400 text-xs"
-        >
+        <Badge className="bg-white/10 text-neutral-400 border-white/20 text-[10px]">
           {type}
         </Badge>
       );

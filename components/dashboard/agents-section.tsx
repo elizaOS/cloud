@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Plus, HelpCircle } from "lucide-react";
+import { Plus, Info } from "lucide-react";
 import Link from "next/link";
 import { AgentCard } from "@/components/agents";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
@@ -58,7 +58,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
                   type="button"
                   className="text-white/40 hover:text-white/70 transition-colors"
                 >
-                  <HelpCircle className="h-4 w-4" />
+                  <Info className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent

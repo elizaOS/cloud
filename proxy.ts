@@ -99,9 +99,30 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   const client = getRedis();
   if (!client) return null;
   try {
-    const cached = await client.get<string>(`proxy:auth:${hashToken(token)}`);
-    return cached ? JSON.parse(cached) : null;
-  } catch {
+    const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
+    if (!cached) return null;
+    // Handle both old string format and new object format
+    if (typeof cached === "string") {
+      // Skip corrupted cache entries (e.g., "[object Object]")
+      if (cached === "[object Object]" || !cached.startsWith("{")) {
+        return null;
+      }
+      return JSON.parse(cached);
+    }
+    // Validate it's actually a CachedAuth object
+    if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
+      return cached;
+    }
+    return null;
+  } catch (error) {
+    // Silently ignore corrupted cache entries (e.g., "[object Object]" stored incorrectly)
+    // This happens when Upstash tries to auto-parse invalid JSON - just fall back to fresh auth
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("is not valid JSON")) {
+      return null;
+    }
+    // Log other unexpected Redis errors but don't block auth
+    console.warn("[Proxy] Redis cache read failed:", errorMessage);
     return null;
   }
 }
@@ -115,8 +136,9 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
       AUTH_CACHE_TTL,
       JSON.stringify(auth),
     );
-  } catch {
-    /* ignore */
+  } catch (error) {
+    // Log Redis write errors but don't block auth - caching is best-effort
+    console.warn("[Proxy] Redis cache write failed:", error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -167,14 +189,24 @@ const publicPaths = [
   "/api/v1/track",
   "/api/v1/discovery", // Public discovery endpoint for agents/MCPs
   "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
+  "/api/v1/twitter/callback", // Twitter OAuth callback
+  "/api/v1/oauth/providers", // Public endpoint - list available OAuth providers
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
+  "/api/.well-known", // JWKS endpoint for JWT verification
+  "/api/internal", // Internal service-to-service API (has own auth via JWT Bearer token)
+  "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
+  "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
+  "/api/eliza-app/auth", // Eliza App public auth endpoints
+  "/api/eliza-app/webhook", // Eliza App webhooks (they verify their own signatures)
+  "/api/eliza-app/user", // Eliza App user endpoints (uses own session validation)
 ];
 
 const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
+  /^\/api\/v1\/oauth\/[^/]+\/callback$/, // Generic OAuth callbacks (redirects from providers)
 ];
 
 const protectedPaths = [
@@ -200,7 +232,7 @@ export async function proxy(request: NextRequest) {
         "Access-Control-Allow-Methods":
           "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },

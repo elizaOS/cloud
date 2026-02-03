@@ -208,6 +208,7 @@ export function buildUserContext(
     modelPreferences?: { smallModel?: string; largeModel?: string };
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
+    oauthConnections?: Array<{ platform: string }>;
   } = {},
 ): UserContext {
   // Validate we're not creating anonymous context
@@ -237,6 +238,7 @@ export function buildUserContext(
     appPromptConfig: options.appPromptConfig,
     name: testData.user.name,
     email: testData.user.email,
+    oauthConnections: options.oauthConnections,
   };
 }
 

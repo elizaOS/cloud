@@ -55,41 +55,27 @@ export function TelegramConnection() {
   const [botToken, setBotToken] = useState("");
   const [showInstructions, setShowInstructions] = useState(false);
 
-  const fetchStatus = async () => {
+  const fetchStatus = async (signal?: AbortSignal) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/v1/telegram/status");
-      const data: TelegramStatus = await response.json();
-      setStatus(data);
+      const response = await fetch("/api/v1/telegram/status", { signal });
+      if (!signal?.aborted) {
+        setStatus(await response.json());
+      }
     } catch {
-      toast.error("Failed to fetch Telegram status");
+      if (!signal?.aborted) {
+        toast.error("Failed to fetch Telegram status");
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
     const controller = new AbortController();
-
-    const loadStatus = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/v1/telegram/status", {
-          signal: controller.signal,
-        });
-        if (!controller.signal.aborted) {
-          const data: TelegramStatus = await response.json();
-          setStatus(data);
-          setIsLoading(false);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadStatus();
-
+    fetchStatus(controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -114,7 +100,7 @@ export function TelegramConnection() {
       if (response.ok && data.success) {
         toast.success(`Telegram bot @${data.botUsername} connected!`);
         setBotToken("");
-        fetchStatus();
+        void fetchStatus();
       } else {
         toast.error(data.error || "Failed to connect bot");
       }
@@ -136,7 +122,7 @@ export function TelegramConnection() {
 
       if (response.ok) {
         toast.success("Telegram bot disconnected");
-        fetchStatus();
+        void fetchStatus();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error(data.error || "Failed to disconnect");
@@ -211,16 +197,12 @@ export function TelegramConnection() {
 
             <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
-                Next: Add the bot to your channels/groups
+                Next: Start chatting with your bot
               </p>
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Open your Telegram channel or group</li>
-                <li>
-                  Go to Settings → Add Members → Search for @
-                  {status.botUsername}
-                </li>
-                <li>Make the bot an admin (so it can post messages)</li>
-                <li>Go to your app&apos;s Promote tab to enable automation</li>
+                <li>Open Telegram and search for @{status.botUsername}</li>
+                <li>Click &quot;Start&quot; to begin a conversation</li>
+                <li>Send a message - your AI agent will respond</li>
               </ol>
             </div>
 

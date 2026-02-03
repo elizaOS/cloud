@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Terminal, HelpCircle, Copy, Check } from "lucide-react";
+import { Terminal, Info, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
@@ -71,7 +71,7 @@ export function ContainersSection({
                   type="button"
                   className="text-white/40 hover:text-white/70 transition-colors"
                 >
-                  <HelpCircle className="h-4 w-4" />
+                  <Info className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent

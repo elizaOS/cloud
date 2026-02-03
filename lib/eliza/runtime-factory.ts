@@ -1,7 +1,6 @@
 /**
  * Runtime Factory - Creates configured ElizaOS runtimes per user/agent context.
  */
-
 import {
   AgentRuntime,
   stringToUuid,
@@ -14,6 +13,7 @@ import {
   type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
+import mcpPlugin from "@elizaos/plugin-mcp";
 import { agentLoader } from "./agent-loader";
 import {
   getElizaCloudApiUrl,
@@ -32,12 +32,19 @@ import {
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
+const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
+  google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
+  // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
+  // github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
+};
+
 interface GlobalWithEliza {
   logger?: Logger;
 }
 
 interface RuntimeSettings {
   ELIZAOS_API_KEY?: string;
+  ELIZAOS_CLOUD_API_KEY?: string;
   USER_ID?: string;
   ENTITY_ID?: string;
   ORGANIZATION_ID?: string;
@@ -69,10 +76,7 @@ const safeClose = async (
     .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
 };
 
-/**
- * Stop a runtime's services without closing the database adapter.
- * This is the safe way to evict a runtime since the adapter shares a global connection pool.
- */
+/** Stop runtime services without closing the shared database adapter pool. */
 async function stopRuntimeServices(
   runtime: AgentRuntime,
   id: string,
@@ -176,10 +180,7 @@ class RuntimeCache {
     );
   }
 
-  /**
-   * Remove a runtime from cache WITHOUT closing its database adapter.
-   * The adapter shares a global connection pool that should remain active.
-   */
+  /** Remove runtime from cache (keeps adapter pool alive). */
   async remove(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (!entry) return false;
@@ -192,11 +193,7 @@ class RuntimeCache {
     return true;
   }
 
-  /**
-   * Delete a runtime from cache AND close it completely.
-   * Use this only for full shutdown scenarios where you want to terminate
-   * the database connection.
-   */
+  /** Delete runtime and close completely. Use only for full shutdown. */
   async delete(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (entry) {
@@ -211,7 +208,14 @@ class RuntimeCache {
   }
 
   has(agentId: string): boolean {
-    return this.cache.has(agentId);
+    // Cache keys are now composite: ${agentId}:${orgId}${webSearchSuffix}
+    // Check if any key starts with this agentId
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(agentId)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private async evictOldest(): Promise<void> {
@@ -237,10 +241,7 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
-  /**
-   * Clear all cached runtimes and close their adapters.
-   * WARNING: This closes the shared connection pool. Only use for full shutdown.
-   */
+  /** Clear all cached runtimes. WARNING: Closes shared connection pool. */
   async clear(): Promise<void> {
     await Promise.all(
       Array.from(this.cache.entries()).map(([id, entry]) =>
@@ -314,9 +315,6 @@ class DbAdapterPool {
   async checkHealth(agentId: UUID): Promise<boolean> {
     const key = agentId as string;
     const adapter = this.adapters.get(key);
-    // If adapter doesn't exist (e.g., removed by another cache entry's eviction),
-    // return false to force runtime recreation with a fresh adapter.
-    // Multiple cache keys can share the same agentId (e.g., "abc123" and "abc123:ws").
     if (!adapter) return false;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
@@ -362,11 +360,7 @@ class DbAdapterPool {
     return adapter;
   }
 
-  /**
-   * Remove an adapter from tracking WITHOUT closing it.
-   * Use this for invalidation - the adapter shares a global connection pool
-   * that should NOT be terminated.
-   */
+  /** Remove adapter reference without closing the shared connection pool. */
   removeAdapter(agentId: string): void {
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
@@ -375,11 +369,7 @@ class DbAdapterPool {
     );
   }
 
-  /**
-   * Close and remove an adapter completely.
-   * Use this only for full shutdown scenarios.
-   * WARNING: This will close the shared connection pool!
-   */
+  /** Close adapter completely. WARNING: Closes shared connection pool! */
   async closeAdapter(agentId: string): Promise<void> {
     const adapter = this.adapters.get(agentId);
     if (adapter) {
@@ -389,15 +379,9 @@ class DbAdapterPool {
     adapterEmbeddingDimensions.delete(agentId);
   }
 
-  /**
-   * @deprecated Use removeAdapter() for invalidation or closeAdapter() for shutdown.
-   * This method closes the adapter which terminates the shared connection pool.
-   */
+  /** @deprecated Use removeAdapter() or closeAdapter() instead. */
   async invalidateAdapter(agentId: string): Promise<void> {
-    // For backward compatibility, but logs a warning
-    elizaLogger.warn(
-      `[DbAdapterPool] invalidateAdapter() is deprecated - use removeAdapter() instead to avoid closing shared pool`,
-    );
+    elizaLogger.warn(`[DbAdapterPool] invalidateAdapter() deprecated - use removeAdapter()`);
     await this.closeAdapter(agentId);
   }
 }
@@ -433,20 +417,7 @@ export class RuntimeFactory {
   }
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
-    // IMPORTANT: We intentionally DON'T close the adapter here.
-    //
-    // The plugin-sql connection pool is a GLOBAL SINGLETON shared by all agents.
-    // Calling adapter.close() would terminate the pool for EVERYONE, not just this agent.
-    //
-    // Instead, we:
-    // 1. Remove the runtime from cache (using stop(), not close())
-    // 2. Remove the adapter reference from our pool (without closing it)
-    // 3. Let garbage collection clean up the orphaned adapter
-    // 4. The shared connection pool stays alive for other agents
-    //
-    // On the next request, a fresh runtime will be created with a new adapter
-    // that reuses the same underlying connection pool.
-
+    // Don't close adapter - it shares a global connection pool with all agents
     const wasInMemoryBase = await runtimeCache.remove(agentId);
     const wasInMemoryWs = await runtimeCache.remove(`${agentId}:ws`);
     const wasInMemory = wasInMemoryBase || wasInMemoryWs;
@@ -506,7 +477,8 @@ export class RuntimeFactory {
     ) as UUID;
 
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
-    const cacheKey = `${agentId}${webSearchSuffix}`;
+    // Include organizationId to prevent cross-org API key pollution
+    const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}`;
 
     const cachedRuntime = await runtimeCache.getWithHealthCheck(
       cacheKey,
@@ -534,19 +506,44 @@ export class RuntimeFactory {
     const baseSettings = this.buildSettings(character, context);
     const filteredPlugins = this.filterPlugins(plugins);
 
-    const runtimeSecrets = {
-      ...(baseSettings.secrets as Record<string, unknown> | undefined),
+    // Build MCP settings separately - these will be passed via opts.settings
+    // to avoid being persisted to the database via character.settings
+    // Pass character.settings to preserve any pre-configured MCP servers
+    const mcpSettings = this.buildMcpSettings(character.settings || {}, context);
+
+    // Add MCP plugin if user has OAuth connections for any MCP server
+    // This is necessary because plugin loading happens before MCP settings injection
+    if (this.shouldEnableMcp(context) && !filteredPlugins.some((p) => p.name === "mcp")) {
+      filteredPlugins.push(mcpPlugin as Plugin);
+      elizaLogger.info("[RuntimeFactory] Added MCP plugin for OAuth-connected user");
+    }
+
+    // User-specific settings that should NOT be persisted to the database
+    // These are passed via opts.settings so they're ephemeral per-request
+    const ephemeralSettings: Record<string, string | boolean | number | Record<string, unknown>> = {
+      // API keys - must be per-user, not persisted
       ELIZAOS_API_KEY: context.apiKey,
+      ELIZAOS_CLOUD_API_KEY: context.apiKey,
+      // User context - must be per-user, not persisted
+      USER_ID: context.userId,
+      ENTITY_ID: context.entityId,
+      ORGANIZATION_ID: context.organizationId,
+      IS_ANONYMOUS: context.isAnonymous,
+      // MCP settings - based on user's OAuth connections
+      ...mcpSettings,
     };
 
+    // Create runtime with user-specific settings in opts.settings (NOT character.settings)
+    // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
     const runtime = new AgentRuntime({
       character: {
         ...character,
         id: agentId,
-        settings: { ...baseSettings, secrets: runtimeSecrets },
+        settings: baseSettings,
       },
       plugins: filteredPlugins,
       agentId,
+      settings: ephemeralSettings as Record<string, string | boolean | number>,
     });
 
     runtime.registerDatabaseAdapter(dbAdapter);
@@ -574,33 +571,54 @@ export class RuntimeFactory {
   }
 
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
-    const settings = (runtime.character.settings || {}) as RuntimeSettings;
-    settings.ELIZAOS_API_KEY = context.apiKey;
-    settings.USER_ID = context.userId;
-    settings.ENTITY_ID = context.entityId;
-    settings.ORGANIZATION_ID = context.organizationId;
-    settings.IS_ANONYMOUS = context.isAnonymous;
+    const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
+
+    // Update character.settings (takes precedence in getSetting())
+    charSettings.ELIZAOS_API_KEY = context.apiKey;
+    charSettings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
+    charSettings.USER_ID = context.userId;
+    charSettings.ENTITY_ID = context.entityId;
+    charSettings.ORGANIZATION_ID = context.organizationId;
+    charSettings.IS_ANONYMOUS = context.isAnonymous;
 
     if (context.modelPreferences) {
-      settings.ELIZAOS_CLOUD_SMALL_MODEL =
+      charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel ||
-        settings.ELIZAOS_CLOUD_SMALL_MODEL;
-      settings.ELIZAOS_CLOUD_LARGE_MODEL =
+        charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
+      charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
         context.modelPreferences.largeModel ||
-        settings.ELIZAOS_CLOUD_LARGE_MODEL;
+        charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
     if (context.imageModel) {
-      settings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
+      charSettings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
     }
 
     if (context.appPromptConfig) {
-      settings.appPromptConfig = context.appPromptConfig;
+      charSettings.appPromptConfig = context.appPromptConfig;
+    }
+
+    // Also update runtime.settings for MCP (McpService checks this as fallback)
+    // This ensures MCP settings are fresh per-user even on cache hit
+    // TODO: Replace type assertion with public API when AgentRuntime exposes settings accessor
+    const runtimeSettings = (runtime as unknown as { settings: Record<string, unknown> }).settings;
+    if (runtimeSettings) {
+      const mcpSettings = this.buildMcpSettings({}, context);
+      Object.assign(runtimeSettings, {
+        ELIZAOS_API_KEY: context.apiKey,
+        ELIZAOS_CLOUD_API_KEY: context.apiKey,
+        USER_ID: context.userId,
+        ENTITY_ID: context.entityId,
+        ORGANIZATION_ID: context.organizationId,
+        IS_ANONYMOUS: context.isAnonymous,
+        ...mcpSettings,
+      });
     }
   }
 
   private transformMcpSettings(
     mcpSettings: Record<string, unknown>,
+    apiKey?: string,
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
@@ -608,17 +626,76 @@ export class RuntimeFactory {
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string }>,
+      mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> } | null>,
     )) {
+      if (!serverConfig) continue; // Skip malformed/null server entries
+      const isHttpTransport = serverConfig.type && ["http", "streamable-http", "sse"].includes(serverConfig.type);
+      const transformedUrl = serverConfig.url?.startsWith("/")
+        ? `${baseUrl}${serverConfig.url}`
+        : serverConfig.url;
+
+      // Auto-inject API key header for HTTP MCP servers on our domain
+      // Use URL origin comparison to prevent leaking API key to lookalike domains
+      const isSameOrigin = (() => {
+        if (!transformedUrl) return false;
+        try {
+          const targetOrigin = new URL(transformedUrl).origin;
+          const baseOrigin = new URL(baseUrl).origin;
+          return targetOrigin === baseOrigin;
+        } catch {
+          return false;
+        }
+      })();
+      const shouldInjectAuth = isHttpTransport && apiKey && isSameOrigin;
+
+      elizaLogger.info(`[MCP Transform] Server ${serverId}: isHttp=${isHttpTransport}, hasApiKey=${!!apiKey}, isSameOrigin=${isSameOrigin}, shouldInjectAuth=${shouldInjectAuth}`);
+
       transformedServers[serverId] = {
         ...serverConfig,
-        url: serverConfig.url?.startsWith("/")
-          ? `${baseUrl}${serverConfig.url}`
-          : serverConfig.url,
+        url: transformedUrl,
+        ...(shouldInjectAuth && {
+          headers: {
+            ...serverConfig.headers,
+            "X-API-Key": apiKey,
+          },
+        }),
       };
     }
 
     return { ...mcpSettings, servers: transformedServers };
+  }
+
+  private getConnectedPlatforms(context: UserContext): Set<string> {
+    return new Set((context.oauthConnections || []).map((c) => c.platform.toLowerCase()));
+  }
+
+  private shouldEnableMcp(context: UserContext): boolean {
+    const connected = this.getConnectedPlatforms(context);
+    return Object.keys(MCP_SERVER_CONFIGS).some((p) => connected.has(p));
+  }
+
+  private buildMcpSettings(
+    charSettings: Record<string, unknown>,
+    context: UserContext,
+  ): { mcp?: Record<string, unknown> } {
+    const connected = this.getConnectedPlatforms(context);
+    const enabledServers = Object.fromEntries(
+      Object.entries(MCP_SERVER_CONFIGS).filter(([p]) => connected.has(p)),
+    );
+
+    if (Object.keys(enabledServers).length === 0) return {};
+
+    elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
+
+    const existingMcp = charSettings.mcp as Record<string, unknown> | undefined;
+    const existingServers =
+      existingMcp?.servers && typeof existingMcp.servers === "object" && !Array.isArray(existingMcp.servers)
+        ? (existingMcp.servers as Record<string, unknown>)
+        : {};
+
+    return {
+      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...enabledServers, ...existingServers } }, context.apiKey),
+    };
   }
 
   private filterPlugins(plugins: Plugin[]): Plugin[] {
@@ -629,23 +706,34 @@ export class RuntimeFactory {
     character: Character,
     context: UserContext,
   ): NonNullable<Character["settings"]> {
-    const charSettings = (character.settings || {}) as Record<string, unknown>;
+    // Strip user-specific and ephemeral settings from charSettings
+    // These should NOT come from persisted DB values - they must be fresh per-request
+    const {
+      mcp: _stripMcp,
+      ELIZAOS_API_KEY: _stripApiKey,
+      ELIZAOS_CLOUD_API_KEY: _stripCloudApiKey,
+      USER_ID: _stripUserId,
+      ENTITY_ID: _stripEntityId,
+      ORGANIZATION_ID: _stripOrgId,
+      IS_ANONYMOUS: _stripIsAnon,
+      ...charSettings
+    } = (character.settings || {}) as Record<string, unknown>;
+
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
-    // Get embedding dimension from known model dimensions (skips 500ms API call)
     const embeddingModel =
       (charSettings.OPENAI_EMBEDDING_MODEL as string) ||
       (charSettings.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
     const embeddingDimension = getStaticEmbeddingDimension(embeddingModel);
 
+    // Return only character-level settings that are safe to persist
+    // User-specific settings (API keys, user context, MCP) are passed via opts.settings
     return {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
-      // Pass embedding dimension to runtime so it skips the embedding API call
       EMBEDDING_DIMENSION: String(embeddingDimension),
-      ELIZAOS_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
         context.modelPreferences?.smallModel ||
@@ -660,17 +748,8 @@ export class RuntimeFactory {
           DEFAULT_IMAGE_MODEL.modelId,
         ),
       ...buildElevenLabsSettings(charSettings),
-      ...(charSettings.mcp
-        ? {
-            mcp: this.transformMcpSettings(
-              charSettings.mcp as Record<string, unknown>,
-            ),
-          }
-        : {}),
-      USER_ID: context.userId,
-      ENTITY_ID: context.entityId,
-      ORGANIZATION_ID: context.organizationId,
-      IS_ANONYMOUS: context.isAnonymous,
+      // NOTE: User-specific settings (API keys, user context, MCP) are NOT included here
+      // They're passed via opts.settings to avoid being persisted to the database
       ...(context.appPromptConfig
         ? { appPromptConfig: context.appPromptConfig }
         : {}),
@@ -851,7 +930,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 1000; // Reduced from 2s to 1s
+    const maxWaitMs = 2500; // Allow time for MCP server connections
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;
@@ -885,6 +964,11 @@ export class RuntimeFactory {
       elizaLogger.info(
         `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
+      for (const server of servers as any[]) {
+        elizaLogger.info(
+          `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || 'none'}`,
+        );
+      }
     }
   }
 }
@@ -907,40 +991,13 @@ export function isRuntimeCached(agentId: string): boolean {
 
 export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };
 
-// ============================================================================
-// TEST EXPORTS - Only for integration testing, do not use in production code
-// ============================================================================
-
-/**
- * Internal access for testing pool lifecycle and race conditions.
- * WARNING: These exports bypass normal safety mechanisms and should
- * only be used in test files.
- */
+// Test exports - only for integration testing
 export const _testing = {
-  /**
-   * Get the internal RuntimeCache instance
-   */
   getRuntimeCache: () => runtimeCache,
-
-  /**
-   * Get the internal DbAdapterPool instance
-   */
   getDbAdapterPool: () => dbAdapterPool,
-
-  /**
-   * Access the safeClose function for testing
-   */
   safeClose,
-
-  /**
-   * Access the stopRuntimeServices function for testing
-   */
   stopRuntimeServices,
 
-  /**
-   * Force cache eviction using the FIXED behavior (runtime.stop(), no pool close).
-   * Use this to verify the fix works correctly.
-   */
   async forceEvictRuntime(agentId: string): Promise<void> {
     const entry = runtimeCache["cache"].get(agentId);
     if (entry) {
@@ -949,10 +1006,6 @@ export const _testing = {
     }
   },
 
-  /**
-   * Force cache eviction using the OLD (buggy) behavior that closes the pool.
-   * Use this to verify that closing the pool causes failures.
-   */
   async forceEvictRuntimeOld(agentId: string): Promise<void> {
     const entry = runtimeCache["cache"].get(agentId);
     if (entry) {
@@ -961,9 +1014,6 @@ export const _testing = {
     }
   },
 
-  /**
-   * Get raw cache entries for inspection
-   */
   getCacheEntries(): Map<
     string,
     { runtime: AgentRuntime; lastUsed: number; createdAt: number }
@@ -971,17 +1021,10 @@ export const _testing = {
     return new Map(runtimeCache["cache"]);
   },
 
-  /**
-   * Get adapter pool entries for inspection
-   */
   getAdapterEntries(): Map<string, IDatabaseAdapter> {
     return new Map(dbAdapterPool["adapters"]);
   },
 
-  /**
-   * Directly close an adapter (bypassing normal cleanup)
-   * This simulates what happens during eviction
-   */
   async closeAdapterDirectly(agentId: string): Promise<void> {
     const adapter = dbAdapterPool["adapters"].get(agentId);
     if (adapter) {

@@ -72,6 +72,24 @@ setInterval(() => {
 }, 60000); // Clean every minute
 
 /**
+ * Mask sensitive keys for logging (never log full API keys)
+ */
+function maskKeyForLogging(key: string): string {
+  if (key.startsWith("apikey:")) {
+    const apiKey = key.slice(7);
+    // Show prefix and last 4 chars only: apikey:eliza_****d458
+    if (apiKey.length > 10) {
+      return `apikey:${apiKey.slice(0, 6)}****${apiKey.slice(-4)}`;
+    }
+    return "apikey:****";
+  }
+  if (key.startsWith("anon:") && key.length > 12) {
+    return `anon:${key.slice(5, 9)}****${key.slice(-4)}`;
+  }
+  return key;
+}
+
+/**
  * Generate rate limit key from request
  */
 function getIpKey(request: NextRequest): string {
@@ -158,7 +176,7 @@ export function checkRateLimit(
 
   if (!allowed) {
     console.warn("Rate limit exceeded", {
-      key,
+      key: maskKeyForLogging(key),
       count: entry.count,
       max: config.maxRequests,
       resetAt: new Date(entry.resetAt).toISOString(),
@@ -197,14 +215,14 @@ export async function checkRateLimitAsync(
       config.maxRequests,
     );
     logger.debug(
-      `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+      `[Rate Limit] Redis check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
     );
     return result;
   }
 
   const result = checkRateLimit(request, config);
   logger.debug(
-    `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+    `[Rate Limit] In-memory check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
   );
   return result;
 }
@@ -240,12 +258,12 @@ export function withRateLimit<T = Record<string, string>>(
         config.maxRequests,
       );
       logger.debug(
-        `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+        `[Rate Limit] Redis check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
       );
     } else {
       result = checkRateLimit(request, config);
       logger.debug(
-        `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+        `[Rate Limit] In-memory check for key=${maskKeyForLogging(key)}, allowed=${result.allowed}, remaining=${result.remaining}`,
       );
     }
 
@@ -259,7 +277,7 @@ export function withRateLimit<T = Record<string, string>>(
 
     if (!result.allowed) {
       logger.warn(
-        `[Rate Limit] Request blocked for key=${key}, limit=${config.maxRequests}, window=${config.windowMs}ms`,
+        `[Rate Limit] Request blocked for key=${maskKeyForLogging(key)}, limit=${config.maxRequests}, window=${config.windowMs}ms`,
       );
 
       return NextResponse.json(
@@ -388,7 +406,7 @@ export async function checkCostBasedRateLimit(
 
   if (!allowed) {
     console.warn("Cost-based rate limit exceeded", {
-      key,
+      key: maskKeyForLogging(key),
       cost,
       totalCost: entry.totalCost,
       maxCost: config.maxCost,
