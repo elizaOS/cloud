@@ -122,6 +122,19 @@ const DEAD_POD_THRESHOLD_MS = parseIntEnv("DEAD_POD_THRESHOLD_MS", 45_000);
 const MAX_BOTS_PER_POD = parseIntEnv("MAX_BOTS_PER_POD", 100);
 
 // ============================================
+// Eliza App Bot Leader Election Constants
+// ============================================
+
+/** Redis key for Eliza App bot leader election */
+const ELIZA_APP_LEADER_KEY = "discord:eliza-app-bot:leader";
+
+/** Leader election lock TTL in seconds (10 seconds) */
+const ELIZA_APP_LEADER_TTL_SECONDS = 10;
+
+/** How often to check/renew leadership (3 seconds) */
+const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3000;
+
+// ============================================
 // Types
 // ============================================
 
@@ -246,6 +259,16 @@ export class GatewayManager {
   private accessToken: string | null = null;
   /** Token expiration timestamp */
   private tokenExpiresAt: Date | null = null;
+
+  // ============================================
+  // Eliza App Bot (Leader Election)
+  // ============================================
+  /** Eliza App bot client (only connected if this pod is leader) */
+  private elizaAppClient: Client | null = null;
+  /** Whether this pod is the Eliza App bot leader */
+  private isElizaAppLeader: boolean = false;
+  /** Interval for leader election checks */
+  private elizaAppLeaderInterval: NodeJS.Timeout | null = null;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -449,6 +472,9 @@ export class GatewayManager {
       logger.info("Voice message handling enabled");
     }
 
+    // Start Eliza App bot leader election (if configured)
+    await this.startElizaAppBotLeaderElection();
+
     logger.info("Gateway manager started");
   }
 
@@ -459,7 +485,19 @@ export class GatewayManager {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.failoverInterval) clearInterval(this.failoverInterval);
     if (this.tokenRefreshTimeout) clearTimeout(this.tokenRefreshTimeout);
+    if (this.elizaAppLeaderInterval) clearInterval(this.elizaAppLeaderInterval);
     this.voiceHandler.stopCleanupJob();
+
+    // Release Eliza App bot leadership for faster failover
+    if (this.isElizaAppLeader && this.redis) {
+      logger.info("Releasing Eliza App bot leadership");
+      await this.redis.del(ELIZA_APP_LEADER_KEY).catch(() => {});
+      if (this.elizaAppClient) {
+        this.elizaAppClient.destroy();
+        this.elizaAppClient = null;
+      }
+      this.isElizaAppLeader = false;
+    }
 
     // Save session state and disconnect all bots
     for (const [connectionId, conn] of this.connections) {
@@ -1449,6 +1487,238 @@ export class GatewayManager {
       // the TTL expired and our operation took too long anyway
       await this.redis.del(lockKey).catch(() => {
         // Ignore errors releasing lock - TTL will handle cleanup
+      });
+    }
+  }
+
+  // ============================================
+  // Eliza App Bot Leader Election
+  // ============================================
+
+  /**
+   * Start leader election for the Eliza App bot.
+   * Only one pod should connect the Eliza App bot to prevent duplicate messages.
+   */
+  private async startElizaAppBotLeaderElection(): Promise<void> {
+    // Require explicit opt-in via ELIZA_APP_DISCORD_BOT_ENABLED
+    const enabled = process.env.ELIZA_APP_DISCORD_BOT_ENABLED === "true";
+    if (!enabled) {
+      logger.debug("Eliza App Discord bot disabled (ELIZA_APP_DISCORD_BOT_ENABLED not set)");
+      return;
+    }
+
+    const botToken = process.env.ELIZA_APP_DISCORD_BOT_TOKEN;
+    if (!botToken) {
+      logger.error("Eliza App Discord bot enabled but ELIZA_APP_DISCORD_BOT_TOKEN not set");
+      return;
+    }
+
+    if (!this.redis) {
+      logger.warn("Eliza App bot leader election requires Redis - bot disabled");
+      return;
+    }
+
+    logger.info("Starting Eliza App bot leader election", {
+      podName: this.config.podName,
+      ttlSeconds: ELIZA_APP_LEADER_TTL_SECONDS,
+      checkIntervalMs: ELIZA_APP_LEADER_CHECK_INTERVAL_MS,
+    });
+
+    // Try to become leader immediately
+    await this.tryBecomeElizaAppLeader();
+
+    // Keep trying/renewing periodically
+    this.elizaAppLeaderInterval = setInterval(() => {
+      this.tryBecomeElizaAppLeader().catch((error) => {
+        logger.error("Error in Eliza App leader election", {
+          error: sanitizeError(error),
+        });
+      });
+    }, ELIZA_APP_LEADER_CHECK_INTERVAL_MS);
+  }
+
+  /**
+   * Try to acquire or renew Eliza App bot leadership.
+   */
+  private async tryBecomeElizaAppLeader(): Promise<void> {
+    if (!this.redis) return;
+
+    try {
+      if (this.isElizaAppLeader) {
+        // Already leader - renew the lock
+        const renewed = await this.redis.expire(
+          ELIZA_APP_LEADER_KEY,
+          ELIZA_APP_LEADER_TTL_SECONDS,
+        );
+        if (!renewed) {
+          // Lock was lost (expired or deleted)
+          logger.warn("Lost Eliza App bot leadership, attempting to reacquire", {
+            podName: this.config.podName,
+          });
+          this.isElizaAppLeader = false;
+          await this.disconnectElizaAppBot();
+        }
+        return;
+      }
+
+      // Try to acquire leadership
+      const acquired = await this.redis.set(
+        ELIZA_APP_LEADER_KEY,
+        this.config.podName,
+        { ex: ELIZA_APP_LEADER_TTL_SECONDS, nx: true },
+      );
+
+      if (acquired === "OK") {
+        logger.info("Acquired Eliza App bot leadership", {
+          podName: this.config.podName,
+          ttlSeconds: ELIZA_APP_LEADER_TTL_SECONDS,
+        });
+        this.isElizaAppLeader = true;
+        await this.connectElizaAppBot();
+      }
+    } catch (error) {
+      logger.error("Error in Eliza App leader election", {
+        error: sanitizeError(error),
+        podName: this.config.podName,
+      });
+    }
+  }
+
+  /**
+   * Connect the Eliza App Discord bot.
+   * Only called when this pod has acquired leadership.
+   */
+  private async connectElizaAppBot(): Promise<void> {
+    const botToken = process.env.ELIZA_APP_DISCORD_BOT_TOKEN;
+    if (!botToken || this.elizaAppClient) return;
+
+    logger.info("Connecting Eliza App Discord bot", {
+      podName: this.config.podName,
+    });
+
+    this.elizaAppClient = new Client({
+      intents: [
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent,
+      ],
+    });
+
+    this.elizaAppClient.on(Events.ClientReady, () => {
+      logger.info("Eliza App bot connected", {
+        podName: this.config.podName,
+        username: this.elizaAppClient?.user?.username,
+        userId: this.elizaAppClient?.user?.id,
+      });
+    });
+
+    this.elizaAppClient.on(Events.MessageCreate, async (message: Message) => {
+      await this.handleElizaAppMessage(message);
+    });
+
+    this.elizaAppClient.on(Events.Error, (error: Error) => {
+      logger.error("Eliza App bot error", {
+        podName: this.config.podName,
+        error: error.message,
+      });
+    });
+
+    this.elizaAppClient.on(Events.ShardDisconnect, () => {
+      logger.warn("Eliza App bot disconnected", {
+        podName: this.config.podName,
+      });
+    });
+
+    try {
+      await this.elizaAppClient.login(botToken);
+    } catch (error) {
+      logger.error("Failed to login Eliza App bot", {
+        podName: this.config.podName,
+        error: sanitizeError(error),
+      });
+      this.elizaAppClient.destroy();
+      this.elizaAppClient = null;
+    }
+  }
+
+  /**
+   * Disconnect the Eliza App bot.
+   */
+  private async disconnectElizaAppBot(): Promise<void> {
+    if (this.elizaAppClient) {
+      logger.info("Disconnecting Eliza App bot", {
+        podName: this.config.podName,
+      });
+      this.elizaAppClient.destroy();
+      this.elizaAppClient = null;
+    }
+  }
+
+  /**
+   * Handle a message received by the Eliza App bot.
+   * Filters to DM-only and forwards to the Eliza App webhook.
+   */
+  private async handleElizaAppMessage(message: Message): Promise<void> {
+    // Skip bot messages
+    if (message.author.bot) return;
+
+    // DM-only: Skip guild/server messages
+    if (message.guild) {
+      logger.debug("Skipping Eliza App server message", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+      });
+      return;
+    }
+
+    // Forward to Eliza App webhook
+    const webhookUrl = `${this.config.elizaCloudUrl}/api/eliza-app/webhook/discord`;
+
+    const payload = {
+      event_type: "MESSAGE_CREATE",
+      event_id: message.id,
+      data: {
+        id: message.id,
+        channel_id: message.channelId,
+        guild_id: message.guildId, // null for DMs
+        author: {
+          id: message.author.id,
+          username: message.author.username,
+          global_name: message.author.globalName,
+          avatar: message.author.avatar,
+          bot: message.author.bot,
+        },
+        content: message.content,
+        attachments: message.attachments.map((a) => ({
+          url: a.url,
+          content_type: a.contentType,
+          filename: a.name,
+        })),
+      },
+    };
+
+    try {
+      const response = await fetchWithTimeout(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...this.getAuthHeader(),
+        },
+        body: JSON.stringify(payload),
+        timeout: EVENT_FORWARD_TIMEOUT_MS,
+      });
+
+      if (!response.ok) {
+        logger.error("Eliza App webhook failed", {
+          podName: this.config.podName,
+          status: response.status,
+          messageId: message.id,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to forward to Eliza App webhook", {
+        podName: this.config.podName,
+        error: sanitizeError(error),
+        messageId: message.id,
       });
     }
   }

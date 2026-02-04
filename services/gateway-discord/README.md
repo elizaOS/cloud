@@ -167,6 +167,155 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 - **Graceful shutdown**: Immediate connection release during deployments
 - **Voice support**: Transcribes voice messages before routing
 - **Encrypted tokens**: Bot tokens encrypted at rest with AES-256-GCM
+- **Hybrid Mode**: Supports both Eliza App system bot and user-created bots
+
+---
+
+## Hybrid Architecture: Eliza App Bot + User-Created Bots
+
+The gateway supports two types of Discord bots simultaneously:
+
+### 1. Eliza App Bot (System Bot)
+
+A single system-wide Discord bot for the Eliza App, configured via environment variables.
+
+**Key Features:**
+- **DM-only**: Only handles direct messages, not server/guild messages
+- **Auto-provisioning**: Users are auto-created on first message (like Blooio/iMessage)
+- **Leader election**: Only one pod connects the bot to prevent duplicates
+- **Environment-based config**: Token set via `ELIZA_APP_DISCORD_BOT_TOKEN`
+
+### 2. User-Created Bots (Multi-tenant)
+
+Bots created by users through the dashboard, stored in `discord_connections` table.
+
+**Key Features:**
+- **Per-organization**: Each organization can have their own Discord bots
+- **DB-configured**: Bot tokens stored encrypted in PostgreSQL
+- **Channel filtering**: Can be configured to respond in specific channels
+- **Response modes**: Supports "always", "mention", and "keyword" modes
+
+### Leader Election for Eliza App Bot
+
+To prevent duplicate connections when the gateway scales horizontally, the Eliza App bot uses Redis-based leader election:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       LEADER ELECTION FLOW                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────┐   ┌────────────┐   ┌────────────┐
+│   Pod A    │   │   Pod B    │   │   Pod C    │
+│            │   │            │   │            │
+│  Try SETNX │   │  Try SETNX │   │  Try SETNX │
+│  "leader"  │   │  "leader"  │   │  "leader"  │
+└─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+      │                │                │
+      ▼                ▼                ▼
+┌─────────────────────────────────────────────────┐
+│              Redis (SETNX with TTL)             │
+│                                                 │
+│  Key: discord:eliza-app-bot:leader              │
+│  Value: "pod-a"                                 │
+│  TTL: 10 seconds                                │
+│                                                 │
+│  Result:                                        │
+│    Pod A: OK (becomes leader, connects bot)     │
+│    Pod B: nil (not leader, skips)               │
+│    Pod C: nil (not leader, skips)               │
+└─────────────────────────────────────────────────┘
+
+Every 3 seconds:
+- Leader renews lock with EXPIRE
+- Non-leaders try SETNX (in case leader dies)
+
+If leader dies:
+- Lock expires after 10 seconds
+- Next pod to try SETNX becomes leader (~3-10 seconds failover)
+```
+
+**Configuration:**
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ELIZA_APP_LEADER_KEY` | `discord:eliza-app-bot:leader` | Redis key for leader lock |
+| `ELIZA_APP_LEADER_TTL_SECONDS` | 10 | Lock TTL - how long before lock expires |
+| `ELIZA_APP_LEADER_CHECK_INTERVAL_MS` | 3000 | How often pods check/renew leadership |
+
+### Setting Up the Eliza App Bot
+
+1. **Create a Discord Application** at [Discord Developer Portal](https://discord.com/developers/applications)
+
+2. **Configure the Bot:**
+   - Enable `MESSAGE CONTENT INTENT` (required for DM messages)
+   - Bot permissions needed: `Send Messages`
+
+3. **Generate OAuth2 URL:**
+   ```
+   https://discord.com/oauth2/authorize?client_id=YOUR_APP_ID&scope=bot&permissions=2048
+   ```
+
+4. **Set Environment Variables (Local Development):**
+   ```bash
+   ELIZA_APP_DISCORD_BOT_ENABLED=true
+   ELIZA_APP_DISCORD_BOT_TOKEN=your-bot-token
+   ELIZA_APP_DISCORD_APPLICATION_ID=your-app-id  # Optional, for reference
+   ```
+
+5. **Configure via Helm (Kubernetes):**
+   
+   First, add the bot secrets to your Kubernetes secret:
+   ```bash
+   kubectl create secret generic gateway-discord-secrets \
+     --namespace gateway-discord \
+     --from-literal=eliza-app-discord-bot-token="your-bot-token" \
+     --from-literal=eliza-app-discord-application-id="your-app-id"
+   ```
+   
+   Then enable the bot in your Helm values:
+   ```yaml
+   # values.yaml or values-production.yaml
+   elizaAppBot:
+     enabled: true
+   ```
+   
+   Deploy with:
+   ```bash
+   helm upgrade --install gateway-discord ./chart \
+     --namespace gateway-discord \
+     --set elizaAppBot.enabled=true
+   ```
+
+6. **Ensure Redis is configured** (required for leader election):
+   ```bash
+   KV_REST_API_URL=https://your-redis.upstash.io
+   KV_REST_API_TOKEN=your-token
+   ```
+
+### Message Flow: Eliza App Bot
+
+```
+Discord User                  Gateway Pod (Leader)              Eliza Cloud
+     │                              │                               │
+     │  DM: "Hello!"                │                               │
+     │─────────────────────────────►│                               │
+     │                              │                               │
+     │                              │  POST /api/eliza-app/webhook/discord
+     │                              │  { event_type: "MESSAGE_CREATE",
+     │                              │    data: { author, content } }
+     │                              │──────────────────────────────►│
+     │                              │                               │
+     │                              │              ┌─────────────────┴──────────────┐
+     │                              │              │ 1. Auto-provision Discord user │
+     │                              │              │ 2. Create/get room             │
+     │                              │              │ 3. Acquire distributed lock    │
+     │                              │              │ 4. Process via MessageHandler  │
+     │                              │              │ 5. Send response               │
+     │                              │              └─────────────────┬──────────────┘
+     │                              │                               │
+     │  "Hi! How can I help?"       │                               │
+     │◄────────────────────────────────────────────────────────────│
+```
 
 ---
 
@@ -775,6 +924,11 @@ Eliza Cloud logs show:
 | `LOG_LEVEL` | No | `info` | Logging verbosity |
 | `DEAD_POD_THRESHOLD_MS` | No | `45000` | Failover detection threshold |
 | `FAILOVER_CHECK_INTERVAL_MS` | No | `30000` | How often to check for dead pods |
+| `ELIZA_APP_DISCORD_BOT_ENABLED` | No | `false` | Set to `"true"` to enable Eliza App bot |
+| `ELIZA_APP_DISCORD_BOT_TOKEN` | No* | - | Eliza App system bot token (required if enabled) |
+| `ELIZA_APP_DISCORD_APPLICATION_ID` | No | - | Eliza App bot application ID (for reference) |
+
+**\*** Required when `ELIZA_APP_DISCORD_BOT_ENABLED=true`
 
 #### Eliza Cloud Environment Variables (for JWT authentication)
 
@@ -1782,6 +1936,7 @@ Create a Kubernetes secret before deploying:
 ```bash
 kubectl create namespace gateway-discord
 
+# Base secrets (required)
 kubectl create secret generic gateway-discord-secrets \
   --namespace gateway-discord \
   --from-literal=eliza-cloud-url="https://your-eliza-cloud-url.com" \
@@ -1789,6 +1944,24 @@ kubectl create secret generic gateway-discord-secrets \
   --from-literal=redis-url="https://your-redis-url" \
   --from-literal=redis-token="your-redis-token" \
   --from-literal=blob-token="your-blob-token"
+```
+
+**For Eliza App Discord bot** (optional - only if enabling `elizaAppBot.enabled: true`):
+```bash
+# Add Eliza App Discord bot secrets
+kubectl patch secret gateway-discord-secrets \
+  --namespace gateway-discord \
+  --type='json' \
+  -p='[
+    {"op": "add", "path": "/data/eliza-app-discord-bot-token", "value": "'$(echo -n "your-bot-token" | base64)'"},
+    {"op": "add", "path": "/data/eliza-app-discord-application-id", "value": "'$(echo -n "your-app-id" | base64)'"}
+  ]'
+```
+
+Then enable in your Helm values:
+```yaml
+elizaAppBot:
+  enabled: true
 ```
 
 **Note**: The gateway uses JWT authentication. The `gateway-bootstrap-secret` is exchanged for a JWT token at startup. The Eliza Cloud API must have the corresponding JWT signing keys configured.
