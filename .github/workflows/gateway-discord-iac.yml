@@ -64,23 +64,16 @@ env:
   WORKING_DIR: services/gateway-discord/terraform
 
 jobs:
-  terraform:
-    name: Terraform ${{ matrix.environment }}
+  # Development environment job
+  terraform-dev:
+    name: Terraform gateway-dev
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - environment: gateway-dev
-            branch: refs/heads/dev
-            tfvars_file: development.tfvars
-            backend_config: backend-development.hcl
-          - environment: gateway-prd
-            branch: refs/heads/main
-            tfvars_file: production.tfvars
-            backend_config: backend-production.hcl
-      fail-fast: false
-    # GitHub Environment - pulls environment-specific vars and secrets
-    environment: ${{ matrix.environment }}
+    # Only run for: push to dev, PR targeting dev, or manual dispatch selecting gateway-dev
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'dev') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'gateway-dev')
+    environment: gateway-dev
     permissions:
       id-token: write
       contents: read
@@ -90,74 +83,37 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
 
     steps:
-      - name: Check if job should run
-        id: should_run
-        run: |
-          SHOULD_RUN="false"
-          
-          # For push events, only run for matching branch
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
-            SHOULD_RUN="true"
-          fi
-          
-          # For PR events, only run plan for the environment matching the target branch
-          # PR to dev -> gateway-dev, PR to main -> gateway-prd
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            TARGET_BRANCH="${{ github.base_ref }}"
-            if [[ "$TARGET_BRANCH" == "dev" && "${{ matrix.environment }}" == "gateway-dev" ]]; then
-              SHOULD_RUN="true"
-            elif [[ "$TARGET_BRANCH" == "main" && "${{ matrix.environment }}" == "gateway-prd" ]]; then
-              SHOULD_RUN="true"
-            fi
-          fi
-          
-          # For manual dispatch, only run for selected environment
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
-            SHOULD_RUN="true"
-          fi
-          
-          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
-        shell: bash
-        working-directory: .
-
       - uses: actions/checkout@v4
-        if: steps.should_run.outputs.should_run == 'true'
 
       - name: Configure AWS credentials via OIDC
-        if: steps.should_run.outputs.should_run == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
       - name: Setup Terraform
-        if: steps.should_run.outputs.should_run == 'true'
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Format Check
-        if: steps.should_run.outputs.should_run == 'true'
         id: fmt
         run: terraform fmt -check -recursive
         continue-on-error: true
 
       - name: Terraform Init
-        if: steps.should_run.outputs.should_run == 'true'
         id: init
-        run: terraform init -backend-config=${{ matrix.backend_config }}
+        run: terraform init -backend-config=backend-development.hcl
 
       - name: Terraform Validate
-        if: steps.should_run.outputs.should_run == 'true'
         id: validate
         run: terraform validate -no-color
 
       - name: Terraform Plan
-        if: steps.should_run.outputs.should_run == 'true'
         id: plan
         run: |
           terraform plan -no-color \
-            -var-file=${{ matrix.tfvars_file }} \
+            -var-file=development.tfvars \
             -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
             -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
             -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
@@ -169,11 +125,10 @@ jobs:
         continue-on-error: true
 
       - name: Post Plan to PR
-        if: github.event_name == 'pull_request' && steps.should_run.outputs.should_run == 'true'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            // Truncate plan output if too long to avoid GitHub comment size limits
             const MAX_PLAN_LENGTH = 60000;
             let planOutput = `${{ steps.plan.outputs.stdout }}`;
             let truncated = false;
@@ -190,7 +145,7 @@ jobs:
             > **Note**: Sensitive values (tokens, secrets) are marked as \`sensitive\` in Terraform
             > and should appear as \`(sensitive value)\` in the plan output below.
             
-            <details><summary>Show Plan (${{ matrix.environment }})${truncated ? ' - TRUNCATED' : ''}</summary>
+            <details><summary>Show Plan (gateway-dev)${truncated ? ' - TRUNCATED' : ''}</summary>
             
             \`\`\`terraform
             ${planOutput}
@@ -208,26 +163,141 @@ jobs:
             })
 
       - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure' && steps.should_run.outputs.should_run == 'true'
+        if: steps.plan.outcome == 'failure'
         run: exit 1
 
       - name: Terraform Apply
         if: |
-          steps.should_run.outputs.should_run == 'true' &&
-          (
-            (github.event_name == 'push' && github.ref == matrix.branch) ||
-            (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-          )
+          (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         run: terraform apply -auto-approve tfplan
 
       - name: Terraform Destroy
-        if: |
-          steps.should_run.outputs.should_run == 'true' &&
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.action == 'destroy'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
         run: |
           terraform destroy -auto-approve \
-            -var-file=${{ matrix.tfvars_file }} \
+            -var-file=development.tfvars \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}"
+
+  # Production environment job
+  terraform-prd:
+    name: Terraform gateway-prd
+    runs-on: ubuntu-latest
+    # Only run for: push to main, PR targeting main, or manual dispatch selecting gateway-prd
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'gateway-prd')
+    environment: gateway-prd
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config=backend-production.hcl
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color \
+            -var-file=production.tfvars \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}" \
+            -out=tfplan
+        continue-on-error: true
+
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MAX_PLAN_LENGTH = 60000;
+            let planOutput = `${{ steps.plan.outputs.stdout }}`;
+            let truncated = false;
+            if (planOutput.length > MAX_PLAN_LENGTH) {
+              planOutput = planOutput.substring(0, MAX_PLAN_LENGTH);
+              truncated = true;
+            }
+            
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            
+            > **Note**: Sensitive values (tokens, secrets) are marked as \`sensitive\` in Terraform
+            > and should appear as \`(sensitive value)\` in the plan output below.
+            
+            <details><summary>Show Plan (gateway-prd)${truncated ? ' - TRUNCATED' : ''}</summary>
+            
+            \`\`\`terraform
+            ${planOutput}
+            \`\`\`
+            ${truncated ? '\n⚠️ *Plan output was truncated due to size. View full output in the Actions log.*\n' : ''}
+            </details>
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        if: |
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var-file=production.tfvars \
             -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
             -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
             -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
