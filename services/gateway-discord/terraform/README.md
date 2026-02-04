@@ -145,10 +145,11 @@ Create a file `terraform-role-trust-policy.json`:
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:elizaos/eliza-cloud-v2:ref:refs/heads/main",
-            "repo:elizaos/eliza-cloud-v2:ref:refs/heads/dev",
-            "repo:elizaos/eliza-cloud-v2:environment:gateway-dev",
-            "repo:elizaos/eliza-cloud-v2:environment:gateway-prd"
+            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/main",
+            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/dev",
+            "repo:elizaOS/eliza-cloud-v2:pull_request",
+            "repo:elizaOS/eliza-cloud-v2:environment:gateway-dev",
+            "repo:elizaOS/eliza-cloud-v2:environment:gateway-prd"
           ]
         }
       }
@@ -156,6 +157,8 @@ Create a file `terraform-role-trust-policy.json`:
   ]
 }
 ```
+
+> **Note**: The `pull_request` subject is required for PRs to run Terraform plan. GitHub uses different OIDC subject formats for different event types. Also ensure the org name case matches exactly (`elizaOS` not `elizaos`).
 
 Create the role:
 
