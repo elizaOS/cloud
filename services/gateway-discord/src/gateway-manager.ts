@@ -19,12 +19,13 @@ import {
 /**
  * Discord bot token pattern for sanitization.
  * Tokens have format: base64(bot_id).base64(timestamp).base64(hmac)
- * - Part 1 (bot ID): 18-30 characters (varies by ID length)
- * - Part 2 (timestamp): 6 characters
- * - Part 3 (HMAC): 27-40 characters
+ * Using permissive pattern to catch edge cases and variations:
+ * - Part 1 (bot ID): 15+ characters (varies by ID length)
+ * - Part 2 (timestamp): 5+ characters
+ * - Part 3 (HMAC): 20+ characters
  */
 const DISCORD_TOKEN_PATTERN =
-  /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
+  /[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{20,}/g;
 
 /**
  * Sanitize error messages to prevent accidental token exposure in logs.
