@@ -19,6 +19,7 @@ import { serverCheck } from "../setup";
 export {
   runtimeFactory,
   invalidateRuntime,
+  invalidateByOrganization,
   isRuntimeCached,
   getRuntimeCacheStats,
   _testing,

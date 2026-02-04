@@ -27,6 +27,7 @@ export {
   // Production RuntimeFactory exports
   runtimeFactory,
   invalidateRuntime,
+  invalidateByOrganization,
   isRuntimeCached,
   getRuntimeCacheStats,
   AgentMode,
