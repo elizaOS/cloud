@@ -217,6 +217,10 @@ resource "aws_instance" "nat" {
     exec > >(tee /var/log/nat-setup.log) 2>&1
     echo "Starting NAT instance configuration..."
     
+    # Disable Docker to prevent it from adding REJECT rules to iptables
+    systemctl stop docker.socket docker.service 2>/dev/null || true
+    systemctl disable docker.socket docker.service 2>/dev/null || true
+    
     # Enable IP forwarding (idempotent)
     echo 1 > /proc/sys/net/ipv4/ip_forward
     if ! grep -q "^net.ipv4.ip_forward = 1" /etc/sysctl.conf; then
@@ -231,11 +235,7 @@ resource "aws_instance" "nat" {
       yum install -y iptables-services
     fi
     
-    systemctl enable iptables
-    systemctl start iptables
-    
     # Detect primary network interface dynamically
-    # Get the interface with the default route (usually eth0 or ens5)
     PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
     if [ -z "$PRIMARY_IFACE" ]; then
       echo "ERROR: Could not detect primary network interface"
@@ -243,25 +243,25 @@ resource "aws_instance" "nat" {
     fi
     echo "Detected primary interface: $PRIMARY_IFACE"
     
-    # Clear default REJECT rules that block forwarding (AL2023 default)
-    iptables -F FORWARD
-    iptables -F INPUT
+    # Completely flush all iptables rules to start clean
+    iptables -F
+    iptables -X
+    iptables -t nat -F
+    iptables -t nat -X
+    iptables -t mangle -F
+    iptables -t mangle -X
     
-    # Allow all established/related connections
-    iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-    iptables -A INPUT -i lo -j ACCEPT
-    iptables -A INPUT -p icmp -j ACCEPT
-    
-    # Set up NAT masquerading
-    if ! iptables -t nat -C POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE 2>/dev/null; then
-      iptables -t nat -A POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE
-    fi
-    
-    # Allow forwarding (policy and explicit accept)
-    iptables -P FORWARD ACCEPT
+    # Set permissive default policies
     iptables -P INPUT ACCEPT
+    iptables -P FORWARD ACCEPT
+    iptables -P OUTPUT ACCEPT
     
-    # Save iptables rules
+    # Set up NAT masquerading for VPC traffic
+    iptables -t nat -A POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE
+    
+    # Enable and save iptables
+    systemctl enable iptables
+    systemctl start iptables
     service iptables save
     
     echo "NAT instance configuration completed successfully"
