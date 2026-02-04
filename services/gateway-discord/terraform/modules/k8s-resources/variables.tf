@@ -64,8 +64,13 @@ variable "github_actions_role_arn" {
   default     = ""
 }
 
+variable "node_group_role_arn" {
+  description = "EKS node group IAM role ARN (required for nodes to join the cluster)"
+  type        = string
+}
+
 variable "existing_aws_auth_roles" {
-  description = "Existing aws-auth roles to preserve"
+  description = "Additional aws-auth roles to include (beyond node group and GitHub Actions)"
   type        = list(any)
   default     = []
 }

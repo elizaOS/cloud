@@ -72,6 +72,7 @@ module "k8s_resources" {
   redis_token              = var.redis_token
   blob_token               = var.blob_token
   enable_aws_auth_update   = var.enable_aws_auth_update
+  node_group_role_arn      = module.eks.node_group_role_arn
   github_actions_role_arn  = module.github_oidc.github_actions_role_arn
   existing_aws_auth_roles  = var.existing_aws_auth_roles
 

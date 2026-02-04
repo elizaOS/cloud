@@ -54,10 +54,14 @@ resource "kubernetes_secret" "gateway_discord_secrets" {
   }
 }
 
-# aws-auth ConfigMap update for GitHub Actions
+# aws-auth ConfigMap update for EKS access
 #
-# IMPORTANT: This resource updates the aws-auth ConfigMap to grant GitHub Actions
-# access to the EKS cluster. The 'system:masters' group provides full cluster admin
+# This resource manages the aws-auth ConfigMap which controls IAM role to Kubernetes
+# RBAC mappings. It includes:
+# - Node group role: Required for worker nodes to join the cluster
+# - GitHub Actions role: For CI/CD deployments (system:masters for full access)
+#
+# The 'system:masters' group for GitHub Actions provides full cluster admin
 # permissions, which is required for:
 # - Initial cluster bootstrap and namespace creation
 # - Helm install/upgrade operations (requires create/update on various resources)
@@ -67,11 +71,6 @@ resource "kubernetes_secret" "gateway_discord_secrets" {
 # 1. Creating a custom ClusterRole with permissions scoped to the gateway-discord namespace
 # 2. Using a ClusterRoleBinding to bind the role to the github-actions user
 # 3. Granting cluster-level read permissions for kubectl get nodes, etc.
-#
-# Note: force=false prevents overwriting existing roles. If you need to update
-# aws-auth after initial setup, either:
-# - Set existing_aws_auth_roles to include all current roles
-# - Manually merge changes using kubectl
 resource "kubernetes_config_map_v1_data" "aws_auth" {
   count = var.enable_aws_auth_update ? 1 : 0
 
@@ -82,19 +81,28 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
 
   data = {
     mapRoles = yamlencode(concat(
-      var.existing_aws_auth_roles,
+      # Node group role - required for nodes to register with the cluster
+      [
+        {
+          rolearn  = var.node_group_role_arn
+          username = "system:node:{{EC2PrivateDNSName}}"
+          groups   = ["system:bootstrappers", "system:nodes"]
+        }
+      ],
+      # GitHub Actions role for CI/CD deployments
       [
         {
           rolearn  = var.github_actions_role_arn
           username = "github-actions"
           groups   = ["system:masters"]
         }
-      ]
+      ],
+      # Any additional roles specified by the user
+      var.existing_aws_auth_roles
     ))
   }
 
-  # Set to false to prevent accidentally overwriting existing node group roles
-  # which would break node registration. Use existing_aws_auth_roles variable
-  # to preserve existing roles when updating.
-  force = false
+  # Force update to ensure node group role is always present
+  # This is safe because we explicitly include the node group role above
+  force = true
 }
