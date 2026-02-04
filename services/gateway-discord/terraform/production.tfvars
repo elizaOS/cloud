@@ -34,8 +34,9 @@ node_group_disk_size      = 50 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
 
 # GitHub Configuration
-github_org  = "elizaos"
-github_repo = "eliza-cloud-v2"
+github_org           = "elizaos"
+github_repo          = "eliza-cloud-v2"
+create_oidc_provider = false # GitHub OIDC provider already exists in AWS account
 
 # aws-auth ConfigMap
 enable_aws_auth_update = true
