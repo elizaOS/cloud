@@ -209,6 +209,7 @@
     "webpack-bundle-analyzer": "^5.2.0"
   },
   "resolutions": {
+    "ai": "^6.0.48",
     "@elizaos/core": "1.7.3-alpha.2",
     "@walletconnect/core": "2.22.4",
     "@walletconnect/logger": "3.0.0",
