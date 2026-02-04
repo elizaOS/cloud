@@ -36,7 +36,15 @@ variable "nat_instance_type" {
 }
 
 variable "nat_instance_key_name" {
-  description = "SSH key name for NAT Instance (optional)"
+  description = <<-EOT
+    EC2 key pair name for SSH access to NAT Instance (optional).
+    
+    Default: "" (empty) - No SSH key attached, access via SSM Session Manager only.
+    This is the recommended secure approach as it avoids managing SSH keys.
+    
+    To enable SSH access, create an EC2 key pair and pass its name here.
+    Note: Security group already allows traffic from VPC CIDR.
+  EOT
   type        = string
   default     = ""
 }
