@@ -246,6 +246,10 @@ export class EntitySettingsService {
 
   /**
    * Set (create or update) an entity setting
+   *
+   * Note: PostgreSQL treats NULL as distinct in unique constraints (NULL != NULL),
+   * so we can't use onConflictDoUpdate for global settings (agent_id = NULL).
+   * Instead, we use explicit check-then-insert/update logic for those cases.
    */
   async set(params: SetEntitySettingParams): Promise<void> {
     const { userId, key, value, agentId } = params;
@@ -255,34 +259,69 @@ export class EntitySettingsService {
     const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
       await encryption.encrypt(value);
 
-    // Upsert the setting
-    await dbWrite
-      .insert(entitySettings)
-      .values({
-        user_id: userId,
-        agent_id: agentId || null,
-        key,
-        encrypted_value: encryptedValue,
-        encryption_key_id: keyId,
-        encrypted_dek: encryptedDek,
-        nonce,
-        auth_tag: authTag,
-      })
-      .onConflictDoUpdate({
-        target: [
-          entitySettings.user_id,
-          entitySettings.agent_id,
-          entitySettings.key,
-        ],
-        set: {
-          encrypted_value: encryptedValue,
-          encryption_key_id: keyId,
-          encrypted_dek: encryptedDek,
-          nonce,
-          auth_tag: authTag,
-          updated_at: new Date(),
-        },
-      });
+    const encryptedFields = {
+      encrypted_value: encryptedValue,
+      encryption_key_id: keyId,
+      encrypted_dek: encryptedDek,
+      nonce,
+      auth_tag: authTag,
+    };
+
+    if (agentId) {
+      // Agent-specific setting: onConflictDoUpdate works fine
+      await dbWrite
+        .insert(entitySettings)
+        .values({
+          user_id: userId,
+          agent_id: agentId,
+          key,
+          ...encryptedFields,
+        })
+        .onConflictDoUpdate({
+          target: [
+            entitySettings.user_id,
+            entitySettings.agent_id,
+            entitySettings.key,
+          ],
+          set: {
+            ...encryptedFields,
+            updated_at: new Date(),
+          },
+        });
+    } else {
+      // Global setting (agent_id = NULL): PostgreSQL NULL != NULL breaks onConflictDoUpdate
+      // Use explicit check-then-insert/update instead
+      const existing = await dbRead
+        .select({ id: entitySettings.id })
+        .from(entitySettings)
+        .where(
+          and(
+            eq(entitySettings.user_id, userId),
+            isNull(entitySettings.agent_id),
+            eq(entitySettings.key, key)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update existing global setting
+        await dbWrite
+          .update(entitySettings)
+          .set({
+            ...encryptedFields,
+            updated_at: new Date(),
+          })
+          .where(eq(entitySettings.id, existing[0].id));
+      } else {
+        // Insert new global setting
+        await dbWrite.insert(entitySettings).values({
+          user_id: userId,
+          agent_id: null,
+          key,
+          ...encryptedFields,
+        });
+      }
+    }
 
     // Invalidate cache
     await entitySettingsCache.invalidateUser(userId);
