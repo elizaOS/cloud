@@ -206,51 +206,55 @@ export async function POST(request: NextRequest) {
       logger.info("[Voice TTS API] Refunded credits after error");
     }
 
-    if (error instanceof Error) {
-      const errorMessage = error.message.toLowerCase();
-      if (
-        errorMessage.includes("invalid or expired api key") ||
-        errorMessage.includes("invalid or expired token") ||
-        errorMessage.includes("api key is inactive") ||
-        errorMessage.includes("unauthorized") ||
-        errorMessage.includes("authentication required") ||
-        errorMessage.includes("forbidden")
-      ) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const errorMessage =
+      error instanceof Error
+        ? error.message.toLowerCase()
+        : typeof error === "string"
+          ? error.toLowerCase()
+          : "";
 
-      if (errorMessage.includes("rate limit")) {
-        return NextResponse.json(
-          { error: "Rate limit exceeded. Please try again in a moment." },
-          { status: 429 },
-        );
-      }
+    if (
+      errorMessage.includes("invalid or expired api key") ||
+      errorMessage.includes("invalid or expired token") ||
+      errorMessage.includes("api key is inactive") ||
+      errorMessage.includes("unauthorized") ||
+      errorMessage.includes("authentication required") ||
+      errorMessage.includes("forbidden")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-      if (errorMessage.includes("quota")) {
-        return NextResponse.json(
-          {
-            error:
-              "Voice service is temporarily unavailable due to high demand. Please try again in a few moments.",
-            type: "service_unavailable",
-            retryAfter: "5 minutes",
-          },
-          { status: 503 },
-        );
-      }
+    if (errorMessage.includes("rate limit")) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again in a moment." },
+        { status: 429 },
+      );
+    }
 
-      if (errorMessage.includes("voice")) {
-        return NextResponse.json(
-          { error: "Invalid voice ID. Please select a different voice." },
-          { status: 400 },
-        );
-      }
+    if (errorMessage.includes("quota")) {
+      return NextResponse.json(
+        {
+          error:
+            "Voice service is temporarily unavailable due to high demand. Please try again in a few moments.",
+          type: "service_unavailable",
+          retryAfter: "5 minutes",
+        },
+        { status: 503 },
+      );
+    }
 
-      if (errorMessage.includes("elevenlabs_api_key")) {
-        return NextResponse.json(
-          { error: "Service not configured" },
-          { status: 500 },
-        );
-      }
+    if (errorMessage.includes("voice")) {
+      return NextResponse.json(
+        { error: "Invalid voice ID. Please select a different voice." },
+        { status: 400 },
+      );
+    }
+
+    if (errorMessage.includes("elevenlabs_api_key")) {
+      return NextResponse.json(
+        { error: "Service not configured" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(

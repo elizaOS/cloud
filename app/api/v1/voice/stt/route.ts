@@ -262,6 +262,7 @@ export async function POST(request: NextRequest) {
 
       if (
         errorMessage.includes("invalid or expired api key") ||
+        errorMessage.includes("invalid or expired token") ||
         errorMessage.includes("api key is inactive") ||
         errorMessage.includes("unauthorized") ||
         errorMessage.includes("authentication required") ||

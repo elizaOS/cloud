@@ -261,26 +261,29 @@ export async function POST(request: NextRequest) {
         amount: cost,
       });
 
-      try {
-        await usageService.create({
-          organization_id: user.organization_id,
-          user_id: user.id,
-          api_key_id: apiKey?.id ?? null,
-          type: "voice_cloning",
-          model: cloneType,
-          provider: "elevenlabs",
-          input_tokens: 0,
-          output_tokens: 0,
-          input_cost: String(0),
-          output_cost: String(0),
-          is_successful: false,
-          error_message: error instanceof Error ? error.message : "Unknown error",
-        });
-      } catch (usageError) {
-        logger.error("[Voice Clone API] Failed to record usage", {
-          error: usageError instanceof Error ? usageError.message : "Unknown error",
-        });
-      }
+      (async () => {
+        try {
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id ?? null,
+            type: "voice_cloning",
+            model: cloneType,
+            provider: "elevenlabs",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: String(0),
+            output_cost: String(0),
+            is_successful: false,
+            error_message: error instanceof Error ? error.message : "Unknown error",
+          });
+        } catch (usageError) {
+          logger.error("[Voice Clone API] Failed to record usage", {
+            error:
+              usageError instanceof Error ? usageError.message : "Unknown error",
+          });
+        }
+      })();
 
       if (error instanceof Error) {
         if (error.message.includes("rate limit")) {
