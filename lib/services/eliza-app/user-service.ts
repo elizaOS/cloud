@@ -441,10 +441,18 @@ class ElizaAppUserService {
       avatarUrl?: string | null;
     }
   ): Promise<FindOrCreateResult> {
+    // Validate required fields
+    if (!discordId?.trim()) {
+      throw new Error("Discord ID is required");
+    }
+    if (!discordData.username?.trim()) {
+      throw new Error("Discord username is required");
+    }
+
     const existingUser = await usersRepository.findByDiscordIdWithOrganization(discordId);
 
     if (existingUser && existingUser.organization) {
-      // Update Discord profile data if changed
+      // Update Discord profile data if changed (non-critical - graceful degradation)
       const updates: Partial<NewUser> = {};
       let needsUpdate = false;
 
@@ -462,12 +470,21 @@ class ElizaAppUserService {
       }
 
       if (needsUpdate) {
-        updates.updated_at = new Date();
-        await usersRepository.update(existingUser.id, updates);
-        logger.info("[ElizaAppUserService] Updated Discord user profile", {
-          userId: existingUser.id,
-          discordId,
-        });
+        try {
+          updates.updated_at = new Date();
+          await usersRepository.update(existingUser.id, updates);
+          logger.info("[ElizaAppUserService] Updated Discord user profile", {
+            userId: existingUser.id,
+            discordId,
+          });
+        } catch (error) {
+          // Profile update is non-critical - log warning and continue with stale data
+          logger.warn("[ElizaAppUserService] Failed to update Discord profile, continuing with stale data", {
+            userId: existingUser.id,
+            discordId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
 
       return { user: existingUser, organization: existingUser.organization, isNew: false };
