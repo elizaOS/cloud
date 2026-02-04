@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { oauthService, OAuthError, Errors, internalErrorResponse } from "@/lib/services/oauth";
+import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { logger } from "@/lib/utils/logger";
 
@@ -75,8 +76,12 @@ export async function DELETE(
       connectionId,
     });
 
+    // Invalidate both runtime cache and entity settings cache (matching OAuth callback behavior)
     try {
-      await entitySettingsCache.invalidateUser(user.id);
+      await Promise.all([
+        invalidateByOrganization(user.organization_id),
+        entitySettingsCache.invalidateUser(user.id),
+      ]);
     } catch (e) {
       logger.warn("[API] Cache invalidation failed", { error: String(e) });
     }
