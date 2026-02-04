@@ -26,15 +26,17 @@ export const oauthConnectAction: ActionWithParams = {
   name: "OAUTH_CONNECT",
   similes: [
     "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
+    "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
+    "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
   ],
   description:
-    "Connect an OAuth platform (Google) for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection.",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: 'google'",
+      description: "Platform to connect. Available: google, linear, slack, github, notion",
       required: true,
     },
   },
