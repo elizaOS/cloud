@@ -184,7 +184,7 @@ aws iam create-policy \
   --policy-name gateway-terraform-policy \
   --policy-document file://terraform-iam-policy.json
 
-# Attach the custom policy
+# Attach the custom policy. Replace YOUR_ACCOUNT_ID
 aws iam attach-role-policy \
   --role-name github-actions-gateway-terraform \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/gateway-terraform-policy
