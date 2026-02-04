@@ -238,6 +238,17 @@ const nextConfig: NextConfig = {
   },
   // Exclude auth-error from page generation to avoid naming conflict
   pageExtensions: ["tsx", "ts", "jsx", "js", "mdx", "md"],
+
+  async rewrites() {
+    return [
+      // Serve static HTML for privacy policy (required for Google OAuth verification)
+      // Google's crawler needs plain HTML, not React-rendered pages
+      {
+        source: "/privacy-policy",
+        destination: "/privacy-policy.html",
+      },
+    ];
+  },
 };
 
 export default withNextra(nextConfig);

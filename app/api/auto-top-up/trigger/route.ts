@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { autoTopUpService } from "@/lib/services/auto-top-up";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { organizationsRepository } from "@/db/repositories";
@@ -8,6 +8,7 @@ import { organizationsRepository } from "@/db/repositories";
 /**
  * POST /api/auto-top-up/trigger
  * Manually triggers an auto top-up check for the authenticated user's organization.
+ * Supports both Privy session and API key authentication.
  * Allows testing auto top-up functionality without waiting for the cron job.
  *
  * @param req - The Next.js request object.
@@ -15,7 +16,7 @@ import { organizationsRepository } from "@/db/repositories";
  */
 async function handleTriggerAutoTopUp(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const organizationId = user.organization_id!;
 
     // Get organization details

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 
@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/my-agents/characters/[id]/clone
  * Clones a character to create a new copy owned by the user.
+ * Supports both Privy session and API key authentication.
  *
  * @param request - Request body with optional name, username, and makePublic flag.
  * @param params - Route parameters containing the character ID to clone.
@@ -18,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     let body: { name?: string; username?: string; makePublic?: boolean } = {};
