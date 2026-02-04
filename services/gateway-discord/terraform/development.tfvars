@@ -20,6 +20,12 @@ kubernetes_version              = "1.34"
 cluster_endpoint_public_access  = true
 cluster_endpoint_private_access = true
 
+# EKS API Server Access Control
+# SECURITY: Restrict to your trusted networks (GitHub Actions IPs, VPN, office IPs)
+# GitHub Actions uses dynamic IPs - see https://api.github.com/meta for current ranges
+# For development, we use 0.0.0.0/0 but production should be more restrictive
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+
 # Node Group Configuration - Cost-effective for I/O-bound workload (Discord websockets)
 # Using t3 (x86) because Docker image currently only supports amd64
 # Discord gateway is I/O bound, not CPU bound - burstable instances are ideal
@@ -32,9 +38,10 @@ node_group_disk_size      = 30 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
 
 # GitHub Configuration
-github_org           = "elizaos"
-github_repo          = "eliza-cloud-v2"
-create_oidc_provider = false # GitHub OIDC provider already exists in AWS account
+github_org                 = "elizaos"
+github_repo                = "eliza-cloud-v2"
+create_oidc_provider       = false # GitHub OIDC provider already exists in AWS account
+create_github_actions_role = false # Role already exists from previous run
 
 # aws-auth ConfigMap
 enable_aws_auth_update = true

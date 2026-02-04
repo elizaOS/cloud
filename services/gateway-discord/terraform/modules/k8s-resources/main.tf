@@ -25,11 +25,151 @@ resource "kubernetes_secret" "ghcr_credentials" {
   data = {
     ".dockerconfigjson" = jsonencode({
       auths = {
-        "ghcr.io" = {
+        (var.container_registry_url) = {
           auth = base64encode("${var.ghcr_username}:${var.ghcr_token}")
         }
       }
     })
+  }
+}
+
+# =============================================================================
+# RBAC for GitHub Actions CI/CD
+# Follows principle of least privilege - only grants permissions needed for
+# Helm deployments in the gateway-discord namespace
+# =============================================================================
+
+# ClusterRole for cluster-level read access (needed for kubectl get nodes, etc.)
+resource "kubernetes_cluster_role" "github_actions_cluster_reader" {
+  metadata {
+    name = "github-actions-cluster-reader"
+    labels = {
+      managed-by = "terraform"
+    }
+  }
+
+  # Allow reading cluster-level resources for deployment status checks
+  rule {
+    api_groups = [""]
+    resources  = ["nodes", "namespaces"]
+    verbs      = ["get", "list", "watch"]
+  }
+
+  # Allow reading cluster-scoped storage classes
+  rule {
+    api_groups = ["storage.k8s.io"]
+    resources  = ["storageclasses"]
+    verbs      = ["get", "list", "watch"]
+  }
+}
+
+# ClusterRoleBinding for cluster-level read access
+resource "kubernetes_cluster_role_binding" "github_actions_cluster_reader" {
+  metadata {
+    name = "github-actions-cluster-reader"
+    labels = {
+      managed-by = "terraform"
+    }
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.github_actions_cluster_reader.metadata[0].name
+  }
+
+  subject {
+    kind = "Group"
+    name = "github-actions-deployers"
+  }
+}
+
+# Role for namespace-level access (full control of gateway-discord namespace)
+resource "kubernetes_role" "github_actions_deployer" {
+  metadata {
+    name      = "github-actions-deployer"
+    namespace = kubernetes_namespace.gateway_discord.metadata[0].name
+    labels = {
+      managed-by = "terraform"
+    }
+  }
+
+  # Core resources for deployments
+  rule {
+    api_groups = [""]
+    resources  = ["pods", "pods/log", "pods/exec", "services", "endpoints", "configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Deployment resources
+  rule {
+    api_groups = ["apps"]
+    resources  = ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Batch jobs (for Helm hooks)
+  rule {
+    api_groups = ["batch"]
+    resources  = ["jobs", "cronjobs"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Networking
+  rule {
+    api_groups = ["networking.k8s.io"]
+    resources  = ["ingresses", "networkpolicies"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Autoscaling
+  rule {
+    api_groups = ["autoscaling"]
+    resources  = ["horizontalpodautoscalers"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Policy
+  rule {
+    api_groups = ["policy"]
+    resources  = ["poddisruptionbudgets"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # RBAC within namespace (for service accounts)
+  rule {
+    api_groups = ["rbac.authorization.k8s.io"]
+    resources  = ["roles", "rolebindings"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
+  # Events (read-only for debugging)
+  rule {
+    api_groups = [""]
+    resources  = ["events"]
+    verbs      = ["get", "list", "watch"]
+  }
+}
+
+# RoleBinding for namespace-level access
+resource "kubernetes_role_binding" "github_actions_deployer" {
+  metadata {
+    name      = "github-actions-deployer"
+    namespace = kubernetes_namespace.gateway_discord.metadata[0].name
+    labels = {
+      managed-by = "terraform"
+    }
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.github_actions_deployer.metadata[0].name
+  }
+
+  subject {
+    kind = "Group"
+    name = "github-actions-deployers"
   }
 }
 
@@ -59,18 +199,17 @@ resource "kubernetes_secret" "gateway_discord_secrets" {
 # This resource manages the aws-auth ConfigMap which controls IAM role to Kubernetes
 # RBAC mappings. It includes:
 # - Node group role: Required for worker nodes to join the cluster
-# - GitHub Actions role: For CI/CD deployments (system:masters for full access)
+# - GitHub Actions role: For CI/CD deployments with least-privilege RBAC
 #
-# The 'system:masters' group for GitHub Actions provides full cluster admin
-# permissions, which is required for:
-# - Initial cluster bootstrap and namespace creation
-# - Helm install/upgrade operations (requires create/update on various resources)
-# - Managing secrets, configmaps, and deployments
+# The GitHub Actions role is mapped to the 'github-actions-deployers' group which
+# has custom RBAC permissions defined above:
+# - ClusterRole: Read-only access to nodes and namespaces (for kubectl status)
+# - Role: Full access to gateway-discord namespace resources (for Helm deployments)
 #
-# For tighter security in production, consider:
-# 1. Creating a custom ClusterRole with permissions scoped to the gateway-discord namespace
-# 2. Using a ClusterRoleBinding to bind the role to the github-actions user
-# 3. Granting cluster-level read permissions for kubectl get nodes, etc.
+# This follows the principle of least privilege - GitHub Actions can only:
+# - Deploy to the gateway-discord namespace
+# - Read cluster-level resources for status checks
+# - Cannot access secrets in other namespaces or perform cluster-admin operations
 resource "kubernetes_config_map_v1_data" "aws_auth" {
   count = var.enable_aws_auth_update ? 1 : 0
 
@@ -89,12 +228,12 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
           groups   = ["system:bootstrappers", "system:nodes"]
         }
       ],
-      # GitHub Actions role for CI/CD deployments
+      # GitHub Actions role for CI/CD deployments (least-privilege via custom RBAC)
       [
         {
           rolearn  = var.github_actions_role_arn
           username = "github-actions"
-          groups   = ["system:masters"]
+          groups   = ["github-actions-deployers"]
         }
       ],
       # Any additional roles specified by the user

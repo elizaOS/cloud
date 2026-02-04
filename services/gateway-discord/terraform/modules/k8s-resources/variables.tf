@@ -9,6 +9,12 @@ variable "environment" {
   type        = string
 }
 
+variable "container_registry_url" {
+  description = "Container registry URL (e.g., ghcr.io, docker.io)"
+  type        = string
+  default     = "ghcr.io"
+}
+
 variable "ghcr_username" {
   description = "GitHub Container Registry username"
   type        = string

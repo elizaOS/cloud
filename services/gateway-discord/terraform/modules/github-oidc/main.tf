@@ -13,6 +13,12 @@ locals {
   region            = data.aws_region.current.name
 }
 
+# Check if GitHub Actions IAM role already exists
+data "aws_iam_role" "github_actions_existing" {
+  count = var.create_github_actions_role ? 0 : 1
+  name  = local.role_name
+}
+
 # Fetch GitHub OIDC thumbprint dynamically
 data "tls_certificate" "github" {
   url = local.oidc_provider_url
@@ -42,9 +48,10 @@ locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github_existing[0].arn
 }
 
-# IAM Role for GitHub Actions
+# IAM Role for GitHub Actions - only create if not already exists
 resource "aws_iam_role" "github_actions" {
-  name = local.role_name
+  count = var.create_github_actions_role ? 1 : 0
+  name  = local.role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -77,10 +84,16 @@ resource "aws_iam_role" "github_actions" {
   }
 }
 
+locals {
+  # Use existing role if not creating, otherwise use the created one
+  github_actions_role_arn = var.create_github_actions_role ? aws_iam_role.github_actions[0].arn : data.aws_iam_role.github_actions_existing[0].arn
+  github_actions_role_id  = var.create_github_actions_role ? aws_iam_role.github_actions[0].id : data.aws_iam_role.github_actions_existing[0].id
+}
+
 # Policy for EKS access - scoped to specific cluster
 resource "aws_iam_role_policy" "github_actions_eks" {
   name = "${local.role_name}-eks-policy"
-  role = aws_iam_role.github_actions.id
+  role = local.github_actions_role_id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -102,7 +115,7 @@ resource "aws_iam_role_policy" "github_actions_eks" {
 # Note: GetAuthorizationToken requires * resource, but other actions are scoped
 resource "aws_iam_role_policy" "github_actions_ecr" {
   name = "${local.role_name}-ecr-policy"
-  role = aws_iam_role.github_actions.id
+  role = local.github_actions_role_id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -136,16 +149,17 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
 }
 
 # aws-auth ConfigMap data
-# Note: system:masters grants full cluster admin. For production, consider creating
-# a custom ClusterRole with limited permissions (e.g., only gateway-discord namespace).
-# system:masters is used here for initial bootstrap simplicity.
+# Note: The github-actions-deployers group is bound to custom RBAC roles defined
+# in the k8s-resources module, providing least-privilege access:
+# - ClusterRole: Read-only access to nodes and namespaces
+# - Role: Full access to gateway-discord namespace only
 locals {
   aws_auth_configmap_data = {
     mapRoles = yamlencode([
       {
-        rolearn  = aws_iam_role.github_actions.arn
+        rolearn  = local.github_actions_role_arn
         username = "github-actions"
-        groups   = ["system:masters"]
+        groups   = ["github-actions-deployers"]
       }
     ])
   }

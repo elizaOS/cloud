@@ -22,6 +22,18 @@ kubernetes_version              = "1.34"
 cluster_endpoint_public_access  = true
 cluster_endpoint_private_access = true
 
+# EKS API Server Access Control
+# SECURITY: For production, restrict to specific trusted networks:
+# - GitHub Actions IPs (see https://api.github.com/meta)
+# - VPN/office IP ranges
+# - Bastion host IPs
+# Example restricted CIDRs (update with your actual trusted IPs):
+# cluster_endpoint_public_access_cidrs = ["203.0.113.0/24", "198.51.100.0/24"]
+#
+# For maximum security, set cluster_endpoint_public_access = false
+# and access the cluster only via VPN/bastion through private endpoint
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # TODO: Restrict to trusted networks before production launch
+
 # Node Group Configuration - Cost-effective for I/O-bound workload (Discord websockets)
 # Using t3 (x86) because Docker image currently only supports amd64
 # Discord gateway is I/O bound, not CPU bound - burstable instances are ideal

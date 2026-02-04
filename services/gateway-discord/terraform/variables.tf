@@ -83,6 +83,12 @@ variable "cluster_endpoint_public_access" {
   default     = true
 }
 
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "List of CIDR blocks allowed to access the EKS API server. Restrict to trusted networks for security."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "cluster_endpoint_private_access" {
   description = "Whether to enable private access to the EKS API server"
   type        = bool
@@ -141,6 +147,12 @@ variable "github_repo" {
 
 variable "create_oidc_provider" {
   description = "Whether to create the GitHub OIDC provider (set to false if it already exists in the AWS account)"
+  type        = bool
+  default     = true
+}
+
+variable "create_github_actions_role" {
+  description = "Whether to create the GitHub Actions IAM role (set to false if it already exists from a previous run)"
   type        = bool
   default     = true
 }

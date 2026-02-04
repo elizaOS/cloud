@@ -10,6 +10,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
     endpoint_public_access  = var.cluster_endpoint_public_access
     endpoint_private_access = var.cluster_endpoint_private_access
+    public_access_cidrs     = var.cluster_endpoint_public_access ? var.cluster_endpoint_public_access_cidrs : null
     security_group_ids      = [aws_security_group.cluster.id]
   }
 
@@ -108,6 +109,18 @@ resource "aws_security_group_rule" "cluster_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.cluster.id
   description       = "Allow all outbound traffic"
+}
+
+# Allow nodes from VPC to communicate with the EKS API server (HTTPS)
+# EKS managed node groups use their own security group, so we use VPC CIDR
+resource "aws_security_group_rule" "cluster_ingress_https_from_vpc" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.cluster.id
+  description       = "Allow HTTPS from VPC (for nodes to communicate with API server)"
 }
 
 # OIDC Provider for IAM Roles for Service Accounts (IRSA)

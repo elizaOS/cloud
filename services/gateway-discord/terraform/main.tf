@@ -28,31 +28,34 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name                    = local.cluster_name
-  kubernetes_version              = var.kubernetes_version
-  environment                     = var.environment
-  vpc_id                          = module.vpc.vpc_id
-  private_subnet_ids              = module.vpc.private_subnet_ids
-  public_subnet_ids               = module.vpc.public_subnet_ids
-  cluster_endpoint_public_access  = var.cluster_endpoint_public_access
-  cluster_endpoint_private_access = var.cluster_endpoint_private_access
-  node_group_instance_types       = var.node_group_instance_types
-  node_group_desired_size         = var.node_group_desired_size
-  node_group_min_size             = var.node_group_min_size
-  node_group_max_size             = var.node_group_max_size
-  node_group_disk_size            = var.node_group_disk_size
-  node_group_capacity_type        = var.node_group_capacity_type
+  cluster_name                         = local.cluster_name
+  kubernetes_version                   = var.kubernetes_version
+  environment                          = var.environment
+  vpc_id                               = module.vpc.vpc_id
+  vpc_cidr                             = var.vpc_cidr
+  private_subnet_ids                   = module.vpc.private_subnet_ids
+  public_subnet_ids                    = module.vpc.public_subnet_ids
+  cluster_endpoint_public_access       = var.cluster_endpoint_public_access
+  cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  cluster_endpoint_private_access      = var.cluster_endpoint_private_access
+  node_group_instance_types            = var.node_group_instance_types
+  node_group_desired_size              = var.node_group_desired_size
+  node_group_min_size                  = var.node_group_min_size
+  node_group_max_size                  = var.node_group_max_size
+  node_group_disk_size                 = var.node_group_disk_size
+  node_group_capacity_type             = var.node_group_capacity_type
 }
 
 # GitHub OIDC Module
 module "github_oidc" {
   source = "./modules/github-oidc"
 
-  cluster_name         = local.cluster_name
-  environment          = var.environment
-  github_org           = var.github_org
-  github_repo          = var.github_repo
-  create_oidc_provider = var.create_oidc_provider
+  cluster_name               = local.cluster_name
+  environment                = var.environment
+  github_org                 = var.github_org
+  github_repo                = var.github_repo
+  create_oidc_provider       = var.create_oidc_provider
+  create_github_actions_role = var.create_github_actions_role
 }
 
 # Kubernetes Resources Module

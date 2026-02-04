@@ -18,6 +18,11 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "vpc_cidr" {
+  description = "VPC CIDR block for security group rules"
+  type        = string
+}
+
 variable "private_subnet_ids" {
   description = "Private subnet IDs"
   type        = list(string)
@@ -32,6 +37,12 @@ variable "cluster_endpoint_public_access" {
   description = "Whether to enable public access to the EKS API server"
   type        = bool
   default     = true
+}
+
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "List of CIDR blocks allowed to access the EKS API server when public access is enabled. Use [\"0.0.0.0/0\"] for unrestricted access (not recommended for production)."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
 variable "cluster_endpoint_private_access" {

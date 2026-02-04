@@ -219,18 +219,37 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
+      - name: Security Scan with tfsec
+        id: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: services/gateway-discord/terraform
+          soft_fail: true
+          format: lovely,sarif
+          sarif_file: tfsec-results.sarif
+
+      - name: Upload tfsec SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: services/gateway-discord/terraform/tfsec-results.sarif
+        continue-on-error: true
+
       - name: Terraform Plan
         id: plan
+        env:
+          # Use TF_VAR_ environment variables instead of -var CLI args for security
+          # (CLI args can be visible in process listings)
+          TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
+          TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
+          TF_VAR_eliza_cloud_url: ${{ secrets.ELIZA_CLOUD_URL }}
+          TF_VAR_gateway_bootstrap_secret: ${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}
+          TF_VAR_redis_url: ${{ secrets.REDIS_URL }}
+          TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
+          TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
         run: |
           terraform plan -no-color \
             -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
-            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
-            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
-            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
-            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
-            -var="redis_url=${{ secrets.REDIS_URL }}" \
-            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
-            -var="blob_token=${{ secrets.BLOB_TOKEN }}" \
             -out=tfplan
         continue-on-error: true
 
@@ -250,10 +269,12 @@ jobs:
             const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Security Scan (tfsec) 🔒\`${{ steps.tfsec.outcome }}\`
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
 
-            > **Note**: Sensitive values (tokens, secrets) are marked as \`sensitive\` in Terraform
-            > and should appear as \`(sensitive value)\` in the plan output below.
+            > **Security**: All sensitive variables are marked with \`sensitive = true\` in Terraform
+            > and will appear as \`(sensitive value)\` in the plan output. Security scan results
+            > are uploaded to the Security tab. Review the plan for any accidental secret exposure.
 
             <details><summary>Show Plan (${{ needs.detect-changes.outputs.environment }})${truncated ? ' - TRUNCATED' : ''}</summary>
 
@@ -287,16 +308,17 @@ jobs:
 
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-destroy'
+        env:
+          TF_VAR_ghcr_username: ${{ secrets.GHCR_USERNAME }}
+          TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
+          TF_VAR_eliza_cloud_url: ${{ secrets.ELIZA_CLOUD_URL }}
+          TF_VAR_gateway_bootstrap_secret: ${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}
+          TF_VAR_redis_url: ${{ secrets.REDIS_URL }}
+          TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
+          TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
         run: |
           terraform destroy -auto-approve \
-            -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
-            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
-            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
-            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
-            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
-            -var="redis_url=${{ secrets.REDIS_URL }}" \
-            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
-            -var="blob_token=${{ secrets.BLOB_TOKEN }}"
+            -var-file=${{ needs.detect-changes.outputs.tfvars_file }}
 
       # TODO: TEMPORARY - Remove pull_request condition before merging!
       - name: Get Terraform Outputs

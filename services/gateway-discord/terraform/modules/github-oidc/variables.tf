@@ -23,3 +23,9 @@ variable "create_oidc_provider" {
   type        = bool
   default     = true
 }
+
+variable "create_github_actions_role" {
+  description = "Whether to create the GitHub Actions IAM role (set to false if it already exists)"
+  type        = bool
+  default     = true
+}
