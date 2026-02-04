@@ -22,6 +22,7 @@ import { getEncryptionService } from "@/lib/services/secrets";
 import { entitySettingsCache } from "./cache";
 import { logger } from "@/lib/utils/logger";
 import { eq, and, isNull } from "drizzle-orm";
+import { isValidUUID } from "@/lib/utils/validation";
 import type {
   EntitySettingValue,
   EntitySettingSource,
@@ -170,6 +171,12 @@ export class EntitySettingsService {
     userId: string,
     organizationId: string
   ): Promise<Map<string, string>> {
+    // Skip query if userId or organizationId are not valid UUIDs
+    // (e.g., "public", "system", "anonymous" fallback values)
+    if (!isValidUUID(userId) || !isValidUUID(organizationId)) {
+      return new Map();
+    }
+
     const sessions = await dbRead
       .select()
       .from(oauthSessions)
@@ -212,6 +219,12 @@ export class EntitySettingsService {
     userId: string,
     organizationId: string
   ): Promise<string | null> {
+    // Skip query if userId or organizationId are not valid UUIDs
+    // (e.g., "public", "system", "anonymous" fallback values)
+    if (!isValidUUID(userId) || !isValidUUID(organizationId)) {
+      return null;
+    }
+
     const keys = await dbRead
       .select()
       .from(apiKeys)
