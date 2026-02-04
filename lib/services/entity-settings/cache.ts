@@ -14,10 +14,13 @@ import type { EntitySettingValue, EntitySettingSource } from "./types";
 const CACHE_PREFIX = "entity_settings";
 
 /**
- * Default TTL for cached settings (60 seconds)
- * Short TTL ensures settings changes propagate quickly
+ * Default TTL for cached settings (5 minutes)
+ * Longer TTL reduces DB load since:
+ * - Cache is explicitly invalidated on OAuth connect/disconnect
+ * - Entity settings rarely change during normal operation
+ * - Changes are immediately visible after explicit cache invalidation
  */
-const DEFAULT_TTL_SECONDS = 60;
+const DEFAULT_TTL_SECONDS = 300;
 
 /**
  * Cached entity settings structure
