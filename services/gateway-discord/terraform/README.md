@@ -96,6 +96,17 @@ aws s3api put-bucket-versioning \
   --bucket eliza-cloud-terraform-state \
   --versioning-configuration Status=Enabled
 
+# Enable server-side encryption (Terraform state contains sensitive data)
+aws s3api put-bucket-encryption \
+  --bucket eliza-cloud-terraform-state \
+  --server-side-encryption-configuration '{
+    "Rules": [{
+      "ApplyServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+      }
+    }]
+  }'
+
 # Create DynamoDB table for state locking (shared by all environments)
 aws dynamodb create-table \
   --table-name terraform-state-lock \

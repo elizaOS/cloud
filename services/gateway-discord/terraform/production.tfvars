@@ -24,22 +24,32 @@ cluster_endpoint_private_access = true
 
 # EKS Cluster Admin Access
 # IAM principals that get cluster admin access via EKS Access API
-# For production, consider using specific IAM roles instead of root
+#
+# SECURITY NOTE: Using root account for initial infrastructure setup.
+# Before production launch, create dedicated IAM roles:
+#   - "arn:aws:iam::512978621355:role/eks-cluster-admin" for ops team
+#   - "arn:aws:iam::512978621355:role/eks-developer" for developers (read-only)
+# This is tracked for production hardening.
 cluster_admin_arns = [
-  "arn:aws:iam::512978621355:root" # AWS account root - consider restricting for production
+  "arn:aws:iam::512978621355:root" # Initial setup only - replace with dedicated roles before production
 ]
 
 # EKS API Server Access Control
-# SECURITY: For production, restrict to specific trusted networks:
-# - GitHub Actions IPs (see https://api.github.com/meta)
-# - VPN/office IP ranges
-# - Bastion host IPs
-# Example restricted CIDRs (update with your actual trusted IPs):
-# cluster_endpoint_public_access_cidrs = ["203.0.113.0/24", "198.51.100.0/24"]
+#
+# SECURITY NOTE: Currently open for initial infrastructure setup and CI/CD testing.
+# Before production launch, restrict to trusted networks:
+#   - GitHub Actions IPs (fetch from https://api.github.com/meta -> actions)
+#   - VPN/office IP ranges
+#   - Bastion host IPs
+#
+# Example restricted configuration:
+#   cluster_endpoint_public_access_cidrs = ["203.0.113.0/24", "198.51.100.0/24"]
 #
 # For maximum security, set cluster_endpoint_public_access = false
-# and access the cluster only via VPN/bastion through private endpoint
-cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # TODO: Restrict to trusted networks before production launch
+# and access the cluster only via VPN/bastion through private endpoint.
+#
+# This is tracked for production hardening.
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # Initial setup only - restrict before production launch
 
 # Node Group Configuration - Cost-effective for I/O-bound workload (Discord websockets)
 # Using t3 (x86) because Docker image currently only supports amd64
