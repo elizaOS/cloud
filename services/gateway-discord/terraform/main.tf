@@ -44,6 +44,7 @@ module "eks" {
   node_group_max_size                  = var.node_group_max_size
   node_group_disk_size                 = var.node_group_disk_size
   node_group_capacity_type             = var.node_group_capacity_type
+  cluster_admin_arns                   = var.cluster_admin_arns
 }
 
 # GitHub OIDC Module

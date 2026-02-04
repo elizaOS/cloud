@@ -293,15 +293,42 @@ aws iam attach-role-policy \
 The role ARN will be: `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-gateway-terraform`
 </details>
 
-> **Security Note**: The custom policy above follows the principle of least privilege, granting only the permissions required to create VPCs, EKS clusters, IAM roles, and supporting resources. After Terraform runs, it creates a separate `github-actions-role` with limited EKS-only permissions for app deployments.
+> **Security Note**: The custom policy above follows the principle of least privilege, granting only the permissions required to create VPCs, EKS clusters, IAM roles, and supporting resources. After Terraform runs, it creates a separate `github-actions-gateway-dev/prd` role with limited EKS-only permissions for app deployments.
+
+<details>
+<summary><strong>Step 2c: Gateway Deployment Role (github-actions-gateway-dev/prd)</strong></summary>
+
+This role is used by the **deploy** job to access EKS and deploy Helm charts. It's created by Terraform's `github-oidc` module, but if you have `create_github_actions_role = false` in your tfvars, you need to manage the trust policy manually.
+
+**Trust Policy**: Use the same `terraform-role-trust-policy.json` from Step 2b above.
+
+**Update existing role's trust policy:**
+
+```bash
+# For development environment
+aws iam update-assume-role-policy \
+  --role-name github-actions-gateway-dev \
+  --policy-document file://terraform-role-trust-policy.json
+
+# For production environment
+aws iam update-assume-role-policy \
+  --role-name github-actions-gateway-prd \
+  --policy-document file://terraform-role-trust-policy.json
+```
+
+> **Note**: When `create_github_actions_role = false`, Terraform only looks up the role ARN via data source and won't modify the trust policy. You must update it manually if adding new branch patterns.
+
+</details>
 
 #### 3. Configure GitHub Environments
 
 Create two GitHub Environments (`gateway-dev` and `gateway-prd`) in your repository settings with the following:
 
 **Variables** (Settings → Environments → [environment] → Environment variables):
-- `TERRAFORM_AWS_ROLE_ARN`: IAM role ARN from Step 2 (e.g., `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-terraform`)
+- `TERRAFORM_AWS_ROLE_ARN`: IAM role for Terraform operations (e.g., `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-gateway-terraform`)
+- `GATEWAY_AWS_ROLE_ARN`: IAM role for EKS/Helm deployments (e.g., `arn:aws:iam::YOUR_ACCOUNT_ID:role/github-actions-gateway-dev`)
 - `AWS_REGION`: `us-east-1`
+- `CLUSTER_NAME`: EKS cluster name (e.g., `gateway-cluster-dev`)
 
 **Secrets** (Settings → Environments → [environment] → Environment secrets):
 - `GHCR_USERNAME`: GitHub Container Registry username

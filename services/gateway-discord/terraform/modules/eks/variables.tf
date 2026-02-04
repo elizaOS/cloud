@@ -80,3 +80,9 @@ variable "node_group_capacity_type" {
   description = "Capacity type: ON_DEMAND or SPOT"
   type        = string
 }
+
+variable "cluster_admin_arns" {
+  description = "List of IAM principal ARNs to grant cluster admin access via EKS Access API"
+  type        = list(string)
+  default     = []
+}

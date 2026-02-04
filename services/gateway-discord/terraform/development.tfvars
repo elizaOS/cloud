@@ -20,6 +20,12 @@ kubernetes_version              = "1.34"
 cluster_endpoint_public_access  = true
 cluster_endpoint_private_access = true
 
+# EKS Cluster Admin Access
+# IAM principals that get cluster admin access via EKS Access API
+cluster_admin_arns = [
+  "arn:aws:iam::512978621355:root" # AWS account root for local kubectl access
+]
+
 # EKS API Server Access Control
 # SECURITY: Restrict to your trusted networks (GitHub Actions IPs, VPN, office IPs)
 # GitHub Actions uses dynamic IPs - see https://api.github.com/meta for current ranges
@@ -38,7 +44,7 @@ node_group_disk_size      = 30 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
 
 # GitHub Configuration
-github_org                 = "elizaos"
+github_org                 = "elizaOS"
 github_repo                = "eliza-cloud-v2"
 create_oidc_provider       = false # GitHub OIDC provider already exists in AWS account
 create_github_actions_role = false # Role already exists from previous run

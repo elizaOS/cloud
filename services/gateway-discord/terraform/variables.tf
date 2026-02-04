@@ -132,6 +132,12 @@ variable "node_group_capacity_type" {
   default     = "ON_DEMAND"
 }
 
+variable "cluster_admin_arns" {
+  description = "List of IAM principal ARNs to grant EKS cluster admin access (e.g., IAM users, roles)"
+  type        = list(string)
+  default     = []
+}
+
 # GitHub OIDC Configuration
 variable "github_org" {
   description = "GitHub organization name"

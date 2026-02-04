@@ -14,6 +14,13 @@ resource "aws_eks_cluster" "main" {
     security_group_ids      = [aws_security_group.cluster.id]
   }
 
+  # Enable API-based access management in addition to ConfigMap
+  # This allows managing cluster access via AWS IAM without needing kubectl
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   encryption_config {
     provider {
       key_arn = aws_kms_key.eks.arn
@@ -300,4 +307,32 @@ resource "aws_security_group_rule" "cluster_to_node_kubelet" {
   source_security_group_id = aws_security_group.cluster.id
   security_group_id        = aws_security_group.node.id
   description              = "Allow cluster to node kubelet"
+}
+
+# EKS Access Entries for cluster administrators
+# This allows specified IAM principals to access the cluster without aws-auth ConfigMap
+resource "aws_eks_access_entry" "admins" {
+  for_each = toset(var.cluster_admin_arns)
+
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = each.value
+  type          = "STANDARD"
+
+  tags = {
+    Name = "${var.cluster_name}-admin-access"
+  }
+}
+
+resource "aws_eks_access_policy_association" "admins" {
+  for_each = toset(var.cluster_admin_arns)
+
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = each.value
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.admins]
 }

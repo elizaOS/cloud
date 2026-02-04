@@ -70,6 +70,8 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:sub" = [
               "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
               "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/dev",
+              "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/feat/*",
+              "repo:${var.github_org}/${var.github_repo}:pull_request",
               "repo:${var.github_org}/${var.github_repo}:environment:gateway-dev",
               "repo:${var.github_org}/${var.github_repo}:environment:gateway-prd"
             ]
