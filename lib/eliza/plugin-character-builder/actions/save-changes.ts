@@ -270,7 +270,8 @@ export const saveChangesAction = {
       return;
     }
 
-    const userId = runtime.character.settings?.USER_ID as string;
+    // Use getSetting() to properly resolve from request context (not direct character.settings access)
+    const userId = runtime.getSetting("USER_ID") as string;
 
     if (!userId) {
       logger.error("[SAVE_CHANGES] No USER_ID in runtime settings");
