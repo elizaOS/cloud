@@ -13,7 +13,7 @@ import {
   isValidAgentModeConfig,
 } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
-import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { runtimeFactory, DEFAULT_AGENT_ID_STRING } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -401,7 +401,7 @@ export async function POST(
     // Step 5.5: Prefetch entity settings for this user
     // This enables per-user API keys, OAuth tokens, etc. in multi-tenant deployments
     // The default agentId (Eliza) is used if no characterId is specified
-    const agentIdForSettings = characterId || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    const agentIdForSettings = characterId || DEFAULT_AGENT_ID_STRING;
     const { settings: entitySettings, sources: entitySettingsSources } =
       await entitySettingsService.prefetch(
         userContext.userId,

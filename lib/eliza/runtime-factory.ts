@@ -32,6 +32,12 @@ import {
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
+/**
+ * Default agent ID used when no specific character/agent is specified.
+ * Exported for use in other modules that need the same default.
+ */
+export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
+
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
@@ -411,10 +417,8 @@ const dbAdapterPool = new DbAdapterPool();
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
   private readonly DEFAULT_AGENT_ID = stringToUuid(
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
+    DEFAULT_AGENT_ID_STRING,
   ) as UUID;
-  private readonly DEFAULT_AGENT_ID_STRING =
-    "b850bc30-45f8-0041-a00a-83df46d8555d";
 
   private constructor() {
     this.initializeLoggers();
@@ -483,7 +487,7 @@ export class RuntimeFactory {
 
     const isDefaultCharacter =
       !context.characterId ||
-      context.characterId === this.DEFAULT_AGENT_ID_STRING;
+      context.characterId === DEFAULT_AGENT_ID_STRING;
     const loaderOptions = { webSearchEnabled: context.webSearchEnabled };
 
     const { character, plugins, modeResolution } = isDefaultCharacter
@@ -990,7 +994,7 @@ export class RuntimeFactory {
       elizaLogger.info(
         `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
-      for (const server of servers as any[]) {
+      for (const server of servers as Array<{ name: string; status: string; tools?: unknown[]; error?: string }>) {
         elizaLogger.info(
           `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || 'none'}`,
         );
