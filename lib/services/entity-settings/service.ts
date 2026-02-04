@@ -67,18 +67,50 @@ export class EntitySettingsService {
     const settings = new Map<string, EntitySettingValue>();
     const sources: Record<string, EntitySettingSource> = {};
 
-    // Fetch from all sources in parallel
-    const [
-      globalEntitySettings,
-      agentSpecificSettings,
-      oauthTokens,
-      userApiKey,
-    ] = await Promise.all([
+    // Fetch from all sources in parallel using allSettled to handle partial failures
+    // One failing source (e.g., broken OAuth query) shouldn't break entire prefetch
+    const results = await Promise.allSettled([
       this.fetchEntitySettings(userId, null),
       this.fetchEntitySettings(userId, agentId),
       this.fetchOAuthTokens(userId, organizationId),
       this.fetchUserApiKey(userId, organizationId),
     ]);
+
+    // Extract successful results, log failures
+    const [
+      globalEntitySettingsResult,
+      agentSpecificSettingsResult,
+      oauthTokensResult,
+      userApiKeyResult,
+    ] = results;
+
+    const globalEntitySettings =
+      globalEntitySettingsResult.status === "fulfilled"
+        ? globalEntitySettingsResult.value
+        : (logger.warn({ userId, error: (globalEntitySettingsResult as PromiseRejectedResult).reason },
+            "[EntitySettingsService] Failed to fetch global entity settings"),
+          new Map<string, string>());
+
+    const agentSpecificSettings =
+      agentSpecificSettingsResult.status === "fulfilled"
+        ? agentSpecificSettingsResult.value
+        : (logger.warn({ userId, agentId, error: (agentSpecificSettingsResult as PromiseRejectedResult).reason },
+            "[EntitySettingsService] Failed to fetch agent-specific settings"),
+          new Map<string, string>());
+
+    const oauthTokens =
+      oauthTokensResult.status === "fulfilled"
+        ? oauthTokensResult.value
+        : (logger.warn({ userId, organizationId, error: (oauthTokensResult as PromiseRejectedResult).reason },
+            "[EntitySettingsService] Failed to fetch OAuth tokens"),
+          new Map<string, string>());
+
+    const userApiKey =
+      userApiKeyResult.status === "fulfilled"
+        ? userApiKeyResult.value
+        : (logger.warn({ userId, organizationId, error: (userApiKeyResult as PromiseRejectedResult).reason },
+            "[EntitySettingsService] Failed to fetch user API key"),
+          null);
 
     // Apply in priority order (lowest to highest)
     // 1. User's API key (lowest - fallback if nothing else)
