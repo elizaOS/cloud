@@ -24,11 +24,11 @@ cluster_endpoint_private_access = true
 # Using t3 (x86) because Docker image currently only supports amd64
 # Discord gateway is I/O bound, not CPU bound - burstable instances are ideal
 # TODO: Build ARM64 images to use cheaper t4g instances
-node_group_instance_types = ["t3.small", "t3.medium"]  # 2 vCPU, 2-4GB RAM
+node_group_instance_types = ["t3.small", "t3.medium"] # 2 vCPU, 2-4GB RAM
 node_group_desired_size   = 1
 node_group_min_size       = 1
 node_group_max_size       = 3
-node_group_disk_size      = 30  # Reduced - mostly stateless workload
+node_group_disk_size      = 30 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
 
 # GitHub Configuration

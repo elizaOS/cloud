@@ -14,7 +14,7 @@ public_subnet_cidrs  = ["10.1.101.0/24", "10.1.102.0/24", "10.1.103.0/24"]
 # For Discord gateway workload, NAT Instance is sufficient
 # Add CloudWatch alarm for instance health monitoring
 use_nat_instance   = true
-nat_instance_type  = "t4g.micro"  # ~$6/month, sufficient for Discord websocket traffic
+nat_instance_type  = "t4g.micro" # ~$6/month, sufficient for Discord websocket traffic
 single_nat_gateway = true
 
 # EKS Configuration
@@ -26,11 +26,11 @@ cluster_endpoint_private_access = true
 # Using t3 (x86) because Docker image currently only supports amd64
 # Discord gateway is I/O bound, not CPU bound - burstable instances are ideal
 # TODO: Build ARM64 images to use cheaper t4g instances
-node_group_instance_types = ["t3.medium", "t3.large"]  # 2-4 vCPU, 4-8GB RAM
+node_group_instance_types = ["t3.medium", "t3.large"] # 2-4 vCPU, 4-8GB RAM
 node_group_desired_size   = 2
 node_group_min_size       = 2
 node_group_max_size       = 10
-node_group_disk_size      = 50  # Reduced - mostly stateless workload
+node_group_disk_size      = 50 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
 
 # GitHub Configuration
