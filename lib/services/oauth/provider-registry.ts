@@ -251,7 +251,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       response_type: "code",
       actor: "user",
     },
-    tokenContentType: "json",
+    tokenContentType: "form", // Linear requires x-www-form-urlencoded
     storage: "platform_credentials",
     useGenericRoutes: true,
   },
@@ -316,15 +316,15 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://slack.com/oauth/v2/authorize",
       token: "https://slack.com/api/oauth.v2.access",
-      userInfo: "https://slack.com/api/users.identity",
+      userInfo: "https://slack.com/api/auth.test", // Use auth.test for bot tokens
       revoke: "https://slack.com/api/auth.revoke",
     },
-    defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
+    // Bot scopes only - these must also be added in Slack app's OAuth & Permissions
+    defaultScopes: ["chat:write", "channels:read", "users:read"],
     userInfoMapping: {
-      id: "user.id",
-      email: "user.email",
-      displayName: "user.name",
-      avatarUrl: "user.image_192",
+      id: "user_id",
+      displayName: "user",
+      // Bot tokens don't have email - will be fetched separately if needed
     },
     storage: "platform_credentials",
     useGenericRoutes: true,

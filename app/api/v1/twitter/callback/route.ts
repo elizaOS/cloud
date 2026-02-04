@@ -28,15 +28,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const stateKey = `twitter_oauth:${oauthToken}`;
-  const stateJson = await cache.get(stateKey);
+  const stateData = await cache.get(stateKey);
 
-  if (!stateJson) {
+  if (!stateData) {
     return NextResponse.redirect(
       `${defaultRedirect}&twitter_error=expired_or_invalid`,
     );
   }
 
-  const state = JSON.parse(stateJson as string) as {
+  // Cache may return object directly or JSON string depending on implementation
+  const state = (typeof stateData === "string" ? JSON.parse(stateData) : stateData) as {
     oauthTokenSecret: string;
     organizationId: string;
     userId: string;
