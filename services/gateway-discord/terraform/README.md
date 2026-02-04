@@ -201,13 +201,14 @@ aws iam attach-role-policy \
       "Sid": "VPCManagement",
       "Effect": "Allow",
       "Action": [
-        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs", "ec2:ModifyVpcAttribute",
+        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs", "ec2:ModifyVpcAttribute", "ec2:DescribeVpcAttribute",
         "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
         "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:AttachInternetGateway", "ec2:DetachInternetGateway", "ec2:DescribeInternetGateways",
         "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
-        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses", "ec2:AssociateAddress", "ec2:DisassociateAddress",
-        "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:DescribeRouteTables", "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
-        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup", "ec2:DescribeSecurityGroups", "ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress",
+        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses", "ec2:DescribeAddressesAttribute", "ec2:AssociateAddress", "ec2:DisassociateAddress",
+        "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:DescribeRouteTables", "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable", "ec2:ReplaceRoute",
+        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup", "ec2:DescribeSecurityGroups", "ec2:DescribeSecurityGroupRules",
+        "ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress",
         "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints", "ec2:DescribeVpcEndpoints", "ec2:ModifyVpcEndpoint",
         "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
         "ec2:DescribeAvailabilityZones", "ec2:DescribeAccountAttributes", "ec2:DescribeNetworkInterfaces", "ec2:DescribeNetworkAcls", "ec2:DescribePrefixLists"
@@ -219,7 +220,7 @@ aws iam attach-role-policy \
       "Effect": "Allow",
       "Action": [
         "ec2:RunInstances", "ec2:TerminateInstances", "ec2:DescribeInstances", "ec2:DescribeInstanceTypes", "ec2:DescribeInstanceStatus",
-        "ec2:ModifyInstanceAttribute", "ec2:DescribeImages", "ec2:DescribeKeyPairs",
+        "ec2:ModifyInstanceAttribute", "ec2:DescribeInstanceAttribute", "ec2:DescribeImages", "ec2:DescribeKeyPairs",
         "ec2:CreateVolume", "ec2:DeleteVolume", "ec2:AttachVolume", "ec2:DetachVolume", "ec2:DescribeVolumes",
         "ec2:DescribeLaunchTemplates", "ec2:CreateLaunchTemplate", "ec2:DeleteLaunchTemplate", "ec2:DescribeLaunchTemplateVersions"
       ],
@@ -245,7 +246,8 @@ aws iam attach-role-policy \
         "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:ListRoles", "iam:UpdateRole", "iam:TagRole", "iam:UntagRole", "iam:ListRoleTags",
         "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
         "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy", "iam:ListRolePolicies",
-        "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:GetInstanceProfile", "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile", "iam:ListInstanceProfiles", "iam:ListInstanceProfilesForRole",
+        "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:GetInstanceProfile", "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
+        "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile", "iam:ListInstanceProfiles", "iam:ListInstanceProfilesForRole", "iam:ListInstanceProfileTags",
         "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders", "iam:TagOpenIDConnectProvider",
         "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicies", "iam:ListPolicyVersions",
         "iam:CreateServiceLinkedRole", "iam:PassRole"
@@ -268,8 +270,9 @@ aws iam attach-role-policy \
       "Sid": "CloudWatchLogs",
       "Effect": "Allow",
       "Action": [
-        "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups", "logs:ListTagsLogGroup",
-        "logs:PutRetentionPolicy", "logs:TagLogGroup", "logs:UntagLogGroup"
+        "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
+        "logs:ListTagsLogGroup", "logs:ListTagsForResource", "logs:TagLogGroup", "logs:UntagLogGroup", "logs:TagResource", "logs:UntagResource",
+        "logs:PutRetentionPolicy"
       ],
       "Resource": "*"
     },
