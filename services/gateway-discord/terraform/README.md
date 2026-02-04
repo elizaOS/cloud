@@ -24,10 +24,25 @@ This Terraform configuration provisions the AWS infrastructure required for the 
 
 ## Prerequisites
 
+### Required Tools
 1. AWS CLI configured with appropriate credentials
 2. Terraform >= 1.5.0
 3. kubectl (for interacting with the cluster after creation)
 4. Helm (for deploying the gateway-discord chart)
+
+### Required AWS Resources (Before First `terraform init`)
+
+The Terraform backend requires an S3 bucket and DynamoDB table to exist before you can initialize Terraform. These are used to store state files and prevent concurrent modifications.
+
+| Resource | Name | Purpose |
+|----------|------|---------|
+| S3 Bucket | `eliza-cloud-terraform-state` | Stores Terraform state files |
+| DynamoDB Table | `terraform-state-lock` | Prevents concurrent state modifications |
+
+**See [One-Time Setup](#1-create-s3-backend) below for creation commands.**
+
+> **Note**: If these resources don't exist, `terraform init` will fail with an error like:
+> `Error: Failed to get existing workspaces: S3 bucket does not exist.`
 
 ## Directory Structure
 
