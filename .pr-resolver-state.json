@@ -3,7 +3,7 @@
   "branch": "odi-et",
   "headSha": "ddfe89a83c0beb1510cd793214d83ee4433d87c3",
   "startedAt": "2026-02-03T23:09:29.181Z",
-  "lastUpdated": "2026-02-03T23:53:18.115Z",
+  "lastUpdated": "2026-02-04T00:00:04.769Z",
   "iterations": [
     {
       "timestamp": "2026-02-03T23:13:05.433Z",
@@ -575,6 +575,31 @@
       "commentsAddressed": [],
       "changesMade": [],
       "verificationResults": {}
+    },
+    {
+      "timestamp": "2026-02-03T23:59:07.781Z",
+      "commentsAddressed": [
+        "PRRC_kwDOP6BTDM6j7vwC"
+      ],
+      "changesMade": [],
+      "verificationResults": {
+        "PRRC_kwDOP6BTDM6j7vtD": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6kTR0p": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6kTcGn": {
+          "passed": false,
+          "reason": "File was not modified"
+        },
+        "PRRC_kwDOP6BTDM6j7vwC": {
+          "passed": true,
+          "reason": "The documentation now accurately reflects the actual API implementation—it removes the non-existent `offset` and `success` fields, replaces `hours` with explicit `start`/`end` timestamps in the `period` object, adds actual fields returned by the API (`organization_id`, `metadata`, `stripe_payment_intent_id`), and removes fields not in the implementation (`balance`). The response structure now matches the app/api/credits/transactions/route.ts implementation."
+        }
+      }
     }
   ],
   "lessonsLearned": [],
@@ -600,11 +625,6 @@
   "verifiedComments": [
     {
       "commentId": "PRRC_kwDOP6BTDM6j7vtD",
-      "verifiedAt": "2026-02-03T23:36:24.363Z",
-      "verifiedAtIteration": 32
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
       "verifiedAt": "2026-02-03T23:36:24.363Z",
       "verifiedAtIteration": 32
     },
@@ -682,6 +702,11 @@
       "commentId": "PRRC_kwDOP6BTDM6j7vwQ",
       "verifiedAt": "2026-02-03T23:53:18.115Z",
       "verifiedAtIteration": 38
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+      "verifiedAt": "2026-02-04T00:00:04.768Z",
+      "verifiedAtIteration": 39
     }
   ],
   "dismissedIssues": [
@@ -746,16 +771,6 @@
       "commentBody": "The PATCH handler advertises \"Validates UUID format and verifies ownership\" in the JSDoc, but unlike the GET and DELETE handlers above, it does not validate `voiceId` against the UUID regex or map database UUID syntax errors to a 400 response. For consistent behavior and clearer errors, consider adding the same UUID-format check (and corresponding 400 \"Invalid voice ID format\" response) used in GET/DELETE before calling `voiceCloningService.updateVoice`."
     },
     {
-      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
-      "reason": "Lines 209-220 in the TTS endpoint now include authentication error handling that checks for \"invalid or expired api key\", \"api key is inactive\", \"unauthorized\", \"authentication required\", and \"forbidden\" messages, returning a 401 response. This matches the pattern requested in the comment for proper authentication error responses.",
-      "dismissedAt": "2026-02-03T23:36:24.363Z",
-      "dismissedAtIteration": 32,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/tts/route.ts",
-      "line": 260,
-      "commentBody": "### TTS and STT endpoints missing authentication error handling\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `/api/v1/voice/tts` and `/api/v1/voice/stt` endpoints are missing authentication error handling present in all other new voice endpoints. When `requireAuthOrApiKeyWithOrg` throws errors like \"Invalid or expired API key\" or \"API key is inactive\", these endpoints return a generic 500 error (\"Failed to generate speech\" / \"Failed to transcribe audio\") instead of a proper 401 response. Developers using invalid API keys receive misleading server error messages instead of clear authentication failure responses.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_5b1022f8-fcbe-4015-862a-0fa6bde471d7 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/tts/route.ts#L200-L248\napp/api/v1/voice/stt/route.ts#L246-L307\nLOCATIONS END -->\n<details>\n<summary>Additional Locations (1)</summary>\n\n- [`app/api/v1/voice/stt/route.ts#L246-L307`](https://github.com/elizaOS/eliza-cloud-v2/blob/797743798b2713dc487f80b9e42f9620dcd11c48/app/api/v1/voice/stt/route.ts#L246-L307)\n\n</details>\n\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vjwXdyNXvL0H6y1BD9LkUZoG08DpfyWrqifh-0t2M5VljbLYRYb9uOYsinv0wxFL51bPStsKmk3gB4SqFTIVN_OQWtrCeARKObtamdPEpw-98WXdNgkRz3dBLPEzWg6lyF8vM9TBsr8JuDwVZf6YysA7Nq9AOT0t11Dvp6IQk38hp-0LVbhXCxj70AXzOd1eA2xJZSTmO4qOAtwzT9ZpaPaipQCwZ6tDW9Pdj-Rn3fIIiYopNlpU2yhK7f3f-Jp_RedBdx1TRnGMyesWRhCU0MBK4nkyZE1-kooG5t0_Hf3sHkJnHQTxamT_3QBwlZnvIpxkp87vBJFTy11aZ0Um1g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.hNavEgzdXRmBQ_VGqaNWC56t67TSNVeww4txR_t6JsdHG8gDfW3iV9bhm-qBz7PCYMeB3Omc682IZrLidnQWK73gPiYkkeNxu23nY4-zAx0_obd0G7Mx9GP6osNPREwO4_d2R8xbj3KZ-57ChUqYWz3DXehjKzFS0S3V4rICmoRts_4zcc28ixg2aG72I7DJwX5hnp_sQ9M2DMrqDrJ1hJm1fNlufYteq9BvTjflsHxdMCeIBaitHXSjfqfBXIdrcaaGtRX6NyuiDY67osRaKY9FJbsed0HsIFopa-E0XBqhEJPOXZX80FNQdHt0Sd6QK7ol81IgD6UJbzXUWs4Aug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
       "commentId": "PRRC_kwDOP6BTDM6j7vwC",
       "reason": "Content/api/credits.mdx has been updated. The Query Parameters table now documents `limit` and `hours` (not `offset`), and the response example shows `{ transactions, total, period }` without a `success` flag, matching the actual implementation in app/api/credits/transactions/route.ts.",
       "dismissedAt": "2026-02-03T23:36:24.363Z",
@@ -764,26 +779,6 @@
       "filePath": "content/api/credits.mdx",
       "line": 314,
       "commentBody": "The Transaction History documentation describes `limit` and `offset` query parameters and a `{ success, transactions, total }` response, but the `/api/credits/transactions` implementation currently accepts `limit` and `hours` (no `offset`) and returns `{ transactions, total, period }` without a `success` flag (see app/api/credits/transactions/route.ts). To prevent client breakage, please align this section with the actual API (document `hours`, remove or clarify `offset`, and adjust the example response structure and field names)."
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
-      "reason": "Lines 198-226 show the voice clone endpoint now correctly handles usage tracking. Line 198 calls `await reservation.reconcile(cost)` before the fire-and-forget async IIFE at lines 200-226. If `usageService.create()` fails inside the IIFE, it's caught at lines 221-225 and logged without affecting the main response returned at lines 228+. The voice is successfully created and returned before usage tracking is attempted.",
-      "dismissedAt": "2026-02-03T23:36:24.363Z",
-      "dismissedAtIteration": 32,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/clone/route.ts",
-      "line": null,
-      "commentBody": "### Voice clone returns error after successful creation\n\n**High Severity**\n\n<!-- DESCRIPTION START -->\nIn the voice clone endpoint, `usageService.create()` is awaited inside the try block after `reservation.reconcile(cost)` succeeds. If usage tracking fails, the catch block runs `reservation.reconcile(0)` attempting to refund already-committed credits, and returns an error to the user even though the voice was successfully created. The TTS and STT endpoints correctly use an async IIFE pattern for usage tracking to prevent this. Users may be incorrectly charged or refunded, and receive errors for operations that actually succeeded.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref2_84b0e84f-27b7-470e-b7b3-ee317f00366f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L197-L218\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.mzuasHoMEPZOITp8LwetXcXQQYQLWEcn_feb_Kzql_2f8Y5SXe82chILQ3AnPLzHFkmdSZJZtgbLt1Pyq0NtWsT_DrlvD5igOVQ_e1VDkwdXfAXBMDoiEEeA5TP60aEMZf2DAjTBwlLLutydkF6plj5lXg53qo4uzLhEVbVv2vU5p7IDmtFmE_MlDC-WgV8LA6IJL6MOtr1B5vPJRMF0HEFAn9AXVdJaRfeI7f-UG_sR_CQUK-nPSHNhWd2ZulKok7YFcnu1HkflUnw2mDlsaCTUYFaeqCv2vwtq0MOmgjXcut9PJ_l9eSBqJABG2_Gcvlz8rxbtgiaCJdOVfeZ5lg\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.W1U0ehZ5Vbw8KPMdN32-Mia1mei-Li_XncBpa1UfVTcL-QaU_NygYYvkHEqhBP7KJd5eRxMwc97_0mm4IytORpWG2Kc9nFIk8zBY-LafnM8xpUOFQr1G5CKdYvqFFe9MpXJLo-sXNOMa0kqX0tf1KQlWAQkfrTit0ARMsnwZSBL7SxLa9liVtzf5_Fg2UJszN4ejyScUulWBw00W53sZgl9KKJgJpkujgwbxhQ_RHOWqxvkqsDZ4eJ6s-EXfpU-d0bLUOoHoKY8j2rT1oghuvvfhS_-Hnb_QBt-9PJ9zW0jIAXx7t0gwFaHZDFd7aJw9swrXNeDtNaHu93L2-qP40Q\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
-    },
-    {
-      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
-      "reason": "Lines 264-283 now wrap the failure-path `usageService.create()` call in its own try-catch block. The catch at lines 279-283 logs the error without re-throwing, preventing masking of the original voice clone error that gets handled and returned at lines 285-321. The pattern matches the fire-and-forget approach used in the success path.",
-      "dismissedAt": "2026-02-03T23:36:24.363Z",
-      "dismissedAtIteration": 32,
-      "category": "already-fixed",
-      "filePath": "app/api/v1/voice/clone/route.ts",
-      "line": null,
-      "commentBody": "### Failed usage tracking masks original voice clone error\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nIn the error handling path for voice cloning failures, `usageService.create` at lines 264-277 is awaited without a try-catch wrapper. If this call fails after a voice clone error, the exception propagates to the outer catch block which returns a generic \"An unexpected error occurred\" message. This masks the original, more specific error (like \"rate limit exceeded\" or \"professional_voice_limit_reached\") that would have been returned at lines 279-321. The success path uses a fire-and-forget pattern with error handling (lines 200-226), but the failure path does not.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_d536dd38-a425-440d-8af1-00027cc3189f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L263-L277\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.bCfEmjBIhcAR1CwA3DCEqMWJBRFlW3nSo0fP1r3iNy5f7q0E6K4QyuVVuqA6wVM2BWzb1sWnQ9nXt7qLH-2YyAOY3ZJ9lONe3puaX2xV91xGlLSZ35CM31voxU-EUMk5I6M4U1gEhiY8mdAnmFHijDJ6AxxEFfnXqfycB9CyfocCpiqoWSEFZAl_2Fa6fxrNkaDauEJlCUSV_1ab0kYAyghPkSdvBrAa-x4Mt_JX3LoaBSFM_v80Z4icSFmyH1jY8FOaKWS4MMx7dXXTSMomSx4wp4a7thej7ocfmBvPl_AnvtufIANOOlCo-EkZ7ixUsAcRERn3wi4XM1k6J7O3ug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiIyMzE4Y2Y2ZGI0YWMwZmIxNWM4ZmEwYzU0ZDVjOTFiNTMwMjJhMTk3IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.X6FY5rdxBHdq0FymV1vklg_R9pL9QUELWo687KS1CUfNJULhZ5oyes7MF0ean2G4hwy51EWU1tyKDDjBDoA4D05keveddK51YAkh6VgS-dKEBFOrgzhDBb1kOajwldJuXQeGm8C1lEl6fSLmqLI-9rwKiWUEarVyFZRPsFpJ28KYNGDIxjUZOF1JZ_C7L_WTH7hiNp-YnOddnIGQxvPVzXzX2hzWYfgGFEUOWzZRiR0xPJVoClRpklb7zJH3wwreCF_T4KacsDtwmX7mddSZHxgvdmPcoBYBOKG3kjzhhbv9SC7bDrxcL5scDfqlHeDYk9R5LcRMy1Kse_CZMy0i9A\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     },
     {
       "commentId": "PRRC_kwDOP6BTDM6j7vwF",
@@ -844,15 +839,45 @@
       "filePath": "content/api/voice.mdx",
       "line": 131,
       "commentBody": "The \"Speech to Text\" docs describe the response as `{ \"text\", \"language\", \"confidence\" }`, but the new `/api/v1/voice/stt` implementation returns `{ transcript, duration_ms }` (see app/api/v1/voice/stt/route.ts). This will confuse integrators using the v1 endpoint; consider updating the example response and field names here to match the actual JSON shape (including `transcript` and `duration_ms`)."
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-04T00:00:02.954Z",
+      "dismissedAtIteration": 39,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/voice/tts/route.ts",
+      "line": 260,
+      "commentBody": "### TTS and STT endpoints missing authentication error handling\n\n**Medium Severity**\n\n<!-- DESCRIPTION START -->\nThe `/api/v1/voice/tts` and `/api/v1/voice/stt` endpoints are missing authentication error handling present in all other new voice endpoints. When `requireAuthOrApiKeyWithOrg` throws errors like \"Invalid or expired API key\" or \"API key is inactive\", these endpoints return a generic 500 error (\"Failed to generate speech\" / \"Failed to transcribe audio\") instead of a proper 401 response. Developers using invalid API keys receive misleading server error messages instead of clear authentication failure responses.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_5b1022f8-fcbe-4015-862a-0fa6bde471d7 -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/tts/route.ts#L200-L248\napp/api/v1/voice/stt/route.ts#L246-L307\nLOCATIONS END -->\n<details>\n<summary>Additional Locations (1)</summary>\n\n- [`app/api/v1/voice/stt/route.ts#L246-L307`](https://github.com/elizaOS/eliza-cloud-v2/blob/797743798b2713dc487f80b9e42f9620dcd11c48/app/api/v1/voice/stt/route.ts#L246-L307)\n\n</details>\n\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.vjwXdyNXvL0H6y1BD9LkUZoG08DpfyWrqifh-0t2M5VljbLYRYb9uOYsinv0wxFL51bPStsKmk3gB4SqFTIVN_OQWtrCeARKObtamdPEpw-98WXdNgkRz3dBLPEzWg6lyF8vM9TBsr8JuDwVZf6YysA7Nq9AOT0t11Dvp6IQk38hp-0LVbhXCxj70AXzOd1eA2xJZSTmO4qOAtwzT9ZpaPaipQCwZ6tDW9Pdj-Rn3fIIiYopNlpU2yhK7f3f-Jp_RedBdx1TRnGMyesWRhCU0MBK4nkyZE1-kooG5t0_Hf3sHkJnHQTxamT_3QBwlZnvIpxkp87vBJFTy11aZ0Um1g\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmFkNzY2YWIyLTg2MzEtNGVlZi05OTIzLWY2OGYxODAwYzQyNyIsImVuY3J5cHRpb25LZXkiOiJFZ1pXdTgzZTR6eHpJc0tKU0FDQ28xSVBwUUwtTnppWDY2Y1hseExfTHBnIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3OTc3NDM3OThiMjcxM2RjNDg3ZjgwYjllNDJmOTYyMGRjZDExYzQ4IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzY5OTA5MDg5LCJleHAiOjE3NzI1MDEwODl9.hNavEgzdXRmBQ_VGqaNWC56t67TSNVeww4txR_t6JsdHG8gDfW3iV9bhm-qBz7PCYMeB3Omc682IZrLidnQWK73gPiYkkeNxu23nY4-zAx0_obd0G7Mx9GP6osNPREwO4_d2R8xbj3KZ-57ChUqYWz3DXehjKzFS0S3V4rICmoRts_4zcc28ixg2aG72I7DJwX5hnp_sQ9M2DMrqDrJ1hJm1fNlufYteq9BvTjflsHxdMCeIBaitHXSjfqfBXIdrcaaGtRX6NyuiDY67osRaKY9FJbsed0HsIFopa-E0XBqhEJPOXZX80FNQdHt0Sd6QK7ol81IgD6UJbzXUWs4Aug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-04T00:00:02.954Z",
+      "dismissedAtIteration": 39,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/voice/clone/route.ts",
+      "line": null,
+      "commentBody": "### Voice clone returns error after successful creation\n\n**High Severity**\n\n<!-- DESCRIPTION START -->\nIn the voice clone endpoint, `usageService.create()` is awaited inside the try block after `reservation.reconcile(cost)` succeeds. If usage tracking fails, the catch block runs `reservation.reconcile(0)` attempting to refund already-committed credits, and returns an error to the user even though the voice was successfully created. The TTS and STT endpoints correctly use an async IIFE pattern for usage tracking to prevent this. Users may be incorrectly charged or refunded, and receive errors for operations that actually succeeded.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref2_84b0e84f-27b7-470e-b7b3-ee317f00366f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L197-L218\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.mzuasHoMEPZOITp8LwetXcXQQYQLWEcn_feb_Kzql_2f8Y5SXe82chILQ3AnPLzHFkmdSZJZtgbLt1Pyq0NtWsT_DrlvD5igOVQ_e1VDkwdXfAXBMDoiEEeA5TP60aEMZf2DAjTBwlLLutydkF6plj5lXg53qo4uzLhEVbVv2vU5p7IDmtFmE_MlDC-WgV8LA6IJL6MOtr1B5vPJRMF0HEFAn9AXVdJaRfeI7f-UG_sR_CQUK-nPSHNhWd2ZulKok7YFcnu1HkflUnw2mDlsaCTUYFaeqCv2vwtq0MOmgjXcut9PJ_l9eSBqJABG2_Gcvlz8rxbtgiaCJdOVfeZ5lg\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4NzBiY2Y2LWU2OTAtNDRjNy04NmEwLTJmZGUwMmQ4OTJkZCIsImVuY3J5cHRpb25LZXkiOiJPdDNHM01yYlNIMzQ0Sl8xT3BTNUdZRk1xRm5qYUctWTJPcXZGYlZCd0hrIiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiI3ZWI0NTdkMTVhOTdhODlkYmI4ZWY3Mzk1ZDMxNDZjMDM4YWE3NTM1IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc2Nzk3LCJleHAiOjE3NzI2Njg3OTd9.W1U0ehZ5Vbw8KPMdN32-Mia1mei-Li_XncBpa1UfVTcL-QaU_NygYYvkHEqhBP7KJd5eRxMwc97_0mm4IytORpWG2Kc9nFIk8zBY-LafnM8xpUOFQr1G5CKdYvqFFe9MpXJLo-sXNOMa0kqX0tf1KQlWAQkfrTit0ARMsnwZSBL7SxLa9liVtzf5_Fg2UJszN4ejyScUulWBw00W53sZgl9KKJgJpkujgwbxhQ_RHOWqxvkqsDZ4eJ6s-EXfpU-d0bLUOoHoKY8j2rT1oghuvvfhS_-Hnb_QBt-9PJ9zW0jIAXx7t0gwFaHZDFd7aJw9swrXNeDtNaHu93L2-qP40Q\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
+    },
+    {
+      "commentId": "PRRC_kwDOP6BTDM6kTcGn",
+      "reason": "File was not modified by the fixer tool, so issue could not have been addressed",
+      "dismissedAt": "2026-02-04T00:00:02.954Z",
+      "dismissedAtIteration": 39,
+      "category": "file-unchanged",
+      "filePath": "app/api/v1/voice/clone/route.ts",
+      "line": null,
+      "commentBody": "### Failed usage tracking masks original voice clone error\n\n**Low Severity**\n\n<!-- DESCRIPTION START -->\nIn the error handling path for voice cloning failures, `usageService.create` at lines 264-277 is awaited without a try-catch wrapper. If this call fails after a voice clone error, the exception propagates to the outer catch block which returns a generic \"An unexpected error occurred\" message. This masks the original, more specific error (like \"rate limit exceeded\" or \"professional_voice_limit_reached\") that would have been returned at lines 279-321. The success path uses a fire-and-forget pattern with error handling (lines 200-226), but the failure path does not.\n<!-- DESCRIPTION END -->\n\n<!-- BUGBOT_BUG_ID: ref1_d536dd38-a425-440d-8af1-00027cc3189f -->\n\n<!-- LOCATIONS START\napp/api/v1/voice/clone/route.ts#L263-L277\nLOCATIONS END -->\n<a href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.bCfEmjBIhcAR1CwA3DCEqMWJBRFlW3nSo0fP1r3iNy5f7q0E6K4QyuVVuqA6wVM2BWzb1sWnQ9nXt7qLH-2YyAOY3ZJ9lONe3puaX2xV91xGlLSZ35CM31voxU-EUMk5I6M4U1gEhiY8mdAnmFHijDJ6AxxEFfnXqfycB9CyfocCpiqoWSEFZAl_2Fa6fxrNkaDauEJlCUSV_1ab0kYAyghPkSdvBrAa-x4Mt_JX3LoaBSFM_v80Z4icSFmyH1jY8FOaKWS4MMx7dXXTSMomSx4wp4a7thej7ocfmBvPl_AnvtufIANOOlCo-EkZ7ixUsAcRERn3wi4XM1k6J7O3ug\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"><img alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OmE4YWM3MzA2LWI4ZDEtNGM5MS1hYTgzLWFiNGUxNDVlOTc1YyIsImVuY3J5cHRpb25LZXkiOiJnbTc1M1FyajVIVW5Ib3FwbG9yRmJyWTJVSHh2eENieXFhX3NBc2ItcjN3IiwiYnJhbmNoIjoib2RpLWV0IiwicmVwb093bmVyIjoiZWxpemFPUyIsInJlcG9OYW1lIjoiZWxpemEtY2xvdWQtdjIiLCJwck51bWJlciI6MjY1LCJjb21taXRTaGEiOiIyMzE4Y2Y2ZGI0YWMwZmIxNWM4ZmEwYzU0ZDVjOTFiNTMwMjJhMTk3IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwMDc4MDYyLCJleHAiOjE3NzI2NzAwNjJ9.X6FY5rdxBHdq0FymV1vklg_R9pL9QUELWo687KS1CUfNJULhZ5oyes7MF0ean2G4hwy51EWU1tyKDDjBDoA4D05keveddK51YAkh6VgS-dKEBFOrgzhDBb1kOajwldJuXQeGm8C1lEl6fSLmqLI-9rwKiWUEarVyFZRPsFpJ28KYNGDIxjUZOF1JZ_C7L_WTH7hiNp-YnOddnIGQxvPVzXzX2hzWYfgGFEUOWzZRiR0xPJVoClRpklb7zJH3wwreCF_T4KacsDtwmX7mddSZHxgvdmPcoBYBOKG3kjzhhbv9SC7bDrxcL5scDfqlHeDYk9R5LcRMy1Kse_CZMy0i9A\" target=\"_blank\" rel=\"noopener noreferrer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"><img alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"></picture></a>\n\n"
     }
   ],
   "modelPerformance": {
     "codex/gpt-5.2-codex": {
-      "fixes": 9,
-      "failures": 35,
+      "fixes": 10,
+      "failures": 38,
       "noChanges": 2,
       "errors": 0,
-      "lastUsed": "2026-02-03T23:52:00.084Z"
+      "lastUsed": "2026-02-04T00:00:04.768Z"
     },
     "codex/gpt-5.2": {
       "fixes": 0,
@@ -974,6 +999,13 @@
         "tool": "llm-api",
         "model": "claude-opus-4-5-20251101",
         "timestamp": "2026-02-03T23:27:03.154Z",
+        "result": "fixed"
+      },
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vwC",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-04T00:00:04.768Z",
         "result": "fixed"
       }
     ],
@@ -1436,30 +1468,57 @@
         "timestamp": "2026-02-03T23:51:16.139Z",
         "result": "fixed"
       }
+    ],
+    "PRRC_kwDOP6BTDM6j7vtD": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6j7vtD",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-04T00:00:04.768Z",
+        "result": "no-changes"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTR0p": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTR0p",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-04T00:00:04.768Z",
+        "result": "no-changes"
+      }
+    ],
+    "PRRC_kwDOP6BTDM6kTcGn": [
+      {
+        "commentId": "PRRC_kwDOP6BTDM6kTcGn",
+        "tool": "codex",
+        "model": "gpt-5.2-codex",
+        "timestamp": "2026-02-04T00:00:04.768Z",
+        "result": "no-changes"
+      }
     ]
   },
   "noProgressCycles": 1,
   "totalTimings": {
     "Fetch PR info": 1020,
     "Merge base branch": 2033,
-    "Fetch comments": 2364,
-    "Analyze issues": 52103,
-    "Run fixer": 887972,
-    "Verify fixes": 22562,
+    "Fetch comments": 2940,
+    "Analyze issues": 61945,
+    "Run fixer": 943123,
+    "Verify fixes": 24385,
     "Push iteration fixes": 3197
   },
   "totalTokenUsage": [
     {
       "phase": "Analyze issues",
-      "inputTokens": 77219,
-      "outputTokens": 4185,
-      "calls": 3
+      "inputTokens": 86021,
+      "outputTokens": 4970,
+      "calls": 4
     },
     {
       "phase": "Verify single fix",
-      "inputTokens": 37897,
-      "outputTokens": 2732,
-      "calls": 24
+      "inputTokens": 46916,
+      "outputTokens": 2892,
+      "calls": 25
     },
     {
       "phase": "Analyze failure",
@@ -1469,9 +1528,9 @@
     },
     {
       "phase": "Verify fixes",
-      "inputTokens": 72451,
-      "outputTokens": 2321,
-      "calls": 12
+      "inputTokens": 73040,
+      "outputTokens": 2450,
+      "calls": 13
     },
     {
       "phase": "Direct LLM fix",

@@ -330,16 +330,19 @@ Get credit transaction history for your organization.
   "transactions": [
     {
       "id": "txn_abc123",
+      "organization_id": "org_123",
       "type": "usage",
       "amount": -100,
-      "balance": 4900,
       "description": "Text to speech generation",
-      "created_at": "2024-01-15T10:30:00Z"
+      "metadata": null,
+      "stripe_payment_intent_id": null,
+      "created_at": "2024-01-15T10:30:00.000Z"
     }
   ],
   "total": 1,
   "period": {
-    "hours": 24
+    "start": "2024-01-15T09:30:00.000Z",
+    "end": "2024-01-15T10:30:00.000Z"
   }
 }
 ```
