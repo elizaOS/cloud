@@ -203,12 +203,16 @@ jobs:
       # Run tfsec BEFORE AWS auth - it's static analysis and doesn't need credentials
       - name: Security Scan with tfsec
         id: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: services/gateway-discord/terraform
-          soft_fail: true
-          format: lovely,sarif
-          sarif_file: tfsec-results.sarif
+        working-directory: services/gateway-discord/terraform
+        run: |
+          # Install tfsec
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          
+          # Run tfsec with SARIF output
+          tfsec . --format sarif --out tfsec-results.sarif --soft-fail || true
+          
+          # Also output to console for visibility
+          tfsec . --format lovely --soft-fail || true
 
       - name: Upload tfsec SARIF results
         if: always()
