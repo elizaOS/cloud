@@ -243,13 +243,23 @@ resource "aws_instance" "nat" {
     fi
     echo "Detected primary interface: $PRIMARY_IFACE"
     
-    # Set up NAT masquerading (idempotent - check if rule exists)
+    # Clear default REJECT rules that block forwarding (AL2023 default)
+    iptables -F FORWARD
+    iptables -F INPUT
+    
+    # Allow all established/related connections
+    iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A INPUT -p icmp -j ACCEPT
+    
+    # Set up NAT masquerading
     if ! iptables -t nat -C POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE 2>/dev/null; then
       iptables -t nat -A POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE
     fi
     
-    # Allow forwarding (idempotent)
+    # Allow forwarding (policy and explicit accept)
     iptables -P FORWARD ACCEPT
+    iptables -P INPUT ACCEPT
     
     # Save iptables rules
     service iptables save
