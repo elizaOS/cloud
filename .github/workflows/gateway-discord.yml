@@ -409,13 +409,14 @@ jobs:
   deploy:
     name: Deploy (${{ needs.detect-changes.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [detect-changes, terraform, build]
-    # Run if: (terraform succeeded/skipped) AND (build succeeded/skipped) AND at least one ran
+    needs: [detect-changes, terraform, test, build]
+    # Run if: (terraform succeeded/skipped) AND (test succeeded/skipped) AND (build succeeded/skipped) AND at least one of terraform/build ran
     # TEMP: Removed PR exclusion for testing
     if: |
       always() &&
       (github.event_name != 'workflow_dispatch' || github.event.inputs.action == 'deploy' || github.event.inputs.action == 'terraform-apply') &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       (needs.build.result == 'success' || needs.build.result == 'skipped') &&
       (needs.terraform.result == 'success' || needs.build.result == 'success')
     environment: ${{ needs.detect-changes.outputs.environment }}
