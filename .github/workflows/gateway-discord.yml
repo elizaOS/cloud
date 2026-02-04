@@ -195,30 +195,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform Format Check
-        id: fmt
-        run: terraform fmt -check -recursive
-        continue-on-error: true
-
-      - name: Terraform Init
-        id: init
-        run: terraform init -backend-config=${{ needs.detect-changes.outputs.backend_config }}
-
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-
+      # Run tfsec BEFORE AWS auth - it's static analysis and doesn't need credentials
       - name: Security Scan with tfsec
         id: tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
@@ -230,10 +212,29 @@ jobs:
 
       - name: Upload tfsec SARIF results
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: services/gateway-discord/terraform/tfsec-results.sarif
         continue-on-error: true
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config=${{ needs.detect-changes.outputs.backend_config }}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
 
       - name: Terraform Plan
         id: plan

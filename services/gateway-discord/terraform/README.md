@@ -150,6 +150,7 @@ Create a file `terraform-role-trust-policy.json`:
           "token.actions.githubusercontent.com:sub": [
             "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/main",
             "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/dev",
+            "repo:elizaOS/eliza-cloud-v2:ref:refs/heads/feat/*",
             "repo:elizaOS/eliza-cloud-v2:pull_request",
             "repo:elizaOS/eliza-cloud-v2:environment:gateway-dev",
             "repo:elizaOS/eliza-cloud-v2:environment:gateway-prd"
@@ -161,7 +162,14 @@ Create a file `terraform-role-trust-policy.json`:
 }
 ```
 
-> **Note**: The `pull_request` subject is required for PRs to run Terraform plan. GitHub uses different OIDC subject formats for different event types. Also ensure the org name case matches exactly (`elizaOS` not `elizaos`).
+> **Note**: The `pull_request` and `feat/*` subjects allow PRs and feature branches to run Terraform plan. GitHub uses different OIDC subject formats for different event types. Ensure the org name case matches exactly (`elizaOS` not `elizaos`).
+
+To update an existing role's trust policy:
+```bash
+aws iam update-assume-role-policy \
+  --role-name github-actions-gateway-terraform \
+  --policy-document file://terraform-role-trust-policy.json
+```
 
 Create the role and attach the custom policy:
 
