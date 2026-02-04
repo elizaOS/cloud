@@ -1,19 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
  * GET /api/credits/transactions
  * Lists credit transactions for the authenticated user's organization.
+ * Supports both Privy session and API key authentication.
  *
  * @param req - The Next.js request object with optional query params (hours, limit).
  * @returns JSON response with transactions array and period information.
  */
 async function handleGET(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(

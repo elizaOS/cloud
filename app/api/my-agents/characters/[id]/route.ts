@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 
@@ -9,12 +9,13 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/my-agents/characters/[id]
  * Get a specific character by ID.
+ * Supports both Privy session and API key authentication.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
   const character = await charactersService.getByIdForUser(id, user.id);
@@ -32,12 +33,13 @@ export async function GET(
 /**
  * DELETE /api/my-agents/characters/[id]
  * Delete a character owned by the user.
+ * Supports both Privy session and API key authentication.
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await requireAuthWithOrg();
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
   logger.info("[My Agents API] Deleting character:", {

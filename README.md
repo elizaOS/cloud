@@ -982,7 +982,35 @@ POST /api/eliza/rooms/{roomId}/messages
 }
 ```
 
-### 8. API Key Management
+### 8. Developer API & Programmatic Access
+
+**Location**: Documented management endpoints that explicitly note API key support
+
+API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`). Not every `/api/v1/` or `/api/my-agents/` route supports API keys today, so rely on the documented list, enabling:
+
+- **Programmatic Agent Management**: Create, update, delete, and clone agents via API
+- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications
+- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
+- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
+
+Session-based auth only (no API key support yet): `/api/v1/api-keys`, `/api/v1/apps/[id]/deploy`, `/api/v1/dashboard`, `/api/my-agents/characters/[id]/track-interaction`.
+
+**Why API Keys for Management Endpoints?**
+
+Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:
+
+1. **Developer Experience**: Developers can build integrations without browser-based auth flows
+2. **Agent Autonomy**: AI agents need to manage their own resources (credits, other agents, voices) autonomously
+3. **Automation**: CI/CD pipelines, scripts, and external systems can interact with the platform programmatically
+4. **No Vendor Lock-in**: Generic endpoint paths (`/api/v1/voice/` instead of provider-specific paths) allow switching providers without breaking integrations
+
+**Generic Voice API**: Voice endpoints use provider-agnostic paths (`/api/v1/voice/tts` instead of `/api/elevenlabs/tts`) so your code doesn't need to change if the underlying provider changes. Legacy paths are preserved for backwards compatibility.
+
+**Billing Management**: Agents and developers can configure auto-top-up settings programmatically, ensuring autonomous agents never stop working due to insufficient credits.
+
+---
+
+### 9. API Key Management
 
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 
@@ -1363,7 +1391,7 @@ See `lib/queries/container-quota.ts` for full implementation.
 
 ### Authentication
 
-All API routes support two authentication methods:
+Documented management endpoints that include API key examples support two authentication methods:
 
 1. **Session Cookie** (Privy): Automatic for logged-in users
 2. **API Key Header**: `Authorization: Bearer eliza_your_key`

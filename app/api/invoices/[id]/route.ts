@@ -1,12 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
  * GET /api/invoices/[id]
  * Gets a specific invoice by ID.
+ * Supports both Privy session and API key authentication.
  * Verifies the invoice belongs to the user's organization.
  *
  * @param req - The Next.js request object.
@@ -19,7 +20,7 @@ async function handleGetInvoice(
 ) {
   const { params } = context;
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
