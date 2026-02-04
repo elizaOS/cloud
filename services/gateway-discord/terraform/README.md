@@ -68,11 +68,14 @@ services/gateway-discord/terraform/
 
 ## Usage
 
-> **Note**: Infrastructure is managed automatically via GitHub Actions (`.github/workflows/gateway-discord-iac.yml`).
-> - **Push to `dev`** → Auto-applies to development
-> - **Push to `main`** → Auto-applies to production
-> - **Pull Requests** → Runs plan and posts output as PR comment
-> - **Manual dispatch** → Run plan/apply/destroy on demand
+> **Note**: Infrastructure is managed via a unified GitHub Actions workflow (`.github/workflows/gateway-discord.yml`).
+> The workflow auto-detects terraform vs app changes and runs appropriate jobs in sequence:
+> - **Push to `dev`** → Terraform apply + app deploy to development
+> - **Push to `main`** → Terraform apply + app deploy to production
+> - **Pull Requests** → Terraform plan + tests only (no apply/deploy)
+> - **Manual dispatch** → Run terraform-plan/terraform-apply/terraform-destroy/deploy on demand
+>
+> If both terraform and app files change, terraform runs first, then deploy waits for completion.
 >
 > You only need to complete the **One-Time Setup** below before the workflow can run.
 

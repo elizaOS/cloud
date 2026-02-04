@@ -1,22 +1,37 @@
-name: Gateway Discord Service
+name: Gateway Discord
 
+# Unified workflow for Gateway Discord infrastructure (Terraform) and application (Docker/Helm).
+# Auto-detects what changed and runs appropriate jobs in sequence.
+#
 # Environment-specific variables (set in GitHub Settings > Environments):
 #
 # gateway-dev environment:
 #   Variables:
-#     - GATEWAY_AWS_ROLE_ARN: IAM role ARN for EKS access (created by Terraform)
+#     - TERRAFORM_AWS_ROLE_ARN: IAM role for Terraform operations
+#     - GATEWAY_AWS_ROLE_ARN: IAM role for EKS/Helm deployments (created by Terraform)
 #     - AWS_REGION: AWS region (e.g., us-east-1)
 #     - CLUSTER_NAME: EKS cluster name (e.g., gateway-cluster-dev)
+#   Secrets:
+#     - GHCR_USERNAME: GitHub Container Registry username
+#     - GHCR_TOKEN: GitHub Container Registry token
+#     - ELIZA_CLOUD_URL: Eliza Cloud API URL
+#     - GATEWAY_BOOTSTRAP_SECRET: Gateway bootstrap secret
+#     - REDIS_URL: Redis URL
+#     - REDIS_TOKEN: Redis token
+#     - BLOB_TOKEN: Blob storage token
 #
 # gateway-prd environment:
-#   Variables:
-#     - GATEWAY_AWS_ROLE_ARN: IAM role ARN for EKS access (created by Terraform)
-#     - AWS_REGION: AWS region (e.g., us-east-1)
-#     - CLUSTER_NAME: EKS cluster name (e.g., gateway-cluster-prod)
+#   (Same variables/secrets as gateway-dev, but for production)
 #
 # Branch to environment mapping:
-#   - dev branch    -> gateway-dev environment
-#   - main branch   -> gateway-prd environment
+#   - dev branch  -> gateway-dev environment
+#   - main branch -> gateway-prd environment
+#
+# Workflow behavior:
+#   - Terraform changes only: terraform job -> deploy job (redeploy with new infra)
+#   - App changes only: test -> build -> deploy
+#   - Both changes: terraform runs in parallel with test, deploy waits for all
+#   - PRs: terraform plan + tests only (no build/deploy)
 
 on:
   push:
@@ -49,50 +64,292 @@ on:
       - ".github/workflows/gateway-discord.yml"
   workflow_dispatch:
     inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - terraform-plan
+          - terraform-apply
+          - terraform-destroy
+        default: deploy
       environment:
         description: "Target environment"
         required: true
-        default: "gateway-dev"
         type: choice
-        options: [gateway-dev, gateway-prd]
+        options:
+          - gateway-dev
+          - gateway-prd
+        default: gateway-dev
 
 env:
   BUN_VERSION: "1.2"
-  IMAGE_NAME: gateway-discord
-  REGISTRY: ghcr.io
+  TF_VERSION: "1.7.0"
   IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
+  REGISTRY: ghcr.io
+  TF_WORKING_DIR: services/gateway-discord/terraform
 
 jobs:
+  # =============================================================================
+  # DETECT CHANGES - Determines what changed and target environment
+  # =============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+      app: ${{ steps.filter.outputs.app }}
+      environment: ${{ steps.env.outputs.environment }}
+      tfvars_file: ${{ steps.env.outputs.tfvars_file }}
+      backend_config: ${{ steps.env.outputs.backend_config }}
+      values_file: ${{ steps.env.outputs.values_file }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'services/gateway-discord/terraform/**'
+            app:
+              - 'services/gateway-discord/src/**'
+              - 'services/gateway-discord/chart/**'
+              - 'services/gateway-discord/Dockerfile'
+              - 'services/gateway-discord/package.json'
+              - 'services/gateway-discord/tsconfig.json'
+              - 'lib/services/gateway-discord/**'
+              - 'lib/auth/jwks.ts'
+              - 'lib/auth/jwt-internal.ts'
+              - 'lib/auth/internal-api.ts'
+              - 'app/api/v1/discord/**'
+              - 'app/api/internal/discord/**'
+              - 'app/api/internal/auth/**'
+              - 'tests/unit/discord-connections*'
+
+      - name: Determine target environment
+        id: env
+        run: |
+          # Manual dispatch uses selected environment
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          # Push/PR to main = production
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.base_ref }}" == "main" ]]; then
+            ENV="gateway-prd"
+          # Everything else = development
+          else
+            ENV="gateway-dev"
+          fi
+
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+
+          if [[ "$ENV" == "gateway-prd" ]]; then
+            echo "tfvars_file=production.tfvars" >> $GITHUB_OUTPUT
+            echo "backend_config=backend-production.hcl" >> $GITHUB_OUTPUT
+            echo "values_file=values-production.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "tfvars_file=development.tfvars" >> $GITHUB_OUTPUT
+            echo "backend_config=backend-development.hcl" >> $GITHUB_OUTPUT
+            echo "values_file=values-development.yaml" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Target environment: $ENV"
+
+      - name: Summary
+        run: |
+          echo "### Change Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform | ${{ steps.filter.outputs.terraform }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| App | ${{ steps.filter.outputs.app }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # TERRAFORM - Infrastructure provisioning (runs if terraform files changed)
+  # =============================================================================
+  terraform:
+    name: Terraform (${{ needs.detect-changes.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    # Run if: terraform changed, OR manual dispatch with terraform action
+    if: |
+      needs.detect-changes.outputs.terraform == 'true' ||
+      (github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.action, 'terraform-'))
+    environment: ${{ needs.detect-changes.outputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: services/gateway-discord/terraform
+    outputs:
+      cluster_name: ${{ steps.outputs.outputs.cluster_name }}
+      cluster_endpoint: ${{ steps.outputs.outputs.cluster_endpoint }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.TERRAFORM_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config=${{ needs.detect-changes.outputs.backend_config }}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color \
+            -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}" \
+            -out=tfplan
+        continue-on-error: true
+
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MAX_PLAN_LENGTH = 60000;
+            let planOutput = `${{ steps.plan.outputs.stdout }}`;
+            let truncated = false;
+            if (planOutput.length > MAX_PLAN_LENGTH) {
+              planOutput = planOutput.substring(0, MAX_PLAN_LENGTH);
+              truncated = true;
+            }
+
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            > **Note**: Sensitive values (tokens, secrets) are marked as \`sensitive\` in Terraform
+            > and should appear as \`(sensitive value)\` in the plan output below.
+
+            <details><summary>Show Plan (${{ needs.detect-changes.outputs.environment }})${truncated ? ' - TRUNCATED' : ''}</summary>
+
+            \`\`\`terraform
+            ${planOutput}
+            \`\`\`
+            ${truncated ? '\n⚠️ *Plan output was truncated due to size. View full output in the Actions log.*\n' : ''}
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
+            -var="ghcr_username=${{ secrets.GHCR_USERNAME }}" \
+            -var="ghcr_token=${{ secrets.GHCR_TOKEN }}" \
+            -var="eliza_cloud_url=${{ secrets.ELIZA_CLOUD_URL }}" \
+            -var="gateway_bootstrap_secret=${{ secrets.GATEWAY_BOOTSTRAP_SECRET }}" \
+            -var="redis_url=${{ secrets.REDIS_URL }}" \
+            -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
+            -var="blob_token=${{ secrets.BLOB_TOKEN }}"
+
+      - name: Get Terraform Outputs
+        id: outputs
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+          echo "cluster_endpoint=$(terraform output -raw cluster_endpoint 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
+
+  # =============================================================================
+  # TEST - Run tests (runs if app files changed)
+  # =============================================================================
   test:
     name: Test
     runs-on: ubuntu-latest
+    needs: detect-changes
+    # Run if: app changed, OR manual deploy
+    if: |
+      needs.detect-changes.outputs.app == 'true' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
+
       - name: Install root dependencies
         run: bun install --frozen-lockfile
+
       - name: Install service dependencies
         run: cd services/gateway-discord && bun install --frozen-lockfile
+
       - name: Run service tests
         run: bun test services/gateway-discord/tests/ --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
+
       - name: Run lib tests
         run: bun test lib/services/gateway-discord/__tests__/ --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
+
       - name: Run Discord API unit tests
         run: bun test tests/unit/discord-connections-api.test.ts --timeout 60000
         env:
           SKIP_SERVER_CHECK: "true"
 
+  # =============================================================================
+  # BUILD - Build Docker image (runs if app changed, not on PRs)
+  # =============================================================================
   build:
     name: Build Image
     runs-on: ubuntu-latest
-    needs: test
+    needs: [detect-changes, test]
+    # Run if: (app changed OR manual deploy) AND not a PR
+    if: |
+      github.event_name != 'pull_request' &&
+      (needs.detect-changes.outputs.app == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy'))
     permissions:
       contents: read
       packages: write
@@ -106,7 +363,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -128,7 +384,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: services/gateway-discord
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -139,107 +395,83 @@ jobs:
           echo "Image digest: ${{ steps.build.outputs.digest }}"
           echo "Image tags: ${{ steps.meta.outputs.tags }}"
 
+  # =============================================================================
+  # DEPLOY - Deploy to Kubernetes (waits for terraform and/or build)
+  # =============================================================================
   deploy:
-    name: Deploy to ${{ matrix.environment }}
+    name: Deploy (${{ needs.detect-changes.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        include:
-          - environment: gateway-dev
-            branch: refs/heads/dev
-            values_file: values-development.yaml
-          - environment: gateway-prd
-            branch: refs/heads/main
-            values_file: values-production.yaml
-      fail-fast: false
-    # GitHub Environment - pulls environment-specific vars (GATEWAY_AWS_ROLE_ARN, AWS_REGION, CLUSTER_NAME)
-    environment: ${{ matrix.environment }}
+    needs: [detect-changes, terraform, build]
+    # Run if: not a PR, AND (terraform succeeded/skipped) AND (build succeeded/skipped) AND at least one ran
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_dispatch' || github.event.inputs.action == 'deploy' || github.event.inputs.action == 'terraform-apply') &&
+      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.terraform.result == 'success' || needs.build.result == 'success')
+    environment: ${{ needs.detect-changes.outputs.environment }}
     permissions:
       id-token: write
       contents: read
     timeout-minutes: 15
     steps:
-      - name: Check if deployment should run
-        id: should_deploy
-        run: |
-          SHOULD_DEPLOY="false"
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "${{ matrix.branch }}" ]]; then
-            SHOULD_DEPLOY="true"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.environment }}" ]]; then
-            SHOULD_DEPLOY="true"
-          fi
-          
-          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
-          echo "Should deploy to ${{ matrix.environment }}: $SHOULD_DEPLOY"
-
       - uses: actions/checkout@v4
-        if: steps.should_deploy.outputs.should_deploy == 'true'
 
-      - name: Verify image digest exists and is valid
-        if: steps.should_deploy.outputs.should_deploy == 'true'
+      - name: Verify image digest (if build ran)
+        if: needs.build.result == 'success'
         run: |
           DIGEST="${{ needs.build.outputs.digest }}"
           if [ -z "$DIGEST" ]; then
             echo "Error: Image digest is empty. Build may have failed to push."
             exit 1
           fi
-          # Validate sha256 format (sha256: followed by 64 hex characters)
           if ! [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
             echo "Error: Invalid digest format. Expected sha256:<64-hex-chars>, got: $DIGEST"
             exit 1
           fi
           echo "Image digest verified: $DIGEST"
 
-      - name: Verify image exists in registry
-        if: steps.should_deploy.outputs.should_deploy == 'true'
-        run: |
-          IMAGE="${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
-          echo "Verifying image exists: $IMAGE"
-          if ! docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
-            echo "Error: Image not found in registry: $IMAGE"
-            exit 1
-          fi
-          echo "Image verified in registry"
-
       - name: Configure AWS credentials via OIDC
-        if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.GATEWAY_AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Set up kubectl
-        if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: azure/setup-kubectl@v4
 
       - name: Set up Helm
-        if: steps.should_deploy.outputs.should_deploy == 'true'
         uses: azure/setup-helm@v4
         with:
           version: "v3.14.0"
 
       - name: Configure kubectl for EKS
-        if: steps.should_deploy.outputs.should_deploy == 'true'
         run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region ${{ vars.AWS_REGION }}
 
-      - name: Deploy to ${{ matrix.environment }} with Helm
-        if: steps.should_deploy.outputs.should_deploy == 'true'
+      - name: Deploy with Helm
         run: |
-          echo "Deploying to ${{ matrix.environment }} with image: ${{ env.IMAGE_REPO }}@${{ needs.build.outputs.digest }}"
+          # Determine image to deploy
+          if [[ "${{ needs.build.result }}" == "success" ]]; then
+            IMAGE_DIGEST="${{ needs.build.outputs.digest }}"
+            echo "Deploying newly built image: ${{ env.IMAGE_REPO }}@${IMAGE_DIGEST}"
+            DIGEST_ARG="--set image.digest=${IMAGE_DIGEST}"
+          else
+            echo "Deploying with existing image (terraform-only change)"
+            DIGEST_ARG=""
+          fi
+
           helm upgrade --install gateway-discord ./services/gateway-discord/chart \
             --namespace gateway-discord \
             --create-namespace \
             -f ./services/gateway-discord/chart/values.yaml \
-            -f ./services/gateway-discord/chart/${{ matrix.values_file }} \
+            -f ./services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
-            --set image.digest="${{ needs.build.outputs.digest }}" \
+            $DIGEST_ARG \
             --wait \
             --timeout 5m
 
       - name: Verify deployment
-        if: steps.should_deploy.outputs.should_deploy == 'true'
         run: |
           kubectl get pods -n gateway-discord -l app=gateway-discord
           helm status gateway-discord -n gateway-discord
