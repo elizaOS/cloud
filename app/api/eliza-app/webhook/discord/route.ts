@@ -66,8 +66,8 @@ interface DiscordEventPayload {
 }
 
 /**
- * Send message to Discord with simple 429 retry.
- * No custom rate limiter - let Discord handle rate limiting.
+ * Send message to Discord with retry logic for rate limits and transient errors.
+ * Retries on 429 (rate limit) and 5xx (server errors) with exponential backoff.
  */
 async function sendDiscordMessage(
   channelId: string,
@@ -95,27 +95,46 @@ async function sendDiscordMessage(
     });
   };
 
-  let response = await makeRequest();
+  const maxRetries = 3;
+  let lastError: string | undefined;
 
-  // Simple 429 retry
-  if (response.status === 429) {
-    const retryAfter = response.headers.get("Retry-After");
-    const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : 1000;
-    await new Promise(resolve => setTimeout(resolve, waitMs));
-    response = await makeRequest();
-  }
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await makeRequest();
 
-  if (!response.ok) {
-    const error = await response.text();
+    // Success
+    if (response.ok) {
+      return true;
+    }
+
+    // Rate limit - use Retry-After header
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : 1000;
+      logger.warn("[ElizaApp DiscordWebhook] Rate limited, retrying", { channelId, waitMs, attempt });
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      continue;
+    }
+
+    // Server error - exponential backoff
+    if (response.status >= 500) {
+      const waitMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+      logger.warn("[ElizaApp DiscordWebhook] Server error, retrying", { channelId, status: response.status, waitMs, attempt });
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      continue;
+    }
+
+    // Client error (4xx except 429) - don't retry
+    lastError = await response.text();
     logger.error("[ElizaApp DiscordWebhook] Failed to send message", {
       channelId,
       status: response.status,
-      error,
+      error: lastError,
     });
     return false;
   }
 
-  return true;
+  logger.error("[ElizaApp DiscordWebhook] Failed after retries", { channelId, lastError });
+  return false;
 }
 
 function processDiscordAttachments(data: DiscordMessageData): Media[] {
@@ -225,15 +244,16 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   try {
     await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
   } catch (error) {
-    // Ignore "already exists" errors, re-throw others
-    const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+    // PostgreSQL unique constraint violation code = 23505
+    const isUniqueViolation = (error as { code?: string }).code === "23505";
+    if (!isUniqueViolation) {
       throw error;
     }
+    logger.debug("[ElizaApp DiscordWebhook] Participant already exists", { roomId, entityId });
   }
 
-  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
-  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
+  // TTL must be > maxDuration (120s) with safety margin to prevent lock expiry during processing
+  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 150000, {
     maxRetries: 10,
     initialDelayMs: 100,
     maxDelayMs: 2000,
