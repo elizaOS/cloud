@@ -57,7 +57,11 @@ function isAuthenticationError(message: string): boolean {
   return (
     message.includes("Unauthorized") ||
     message.includes("Authentication required") ||
-    message.includes("Forbidden")
+    message.includes("Forbidden") ||
+    message.includes("Invalid or expired API key") ||
+    message.includes("API key is inactive") ||
+    message.includes("API key has expired") ||
+    message.includes("Invalid or expired token")
   );
 }
 
