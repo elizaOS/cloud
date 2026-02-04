@@ -123,6 +123,18 @@ resource "aws_security_group_rule" "cluster_ingress_https_from_vpc" {
   description       = "Allow HTTPS from VPC (for nodes to communicate with API server)"
 }
 
+# Allow ingress from VPC CIDR to EKS-managed cluster security group
+# This is required for NAT instance return traffic to reach nodes
+resource "aws_security_group_rule" "eks_managed_sg_ingress_from_vpc" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  description       = "Allow all traffic from VPC for NAT return traffic"
+}
+
 # OIDC Provider for IAM Roles for Service Accounts (IRSA)
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.main.identity[0].oidc[0].issuer
