@@ -276,9 +276,12 @@ jobs:
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
+      # TODO: TEMPORARY - Remove pull_request condition before merging!
+      # This is enabled for testing IaC on PR #275
       - name: Terraform Apply
         if: |
           github.event_name == 'push' ||
+          github.event_name == 'pull_request' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
         run: terraform apply -auto-approve tfplan
 
@@ -295,9 +298,10 @@ jobs:
             -var="redis_token=${{ secrets.REDIS_TOKEN }}" \
             -var="blob_token=${{ secrets.BLOB_TOKEN }}"
 
+      # TODO: TEMPORARY - Remove pull_request condition before merging!
       - name: Get Terraform Outputs
         id: outputs
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
+        if: github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "cluster_endpoint=$(terraform output -raw cluster_endpoint 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
