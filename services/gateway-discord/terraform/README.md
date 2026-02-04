@@ -191,66 +191,57 @@ aws iam attach-role-policy \
 ```
 
 <details>
-<summary>terraform-iam-policy.json (Least-Privilege Policy)</summary>
+<summary>terraform-iam-policy.json (Compact Policy - fits within 6144 char limit)</summary>
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "VPCManagement",
+      "Sid": "EC2Full",
       "Effect": "Allow",
       "Action": [
-        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs", "ec2:ModifyVpcAttribute", "ec2:DescribeVpcAttribute",
-        "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets", "ec2:ModifySubnetAttribute",
-        "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:AttachInternetGateway", "ec2:DetachInternetGateway", "ec2:DescribeInternetGateways",
-        "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
-        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses", "ec2:DescribeAddressesAttribute", "ec2:AssociateAddress", "ec2:DisassociateAddress",
-        "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:DescribeRouteTables", "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable", "ec2:ReplaceRoute",
-        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup", "ec2:DescribeSecurityGroups", "ec2:DescribeSecurityGroupRules",
-        "ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress",
-        "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints", "ec2:DescribeVpcEndpoints", "ec2:ModifyVpcEndpoint",
-        "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
-        "ec2:DescribeAvailabilityZones", "ec2:DescribeAccountAttributes", "ec2:DescribeNetworkInterfaces", "ec2:DescribeNetworkAcls", "ec2:DescribePrefixLists"
+        "ec2:Describe*",
+        "ec2:Get*",
+        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:ModifyVpcAttribute",
+        "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:ModifySubnetAttribute",
+        "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway", "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
+        "ec2:CreateNatGateway", "ec2:DeleteNatGateway",
+        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:AssociateAddress", "ec2:DisassociateAddress",
+        "ec2:CreateRouteTable", "ec2:DeleteRouteTable", "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:ReplaceRoute", "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
+        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup", "ec2:AuthorizeSecurityGroup*", "ec2:RevokeSecurityGroup*", "ec2:ModifySecurityGroupRules", "ec2:UpdateSecurityGroupRuleDescriptions*",
+        "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints", "ec2:ModifyVpcEndpoint",
+        "ec2:CreateTags", "ec2:DeleteTags",
+        "ec2:RunInstances", "ec2:StartInstances", "ec2:StopInstances", "ec2:TerminateInstances", "ec2:ModifyInstanceAttribute", "ec2:ModifyInstanceCreditSpecification",
+        "ec2:CreateVolume", "ec2:DeleteVolume", "ec2:AttachVolume", "ec2:DetachVolume",
+        "ec2:CreateLaunchTemplate", "ec2:DeleteLaunchTemplate", "ec2:ModifyLaunchTemplate",
+        "ec2:CreateNetworkInterface", "ec2:DeleteNetworkInterface", "ec2:ModifyNetworkInterfaceAttribute"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "EC2InstanceManagement",
+      "Sid": "EKSFull",
       "Effect": "Allow",
-      "Action": [
-        "ec2:RunInstances", "ec2:TerminateInstances", "ec2:DescribeInstances", "ec2:DescribeInstanceTypes", "ec2:DescribeInstanceStatus",
-        "ec2:ModifyInstanceAttribute", "ec2:DescribeInstanceAttribute", "ec2:DescribeImages", "ec2:DescribeKeyPairs",
-        "ec2:CreateVolume", "ec2:DeleteVolume", "ec2:AttachVolume", "ec2:DetachVolume", "ec2:DescribeVolumes",
-        "ec2:DescribeLaunchTemplates", "ec2:CreateLaunchTemplate", "ec2:DeleteLaunchTemplate", "ec2:DescribeLaunchTemplateVersions"
-      ],
+      "Action": ["eks:*"],
       "Resource": "*"
     },
     {
-      "Sid": "EKSManagement",
+      "Sid": "AutoScaling",
       "Effect": "Allow",
-      "Action": [
-        "eks:CreateCluster", "eks:DeleteCluster", "eks:DescribeCluster", "eks:ListClusters", "eks:UpdateClusterConfig", "eks:UpdateClusterVersion",
-        "eks:CreateNodegroup", "eks:DeleteNodegroup", "eks:DescribeNodegroup", "eks:ListNodegroups", "eks:UpdateNodegroupConfig", "eks:UpdateNodegroupVersion",
-        "eks:CreateAddon", "eks:DeleteAddon", "eks:DescribeAddon", "eks:ListAddons", "eks:UpdateAddon", "eks:DescribeAddonVersions",
-        "eks:TagResource", "eks:UntagResource", "eks:ListTagsForResource",
-        "eks:AssociateEncryptionConfig", "eks:DescribeUpdate", "eks:ListUpdates",
-        "eks:AccessKubernetesApi", "eks:AssociateAccessPolicy", "eks:CreateAccessEntry"
-      ],
+      "Action": ["autoscaling:*"],
       "Resource": "*"
     },
     {
       "Sid": "IAMManagement",
       "Effect": "Allow",
       "Action": [
-        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:ListRoles", "iam:UpdateRole", "iam:TagRole", "iam:UntagRole", "iam:ListRoleTags",
-        "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:ListAttachedRolePolicies",
-        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy", "iam:ListRolePolicies",
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole", "iam:ListRole*",
+        "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies",
         "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:GetInstanceProfile", "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
-        "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile", "iam:ListInstanceProfiles", "iam:ListInstanceProfilesForRole", "iam:ListInstanceProfileTags",
-        "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders", "iam:TagOpenIDConnectProvider",
-        "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicies", "iam:ListPolicyVersions",
-        "iam:CreateServiceLinkedRole", "iam:PassRole"
+        "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile", "iam:ListInstanceProfile*",
+        "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders", "iam:TagOpenIDConnectProvider", "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy*", "iam:ListPolic*", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+        "iam:CreateServiceLinkedRole", "iam:DeleteServiceLinkedRole", "iam:PassRole"
       ],
       "Resource": "*"
     },
@@ -258,49 +249,40 @@ aws iam attach-role-policy \
       "Sid": "KMSManagement",
       "Effect": "Allow",
       "Action": [
-        "kms:CreateKey", "kms:DescribeKey", "kms:GetKeyPolicy", "kms:ListKeys", "kms:ScheduleKeyDeletion",
-        "kms:CreateAlias", "kms:DeleteAlias", "kms:ListAliases",
-        "kms:EnableKeyRotation", "kms:GetKeyRotationStatus",
-        "kms:TagResource", "kms:UntagResource", "kms:ListResourceTags",
-        "kms:CreateGrant", "kms:ListGrants", "kms:RevokeGrant"
+        "kms:Create*", "kms:Delete*", "kms:Describe*", "kms:Get*", "kms:List*", "kms:Tag*", "kms:Untag*",
+        "kms:Enable*", "kms:Disable*", "kms:Schedule*", "kms:Cancel*",
+        "kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey*", "kms:*Grant"
       ],
       "Resource": "*"
     },
     {
       "Sid": "CloudWatchLogs",
       "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:DescribeLogGroups",
-        "logs:ListTagsLogGroup", "logs:ListTagsForResource", "logs:TagLogGroup", "logs:UntagLogGroup", "logs:TagResource", "logs:UntagResource",
-        "logs:PutRetentionPolicy"
-      ],
+      "Action": ["logs:*"],
       "Resource": "*"
     },
     {
-      "Sid": "TerraformStateBackend",
+      "Sid": "STS",
       "Effect": "Allow",
-      "Action": [
-        "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::eliza-cloud-terraform-state",
-        "arn:aws:s3:::eliza-cloud-terraform-state/*"
-      ]
+      "Action": ["sts:GetCallerIdentity", "sts:AssumeRole", "sts:TagSession"],
+      "Resource": "*"
     },
     {
-      "Sid": "TerraformStateLock",
+      "Sid": "TerraformState",
       "Effect": "Allow",
-      "Action": [
-        "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"
-      ],
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:GetBucket*"],
+      "Resource": ["arn:aws:s3:::eliza-cloud-terraform-state", "arn:aws:s3:::eliza-cloud-terraform-state/*"]
+    },
+    {
+      "Sid": "TerraformLock",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:DescribeTable"],
       "Resource": "arn:aws:dynamodb:*:*:table/terraform-state-lock"
     },
     {
-      "Sid": "SSMForNATInstance",
+      "Sid": "SSM",
       "Effect": "Allow",
-      "Action": [
-        "ssm:DescribeInstanceInformation"
-      ],
+      "Action": ["ssm:Describe*", "ssm:GetParameter*"],
       "Resource": "*"
     }
   ]
