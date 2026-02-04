@@ -223,6 +223,20 @@ Running Terraform locally is the simplest approach - no need to set up `TERRAFOR
 - AWS CLI configured with credentials (`aws configure` or `aws sso login`)
 - Your AWS user/role needs permissions to create VPCs, EKS, IAM roles, etc.
 
+#### Configure AWS Credentials
+
+If using AWS profiles (recommended), export credentials to environment variables before running terraform:
+
+```bash
+# Export credentials from your AWS profile to environment variables
+eval "$(aws configure export-credentials --profile YOUR_PROFILE_NAME --format env)"
+
+# Verify credentials are set
+aws sts get-caller-identity
+```
+
+This ensures terraform uses the correct AWS account and credentials.
+
 #### Initialize Terraform
 
 ```bash

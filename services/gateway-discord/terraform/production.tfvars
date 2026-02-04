@@ -18,7 +18,7 @@ nat_instance_type  = "t4g.micro" # ~$6/month, sufficient for Discord websocket t
 single_nat_gateway = true
 
 # EKS Configuration
-kubernetes_version              = "1.29"
+kubernetes_version              = "1.34"
 cluster_endpoint_public_access  = true
 cluster_endpoint_private_access = true
 
