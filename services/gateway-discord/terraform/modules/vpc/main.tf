@@ -228,13 +228,6 @@ resource "aws_instance" "nat" {
     fi
     sysctl -p
     
-    # Install iptables (dnf for AL2023, yum as fallback)
-    if command -v dnf &> /dev/null; then
-      dnf install -y iptables-services
-    else
-      yum install -y iptables-services
-    fi
-    
     # Detect primary network interface dynamically
     PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}' | head -1)
     if [ -z "$PRIMARY_IFACE" ]; then
@@ -242,6 +235,19 @@ resource "aws_instance" "nat" {
       exit 1
     fi
     echo "Detected primary interface: $PRIMARY_IFACE"
+    
+    # Install iptables-services (dnf for AL2023, yum as fallback)
+    if command -v dnf &> /dev/null; then
+      dnf install -y iptables-services
+    else
+      yum install -y iptables-services
+    fi
+    
+    # Stop iptables service to prevent it from loading default rules
+    systemctl stop iptables 2>/dev/null || true
+    
+    # Remove any default iptables config that may have REJECT rules
+    rm -f /etc/sysconfig/iptables
     
     # Completely flush all iptables rules to start clean
     iptables -F
@@ -259,10 +265,13 @@ resource "aws_instance" "nat" {
     # Set up NAT masquerading for VPC traffic
     iptables -t nat -A POSTROUTING -o "$PRIMARY_IFACE" -s ${var.vpc_cidr} -j MASQUERADE
     
-    # Enable and save iptables
+    # Save iptables BEFORE starting the service (creates clean config file)
+    mkdir -p /etc/sysconfig
+    iptables-save > /etc/sysconfig/iptables
+    
+    # Now enable and start iptables (will load our clean config)
     systemctl enable iptables
     systemctl start iptables
-    service iptables save
     
     echo "NAT instance configuration completed successfully"
   EOF

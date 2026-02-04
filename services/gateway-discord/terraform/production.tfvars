@@ -46,8 +46,8 @@ cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # TODO: Restrict to trusted
 # Discord gateway is I/O bound, not CPU bound - burstable instances are ideal
 # TODO: Build ARM64 images to use cheaper t4g instances
 node_group_instance_types = ["t3.medium", "t3.large"] # 2-4 vCPU, 4-8GB RAM
-node_group_desired_size   = 1 # Set as 2 when User-Created Bots are publically
-node_group_min_size       = 1 # Set as 2 when User-Created Bots are publically
+node_group_desired_size   = 1                         # Set as 2 when User-Created Bots are publically
+node_group_min_size       = 1                         # Set as 2 when User-Created Bots are publically
 node_group_max_size       = 10
 node_group_disk_size      = 30 # Reduced - mostly stateless workload
 node_group_capacity_type  = "ON_DEMAND"
