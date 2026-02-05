@@ -355,15 +355,15 @@ jobs:
           TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
           TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
         run: |
-          # Skip k8s_resources module - Terraform role doesn't have K8s API access
-          # K8s resources are destroyed when the EKS cluster is destroyed anyway
+          # Remove k8s_resources from state first - Terraform role doesn't have K8s API access
+          # These resources are destroyed when the EKS cluster is destroyed anyway
+          echo "Removing k8s_resources module from state (will be destroyed with EKS cluster)..."
+          terraform state rm module.k8s_resources || true
+          
+          # Now destroy infrastructure
+          echo "Destroying infrastructure..."
           terraform destroy -auto-approve \
-            -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
-            -target=module.vpc \
-            -target=module.eks \
-            -target=module.github_oidc \
-            -target=aws_iam_role_policy.github_actions_eks \
-            -target=aws_iam_role_policy.github_actions_ecr
+            -var-file=${{ needs.detect-changes.outputs.tfvars_file }}
 
       - name: Get Terraform Outputs
         id: outputs
