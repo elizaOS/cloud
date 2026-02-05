@@ -7,7 +7,7 @@
 
 import { cache } from "@/lib/cache/client";
 import { dbWrite } from "@/db/client";
-import { platformCredentials } from "@/db/schemas/platform-credentials";
+import { platformCredentials, platformCredentialTypeEnum } from "@/db/schemas/platform-credentials";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -498,7 +498,7 @@ async function storeConnection(
   // Track newly created secrets for cleanup on failure
   const newlyCreatedSecretIds: string[] = [];
 
-  const providerPlatform = provider.id as "google";
+  const providerPlatform = provider.id as (typeof platformCredentialTypeEnum.enumValues)[number];
   const cleanupNewlyCreatedSecrets = async (context: string) => {
     if (newlyCreatedSecretIds.length === 0) return;
     logger.warn(`[OAuth2] ${context}, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`, {
