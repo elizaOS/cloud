@@ -196,6 +196,16 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   const discordAvatar = data.author.avatar;
   const text = data.content.trim();
 
+  // Validate Discord user data
+  if (!discordUserId?.trim()) {
+    logger.warn("[ElizaApp DiscordWebhook] Missing Discord user ID");
+    return NextResponse.json({ ok: false, error: "Invalid user data" }, { status: 400 });
+  }
+  if (!discordUsername?.trim()) {
+    logger.warn("[ElizaApp DiscordWebhook] Missing Discord username", { discordUserId });
+    return NextResponse.json({ ok: false, error: "Invalid username" }, { status: 400 });
+  }
+
   // Idempotency check
   const idempotencyKey = `discord:eliza-app:${payload.event_id}`;
   if (await isAlreadyProcessed(idempotencyKey)) {
