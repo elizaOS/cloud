@@ -497,9 +497,9 @@ jobs:
             DIGEST_ARG=""
           fi
 
+          # Note: Namespace is created by Terraform (k8s-resources module)
           helm upgrade --install gateway-discord ./services/gateway-discord/chart \
             --namespace gateway-discord \
-            --create-namespace \
             -f ./services/gateway-discord/chart/values.yaml \
             -f ./services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
