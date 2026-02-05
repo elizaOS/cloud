@@ -29,6 +29,13 @@ export const maxDuration = 120;
 
 const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 
+/**
+ * Room lock TTL in milliseconds.
+ * Must be greater than maxDuration (120s) with safety margin to prevent
+ * lock expiry during long-running agent processing.
+ */
+const ROOM_LOCK_TTL_MS = 150_000;
+
 interface DiscordAuthor {
   id: string;
   username: string;
@@ -262,8 +269,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     logger.debug("[ElizaApp DiscordWebhook] Participant already exists", { roomId, entityId });
   }
 
-  // TTL must be > maxDuration (120s) with safety margin to prevent lock expiry during processing
-  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 150000, {
+  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, ROOM_LOCK_TTL_MS, {
     maxRetries: 10,
     initialDelayMs: 100,
     maxDelayMs: 2000,
