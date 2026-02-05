@@ -528,7 +528,7 @@ async function storeConnection(
   ) => {
     if (connections.length === 0) return;
 
-    const audit = {
+    const revokeAudit = {
       actorType: "user" as const,
       actorId: userId,
       source: `oauth2-${provider.id}-revoke-duplicate`,
@@ -538,7 +538,7 @@ async function storeConnection(
       const deleteSecret = async (secretId: string | null, tokenType: string) => {
         if (!secretId) return;
         try {
-          await secretsService.delete(secretId, connection.organization_id, audit);
+          await secretsService.delete(secretId, connection.organization_id, revokeAudit);
         } catch (error) {
           logger.warn(`[OAuth2] Failed to delete ${tokenType} secret during revoke`, {
             providerId: provider.id,
@@ -843,6 +843,7 @@ async function storeConnection(
           platformCredentials.platform_user_id,
         ],
         set: {
+          user_id: userId,
           platform_username: userInfo.username || undefined,
           platform_display_name: userInfo.displayName || undefined,
           platform_avatar_url: userInfo.avatarUrl || undefined,
@@ -853,6 +854,7 @@ async function storeConnection(
           token_expires_at: tokenExpiresAt,
           scopes,
           profile_data: userInfo.raw,
+          linked_at: new Date(),
           updated_at: new Date(),
         },
       })
