@@ -275,6 +275,33 @@ If leader dies:
 | `ELIZA_APP_LEADER_TTL_SECONDS` | 10 | Lock TTL - how long before lock expires |
 | `ELIZA_APP_LEADER_CHECK_INTERVAL_MS` | 3000 | How often pods check/renew leadership |
 
+**⚠️ Multi-Environment Warning:**
+
+If you share the **same Redis instance** across multiple environments (production, staging, local), you **must** use different leader keys for each environment. Otherwise:
+
+- Environments will compete for the same leader lock
+- Only ONE bot across ALL environments will run at a time
+- Local development could steal leadership from production
+
+The `ELIZA_APP_LEADER_KEY` is currently hardcoded. If you need environment isolation with a shared Redis, either:
+1. Use **separate Redis instances** per environment (recommended)
+2. Modify the code to read from an environment variable:
+   ```typescript
+   const ELIZA_APP_LEADER_KEY = process.env.ELIZA_APP_LEADER_KEY || "discord:eliza-app-bot:leader";
+   ```
+
+Recommended key naming by environment:
+```bash
+# Production
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:prod
+
+# Staging
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:staging
+
+# Local Development
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:local
+```
+
 ### Setting Up the Eliza App Bot
 
 1. **Create a Discord Application** at [Discord Developer Portal](https://discord.com/developers/applications)
