@@ -147,6 +147,12 @@ module "eks" {
   }
 }
 
+# Data source to look up existing GitHub OIDC provider (when not creating one)
+data "aws_iam_openid_connect_provider" "github" {
+  count = var.create_oidc_provider ? 0 : 1
+  url   = "https://token.actions.githubusercontent.com"
+}
+
 # GitHub OIDC Module - Using official terraform-module/github-oidc-provider/aws
 # https://registry.terraform.io/modules/terraform-module/github-oidc-provider/aws/latest
 module "github_oidc" {
@@ -155,6 +161,9 @@ module "github_oidc" {
 
   create_oidc_provider = var.create_oidc_provider
   create_oidc_role     = var.create_github_actions_role
+
+  # Required when create_oidc_provider = false
+  oidc_provider_arn = var.create_oidc_provider ? null : data.aws_iam_openid_connect_provider.github[0].arn
 
   role_name        = local.github_actions_role_name
   role_description = "IAM role for GitHub Actions to deploy gateway-discord to EKS"
