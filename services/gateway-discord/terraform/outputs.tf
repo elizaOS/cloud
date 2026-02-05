@@ -61,15 +61,15 @@ output "node_group_role_arn" {
   value       = module.eks.eks_managed_node_groups["main"].iam_role_arn
 }
 
-# GitHub OIDC Outputs
+# GitHub OIDC Outputs (using official terraform-module/github-oidc-provider/aws module)
 output "github_actions_role_arn" {
   description = "IAM role ARN for GitHub Actions (use as GATEWAY_AWS_ROLE_ARN)"
-  value       = module.github_oidc.github_actions_role_arn
+  value       = module.github_oidc.oidc_role
 }
 
 output "github_oidc_provider_arn" {
   description = "GitHub OIDC provider ARN"
-  value       = module.github_oidc.github_oidc_provider_arn
+  value       = module.github_oidc.oidc_provider_arn
 }
 
 # Kubernetes Outputs
@@ -88,7 +88,7 @@ output "kubeconfig_command" {
 output "github_actions_variables" {
   description = "Variables to set in GitHub repository for deployment"
   value = {
-    GATEWAY_AWS_ROLE_ARN = module.github_oidc.github_actions_role_arn
+    GATEWAY_AWS_ROLE_ARN = module.github_oidc.oidc_role
     AWS_REGION           = var.aws_region
     CLUSTER_NAME         = module.eks.cluster_name
   }

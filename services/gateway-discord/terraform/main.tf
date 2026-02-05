@@ -139,16 +139,123 @@ module "eks" {
   }
 }
 
-# GitHub OIDC Module
+# GitHub OIDC Module - Using official terraform-module/github-oidc-provider/aws
+# https://registry.terraform.io/modules/terraform-module/github-oidc-provider/aws/latest
 module "github_oidc" {
-  source = "./modules/github-oidc"
+  source  = "terraform-module/github-oidc-provider/aws"
+  version = "~> 2.2"
 
-  cluster_name               = local.cluster_name
-  environment                = var.environment
-  github_org                 = var.github_org
-  github_repo                = var.github_repo
-  create_oidc_provider       = var.create_oidc_provider
-  create_github_actions_role = var.create_github_actions_role
+  create_oidc_provider = var.create_oidc_provider
+  create_oidc_role     = var.create_github_actions_role
+
+  role_name        = local.github_actions_role_name
+  role_description = "IAM role for GitHub Actions to deploy gateway-discord to EKS"
+
+  # Repository access patterns - allows main, dev, feature branches, PRs, and environments
+  repositories = [
+    "${var.github_org}/${var.github_repo}:ref:refs/heads/main",
+    "${var.github_org}/${var.github_repo}:ref:refs/heads/dev",
+    "${var.github_org}/${var.github_repo}:ref:refs/heads/feat/*",
+    "${var.github_org}/${var.github_repo}:pull_request",
+    "${var.github_org}/${var.github_repo}:environment:gateway-dev",
+    "${var.github_org}/${var.github_repo}:environment:gateway-prd"
+  ]
+
+  # Attach managed policies (inline policies added separately below)
+  oidc_role_attach_policies = []
+
+  # Increase session duration for longer deployments
+  max_session_duration = 3600
+
+  tags = {
+    Name        = local.github_actions_role_name
+    Environment = var.environment
+  }
+}
+
+# Data sources for IAM policy scoping
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+# Locals for GitHub Actions role
+locals {
+  github_actions_env_suffix = var.environment == "production" ? "prd" : "dev"
+  github_actions_role_name  = "github-actions-gateway-${local.github_actions_env_suffix}"
+  account_id                = data.aws_caller_identity.current.account_id
+  region                    = data.aws_region.current.id
+
+  # aws-auth ConfigMap data for Kubernetes access
+  aws_auth_configmap_data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = module.github_oidc.oidc_role
+        username = "github-actions"
+        groups   = ["github-actions-deployers"]
+      }
+    ])
+  }
+}
+
+# IAM Policy for EKS access - scoped to specific cluster
+resource "aws_iam_role_policy" "github_actions_eks" {
+  count = var.create_github_actions_role ? 1 : 0
+
+  name = "${local.github_actions_role_name}-eks-policy"
+  role = local.github_actions_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters"
+        ]
+        Resource = "arn:aws:eks:${local.region}:${local.account_id}:cluster/${local.cluster_name}"
+      }
+    ]
+  })
+
+  depends_on = [module.github_oidc]
+}
+
+# IAM Policy for ECR access - scoped to gateway-discord repositories
+resource "aws_iam_role_policy" "github_actions_ecr" {
+  count = var.create_github_actions_role ? 1 : 0
+
+  name = "${local.github_actions_role_name}-ecr-policy"
+  role = local.github_actions_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ECRGetAuthToken"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
+        ]
+        Resource = "arn:aws:ecr:${local.region}:${local.account_id}:repository/gateway-discord*"
+      }
+    ]
+  })
+
+  depends_on = [module.github_oidc]
 }
 
 # Kubernetes Resources Module
@@ -169,7 +276,7 @@ module "k8s_resources" {
   blob_token               = var.blob_token
   enable_aws_auth_update   = var.enable_aws_auth_update
   node_group_role_arn      = module.eks.eks_managed_node_groups["main"].iam_role_arn
-  github_actions_role_arn  = module.github_oidc.github_actions_role_arn
+  github_actions_role_arn  = module.github_oidc.oidc_role
   existing_aws_auth_roles  = var.existing_aws_auth_roles
 
   depends_on = [module.eks]
