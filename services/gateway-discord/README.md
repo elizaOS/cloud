@@ -185,6 +185,24 @@ A single system-wide Discord bot for the Eliza App, configured via environment v
 - **Leader election**: Only one pod connects the bot to prevent duplicates
 - **Environment-based config**: Token set via `ELIZA_APP_DISCORD_BOT_TOKEN`
 
+**Discord.js Client Configuration:**
+```typescript
+// Required intents for DM support
+intents: [
+  GatewayIntentBits.DirectMessages,  // Receive DM events
+  GatewayIntentBits.MessageContent,  // Read message content
+]
+
+// Required partials for DM support (CRITICAL!)
+// DM channels are NOT cached by default in Discord.js
+partials: [
+  Partials.Channel,  // Handle uncached DM channels
+  Partials.Message,  // Handle partial message events
+]
+```
+
+> **Important**: Without `Partials.Channel` and `Partials.Message`, the bot will silently ignore DM messages because DM channels are not part of any guild and are not cached by default.
+
 ### 2. User-Created Bots (Multi-tenant)
 
 Bots created by users through the dashboard, stored in `discord_connections` table.
@@ -194,6 +212,21 @@ Bots created by users through the dashboard, stored in `discord_connections` tab
 - **DB-configured**: Bot tokens stored encrypted in PostgreSQL
 - **Channel filtering**: Can be configured to respond in specific channels
 - **Response modes**: Supports "always", "mention", and "keyword" modes
+- **DM support**: Fully supports DMs in addition to guild channels
+
+**Discord.js Client Configuration:**
+```typescript
+// Intents from database or defaults
+intents: assignment.intents || DEFAULT_DISCORD_INTENTS
+
+// Required partials for DM support (applied to ALL user bots)
+partials: [
+  Partials.Channel,  // Handle uncached DM channels
+  Partials.Message,  // Handle partial message events
+]
+```
+
+> **Note**: Partials are automatically configured for all user-created bots to ensure DM functionality works correctly.
 
 ### Leader Election for Eliza App Bot
 
@@ -245,15 +278,22 @@ If leader dies:
 ### Setting Up the Eliza App Bot
 
 1. **Create a Discord Application** at [Discord Developer Portal](https://discord.com/developers/applications)
+   - Click "New Application" and give it a name
+   - Copy the **Application ID** from General Information page
 
 2. **Configure the Bot:**
-   - Enable `MESSAGE CONTENT INTENT` (required for DM messages)
-   - Bot permissions needed: `Send Messages`
+   - Go to the "Bot" section in the left sidebar
+   - Click "Reset Token" to generate a new bot token
+   - Copy the **Bot Token** (you'll only see it once!)
+   - Under "Privileged Gateway Intents", enable:
+     - `MESSAGE CONTENT INTENT` (required to read DM content)
 
-3. **Generate OAuth2 URL:**
+3. **Invite Bot to Test Server (Optional):**
+   The Eliza App bot is DM-only, but you can invite it to a server to make it easier for users to find and DM:
    ```
    https://discord.com/oauth2/authorize?client_id=YOUR_APP_ID&scope=bot&permissions=2048
    ```
+   > Note: `permissions=2048` grants "Send Messages" only, which is sufficient for DM responses.
 
 4. **Set Environment Variables (Local Development):**
    ```bash
@@ -584,19 +624,26 @@ When Eliza Cloud needs to send a response back to Discord, it uses the **same bo
 
 ### Prerequisites
 
-#### 1. Discord Bot Setup
+#### 1. Discord Bot Setup (for User-Created Bots)
+
+Follow these steps to create a Discord bot for the multi-tenant gateway:
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a new application
-3. Navigate to **Bot** section and create a bot
-4. Copy the **Bot Token** (you'll need this)
-5. Copy the **Application ID** (from General Information)
-6. Enable **Privileged Gateway Intents**:
-   - `MESSAGE CONTENT INTENT` (required)
-   - `SERVER MEMBERS INTENT` (optional)
-7. Generate OAuth2 URL and invite bot to your test server:
-   - Scopes: `bot`
-   - Permissions: `Send Messages`, `Read Message History`, `Add Reactions`
+2. Click **"New Application"** and give it a name
+3. Copy the **Application ID** from the General Information page
+4. Navigate to the **Bot** section in the left sidebar
+5. Click **"Reset Token"** to generate a new bot token
+6. Copy the **Bot Token** (you'll only see it once!)
+7. Enable **Privileged Gateway Intents**:
+   - `MESSAGE CONTENT INTENT` (required - allows reading message content)
+   - `SERVER MEMBERS INTENT` (optional - for member-related events)
+8. Generate OAuth2 URL and invite bot to your test server:
+   - Go to **OAuth2 → URL Generator**
+   - Select scopes: `bot`
+   - Select permissions: `Send Messages`, `Read Message History`, `Add Reactions`
+   - Copy the generated URL and open it in a browser to invite the bot
+
+> **Tip**: The dashboard's "Add to Server" button automatically generates the correct OAuth2 URL with permissions: Send Messages (2048) + Read Message History (65536) + Add Reactions (64) = 67648
 
 #### 2. Environment Variables
 

@@ -672,7 +672,10 @@ export function DiscordGatewayConnection() {
                       <li>
                         Enable &quot;Message Content Intent&quot; under Privileged Gateway Intents
                       </li>
-                      <li>Paste both values below and select a character</li>
+                      <li>Paste both values below, select a character, and click Connect</li>
+                      <li>
+                        After connecting, click &quot;Add to Server&quot; to invite the bot
+                      </li>
                     </ol>
                   </CollapsibleContent>
                 </Collapsible>
@@ -723,7 +726,10 @@ export function DiscordGatewayConnection() {
                   <li>
                     Enable &quot;Message Content Intent&quot; under Privileged Gateway Intents
                   </li>
-                  <li>Paste both values below and select a character</li>
+                  <li>Paste both values below, select a character, and click Connect</li>
+                  <li>
+                    After connecting, click &quot;Add to Server&quot; to invite the bot
+                  </li>
                 </ol>
               </CollapsibleContent>
             </Collapsible>
@@ -736,6 +742,7 @@ export function DiscordGatewayConnection() {
               <h4 className="font-medium mb-2">What your Discord bot can do:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Respond to messages with AI-powered conversations</li>
+                <li>• Handle both server channels and direct messages (DMs)</li>
                 <li>• React only when mentioned (configurable)</li>
                 <li>• Process voice messages automatically</li>
                 <li>• Handle multiple Discord servers simultaneously</li>

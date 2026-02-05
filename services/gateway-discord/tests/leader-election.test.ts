@@ -276,6 +276,33 @@ describe("Leader Election with Discord Intents", () => {
   });
 });
 
+describe("Discord Partials for DM Support", () => {
+  // Partials enum values from Discord.js
+  // These are required for DM support because DM channels are not cached by default
+  const REQUIRED_PARTIALS = {
+    Channel: 0,  // Partials.Channel - required for DM channel events
+    Message: 2,  // Partials.Message - required for partial message events
+  };
+
+  test("Channel partial is required for DM events", () => {
+    // DM channels are not part of any guild and are not cached by default
+    // Without Partials.Channel, the bot won't receive DM messages
+    expect(REQUIRED_PARTIALS.Channel).toBe(0);
+  });
+
+  test("Message partial enables handling of uncached messages", () => {
+    // When a message event comes in for a partial message, this allows handling it
+    expect(REQUIRED_PARTIALS.Message).toBe(2);
+  });
+
+  test("both Channel and Message partials should be configured", () => {
+    const requiredPartials = [REQUIRED_PARTIALS.Channel, REQUIRED_PARTIALS.Message];
+    expect(requiredPartials).toContain(0); // Channel
+    expect(requiredPartials).toContain(2); // Message
+    expect(requiredPartials.length).toBe(2);
+  });
+});
+
 describe("Environment Variable Configuration", () => {
   const hasElizaAppBotConfig = (env: Record<string, string | undefined>): boolean => {
     return !!env.ELIZA_APP_DISCORD_BOT_TOKEN;

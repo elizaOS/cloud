@@ -3,6 +3,7 @@ import {
   GatewayIntentBits,
   Events,
   Message,
+  Partials,
   type ClientOptions,
 } from "discord.js";
 import { Redis } from "@upstash/redis";
@@ -758,6 +759,8 @@ export class GatewayManager {
 
     const clientOptions: ClientOptions = {
       intents: assignment.intents || DEFAULT_DISCORD_INTENTS,
+      // Partials required for DM support - DM channels are not cached by default
+      partials: [Partials.Channel, Partials.Message],
     };
 
     const client = new Client(clientOptions);
@@ -1602,6 +1605,8 @@ export class GatewayManager {
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
       ],
+      // Partials required for DM support - DM channels are not cached by default
+      partials: [Partials.Channel, Partials.Message],
     });
 
     this.elizaAppClient.on(Events.ClientReady, () => {
