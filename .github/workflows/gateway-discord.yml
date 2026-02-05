@@ -253,9 +253,22 @@ jobs:
           TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
           TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
         run: |
-          terraform plan -no-color \
-            -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
-            -out=tfplan
+          # For PRs, only plan infrastructure modules (skip k8s_resources which requires cluster access)
+          # For pushes/manual, plan everything
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            terraform plan -no-color \
+              -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
+              -target=module.vpc \
+              -target=module.eks \
+              -target=module.github_oidc \
+              -target=aws_iam_role_policy.github_actions_eks \
+              -target=aws_iam_role_policy.github_actions_ecr \
+              -out=tfplan
+          else
+            terraform plan -no-color \
+              -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
+              -out=tfplan
+          fi
         continue-on-error: true
 
       - name: Post Plan to PR
