@@ -47,7 +47,7 @@ async function githubFetch(endpoint: string, options: RequestInit = {}) {
 
   if (response.status === 204) return {};
   const text = await response.text();
-  if (!text) return {};
+  if (!text || !text.trim()) return {};
   return JSON.parse(text);
 }
 
