@@ -622,6 +622,7 @@ async function storeConnection(
     .from(platformCredentials)
     .where(
       and(
+        eq(platformCredentials.organization_id, organizationId),
         eq(platformCredentials.user_id, userId),
         eq(platformCredentials.platform, providerPlatform),
       ),
