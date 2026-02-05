@@ -6,6 +6,8 @@ This document outlines the proper workflow for managing database migrations with
 
 We use [Drizzle ORM](https://orm.drizzle.team/) for database management. Migrations are stored in `db/migrations/` and tracked in `db/migrations/meta/_journal.json`.
 
+**IMPORTANT**: As of this PR, `db:push` is deprecated. All schema changes MUST go through migrations.
+
 ## Why Migrations Matter
 
 **The Problem**: Without proper migration tracking, you lose visibility into:
@@ -127,6 +129,40 @@ After consolidation, for existing production databases:
    VALUES ('migration_tag_here', NOW());
    ```
 
+## Custom Migrations
+
+For changes that can't be auto-generated from TypeScript schemas (triggers, functions, complex constraints), use custom migrations:
+
+```bash
+npx drizzle-kit generate --custom --name=my_custom_migration
+```
+
+This creates an empty SQL file that you fill in manually.
+
+**Important constraints for custom migrations:**
+- Do NOT use `CREATE INDEX CONCURRENTLY` - drizzle runs migrations in transactions
+- Use `IF NOT EXISTS` / `IF EXISTS` for idempotency
+- Do NOT add duplicate statements that exist in other migrations
+
+## Seeding Production Migration Tracking
+
+When production was previously using `db:push`, you need to seed the `__drizzle_migrations` table:
+
+1. **Dump production schema and compare** with what migrations create
+2. **Compute hashes** for each migration file:
+   ```bash
+   sha256sum db/migrations/*.sql
+   ```
+3. **Insert records** for all applied migrations:
+   ```sql
+   INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+   VALUES
+     ('hash_from_sha256sum', timestamp_from_journal),
+     ...;
+   ```
+
+The `created_at` values must match the `when` timestamps in `_journal.json`.
+
 ## Best Practices
 
 1. **Small, focused migrations**: One logical change per migration
@@ -139,6 +175,8 @@ After consolidation, for existing production databases:
    - WHY: Data migrations may need different rollback strategies and can be slow
 5. **Never modify applied migrations**: Create new migrations instead
    - WHY: Modifying applied migrations causes checksum mismatches and breaks tracking
+6. **Never use CONCURRENTLY in migrations**: Drizzle runs in transactions
+   - Use `CREATE INDEX` without CONCURRENTLY keyword
 
 ## Directory Structure
 
