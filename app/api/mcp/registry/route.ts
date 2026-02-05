@@ -276,7 +276,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         linear: {
           type: "streamable-http",
-          url: "/api/mcps/linear/streamable-http",
+          url: "${BASE_URL}/api/mcps/linear/streamable-http",
         },
       },
     },
@@ -309,7 +309,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         notion: {
           type: "streamable-http",
-          url: "/api/mcps/notion/streamable-http",
+          url: "${BASE_URL}/api/mcps/notion/streamable-http",
         },
       },
     },
@@ -342,7 +342,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         github: {
           type: "streamable-http",
-          url: "/api/mcps/github/streamable-http",
+          url: "${BASE_URL}/api/mcps/github/streamable-http",
         },
       },
     },

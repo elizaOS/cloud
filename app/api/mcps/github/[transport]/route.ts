@@ -868,7 +868,7 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/branches/${branch}`);
+            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");

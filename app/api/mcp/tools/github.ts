@@ -979,7 +979,7 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, branch }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/branches/${branch}`);
+        const data = await githubFetch(`/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`);
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to get branch"));
