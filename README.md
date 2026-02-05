@@ -440,13 +440,6 @@ openssl rand -hex 32
 Run migrations to create all tables:
 
 ```bash
-npm run db:push
-```
-
-For production, use migration files:
-
-```bash
-npm run db:generate
 npm run db:migrate
 ```
 
@@ -485,9 +478,8 @@ npm run build            # Production build with Turbopack
 npm start                # Start production server
 
 # Database
-npm run db:generate      # Generate migrations
-npm run db:migrate       # Run migrations
-npm run db:push          # Push schema changes (dev only)
+npm run db:generate      # Generate migrations from schema changes
+npm run db:migrate       # Run pending migrations
 npm run db:studio        # Open Drizzle Studio
 
 # Code Quality
@@ -509,7 +501,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 3. **Instant feedback**: Turbopack provides sub-second HMR
 4. **Test features**: Navigate to `/dashboard` routes
 5. **Check types**: `npm run check-types`
-6. **Database changes**: Edit `db/*/schema.ts` → `npm run db:push`
+6. **Database changes**: Edit `db/schemas/*.ts` → `npm run db:generate` → `npm run db:migrate`
 
 ### Project Structure Guidelines
 
@@ -982,7 +974,35 @@ POST /api/eliza/rooms/{roomId}/messages
 }
 ```
 
-### 8. API Key Management
+### 8. Developer API & Programmatic Access
+
+**Location**: Documented management endpoints that explicitly note API key support
+
+API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`). Not every `/api/v1/` or `/api/my-agents/` route supports API keys today, so rely on the documented list, enabling:
+
+- **Programmatic Agent Management**: Create, update, delete, and clone agents via API
+- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications
+- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
+- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
+
+Session-based auth only (no API key support yet): `/api/v1/api-keys`, `/api/v1/apps/[id]/deploy`, `/api/v1/dashboard`, `/api/my-agents/characters/[id]/track-interaction`.
+
+**Why API Keys for Management Endpoints?**
+
+Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:
+
+1. **Developer Experience**: Developers can build integrations without browser-based auth flows
+2. **Agent Autonomy**: AI agents need to manage their own resources (credits, other agents, voices) autonomously
+3. **Automation**: CI/CD pipelines, scripts, and external systems can interact with the platform programmatically
+4. **No Vendor Lock-in**: Generic endpoint paths (`/api/v1/voice/` instead of provider-specific paths) allow switching providers without breaking integrations
+
+**Generic Voice API**: Voice endpoints use provider-agnostic paths (`/api/v1/voice/tts` instead of `/api/elevenlabs/tts`) so your code doesn't need to change if the underlying provider changes. Legacy paths are preserved for backwards compatibility.
+
+**Billing Management**: Agents and developers can configure auto-top-up settings programmatically, ensuring autonomous agents never stop working due to insufficient credits.
+
+---
+
+### 9. API Key Management
 
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 
@@ -1306,40 +1326,18 @@ Integrated into the main database via `@elizaos/plugin-sql` schema. These tables
 
 ### Database Migrations
 
-See [docs/database-migrations.md](./docs/database-migrations.md) for comprehensive migration documentation.
-
-**Generate migration** (from schema changes):
+**Generate migration**:
 
 ```bash
-bun run db:generate
+npm run db:generate
 ```
 
-This creates SQL migration files in `db/migrations/` with proper journal tracking.
+This creates SQL migration files in `db/migrations/`.
 
-**Apply migrations**:
-
-```bash
-bun run db:migrate
-```
-
-**Push schema** (development only, bypasses migration tracking):
+**Apply migration**:
 
 ```bash
-bun run db:push
-```
-
-⚠️ **Never use `db:push` in production** - it doesn't track which changes were applied.
-
-**Audit migration state**:
-
-```bash
-DATABASE_URL=... bun run scripts/audit-migrations.ts
-```
-
-**Consolidate migrations** (if journal gets out of sync):
-
-```bash
-bun run scripts/consolidate-migrations.ts
+npm run db:migrate
 ```
 
 ### Race Condition Prevention
@@ -1377,7 +1375,7 @@ See `lib/queries/container-quota.ts` for full implementation.
 
 ### Authentication
 
-All API routes support two authentication methods:
+Documented management endpoints that include API key examples support two authentication methods:
 
 1. **Session Cookie** (Privy): Automatic for logged-in users
 2. **API Key Header**: `Authorization: Bearer eliza_your_key`
