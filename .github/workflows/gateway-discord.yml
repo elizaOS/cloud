@@ -253,9 +253,18 @@ jobs:
           TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
           TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
         run: |
-          # For PRs, only plan infrastructure modules (skip k8s_resources which requires cluster access)
-          # For pushes/manual, plan everything
+          # For PRs and manual terraform-plan, only plan infrastructure modules
+          # (skip k8s_resources which requires cluster access that Terraform role doesn't have)
+          # For pushes and manual terraform-apply, plan everything
+          PLAN_ONLY="false"
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PLAN_ONLY="true"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "terraform-plan" ]]; then
+            PLAN_ONLY="true"
+          fi
+
+          if [[ "$PLAN_ONLY" == "true" ]]; then
+            echo "Running targeted plan (infrastructure modules only)"
             terraform plan -no-color \
               -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
               -target=module.vpc \
@@ -265,6 +274,7 @@ jobs:
               -target=aws_iam_role_policy.github_actions_ecr \
               -out=tfplan
           else
+            echo "Running full plan (all modules)"
             terraform plan -no-color \
               -var-file=${{ needs.detect-changes.outputs.tfvars_file }} \
               -out=tfplan
