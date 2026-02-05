@@ -47,7 +47,7 @@ node_group_capacity_type  = "ON_DEMAND"
 github_org                 = "elizaOS"
 github_repo                = "eliza-cloud-v2"
 create_oidc_provider       = false # GitHub OIDC provider already exists in AWS account
-create_github_actions_role = false # Role already exists from previous run
+create_github_actions_role = true  # Create role with EKS/ECR policies for deploy job
 
 # aws-auth ConfigMap
 enable_aws_auth_update = true
