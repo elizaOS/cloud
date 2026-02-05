@@ -227,6 +227,43 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  microsoft: {
+    id: "microsoft",
+    name: "Microsoft",
+    description: "Outlook Mail, Calendar, and OneDrive",
+    type: "oauth2",
+    envVars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      userInfo: "https://graph.microsoft.com/v1.0/me",
+    },
+    defaultScopes: [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "User.Read",
+      "Calendars.Read",
+      "Calendars.ReadWrite",
+      "Mail.Read",
+      "Mail.ReadWrite",
+      "Mail.Send",
+    ],
+    userInfoMapping: {
+      id: "id",
+      email: "mail",
+      displayName: "displayName",
+      username: "userPrincipalName",
+    },
+    authParams: {
+      response_mode: "query",
+      prompt: "consent",
+    },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   linear: {
     id: "linear",
     name: "Linear",
