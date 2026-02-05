@@ -332,7 +332,10 @@ jobs:
             })
 
       - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
+        # Fail the job if plan failed, EXCEPT for destroy operations (which don't need a plan)
+        if: |
+          steps.plan.outcome == 'failure' &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-destroy')
         run: exit 1
 
       - name: Terraform Apply
