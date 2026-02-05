@@ -229,18 +229,18 @@ export function registerLinearTools(server: McpServer): void {
     },
     async ({ id, ...rest }) => {
       try {
-        const input: Record<string, unknown> = { id };
+        const input: Record<string, unknown> = {};
         Object.entries(rest).forEach(([key, value]) => {
           if (value !== undefined) input[key] = value;
         });
         const data = await linearGraphQL(
-          `mutation IssueUpdate($input: IssueUpdateInput!) {
-            issueUpdate(input: $input) {
+          `mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+            issueUpdate(id: $id, input: $input) {
               success
               issue { id identifier title url }
             }
           }`,
-          { input },
+          { id, input },
         );
         return jsonResponse(data);
       } catch (error) {
@@ -364,13 +364,13 @@ export function registerLinearTools(server: McpServer): void {
     async ({ id, body }) => {
       try {
         const data = await linearGraphQL(
-          `mutation CommentUpdate($input: CommentUpdateInput!) {
-            commentUpdate(input: $input) {
+          `mutation CommentUpdate($id: String!, $input: CommentUpdateInput!) {
+            commentUpdate(id: $id, input: $input) {
               success
               comment { id body updatedAt }
             }
           }`,
-          { input: { id, body } },
+          { id, input: { body } },
         );
         return jsonResponse(data);
       } catch (error) {
@@ -568,18 +568,18 @@ export function registerLinearTools(server: McpServer): void {
     },
     async ({ id, ...rest }) => {
       try {
-        const input: Record<string, unknown> = { id };
+        const input: Record<string, unknown> = {};
         Object.entries(rest).forEach(([key, value]) => {
           if (value !== undefined) input[key] = value;
         });
         const data = await linearGraphQL(
-          `mutation ProjectUpdate($input: ProjectUpdateInput!) {
-            projectUpdate(input: $input) {
+          `mutation ProjectUpdate($id: String!, $input: ProjectUpdateInput!) {
+            projectUpdate(id: $id, input: $input) {
               success
               project { id name }
             }
           }`,
-          { input },
+          { id, input },
         );
         return jsonResponse(data);
       } catch (error) {
