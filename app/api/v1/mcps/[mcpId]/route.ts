@@ -42,7 +42,7 @@ const updateMcpSchema = z.object({
       z.object({
         name: z.string().min(1).max(50),
         description: z.string().min(1).max(500),
-        inputSchema: z.record(z.unknown()).optional(),
+        inputSchema: z.record(z.string(), z.unknown()).optional(),
         cost: z.string().max(20).optional(),
       }),
     )
@@ -138,10 +138,18 @@ export async function PUT(
     );
   }
 
+  // Convert null values to undefined for UpdateMcpParams compatibility
+  const updateData = {
+    ...validation.data,
+    documentationUrl: validation.data.documentationUrl ?? undefined,
+    sourceCodeUrl: validation.data.sourceCodeUrl ?? undefined,
+    supportEmail: validation.data.supportEmail ?? undefined,
+  };
+
   const mcp = await userMcpsService.update(
     mcpId,
     authResult.user.organization_id,
-    validation.data,
+    updateData,
   );
 
   logger.info("[API] Updated user MCP", {
