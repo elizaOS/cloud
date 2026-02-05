@@ -777,23 +777,7 @@ async function storeConnection(
         refreshTokenSecretId = refreshSecret.id;
       }
     } catch (secretError) {
-      // Clean up any secrets we created before the failure
-      if (newlyCreatedSecretIds.length > 0) {
-        logger.warn(`[OAuth2] Secret creation failed, cleaning up ${newlyCreatedSecretIds.length} secret(s)`, {
-          providerId: provider.id,
-          organizationId,
-          error: secretError instanceof Error ? secretError.message : String(secretError),
-        });
-        for (const secretId of newlyCreatedSecretIds) {
-          try {
-            await secretsService.delete(secretId, organizationId, audit);
-          } catch (cleanupError) {
-            logger.error(`[OAuth2] Failed to cleanup secret ${secretId}`, {
-              error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
-            });
-          }
-        }
-      }
+      await cleanupNewlyCreatedSecrets("Secret creation failed");
       throw secretError;
     }
   }
