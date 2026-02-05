@@ -963,9 +963,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, path, message, content, branch, committer, author }) => {
           try {
             const orgId = getOrgId();
+            const encodedContent = Buffer.from(content).toString("base64");
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}`, {
               method: "PUT",
-              body: JSON.stringify({ message, content, branch, committer, author }),
+              body: JSON.stringify({ message, content: encodedContent, branch, committer, author }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -991,9 +992,10 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, path, message, content, sha, branch, committer, author }) => {
           try {
             const orgId = getOrgId();
+            const encodedContent = Buffer.from(content).toString("base64");
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}`, {
               method: "PUT",
-              body: JSON.stringify({ message, content, sha, branch, committer, author }),
+              body: JSON.stringify({ message, content: encodedContent, sha, branch, committer, author }),
             });
             return jsonResult(data);
           } catch (e) {
