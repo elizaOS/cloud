@@ -897,7 +897,7 @@ export class SecureTokenRedemptionService {
 
   // Fix #6: Update limits with UTC
   private async updateDailyLimitsUTC(
-    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    tx: Parameters<Parameters<typeof dbWrite.transaction>[0]>[0],
     userId: string,
     usdValue: number,
   ): Promise<void> {
@@ -1167,7 +1167,7 @@ export class SecureTokenRedemptionService {
    */
   private async checkFraudPatterns(
     userId: string,
-    appId: string,
+    appId: string | undefined,
     pointsAmount: number,
     payoutAddress?: string,
   ): Promise<{ flagged: boolean; warning?: string; requiresReview?: boolean }> {
@@ -1177,60 +1177,62 @@ export class SecureTokenRedemptionService {
     );
 
     // Look for recent earnings transactions
-    const recentEarnings = await dbRead.execute(sql`
-      SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
-      FROM app_earnings_transactions
-      WHERE app_id = ${appId}
-      AND type IN ('inference_markup', 'purchase_share')
-      AND created_at >= ${oneHourAgo}
-    `);
+    if (appId) {
+      const recentEarnings = await dbRead.execute(sql`
+        SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
+        FROM app_earnings_transactions
+        WHERE app_id = ${appId}
+        AND type IN ('inference_markup', 'purchase_share')
+        AND created_at >= ${oneHourAgo}
+      `);
 
-    const recentCount = Number(
-      (recentEarnings.rows[0] as { count: string })?.count || 0,
-    );
-    const recentTotal = Number(
-      (recentEarnings.rows[0] as { total: string })?.total || 0,
-    );
+      const recentCount = Number(
+        (recentEarnings.rows[0] as { count: string })?.count || 0,
+      );
+      const recentTotal = Number(
+        (recentEarnings.rows[0] as { total: string })?.total || 0,
+      );
 
-    if (recentCount > 0 && recentTotal > (pointsAmount / 100) * 0.5) {
-      return {
-        flagged: true,
-        warning: `Flagged: ${recentCount} earnings transactions within last hour`,
-        requiresReview: true,
-      };
-    }
-
-    // Check 2: High redemption ratio
-    const totalEarned = await dbRead.execute(sql`
-      SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
-      FROM app_earnings_transactions
-      WHERE app_id = ${appId}
-      AND type IN ('inference_markup', 'purchase_share')
-    `);
-
-    const totalRedeemed = await dbRead.execute(sql`
-      SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
-      FROM token_redemptions
-      WHERE user_id = ${userId}
-      AND app_id = ${appId}
-      AND status IN ('completed', 'approved', 'processing')
-    `);
-
-    const earned = Number(
-      (totalEarned.rows[0] as { total: string })?.total || 0,
-    );
-    const redeemed = Number(
-      (totalRedeemed.rows[0] as { total: string })?.total || 0,
-    );
-
-    if (earned > 0) {
-      const redemptionRatio = (redeemed + pointsAmount / 100) / earned;
-      if (redemptionRatio >= FRAUD_THRESHOLDS.HIGH_REDEMPTION_RATIO) {
+      if (recentCount > 0 && recentTotal > (pointsAmount / 100) * 0.5) {
         return {
           flagged: true,
-          warning: `Flagged: High redemption ratio (${(redemptionRatio * 100).toFixed(1)}% of earnings redeemed)`,
+          warning: `Flagged: ${recentCount} earnings transactions within last hour`,
           requiresReview: true,
         };
+      }
+
+      // Check 2: High redemption ratio
+      const totalEarned = await dbRead.execute(sql`
+        SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
+        FROM app_earnings_transactions
+        WHERE app_id = ${appId}
+        AND type IN ('inference_markup', 'purchase_share')
+      `);
+
+      const totalRedeemed = await dbRead.execute(sql`
+        SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
+        FROM token_redemptions
+        WHERE user_id = ${userId}
+        AND app_id = ${appId}
+        AND status IN ('completed', 'approved', 'processing')
+      `);
+
+      const earned = Number(
+        (totalEarned.rows[0] as { total: string })?.total || 0,
+      );
+      const redeemed = Number(
+        (totalRedeemed.rows[0] as { total: string })?.total || 0,
+      );
+
+      if (earned > 0) {
+        const redemptionRatio = (redeemed + pointsAmount / 100) / earned;
+        if (redemptionRatio >= FRAUD_THRESHOLDS.HIGH_REDEMPTION_RATIO) {
+          return {
+            flagged: true,
+            warning: `Flagged: High redemption ratio (${(redemptionRatio * 100).toFixed(1)}% of earnings redeemed)`,
+            requiresReview: true,
+          };
+        }
       }
     }
 

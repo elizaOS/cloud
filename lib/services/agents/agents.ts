@@ -33,6 +33,7 @@ import { CacheTTL } from "@/lib/cache/keys";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { roomsService } from "./rooms";
+import { ContentType, type Media } from "@elizaos/core";
 
 // Cache key helper for agent info
 const agentInfoCacheKey = (agentId: string) => `agent:info:${agentId}`;
@@ -104,7 +105,7 @@ class AgentsService {
 
     // Cache for 5 minutes
     if (agent) {
-      await cacheClient.set(cacheKey, agent, CacheTTL.MEDIUM);
+      await cacheClient.set(cacheKey, agent, CacheTTL.agent.info);
     }
 
     return agent;
@@ -114,7 +115,7 @@ class AgentsService {
    * Invalidate agent cache after updates
    */
   async invalidateCache(agentId: string): Promise<void> {
-    await cacheClient.delete(agentInfoCacheKey(agentId));
+    await cacheClient.del(agentInfoCacheKey(agentId));
   }
 
   /**
@@ -317,10 +318,20 @@ class AgentsService {
 
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
 
+      const mediaAttachments: Media[] =
+        attachments?.map((attachment) => ({
+          id: crypto.randomUUID(),
+          url: attachment.url,
+          title: attachment.filename,
+          contentType:
+            attachment.type === "image"
+              ? ContentType.IMAGE
+              : ContentType.DOCUMENT,
+        })) ?? [];
       const { message: agentMessage, usage: messageUsage } =
         await agentRuntime.handleMessage(roomId, {
           text: message,
-          attachments: attachments || [],
+          attachments: mediaAttachments,
         });
 
       await agentEventEmitter.emitResponseComplete(

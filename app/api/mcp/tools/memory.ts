@@ -3,7 +3,7 @@
  * Tools for saving, retrieving, deleting, and analyzing memories
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import DOMPurify from "isomorphic-dompurify";
 import {
@@ -241,6 +241,13 @@ export function registerMemoryTools(server: McpServer): void {
           throw error;
         }
 
+        const sortOrder =
+          sortBy === "relevance" ||
+          sortBy === "recent" ||
+          sortBy === "importance"
+            ? sortBy
+            : "relevance";
+
         let memories: Awaited<
           ReturnType<typeof memoryService.retrieveMemories>
         >;
@@ -252,7 +259,7 @@ export function registerMemoryTools(server: McpServer): void {
             type,
             tags,
             limit,
-            sortBy,
+            sortBy: sortOrder,
           });
         } catch (retrieveError) {
           await reservation?.reconcile(0);

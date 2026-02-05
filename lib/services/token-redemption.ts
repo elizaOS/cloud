@@ -598,7 +598,7 @@ export class TokenRedemptionService {
    * Update daily limits after a redemption.
    */
   private async updateDailyLimits(
-    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    tx: Parameters<Parameters<typeof dbWrite.transaction>[0]>[0],
     userId: string,
     pointsAmount: number,
   ): Promise<void> {

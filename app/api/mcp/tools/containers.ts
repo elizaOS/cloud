@@ -3,7 +3,7 @@
  * Tools for managing deployed containers
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import {
   creditsService,
@@ -232,18 +232,29 @@ export function registerContainerTools(server: McpServer): void {
           throw error;
         }
 
+        const [repositoryUri, imageTag] = ecrImageUri.split(":");
+        if (!imageTag) {
+          throw new Error("ECR image URI must include a tag");
+        }
+
         let container;
         try {
           container = await containersService.create({
             organization_id: user.organization_id,
+            user_id: user.id,
             name,
             project_name: projectName,
-            ecr_image_uri: ecrImageUri,
+            ecr_repository_uri: repositoryUri,
+            ecr_image_tag: imageTag,
+            image_tag: imageTag,
             port,
             cpu,
             memory,
             environment_vars: environmentVars || {},
             status: "deploying",
+            metadata: {
+              ecr_image_uri: ecrImageUri,
+            },
           });
         } catch (opError) {
           await reservation?.reconcile(0);

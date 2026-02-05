@@ -3,7 +3,7 @@
  * Tools for managing and interacting with ElizaOS agents
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -63,11 +63,9 @@ export function registerAgentTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        const agentId = `org:${user.organization_id}`;
-        contentModerationService.moderateAgentInBackground(
+        contentModerationService.moderateInBackground(
           message,
           user.id,
-          agentId,
           roomId,
           (result) => {
             logger.warn("[MCP] chat_with_agent moderation violation", {
@@ -189,7 +187,7 @@ export function registerAgentTools(server: McpServer): void {
       try {
         const { user } = getAuthContext();
 
-        const result = await agentDiscoveryService.listAgents(
+        const result = await agentDiscoveryService.listCharacters(
           user.organization_id,
           user.id,
           filters,
@@ -198,7 +196,7 @@ export function registerAgentTools(server: McpServer): void {
 
         return jsonResponse({
           success: true,
-          agents: result.agents,
+          agents: result.characters,
           total: result.total,
           cached: result.cached,
         });
@@ -274,6 +272,7 @@ export function registerAgentTools(server: McpServer): void {
           system: system || null,
           category: category || "assistant",
           tags: tags || [],
+          character_data: {},
           source: "mcp",
         });
 

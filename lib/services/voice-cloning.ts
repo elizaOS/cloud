@@ -80,12 +80,14 @@ export class VoiceCloningService {
       fileCount: files.length,
     });
 
+    let job: NewVoiceCloningJob | undefined;
+
     try {
       // Validate files
       this.validateAudioFiles(files);
 
       // Create job record
-      const [job] = await dbWrite
+      const [createdJob] = await dbWrite
         .insert(voiceCloningJobs)
         .values({
           organizationId,
@@ -101,6 +103,7 @@ export class VoiceCloningService {
           startedAt: new Date(),
         })
         .returning();
+      job = createdJob;
 
       logger.info(`[VoiceCloning] Created job ${job.id}`, { jobId: job.id });
 

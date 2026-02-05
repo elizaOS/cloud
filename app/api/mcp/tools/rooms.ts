@@ -2,7 +2,7 @@
  * Room management tools
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -25,8 +25,8 @@ export function registerRoomTools(server: McpServer): void {
           success: true,
           rooms: rooms.map((r) => ({
             id: r.id,
-            characterId: r.character_id,
-            lastMessage: r.last_message_preview,
+            characterId: r.characterId,
+            lastMessage: r.lastText,
           })),
           total: rooms.length,
         });

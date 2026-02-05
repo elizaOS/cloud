@@ -162,8 +162,9 @@ export function BuildModeAssistant({
 
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
+    const renderedMessages = renderedMessagesRef.current;
     return () => {
-      renderedMessagesRef.current.clear();
+      renderedMessages.clear();
       clearAllStreaming(); // Cancel pending rAF frames and clear text
     };
   }, [clearAllStreaming]);

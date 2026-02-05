@@ -86,9 +86,9 @@ export function useModelAvailability(
   // Check initial models on mount
   useEffect(() => {
     if (initialModelIds && initialModelIds.length > 0) {
-      checkModels(initialModelIds);
+      void checkModels(initialModelIds);
     }
-  }, []); // Only run on mount
+  }, [checkModels, initialModelIds]);
 
   return { availability, reasons, isLoading, error, checkModels };
 }

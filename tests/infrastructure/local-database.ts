@@ -74,8 +74,10 @@ export async function getDatabaseInfo(): Promise<{
   }
 }
 
-export default {
+const localDatabase = {
   getConnectionString,
   verifyConnection,
   getDatabaseInfo,
 };
+
+export default localDatabase;

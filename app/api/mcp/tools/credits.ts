@@ -3,7 +3,7 @@
  * Tools for checking balance, usage, transactions, and billing
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
@@ -154,16 +154,15 @@ export function registerCreditTools(server: McpServer): void {
         const { user } = getAuthContext();
         const org = user.organization;
 
-        const redeemable = await redeemableEarningsService.getBalance(
-          user.organization_id,
-        );
+        const redeemable = await redeemableEarningsService.getBalance(user.id);
         const agentBudgets = await agentBudgetService.getOrgBudgets(
           user.organization_id,
         );
-        const totalAgentBudgets = agentBudgets.reduce(
-          (sum, b) => sum + Number(b.remaining_budget || 0),
-          0,
-        );
+        const totalAgentBudgets = agentBudgets.reduce((sum, b) => {
+          const allocated = Number(b.allocated_budget);
+          const spent = Number(b.spent_budget);
+          return sum + Math.max(allocated - spent, 0);
+        }, 0);
 
         return jsonResponse({
           success: true,
@@ -255,14 +254,25 @@ export function registerCreditTools(server: McpServer): void {
 
         return jsonResponse({
           success: true,
-          packs: packs.map((p) => ({
-            id: p.id,
-            name: p.name,
-            credits: Number(p.credits),
-            price: Number(p.price),
-            currency: p.currency,
-            popular: p.popular,
-          })),
+          packs: packs.map((p) => {
+            const metadata = p.metadata as {
+              currency?: string;
+              popular?: boolean;
+            };
+            const currency =
+              typeof metadata.currency === "string" ? metadata.currency : "USD";
+            const popular =
+              typeof metadata.popular === "boolean" ? metadata.popular : false;
+
+            return {
+              id: p.id,
+              name: p.name,
+              credits: Number(p.credits),
+              price: Number(p.price_cents) / 100,
+              currency,
+              popular,
+            };
+          }),
         });
       } catch (error) {
         return errorResponse(

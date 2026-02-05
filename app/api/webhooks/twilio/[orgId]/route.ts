@@ -47,7 +47,10 @@ async function handleTwilioWebhook(
       if (validationError instanceof ZodError) {
         logger.warn("[TwilioWebhook] Invalid webhook payload", {
           orgId,
-          errors: validationError.errors.map(e => ({ path: e.path, message: e.message })),
+          errors: validationError.issues.map((e) => ({
+            path: e.path,
+            message: e.message,
+          })),
         });
         return new NextResponse("Invalid webhook payload", { status: 400 });
       }

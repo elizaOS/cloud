@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -151,7 +151,7 @@ export function DiscordGatewayConnection() {
     isActive: boolean;
   }>>({});
 
-  const fetchConnections = async (signal?: AbortSignal) => {
+  const fetchConnections = useCallback(async (signal?: AbortSignal) => {
     try {
       const response = await fetch("/api/v1/discord/connections", { signal });
       if (!signal?.aborted && response.ok) {
@@ -163,9 +163,9 @@ export function DiscordGatewayConnection() {
         toast.error("Failed to fetch Discord connections");
       }
     }
-  };
+  }, []);
 
-  const fetchCharacters = async (signal?: AbortSignal) => {
+  const fetchCharacters = useCallback(async (signal?: AbortSignal) => {
     setIsLoadingCharacters(true);
     try {
       const response = await fetch("/api/v1/dashboard", { signal });
@@ -187,19 +187,19 @@ export function DiscordGatewayConnection() {
         setIsLoadingCharacters(false);
       }
     }
-  };
+  }, []);
 
-  const fetchData = async (signal?: AbortSignal) => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     await Promise.all([fetchConnections(signal), fetchCharacters(signal)]);
     setIsLoading(false);
-  };
+  }, [fetchConnections, fetchCharacters]);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchData(controller.signal);
+    void fetchData(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [fetchData]);
 
   const handleRefreshCharacters = () => {
     void fetchCharacters();

@@ -3,7 +3,7 @@
  * Tools for managing organization API keys
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { getAuthContext } from "../lib/context";
@@ -105,7 +105,7 @@ export function registerApiKeyTools(server: McpServer): void {
     async ({ apiKeyId }) => {
       try {
         const { user } = getAuthContext();
-        await apiKeysService.delete(apiKeyId, user.organization_id);
+        await apiKeysService.delete(apiKeyId);
 
         return jsonResponse({ success: true, apiKeyId });
       } catch (error) {

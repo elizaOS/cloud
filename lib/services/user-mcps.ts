@@ -115,7 +115,10 @@ class UserMcpsService {
   async create(params: CreateMcpParams): Promise<UserMcp> {
     // Validate container exists if using container endpoint
     if (params.endpointType === "container" && params.containerId) {
-      const container = await containersService.getById(params.containerId);
+      const container = await containersService.getById(
+        params.containerId,
+        params.organizationId,
+      );
       if (!container) {
         throw new Error("Container not found");
       }
@@ -608,7 +611,13 @@ class UserMcpsService {
       throw new Error("Unauthorized");
     }
 
-    return mcpUsageRepository.getStats(mcpId);
+    const stats = await mcpUsageRepository.getStats(mcpId);
+    return {
+      totalRequests: stats.totalRequests,
+      totalCreditsEarned: stats.totalCreditsCharged,
+      totalX402EarnedUsd: stats.totalX402Usd,
+      uniqueUsers: stats.uniqueOrgs,
+    };
   }
 
   /**

@@ -18,6 +18,7 @@ export function SurveyBanner({ className }: SurveyBannerProps) {
 
   useEffect(() => {
     const isDismissed = localStorage.getItem(STORAGE_KEY) === "true";
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate from localStorage
     setDismissed(isDismissed);
   }, []);
 

@@ -131,6 +131,11 @@ export const tokenRedemptions = pgTable(
         gas_used?: string;
         gas_price?: string;
         block_number?: number;
+        idempotency_key?: string;
+        twap_sample_count?: number;
+        twap_volatility?: number;
+        ledger_entry_id?: string;
+        earnings_source?: string;
       }>()
       .default({})
       .notNull(),
@@ -206,6 +211,7 @@ export const elizaTokenPrices = pgTable(
         volume_24h?: number;
         market_cap?: number;
         price_change_24h?: number;
+        is_twap_sample?: boolean;
       }>()
       .default({})
       .notNull(),
