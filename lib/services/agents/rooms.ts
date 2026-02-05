@@ -258,6 +258,55 @@ export class RoomsService {
   }
 
   /**
+   * Atomically create a room with entity and participant in a single transaction.
+   * Prevents race condition where room creation succeeds but participant addition fails,
+   * leaving the system in an inconsistent state.
+   */
+  async createRoomWithParticipant(
+    roomInput: CreateRoomInput,
+    entityId: string,
+  ): Promise<Room> {
+    const roomId = roomInput.id || uuidv4();
+    const agentId = roomInput.agentId;
+
+    if (!agentId) {
+      throw new Error("agentId is required for createRoomWithParticipant");
+    }
+
+    return await dbWrite.transaction(async (tx) => {
+      // Create room
+      const [room] = await tx
+        .insert(roomTable)
+        .values({
+          id: roomId,
+          agentId,
+          source: roomInput.source || "web",
+          type: roomInput.type || "DM",
+          name: roomInput.name,
+          metadata: roomInput.metadata,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      // Create entity (upsert - ignore if exists)
+      await entitiesRepository.create({
+        id: entityId,
+        agentId,
+        names: [entityId],
+      });
+
+      // Add participant
+      await participantsRepository.create({
+        roomId,
+        entityId,
+        agentId,
+      });
+
+      return room;
+    });
+  }
+
+  /**
    * Update room metadata
    */
   async updateMetadata(

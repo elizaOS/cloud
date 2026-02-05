@@ -248,36 +248,35 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   const roomId = generateElizaAppRoomId("discord", DEFAULT_AGENT_ID, discordUserId);
   const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
-  // Create room if needed
+  // Create room with participant atomically (prevents race condition)
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {
-    await roomsService.createRoom({
-      id: roomId,
-      agentId: DEFAULT_AGENT_ID,
-      entityId,
-      source: "discord",
-      type: "DM",
-      name: `Discord: ${discordGlobalName || discordUsername}`,
-      metadata: {
-        channel: "discord",
-        discordUserId,
-        discordChannelId: data.channel_id,
-        userId: entityId,
-        organizationId: organization.id,
-      },
-    });
-  }
-
-  // Always ensure participant exists (handles partial failures on retry)
-  try {
-    await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
-  } catch (error) {
-    // PostgreSQL unique constraint violation code = 23505
-    const isUniqueViolation = (error as { code?: string }).code === "23505";
-    if (!isUniqueViolation) {
-      throw error;
+    try {
+      await roomsService.createRoomWithParticipant(
+        {
+          id: roomId,
+          agentId: DEFAULT_AGENT_ID,
+          source: "discord",
+          type: "DM",
+          name: `Discord: ${discordGlobalName || discordUsername}`,
+          metadata: {
+            channel: "discord",
+            discordUserId,
+            discordChannelId: data.channel_id,
+            userId: entityId,
+            organizationId: organization.id,
+          },
+        },
+        entityId
+      );
+    } catch (error) {
+      // Handle unique constraint violation (room already created by concurrent request)
+      const isUniqueViolation = (error as { code?: string }).code === "23505";
+      if (!isUniqueViolation) {
+        throw error;
+      }
+      logger.debug("[ElizaApp DiscordWebhook] Room already exists (concurrent creation)", { roomId });
     }
-    logger.debug("[ElizaApp DiscordWebhook] Participant already exists", { roomId, entityId });
   }
 
   const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, ROOM_LOCK_TTL_MS, {
