@@ -32,10 +32,10 @@ async function notionFetch(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`https://api.notion.com${endpoint}`, {
     ...options,
     headers: {
+      ...options.headers,
       Authorization: `Bearer ${token}`,
       "Notion-Version": "2025-09-03",
       "Content-Type": "application/json",
-      ...options.headers,
     },
   });
 
