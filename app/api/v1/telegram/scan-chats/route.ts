@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
+import type { Update } from "telegraf/types";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
@@ -7,9 +8,18 @@ import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 30;
 
-type TelegramUpdate = {
-  [key: string]: unknown;
-};
+// Type guard helpers for Telegram Update types
+function hasMyChatMember(update: Update): update is Update.MyChatMemberUpdate {
+  return "my_chat_member" in update;
+}
+
+function hasMessage(update: Update): update is Update.MessageUpdate {
+  return "message" in update;
+}
+
+function hasChannelPost(update: Update): update is Update.ChannelPostUpdate {
+  return "channel_post" in update;
+}
 
 /**
  * GET /api/v1/telegram/scan-chats
@@ -75,20 +85,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Get recent updates (includes my_chat_member events)
-    const updates = (await bot.telegram.getUpdates(
+    // getUpdates args: offset, limit, timeout, allowed_updates
+    const updates = await bot.telegram.getUpdates(
       0,
       100,
       0,
       ["my_chat_member", "message", "channel_post"],
-    )) as unknown as TelegramUpdate[];
+    );
 
     logger.info("[Telegram Scan] Got updates from Telegram", {
       organizationId: user.organization_id,
       updateCount: updates.length,
       updateTypes: updates.map((u) => {
-        if ("my_chat_member" in u) return "my_chat_member";
-        if ("message" in u) return "message";
-        if ("channel_post" in u) return "channel_post";
+        if (hasMyChatMember(u)) return "my_chat_member";
+        if (hasMessage(u)) return "message";
+        if (hasChannelPost(u)) return "channel_post";
         return "unknown";
       }),
     });
@@ -106,19 +117,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const botInfo = await bot.telegram.getMe();
 
     for (const update of updates) {
-      let chat: {
+      type ChatInfo = {
         id: number;
         title?: string;
         type: string;
         username?: string;
-      } | null = null;
+      };
+      let chat: ChatInfo | null = null;
 
-      if ("my_chat_member" in update) {
-        chat = (update as any).my_chat_member?.chat ?? null;
-      } else if ("message" in update && (update as any).message?.chat) {
-        chat = (update as any).message.chat as typeof chat;
-      } else if ("channel_post" in update && (update as any).channel_post?.chat) {
-        chat = (update as any).channel_post.chat as typeof chat;
+      if (hasMyChatMember(update)) {
+        const c = update.my_chat_member.chat;
+        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
+      } else if (hasMessage(update)) {
+        const c = update.message.chat;
+        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
+      } else if (hasChannelPost(update)) {
+        const c = update.channel_post.chat;
+        chat = { id: c.id, type: c.type, title: "title" in c ? c.title : undefined, username: "username" in c ? c.username : undefined };
       }
 
       if (
