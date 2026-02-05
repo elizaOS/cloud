@@ -635,7 +635,7 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, name, new_name, color, description }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${name}`, {
+            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, {
               method: "PATCH",
               body: JSON.stringify({ new_name, color, description }),
             });
@@ -653,7 +653,7 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, name }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${name}`, { method: "DELETE" });
+            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, { method: "DELETE" });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");

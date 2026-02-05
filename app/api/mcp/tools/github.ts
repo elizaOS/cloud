@@ -700,7 +700,7 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, name, new_name, color, description }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${name}`, {
+        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, {
           method: "PATCH",
           body: JSON.stringify({ new_name, color, description }),
         });
@@ -723,7 +723,7 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, name }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${name}`, { method: "DELETE" });
+        const data = await githubFetch(`/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, { method: "DELETE" });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete label"));
