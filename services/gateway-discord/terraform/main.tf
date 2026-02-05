@@ -98,9 +98,11 @@ module "eks" {
   }
 
   # Managed Node Group
+  # Note: Using short name to avoid AWS name_prefix length limit (38 chars)
+  # The module adds "-eks-node-group-" suffix to launch template name_prefix
   eks_managed_node_groups = {
     main = {
-      name = "${local.cluster_name}-node-group"
+      name = "main"
 
       instance_types = var.node_group_instance_types
       capacity_type  = var.node_group_capacity_type
