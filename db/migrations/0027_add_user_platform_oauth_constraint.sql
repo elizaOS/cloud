@@ -33,7 +33,7 @@ SET
   revoked_at = CASE WHEN d.status = 'active' THEN NOW() ELSE pc.revoked_at END,
   updated_at = NOW(),
   user_id = NULL,
-  error_message = COALESCE(pc.error_message, 'Detached during migration: duplicate user/platform connection')
+  error_message = COALESCE(pc.error_message, '[Migration 0027] Detached duplicate user/platform connection')
 FROM duplicates d
 WHERE pc.id = d.id;
 
