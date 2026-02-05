@@ -315,7 +315,7 @@ export function SandboxFileExplorer({
   };
 
   // Save file (uses native sandbox.writeFiles internally)
-  const saveFile = async (path: string) => {
+  const saveFile = useCallback(async (path: string) => {
     const file = openFiles.find((f) => f.path === path);
     if (!file) return;
 
@@ -354,7 +354,7 @@ export function SandboxFileExplorer({
     } finally {
       setSaving(false);
     }
-  };
+  }, [openFiles, sessionId]);
 
   // Update file content
   const updateFileContent = (path: string, content: string) => {
@@ -388,7 +388,7 @@ export function SandboxFileExplorer({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeFile, openFiles]);
+  }, [activeFile, saveFile]);
 
   // Monaco editor setup
   const handleEditorDidMount = (

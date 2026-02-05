@@ -86,6 +86,7 @@ export class AppAnalyticsService {
     // Return current totals as a snapshot
     // Note: This is cumulative, not period-specific. For period-specific
     // analytics, implement usage_records querying when needed.
+    const totalCreditsUsed = app.total_credits_used ?? "0.00";
     return {
       app_id: appId,
       period_start: periodStart,
@@ -99,7 +100,7 @@ export class AppAnalyticsService {
       total_input_tokens: 0, // Would need usage_records query
       total_output_tokens: 0, // Would need usage_records query
       total_cost: "0.00",
-      total_credits_used: app.total_credits_used,
+      total_credits_used: totalCreditsUsed,
       chat_requests: 0, // Would need usage_records query by type
       image_requests: 0,
       video_requests: 0,
@@ -130,7 +131,7 @@ export class AppAnalyticsService {
       };
     }
 
-    const markupPercentage = parseFloat(app.custom_pricing_markup || "0");
+    const markupPercentage = parseFloat(app.inference_markup_percentage ?? "0");
     const markup = baseCost * (markupPercentage / 100);
     const finalCost = baseCost + markup;
 
@@ -162,13 +163,14 @@ export class AppAnalyticsService {
     }
 
     const avgRequestsPerDay = Math.round(app.total_requests / days);
-    const totalCostNum = parseFloat(app.total_credits_used);
+    const totalCreditsUsed = app.total_credits_used ?? "0.00";
+    const totalCostNum = parseFloat(totalCreditsUsed);
     const avgCostPerDay = (totalCostNum / days).toFixed(2);
 
     return {
       totalRequests: app.total_requests,
       totalUsers: app.total_users,
-      totalCost: app.total_credits_used,
+      totalCost: totalCreditsUsed,
       avgRequestsPerDay,
       avgCostPerDay,
     };

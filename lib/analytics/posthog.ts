@@ -32,6 +32,10 @@ export type PostHogEvent =
   | "container_deploy_started"
   | "container_deploy_completed"
   | "container_deploy_failed"
+  // Container Billing
+  | "container_shutdown_insufficient_credits"
+  | "container_shutdown_warning_sent"
+  | "container_daily_billed"
   // Billing & Credits (Legacy - maintained for backwards compatibility)
   // Use these for basic credit tracking without payment method details
   | "credits_purchased" // Simple credit purchase event (use checkout_completed for detailed tracking)
@@ -130,6 +134,30 @@ export interface ContainerDeployProps {
   memory?: number;
   container_url?: string;
   cost?: number;
+}
+
+export interface ContainerShutdownInsufficientCreditsProps {
+  container_id: string;
+  container_name: string;
+  organization_id: string;
+  balance_at_shutdown: number;
+}
+
+export interface ContainerShutdownWarningSentProps {
+  container_id: string;
+  container_name: string;
+  organization_id: string;
+  daily_cost: number;
+  current_balance: number;
+  scheduled_shutdown: string;
+}
+
+export interface ContainerDailyBilledProps {
+  container_id: string;
+  container_name: string;
+  organization_id: string;
+  amount: number;
+  new_balance: number;
 }
 
 export interface PageViewedProps {
@@ -350,6 +378,9 @@ export type EventProperties =
   | AgentChatStartedProps
   | AgentChatMessageSentProps
   | ContainerDeployProps
+  | ContainerShutdownInsufficientCreditsProps
+  | ContainerShutdownWarningSentProps
+  | ContainerDailyBilledProps
   | PageViewedProps
   | BillingPageViewedProps
   | CreditsPurchaseStartedProps

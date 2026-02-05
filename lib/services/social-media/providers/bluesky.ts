@@ -106,7 +106,7 @@ async function uploadBlob(
         Authorization: `Bearer ${accessJwt}`,
         "Content-Type": mimeType,
       },
-      body: data,
+      body: new Uint8Array(data),
     },
   );
 

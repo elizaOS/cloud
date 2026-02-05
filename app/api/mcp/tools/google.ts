@@ -3,7 +3,7 @@
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";

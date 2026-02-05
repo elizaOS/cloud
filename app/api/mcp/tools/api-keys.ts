@@ -3,7 +3,7 @@
  * Tools for managing organization API keys
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { getAuthContext } from "../lib/context";
@@ -49,19 +49,17 @@ export function registerApiKeyTools(server: McpServer): void {
       description:
         "Create a new API key. FREE tool. Returns plain key only once!",
       inputSchema: {
-        name: z.string().min(1).describe("API key name"),
+        name: z.string().describe("API key name (required)"),
         description: z.string().optional().describe("Description"),
-        rateLimit: z
-          .number()
-          .int()
-          .min(1)
-          .optional()
-          .default(1000)
-          .describe("Rate limit per minute"),
+        rateLimit: z.number().optional().describe("Rate limit per minute"),
       },
     },
     async ({ name, description, rateLimit }) => {
       try {
+        if (!name || name.trim().length === 0) {
+          throw new Error("API key name is required");
+        }
+        const effectiveRateLimit = rateLimit ?? 1000;
         const { user } = getAuthContext();
 
         const { apiKey, plainKey } = await apiKeysService.create({
@@ -70,7 +68,7 @@ export function registerApiKeyTools(server: McpServer): void {
           organization_id: user.organization_id,
           user_id: user.id,
           permissions: [],
-          rate_limit: rateLimit,
+          rate_limit: effectiveRateLimit,
           expires_at: null,
           is_active: true,
         });
@@ -105,7 +103,17 @@ export function registerApiKeyTools(server: McpServer): void {
     async ({ apiKeyId }) => {
       try {
         const { user } = getAuthContext();
-        await apiKeysService.delete(apiKeyId, user.organization_id);
+
+        // Verify ownership before deletion to prevent IDOR
+        const existingKey = await apiKeysService.getById(apiKeyId);
+        if (!existingKey) {
+          throw new Error("API key not found");
+        }
+        if (existingKey.organization_id !== user.organization_id) {
+          throw new Error("API key not found");
+        }
+
+        await apiKeysService.delete(apiKeyId);
 
         return jsonResponse({ success: true, apiKeyId });
       } catch (error) {

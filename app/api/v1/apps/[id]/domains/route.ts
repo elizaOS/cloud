@@ -27,7 +27,6 @@ function isPotentialHomographDomain(domain: string): boolean {
   }
 
   // Check for non-ASCII characters (could be homoglyphs)
-  // eslint-disable-next-line no-control-regex
   if (/[^\x00-\x7F]/.test(domain)) {
     return true;
   }
@@ -85,7 +84,7 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
-  const user = await requireAuthWithOrg(request);
+  const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
@@ -125,7 +124,7 @@ export async function POST(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
-  const user = await requireAuthWithOrg(request);
+  const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
@@ -140,7 +139,7 @@ export async function POST(
   const validation = AddDomainSchema.safeParse(body);
 
   if (!validation.success) {
-    const firstError = validation.error.errors[0];
+    const firstError = validation.error.issues[0];
     return NextResponse.json(
       { success: false, error: firstError?.message || "Invalid domain format" },
       { status: 400 },
@@ -199,7 +198,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
-  const user = await requireAuthWithOrg(request);
+  const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);

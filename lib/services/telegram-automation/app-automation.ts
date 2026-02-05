@@ -105,6 +105,9 @@ class TelegramAppAutomationService {
     const updatedApp = await appsRepository.update(appId, {
       telegram_automation: updatedConfig,
     });
+    if (!updatedApp) {
+      throw new Error("Failed to update Telegram automation settings");
+    }
 
     logger.info("[TelegramAppAutomation] Automation enabled", {
       appId,
@@ -131,6 +134,9 @@ class TelegramAppAutomationService {
         enabled: false,
       },
     });
+    if (!updatedApp) {
+      throw new Error("Failed to disable Telegram automation");
+    }
 
     logger.info("[TelegramAppAutomation] Automation disabled", {
       appId,
@@ -256,7 +262,7 @@ Maximum 500 characters.`;
         system: systemPrompt,
         prompt:
           "Create a compelling announcement about this app that would engage a Telegram community. Focus on what makes it unique and valuable.",
-        maxTokens: 200,
+        maxOutputTokens: 200,
       });
 
       return result.text;
@@ -335,7 +341,7 @@ Maximum 300 characters.`;
         prompt: userName
           ? `User ${userName} says: "${userMessage}"`
           : `User says: "${userMessage}"`,
-        maxTokens: 150,
+        maxOutputTokens: 150,
       });
 
       return result.text;

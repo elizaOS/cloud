@@ -317,9 +317,11 @@ async function hashApiKey(key: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export default {
+const testDataFactory = {
   createTestDataSet,
   createTestRoom,
   createAnonymousSession,
   cleanupTestData,
 };
+
+export default testDataFactory;

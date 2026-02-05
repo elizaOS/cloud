@@ -80,6 +80,17 @@ export interface McpRegistryEntry {
   };
 }
 
+type RegistrySource = "platform" | "community";
+type BuiltInRegistryEntry = McpRegistryEntry & {
+  source: "platform";
+  fullEndpoint: string;
+};
+type UserRegistryEntry = ReturnType<typeof userMcpsService.toRegistryFormat> & {
+  source: "community";
+  fullEndpoint: string;
+};
+type RegistryEntry = BuiltInRegistryEntry | UserRegistryEntry;
+
 /**
  * Registry of available MCP servers
  * These can be enabled on agents via their character settings
@@ -298,7 +309,7 @@ export async function GET(request: NextRequest) {
           details: validationResult.error.issues.map((issue) => ({
             field: issue.path.join("."),
             message: issue.message,
-            received: issue.received,
+            received: "received" in issue ? issue.received : undefined,
           })),
         },
         { status: 400 },
@@ -308,7 +319,7 @@ export async function GET(request: NextRequest) {
     const { category, status, limit, search } = validationResult.data;
 
     // Process built-in registry entries
-    const builtInRegistry = MCP_REGISTRY.map((entry) => ({
+    const builtInRegistry: BuiltInRegistryEntry[] = MCP_REGISTRY.map((entry) => ({
       ...entry,
       source: "platform" as const,
       configTemplate: {
@@ -328,7 +339,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Fetch user MCPs (public, live)
-    let userMcpRegistry: typeof builtInRegistry = [];
+    let userMcpRegistry: UserRegistryEntry[] = [];
     try {
       const userMcps = await userMcpsService.listPublic({
         category: category !== "all" ? category : undefined,
@@ -350,7 +361,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Combine registries
-    const registry = [...builtInRegistry, ...userMcpRegistry];
+    const registry: RegistryEntry[] = [...builtInRegistry, ...userMcpRegistry];
 
     let filteredRegistry = registry;
 

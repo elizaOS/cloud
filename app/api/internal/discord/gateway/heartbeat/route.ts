@@ -38,7 +38,7 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
   const parsed = HeartbeatSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid payload", details: parsed.error.errors },
+      { error: "Invalid payload", details: parsed.error.issues },
       { status: 400 },
     );
   }

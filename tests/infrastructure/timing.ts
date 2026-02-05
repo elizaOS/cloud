@@ -172,7 +172,7 @@ export class TimingCollector {
   }
 }
 
-export default {
+const timing = {
   startTimer,
   endTimer,
   logTimings,
@@ -181,3 +181,5 @@ export default {
   HRTimer,
   TimingCollector,
 };
+
+export default timing;

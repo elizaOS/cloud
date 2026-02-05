@@ -393,6 +393,23 @@ class SecretsService {
     );
   }
 
+  async deleteByName(
+    organizationId: string,
+    name: string,
+    audit: AuditContext,
+    projectId?: string,
+    environment?: SecretEnvironment,
+  ): Promise<void> {
+    const existing = await secretsRepository.findByName(
+      organizationId,
+      name,
+      projectId,
+      environment,
+    );
+    if (!existing) return;
+    await this.delete(existing.id, organizationId, audit);
+  }
+
   async storeOAuthTokens(params: {
     organizationId: string;
     userId?: string;

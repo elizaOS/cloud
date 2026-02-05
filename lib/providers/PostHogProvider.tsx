@@ -10,6 +10,7 @@ import {
   trackEvent,
   getPostHog,
   getSignupMethod,
+  type PrivyUserAuthInfo,
 } from "@/lib/analytics/posthog";
 
 function PageViewTracker(): null {
@@ -52,11 +53,34 @@ function UserIdentifier(): null {
 
     // Handle login - fetch internal user ID for consistent identification
     if (authenticated && user && !identifiedRef.current) {
+      const authInfo: PrivyUserAuthInfo = {
+        email: user.email ? { address: user.email.address ?? undefined } : null,
+        google: user.google
+          ? {
+              email: user.google.email ?? undefined,
+              name: user.google.name ?? undefined,
+            }
+          : null,
+        discord: user.discord
+          ? {
+              email: user.discord.email ?? undefined,
+              username: user.discord.username ?? undefined,
+            }
+          : null,
+        github: user.github
+          ? { username: user.github.username ?? undefined }
+          : null,
+        wallet: user.wallet ? { address: user.wallet.address ?? undefined } : null,
+      };
       const email =
-        user.email?.address || user.google?.email || user.discord?.email;
+        authInfo.email?.address ??
+        authInfo.google?.email ??
+        authInfo.discord?.email;
       const name =
-        user.google?.name || user.discord?.username || user.github?.username;
-      const method = getSignupMethod(user);
+        authInfo.google?.name ??
+        authInfo.discord?.username ??
+        authInfo.github?.username;
+      const method = getSignupMethod(authInfo);
       const isFirstLogin = previousAuthState.current === false;
 
       // Fetch internal user ID from API

@@ -219,6 +219,7 @@ export const CacheTTL = {
   },
   agent: {
     roomContext: 300, // 5 minutes
+    info: 300, // 5 minutes - agent info lookup
     characterData: 3600, // 1 hour
     userSession: 300, // 5 minutes
     agentList: 3600, // 1 hour

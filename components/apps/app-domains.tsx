@@ -134,7 +134,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
   );
 
   useEffect(() => {
-    fetchDomains();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initial domain load
+    void fetchDomains();
   }, [fetchDomains]);
 
   useEffect(() => {
