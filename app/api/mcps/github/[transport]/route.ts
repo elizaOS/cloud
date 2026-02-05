@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 
 export const maxDuration = 60;
 
@@ -87,8 +88,12 @@ async function getGitHubMcpHandler() {
       server.tool("github_status", "Check GitHub OAuth connection status", {}, async () => {
         try {
           const orgId = getOrgId();
-          const data = await githubFetch(orgId, "/user");
-          return jsonResult(data);
+          const connections = await oauthService.listConnections({ organizationId: orgId, platform: "github" });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) {
+            return jsonResult({ connected: false, message: "GitHub not connected. Connect in Settings > Connections." });
+          }
+          return jsonResult({ connected: true, email: active.email, scopes: active.scopes, linkedAt: active.linkedAt });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -1034,6 +1039,13 @@ async function getGitHubMcpHandler() {
 async function handleRequest(req: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
+
+    const rateLimitKey = `mcp:ratelimit:github:${authResult.user.organization_id}`;
+    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
+    if (!rateLimit.allowed) {
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+    }
+
     const handler = await getGitHubMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 

@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 
 export const maxDuration = 60;
 
@@ -42,7 +43,7 @@ async function getNotionMcpHandler() {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
-        "Notion-Version": "2025-09-03",
+        "Notion-Version": "2022-06-28",
         "Content-Type": "application/json",
         ...options.headers,
       },
@@ -436,6 +437,13 @@ async function getNotionMcpHandler() {
 async function handleRequest(req: NextRequest): Promise<Response> {
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
+
+    const rateLimitKey = `mcp:ratelimit:notion:${authResult.user.organization_id}`;
+    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
+    if (!rateLimit.allowed) {
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
+    }
+
     const handler = await getNotionMcpHandler();
     const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 

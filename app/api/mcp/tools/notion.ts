@@ -33,7 +33,7 @@ async function notionFetch(endpoint: string, options: RequestInit = {}) {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
-      "Notion-Version": "2025-09-03",
+      "Notion-Version": "2022-06-28",
       "Content-Type": "application/json",
       ...options.headers,
     },
