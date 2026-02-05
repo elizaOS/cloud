@@ -324,7 +324,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     userInfoMapping: {
       id: "user_id",
       displayName: "user",
-      // Bot tokens don't have email - will be fetched separately if needed
+      // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
     storage: "platform_credentials",
     useGenericRoutes: true,
