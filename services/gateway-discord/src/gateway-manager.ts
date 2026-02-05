@@ -127,8 +127,13 @@ const MAX_BOTS_PER_POD = parseIntEnv("MAX_BOTS_PER_POD", 100);
 // Eliza App Bot Leader Election Constants
 // ============================================
 
-/** Redis key for Eliza App bot leader election */
-const ELIZA_APP_LEADER_KEY = "discord:eliza-app-bot:leader";
+/**
+ * Redis key for Eliza App bot leader election.
+ * Configurable via ELIZA_APP_LEADER_KEY env var to prevent collisions
+ * when sharing Redis across multiple environments (prod/staging/local).
+ */
+const ELIZA_APP_LEADER_KEY =
+  process.env.ELIZA_APP_LEADER_KEY || "discord:eliza-app-bot:leader";
 
 /** Leader election lock TTL in seconds (10 seconds) */
 const ELIZA_APP_LEADER_TTL_SECONDS = 10;

@@ -12,10 +12,10 @@
 import { describe, test, expect } from "bun:test";
 
 // ============================================
-// Constants (matching gateway-manager.ts)
+// Constants (matching gateway-manager.ts defaults)
 // ============================================
 
-/** Redis key for Eliza App bot leader election */
+/** Default Redis key for Eliza App bot leader election (configurable via env var) */
 const ELIZA_APP_LEADER_KEY = "discord:eliza-app-bot:leader";
 
 /** Leader election lock TTL in seconds (10 seconds) */
@@ -25,7 +25,7 @@ const ELIZA_APP_LEADER_TTL_SECONDS = 10;
 const ELIZA_APP_LEADER_CHECK_INTERVAL_MS = 3000;
 
 describe("Eliza App Bot Leader Election Constants", () => {
-  test("leader key has correct format", () => {
+  test("default leader key has correct format", () => {
     expect(ELIZA_APP_LEADER_KEY).toBe("discord:eliza-app-bot:leader");
     expect(ELIZA_APP_LEADER_KEY).toContain("discord:");
     expect(ELIZA_APP_LEADER_KEY).toContain("eliza-app");
