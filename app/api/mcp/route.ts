@@ -50,6 +50,7 @@ export async function getMcpHandler() {
     registerRedemptionTools,
     registerAnalyticsTools,
     registerGoogleTools,
+    registerHubSpotTools,
   } = await import("./tools");
 
   mcpHandler = createMcpHandler(
@@ -68,9 +69,10 @@ export async function getMcpHandler() {
       registerRedemptionTools(server);
       registerAnalyticsTools(server);
       registerGoogleTools(server);
+      registerHubSpotTools(server);
     },
     {},
-    { basePath: "/api" },
+    { basePath: "/api" }
   );
 
   return mcpHandler;
@@ -161,7 +163,7 @@ async function handleMcpRequest(req: NextRequest): Promise<Response> {
       {
         status: isAuthError ? 401 : 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }
