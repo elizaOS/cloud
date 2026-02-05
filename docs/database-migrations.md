@@ -68,7 +68,6 @@ bun run db:migrate        # Run migrations
 |---------|-------------|
 | `bun run db:generate` | Generate migration from schema changes |
 | `bun run db:migrate` | Run pending migrations |
-| `bun run db:push` | Push schema directly (dev only, no tracking) |
 | `bun run db:studio` | Open Drizzle Studio GUI |
 | `bun run db:local:setup` | Complete local DB setup |
 | `bun run db:local:start` | Start local PostgreSQL |
@@ -79,10 +78,9 @@ bun run db:migrate        # Run migrations
 Each migration consists of:
 
 - **SQL file**: `db/migrations/XXXX_migration_name.sql`
-- **Snapshot**: `db/migrations/meta/XXXX_snapshot.json`
 - **Journal entry**: In `db/migrations/meta/_journal.json`
 
-Drizzle automatically manages these files. Manual editing should be avoided.
+Drizzle also generates snapshot files (`XXXX_snapshot.json`) when using `db:generate`, but these are optional for migration tracking. The journal and SQL files are what matter for `db:migrate`.
 
 ## Troubleshooting
 
@@ -99,20 +97,6 @@ This will show:
 - Journal entries
 - Applied migrations in database (if connected)
 - Any discrepancies
-
-### Consolidate Migrations
-
-If migrations get out of sync, run:
-
-```bash
-bun run scripts/consolidate-migrations.ts
-```
-
-This will:
-1. Back up existing migrations
-2. Remove redundant duplicates
-3. Renumber migrations sequentially
-4. Update the journal
 
 ### Production Database Sync
 
@@ -186,9 +170,7 @@ db/
 │   ├── 0000_first_migration.sql
 │   ├── 0001_second_migration.sql
 │   └── meta/
-│       ├── _journal.json
-│       ├── 0000_snapshot.json
-│       └── 0001_snapshot.json
+│       └── _journal.json
 ├── schemas/
 │   ├── index.ts
 │   ├── users.ts
