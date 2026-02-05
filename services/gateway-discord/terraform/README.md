@@ -54,9 +54,10 @@ services/gateway-discord/terraform/
 ├── outputs.tf                 # Output values
 ├── providers.tf               # Provider configuration
 ├── versions.tf                # Required versions
-├── development.tfvars         # Development environment values
-├── production.tfvars          # Production environment values
-├── secrets.tfvars.example     # Example secrets file
+├── tfvars/
+│   ├── development.tfvars     # Development environment values
+│   ├── production.tfvars      # Production environment values
+│   └── secrets.tfvars.example # Example secrets file
 ├── backend-development.hcl    # Backend config for development
 ├── backend-production.hcl     # Backend config for production
 └── modules/
@@ -403,20 +404,20 @@ terraform init -backend-config=backend-production.hcl -reconfigure
 #### Create Secrets File
 
 ```bash
-cp secrets.tfvars.example secrets.tfvars
-# Edit secrets.tfvars with actual values
+cp tfvars/secrets.tfvars.example tfvars/secrets.tfvars
+# Edit tfvars/secrets.tfvars with actual values
 ```
 
 #### Plan and Apply
 
 ```bash
 # For development
-terraform plan -var-file=development.tfvars -var-file=secrets.tfvars
-terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
+terraform plan -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars
+terraform apply -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars
 
 # For production
-terraform plan -var-file=production.tfvars -var-file=secrets.tfvars
-terraform apply -var-file=production.tfvars -var-file=secrets.tfvars
+terraform plan -var-file=tfvars/production.tfvars -var-file=tfvars/secrets.tfvars
+terraform apply -var-file=tfvars/production.tfvars -var-file=tfvars/secrets.tfvars
 ```
 
 #### Phased Deployment (Large Infrastructure)
@@ -425,16 +426,16 @@ For initial deployment or debugging, you can deploy in phases:
 
 ```bash
 # Phase 1: VPC and EKS
-terraform apply -var-file=development.tfvars -var-file=secrets.tfvars \
+terraform apply -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars \
   -target=module.vpc \
   -target=module.eks
 
 # Phase 2: GitHub OIDC
-terraform apply -var-file=development.tfvars -var-file=secrets.tfvars \
+terraform apply -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars \
   -target=module.github_oidc
 
 # Phase 3: Kubernetes resources
-terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars
 ```
 
 ## Outputs
@@ -453,7 +454,7 @@ After applying, Terraform outputs:
 
 ```bash
 # CAUTION: This will destroy all resources
-terraform destroy -var-file=development.tfvars -var-file=secrets.tfvars
+terraform destroy -var-file=tfvars/development.tfvars -var-file=tfvars/secrets.tfvars
 ```
 
 ## Security Notes

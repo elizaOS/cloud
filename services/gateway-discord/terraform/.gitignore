@@ -6,6 +6,7 @@
 
 # Sensitive files
 secrets.tfvars
+tfvars/secrets.tfvars
 *.auto.tfvars
 
 # Crash log files

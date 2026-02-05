@@ -149,11 +149,11 @@ jobs:
           echo "environment=$ENV" >> $GITHUB_OUTPUT
 
           if [[ "$ENV" == "gateway-prd" ]]; then
-            echo "tfvars_file=production.tfvars" >> $GITHUB_OUTPUT
+            echo "tfvars_file=tfvars/production.tfvars" >> $GITHUB_OUTPUT
             echo "backend_config=backend-production.hcl" >> $GITHUB_OUTPUT
             echo "values_file=values-production.yaml" >> $GITHUB_OUTPUT
           else
-            echo "tfvars_file=development.tfvars" >> $GITHUB_OUTPUT
+            echo "tfvars_file=tfvars/development.tfvars" >> $GITHUB_OUTPUT
             echo "backend_config=backend-development.hcl" >> $GITHUB_OUTPUT
             echo "values_file=values-development.yaml" >> $GITHUB_OUTPUT
           fi
