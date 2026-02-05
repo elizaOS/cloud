@@ -3,35 +3,39 @@
 -- 1. Cleans up existing duplicate connections (keeps most recent, revokes older)
 -- 2. Adds partial unique index on (user_id, platform) WHERE user_id IS NOT NULL
 
--- Step 1: Revoke and detach duplicate connections for the same user/platform
--- Keep the most recently used/linked connection, revoke all others
+-- Step 1: Detach duplicate connections for the same user/platform
+-- Keep the most recently used/linked connection, null out user_id on all others
+-- Must cover ALL statuses (not just active) since the unique index applies to
+-- all rows WHERE user_id IS NOT NULL regardless of status
 WITH ranked_connections AS (
   SELECT
     id,
     user_id,
     platform,
+    status,
     ROW_NUMBER() OVER (
       PARTITION BY user_id, platform
       ORDER BY
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
         COALESCE(last_used_at, linked_at, updated_at, created_at) DESC
     ) as rn
   FROM platform_credentials
   WHERE user_id IS NOT NULL
-    AND status = 'active'
 ),
 duplicates AS (
-  SELECT id
+  SELECT id, status
   FROM ranked_connections
   WHERE rn > 1
 )
-UPDATE platform_credentials
+UPDATE platform_credentials pc
 SET
-  status = 'revoked',
-  revoked_at = NOW(),
+  status = CASE WHEN d.status = 'active' THEN 'revoked' ELSE d.status END,
+  revoked_at = CASE WHEN d.status = 'active' THEN NOW() ELSE pc.revoked_at END,
   updated_at = NOW(),
   user_id = NULL,
-  error_message = 'Revoked during migration: duplicate user/platform connection'
-WHERE id IN (SELECT id FROM duplicates);
+  error_message = COALESCE(pc.error_message, 'Detached during migration: duplicate user/platform connection')
+FROM duplicates d
+WHERE pc.id = d.id;
 
 -- Step 2: Create partial unique index to enforce single OAuth per user per platform
 -- NULL user_ids are allowed (org-level connections without specific user)
