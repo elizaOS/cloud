@@ -57,9 +57,16 @@ async function getLinearMcpHandler() {
       throw new Error(error?.message || `Linear API error: ${response.status}`);
     }
 
-    const data = await response.json().catch(() => ({}));
+    const text = await response.text();
+    if (!text || !text.trim()) return undefined;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Linear API returned invalid JSON: ${text.slice(0, 200)}`);
+    }
     if (data?.errors?.length) {
-      throw new Error(data.errors[0].message || "Linear API error");
+      throw new Error(data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error");
     }
     return data?.data;
   }
