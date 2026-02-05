@@ -88,6 +88,17 @@ async function sendDiscordMessage(
     return false;
   }
 
+  const DISCORD_MESSAGE_LIMIT = 2000;
+  const truncatedContent = content.slice(0, DISCORD_MESSAGE_LIMIT);
+
+  if (content.length > DISCORD_MESSAGE_LIMIT) {
+    logger.warn("[ElizaApp DiscordWebhook] Message truncated", {
+      channelId,
+      originalLength: content.length,
+      truncatedTo: DISCORD_MESSAGE_LIMIT,
+    });
+  }
+
   const makeRequest = async () => {
     return fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
@@ -96,7 +107,7 @@ async function sendDiscordMessage(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        content: content.slice(0, 2000), // Discord limit
+        content: truncatedContent,
         message_reference: replyToMessageId ? { message_id: replyToMessageId } : undefined,
       }),
     });
