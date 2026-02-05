@@ -322,10 +322,3 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 }
 
 export const POST = withInternalAuth(handleDiscordWebhook);
-
-export async function GET(): Promise<NextResponse> {
-  return NextResponse.json({
-    status: "ok",
-    service: "eliza-app-discord-webhook",
-  });
-}
