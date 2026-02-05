@@ -130,7 +130,16 @@ async function runMigrations() {
     const oldEnv = process.env.DATABASE_URL;
     process.env.DATABASE_URL = LOCAL_DATABASE_URL;
 
-    await execAsync("bun run db:push");
+    // WHY db:migrate instead of db:push:
+    // - db:push applies schema directly without tracking (great for rapid prototyping)
+    // - db:migrate runs migration files and records them in __drizzle_migrations
+    //
+    // Using db:migrate for local setup ensures:
+    // 1. Local DB matches production migration state
+    // 2. Developers can test migrations before deploying
+    // 3. The __drizzle_migrations table exists and is populated
+    // 4. No surprises when deploying - same migrations run everywhere
+    await execAsync("drizzle-kit migrate");
 
     process.env.DATABASE_URL = oldEnv;
 

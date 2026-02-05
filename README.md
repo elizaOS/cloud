@@ -440,13 +440,6 @@ openssl rand -hex 32
 Run migrations to create all tables:
 
 ```bash
-npm run db:push
-```
-
-For production, use migration files:
-
-```bash
-npm run db:generate
 npm run db:migrate
 ```
 
@@ -485,9 +478,8 @@ npm run build            # Production build with Turbopack
 npm start                # Start production server
 
 # Database
-npm run db:generate      # Generate migrations
-npm run db:migrate       # Run migrations
-npm run db:push          # Push schema changes (dev only)
+npm run db:generate      # Generate migrations from schema changes
+npm run db:migrate       # Run pending migrations
 npm run db:studio        # Open Drizzle Studio
 
 # Code Quality
@@ -509,7 +501,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 3. **Instant feedback**: Turbopack provides sub-second HMR
 4. **Test features**: Navigate to `/dashboard` routes
 5. **Check types**: `npm run check-types`
-6. **Database changes**: Edit `db/*/schema.ts` → `npm run db:push`
+6. **Database changes**: Edit `db/schemas/*.ts` → `npm run db:generate` → `npm run db:migrate`
 
 ### Project Structure Guidelines
 
@@ -1337,7 +1329,7 @@ Integrated into the main database via `@elizaos/plugin-sql` schema. These tables
 **Generate migration**:
 
 ```bash
-npm run db:generate
+bun run db:generate
 ```
 
 This creates SQL migration files in `db/migrations/`.
@@ -1345,16 +1337,8 @@ This creates SQL migration files in `db/migrations/`.
 **Apply migration**:
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
-
-**Push schema (dev only)**:
-
-```bash
-npm run db:push
-```
-
-⚠️ **Never use `db:push` in production** - always use migrations.
 
 ### Race Condition Prevention
 
