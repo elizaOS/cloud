@@ -153,13 +153,18 @@ function hasValidConfiguration(
   key: keyof typeof SETTINGS_PLUGIN_MAP,
   settings: Record<string, unknown>,
 ): boolean {
-  // n8n uses top-level N8N_API_KEY + N8N_HOST, not a nested settings.n8n object
   if (key === "n8n") {
+    const secrets =
+      settings.secrets && typeof settings.secrets === "object"
+        ? (settings.secrets as Record<string, unknown>)
+        : {};
+    const apiKey = settings.N8N_API_KEY ?? secrets.N8N_API_KEY;
+    const host = settings.N8N_HOST ?? secrets.N8N_HOST;
     return (
-      typeof settings.N8N_API_KEY === "string" &&
-      settings.N8N_API_KEY.length > 0 &&
-      typeof settings.N8N_HOST === "string" &&
-      settings.N8N_HOST.length > 0
+      typeof apiKey === "string" &&
+      apiKey.length > 0 &&
+      typeof host === "string" &&
+      host.length > 0
     );
   }
 

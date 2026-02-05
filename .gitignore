@@ -34,6 +34,8 @@ yarn-error.log*
 .env
 .env.local
 .env.dev
+.env.development
+.env.production
 
 # vercel
 .vercel
@@ -62,3 +64,6 @@ claudedocs
 
 # prr state file (auto-generated)
 .pr-resolver-state.json
+
+# Dev logs
+logs/

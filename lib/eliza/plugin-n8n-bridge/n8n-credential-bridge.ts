@@ -19,7 +19,8 @@
  * via runtime.getService("n8n_credential_provider").
  */
 
-import { Service, type IAgentRuntime, logger } from "@elizaos/core";
+import { Service, type IAgentRuntime } from "@elizaos/core";
+import { logger } from "@/lib/utils/logger";
 import { eq } from "drizzle-orm";
 
 import { oauthService } from "@/lib/services/oauth";
@@ -107,6 +108,12 @@ export class N8nCredentialBridge extends Service {
       }
     }
 
+    logger.info("[N8nCredentialBridge] checkCredentialTypes", {
+      requested: credTypes,
+      supported,
+      unsupported,
+    });
+
     return { supported, unsupported };
   }
 
@@ -158,10 +165,13 @@ export class N8nCredentialBridge extends Service {
         }));
     } catch (error) {
       // Connection revoked between isPlatformConnected check and token retrieval
-      logger.warn("[N8nCredentialBridge] Token retrieval failed after connection check", {
-        platform,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "[N8nCredentialBridge] Token retrieval failed after connection check",
+        {
+          platform,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
       const baseUrl =
         process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
       const result = await oauthService.initiateAuth({
@@ -188,7 +198,7 @@ export class N8nCredentialBridge extends Service {
         credential.refreshTokenSecretId,
         organizationId,
         {
-          actorType: "service",
+          actorType: "system",
           actorId: SERVICE_TYPE,
           source: "n8n-credential-bridge",
         },
@@ -226,6 +236,10 @@ export class N8nCredentialBridge extends Service {
         clientId,
         clientSecret,
         oauthTokenData,
+        // n8n schema requires these fields (validated via allOf conditionals)
+        serverUrl: "",
+        sendAdditionalBodyProperties: false,
+        additionalBodyProperties: {},
       },
     };
   }
