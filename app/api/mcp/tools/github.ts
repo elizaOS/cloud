@@ -34,6 +34,7 @@ async function githubFetch(endpoint: string, options: RequestInit = {}) {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
       "X-GitHub-Api-Version": "2022-11-28",
       ...options.headers,
     },
