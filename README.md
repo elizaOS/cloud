@@ -1329,7 +1329,7 @@ Integrated into the main database via `@elizaos/plugin-sql` schema. These tables
 **Generate migration**:
 
 ```bash
-npm run db:generate
+bun run db:generate
 ```
 
 This creates SQL migration files in `db/migrations/`.
@@ -1337,7 +1337,7 @@ This creates SQL migration files in `db/migrations/`.
 **Apply migration**:
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
 
 ### Race Condition Prevention
