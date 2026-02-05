@@ -261,27 +261,37 @@ jobs:
       - name: Post Plan to PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
+          FMT_OUTCOME: ${{ steps.fmt.outcome }}
+          INIT_OUTCOME: ${{ steps.init.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          TFSEC_OUTCOME: ${{ steps.tfsec.outcome }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          ENVIRONMENT: ${{ needs.detect-changes.outputs.environment }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
         with:
           script: |
             const MAX_PLAN_LENGTH = 60000;
-            let planOutput = `${{ steps.plan.outputs.stdout }}`;
+            let planOutput = process.env.PLAN_OUTPUT || '';
             let truncated = false;
             if (planOutput.length > MAX_PLAN_LENGTH) {
               planOutput = planOutput.substring(0, MAX_PLAN_LENGTH);
               truncated = true;
             }
 
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            #### Security Scan (tfsec) 🔒\`${{ steps.tfsec.outcome }}\`
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            const output = `#### Terraform Format and Style 🖌\`${process.env.FMT_OUTCOME}\`
+            #### Terraform Initialization ⚙️\`${process.env.INIT_OUTCOME}\`
+            #### Terraform Validation 🤖\`${process.env.VALIDATE_OUTCOME}\`
+            #### Security Scan (tfsec) 🔒\`${process.env.TFSEC_OUTCOME}\`
+            #### Terraform Plan 📖\`${process.env.PLAN_OUTCOME}\`
 
             > **Security**: All sensitive variables are marked with \`sensitive = true\` in Terraform
             > and will appear as \`(sensitive value)\` in the plan output. Security scan results
             > are uploaded to the Security tab. Review the plan for any accidental secret exposure.
 
-            <details><summary>Show Plan (${{ needs.detect-changes.outputs.environment }})${truncated ? ' - TRUNCATED' : ''}</summary>
+            <details><summary>Show Plan (${process.env.ENVIRONMENT})${truncated ? ' - TRUNCATED' : ''}</summary>
 
             \`\`\`terraform
             ${planOutput}
@@ -289,7 +299,7 @@ jobs:
             ${truncated ? '\n⚠️ *Plan output was truncated due to size. View full output in the Actions log.*\n' : ''}
             </details>
 
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            *Pusher: @${process.env.ACTOR}, Action: \`${process.env.EVENT_NAME}\`*`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
