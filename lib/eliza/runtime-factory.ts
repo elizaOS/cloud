@@ -567,6 +567,7 @@ export class RuntimeFactory {
 
     // Create runtime with user-specific settings in opts.settings (NOT character.settings)
     // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
+    // Note: Nested objects (like MCP settings) are JSON.stringified to preserve them
     const runtimeSettings: Record<string, string | undefined> =
       Object.fromEntries(
         Object.entries(ephemeralSettings).map(([key, value]) => [
@@ -575,7 +576,9 @@ export class RuntimeFactory {
             ? value
             : value === null || value === undefined
               ? undefined
-              : String(value),
+              : typeof value === "object"
+                ? JSON.stringify(value)
+                : String(value),
         ]),
       );
 
