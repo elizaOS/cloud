@@ -183,6 +183,13 @@
       "when": 1770081931640,
       "tag": "0025_add_oauth_platform_types",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1770305969232,
+      "tag": "0026_add_missing_columns_and_indexes",
+      "breakpoints": true
     }
   ]
 }
