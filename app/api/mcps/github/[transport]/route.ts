@@ -882,7 +882,7 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`, {
+            const data = await githubFetch(orgId, `/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
               method: "DELETE",
             });
             return jsonResult(data);

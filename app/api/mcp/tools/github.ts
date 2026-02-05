@@ -998,7 +998,7 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo, branch }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`, {
+        const data = await githubFetch(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
           method: "DELETE",
         });
         return jsonResponse(data);
