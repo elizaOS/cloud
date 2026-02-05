@@ -850,6 +850,15 @@ async function storeConnection(
     return connectionId;
   } catch (error) {
     await cleanupNewlyCreatedSecrets("Database insert failed");
+    // Map unique constraint violation on user_platform_idx to a domain error
+    // This handles the race condition where a concurrent OAuth completion for the
+    // same user/platform inserts between our revoke and insert
+    if (
+      error instanceof Error &&
+      error.message.includes("user_platform_idx")
+    ) {
+      throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
+    }
     throw error;
   }
 }
