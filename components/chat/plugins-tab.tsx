@@ -162,7 +162,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
     // Update character settings with new MCP config
     const newSettings = {
       ...character.settings,
-      mcp: newMcpSettings,
+      mcp: newMcpSettings as unknown as Record<string, unknown>,
     };
 
     // Also ensure plugin-mcp is in the plugins list
@@ -193,7 +193,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
     // Update character settings
     const newSettings = {
       ...character.settings,
-      mcp: newMcpSettings,
+      mcp: newMcpSettings as unknown as Record<string, unknown>,
     };
 
     // Remove plugin-mcp from plugins if no servers left

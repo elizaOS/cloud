@@ -129,7 +129,6 @@ export async function writeTransaction<T>(
       : never,
   ) => Promise<T>,
 ): Promise<T> {
-  // @ts-expect-error - Transaction type is complex, but this works
   return dbWrite.transaction(fn);
 }
 

@@ -36,7 +36,7 @@ export class ParticipantsRepository {
       .from(participantTable)
       .where(eq(participantTable.roomId, roomId));
 
-    return results;
+    return results as Participant[];
   }
 
   /**
@@ -148,7 +148,7 @@ export class ParticipantsRepository {
           ),
         )
         .limit(1);
-      return existing[0];
+      return existing[0] as Participant;
     }
 
     const [participant] = await dbWrite
@@ -162,7 +162,7 @@ export class ParticipantsRepository {
       })
       .returning();
 
-    return participant;
+    return participant as Participant;
   }
 
   /**
@@ -217,7 +217,7 @@ export class ParticipantsRepository {
       )
       .returning();
 
-    return participant;
+    return participant as Participant;
   }
 }
 

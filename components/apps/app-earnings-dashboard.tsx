@@ -391,7 +391,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                   color: "white",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => `$${value.toFixed(4)}`}
+                formatter={(value?: number) =>
+                  `$${(value ?? 0).toFixed(4)}`
+                }
               />
               <Legend />
               <Bar

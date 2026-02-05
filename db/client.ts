@@ -184,7 +184,7 @@ export function getCurrentRegion(): DatabaseRegion {
 function getDatabaseUrl(
   region: DatabaseRegion,
   role: DatabaseRole,
-): string | null {
+): string {
   // CRITICAL: Writes ALWAYS go to the primary database (NA)
   // EU is read-only via logical replication, so we must never write there
   if (role === "write") {

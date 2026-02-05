@@ -155,16 +155,14 @@ export function MyAgentsClient() {
   const filteredCharacters = characters.filter((char) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    return (
-      char.name?.toLowerCase().includes(query) ||
-      (typeof char.bio === "string" &&
-        char.bio.toLowerCase().includes(query)) ||
-      (Array.isArray(char.bio) &&
-        char.bio.some((b) => b.toLowerCase().includes(query))) ||
-      char.topics?.some((t) => t.toLowerCase().includes(query)) ||
-      char.adjectives?.some((a) => a.toLowerCase().includes(query))
-    );
-  });
+      return (
+        char.name?.toLowerCase().includes(query) ||
+        (typeof char.bio === "string" &&
+          char.bio.toLowerCase().includes(query)) ||
+        (Array.isArray(char.bio) &&
+          char.bio.some((b) => b.toLowerCase().includes(query)))
+      );
+    });
 
   // Sort characters - most recent interaction first by default
   const sortedCharacters = [...filteredCharacters].sort((a, b) => {

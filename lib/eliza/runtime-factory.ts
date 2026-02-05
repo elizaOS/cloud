@@ -567,6 +567,18 @@ export class RuntimeFactory {
 
     // Create runtime with user-specific settings in opts.settings (NOT character.settings)
     // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
+    const runtimeSettings: Record<string, string | undefined> =
+      Object.fromEntries(
+        Object.entries(ephemeralSettings).map(([key, value]) => [
+          key,
+          typeof value === "string"
+            ? value
+            : value === null || value === undefined
+              ? undefined
+              : String(value),
+        ]),
+      );
+
     const runtime = new AgentRuntime({
       character: {
         ...character,
@@ -575,7 +587,7 @@ export class RuntimeFactory {
       },
       plugins: filteredPlugins,
       agentId,
-      settings: ephemeralSettings as Record<string, string | boolean | number>,
+      settings: runtimeSettings,
     });
 
     runtime.registerDatabaseAdapter(dbAdapter);

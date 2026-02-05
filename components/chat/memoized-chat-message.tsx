@@ -420,13 +420,15 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
 
   // Show reasoning for thinking messages OR streaming messages with "response" phase reasoning
   // This keeps "Composing" visible above the text while it streams
-  const hasThinkingReasoning =
-    isThinking && reasoningText && reasoningText.length > 0;
-  const hasStreamingReasoning =
+  const hasThinkingReasoning = Boolean(
+    isThinking && reasoningText && reasoningText.length > 0,
+  );
+  const hasStreamingReasoning = Boolean(
     isStreamingMessage &&
-    reasoningPhase === "response" &&
-    reasoningText &&
-    reasoningText.length > 0;
+      reasoningPhase === "response" &&
+      reasoningText &&
+      reasoningText.length > 0,
+  );
   const hasReasoning = hasThinkingReasoning || hasStreamingReasoning;
 
   // Typewriter effect for streaming messages

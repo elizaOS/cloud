@@ -7,6 +7,10 @@ import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 30;
 
+type TelegramUpdate = {
+  [key: string]: unknown;
+};
+
 /**
  * GET /api/v1/telegram/scan-chats
  * Returns stored Telegram chats for the organization.
@@ -71,18 +75,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Get recent updates (includes my_chat_member events)
-    const updates = await bot.telegram.getUpdates({
-      allowed_updates: ["my_chat_member", "message", "channel_post"],
-      limit: 100,
-    });
+    const updates = (await bot.telegram.getUpdates(
+      0,
+      100,
+      0,
+      ["my_chat_member", "message", "channel_post"],
+    )) as unknown as TelegramUpdate[];
 
     logger.info("[Telegram Scan] Got updates from Telegram", {
       organizationId: user.organization_id,
       updateCount: updates.length,
       updateTypes: updates.map((u) => {
-        if (u.my_chat_member) return "my_chat_member";
-        if (u.message) return "message";
-        if (u.channel_post) return "channel_post";
+        if ("my_chat_member" in u) return "my_chat_member";
+        if ("message" in u) return "message";
+        if ("channel_post" in u) return "channel_post";
         return "unknown";
       }),
     });
@@ -107,12 +113,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         username?: string;
       } | null = null;
 
-      if (update.my_chat_member) {
-        chat = update.my_chat_member.chat as typeof chat;
-      } else if (update.message?.chat) {
-        chat = update.message.chat as typeof chat;
-      } else if (update.channel_post?.chat) {
-        chat = update.channel_post.chat as typeof chat;
+      if ("my_chat_member" in update) {
+        chat = (update as any).my_chat_member?.chat ?? null;
+      } else if ("message" in update && (update as any).message?.chat) {
+        chat = (update as any).message.chat as typeof chat;
+      } else if ("channel_post" in update && (update as any).channel_post?.chat) {
+        chat = (update as any).channel_post.chat as typeof chat;
       }
 
       if (

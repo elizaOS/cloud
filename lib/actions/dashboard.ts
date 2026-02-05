@@ -143,6 +143,7 @@ async function fetchDashboardDataInternal(
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,
           messageCount: stats.messageCount,
+          status: stats.status,
           deploymentStatus: stats.status,
           lastActiveAt: stats.lastActiveAt,
         });

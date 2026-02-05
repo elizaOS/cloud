@@ -156,9 +156,7 @@ export function ElizaPageClient({
         name: sharedCharacter.name,
         username: sharedCharacter.username || undefined,
         avatarUrl: sharedCharacter.avatarUrl || undefined,
-        bio: sharedCharacter.bio,
         ownerId: sharedCharacter.ownerId,
-        creatorUsername: sharedCharacter.creatorUsername || undefined,
       });
     }
 

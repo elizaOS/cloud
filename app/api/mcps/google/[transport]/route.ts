@@ -30,7 +30,7 @@ async function getGoogleMcpHandler() {
   if (mcpHandler) return mcpHandler;
 
   const { createMcpHandler } = await import("mcp-handler");
-  const { z } = await import("zod3");
+  const { z } = await import("zod/v3");
 
   async function getGoogleToken(organizationId: string): Promise<string> {
     const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "google" });
