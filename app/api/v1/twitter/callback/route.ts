@@ -37,12 +37,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Cache may return object directly or JSON string depending on implementation
-  const state = (typeof stateData === "string" ? JSON.parse(stateData) : stateData) as {
+  let state: {
     oauthTokenSecret: string;
     organizationId: string;
     userId: string;
     redirectUrl?: string;
   };
+
+  try {
+    const parsed = typeof stateData === "string" ? JSON.parse(stateData) : stateData;
+    
+    // Validate required fields exist
+    if (!parsed || typeof parsed !== "object" ||
+        typeof parsed.oauthTokenSecret !== "string" ||
+        typeof parsed.organizationId !== "string" ||
+        typeof parsed.userId !== "string") {
+      throw new Error("Invalid state data structure");
+    }
+    
+    state = parsed;
+  } catch (error) {
+    logger.error("[Twitter Callback] Failed to parse state data", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await cache.del(stateKey);
+    return NextResponse.redirect(
+      `${defaultRedirect}&twitter_error=invalid_state`,
+    );
+  }
 
   const redirectUrl = state.redirectUrl || defaultRedirect;
 
