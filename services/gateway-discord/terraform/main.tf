@@ -153,14 +153,11 @@ module "github_oidc" {
   role_name        = local.github_actions_role_name
   role_description = "IAM role for GitHub Actions to deploy gateway-discord to EKS"
 
-  # Repository access patterns - allows main, dev, feature branches, PRs, and environments
+  # Repository access patterns - allows main, dev branches, PRs, and environments
+  # Note: Wildcard patterns (e.g., feat/*) are not supported by module validation
+  # For feature branches, use the repo-level access which allows all refs
   repositories = [
-    "${var.github_org}/${var.github_repo}:ref:refs/heads/main",
-    "${var.github_org}/${var.github_repo}:ref:refs/heads/dev",
-    "${var.github_org}/${var.github_repo}:ref:refs/heads/feat/*",
-    "${var.github_org}/${var.github_repo}:pull_request",
-    "${var.github_org}/${var.github_repo}:environment:gateway-dev",
-    "${var.github_org}/${var.github_repo}:environment:gateway-prd"
+    "${var.github_org}/${var.github_repo}"
   ]
 
   # Attach managed policies (inline policies added separately below)
