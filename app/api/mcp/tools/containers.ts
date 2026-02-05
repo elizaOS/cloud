@@ -217,6 +217,12 @@ export function registerContainerTools(server: McpServer): void {
         const { user } = getAuthContext();
         const DEPLOYMENT_COST = 10;
 
+        // Validate ECR URI before reserving credits to avoid credit leaks
+        const [repositoryUri, imageTag] = ecrImageUri.split(":");
+        if (!imageTag) {
+          throw new Error("ECR image URI must include a tag");
+        }
+
         let reservation: CreditReservation | null = null;
         try {
           reservation = await creditsService.reserve({
@@ -230,11 +236,6 @@ export function registerContainerTools(server: McpServer): void {
             throw new Error(`Insufficient credits: need $${DEPLOYMENT_COST}`);
           }
           throw error;
-        }
-
-        const [repositoryUri, imageTag] = ecrImageUri.split(":");
-        if (!imageTag) {
-          throw new Error("ECR image URI must include a tag");
         }
 
         let container;
