@@ -139,7 +139,7 @@ async function runMigrations() {
     // 2. Developers can test migrations before deploying
     // 3. The __drizzle_migrations table exists and is populated
     // 4. No surprises when deploying - same migrations run everywhere
-    await execAsync("bunx drizzle-kit migrate --config=drizzle.config.ts");
+    await execAsync("drizzle-kit migrate");
 
     process.env.DATABASE_URL = oldEnv;
 
