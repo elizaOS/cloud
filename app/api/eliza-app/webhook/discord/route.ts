@@ -331,6 +331,12 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 
     if (responseText) {
       await sendDiscordMessage(data.channel_id, responseText, data.id);
+    } else {
+      logger.warn("[ElizaApp DiscordWebhook] Empty agent response", {
+        roomId,
+        userId: entityId,
+        messageId: data.id,
+      });
     }
 
     await markAsProcessed(idempotencyKey, "discord-eliza-app");
