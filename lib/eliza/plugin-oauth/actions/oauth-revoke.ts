@@ -26,21 +26,40 @@ import {
 export const oauthRevokeAction: ActionWithParams = {
   name: "OAUTH_REVOKE",
   similes: [
-    "DISCONNECT", "REMOVE_CONNECTION", "UNLINK", "REVOKE_ACCESS",
-    "DELETE_CONNECTION", "DISCONNECT_GOOGLE", "REMOVE_GOOGLE",
+    "DISCONNECT",
+    "REMOVE_CONNECTION",
+    "UNLINK",
+    "REVOKE_ACCESS",
+    "DELETE_CONNECTION",
+    "DISCONNECT_GOOGLE",
+    "REMOVE_GOOGLE",
+    "DISCONNECT_HUBSPOT",
+    "REMOVE_HUBSPOT",
+    "DISCONNECT_LINEAR",
+    "REMOVE_LINEAR",
+    "DISCONNECT_NOTION",
+    "REMOVE_NOTION",
+    "DISCONNECT_GITHUB",
+    "REMOVE_GITHUB",
+    "DISCONNECT_SLACK",
+    "REMOVE_SLACK",
   ],
   description:
-    "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account.",
+    "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account. Available platforms: google, hubspot, linear, notion, github, slack.",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to disconnect: 'google'",
+      description:
+        "Platform to disconnect: 'google', 'hubspot', 'linear', 'notion', 'github', 'slack'",
       required: true,
     },
   },
 
-  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    message: Memory
+  ): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -54,11 +73,13 @@ export const oauthRevokeAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_REVOKE";
 
-    logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
+    logger.info(
+      `[${actionName}] platform=${platform}, entityId=${message.entityId}`
+    );
 
     if (!platform) {
       return {
-        text: "Which platform do you want to disconnect? Currently available: Google",
+        text: "Which platform do you want to disconnect? Currently available: Google, HubSpot, Linear, Notion, GitHub, Slack",
         success: false,
         error: "MISSING_PLATFORM",
         data: { actionName },
@@ -81,7 +102,10 @@ export const oauthRevokeAction: ActionWithParams = {
     const { organizationId } = userResult;
     const platformName = capitalize(platform);
 
-    const connections = await oauthService.listConnections({ organizationId, platform });
+    const connections = await oauthService.listConnections({
+      organizationId,
+      platform,
+    });
     const activeConnection = connections.find((c) => c.status === "active");
 
     if (!activeConnection) {
@@ -103,17 +127,53 @@ export const oauthRevokeAction: ActionWithParams = {
     logger.info(`[${actionName}] Revoked connection ${activeConnection.id}`);
 
     if (callback) await callback({ text, actions: [actionName] });
-    return { text, success: true, data: { actionName, revokedConnectionId: activeConnection.id } };
+    return {
+      text,
+      success: true,
+      data: { actionName, revokedConnectionId: activeConnection.id },
+    };
   },
 
   examples: [
     [
       { name: "{{name1}}", content: { text: "disconnect google" } },
-      { name: "{{name2}}", content: { text: "Google (user@gmail.com) has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Google (user@gmail.com) has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "unlink my gmail" } },
-      { name: "{{name2}}", content: { text: "Google has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Google has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "disconnect hubspot" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "HubSpot has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "remove my slack connection" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Slack has been disconnected.",
+          actions: ["OAUTH_REVOKE"],
+        },
+      },
     ],
   ] as ActionExample[][],
 };

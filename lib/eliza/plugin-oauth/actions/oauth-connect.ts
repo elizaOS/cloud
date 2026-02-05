@@ -25,21 +25,41 @@ import {
 export const oauthConnectAction: ActionWithParams = {
   name: "OAUTH_CONNECT",
   similes: [
-    "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
-    "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
+    "CONNECT_PLATFORM",
+    "LINK_ACCOUNT",
+    "CONNECT_GOOGLE",
+    "CONNECT_GMAIL",
+    "ADD_INTEGRATION",
+    "SETUP_CONNECTION",
+    "LINK_GOOGLE",
+    "AUTHENTICATE",
+    "CONNECT_HUBSPOT",
+    "LINK_HUBSPOT",
+    "CONNECT_LINEAR",
+    "LINK_LINEAR",
+    "CONNECT_NOTION",
+    "LINK_NOTION",
+    "CONNECT_GITHUB",
+    "LINK_GITHUB",
+    "CONNECT_SLACK",
+    "LINK_SLACK",
   ],
   description:
-    "Connect an OAuth platform (Google) for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection.",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available platforms: google, hubspot, linear, notion, github, slack.",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: 'google'",
+      description:
+        "Platform to connect. Available: 'google', 'hubspot', 'linear', 'notion', 'github', 'slack'",
       required: true,
     },
   },
 
-  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    message: Memory
+  ): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -53,11 +73,13 @@ export const oauthConnectAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_CONNECT";
 
-    logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
+    logger.info(
+      `[${actionName}] platform=${platform}, entityId=${message.entityId}`
+    );
 
     if (!platform) {
       return {
-        text: "Which platform do you want to connect? Currently available: Google",
+        text: "Which platform do you want to connect? Currently available: Google, HubSpot, Linear, Notion, GitHub, Slack",
         success: false,
         error: "MISSING_PLATFORM",
         data: { actionName },
@@ -81,7 +103,10 @@ export const oauthConnectAction: ActionWithParams = {
     const platformName = capitalize(platform);
 
     if (await oauthService.isPlatformConnected(organizationId, platform)) {
-      const connections = await oauthService.listConnections({ organizationId, platform });
+      const connections = await oauthService.listConnections({
+        organizationId,
+        platform,
+      });
       const email = connections.find((c) => c.status === "active")?.email || "";
       return {
         text: `Your ${platformName} account is already connected${email ? ` (${email})` : ""}.`,
@@ -102,7 +127,9 @@ export const oauthConnectAction: ActionWithParams = {
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      logger.error(`[${actionName}] OAuth initiation failed: ${errMsg} (platform=${platform}, org=${organizationId})`);
+      logger.error(
+        `[${actionName}] OAuth initiation failed: ${errMsg} (platform=${platform}, org=${organizationId})`
+      );
       return {
         text: `Failed to start ${platformName} connection. Please try again later.`,
         success: false,
@@ -125,17 +152,63 @@ export const oauthConnectAction: ActionWithParams = {
 
     if (callback) await callback({ text, actions: [actionName] });
 
-    return { text, success: true, data: { actionName, authUrl: result.authUrl } };
+    return {
+      text,
+      success: true,
+      data: { actionName, authUrl: result.authUrl },
+    };
   },
 
   examples: [
     [
       { name: "{{name1}}", content: { text: "connect my google account" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Connect Google: https://accounts.google.com/...",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Connect Google: https://accounts.google.com/...",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "connect hubspot" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Connect HubSpot: https://app.hubspot.com/oauth/...",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "link my hubspot account" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Connect HubSpot: https://app.hubspot.com/oauth/...",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "connect slack" } },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Connect Slack: https://slack.com/oauth/...",
+          actions: ["OAUTH_CONNECT"],
+        },
+      },
     ],
   ] as ActionExample[][],
 };
