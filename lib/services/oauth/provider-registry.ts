@@ -195,7 +195,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
   google: {
     id: "google",
     name: "Google",
-    description: "Gmail, Calendar, Drive, and Contacts",
+    description: "Gmail, Calendar, and Contacts",
     type: "oauth2",
     envVars: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
     endpoints: {
@@ -330,6 +330,37 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  hubspot: {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "CRM - contacts, companies, deals, and marketing",
+    type: "oauth2",
+    envVars: ["HUBSPOT_CLIENT_ID", "HUBSPOT_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://app.hubspot.com/oauth/authorize",
+      token: "https://api.hubapi.com/oauth/v1/token",
+      // HubSpot token info requires access token in URL path, skip userInfo fetch
+      revoke: "https://api.hubapi.com/oauth/v1/refresh-tokens",
+    },
+    defaultScopes: [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.companies.read",
+      "crm.objects.companies.write",
+      "crm.objects.deals.read",
+      "crm.objects.deals.write",
+      "crm.objects.owners.read",
+    ],
+    // Extract from token response - HubSpot includes hub_id and user in token response
+    userInfoMapping: {
+      id: "hub_id",
+      email: "user",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   twitter: {
     id: "twitter",
     name: "Twitter/X",
@@ -455,7 +486,10 @@ export function getProvider(platformId: string): OAuthProviderConfig | null {
 
 /** Check if provider has required env vars (API key providers always return true). */
 export function isProviderConfigured(provider: OAuthProviderConfig): boolean {
-  return provider.envVars.length === 0 || provider.envVars.every((v) => !!process.env[v]);
+  return (
+    provider.envVars.length === 0 ||
+    provider.envVars.every((v) => !!process.env[v])
+  );
 }
 
 /** Get all providers with required env vars configured. */
@@ -465,7 +499,9 @@ export function getConfiguredProviders(): OAuthProviderConfig[] {
 
 /** Get configured OAuth providers (oauth2 or oauth1a, not api_key). */
 export function getConfiguredOAuthProviders(): OAuthProviderConfig[] {
-  return getConfiguredProviders().filter((p) => p.type === "oauth2" || p.type === "oauth1a");
+  return getConfiguredProviders().filter(
+    (p) => p.type === "oauth2" || p.type === "oauth1a"
+  );
 }
 
 /** Get all provider IDs. */
@@ -480,20 +516,32 @@ export function isValidProvider(platformId: string): boolean {
 
 /** Get client ID from provider's env vars. */
 export function getClientId(provider: OAuthProviderConfig): string | undefined {
-  const v = provider.envVars.find((e) => e.includes("CLIENT_ID") || e.includes("API_KEY"));
+  const v = provider.envVars.find(
+    (e) => e.includes("CLIENT_ID") || e.includes("API_KEY")
+  );
   return v ? process.env[v] : undefined;
 }
 
 /** Get client secret from provider's env vars. */
-export function getClientSecret(provider: OAuthProviderConfig): string | undefined {
-  const v = provider.envVars.find((e) => e.includes("CLIENT_SECRET") || e.includes("SECRET_KEY"));
+export function getClientSecret(
+  provider: OAuthProviderConfig
+): string | undefined {
+  const v = provider.envVars.find(
+    (e) => e.includes("CLIENT_SECRET") || e.includes("SECRET_KEY")
+  );
   return v ? process.env[v] : undefined;
 }
 
 /** Build callback URL for provider. */
-export function getCallbackUrl(provider: OAuthProviderConfig, baseUrl: string): string {
-  if (provider.useGenericRoutes) return `${baseUrl}/api/v1/oauth/${provider.id}/callback`;
-  return provider.routes?.callback ? `${baseUrl}${provider.routes.callback}` : "";
+export function getCallbackUrl(
+  provider: OAuthProviderConfig,
+  baseUrl: string
+): string {
+  if (provider.useGenericRoutes)
+    return `${baseUrl}/api/v1/oauth/${provider.id}/callback`;
+  return provider.routes?.callback
+    ? `${baseUrl}${provider.routes.callback}`
+    : "";
 }
 
 /** Extract nested value using dot notation (e.g., "data.viewer.id"). */
