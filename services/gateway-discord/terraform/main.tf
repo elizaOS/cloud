@@ -24,27 +24,119 @@ module "vpc" {
   # To enable SSH access, add nat_instance_key_name variable to root module and pass here.
 }
 
-# EKS Module
+# EKS Module - Using official terraform-aws-modules/eks/aws v21.x
+# https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
 module "eks" {
-  source = "./modules/eks"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 21.0"
 
-  cluster_name                         = local.cluster_name
-  kubernetes_version                   = var.kubernetes_version
-  environment                          = var.environment
-  vpc_id                               = module.vpc.vpc_id
-  vpc_cidr                             = var.vpc_cidr
-  private_subnet_ids                   = module.vpc.private_subnet_ids
-  public_subnet_ids                    = module.vpc.public_subnet_ids
-  cluster_endpoint_public_access       = var.cluster_endpoint_public_access
-  cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
-  cluster_endpoint_private_access      = var.cluster_endpoint_private_access
-  node_group_instance_types            = var.node_group_instance_types
-  node_group_desired_size              = var.node_group_desired_size
-  node_group_min_size                  = var.node_group_min_size
-  node_group_max_size                  = var.node_group_max_size
-  node_group_disk_size                 = var.node_group_disk_size
-  node_group_capacity_type             = var.node_group_capacity_type
-  cluster_admin_arns                   = var.cluster_admin_arns
+  name               = local.cluster_name
+  kubernetes_version = var.kubernetes_version
+
+  # VPC Configuration
+  vpc_id                   = module.vpc.vpc_id
+  subnet_ids               = module.vpc.private_subnet_ids
+  control_plane_subnet_ids = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
+
+  # Cluster Endpoint Access
+  endpoint_public_access       = var.cluster_endpoint_public_access
+  endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  endpoint_private_access      = var.cluster_endpoint_private_access
+
+  # Authentication - API and ConfigMap mode for flexibility
+  authentication_mode                      = "API_AND_CONFIG_MAP"
+  enable_cluster_creator_admin_permissions = true
+
+  # KMS encryption for secrets
+  create_kms_key                  = true
+  kms_key_aliases                 = ["alias/${local.cluster_name}-eks"]
+  kms_key_deletion_window_in_days = 7
+  enable_kms_key_rotation         = true
+
+  encryption_config = {
+    resources = ["secrets"]
+  }
+
+  # CloudWatch logging
+  enabled_log_types                      = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  create_cloudwatch_log_group            = true
+  cloudwatch_log_group_retention_in_days = 30
+
+  # OIDC provider for IRSA (IAM Roles for Service Accounts)
+  enable_irsa = true
+
+  # EKS Addons
+  addons = {
+    vpc-cni = {
+      most_recent                 = true
+      resolve_conflicts_on_update = "OVERWRITE"
+    }
+    coredns = {
+      most_recent                 = true
+      resolve_conflicts_on_update = "OVERWRITE"
+    }
+    kube-proxy = {
+      most_recent                 = true
+      resolve_conflicts_on_update = "OVERWRITE"
+    }
+  }
+
+  # EKS Access Entries for cluster administrators
+  access_entries = {
+    for idx, arn in var.cluster_admin_arns : "admin-${idx}" => {
+      principal_arn = arn
+      type          = "STANDARD"
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+
+  # Managed Node Group
+  eks_managed_node_groups = {
+    main = {
+      name = "${local.cluster_name}-node-group"
+
+      instance_types = var.node_group_instance_types
+      capacity_type  = var.node_group_capacity_type
+      disk_size      = var.node_group_disk_size
+
+      min_size     = var.node_group_min_size
+      max_size     = var.node_group_max_size
+      desired_size = var.node_group_desired_size
+
+      labels = {
+        role        = "gateway-discord"
+        environment = var.environment
+      }
+
+      update_config = {
+        max_unavailable = 1
+      }
+    }
+  }
+
+  # Security Group Rules - Allow VPC CIDR for NAT instance return traffic
+  node_security_group_additional_rules = {
+    ingress_from_vpc = {
+      description = "Allow all traffic from VPC for NAT instance return traffic"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "ingress"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
+  tags = {
+    Name        = local.cluster_name
+    Environment = var.environment
+  }
 }
 
 # GitHub OIDC Module
@@ -76,7 +168,7 @@ module "k8s_resources" {
   redis_token              = var.redis_token
   blob_token               = var.blob_token
   enable_aws_auth_update   = var.enable_aws_auth_update
-  node_group_role_arn      = module.eks.node_group_role_arn
+  node_group_role_arn      = module.eks.eks_managed_node_groups["main"].iam_role_arn
   github_actions_role_arn  = module.github_oidc.github_actions_role_arn
   existing_aws_auth_roles  = var.existing_aws_auth_roles
 

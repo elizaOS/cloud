@@ -19,7 +19,7 @@ output "private_subnet_ids" {
   value       = module.vpc.private_subnet_ids
 }
 
-# EKS Outputs
+# EKS Outputs (using official terraform-aws-modules/eks/aws module)
 output "cluster_name" {
   description = "EKS cluster name"
   value       = module.eks.cluster_name
@@ -42,8 +42,8 @@ output "cluster_certificate_authority_data" {
 }
 
 output "cluster_security_group_id" {
-  description = "Security group ID for the cluster"
-  value       = module.eks.cluster_security_group_id
+  description = "Security group ID for the cluster (EKS-managed primary security group)"
+  value       = module.eks.cluster_primary_security_group_id
 }
 
 output "node_security_group_id" {
@@ -54,6 +54,11 @@ output "node_security_group_id" {
 output "oidc_provider_arn" {
   description = "OIDC provider ARN for IRSA"
   value       = module.eks.oidc_provider_arn
+}
+
+output "node_group_role_arn" {
+  description = "IAM role ARN for the node group (used by aws-auth ConfigMap)"
+  value       = module.eks.eks_managed_node_groups["main"].iam_role_arn
 }
 
 # GitHub OIDC Outputs

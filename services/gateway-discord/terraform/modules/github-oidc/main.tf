@@ -10,7 +10,7 @@ locals {
   role_name         = "github-actions-gateway-${local.env_suffix}"
   oidc_provider_url = "https://token.actions.githubusercontent.com"
   account_id        = data.aws_caller_identity.current.account_id
-  region            = data.aws_region.current.name
+  region            = data.aws_region.current.id
 }
 
 # Check if GitHub Actions IAM role already exists

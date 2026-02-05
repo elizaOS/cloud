@@ -4,16 +4,20 @@ This Terraform configuration provisions the AWS infrastructure required for the 
 
 ## Infrastructure Components
 
-- **VPC**: Virtual Private Cloud with public and private subnets across 3 availability zones
+- **VPC**: Virtual Private Cloud with public and private subnets across 3 availability zones (custom module)
 - **NAT Instance**: Cost-effective NAT using t4g.nano/micro EC2 instances (ARM64)
   - Development: Single t4g.nano (~$3/month)
   - Production: Single t4g.micro (~$6/month)
   - Can be switched to NAT Gateway for high-traffic scenarios (see Cost Considerations)
-- **EKS Cluster**: Kubernetes cluster for running the gateway service
+- **EKS Cluster**: Kubernetes cluster using [terraform-aws-modules/eks/aws](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest) official module
+  - KMS encryption for secrets
+  - CloudWatch logging enabled
+  - OIDC provider for IRSA (IAM Roles for Service Accounts)
+  - EKS Access API for cluster authentication
 - **Node Groups**: EC2 instances managed by EKS for running pods
 - **IAM Roles**: 
-  - EKS cluster role
-  - Node group role
+  - EKS cluster role (managed by official module)
+  - Node group role (managed by official module)
   - NAT instance role (with SSM access)
   - GitHub Actions OIDC role for CI/CD
 - **Security Groups**: Network security for cluster, nodes, and NAT instance
@@ -21,6 +25,7 @@ This Terraform configuration provisions the AWS infrastructure required for the 
   - Namespace for gateway-discord
   - GHCR image pull secrets
   - Application secrets
+  - RBAC for GitHub Actions CI/CD
 
 ## Prerequisites
 
@@ -48,7 +53,7 @@ The Terraform backend requires an S3 bucket and DynamoDB table to exist before y
 
 ```
 services/gateway-discord/terraform/
-├── main.tf                    # Main configuration
+├── main.tf                    # Main configuration (uses official EKS module)
 ├── variables.tf               # Input variables
 ├── variables-sensitive.tf     # Sensitive input variables
 ├── outputs.tf                 # Output values
@@ -61,11 +66,12 @@ services/gateway-discord/terraform/
 ├── backend-development.hcl    # Backend config for development
 ├── backend-production.hcl     # Backend config for production
 └── modules/
-    ├── vpc/                   # VPC module
-    ├── eks/                   # EKS module
-    ├── github-oidc/           # GitHub OIDC module
+    ├── vpc/                   # VPC module (custom - supports NAT Instance)
+    ├── github-oidc/           # GitHub OIDC module (custom)
     └── k8s-resources/         # Kubernetes resources module
 ```
+
+> **Note**: The EKS cluster is provisioned using the official [terraform-aws-modules/eks/aws](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest) module (v20.x). Custom modules are only used where official modules don't meet requirements (VPC with NAT Instance support, project-specific GitHub OIDC configuration).
 
 ## Usage
 
