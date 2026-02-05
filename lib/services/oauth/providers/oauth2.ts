@@ -590,6 +590,7 @@ async function storeConnection(
         eq(platformCredentials.organization_id, organizationId),
         eq(platformCredentials.platform, providerPlatform),
         eq(platformCredentials.platform_user_id, userInfo.id),
+        eq(platformCredentials.status, "active"),
       ),
     )
     .limit(1);
