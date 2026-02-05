@@ -10,7 +10,7 @@ import { dbWrite } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   OAuthProviderConfig,
   UserInfoMapping,
@@ -498,18 +498,176 @@ async function storeConnection(
   // Track newly created secrets for cleanup on failure
   const newlyCreatedSecretIds: string[] = [];
 
-  // Check for existing connection
-  const existing = await dbWrite
-    .select({ id: platformCredentials.id, access_token_secret_id: platformCredentials.access_token_secret_id, refresh_token_secret_id: platformCredentials.refresh_token_secret_id })
+  const providerPlatform = provider.id as "google";
+  const cleanupNewlyCreatedSecrets = async (context: string) => {
+    if (newlyCreatedSecretIds.length === 0) return;
+    logger.warn(`[OAuth2] ${context}, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`, {
+      providerId: provider.id,
+      organizationId,
+    });
+    for (const secretId of newlyCreatedSecretIds) {
+      try {
+        await secretsService.delete(secretId, organizationId, audit);
+      } catch (cleanupError) {
+        logger.error(`[OAuth2] Failed to cleanup secret ${secretId}`, {
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        });
+      }
+    }
+  };
+
+  const revokeConnections = async (
+    connections: Array<{
+      id: string;
+      organization_id: string;
+      platform_user_id: string;
+      access_token_secret_id: string | null;
+      refresh_token_secret_id: string | null;
+    }>,
+    reason: string,
+  ) => {
+    if (connections.length === 0) return;
+
+    const audit = {
+      actorType: "user" as const,
+      actorId: userId,
+      source: `oauth2-${provider.id}-revoke-duplicate`,
+    };
+
+    for (const connection of connections) {
+      const deleteSecret = async (secretId: string | null, tokenType: string) => {
+        if (!secretId) return;
+        try {
+          await secretsService.delete(secretId, connection.organization_id, audit);
+        } catch (error) {
+          logger.warn(`[OAuth2] Failed to delete ${tokenType} secret during revoke`, {
+            providerId: provider.id,
+            connectionId: connection.id,
+            secretId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      };
+
+      await Promise.all([
+        deleteSecret(connection.access_token_secret_id, "access_token"),
+        deleteSecret(connection.refresh_token_secret_id, "refresh_token"),
+      ]);
+    }
+
+    await dbWrite
+      .update(platformCredentials)
+      .set({
+        status: "revoked",
+        revoked_at: new Date(),
+        updated_at: new Date(),
+        user_id: null,
+        error_message: reason,
+        access_token_secret_id: null,
+        refresh_token_secret_id: null,
+      })
+      .where(inArray(platformCredentials.id, connections.map((c) => c.id)));
+
+    logger.info("[OAuth2] Revoked duplicate platform connections", {
+      providerId: provider.id,
+      userId,
+      connectionIds: connections.map((c) => c.id),
+      reason,
+    });
+  };
+
+  // Check if this platform user ID is already linked to a different user in the org
+  const existingByPlatformUser = await dbWrite
+    .select({
+      id: platformCredentials.id,
+      user_id: platformCredentials.user_id,
+      access_token_secret_id: platformCredentials.access_token_secret_id,
+      refresh_token_secret_id: platformCredentials.refresh_token_secret_id,
+    })
     .from(platformCredentials)
     .where(
       and(
         eq(platformCredentials.organization_id, organizationId),
-        eq(platformCredentials.platform, provider.id as "google"),
-        eq(platformCredentials.platform_user_id, userInfo.id)
-      )
+        eq(platformCredentials.platform, providerPlatform),
+        eq(platformCredentials.platform_user_id, userInfo.id),
+      ),
     )
     .limit(1);
+
+  if (
+    existingByPlatformUser.length > 0 &&
+    existingByPlatformUser[0].user_id &&
+    existingByPlatformUser[0].user_id !== userId
+  ) {
+    logger.warn("[OAuth2] Platform user already linked to different user", {
+      providerId: provider.id,
+      platformUserId: userInfo.id,
+      existingUserId: existingByPlatformUser[0].user_id,
+      attemptedUserId: userId,
+      organizationId,
+    });
+    throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
+  }
+
+  // Fetch any existing connections for this user/platform (should be at most one after constraints)
+  const existingUserConnections = await dbWrite
+    .select({
+      id: platformCredentials.id,
+      organization_id: platformCredentials.organization_id,
+      platform_user_id: platformCredentials.platform_user_id,
+      access_token_secret_id: platformCredentials.access_token_secret_id,
+      refresh_token_secret_id: platformCredentials.refresh_token_secret_id,
+    })
+    .from(platformCredentials)
+    .where(
+      and(
+        eq(platformCredentials.user_id, userId),
+        eq(platformCredentials.platform, providerPlatform),
+      ),
+    )
+    .orderBy(
+      desc(
+        sql`COALESCE(${platformCredentials.linked_at}, ${platformCredentials.updated_at}, ${platformCredentials.created_at})`,
+      ),
+    );
+
+  const matchingUserConnection = existingUserConnections.find(
+    (connection) => connection.platform_user_id === userInfo.id,
+  );
+
+  let pendingRevocation:
+    | {
+        connections: Array<{
+          id: string;
+          organization_id: string;
+          platform_user_id: string;
+          access_token_secret_id: string | null;
+          refresh_token_secret_id: string | null;
+        }>;
+        reason: string;
+      }
+    | undefined;
+
+  if (matchingUserConnection) {
+    const duplicates = existingUserConnections.filter(
+      (connection) => connection.id !== matchingUserConnection.id,
+    );
+    if (duplicates.length > 0) {
+      pendingRevocation = {
+        connections: duplicates,
+        reason: "duplicate user/platform connection",
+      };
+    }
+  } else if (existingUserConnections.length > 0) {
+    pendingRevocation = {
+      connections: existingUserConnections,
+      reason: "replaced by new platform connection",
+    };
+  }
+
+  const existing = matchingUserConnection
+    ? [matchingUserConnection]
+    : existingByPlatformUser;
 
   let accessTokenSecretId: string;
   let refreshTokenSecretId: string | undefined;
@@ -647,6 +805,15 @@ async function storeConnection(
     ? new Date(Date.now() + expiresInSeconds * 1000)
     : undefined;
 
+  if (pendingRevocation) {
+    try {
+      await revokeConnections(pendingRevocation.connections, pendingRevocation.reason);
+    } catch (revokeError) {
+      await cleanupNewlyCreatedSecrets("Revocation failed prior to insert");
+      throw revokeError;
+    }
+  }
+
   // Upsert connection with cleanup on failure
   try {
     const result = await dbWrite
@@ -654,7 +821,7 @@ async function storeConnection(
       .values({
         organization_id: organizationId,
         user_id: userId,
-        platform: provider.id as "google",
+        platform: providerPlatform,
         platform_user_id: userInfo.id,
         platform_username: userInfo.username || undefined,
         platform_display_name: userInfo.displayName || undefined,
@@ -691,24 +858,10 @@ async function storeConnection(
       })
       .returning({ id: platformCredentials.id });
 
-    return result[0].id;
+    const connectionId = result[0].id;
+    return connectionId;
   } catch (error) {
-    // Clean up newly created secrets on database failure
-    if (newlyCreatedSecretIds.length > 0) {
-      logger.warn(`[OAuth2] Database insert failed, cleaning up ${newlyCreatedSecretIds.length} newly created secret(s)`, {
-        providerId: provider.id,
-        organizationId,
-      });
-      for (const secretId of newlyCreatedSecretIds) {
-        try {
-          await secretsService.delete(secretId, organizationId, audit);
-        } catch (cleanupError) {
-          logger.error(`[OAuth2] Failed to cleanup secret ${secretId}`, {
-            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
-          });
-        }
-      }
-    }
+    await cleanupNewlyCreatedSecrets("Database insert failed");
     throw error;
   }
 }

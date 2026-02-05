@@ -25,6 +25,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apps } from "./apps";
@@ -146,6 +147,9 @@ export const platformCredentials = pgTable(
       table.platform,
       table.platform_user_id,
     ),
+    user_platform_idx: uniqueIndex("platform_credentials_user_platform_idx")
+      .on(table.user_id, table.platform)
+      .where(sql`${table.user_id} is not null`),
     status_idx: index("platform_credentials_status_idx").on(table.status),
   }),
 );

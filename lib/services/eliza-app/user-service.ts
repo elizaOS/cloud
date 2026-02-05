@@ -138,7 +138,7 @@ class ElizaAppUserService {
    */
   async findOrCreateByTelegramWithPhone(
     telegramData: TelegramAuthData,
-    phoneNumber: string
+    phoneNumber: string,
   ): Promise<FindOrCreateResult> {
     const telegramId = String(telegramData.id);
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -321,6 +321,16 @@ class ElizaAppUserService {
     const existingUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
     if (existingUser && existingUser.organization) {
+      if (!existingUser.phone_verified) {
+        await usersRepository.update(existingUser.id, {
+          phone_verified: true,
+          updated_at: new Date(),
+        });
+      }
+      logger.info("[ElizaAppUserService] Linked phone to existing user (iMessage)", {
+        userId: existingUser.id,
+        phone: `***${normalizedPhone.slice(-4)}`,
+      });
       return { user: existingUser, organization: existingUser.organization, isNew: false };
     }
 
@@ -364,6 +374,10 @@ class ElizaAppUserService {
     const existingUser = await usersRepository.findByEmailWithOrganization(normalizedEmail);
 
     if (existingUser && existingUser.organization) {
+      logger.info("[ElizaAppUserService] Linked email to existing user (iMessage)", {
+        userId: existingUser.id,
+        email: maskEmailForLogging(normalizedEmail),
+      });
       return { user: existingUser, organization: existingUser.organization, isNew: false };
     }
 
