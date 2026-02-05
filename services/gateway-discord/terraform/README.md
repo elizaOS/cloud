@@ -258,7 +258,7 @@ aws iam attach-role-policy \
         "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:GetInstanceProfile", "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
         "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile", "iam:ListInstanceProfile*",
         "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:ListOpenIDConnectProviders", "iam:TagOpenIDConnectProvider", "iam:UpdateOpenIDConnectProviderThumbprint",
-        "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy*", "iam:ListPolic*", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+        "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy*", "iam:ListPolic*", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion", "iam:TagPolicy", "iam:UntagPolicy",
         "iam:CreateServiceLinkedRole", "iam:DeleteServiceLinkedRole", "iam:PassRole"
       ],
       "Resource": "*"

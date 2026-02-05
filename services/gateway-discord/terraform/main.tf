@@ -66,17 +66,23 @@ module "eks" {
   enable_irsa = true
 
   # EKS Addons
+  # IMPORTANT: before_compute = true ensures VPC CNI is created BEFORE node groups
+  # Without this, nodes start without networking and fail health checks
   addons = {
     vpc-cni = {
+      before_compute              = true
       most_recent                 = true
+      resolve_conflicts_on_create = "OVERWRITE"
       resolve_conflicts_on_update = "OVERWRITE"
     }
     coredns = {
       most_recent                 = true
+      resolve_conflicts_on_create = "OVERWRITE"
       resolve_conflicts_on_update = "OVERWRITE"
     }
     kube-proxy = {
       most_recent                 = true
+      resolve_conflicts_on_create = "OVERWRITE"
       resolve_conflicts_on_update = "OVERWRITE"
     }
   }
