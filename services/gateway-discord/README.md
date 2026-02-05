@@ -295,8 +295,8 @@ Recommended key naming by environment:
 # Production
 ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:prod
 
-# Staging
-ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:staging
+# Development
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:dev
 
 # Local Development
 ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:local
