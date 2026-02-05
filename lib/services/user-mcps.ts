@@ -68,9 +68,9 @@ export interface UpdateMcpParams {
   x402PriceUsd?: number;
   x402Enabled?: boolean;
   creatorSharePercentage?: number;
-  documentationUrl?: string;
-  sourceCodeUrl?: string;
-  supportEmail?: string;
+  documentationUrl?: string | null;
+  sourceCodeUrl?: string | null;
+  supportEmail?: string | null;
   tags?: string[];
   icon?: string;
   color?: string;

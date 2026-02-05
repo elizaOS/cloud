@@ -138,18 +138,10 @@ export async function PUT(
     );
   }
 
-  // Convert null values to undefined for UpdateMcpParams compatibility
-  const updateData = {
-    ...validation.data,
-    documentationUrl: validation.data.documentationUrl ?? undefined,
-    sourceCodeUrl: validation.data.sourceCodeUrl ?? undefined,
-    supportEmail: validation.data.supportEmail ?? undefined,
-  };
-
   const mcp = await userMcpsService.update(
     mcpId,
     authResult.user.organization_id,
-    updateData,
+    validation.data,
   );
 
   logger.info("[API] Updated user MCP", {
