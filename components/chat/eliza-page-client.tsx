@@ -141,7 +141,7 @@ export function ElizaPageClient({
   // Include shared character data for shared links (when character is not owned by user)
   const characters = useMemo<Character[]>(() => {
     // User's own characters - they own all of these
-    const chars = initialCharacters.map((char) => ({
+    const chars: Character[] = initialCharacters.map((char) => ({
       id: char.id || "",
       name: char.name || "Unknown",
       username: char.username || undefined,
@@ -156,7 +156,9 @@ export function ElizaPageClient({
         name: sharedCharacter.name,
         username: sharedCharacter.username || undefined,
         avatarUrl: sharedCharacter.avatarUrl || undefined,
+        bio: sharedCharacter.bio,
         ownerId: sharedCharacter.ownerId,
+        creatorUsername: sharedCharacter.creatorUsername || undefined,
       });
     }
 
