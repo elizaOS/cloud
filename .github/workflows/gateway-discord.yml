@@ -302,12 +302,9 @@ jobs:
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
-      # TODO: TEMPORARY - Remove pull_request condition before merging!
-      # This is enabled for testing IaC on PR #275
       - name: Terraform Apply
         if: |
           github.event_name == 'push' ||
-          github.event_name == 'pull_request' ||
           (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
         run: terraform apply -auto-approve tfplan
 
@@ -325,10 +322,9 @@ jobs:
           terraform destroy -auto-approve \
             -var-file=${{ needs.detect-changes.outputs.tfvars_file }}
 
-      # TODO: TEMPORARY - Remove pull_request condition before merging!
       - name: Get Terraform Outputs
         id: outputs
-        if: github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'terraform-apply')
         run: |
           echo "cluster_name=$(terraform output -raw cluster_name 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
           echo "cluster_endpoint=$(terraform output -raw cluster_endpoint 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
@@ -376,14 +372,14 @@ jobs:
   # =============================================================================
   # BUILD - Build Docker image (runs if app changed, not on PRs)
   # =============================================================================
-  # TODO: TEMPORARY - Remove pull_request from condition before merging!
   build:
     name: Build Image
     runs-on: ubuntu-latest
     needs: [detect-changes, test]
-    # Run if: (app changed OR manual deploy) - TEMP: also on PRs for testing
+    # Run if: (app changed OR manual deploy) AND not a PR
     if: |
-      needs.detect-changes.outputs.app == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
+      github.event_name != 'pull_request' &&
+      (needs.detect-changes.outputs.app == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy'))
     permissions:
       contents: read
       packages: write
@@ -432,15 +428,14 @@ jobs:
   # =============================================================================
   # DEPLOY - Deploy to Kubernetes (waits for terraform and/or build)
   # =============================================================================
-  # TODO: TEMPORARY - Add back 'github.event_name != pull_request' before merging!
   deploy:
     name: Deploy (${{ needs.detect-changes.outputs.environment }})
     runs-on: ubuntu-latest
     needs: [detect-changes, terraform, test, build]
-    # Run if: (terraform succeeded/skipped) AND (test succeeded/skipped) AND (build succeeded/skipped) AND at least one of terraform/build ran
-    # TEMP: Removed PR exclusion for testing
+    # Run if: not a PR AND (terraform succeeded/skipped) AND (test succeeded/skipped) AND (build succeeded/skipped) AND at least one of terraform/build ran
     if: |
       always() &&
+      github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_dispatch' || github.event.inputs.action == 'deploy' || github.event.inputs.action == 'terraform-apply') &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped') &&
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
