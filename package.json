@@ -7,6 +7,7 @@
     "setup": "bun run scripts/setup.ts",
     "setup:check": "bun run scripts/setup.ts --check",
     "dev": "next dev --turbopack",
+    "dev:local": "DEV_LINKED=1 next dev --webpack",
     "dev:quick": "next dev --turbopack",
     "dev:x402": "bun run scripts/dev-x402.ts",
     "dev:full": "bun run setup:check && bun run dev:quick",
