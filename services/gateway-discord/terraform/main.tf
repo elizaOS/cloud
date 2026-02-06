@@ -170,6 +170,9 @@ module "eks_blueprints_addons" {
   # Metrics server -- needed for HPA in all environments
   enable_metrics_server = true
 
+  # Disable CloudFormation telemetry stack (avoids needing cloudformation:CreateStack permission)
+  observability_tag = null
+
   tags = {
     Environment = var.environment
   }
