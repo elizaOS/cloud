@@ -673,18 +673,19 @@ async function handlePOST(req: NextRequest) {
 
     // 6. Forward to Vercel AI Gateway with Groq as preferred provider
     // Strip unsupported params for Anthropic models to avoid gateway warnings
-    const provider2 = getProviderFromModel(model);
-    if (provider2 === "anthropic") {
-      delete request.frequency_penalty;
-      delete request.presence_penalty;
+    const safeRequest = { ...request };
+    const modelProvider = getProviderFromModel(model);
+    if (modelProvider === "anthropic") {
+      delete safeRequest.frequency_penalty;
+      delete safeRequest.presence_penalty;
     }
     if (isReasoningModel(model)) {
-      delete request.temperature;
+      delete safeRequest.temperature;
     }
 
     const providerInstance = getProvider();
     const requestWithProvider = {
-      ...request,
+      ...safeRequest,
       providerOptions: {
         gateway: {
           order: ["groq"], // Use Groq as preferred provider
