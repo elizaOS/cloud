@@ -182,6 +182,12 @@ export interface OAuthProviderConfig {
   };
 
   /**
+   * Whether to use PKCE (Proof Key for Code Exchange) for this provider.
+   * Required by some providers like Salesforce. Uses S256 challenge method.
+   */
+  pkce?: boolean;
+
+  /**
    * Whether this provider uses the generic OAuth routes.
    * Set to true for new providers. Legacy providers have this as false/undefined.
    */
@@ -326,6 +332,33 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       displayName: "user",
       // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  salesforce: {
+    id: "salesforce",
+    name: "Salesforce",
+    description: "CRM - accounts, contacts, opportunities, and leads",
+    type: "oauth2",
+    envVars: ["SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://login.salesforce.com/services/oauth2/authorize",
+      token: "https://login.salesforce.com/services/oauth2/token",
+      userInfo: "https://login.salesforce.com/services/oauth2/userinfo",
+      revoke: "https://login.salesforce.com/services/oauth2/revoke",
+    },
+    defaultScopes: ["api", "refresh_token", "openid", "profile", "email"],
+    userInfoMapping: {
+      id: "user_id",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    authParams: {
+      prompt: "login consent",
+    },
+    pkce: true,
     storage: "platform_credentials",
     useGenericRoutes: true,
   },

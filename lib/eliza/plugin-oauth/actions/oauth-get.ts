@@ -27,6 +27,7 @@ export const oauthGetAction: ActionWithParams = {
     "CHECK_CONNECTION", "VERIFY_CONNECTION", "CONNECTION_STATUS", "IS_CONNECTED",
     "DONE", "FINISHED", "COMPLETED", "DID_IT_WORK", "CHECK_GOOGLE",
     "CHECK_LINEAR", "CHECK_SLACK", "CHECK_GITHUB", "CHECK_NOTION",
+    "CHECK_SALESFORCE", "VERIFY_SALESFORCE",
   ],
   description:
     "Check status of an OAuth connection. Use when user says 'done' after connecting, or asks about connection status.",
@@ -34,7 +35,7 @@ export const oauthGetAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to check: google, linear, slack, github, notion. If not specified, checks all.",
+      description: "Platform to check: google, linear, slack, github, notion, salesforce. If not specified, checks all.",
       required: false,
     },
   },
@@ -112,6 +113,10 @@ export const oauthGetAction: ActionWithParams = {
     [
       { name: "{{name1}}", content: { text: "is my google connected?" } },
       { name: "{{name2}}", content: { text: "Google connected! Logged in as user@gmail.com.", actions: ["OAUTH_GET"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "am I connected to salesforce?" } },
+      { name: "{{name2}}", content: { text: "Salesforce connected! Logged in as user@example.com.", actions: ["OAUTH_GET"] } },
     ],
   ] as ActionExample[][],
 };
