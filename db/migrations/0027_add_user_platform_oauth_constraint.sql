@@ -33,6 +33,9 @@ SET
   revoked_at = CASE WHEN d.status = 'active' THEN NOW() ELSE pc.revoked_at END,
   updated_at = NOW(),
   user_id = NULL,
+  -- Null secret references to avoid orphaned tokens after detaching duplicates.
+  access_token_secret_id = NULL,
+  refresh_token_secret_id = NULL,
   error_message = COALESCE(pc.error_message, 'Detached during migration: duplicate user/platform connection')
 FROM duplicates d
 WHERE pc.id = d.id;
@@ -40,5 +43,5 @@ WHERE pc.id = d.id;
 -- Step 2: Create partial unique index to enforce single OAuth per user per platform
 -- NULL user_ids are allowed (org-level connections without specific user)
 CREATE UNIQUE INDEX IF NOT EXISTS platform_credentials_user_platform_idx
-ON platform_credentials (user_id, platform)
+ON platform_credentials (organization_id, user_id, platform)
 WHERE user_id IS NOT NULL;

@@ -7,6 +7,7 @@
 
 import { cache } from "@/lib/cache/client";
 import { dbWrite } from "@/db/client";
+import { writeTransaction } from "@/db/helpers";
 import { platformCredentials, platformCredentialTypeEnum } from "@/db/schemas/platform-credentials";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
@@ -516,7 +517,34 @@ async function storeConnection(
     }
   };
 
-  const revokeConnections = async (
+  const revokeConnectionsDb = async (
+    connections: Array<{
+      id: string;
+      organization_id: string;
+      platform_user_id: string;
+      access_token_secret_id: string | null;
+      refresh_token_secret_id: string | null;
+    }>,
+    reason: string,
+    db = dbWrite,
+  ) => {
+    if (connections.length === 0) return;
+
+    await db
+      .update(platformCredentials)
+      .set({
+        status: "revoked",
+        revoked_at: new Date(),
+        updated_at: new Date(),
+        user_id: null,
+        error_message: reason,
+        access_token_secret_id: null,
+        refresh_token_secret_id: null,
+      })
+      .where(inArray(platformCredentials.id, connections.map((c) => c.id)));
+  };
+
+  const revokeConnectionsSecrets = async (
     connections: Array<{
       id: string;
       organization_id: string;
@@ -534,39 +562,63 @@ async function storeConnection(
       source: `oauth2-${provider.id}-revoke-duplicate`,
     };
 
-    for (const connection of connections) {
-      const deleteSecret = async (secretId: string | null, tokenType: string) => {
-        if (!secretId) return;
-        try {
-          await secretsService.delete(secretId, connection.organization_id, revokeAudit);
-        } catch (error) {
-          logger.warn(`[OAuth2] Failed to delete ${tokenType} secret during revoke`, {
-            providerId: provider.id,
-            connectionId: connection.id,
-            secretId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      };
+    const secretsToDelete = connections.flatMap((connection) => {
+      const secrets: Array<{
+        secretId: string;
+        tokenType: string;
+        organizationId: string;
+        connectionId: string;
+      }> = [];
 
-      await Promise.all([
-        deleteSecret(connection.access_token_secret_id, "access_token"),
-        deleteSecret(connection.refresh_token_secret_id, "refresh_token"),
-      ]);
-    }
+      if (connection.access_token_secret_id) {
+        secrets.push({
+          secretId: connection.access_token_secret_id,
+          tokenType: "access_token",
+          organizationId: connection.organization_id,
+          connectionId: connection.id,
+        });
+      }
 
-    await dbWrite
-      .update(platformCredentials)
-      .set({
-        status: "revoked",
-        revoked_at: new Date(),
-        updated_at: new Date(),
-        user_id: null,
-        error_message: reason,
-        access_token_secret_id: null,
-        refresh_token_secret_id: null,
-      })
-      .where(inArray(platformCredentials.id, connections.map((c) => c.id)));
+      if (connection.refresh_token_secret_id) {
+        secrets.push({
+          secretId: connection.refresh_token_secret_id,
+          tokenType: "refresh_token",
+          organizationId: connection.organization_id,
+          connectionId: connection.id,
+        });
+      }
+
+      return secrets;
+    });
+
+    const deleteSecret = async (
+      secretId: string,
+      tokenType: string,
+      organizationId: string,
+      connectionId: string,
+    ) => {
+      try {
+        await secretsService.delete(secretId, organizationId, revokeAudit);
+      } catch (error) {
+        logger.warn(`[OAuth2] Failed to delete ${tokenType} secret during revoke`, {
+          providerId: provider.id,
+          connectionId,
+          secretId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+
+    await Promise.all(
+      secretsToDelete.map((secret) =>
+        deleteSecret(
+          secret.secretId,
+          secret.tokenType,
+          secret.organizationId,
+          secret.connectionId,
+        ),
+      ),
+    );
 
     logger.info("[OAuth2] Revoked duplicate platform connections", {
       providerId: provider.id,
@@ -590,7 +642,7 @@ async function storeConnection(
         eq(platformCredentials.organization_id, organizationId),
         eq(platformCredentials.platform, providerPlatform),
         eq(platformCredentials.platform_user_id, userInfo.id),
-        eq(platformCredentials.status, "active"),
+        sql`${platformCredentials.user_id} IS NOT NULL`,
       ),
     )
     .limit(1);
@@ -792,44 +844,37 @@ async function storeConnection(
     : undefined;
 
   if (pendingRevocation) {
-    try {
-      await revokeConnections(pendingRevocation.connections, pendingRevocation.reason);
-    } catch (revokeError) {
-      await cleanupNewlyCreatedSecrets("Revocation failed prior to insert");
-      throw revokeError;
-    }
+    await revokeConnectionsSecrets(pendingRevocation.connections, pendingRevocation.reason);
   }
+
+  let revokeFailed = false;
+  let revokeFailure: unknown;
+  let insertBlocked = false;
 
   // Upsert connection with cleanup on failure
   try {
-    const result = await dbWrite
-      .insert(platformCredentials)
-      .values({
-        organization_id: organizationId,
-        user_id: userId,
-        platform: providerPlatform,
-        platform_user_id: userInfo.id,
-        platform_username: userInfo.username || undefined,
-        platform_display_name: userInfo.displayName || undefined,
-        platform_avatar_url: userInfo.avatarUrl || undefined,
-        platform_email: userInfo.email || undefined,
-        status: "active",
-        access_token_secret_id: accessTokenSecretId,
-        refresh_token_secret_id: refreshTokenSecretId,
-        token_expires_at: tokenExpiresAt,
-        scopes,
-        profile_data: userInfo.raw,
-        source_type: "web",
-        linked_at: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          platformCredentials.organization_id,
-          platformCredentials.platform,
-          platformCredentials.platform_user_id,
-        ],
-        set: {
+    const connectionId = await writeTransaction(async (tx) => {
+      if (pendingRevocation) {
+        try {
+          await revokeConnectionsDb(
+            pendingRevocation.connections,
+            pendingRevocation.reason,
+            tx,
+          );
+        } catch (revokeError) {
+          revokeFailed = true;
+          revokeFailure = revokeError;
+          throw revokeError;
+        }
+      }
+
+      const result = await tx
+        .insert(platformCredentials)
+        .values({
+          organization_id: organizationId,
           user_id: userId,
+          platform: providerPlatform,
+          platform_user_id: userInfo.id,
           platform_username: userInfo.username || undefined,
           platform_display_name: userInfo.displayName || undefined,
           platform_avatar_url: userInfo.avatarUrl || undefined,
@@ -840,15 +885,54 @@ async function storeConnection(
           token_expires_at: tokenExpiresAt,
           scopes,
           profile_data: userInfo.raw,
+          source_type: "web",
           linked_at: new Date(),
-          updated_at: new Date(),
-        },
-      })
-      .returning({ id: platformCredentials.id });
+        })
+        .onConflictDoUpdate({
+          target: [
+            platformCredentials.organization_id,
+            platformCredentials.platform,
+            platformCredentials.platform_user_id,
+          ],
+          setWhere: sql`${platformCredentials.user_id} IS NULL OR ${platformCredentials.user_id} = ${userId}`,
+          set: {
+            user_id: userId,
+            platform_username: userInfo.username || undefined,
+            platform_display_name: userInfo.displayName || undefined,
+            platform_avatar_url: userInfo.avatarUrl || undefined,
+            platform_email: userInfo.email || undefined,
+            status: "active",
+            access_token_secret_id: accessTokenSecretId,
+            refresh_token_secret_id: refreshTokenSecretId,
+            token_expires_at: tokenExpiresAt,
+            scopes,
+            profile_data: userInfo.raw,
+            linked_at: new Date(),
+            updated_at: new Date(),
+          },
+        })
+        .returning({ id: platformCredentials.id });
 
-    const connectionId = result[0].id;
+      if (result.length === 0) {
+        insertBlocked = true;
+        throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
+      }
+
+      return result[0].id;
+    });
+
     return connectionId;
   } catch (error) {
+    if (revokeFailed) {
+      await cleanupNewlyCreatedSecrets("Revocation failed prior to insert");
+      throw revokeFailure ?? error;
+    }
+
+    if (insertBlocked) {
+      await cleanupNewlyCreatedSecrets("Database insert blocked by existing connection");
+      throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
+    }
+
     await cleanupNewlyCreatedSecrets("Database insert failed");
     // Map unique constraint violation on user_platform_idx to a domain error
     // This handles the race condition where a concurrent OAuth completion for the
