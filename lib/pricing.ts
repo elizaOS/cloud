@@ -177,7 +177,7 @@ export function isReasoningModel(model: string): boolean {
 
 /**
  * Returns provider-safe model parameters by stripping unsupported settings.
- * Anthropic doesn't support frequencyPenalty, presencePenalty, or stopSequences.
+ * Anthropic doesn't support frequencyPenalty or presencePenalty.
  * Reasoning models (claude-opus, o1, o3) don't support temperature.
  */
 export function getSafeModelParams(
@@ -202,7 +202,6 @@ export function getSafeModelParams(
   if (provider === "anthropic") {
     delete result.frequencyPenalty;
     delete result.presencePenalty;
-    delete result.stopSequences;
   }
 
   if (isReasoningModel(model)) {

@@ -677,7 +677,6 @@ async function handlePOST(req: NextRequest) {
     if (provider2 === "anthropic") {
       delete request.frequency_penalty;
       delete request.presence_penalty;
-      delete request.stop;
     }
     if (isReasoningModel(model)) {
       delete request.temperature;
