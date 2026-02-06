@@ -34,6 +34,19 @@ interface OAuth2State {
   redirectUrl: string;
   scopes: string[];
   createdAt: number;
+  codeVerifier?: string;
+}
+
+/**
+ * Generate PKCE (Proof Key for Code Exchange) challenge pair.
+ * Uses S256 method: SHA-256 hash of random verifier, base64url-encoded.
+ */
+async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const codeVerifier = Buffer.from(bytes).toString("base64url");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+  const codeChallenge = Buffer.from(digest).toString("base64url");
+  return { codeVerifier, codeChallenge };
 }
 
 /**
@@ -112,6 +125,16 @@ export async function initiateOAuth2(
   // Generate cryptographically secure state
   const state = crypto.randomUUID();
 
+  // Generate PKCE challenge if required by provider
+  let codeVerifier: string | undefined;
+  let codeChallenge: string | undefined;
+  if (provider.pkce) {
+    const pkce = await generatePKCE();
+    codeVerifier = pkce.codeVerifier;
+    codeChallenge = pkce.codeChallenge;
+    logger.info(`[OAuth2] PKCE enabled for ${provider.id}`);
+  }
+
   // Store state for callback verification
   const stateData: OAuth2State = {
     organizationId: params.organizationId,
@@ -120,6 +143,7 @@ export async function initiateOAuth2(
     redirectUrl,
     scopes,
     createdAt: Date.now(),
+    codeVerifier,
   };
 
   await cache.set(`oauth2:${provider.id}:${state}`, stateData, STATE_TTL_SECONDS);
@@ -135,6 +159,12 @@ export async function initiateOAuth2(
   }
 
   authUrl.searchParams.set("state", state);
+
+  // Add PKCE challenge to authorization URL
+  if (codeChallenge) {
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+  }
 
   // Add provider-specific authorization parameters
   if (provider.authParams) {
@@ -180,10 +210,10 @@ export async function handleOAuth2Callback(
   // Delete state to prevent replay attacks
   await cache.del(stateKey);
 
-  const { organizationId, userId, redirectUrl, scopes } = stateData;
+  const { organizationId, userId, redirectUrl, scopes, codeVerifier } = stateData;
 
   // Exchange code for tokens
-  const tokens = await exchangeCodeForTokens(provider, code);
+  const tokens = await exchangeCodeForTokens(provider, code, codeVerifier);
 
   // Fetch user info if endpoint is configured
   let userInfo: ExtractedUserInfo;
@@ -226,7 +256,8 @@ export async function handleOAuth2Callback(
  */
 async function exchangeCodeForTokens(
   provider: OAuthProviderConfig,
-  code: string
+  code: string,
+  codeVerifier?: string
 ): Promise<TokenResponse> {
   const clientId = getClientId(provider);
   const clientSecret = getClientSecret(provider);
@@ -251,6 +282,11 @@ async function exchangeCodeForTokens(
     client_secret: clientSecret,
     ...provider.tokenParams,
   };
+
+  // Add PKCE code_verifier if present
+  if (codeVerifier) {
+    bodyParams.code_verifier = codeVerifier;
+  }
 
   // Build headers
   const headers: Record<string, string> = {

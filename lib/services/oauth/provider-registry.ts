@@ -182,6 +182,12 @@ export interface OAuthProviderConfig {
   };
 
   /**
+   * Whether this provider requires PKCE (Proof Key for Code Exchange).
+   * When true, the OAuth2 flow will generate code_challenge/code_verifier.
+   */
+  pkce?: boolean;
+
+  /**
    * Whether this provider uses the generic OAuth routes.
    * Set to true for new providers. Legacy providers have this as false/undefined.
    */
@@ -326,6 +332,67 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       displayName: "user",
       // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  salesforce: {
+    id: "salesforce",
+    name: "Salesforce",
+    description: "CRM - accounts, contacts, opportunities, and leads",
+    type: "oauth2",
+    envVars: ["SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://login.salesforce.com/services/oauth2/authorize",
+      token: "https://login.salesforce.com/services/oauth2/token",
+      userInfo: "https://login.salesforce.com/services/oauth2/userinfo",
+      revoke: "https://login.salesforce.com/services/oauth2/revoke",
+    },
+    defaultScopes: ["api", "id", "refresh_token"],
+    userInfoMapping: {
+      id: "user_id",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    authParams: {
+      prompt: "login consent",
+    },
+    pkce: true,
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  airtable: {
+    id: "airtable",
+    name: "Airtable",
+    description: "Databases, spreadsheets, and project tracking",
+    type: "oauth2",
+    envVars: ["AIRTABLE_CLIENT_ID", "AIRTABLE_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://airtable.com/oauth2/v1/authorize",
+      token: "https://airtable.com/oauth2/v1/token",
+      userInfo: "https://api.airtable.com/v0/meta/whoami",
+    },
+    defaultScopes: [
+      "data.records:read",
+      "data.records:write",
+      "data.recordComments:read",
+      "data.recordComments:write",
+      "schema.bases:read",
+      "schema.bases:write",
+      "user.email:read",
+      "webhook:manage",
+    ],
+    userInfoMapping: {
+      id: "id",
+      email: "email",
+    },
+    tokenHeaders: {
+      Authorization: "Basic ${base64(CLIENT_ID:CLIENT_SECRET)}",
+    },
+    tokenContentType: "form",
+    pkce: true,
     storage: "platform_credentials",
     useGenericRoutes: true,
   },
