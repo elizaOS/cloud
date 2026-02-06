@@ -626,6 +626,20 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
+    // Set MCP_ENABLED_SERVERS in request context for cache miss path too.
+    // On cache hit this is done in applyUserContext(); on cache miss the runtime
+    // already has the correct servers, but we set this for defense-in-depth so
+    // validate() in dynamic-tool-actions.ts can filter consistently.
+    const requestCtx = getRequestContext();
+    if (requestCtx) {
+      const connected = this.getConnectedPlatforms(context);
+      const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
+      requestCtx.entitySettings.set(
+        "MCP_ENABLED_SERVERS",
+        JSON.stringify(enabledServers),
+      );
+    }
+
     await runtimeCache.set(
       cacheKey,
       runtime,
