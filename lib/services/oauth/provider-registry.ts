@@ -28,6 +28,12 @@ export interface OAuthEndpoints {
   revoke?: string;
   /** GraphQL query for userInfo endpoint (required if userInfo is a GraphQL endpoint) */
   userInfoGraphQLQuery?: string;
+  /**
+   * Base URL to fetch token metadata (e.g. user, hub_id) after token exchange.
+   * Used by providers like HubSpot that don't return user in the token response.
+   * Request: GET {tokenInfo}/{access_token}
+   */
+  tokenInfo?: string;
 }
 
 /**
@@ -339,8 +345,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://app.hubspot.com/oauth/authorize",
       token: "https://api.hubapi.com/oauth/v1/token",
-      // HubSpot token info requires access token in URL path, skip userInfo fetch
       revoke: "https://api.hubapi.com/oauth/v1/refresh-tokens",
+      // Token exchange does not return user/hub_id; fetch from token metadata endpoint
+      tokenInfo: "https://api.hubapi.com/oauth/v1/access-tokens",
     },
     defaultScopes: [
       "crm.objects.contacts.read",
