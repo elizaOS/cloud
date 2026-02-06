@@ -404,10 +404,15 @@ export class McpService extends Service {
       const res = await conn.client.listTools();
       return (res?.tools || []).map((t) => {
         if (!t.inputSchema) return t;
-        if (!this.toolCompatibility)
-          this.toolCompatibility = createMcpToolCompatibilitySync(this.runtime);
+        const toolCompatibility =
+          this.toolCompatibility ?? createMcpToolCompatibilitySync(this.runtime);
+        this.toolCompatibility = toolCompatibility;
+        if (!toolCompatibility) return t;
         try {
-          return { ...t, inputSchema: this.toolCompatibility.transformToolSchema(t.inputSchema) };
+          const inputSchema = toolCompatibility.transformToolSchema(
+            t.inputSchema
+          ) as Tool["inputSchema"];
+          return { ...t, inputSchema };
         } catch (e) {
           logger.debug(
             { error: err(e), tool: t.name },

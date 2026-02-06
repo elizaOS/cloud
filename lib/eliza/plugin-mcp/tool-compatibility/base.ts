@@ -18,8 +18,8 @@ export abstract class McpToolCompatibility {
 
   abstract shouldApply(): boolean;
 
-  transformToolSchema(toolSchema: JSONSchema7): JSONSchema7 {
-    return this.shouldApply() ? this.processSchema(toolSchema) : toolSchema;
+  transformToolSchema<TSchema extends JSONSchema7>(toolSchema: TSchema): TSchema {
+    return this.shouldApply() ? (this.processSchema(toolSchema) as TSchema) : toolSchema;
   }
 
   protected processSchema(schema: JSONSchema7): JSONSchema7 {
