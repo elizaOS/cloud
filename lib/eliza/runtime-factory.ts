@@ -647,6 +647,8 @@ export class RuntimeFactory {
     const mcpSettings = this.buildMcpSettings(runtime.character.settings || {}, context);
     if (mcpSettings.mcp) {
       charSettings.mcp = mcpSettings.mcp;
+    } else {
+      delete charSettings.mcp;
     }
 
     // NOTE: The following are NO LONGER mutated here because they're resolved
