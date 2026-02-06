@@ -14,7 +14,7 @@ import {
   type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
-import mcpPlugin from "@elizaos/plugin-mcp";
+import mcpPlugin from "./plugin-mcp";
 import { agentLoader } from "./agent-loader";
 import {
   getElizaCloudApiUrl,

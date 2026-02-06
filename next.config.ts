@@ -154,7 +154,6 @@ const nextConfig: NextConfig = {
     "pdfjs-dist",
     "canvas",
     "pdf-parse",
-    "@elizaos/plugin-mcp",
     "@modelcontextprotocol/sdk",
     "mcp-handler",
     "express",
