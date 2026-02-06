@@ -13,7 +13,7 @@ import {
   type RoomWithPreview,
 } from "@/db/repositories";
 import { dbWrite } from "@/db/client";
-import { roomTable } from "@/db/schemas/eliza";
+import { roomTable, entityTable, participantTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -289,18 +289,28 @@ export class RoomsService {
         .returning();
 
       // Create entity (upsert - ignore if exists)
-      await entitiesRepository.create({
-        id: entityId,
-        agentId,
-        names: [entityId],
-      });
+      // Must use tx so the insert is visible within this transaction
+      await tx
+        .insert(entityTable)
+        .values({
+          id: entityId,
+          agentId,
+          names: [entityId],
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing();
 
       // Add participant
-      await participantsRepository.create({
-        roomId,
-        entityId,
-        agentId,
-      });
+      // Must use tx so it can see the room created above
+      await tx
+        .insert(participantTable)
+        .values({
+          roomId,
+          entityId,
+          agentId,
+          createdAt: new Date(),
+        })
+        .returning();
 
       return room;
     });
