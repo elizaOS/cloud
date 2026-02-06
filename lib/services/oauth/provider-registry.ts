@@ -348,7 +348,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       userInfo: "https://login.salesforce.com/services/oauth2/userinfo",
       revoke: "https://login.salesforce.com/services/oauth2/revoke",
     },
-    defaultScopes: ["api", "refresh_token", "openid", "profile", "email"],
+    defaultScopes: ["api", "id", "refresh_token"],
     userInfoMapping: {
       id: "user_id",
       email: "email",
