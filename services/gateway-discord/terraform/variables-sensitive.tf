@@ -45,6 +45,21 @@ variable "blob_token" {
   default     = ""
 }
 
+# Eliza App Discord Bot Secrets (optional - for hybrid bot mode)
+variable "eliza_app_discord_bot_token" {
+  description = "Discord bot token for the Eliza App system bot (DM-based interactions)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "eliza_app_discord_application_id" {
+  description = "Discord application ID for the Eliza App system bot"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # aws-auth ConfigMap
 variable "enable_aws_auth_update" {
   description = "Whether to update aws-auth ConfigMap for GitHub Actions access"

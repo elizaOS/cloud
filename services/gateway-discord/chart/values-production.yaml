@@ -1,5 +1,9 @@
 # Production environment overrides for gateway-discord
 
+# Enable Eliza App Discord bot (system-wide DM-based interactions)
+elizaAppBot:
+  enabled: true
+
 # Production resource limits
 resources:
   requests:

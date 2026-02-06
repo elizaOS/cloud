@@ -41,6 +41,12 @@ export const elizaAppConfig = {
     phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
   },
 
+  // Discord configuration
+  discord: {
+    botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
+    applicationId: process.env.ELIZA_APP_DISCORD_APPLICATION_ID || "",
+  },
+
   // JWT configuration - secret required in all environments
   jwt: {
     secret: requireEnv("ELIZA_APP_JWT_SECRET"),

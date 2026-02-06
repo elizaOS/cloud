@@ -279,19 +279,21 @@ resource "aws_iam_role_policy" "github_actions_ecr" {
 module "k8s_resources" {
   source = "./modules/k8s-resources"
 
-  namespace                = "gateway-discord"
-  environment              = var.environment
-  ghcr_username            = var.ghcr_username
-  ghcr_token               = var.ghcr_token
-  eliza_cloud_url          = var.eliza_cloud_url
-  gateway_bootstrap_secret = var.gateway_bootstrap_secret
-  redis_url                = var.redis_url
-  redis_token              = var.redis_token
-  blob_token               = var.blob_token
-  enable_aws_auth_update   = var.enable_aws_auth_update
-  node_group_role_arn      = module.eks.eks_managed_node_groups["main"].iam_role_arn
-  github_actions_role_arn  = module.github_oidc.oidc_role
-  existing_aws_auth_roles  = var.existing_aws_auth_roles
+  namespace                        = "gateway-discord"
+  environment                      = var.environment
+  ghcr_username                    = var.ghcr_username
+  ghcr_token                       = var.ghcr_token
+  eliza_cloud_url                  = var.eliza_cloud_url
+  gateway_bootstrap_secret         = var.gateway_bootstrap_secret
+  redis_url                        = var.redis_url
+  redis_token                      = var.redis_token
+  blob_token                       = var.blob_token
+  eliza_app_discord_bot_token      = var.eliza_app_discord_bot_token
+  eliza_app_discord_application_id = var.eliza_app_discord_application_id
+  enable_aws_auth_update           = var.enable_aws_auth_update
+  node_group_role_arn              = module.eks.eks_managed_node_groups["main"].iam_role_arn
+  github_actions_role_arn          = module.github_oidc.oidc_role
+  existing_aws_auth_roles          = var.existing_aws_auth_roles
 
   depends_on = [module.eks]
 }

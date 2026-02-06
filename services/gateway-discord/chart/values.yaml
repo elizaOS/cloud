@@ -49,6 +49,13 @@ config:
   failoverCheckIntervalMs: "30000"
   deadPodThresholdMs: "45000"
 
+# Eliza App Discord bot configuration (optional)
+# When enabled, the gateway runs a leader election to connect a single
+# Eliza App Discord bot across all pods for DM-based interactions.
+elizaAppBot:
+  # Enable the Eliza App Discord bot
+  enabled: false
+
 # Secrets configuration
 secrets:
   # Name of the existing secret containing sensitive data
@@ -60,6 +67,9 @@ secrets:
     redisUrl: "redis-url"
     redisToken: "redis-token"
     blobToken: "blob-token"
+    # Eliza App Discord bot (optional - enables DM-based Eliza App integration)
+    elizaAppDiscordBotToken: "eliza-app-discord-bot-token"
+    elizaAppDiscordApplicationId: "eliza-app-discord-application-id"
 
 # Graceful shutdown configuration
 terminationGracePeriodSeconds: 120

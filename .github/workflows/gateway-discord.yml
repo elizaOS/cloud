@@ -19,6 +19,8 @@ name: Gateway Discord
 #     - REDIS_URL: Redis URL
 #     - REDIS_TOKEN: Redis token
 #     - BLOB_TOKEN: Blob storage token
+#     - ELIZA_APP_DISCORD_BOT_TOKEN: Discord bot token for Eliza App system bot
+#     - ELIZA_APP_DISCORD_APPLICATION_ID: Discord application ID for Eliza App system bot
 #
 # gateway-prd environment:
 #   (Same variables/secrets as gateway-dev, but for production)
@@ -252,6 +254,8 @@ jobs:
           TF_VAR_redis_url: ${{ secrets.REDIS_URL }}
           TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
           TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
+          TF_VAR_eliza_app_discord_bot_token: ${{ secrets.ELIZA_APP_DISCORD_BOT_TOKEN }}
+          TF_VAR_eliza_app_discord_application_id: ${{ secrets.ELIZA_APP_DISCORD_APPLICATION_ID }}
         run: |
           # For PRs and manual terraform-plan, only plan infrastructure modules
           # (skip k8s_resources which requires cluster access that Terraform role doesn't have)
@@ -354,6 +358,8 @@ jobs:
           TF_VAR_redis_url: ${{ secrets.REDIS_URL }}
           TF_VAR_redis_token: ${{ secrets.REDIS_TOKEN }}
           TF_VAR_blob_token: ${{ secrets.BLOB_TOKEN }}
+          TF_VAR_eliza_app_discord_bot_token: ${{ secrets.ELIZA_APP_DISCORD_BOT_TOKEN }}
+          TF_VAR_eliza_app_discord_application_id: ${{ secrets.ELIZA_APP_DISCORD_APPLICATION_ID }}
         run: |
           # Remove k8s_resources from state first - Terraform role doesn't have K8s API access
           # These resources are destroyed when the EKS cluster is destroyed anyway

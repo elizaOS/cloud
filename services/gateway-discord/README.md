@@ -2,10 +2,34 @@
 
 Multi-tenant Discord gateway that maintains WebSocket connections to Discord and forwards events to Eliza Cloud for processing.
 
+## Features
+
+- **Multi-tenant**: Single pod handles up to 100 Discord bot connections
+- **Auto-scaling**: Kubernetes HPA scales based on CPU/bot count
+- **Failover**: Automatic reassignment when pods die (45s detection)
+- **Graceful shutdown**: Immediate connection release during deployments
+- **Voice support**: Transcribes voice messages before routing
+- **Encrypted tokens**: Bot tokens encrypted at rest with AES-256-GCM
+- **Hybrid Mode**: Supports both Eliza App system bot and user-created bots
+
 ## Table of Contents
 
-- [Architecture Overview](#architecture-overview)
 - [Features](#features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Running Locally](#running-locally)
+  - [Registering a Discord Bot Connection](#registering-a-discord-bot-connection)
+  - [Setting Up the Eliza App Bot](#setting-up-the-eliza-app-bot)
+  - [Verifying the Setup](#verifying-the-setup)
+  - [Testing the Flow](#testing-the-flow)
+  - [Troubleshooting](#troubleshooting)
+- [Configuration Reference](#configuration-reference)
+  - [Scripts](#scripts)
+  - [Running Tests](#running-tests)
+- [Architecture Overview](#architecture-overview)
+- [Hybrid Architecture: Eliza App Bot + User-Created Bots](#hybrid-architecture-eliza-app-bot--user-created-bots)
+  - [Leader Election](#leader-election-for-eliza-app-bot)
+  - [Message Flow: Eliza App Bot](#message-flow-eliza-app-bot)
 - [Pod Lifecycle & Communication](#pod-lifecycle--communication)
   - [Startup Sequence](#startup-sequence)
   - [Bot Assignment Polling](#bot-assignment-polling)
@@ -14,22 +38,521 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
   - [Failover Mechanism](#failover-mechanism)
   - [Graceful Shutdown](#graceful-shutdown)
   - [Health Endpoints](#health-endpoints)
-- [How to Run and Test](#how-to-run-and-test)
-  - [Prerequisites](#prerequisites)
-  - [Running Locally](#running-locally)
-  - [Registering a Discord Bot Connection](#registering-a-discord-bot-connection)
-  - [Verifying the Setup](#verifying-the-setup)
-  - [Testing the Flow](#testing-the-flow)
-  - [Troubleshooting](#troubleshooting)
-  - [Configuration Reference](#configuration-reference)
-  - [Scripts](#scripts)
-  - [Running Tests](#running-tests)
+- [How Discord Response Authentication Works](#how-discord-response-authentication-works)
 - [Complete System Documentation](#complete-system-documentation)
   - [Database Schema](#1-database-table-discord_connections)
   - [API Endpoints](#2-api-endpoints)
   - [Bot → Character Mapping & User Context](#3-bot--character-mapping--user-context)
   - [End-to-End Examples](#4-end-to-end-examples)
 - [Kubernetes Deployment](#kubernetes-deployment)
+- [Infrastructure (Terraform)](#infrastructure-terraform)
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+#### 1. Discord Bot Setup (for User-Created Bots)
+
+Follow these steps to create a Discord bot for the multi-tenant gateway:
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click **"New Application"** and give it a name
+3. Copy the **Application ID** from the General Information page
+4. Navigate to the **Bot** section in the left sidebar
+5. Click **"Reset Token"** to generate a new bot token
+6. Copy the **Bot Token** (you'll only see it once!)
+7. Enable **Privileged Gateway Intents**:
+   - `MESSAGE CONTENT INTENT` (required - allows reading message content)
+   - `SERVER MEMBERS INTENT` (optional - for member-related events)
+8. Generate OAuth2 URL and invite bot to your test server:
+   - Go to **OAuth2 → URL Generator**
+   - Select scopes: `bot`
+   - Select permissions: `Send Messages`, `Read Message History`, `Add Reactions`
+   - Copy the generated URL and open it in a browser to invite the bot
+
+> **Tip**: The dashboard's "Add to Server" button automatically generates the correct OAuth2 URL with permissions: Send Messages (2048) + Read Message History (65536) + Add Reactions (64) = 67648
+
+#### 2. Environment Variables
+
+**Option A: Use root `.env.local` (Recommended for local development)**
+
+The gateway can use the same `.env.local` file as the main Eliza Cloud app. Add the required variables to your root `.env.local`:
+
+```bash
+# Add to your root .env.local file:
+
+# Gateway authentication (JWT-based)
+GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Generate with: openssl rand -hex 32
+
+# JWT signing keys for Eliza Cloud (required for token issuance)
+# Generate PKCS#8 key with: openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt
+JWT_SIGNING_PRIVATE_KEY="base64-encoded-private-key"
+JWT_SIGNING_PUBLIC_KEY="base64-encoded-public-key"
+```
+
+The gateway already picks up these existing variables from root `.env.local`:
+- `NEXT_PUBLIC_APP_URL` - Used as the Eliza Cloud URL
+- `KV_REST_API_URL` / `KV_REST_API_TOKEN` - Redis for failover
+- `BLOB_READ_WRITE_TOKEN` - For voice message storage
+
+Then run with:
+```bash
+cd services/gateway-discord
+bun run dev  # Uses ../../.env.local automatically
+```
+
+**Option B: Create a separate `.env` file in this directory**
+
+Create a `.env` file in `services/gateway-discord/`:
+
+```bash
+# Required - JWT Authentication
+GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Exchanged for JWT at startup
+
+# Eliza Cloud URL (pick ONE of these options):
+# Option A: Use dedicated env var (recommended for production)
+ELIZA_CLOUD_URL=http://localhost:3000
+
+# Option B: Reuse the same var as main app (convenient for local dev)
+# If ELIZA_CLOUD_URL is not set, it falls back to NEXT_PUBLIC_APP_URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Optional - Redis for failover coordination
+KV_REST_API_URL=https://your-redis.upstash.io
+KV_REST_API_TOKEN=your_upstash_token_here
+
+# Optional - Voice message handling
+BLOB_READ_WRITE_TOKEN=vercel_blob_token     # For storing voice transcriptions
+VOICE_MESSAGE_ENABLED=true                  # Enable/disable voice processing
+
+# Optional - Tuning
+POD_NAME=gateway-local                      # Pod identifier (auto-set in K8s)
+MAX_BOTS_PER_POD=100                        # Max bots per instance
+LOG_LEVEL=info                              # debug | info | warn | error
+```
+
+Then run with:
+```bash
+cd services/gateway-discord
+bun run dev:local  # Uses local .env file
+```
+
+**URL Resolution Order:**
+1. `ELIZA_CLOUD_URL` (if set)
+2. `NEXT_PUBLIC_APP_URL` (fallback)
+3. `https://elizacloud.ai` (default)
+
+Generate secure secrets:
+```bash
+# Generate bootstrap secret
+openssl rand -hex 32
+
+# Generate ES256 key pair for JWT signing in PKCS#8 format (run on Eliza Cloud side)
+# Note: PKCS#8 format (-----BEGIN PRIVATE KEY-----) is required by jose library
+openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out private.pem
+openssl ec -in private.pem -pubout -out public.pem
+# Base64 encode for environment variables
+base64 -w 0 private.pem  # JWT_SIGNING_PRIVATE_KEY
+base64 -w 0 public.pem   # JWT_SIGNING_PUBLIC_KEY
+```
+
+### Running Locally
+
+#### Option 1: Development Mode (Recommended)
+
+**Step 1: Start Eliza Cloud**
+
+In the root directory:
+```bash
+bun run dev
+```
+This starts the Next.js app on `http://localhost:3000`
+
+**Step 2: Start the Gateway**
+
+In a new terminal:
+```bash
+cd services/gateway-discord
+
+# Install dependencies
+bun install
+
+# Start with hot reload (runs on port 3001 by default)
+bun run dev
+```
+
+The gateway will:
+- Start on port 3001 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
+- Poll `http://localhost:3000/api/internal/discord/gateway/assignments` every 30s
+- Forward events to `http://localhost:3000/api/internal/discord/events`
+- Send heartbeats every 15s
+
+> **Note:** The gateway's PORT only affects where it listens for health checks and metrics.
+> It always connects to Eliza Cloud via `NEXT_PUBLIC_APP_URL` (http://localhost:3000).
+
+#### Option 2: Production Mode
+
+```bash
+bun run start  # Runs on port 3001 by default
+```
+
+#### Option 3: Docker
+
+```bash
+# Build and start
+bun run docker:up
+
+# View logs
+bun run docker:logs
+
+# Stop
+bun run docker:down
+```
+
+Or manually:
+```bash
+docker build -t gateway-discord:local .
+docker run -p 3001:3000 --env-file .env gateway-discord:local
+```
+
+#### Option 4: Docker Compose
+
+```bash
+docker compose up -d
+```
+
+This maps port 3001 on your host to 3000 in the container.
+
+### Registering a Discord Bot Connection
+
+Use the Discord Connections API to manage bot connections.
+
+**Create a connection:**
+
+```bash
+curl -X POST http://localhost:3000/api/v1/discord/connections \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
+  -d '{
+    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
+    "botToken": "YOUR_BOT_TOKEN",
+    "characterId": "YOUR_CHARACTER_UUID",
+    "organizationId": "YOUR_ORGANIZATION_UUID",
+    "metadata": {
+      "responseMode": "always"
+    }
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "connection": {
+    "id": "connection-uuid",
+    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
+    "characterId": "character-uuid",
+    "status": "pending",
+    "isActive": true,
+    "createdAt": "2024-01-15T12:00:00.000Z"
+  },
+  "message": "Connection created. The gateway will pick it up within 30 seconds."
+}
+```
+
+**API Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/discord/connections` | List all connections |
+| `POST` | `/api/v1/discord/connections` | Create a new connection |
+| `GET` | `/api/v1/discord/connections/:id` | Get a single connection |
+| `PATCH` | `/api/v1/discord/connections/:id` | Update a connection |
+| `DELETE` | `/api/v1/discord/connections/:id` | Delete a connection |
+
+**Create Connection Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `applicationId` | string | Yes | Discord Application ID from Developer Portal |
+| `botToken` | string | Yes | Bot token from Discord Developer Portal |
+| `characterId` | string (uuid) | Yes | Character ID for AI responses |
+| `intents` | number | No | Discord gateway intents (default: 38401) |
+| `metadata.responseMode` | string | No | `"always"`, `"mention"`, or `"keyword"` |
+| `metadata.enabledChannels` | string[] | No | Only respond in these channels |
+| `metadata.disabledChannels` | string[] | No | Ignore these channels |
+| `metadata.keywords` | string[] | No | Required if responseMode is `"keyword"` |
+
+**Update Connection Request Body:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `characterId` | string (uuid) or null | Change or remove the linked character |
+| `isActive` | boolean | Enable/disable the connection |
+| `metadata` | object | Update response behavior |
+
+### Setting Up the Eliza App Bot
+
+The gateway also supports a single system-wide **Eliza App Bot** (DM-only) alongside user-created bots. To enable it:
+
+1. **Create a Discord Application** at [Discord Developer Portal](https://discord.com/developers/applications)
+   - Click "New Application" and give it a name
+   - Copy the **Application ID** from General Information page
+
+2. **Configure the Bot:**
+   - Go to the "Bot" section in the left sidebar
+   - Click "Reset Token" to generate a new bot token
+   - Copy the **Bot Token** (you'll only see it once!)
+   - Under "Privileged Gateway Intents", enable:
+     - `MESSAGE CONTENT INTENT` (required to read DM content)
+
+3. **Invite Bot to Test Server (Optional):**
+   The Eliza App bot is DM-only, but you can invite it to a server to make it easier for users to find and DM:
+   ```
+   https://discord.com/oauth2/authorize?client_id=YOUR_APP_ID&scope=bot&permissions=2048
+   ```
+   > Note: `permissions=2048` grants "Send Messages" only, which is sufficient for DM responses.
+
+4. **Set Environment Variables (Local Development):**
+   ```bash
+   ELIZA_APP_DISCORD_BOT_ENABLED=true
+   ELIZA_APP_DISCORD_BOT_TOKEN=your-bot-token
+   ELIZA_APP_DISCORD_APPLICATION_ID=your-app-id  # Optional, for reference
+   ```
+
+5. **Configure via Helm (Kubernetes):**
+   
+   First, add the bot secrets to your Kubernetes secret:
+   ```bash
+   kubectl create secret generic gateway-discord-secrets \
+     --namespace gateway-discord \
+     --from-literal=eliza-app-discord-bot-token="your-bot-token" \
+     --from-literal=eliza-app-discord-application-id="your-app-id"
+   ```
+   
+   Then enable the bot in your Helm values:
+   ```yaml
+   # values.yaml or values-production.yaml
+   elizaAppBot:
+     enabled: true
+   ```
+   
+   Deploy with:
+   ```bash
+   helm upgrade --install gateway-discord ./chart \
+     --namespace gateway-discord \
+     --set elizaAppBot.enabled=true
+   ```
+
+6. **Ensure Redis is configured** (required for leader election):
+   ```bash
+   KV_REST_API_URL=https://your-redis.upstash.io
+   KV_REST_API_TOKEN=your-token
+   ```
+
+> For more details on how the Eliza App Bot works (leader election, DM handling, intents), see [Hybrid Architecture](#hybrid-architecture-eliza-app-bot--user-created-bots).
+
+### Verifying the Setup
+
+**Port Reference:**
+| Running Method | Gateway Port | Notes |
+|----------------|--------------|-------|
+| Local (`bun run dev`) | `http://localhost:3001` | Scripts default to port 3001 |
+| Docker (`docker compose up`) | `http://localhost:3001` | Mapped from container's internal port 3000 |
+
+#### 1. Check Gateway Health
+
+```bash
+curl http://localhost:3001/health
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "podName": "gateway-local",
+  "totalBots": 1,
+  "connectedBots": 1,
+  "disconnectedBots": 0,
+  "totalGuilds": 3,
+  "uptime": 12345,
+  "controlPlane": {
+    "consecutiveFailures": 0,
+    "lastSuccessfulPoll": "2024-01-15T12:00:00.000Z",
+    "healthy": true
+  }
+}
+```
+
+#### 2. Check Gateway Status
+
+```bash
+curl http://localhost:3001/status
+```
+
+Shows detailed information about all active connections.
+
+#### 3. Check Prometheus Metrics
+
+```bash
+curl http://localhost:3001/metrics
+```
+
+Returns metrics in Prometheus format for monitoring.
+
+#### 4. Watch the Logs
+
+Gateway logs show:
+- `Bot connected` - Discord WebSocket successfully connected
+- `Routing event` - Message received and forwarded
+- `Failed to forward event` - Eliza Cloud unreachable
+
+Eliza Cloud logs show:
+- `[Discord Events] Received event` - Event received from gateway
+- `[DiscordRouter] Routing event` - Event being processed
+
+### Testing the Flow
+
+1. **Send a message** in your Discord server where the bot is present
+2. **Watch gateway logs** for:
+   ```
+   [INFO] Received MESSAGE_CREATE event
+   [INFO] Forwarding to Eliza Cloud...
+   ```
+3. **Watch Eliza Cloud logs** for:
+   ```
+   [Discord Events] Received event
+   [DiscordRouter] Routing event
+   ```
+4. **Check Discord** - The bot should respond!
+
+### Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (or `http://host.docker.internal:3000` in Docker) |
+| `401 Unauthorized` on API calls | JWT authentication failed | Check `GATEWAY_BOOTSTRAP_SECRET` matches on both sides, verify JWT signing keys are configured |
+| Gateway fails on startup | Token acquisition failed | Ensure Eliza Cloud is running and has `JWT_SIGNING_PRIVATE_KEY`/`JWT_SIGNING_PUBLIC_KEY` configured |
+| Bot connects but doesn't respond | No linked app/character | Ensure the connection has `character_id` linked to an app with a character |
+| Bot connects but doesn't respond | Response mode filtering | Check `metadata.responseMode` and channel filters |
+| `Connection not found` error | Invalid connection ID | Create connection via repository first |
+| No assignments returned | Connection inactive | Check `is_active=true` in database |
+| `Invalid token` error | Bad bot token | Verify token in Discord Developer Portal |
+| Events not forwarded | Network issue | Check `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` is accessible |
+
+---
+
+## Configuration Reference
+
+### Gateway Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Secret exchanged for JWT at startup |
+| `ELIZA_CLOUD_URL` | No* | - | Main Eliza Cloud app URL (takes precedence) |
+| `NEXT_PUBLIC_APP_URL` | No* | - | Fallback URL if `ELIZA_CLOUD_URL` not set |
+| `KV_REST_API_URL` | No | - | Redis URL for failover |
+| `KV_REST_API_TOKEN` | No | - | Redis auth token |
+| `POD_NAME` | No | `gateway-{hostname}` | Pod identifier |
+| `PORT` | No | `3000` | HTTP server port |
+| `MAX_BOTS_PER_POD` | No | `100` | Max connections per pod |
+| `VOICE_MESSAGE_ENABLED` | No | `true` | Process voice messages |
+| `BLOB_READ_WRITE_TOKEN` | No | - | Vercel Blob for voice storage |
+| `LOG_LEVEL` | No | `info` | Logging verbosity |
+| `DEAD_POD_THRESHOLD_MS` | No | `45000` | Failover detection threshold |
+| `FAILOVER_CHECK_INTERVAL_MS` | No | `30000` | How often to check for dead pods |
+| `ELIZA_APP_DISCORD_BOT_ENABLED` | No | `false` | Set to `"true"` to enable Eliza App bot |
+| `ELIZA_APP_DISCORD_BOT_TOKEN` | No* | - | Eliza App system bot token (required if enabled) |
+| `ELIZA_APP_DISCORD_APPLICATION_ID` | No | - | Eliza App bot application ID (for reference) |
+
+**\*** Required when `ELIZA_APP_DISCORD_BOT_ENABLED=true`
+
+### Eliza Cloud Environment Variables (for JWT authentication)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Must match gateway's bootstrap secret |
+| `JWT_SIGNING_PRIVATE_KEY` | Yes | - | Base64-encoded ES256 private key (PKCS#8) |
+| `JWT_SIGNING_PUBLIC_KEY` | Yes | - | Base64-encoded ES256 public key (SPKI) |
+| `JWT_SIGNING_KEY_ID` | No | `primary` | Key identifier for JWKS rotation |
+
+**\*** At least one of `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` should be set. If neither is set, defaults to `https://elizacloud.ai`.
+
+**URL Resolution Order:**
+```
+ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → https://elizacloud.ai
+```
+
+### Scripts
+
+```bash
+# Development (uses root ../../.env.local, runs on port 3001)
+bun run dev          # Development with hot reload, uses root .env.local
+bun run start        # Production mode, uses root .env.local
+
+# Development (uses local .env in this directory, runs on port 3001)
+bun run dev:local    # Development with hot reload, uses local .env
+bun run start:local  # Production mode, uses local .env
+
+# Build & Test
+bun run build        # Build for deployment
+bun run typecheck    # TypeScript type checking
+bun run test         # Run tests
+
+# Docker
+bun run docker:build # Build Docker image
+bun run docker:run   # Run Docker container (uses root .env.local)
+bun run docker:up    # Start with docker-compose
+bun run docker:down  # Stop docker-compose
+bun run docker:logs  # View container logs
+
+# Kubernetes - see chart/README.md for Helm deployment commands
+```
+
+### Running Tests
+
+The gateway service has comprehensive test coverage including unit tests and e2e tests.
+
+**Note:** Use `SKIP_SERVER_CHECK=true` to skip the local server check (required for unit tests that mock all dependencies).
+
+#### Run All Tests
+
+```bash
+# From the repository root
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ lib/services/gateway-discord/__tests__/ --timeout 60000
+```
+
+#### Run Service Tests Only
+
+```bash
+# Unit tests for gateway-manager, logger, voice-message-handler + e2e tests
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ --timeout 60000
+
+# Run a specific test file
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/logger.test.ts
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/gateway-manager.test.ts
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/voice-message-handler.test.ts
+```
+
+#### Run E2E Tests Only
+
+```bash
+SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/e2e/ --timeout 60000
+```
+
+#### Run Lib Tests Only
+
+```bash
+# Unit tests for schemas, constants, event-router
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/ --timeout 60000
+
+# Run a specific test file
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/schemas.test.ts
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/constants.test.ts
+SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/event-router.test.ts
+```
 
 ---
 
@@ -159,14 +682,163 @@ Multi-tenant Discord gateway that maintains WebSocket connections to Discord and
 
 ---
 
-## Features
+## Hybrid Architecture: Eliza App Bot + User-Created Bots
 
-- **Multi-tenant**: Single pod handles up to 100 Discord bot connections
-- **Auto-scaling**: Kubernetes HPA scales based on CPU/bot count
-- **Failover**: Automatic reassignment when pods die (45s detection)
-- **Graceful shutdown**: Immediate connection release during deployments
-- **Voice support**: Transcribes voice messages before routing
-- **Encrypted tokens**: Bot tokens encrypted at rest with AES-256-GCM
+The gateway supports two types of Discord bots simultaneously:
+
+### 1. Eliza App Bot (System Bot)
+
+A single system-wide Discord bot for the Eliza App, configured via environment variables.
+
+**Key Features:**
+- **DM-only**: Only handles direct messages, not server/guild messages
+- **Auto-provisioning**: Users are auto-created on first message (like Blooio/iMessage)
+- **Leader election**: Only one pod connects the bot to prevent duplicates
+- **Environment-based config**: Token set via `ELIZA_APP_DISCORD_BOT_TOKEN`
+
+**Discord.js Client Configuration:**
+```typescript
+// Required intents for DM support
+intents: [
+  GatewayIntentBits.DirectMessages,  // Receive DM events
+  GatewayIntentBits.MessageContent,  // Read message content
+]
+
+// Required partials for DM support (CRITICAL!)
+// DM channels are NOT cached by default in Discord.js
+partials: [
+  Partials.Channel,  // Handle uncached DM channels
+  Partials.Message,  // Handle partial message events
+]
+```
+
+> **Important**: Without `Partials.Channel` and `Partials.Message`, the bot will silently ignore DM messages because DM channels are not part of any guild and are not cached by default.
+
+### 2. User-Created Bots (Multi-tenant)
+
+Bots created by users through the dashboard, stored in `discord_connections` table.
+
+**Key Features:**
+- **Per-organization**: Each organization can have their own Discord bots
+- **DB-configured**: Bot tokens stored encrypted in PostgreSQL
+- **Channel filtering**: Can be configured to respond in specific channels
+- **Response modes**: Supports "always", "mention", and "keyword" modes
+- **DM support**: Fully supports DMs in addition to guild channels
+
+**Discord.js Client Configuration:**
+```typescript
+// Intents from database or defaults
+intents: assignment.intents || DEFAULT_DISCORD_INTENTS
+
+// Required partials for DM support (applied to ALL user bots)
+partials: [
+  Partials.Channel,  // Handle uncached DM channels
+  Partials.Message,  // Handle partial message events
+]
+```
+
+> **Note**: Partials are automatically configured for all user-created bots to ensure DM functionality works correctly.
+
+### Leader Election for Eliza App Bot
+
+To prevent duplicate connections when the gateway scales horizontally, the Eliza App bot uses Redis-based leader election:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       LEADER ELECTION FLOW                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────┐   ┌────────────┐   ┌────────────┐
+│   Pod A    │   │   Pod B    │   │   Pod C    │
+│            │   │            │   │            │
+│  Try SETNX │   │  Try SETNX │   │  Try SETNX │
+│  "leader"  │   │  "leader"  │   │  "leader"  │
+└─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+      │                │                │
+      ▼                ▼                ▼
+┌─────────────────────────────────────────────────┐
+│              Redis (SETNX with TTL)             │
+│                                                 │
+│  Key: discord:eliza-app-bot:leader              │
+│  Value: "pod-a"                                 │
+│  TTL: 10 seconds                                │
+│                                                 │
+│  Result:                                        │
+│    Pod A: OK (becomes leader, connects bot)     │
+│    Pod B: nil (not leader, skips)               │
+│    Pod C: nil (not leader, skips)               │
+└─────────────────────────────────────────────────┘
+
+Every 3 seconds:
+- Leader renews lock with EXPIRE
+- Non-leaders try SETNX (in case leader dies)
+
+If leader dies:
+- Lock expires after 10 seconds
+- Next pod to try SETNX becomes leader (~3-10 seconds failover)
+```
+
+**Configuration:**
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ELIZA_APP_LEADER_KEY` | `discord:eliza-app-bot:leader` | Redis key for leader lock |
+| `ELIZA_APP_LEADER_TTL_SECONDS` | 10 | Lock TTL - how long before lock expires |
+| `ELIZA_APP_LEADER_CHECK_INTERVAL_MS` | 3000 | How often pods check/renew leadership |
+
+**Multi-Environment Warning:**
+
+If you share the **same Redis instance** across multiple environments (production, staging, local), you **must** use different leader keys for each environment. Otherwise:
+
+- Environments will compete for the same leader lock
+- Only ONE bot across ALL environments will run at a time
+- Local development could steal leadership from production
+
+The `ELIZA_APP_LEADER_KEY` is currently hardcoded. If you need environment isolation with a shared Redis, either:
+1. Use **separate Redis instances** per environment (recommended)
+2. Modify the code to read from an environment variable:
+   ```typescript
+   const ELIZA_APP_LEADER_KEY = process.env.ELIZA_APP_LEADER_KEY || "discord:eliza-app-bot:leader";
+   ```
+
+Recommended key naming by environment:
+```bash
+# Production
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:prod
+
+# Development
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:dev
+
+# Local Development
+ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:local
+```
+
+> **Setup instructions**: See [Setting Up the Eliza App Bot](#setting-up-the-eliza-app-bot) in Getting Started.
+
+### Message Flow: Eliza App Bot
+
+```
+Discord User                  Gateway Pod (Leader)              Eliza Cloud
+     │                              │                               │
+     │  DM: "Hello!"                │                               │
+     │─────────────────────────────►│                               │
+     │                              │                               │
+     │                              │  POST /api/eliza-app/webhook/discord
+     │                              │  { event_type: "MESSAGE_CREATE",
+     │                              │    data: { author, content } }
+     │                              │──────────────────────────────►│
+     │                              │                               │
+     │                              │              ┌─────────────────┴──────────────┐
+     │                              │              │ 1. Auto-provision Discord user │
+     │                              │              │ 2. Create/get room             │
+     │                              │              │ 3. Acquire distributed lock    │
+     │                              │              │ 4. Process via MessageHandler  │
+     │                              │              │ 5. Send response               │
+     │                              │              └─────────────────┬──────────────┘
+     │                              │                               │
+     │  "Hi! How can I help?"       │                               │
+     │◄────────────────────────────────────────────────────────────│
+```
 
 ---
 
@@ -428,438 +1100,6 @@ When Eliza Cloud needs to send a response back to Discord, it uses the **same bo
 - **Bot token is never exposed** - It's decrypted only when needed, in memory
 - **Same token for WebSocket and REST** - Discord uses the same token for both connection types
 - **Response is sent directly** - Eliza Cloud sends to Discord, not through the Gateway
-
----
-
-## How to Run and Test
-
-### Prerequisites
-
-#### 1. Discord Bot Setup
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a new application
-3. Navigate to **Bot** section and create a bot
-4. Copy the **Bot Token** (you'll need this)
-5. Copy the **Application ID** (from General Information)
-6. Enable **Privileged Gateway Intents**:
-   - `MESSAGE CONTENT INTENT` (required)
-   - `SERVER MEMBERS INTENT` (optional)
-7. Generate OAuth2 URL and invite bot to your test server:
-   - Scopes: `bot`
-   - Permissions: `Send Messages`, `Read Message History`, `Add Reactions`
-
-#### 2. Environment Variables
-
-**Option A: Use root `.env.local` (Recommended for local development)**
-
-The gateway can use the same `.env.local` file as the main Eliza Cloud app. Add the required variables to your root `.env.local`:
-
-```bash
-# Add to your root .env.local file:
-
-# Gateway authentication (JWT-based)
-GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Generate with: openssl rand -hex 32
-
-# JWT signing keys for Eliza Cloud (required for token issuance)
-# Generate PKCS#8 key with: openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt
-JWT_SIGNING_PRIVATE_KEY="base64-encoded-private-key"
-JWT_SIGNING_PUBLIC_KEY="base64-encoded-public-key"
-```
-
-The gateway already picks up these existing variables from root `.env.local`:
-- `NEXT_PUBLIC_APP_URL` - Used as the Eliza Cloud URL
-- `KV_REST_API_URL` / `KV_REST_API_TOKEN` - Redis for failover
-- `BLOB_READ_WRITE_TOKEN` - For voice message storage
-
-Then run with:
-```bash
-cd services/gateway-discord
-bun run dev  # Uses ../../.env.local automatically
-```
-
-**Option B: Create a separate `.env` file in this directory**
-
-Create a `.env` file in `services/gateway-discord/`:
-
-```bash
-# Required - JWT Authentication
-GATEWAY_BOOTSTRAP_SECRET=your_random_secret_here   # Exchanged for JWT at startup
-
-# Eliza Cloud URL (pick ONE of these options):
-# Option A: Use dedicated env var (recommended for production)
-ELIZA_CLOUD_URL=http://localhost:3000
-
-# Option B: Reuse the same var as main app (convenient for local dev)
-# If ELIZA_CLOUD_URL is not set, it falls back to NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Optional - Redis for failover coordination
-KV_REST_API_URL=https://your-redis.upstash.io
-KV_REST_API_TOKEN=your_upstash_token_here
-
-# Optional - Voice message handling
-BLOB_READ_WRITE_TOKEN=vercel_blob_token     # For storing voice transcriptions
-VOICE_MESSAGE_ENABLED=true                  # Enable/disable voice processing
-
-# Optional - Tuning
-POD_NAME=gateway-local                      # Pod identifier (auto-set in K8s)
-MAX_BOTS_PER_POD=100                        # Max bots per instance
-LOG_LEVEL=info                              # debug | info | warn | error
-```
-
-Then run with:
-```bash
-cd services/gateway-discord
-bun run dev:local  # Uses local .env file
-```
-
-**URL Resolution Order:**
-1. `ELIZA_CLOUD_URL` (if set)
-2. `NEXT_PUBLIC_APP_URL` (fallback)
-3. `https://elizacloud.ai` (default)
-
-Generate secure secrets:
-```bash
-# Generate bootstrap secret
-openssl rand -hex 32
-
-# Generate ES256 key pair for JWT signing in PKCS#8 format (run on Eliza Cloud side)
-# Note: PKCS#8 format (-----BEGIN PRIVATE KEY-----) is required by jose library
-openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out private.pem
-openssl ec -in private.pem -pubout -out public.pem
-# Base64 encode for environment variables
-base64 -w 0 private.pem  # JWT_SIGNING_PRIVATE_KEY
-base64 -w 0 public.pem   # JWT_SIGNING_PUBLIC_KEY
-```
-
-### Running Locally
-
-#### Option 1: Development Mode (Recommended)
-
-**Step 1: Start Eliza Cloud**
-
-In the root directory:
-```bash
-bun run dev
-```
-This starts the Next.js app on `http://localhost:3000`
-
-**Step 2: Start the Gateway**
-
-In a new terminal:
-```bash
-cd services/gateway-discord
-
-# Install dependencies
-bun install
-
-# Start with hot reload (runs on port 3001 by default)
-bun run dev
-```
-
-The gateway will:
-- Start on port 3001 (scripts default to this to avoid conflict with Eliza Cloud on 3000)
-- Poll `http://localhost:3000/api/internal/discord/gateway/assignments` every 30s
-- Forward events to `http://localhost:3000/api/internal/discord/events`
-- Send heartbeats every 15s
-
-> **Note:** The gateway's PORT only affects where it listens for health checks and metrics.
-> It always connects to Eliza Cloud via `NEXT_PUBLIC_APP_URL` (http://localhost:3000).
-
-#### Option 2: Production Mode
-
-```bash
-bun run start  # Runs on port 3001 by default
-```
-
-#### Option 3: Docker
-
-```bash
-# Build and start
-bun run docker:up
-
-# View logs
-bun run docker:logs
-
-# Stop
-bun run docker:down
-```
-
-Or manually:
-```bash
-docker build -t gateway-discord:local .
-docker run -p 3001:3000 --env-file .env gateway-discord:local
-```
-
-#### Option 4: Docker Compose
-
-```bash
-docker compose up -d
-```
-
-This maps port 3001 on your host to 3000 in the container.
-
-### Registering a Discord Bot Connection
-
-Use the Discord Connections API to manage bot connections.
-
-**Create a connection:**
-
-```bash
-curl -X POST http://localhost:3000/api/v1/discord/connections \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
-  -d '{
-    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
-    "botToken": "YOUR_BOT_TOKEN",
-    "characterId": "YOUR_CHARACTER_UUID",
-    "organizationId": "YOUR_ORGANIZATION_UUID",
-    "metadata": {
-      "responseMode": "always"
-    }
-  }'
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "connection": {
-    "id": "connection-uuid",
-    "applicationId": "YOUR_DISCORD_APPLICATION_ID",
-    "characterId": "character-uuid",
-    "status": "pending",
-    "isActive": true,
-    "createdAt": "2024-01-15T12:00:00.000Z"
-  },
-  "message": "Connection created. The gateway will pick it up within 30 seconds."
-}
-```
-
-**API Endpoints:**
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/discord/connections` | List all connections |
-| `POST` | `/api/v1/discord/connections` | Create a new connection |
-| `GET` | `/api/v1/discord/connections/:id` | Get a single connection |
-| `PATCH` | `/api/v1/discord/connections/:id` | Update a connection |
-| `DELETE` | `/api/v1/discord/connections/:id` | Delete a connection |
-
-**Create Connection Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `applicationId` | string | Yes | Discord Application ID from Developer Portal |
-| `botToken` | string | Yes | Bot token from Discord Developer Portal |
-| `characterId` | string (uuid) | Yes | Character ID for AI responses |
-| `intents` | number | No | Discord gateway intents (default: 38401) |
-| `metadata.responseMode` | string | No | `"always"`, `"mention"`, or `"keyword"` |
-| `metadata.enabledChannels` | string[] | No | Only respond in these channels |
-| `metadata.disabledChannels` | string[] | No | Ignore these channels |
-| `metadata.keywords` | string[] | No | Required if responseMode is `"keyword"` |
-
-**Update Connection Request Body:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `characterId` | string (uuid) or null | Change or remove the linked character |
-| `isActive` | boolean | Enable/disable the connection |
-| `metadata` | object | Update response behavior |
-
-### Verifying the Setup
-
-**Port Reference:**
-| Running Method | Gateway Port | Notes |
-|----------------|--------------|-------|
-| Local (`bun run dev`) | `http://localhost:3001` | Scripts default to port 3001 |
-| Docker (`docker compose up`) | `http://localhost:3001` | Mapped from container's internal port 3000 |
-
-#### 1. Check Gateway Health
-
-```bash
-curl http://localhost:3001/health
-```
-
-Expected response:
-```json
-{
-  "status": "healthy",
-  "podName": "gateway-local",
-  "totalBots": 1,
-  "connectedBots": 1,
-  "disconnectedBots": 0,
-  "totalGuilds": 3,
-  "uptime": 12345,
-  "controlPlane": {
-    "consecutiveFailures": 0,
-    "lastSuccessfulPoll": "2024-01-15T12:00:00.000Z",
-    "healthy": true
-  }
-}
-```
-
-#### 2. Check Gateway Status
-
-```bash
-curl http://localhost:3001/status
-```
-
-Shows detailed information about all active connections.
-
-#### 3. Check Prometheus Metrics
-
-```bash
-curl http://localhost:3001/metrics
-```
-
-Returns metrics in Prometheus format for monitoring.
-
-#### 4. Watch the Logs
-
-Gateway logs show:
-- `Bot connected` - Discord WebSocket successfully connected
-- `Routing event` - Message received and forwarded
-- `Failed to forward event` - Eliza Cloud unreachable
-
-Eliza Cloud logs show:
-- `[Discord Events] Received event` - Event received from gateway
-- `[DiscordRouter] Routing event` - Event being processed
-
-### Testing the Flow
-
-1. **Send a message** in your Discord server where the bot is present
-2. **Watch gateway logs** for:
-   ```
-   [INFO] Received MESSAGE_CREATE event
-   [INFO] Forwarding to Eliza Cloud...
-   ```
-3. **Watch Eliza Cloud logs** for:
-   ```
-   [Discord Events] Received event
-   [DiscordRouter] Routing event
-   ```
-4. **Check Discord** - The bot should respond!
-
-### Troubleshooting
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Gateway can't reach Eliza Cloud | Wrong URL | Set `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (or `http://host.docker.internal:3000` in Docker) |
-| `401 Unauthorized` on API calls | JWT authentication failed | Check `GATEWAY_BOOTSTRAP_SECRET` matches on both sides, verify JWT signing keys are configured |
-| Gateway fails on startup | Token acquisition failed | Ensure Eliza Cloud is running and has `JWT_SIGNING_PRIVATE_KEY`/`JWT_SIGNING_PUBLIC_KEY` configured |
-| Bot connects but doesn't respond | No linked app/character | Ensure the connection has `character_id` linked to an app with a character |
-| Bot connects but doesn't respond | Response mode filtering | Check `metadata.responseMode` and channel filters |
-| `Connection not found` error | Invalid connection ID | Create connection via repository first |
-| No assignments returned | Connection inactive | Check `is_active=true` in database |
-| `Invalid token` error | Bad bot token | Verify token in Discord Developer Portal |
-| Events not forwarded | Network issue | Check `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` is accessible |
-
-### Configuration Reference
-
-#### Gateway Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Secret exchanged for JWT at startup |
-| `ELIZA_CLOUD_URL` | No* | - | Main Eliza Cloud app URL (takes precedence) |
-| `NEXT_PUBLIC_APP_URL` | No* | - | Fallback URL if `ELIZA_CLOUD_URL` not set |
-| `KV_REST_API_URL` | No | - | Redis URL for failover |
-| `KV_REST_API_TOKEN` | No | - | Redis auth token |
-| `POD_NAME` | No | `gateway-{hostname}` | Pod identifier |
-| `PORT` | No | `3000` | HTTP server port |
-| `MAX_BOTS_PER_POD` | No | `100` | Max connections per pod |
-| `VOICE_MESSAGE_ENABLED` | No | `true` | Process voice messages |
-| `BLOB_READ_WRITE_TOKEN` | No | - | Vercel Blob for voice storage |
-| `LOG_LEVEL` | No | `info` | Logging verbosity |
-| `DEAD_POD_THRESHOLD_MS` | No | `45000` | Failover detection threshold |
-| `FAILOVER_CHECK_INTERVAL_MS` | No | `30000` | How often to check for dead pods |
-
-#### Eliza Cloud Environment Variables (for JWT authentication)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GATEWAY_BOOTSTRAP_SECRET` | Yes | - | Must match gateway's bootstrap secret |
-| `JWT_SIGNING_PRIVATE_KEY` | Yes | - | Base64-encoded ES256 private key (PKCS#8) |
-| `JWT_SIGNING_PUBLIC_KEY` | Yes | - | Base64-encoded ES256 public key (SPKI) |
-| `JWT_SIGNING_KEY_ID` | No | `primary` | Key identifier for JWKS rotation |
-
-**\*** At least one of `ELIZA_CLOUD_URL` or `NEXT_PUBLIC_APP_URL` should be set. If neither is set, defaults to `https://elizacloud.ai`.
-
-**URL Resolution Order:**
-```
-ELIZA_CLOUD_URL → NEXT_PUBLIC_APP_URL → https://elizacloud.ai
-```
-
-### Scripts
-
-```bash
-# Development (uses root ../../.env.local, runs on port 3001)
-bun run dev          # Development with hot reload, uses root .env.local
-bun run start        # Production mode, uses root .env.local
-
-# Development (uses local .env in this directory, runs on port 3001)
-bun run dev:local    # Development with hot reload, uses local .env
-bun run start:local  # Production mode, uses local .env
-
-# Build & Test
-bun run build        # Build for deployment
-bun run typecheck    # TypeScript type checking
-bun run test         # Run tests
-
-# Docker
-bun run docker:build # Build Docker image
-bun run docker:run   # Run Docker container (uses root .env.local)
-bun run docker:up    # Start with docker-compose
-bun run docker:down  # Stop docker-compose
-bun run docker:logs  # View container logs
-
-# Kubernetes - see chart/README.md for Helm deployment commands
-```
-
-### Running Tests
-
-The gateway service has comprehensive test coverage including unit tests and e2e tests.
-
-**Note:** Use `SKIP_SERVER_CHECK=true` to skip the local server check (required for unit tests that mock all dependencies).
-
-#### Run All Tests
-
-```bash
-# From the repository root
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ lib/services/gateway-discord/__tests__/ --timeout 60000
-```
-
-#### Run Service Tests Only
-
-```bash
-# Unit tests for gateway-manager, logger, voice-message-handler + e2e tests
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/ --timeout 60000
-
-# Run a specific test file
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/logger.test.ts
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/gateway-manager.test.ts
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/voice-message-handler.test.ts
-```
-
-#### Run E2E Tests Only
-
-```bash
-SKIP_SERVER_CHECK=true bun test services/gateway-discord/tests/e2e/ --timeout 60000
-```
-
-#### Run Lib Tests Only
-
-```bash
-# Unit tests for schemas, constants, event-router
-SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/ --timeout 60000
-
-# Run a specific test file
-SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/schemas.test.ts
-SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/constants.test.ts
-SKIP_SERVER_CHECK=true bun test lib/services/gateway-discord/__tests__/event-router.test.ts
-```
 
 ---
 
@@ -1687,42 +1927,6 @@ Kubernetes             Gateway Pod (gw-1)         Redis         Eliza Cloud
 
 ---
 
-## Infrastructure (Terraform)
-
-The AWS infrastructure required to run the gateway is managed via **Terraform** in the `terraform/` directory.
-
-**What gets provisioned:**
-- VPC with public/private subnets across 3 AZs
-- EKS cluster for running the gateway pods
-- NAT Instance (cost-effective alternative to NAT Gateway)
-- IAM roles for EKS and GitHub Actions OIDC
-- Kubernetes namespace and secrets
-
-**Automated via GitHub Actions** (`.github/workflows/gateway-discord.yml`):
-- Push to `dev` branch → Terraform apply + app deploy to development
-- Push to `main` branch → Terraform apply + app deploy to production
-- Workflow auto-detects terraform vs app changes and runs appropriate jobs
-- If both change, terraform runs first, then deploy waits for completion
-
-```bash
-# Manual deployment (if needed)
-cd terraform
-
-# Development
-terraform init -backend-config=backend-development.hcl
-terraform plan -var-file=development.tfvars -var-file=secrets.tfvars
-terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
-
-# Production
-terraform init -backend-config=backend-production.hcl -reconfigure
-terraform plan -var-file=production.tfvars -var-file=secrets.tfvars
-terraform apply -var-file=production.tfvars -var-file=secrets.tfvars
-```
-
-For detailed infrastructure documentation, see [terraform/README.md](./terraform/README.md).
-
----
-
 ## Kubernetes Deployment
 
 The gateway is deployed to Kubernetes using **Helm charts** (recommended) for better release management and environment-specific configuration.
@@ -1818,6 +2022,7 @@ Create a Kubernetes secret before deploying:
 ```bash
 kubectl create namespace gateway-discord
 
+# Base secrets (required)
 kubectl create secret generic gateway-discord-secrets \
   --namespace gateway-discord \
   --from-literal=eliza-cloud-url="https://your-eliza-cloud-url.com" \
@@ -1827,6 +2032,60 @@ kubectl create secret generic gateway-discord-secrets \
   --from-literal=blob-token="your-blob-token"
 ```
 
+**For Eliza App Discord bot** (optional - only if enabling `elizaAppBot.enabled: true`):
+```bash
+# Add Eliza App Discord bot secrets
+kubectl patch secret gateway-discord-secrets \
+  --namespace gateway-discord \
+  --type='json' \
+  -p='[
+    {"op": "add", "path": "/data/eliza-app-discord-bot-token", "value": "'$(echo -n "your-bot-token" | base64)'"},
+    {"op": "add", "path": "/data/eliza-app-discord-application-id", "value": "'$(echo -n "your-app-id" | base64)'"}
+  ]'
+```
+
+Then enable in your Helm values:
+```yaml
+elizaAppBot:
+  enabled: true
+```
+
 **Note**: The gateway uses JWT authentication. The `gateway-bootstrap-secret` is exchanged for a JWT token at startup. The Eliza Cloud API must have the corresponding JWT signing keys configured.
 
 For detailed deployment instructions, see [chart/README.md](./chart/README.md).
+
+---
+
+## Infrastructure (Terraform)
+
+The AWS infrastructure required to run the gateway is managed via **Terraform** in the `terraform/` directory.
+
+**What gets provisioned:**
+- VPC with public/private subnets across 3 AZs
+- EKS cluster for running the gateway pods
+- NAT Instance (cost-effective alternative to NAT Gateway)
+- IAM roles for EKS and GitHub Actions OIDC
+- Kubernetes namespace and secrets
+
+**Automated via GitHub Actions** (`.github/workflows/gateway-discord.yml`):
+- Push to `dev` branch → Terraform apply + app deploy to development
+- Push to `main` branch → Terraform apply + app deploy to production
+- Workflow auto-detects terraform vs app changes and runs appropriate jobs
+- If both change, terraform runs first, then deploy waits for completion
+
+```bash
+# Manual deployment (if needed)
+cd terraform
+
+# Development
+terraform init -backend-config=backend-development.hcl
+terraform plan -var-file=development.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
+
+# Production
+terraform init -backend-config=backend-production.hcl -reconfigure
+terraform plan -var-file=production.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=production.tfvars -var-file=secrets.tfvars
+```
+
+For detailed infrastructure documentation, see [terraform/README.md](./terraform/README.md).

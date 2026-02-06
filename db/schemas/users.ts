@@ -39,6 +39,12 @@ export const users = pgTable(
     phone_number: text("phone_number").unique(), // E.164 format: +1234567890
     phone_verified: boolean("phone_verified").default(false),
 
+    // Discord identity (Eliza App)
+    discord_id: text("discord_id").unique(), // Discord user ID (snowflake)
+    discord_username: text("discord_username"), // Discord username
+    discord_global_name: text("discord_global_name"), // Discord display name
+    discord_avatar_url: text("discord_avatar_url"), // Discord avatar URL
+
     // User profile
     email: text("email").unique(),
     email_verified: boolean("email_verified").default(false),
@@ -89,6 +95,7 @@ export const users = pgTable(
     // Eliza App identity indexes
     telegram_id_idx: index("users_telegram_id_idx").on(table.telegram_id),
     phone_number_idx: index("users_phone_number_idx").on(table.phone_number),
+    discord_id_idx: index("users_discord_id_idx").on(table.discord_id),
   }),
 );
 
