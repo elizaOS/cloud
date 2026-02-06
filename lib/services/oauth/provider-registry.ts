@@ -330,6 +330,33 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  zoom: {
+    id: "zoom",
+    name: "Zoom",
+    description: "Video meetings, webinars, and recordings",
+    type: "oauth2",
+    envVars: ["ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://zoom.us/oauth/authorize",
+      token: "https://zoom.us/oauth/token",
+      userInfo: "https://api.zoom.us/v2/users/me",
+      revoke: "https://zoom.us/oauth/revoke",
+    },
+    defaultScopes: [],
+    userInfoMapping: {
+      id: "id",
+      email: "email",
+      displayName: "display_name",
+      avatarUrl: "pic_url",
+    },
+    tokenHeaders: {
+      Authorization: "Basic ${base64(CLIENT_ID:CLIENT_SECRET)}",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   twitter: {
     id: "twitter",
     name: "Twitter/X",

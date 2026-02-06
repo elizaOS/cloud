@@ -27,16 +27,17 @@ export const oauthConnectAction: ActionWithParams = {
   similes: [
     "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
     "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
+    "CONNECT_ZOOM", "LINK_ZOOM",
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
     "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, zoom",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, linear, slack, github, notion",
+      description: "Platform to connect. Available: google, linear, slack, github, notion, zoom",
       required: true,
     },
   },
@@ -138,6 +139,10 @@ export const oauthConnectAction: ActionWithParams = {
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
       { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "connect zoom" } },
+      { name: "{{name2}}", content: { text: "Connect Zoom: https://zoom.us/...", actions: ["OAUTH_CONNECT"] } },
     ],
   ] as ActionExample[][],
 };
