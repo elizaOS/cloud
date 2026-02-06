@@ -13,7 +13,7 @@ import {
   type RoomWithPreview,
 } from "@/db/repositories";
 import { dbWrite } from "@/db/client";
-import { roomTable } from "@/db/schemas/eliza";
+import { roomTable, entityTable, participantTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -255,6 +255,65 @@ export class RoomsService {
       .returning()) as any[];
 
     return roomResult[0] as Room;
+  }
+
+  /**
+   * Atomically create a room with entity and participant in a single transaction.
+   * Prevents race condition where room creation succeeds but participant addition fails,
+   * leaving the system in an inconsistent state.
+   */
+  async createRoomWithParticipant(
+    roomInput: CreateRoomInput,
+    entityId: string,
+  ): Promise<Room> {
+    const roomId = roomInput.id || uuidv4();
+    const agentId = roomInput.agentId;
+
+    if (!agentId) {
+      throw new Error("agentId is required for createRoomWithParticipant");
+    }
+
+    return await dbWrite.transaction(async (tx) => {
+      // Create room
+      const [room] = await tx
+        .insert(roomTable)
+        .values({
+          id: roomId,
+          agentId,
+          source: roomInput.source || "web",
+          type: roomInput.type || "DM",
+          name: roomInput.name,
+          metadata: roomInput.metadata,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      // Create entity (upsert - ignore if exists)
+      // Must use tx so the insert is visible within this transaction
+      await tx
+        .insert(entityTable)
+        .values({
+          id: entityId,
+          agentId,
+          names: [entityId],
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing();
+
+      // Add participant
+      // Must use tx so it can see the room created above
+      await tx
+        .insert(participantTable)
+        .values({
+          roomId,
+          entityId,
+          agentId,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      return room;
+    });
   }
 
   /**

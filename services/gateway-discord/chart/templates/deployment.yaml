@@ -82,6 +82,20 @@ spec:
                   name: {{ .Values.secrets.name }}
                   key: {{ .Values.secrets.keys.blobToken }}
                   optional: true
+            {{- if .Values.elizaAppBot.enabled }}
+            - name: ELIZA_APP_DISCORD_BOT_ENABLED
+              value: "true"
+            - name: ELIZA_APP_DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.elizaAppDiscordBotToken }}
+            - name: ELIZA_APP_DISCORD_APPLICATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: {{ .Values.secrets.keys.elizaAppDiscordApplicationId }}
+            {{- end }}
             - name: MAX_BOTS_PER_POD
               value: {{ .Values.config.maxBotsPerPod | quote }}
             - name: FAILOVER_CHECK_INTERVAL_MS

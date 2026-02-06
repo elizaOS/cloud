@@ -57,6 +57,18 @@ mock.module("discord.js", () => ({
     ShardDisconnect: "shardDisconnect",
     ShardReconnecting: "shardReconnecting",
   },
+  Partials: {
+    Channel: 0,
+    Message: 2,
+    User: 1,
+    GuildMember: 3,
+    Reaction: 4,
+    ThreadMember: 5,
+    GuildScheduledEvent: 6,
+  },
+  MessageFlags: {
+    IsVoiceMessage: 8192,
+  },
 }));
 
 // Mock Redis

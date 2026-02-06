@@ -82,10 +82,10 @@ async function resolveEffectiveMode(
   }
 
   // Query document count once - needed for multiple checks and plugin resolution
+  // Note: no roomId filter — we want agent-level document count across all rooms
   const documentCount = await memoriesRepository.countByType(
     characterId,
     "documents",
-    characterId,
   );
 
   // Already ASSISTANT mode - no upgrade needed
@@ -287,14 +287,11 @@ export class AgentLoader {
       ...conditionalPlugins,
     ];
 
-    // Load knowledge plugin for ASSISTANT mode to enable both:
-    // - Knowledge queries (if documents exist)
-    // - Uploading new documents (even if none exist yet)
-    if (options?.hasKnowledge || agentMode === AgentMode.ASSISTANT) {
+    // Only load knowledge plugin when documents actually exist
+    // Upload capability is handled separately — no need to init the full plugin
+    if (options?.hasKnowledge) {
       allPluginNames.push("@elizaos/plugin-knowledge");
-      logger.info(
-        `[AgentLoader] Loading knowledge plugin - ${options?.hasKnowledge ? "documents found" : "ASSISTANT mode (enables uploads)"}`
-      );
+      logger.info("[AgentLoader] Loading knowledge plugin - documents found");
     }
 
     for (const pluginName of allPluginNames) {
