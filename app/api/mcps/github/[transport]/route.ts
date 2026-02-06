@@ -98,7 +98,7 @@ async function getGitHubMcpHandler() {
             }
             return jsonResult({ connected: false, message: "GitHub not connected. Connect in Settings > Connections." });
           }
-          return jsonResult({ connected: true, scopes: active.scopes, linkedAt: active.linkedAt });
+          return jsonResult({ connected: true, email: active.email, scopes: active.scopes, linkedAt: active.linkedAt });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
