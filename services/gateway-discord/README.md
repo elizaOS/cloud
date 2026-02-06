@@ -1687,6 +1687,42 @@ Kubernetes             Gateway Pod (gw-1)         Redis         Eliza Cloud
 
 ---
 
+## Infrastructure (Terraform)
+
+The AWS infrastructure required to run the gateway is managed via **Terraform** in the `terraform/` directory.
+
+**What gets provisioned:**
+- VPC with public/private subnets across 3 AZs
+- EKS cluster for running the gateway pods
+- NAT Instance (cost-effective alternative to NAT Gateway)
+- IAM roles for EKS and GitHub Actions OIDC
+- Kubernetes namespace and secrets
+
+**Automated via GitHub Actions** (`.github/workflows/gateway-discord.yml`):
+- Push to `dev` branch → Terraform apply + app deploy to development
+- Push to `main` branch → Terraform apply + app deploy to production
+- Workflow auto-detects terraform vs app changes and runs appropriate jobs
+- If both change, terraform runs first, then deploy waits for completion
+
+```bash
+# Manual deployment (if needed)
+cd terraform
+
+# Development
+terraform init -backend-config=backend-development.hcl
+terraform plan -var-file=development.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=development.tfvars -var-file=secrets.tfvars
+
+# Production
+terraform init -backend-config=backend-production.hcl -reconfigure
+terraform plan -var-file=production.tfvars -var-file=secrets.tfvars
+terraform apply -var-file=production.tfvars -var-file=secrets.tfvars
+```
+
+For detailed infrastructure documentation, see [terraform/README.md](./terraform/README.md).
+
+---
+
 ## Kubernetes Deployment
 
 The gateway is deployed to Kubernetes using **Helm charts** (recommended) for better release management and environment-specific configuration.
@@ -1694,12 +1730,12 @@ The gateway is deployed to Kubernetes using **Helm charts** (recommended) for be
 ### Quick Start with Helm
 
 ```bash
-# Deploy to staging
+# Deploy to development
 helm upgrade --install gateway-discord ./chart \
   --namespace gateway-discord \
   --create-namespace \
   -f ./chart/values.yaml \
-  -f ./chart/values-staging.yaml
+  -f ./chart/values-development.yaml
 
 # Deploy to production
 helm upgrade --install gateway-discord ./chart \
@@ -1773,7 +1809,7 @@ helm get values gateway-discord -n gateway-discord
 | File | Description |
 |------|-------------|
 | `chart/values.yaml` | Default values for all environments |
-| `chart/values-staging.yaml` | Staging overrides (smaller resources) |
+| `chart/values-development.yaml` | Development overrides (smaller resources) |
 | `chart/values-production.yaml` | Production overrides (more resources, Prometheus enabled) |
 
 ### Required Secrets
