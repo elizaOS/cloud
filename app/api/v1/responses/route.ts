@@ -31,6 +31,7 @@ import {
   normalizeModelName,
   estimateRequestCost,
   estimateTokens,
+  isReasoningModel,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -671,6 +672,17 @@ async function handlePOST(req: NextRequest) {
     }
 
     // 6. Forward to Vercel AI Gateway with Groq as preferred provider
+    // Strip unsupported params for Anthropic models to avoid gateway warnings
+    const provider2 = getProviderFromModel(model);
+    if (provider2 === "anthropic") {
+      delete request.frequency_penalty;
+      delete request.presence_penalty;
+      delete request.stop;
+    }
+    if (isReasoningModel(model)) {
+      delete request.temperature;
+    }
+
     const providerInstance = getProvider();
     const requestWithProvider = {
       ...request,

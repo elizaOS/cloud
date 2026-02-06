@@ -92,9 +92,13 @@ async function getGitHubMcpHandler() {
           const connections = await oauthService.listConnections({ organizationId: orgId, platform: "github" });
           const active = connections.find((c) => c.status === "active");
           if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({ connected: false, status: "expired", message: "GitHub connection expired. Please reconnect in Settings > Connections." });
+            }
             return jsonResult({ connected: false, message: "GitHub not connected. Connect in Settings > Connections." });
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes, linkedAt: active.linkedAt });
+          return jsonResult({ connected: true, scopes: active.scopes, linkedAt: active.linkedAt });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }

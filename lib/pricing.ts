@@ -164,6 +164,55 @@ export function getProviderFromModel(model: string): string {
 }
 
 /**
+ * Checks if a model is a reasoning model that doesn't support temperature.
+ */
+export function isReasoningModel(model: string): boolean {
+  const name = normalizeModelName(model);
+  return (
+    name.includes("claude-opus") ||
+    name.includes("o1") ||
+    name.includes("o3")
+  );
+}
+
+/**
+ * Returns provider-safe model parameters by stripping unsupported settings.
+ * Anthropic doesn't support frequencyPenalty, presencePenalty, or stopSequences.
+ * Reasoning models (claude-opus, o1, o3) don't support temperature.
+ */
+export function getSafeModelParams(
+  model: string,
+  params: {
+    temperature?: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+    stopSequences?: string[];
+  },
+): {
+  temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stopSequences?: string[];
+} {
+  const provider = getProviderFromModel(model);
+  const result: typeof params = { ...params };
+
+  if (provider === "anthropic") {
+    delete result.frequencyPenalty;
+    delete result.presencePenalty;
+    delete result.stopSequences;
+  }
+
+  if (isReasoningModel(model)) {
+    delete result.temperature;
+  }
+
+  return result;
+}
+
+/**
  * Normalizes a model name by removing the provider prefix if present.
  *
  * @param model - Model identifier (e.g., "openai/gpt-4o-mini" or "gpt-4o-mini").
