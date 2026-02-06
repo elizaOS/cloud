@@ -5,6 +5,7 @@ import {
   AgentRuntime,
   stringToUuid,
   elizaLogger,
+  getRequestContext,
   type UUID,
   type Character,
   type Plugin,
@@ -13,7 +14,7 @@ import {
   type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
-import mcpPlugin from "@elizaos/plugin-mcp";
+import mcpPlugin from "./plugin-mcp";
 import { agentLoader } from "./agent-loader";
 import {
   getElizaCloudApiUrl,
@@ -72,6 +73,8 @@ interface CachedRuntime {
   createdAt: number;
   agentId: UUID;
   characterName: string;
+  /** MCP config version at creation time (for cross-instance invalidation) */
+  mcpVersion: number;
 }
 
 const safeClose = async (
@@ -141,6 +144,7 @@ class RuntimeCache {
   async getWithHealthCheck(
     agentId: string,
     dbPool: DbAdapterPool,
+    currentMcpVersion?: number,
   ): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
@@ -149,6 +153,16 @@ class RuntimeCache {
     if (this.isStale(entry, now)) {
       await this.evictEntry(agentId, entry, "stale");
       // Remove adapter reference for stale entries (checkHealth not called yet)
+      dbPool.removeAdapter(entry.agentId as string);
+      return null;
+    }
+
+    // Cross-instance MCP version check: evict if OAuth changed on another instance
+    if (currentMcpVersion !== undefined && entry.mcpVersion < currentMcpVersion) {
+      elizaLogger.info(
+        `[RuntimeCache] MCP version stale: cached=${entry.mcpVersion}, current=${currentMcpVersion}, key=${agentId}`
+      );
+      await this.evictEntry(agentId, entry, "mcp-version-stale");
       dbPool.removeAdapter(entry.agentId as string);
       return null;
     }
@@ -169,6 +183,7 @@ class RuntimeCache {
     runtime: AgentRuntime,
     characterName: string,
     actualAgentId: UUID,
+    mcpVersion: number = 0,
   ): Promise<void> {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_SIZE) {
@@ -182,9 +197,10 @@ class RuntimeCache {
       createdAt: now,
       agentId: actualAgentId,
       characterName,
+      mcpVersion,
     });
     elizaLogger.debug(
-      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey})`,
+      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey}, mcpVersion=${mcpVersion})`,
     );
   }
 
@@ -514,9 +530,15 @@ export class RuntimeFactory {
     // Include organizationId to prevent cross-org API key pollution
     const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}`;
 
+    // Check cross-instance MCP config version (non-blocking fetch, falls back to 0)
+    const currentMcpVersion = await edgeRuntimeCache
+      .getMcpVersion(context.organizationId)
+      .catch(() => 0);
+
     const cachedRuntime = await runtimeCache.getWithHealthCheck(
       cacheKey,
       dbAdapterPool,
+      currentMcpVersion,
     );
     if (cachedRuntime) {
       elizaLogger.info(
@@ -604,7 +626,15 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    await runtimeCache.set(cacheKey, runtime, character.name, agentId);
+    this.setMcpEnabledServers(context);
+
+    await runtimeCache.set(
+      cacheKey,
+      runtime,
+      character.name,
+      agentId,
+      currentMcpVersion,
+    );
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
@@ -656,27 +686,35 @@ export class RuntimeFactory {
       charSettings.appPromptConfig = context.appPromptConfig;
     }
 
-    // MCP settings - injected into character.settings because getSetting() drops objects.
-    // Must be refreshed per-user since API key headers differ per org.
-    const mcpSettings = this.buildMcpSettings(runtime.character.settings || {}, context);
-    if (mcpSettings.mcp) {
-      charSettings.mcp = mcpSettings.mcp;
-    } else {
-      delete charSettings.mcp;
-    }
+    // MCP settings: NO LONGER mutated on shared runtime.
+    // Previously we wrote to charSettings.mcp here, causing race conditions
+    // when concurrent users shared the same cached runtime (API key leakage).
+    //
+    // Instead, we store the user's enabled MCP server names in request context.
+    // validate() in dynamic-tool-actions.ts checks this to filter tools per-user.
+    // Auth (X-API-Key) is injected dynamically by McpService.createHttpTransport()
+    // via getSetting("ELIZAOS_API_KEY") which reads from request context.
+    this.setMcpEnabledServers(context);
 
     // NOTE: The following are NO LONGER mutated here because they're resolved
     // dynamically via getSetting() which checks request context first:
     // - ELIZAOS_API_KEY / ELIZAOS_CLOUD_API_KEY
     // - USER_ID / ENTITY_ID / ORGANIZATION_ID / IS_ANONYMOUS
+    // - MCP settings (now via MCP_ENABLED_SERVERS in request context)
     //
     // See: packages/core/src/runtime.ts getSetting() and
     //      lib/services/entity-settings/service.ts prefetch()
   }
 
+  /**
+   * Transform MCP settings: resolve relative URLs to absolute.
+   *
+   * IMPORTANT: Does NOT inject X-API-Key headers. Auth is handled dynamically
+   * by McpService.createHttpTransport() via getSetting("ELIZAOS_API_KEY"),
+   * which reads from request context for per-user isolation.
+   */
   private transformMcpSettings(
     mcpSettings: Record<string, unknown>,
-    apiKey?: string,
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
@@ -686,37 +724,14 @@ export class RuntimeFactory {
     for (const [serverId, serverConfig] of Object.entries(
       mcpSettings.servers as Record<string, { url?: string; type?: string; headers?: Record<string, string> } | null>,
     )) {
-      if (!serverConfig) continue; // Skip malformed/null server entries
-      const isHttpTransport = serverConfig.type && ["http", "streamable-http", "sse"].includes(serverConfig.type);
+      if (!serverConfig) continue;
       const transformedUrl = serverConfig.url?.startsWith("/")
         ? `${baseUrl}${serverConfig.url}`
         : serverConfig.url;
 
-      // Auto-inject API key header for HTTP MCP servers on our domain
-      // Use URL origin comparison to prevent leaking API key to lookalike domains
-      const isSameOrigin = (() => {
-        if (!transformedUrl) return false;
-        try {
-          const targetOrigin = new URL(transformedUrl).origin;
-          const baseOrigin = new URL(baseUrl).origin;
-          return targetOrigin === baseOrigin;
-        } catch {
-          return false;
-        }
-      })();
-      const shouldInjectAuth = isHttpTransport && apiKey && isSameOrigin;
-
-      elizaLogger.info(`[MCP Transform] Server ${serverId}: isHttp=${isHttpTransport}, hasApiKey=${!!apiKey}, isSameOrigin=${isSameOrigin}, shouldInjectAuth=${shouldInjectAuth}`);
-
       transformedServers[serverId] = {
         ...serverConfig,
         url: transformedUrl,
-        ...(shouldInjectAuth && {
-          headers: {
-            ...serverConfig.headers,
-            "X-API-Key": apiKey,
-          },
-        }),
       };
     }
 
@@ -730,6 +745,21 @@ export class RuntimeFactory {
   private shouldEnableMcp(context: UserContext): boolean {
     const connected = this.getConnectedPlatforms(context);
     return Object.keys(MCP_SERVER_CONFIGS).some((p) => connected.has(p));
+  }
+
+  /**
+   * Set MCP_ENABLED_SERVERS in request context so validate() in
+   * dynamic-tool-actions.ts can filter tools per-user on every path.
+   */
+  private setMcpEnabledServers(context: UserContext): void {
+    const requestCtx = getRequestContext();
+    if (!requestCtx) return;
+    const connected = this.getConnectedPlatforms(context);
+    const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
+    requestCtx.entitySettings.set(
+      "MCP_ENABLED_SERVERS",
+      JSON.stringify(enabledServers),
+    );
   }
 
   private buildMcpSettings(
@@ -752,7 +782,7 @@ export class RuntimeFactory {
         : {};
 
     return {
-      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...enabledServers, ...existingServers } }, context.apiKey),
+      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...existingServers, ...enabledServers } }),
     };
   }
 

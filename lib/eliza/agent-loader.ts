@@ -2,7 +2,7 @@ import type { Character, Plugin, Provider, Action } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
-import mcpPlugin from "@elizaos/plugin-mcp";
+import mcpPlugin from "./plugin-mcp";
 import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
 import { affiliatePlugin } from "./plugin-affiliate";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
