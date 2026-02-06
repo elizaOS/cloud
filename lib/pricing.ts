@@ -169,9 +169,8 @@ export function getProviderFromModel(model: string): string {
 export function isReasoningModel(model: string): boolean {
   const name = normalizeModelName(model);
   return (
-    name.includes("claude-opus") ||
-    name.includes("o1") ||
-    name.includes("o3")
+    name.startsWith("claude-opus") ||
+    /^o[13](-|$)/.test(name)
   );
 }
 
