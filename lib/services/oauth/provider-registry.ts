@@ -322,15 +322,18 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://slack.com/oauth/v2/authorize",
       token: "https://slack.com/api/oauth.v2.access",
-      userInfo: "https://slack.com/api/auth.test", // Use auth.test for bot tokens
+      // auth.test returns { ok, url, team, user, team_id, user_id, bot_id, ... }
+      // for bot tokens. No email field - bot tokens don't carry user email scope.
+      userInfo: "https://slack.com/api/auth.test",
       revoke: "https://slack.com/api/auth.revoke",
     },
     // Bot scopes only - these must also be added in Slack app's OAuth & Permissions
     defaultScopes: ["chat:write", "channels:read", "users:read"],
+    // Maps auth.test response fields. email is intentionally absent since
+    // bot tokens don't include it (would require users:read.email scope on a user token).
     userInfoMapping: {
       id: "user_id",
       displayName: "user",
-      // Bot tokens don't have email - will be fetched separately if needed
     },
     storage: "platform_credentials",
     useGenericRoutes: true,
@@ -345,7 +348,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://app.hubspot.com/oauth/authorize",
       token: "https://api.hubapi.com/oauth/v1/token",
-      revoke: "https://api.hubapi.com/oauth/v1/refresh-tokens",
+      // No remote revoke: HubSpot requires DELETE /oauth/v1/refresh-tokens/{token}
+      // with the refresh token in the URL path. The generic adapter handles disconnect
+      // locally (deletes stored secrets, marks credential revoked in DB).
       // Token exchange does not return user/hub_id; fetch from token metadata endpoint
       tokenInfo: "https://api.hubapi.com/oauth/v1/access-tokens",
     },
@@ -358,7 +363,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       "crm.objects.deals.write",
       "crm.objects.owners.read",
     ],
-    // Extract from token response - HubSpot includes hub_id and user in token response
+    // Mapping is applied to the tokenInfo response (GET /oauth/v1/access-tokens/{token})
+    // which returns { hub_id, user, token_type, ... }. No userInfo endpoint needed;
+    // the OAuth2 adapter's fetchTokenInfo() handles this via the tokenInfo endpoint above.
     userInfoMapping: {
       id: "hub_id",
       email: "user",
