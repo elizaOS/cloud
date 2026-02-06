@@ -626,19 +626,7 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    // Set MCP_ENABLED_SERVERS in request context for cache miss path too.
-    // On cache hit this is done in applyUserContext(); on cache miss the runtime
-    // already has the correct servers, but we set this for defense-in-depth so
-    // validate() in dynamic-tool-actions.ts can filter consistently.
-    const requestCtx = getRequestContext();
-    if (requestCtx) {
-      const connected = this.getConnectedPlatforms(context);
-      const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
-      requestCtx.entitySettings.set(
-        "MCP_ENABLED_SERVERS",
-        JSON.stringify(enabledServers),
-      );
-    }
+    this.setMcpEnabledServers(context);
 
     await runtimeCache.set(
       cacheKey,
@@ -706,15 +694,7 @@ export class RuntimeFactory {
     // validate() in dynamic-tool-actions.ts checks this to filter tools per-user.
     // Auth (X-API-Key) is injected dynamically by McpService.createHttpTransport()
     // via getSetting("ELIZAOS_API_KEY") which reads from request context.
-    const requestCtx = getRequestContext();
-    if (requestCtx) {
-      const connected = this.getConnectedPlatforms(context);
-      const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
-      requestCtx.entitySettings.set(
-        "MCP_ENABLED_SERVERS",
-        JSON.stringify(enabledServers),
-      );
-    }
+    this.setMcpEnabledServers(context);
 
     // NOTE: The following are NO LONGER mutated here because they're resolved
     // dynamically via getSetting() which checks request context first:
@@ -765,6 +745,21 @@ export class RuntimeFactory {
   private shouldEnableMcp(context: UserContext): boolean {
     const connected = this.getConnectedPlatforms(context);
     return Object.keys(MCP_SERVER_CONFIGS).some((p) => connected.has(p));
+  }
+
+  /**
+   * Set MCP_ENABLED_SERVERS in request context so validate() in
+   * dynamic-tool-actions.ts can filter tools per-user on every path.
+   */
+  private setMcpEnabledServers(context: UserContext): void {
+    const requestCtx = getRequestContext();
+    if (!requestCtx) return;
+    const connected = this.getConnectedPlatforms(context);
+    const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
+    requestCtx.entitySettings.set(
+      "MCP_ENABLED_SERVERS",
+      JSON.stringify(enabledServers),
+    );
   }
 
   private buildMcpSettings(
