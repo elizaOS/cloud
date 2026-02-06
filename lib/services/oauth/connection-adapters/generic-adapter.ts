@@ -36,6 +36,11 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
     connectionId: string,
     tokenType: "access_token" | "refresh_token",
   ): Promise<string> {
+    if (!secretId || !organizationId || !connectionId) {
+      throw new Error(
+        `Missing required parameters for ${platform} ${tokenType} decryption: secretId=${!!secretId}, orgId=${!!organizationId}, connId=${!!connectionId}`,
+      );
+    }
     try {
       return await secretsService.getDecryptedValue(secretId, organizationId);
     } catch (error) {
