@@ -186,11 +186,13 @@ resource "kubernetes_secret" "gateway_discord_secrets" {
   }
 
   data = {
-    "eliza-cloud-url"          = var.eliza_cloud_url
-    "gateway-bootstrap-secret" = var.gateway_bootstrap_secret
-    "redis-url"                = var.redis_url
-    "redis-token"              = var.redis_token
-    "blob-token"               = var.blob_token
+    "eliza-cloud-url"                 = var.eliza_cloud_url
+    "gateway-bootstrap-secret"        = var.gateway_bootstrap_secret
+    "redis-url"                       = var.redis_url
+    "redis-token"                     = var.redis_token
+    "blob-token"                      = var.blob_token
+    "eliza-app-discord-bot-token"     = var.eliza_app_discord_bot_token
+    "eliza-app-discord-application-id" = var.eliza_app_discord_application_id
   }
 }
 

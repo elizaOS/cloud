@@ -356,6 +356,8 @@ Create two GitHub Environments (`gateway-dev` and `gateway-prd`) in your reposit
 - `REDIS_URL`: Redis connection URL
 - `REDIS_TOKEN`: Redis authentication token
 - `BLOB_TOKEN`: Blob storage token
+- `ELIZA_APP_DISCORD_BOT_TOKEN`: Discord bot token for the Eliza App system bot (DM-based interactions)
+- `ELIZA_APP_DISCORD_APPLICATION_ID`: Discord application ID for the Eliza App system bot
 
 ### Post-Deployment
 

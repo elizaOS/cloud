@@ -1,5 +1,9 @@
 # Development environment overrides for gateway-discord
 
+# Enable Eliza App Discord bot (system-wide DM-based interactions)
+elizaAppBot:
+  enabled: true
+
 # Use smaller resource limits for development
 resources:
   requests:
