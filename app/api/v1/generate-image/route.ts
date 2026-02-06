@@ -276,8 +276,7 @@ async function handlePOST(req: NextRequest) {
       const isOpenAIModel = imageModel.startsWith("openai/");
 
       // Build the request based on provider and whether we have a source image
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let streamConfig: any;
+      let streamConfig: Parameters<typeof streamText>[0];
 
       if (isOpenAIModel) {
         // OpenAI models use tools for image generation per AI SDK docs:

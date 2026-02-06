@@ -40,8 +40,10 @@ export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
+  github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
+  notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
+  linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
-  // github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {

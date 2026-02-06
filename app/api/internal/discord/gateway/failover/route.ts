@@ -24,10 +24,10 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
   const parsed = FailoverRequestSchema.safeParse(body);
   if (!parsed.success) {
     logger.warn("[Gateway Failover] Invalid payload", {
-      errors: parsed.error.errors,
+      errors: parsed.error.issues,
     });
     return NextResponse.json(
-      { error: "Invalid payload", details: parsed.error.errors },
+      { error: "Invalid payload", details: parsed.error.issues },
       { status: 400 },
     );
   }

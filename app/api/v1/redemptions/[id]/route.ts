@@ -15,9 +15,15 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
  */
 async function getRedemptionHandler(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context?: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
+  if (!context) {
+    return NextResponse.json(
+      { success: false, error: "Missing route params" },
+      { status: 400 },
+    );
+  }
   const { id } = await context.params;
 
   const redemption = await secureTokenRedemptionService.getRedemption(

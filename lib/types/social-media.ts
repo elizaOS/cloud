@@ -69,6 +69,7 @@ export interface DiscordPostOptions {
   channelId: string;
   serverId?: string;
   webhookUrl?: string;
+  components?: DiscordActionRow[];
   embed?: {
     title?: string;
     description?: string;
@@ -81,12 +82,35 @@ export interface DiscordPostOptions {
   };
 }
 
+export interface DiscordButton {
+  type: 2;
+  style: 5;
+  label: string;
+  url: string;
+}
+
+export interface DiscordActionRow {
+  type: 1;
+  components: DiscordButton[];
+}
+
+export interface TelegramInlineKeyboardButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
+  switch_inline_query?: string;
+  switch_inline_query_current_chat?: string;
+}
+
+export type TelegramInlineKeyboard = TelegramInlineKeyboardButton[][];
+
 export interface TelegramPostOptions {
   chatId: string | number;
   parseMode?: "HTML" | "Markdown" | "MarkdownV2";
   disableWebPagePreview?: boolean;
   disableNotification?: boolean;
   replyToMessageId?: number;
+  inlineKeyboard?: TelegramInlineKeyboard;
 }
 
 export interface RedditPostOptions {

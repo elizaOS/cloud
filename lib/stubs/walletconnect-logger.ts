@@ -38,7 +38,6 @@ function createLogger(
     (logLevel: LogLevel, method: "log" | "warn" | "error") =>
     (...args: unknown[]) => {
       if (LOG_LEVELS[logLevel] >= minLevel) {
-        // eslint-disable-next-line no-console
         console[method](`[${logLevel.toUpperCase()}]`, ...args);
       }
     };
@@ -109,8 +108,7 @@ export function pino(opts?: { level?: LogLevel } | LogLevel): Logger {
 // Named exports matching @walletconnect/logger API
 export const formatChildLoggerContext = (context: string): string => context;
 
-// Default export
-export default {
+const walletconnectLogger = {
   pino,
   generateChildLogger,
   generatePlatformLogger,
@@ -119,3 +117,6 @@ export default {
   getDefaultLoggerOptions,
   formatChildLoggerContext,
 };
+
+// Default export
+export default walletconnectLogger;

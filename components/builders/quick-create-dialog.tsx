@@ -336,7 +336,7 @@ export function QuickCreateDialog({
             {createdResult.apiKey && (
               <div className="space-y-2 pt-2">
                 <p className="text-sm font-medium text-[#FF5800]">
-                  Copy your API key now — you won't see it again
+                  Copy your API key now — you won&apos;t see it again
                 </p>
                 <div className="flex gap-2">
                   <input

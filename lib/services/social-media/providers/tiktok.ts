@@ -228,6 +228,7 @@ export const tiktokProvider: SocialMediaProvider = {
       // File upload method (requires chunked upload)
       if (video.data || video.base64) {
         const videoData = video.data || Buffer.from(video.base64!, "base64");
+        const videoBody = new Uint8Array(videoData);
 
         // Initialize chunked upload
         const initResponse = await tiktokApiRequest<TikTokPublishInfo>(
@@ -260,7 +261,7 @@ export const tiktokProvider: SocialMediaProvider = {
             "Content-Type": "video/mp4",
             "Content-Length": String(videoData.length),
           },
-          body: videoData,
+          body: videoBody,
         });
 
         if (!uploadResponse.ok) {

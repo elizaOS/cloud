@@ -34,9 +34,15 @@ interface RouteParams {
 
 async function handleInitiate(
   request: NextRequest,
-  { params }: RouteParams,
+  context?: RouteParams,
 ): Promise<NextResponse> {
-  const { platform } = await params;
+  if (!context) {
+    return NextResponse.json(
+      { error: "Missing route params" },
+      { status: 400 },
+    );
+  }
+  const { platform } = await context.params;
   const platformLower = platform.toLowerCase();
 
   // Get provider configuration

@@ -523,7 +523,7 @@ export function getFullTextFromChunks(events: StreamingMessageEvents): string {
   return events.chunks.map((c) => c.chunk).join("");
 }
 
-export default {
+const httpClient = {
   parseSSEStream,
   collectSSEEvents,
   parseStreamingResponse,
@@ -534,3 +534,5 @@ export default {
   assertStreamingOrder,
   getFullTextFromChunks,
 };
+
+export default httpClient;

@@ -123,7 +123,7 @@ class ConversionTrackingService {
               converted_at: new Date().toISOString(),
               ...event.metadata,
             },
-            updated_at: new Date(),
+            last_seen_at: new Date(),
           })
           .where(eq(appUsers.id, existing.id));
       }

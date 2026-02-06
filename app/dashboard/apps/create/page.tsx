@@ -482,7 +482,6 @@ export default function AppCreatorPage() {
   );
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection removed - agents can be added later from the app builder
-  const selectedAgentIds: string[] = [];
   // App name is auto-generated when building starts (user doesn't need to provide it)
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
@@ -1657,8 +1656,7 @@ export default function AppCreatorPage() {
           includeMonetization,
           includeAnalytics,
           includePersistentStorage,
-          linkedAgentIds:
-            selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
+          linkedAgentIds: undefined,
           sourceContext: sourceContext
             ? {
                 type: sourceContext.type,
@@ -2065,7 +2063,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     templateType,
     includeMonetization,
     includeAnalytics,
-    selectedAgentIds,
+    includePersistentStorage,
     sourceContext,
     addLog,
     router,
@@ -2073,6 +2071,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     accumulateThinkingChunk,
     clearThinkingBuffer,
     scheduleThinkingUpdate,
+    getThinkingText,
   ]);
 
   // Auto-start session when in edit mode with no session
@@ -2612,7 +2611,6 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       clearThinkingBuffer,
       accumulateThinkingChunk,
       scheduleThinkingUpdate,
-      getThinkingText,
     ],
   );
 

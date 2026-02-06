@@ -856,7 +856,7 @@ class AgentBudgetService {
       organizationName: orgInfo?.orgName ?? "Your Organization",
       currentBalance: balance,
       threshold: 5.0, // Standard low budget threshold
-      topUpUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
+      billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
     });
 
     logger.info("[AgentBudgets] Low budget alert sent", {

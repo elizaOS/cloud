@@ -402,14 +402,14 @@ export const linkedinProvider: SocialMediaProvider = {
     const asset = registerResponse.value.asset;
 
     // Get image data
-    let imageData: ArrayBuffer;
+    let imageData: Uint8Array;
     if (media.data) {
-      imageData = media.data.buffer;
+      imageData = Uint8Array.from(media.data);
     } else if (media.base64) {
-      imageData = Buffer.from(media.base64, "base64").buffer;
+      imageData = Uint8Array.from(Buffer.from(media.base64, "base64"));
     } else if (media.url) {
       const response = await fetch(media.url);
-      imageData = await response.arrayBuffer();
+      imageData = new Uint8Array(await response.arrayBuffer());
     } else {
       throw new Error("No media data provided");
     }

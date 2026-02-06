@@ -14,7 +14,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { dbRead } from "@/db/client";
-import { tokenRedemptions } from "@/db/schemas/token-redemptions";
+import {
+  tokenRedemptions,
+  type TokenRedemption,
+} from "@/db/schemas/token-redemptions";
 import { users } from "@/db/schemas/users";
 import { apps } from "@/db/schemas/apps";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
@@ -43,12 +46,23 @@ async function listPendingRedemptionsHandler(
   const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 50;
 
   // Build status filter
-  const statusArray =
+  const allowedStatuses: TokenRedemption["status"][] = [
+    "pending",
+    "approved",
+    "processing",
+    "completed",
+    "failed",
+    "rejected",
+    "expired",
+  ];
+  const statusArray: TokenRedemption["status"][] =
     statusFilter === "all"
-      ? ["pending", "approved", "processing", "completed", "failed", "rejected"]
+      ? allowedStatuses
       : statusFilter === "review"
         ? ["pending"]
-        : [statusFilter];
+        : allowedStatuses.includes(statusFilter as TokenRedemption["status"])
+          ? [statusFilter as TokenRedemption["status"]]
+          : ["pending"];
 
   // Get redemptions with user and app info
   const redemptions = await dbRead
@@ -156,7 +170,7 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
       {
         success: false,
         error: "Invalid request",
-        details: validation.error.errors,
+        details: validation.error.issues,
       },
       { status: 400 },
     );

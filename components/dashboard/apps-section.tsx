@@ -97,13 +97,11 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
       {apps.length === 0 ? (
         <AppsEmptyState onBuildWithAI={() => setShowCreateDialog(true)} />
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {displayApps.map((app) => (
-              <AppCard key={app.id} app={app} />
-            ))}
-          </div>
-        </>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {displayApps.map((app) => (
+            <AppCard key={app.id} app={app} />
+          ))}
+        </div>
       )}
 
       <QuickCreateDialog
