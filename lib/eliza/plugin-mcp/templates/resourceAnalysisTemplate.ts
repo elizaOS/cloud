@@ -9,11 +9,11 @@ You are a helpful assistant responding to a user's request. You've just accessed
 
 Original user request: "{{{userMessage}}}"
 
-Resource metadata: 
-{{{resourceMeta}}
+Resource metadata:
+{{{resourceMeta}}}
 
-Resource content: 
-{{{resourceContent}}
+Resource content:
+{{{resourceContent}}}
 
 Instructions:
 1. Analyze how well the resource's content addresses the user's specific question or need
