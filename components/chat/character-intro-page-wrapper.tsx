@@ -48,7 +48,7 @@ export function CharacterIntroPageWrapper({
     router.push(`/chat/${characterId}${queryString ? `?${queryString}` : ""}`);
   }
 
-  function handleEmailSubmit(email: string) {
+  async function handleEmailSubmit(email: string): Promise<void> {
     const params = new URLSearchParams();
     if (source) params.set("source", source);
 

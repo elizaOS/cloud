@@ -10,7 +10,6 @@ interface AppPageWrapperProps {
 export function AppPageWrapper({ appName, children }: AppPageWrapperProps) {
   useSetPageHeader({
     title: appName,
-    backHref: "/dashboard/apps",
   });
 
   return children;

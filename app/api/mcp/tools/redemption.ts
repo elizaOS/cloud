@@ -3,7 +3,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod3";
+import { z } from "zod/v3";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
 import { getAuthContext } from "../lib/context";

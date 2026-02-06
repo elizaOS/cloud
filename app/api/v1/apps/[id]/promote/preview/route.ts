@@ -12,6 +12,11 @@ import { appsService } from "@/lib/services/apps";
 import { discordAppAutomationService } from "@/lib/services/discord-automation/app-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
+import {
+  getDiscordConfigWithDefaults,
+  getTelegramConfigWithDefaults,
+  getTwitterConfigWithDefaults,
+} from "@/lib/services/automation-constants";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -65,15 +70,15 @@ export async function POST(
     ? {
         ...app,
         twitter_automation: {
-          ...(app.twitter_automation || {}),
+          ...getTwitterConfigWithDefaults(app.twitter_automation),
           agentCharacterId,
         },
         discord_automation: {
-          ...(app.discord_automation || {}),
+          ...getDiscordConfigWithDefaults(app.discord_automation),
           agentCharacterId,
         },
         telegram_automation: {
-          ...(app.telegram_automation || {}),
+          ...getTelegramConfigWithDefaults(app.telegram_automation),
           agentCharacterId,
         },
       }

@@ -4,7 +4,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod3";
+import { z } from "zod/v3";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";

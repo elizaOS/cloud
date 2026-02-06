@@ -36,7 +36,7 @@ SET
   -- Null secret references to avoid orphaned tokens after detaching duplicates.
   access_token_secret_id = NULL,
   refresh_token_secret_id = NULL,
-  error_message = COALESCE(pc.error_message, '[Migration 0027] Detached duplicate user/platform connection')
+  error_message = COALESCE(pc.error_message, '[Migration 0028] Detached duplicate user/platform connection')
 FROM duplicates d
 WHERE pc.id = d.id;
 

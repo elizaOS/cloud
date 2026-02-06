@@ -32,6 +32,7 @@ import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
+  getSafeModelParams,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -405,10 +406,7 @@ async function handleStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
-  const result = streamText({
-    model: gateway.languageModel(model),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+  const safeParams = getSafeModelParams(model, {
     temperature: request.temperature,
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
@@ -418,6 +416,13 @@ async function handleStreamingRequest(
         ? request.stop
         : [request.stop]
       : undefined,
+  });
+
+  const result = streamText({
+    model: gateway.languageModel(model),
+    system: systemPrompt,
+    messages: await convertToModelMessages(messages),
+    ...safeParams,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
     onFinish: async ({ text, usage }) => {
       try {
@@ -563,10 +568,7 @@ async function handleNonStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
-  const result = await generateText({
-    model: gateway.languageModel(model),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+  const safeParamsNonStream = getSafeModelParams(model, {
     temperature: request.temperature,
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
@@ -576,6 +578,13 @@ async function handleNonStreamingRequest(
         ? request.stop
         : [request.stop]
       : undefined,
+  });
+
+  const result = await generateText({
+    model: gateway.languageModel(model),
+    system: systemPrompt,
+    messages: await convertToModelMessages(messages),
+    ...safeParamsNonStream,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
   });
 

@@ -40,7 +40,7 @@ async function preloadPlugins(): Promise<void> {
     });
 
     if (webSearchModule) {
-      _webSearchPlugin = webSearchModule.webSearchPlugin;
+      _webSearchPlugin = asPlugin(webSearchModule.webSearchPlugin);
     }
 
     logger.info("[AgentLoader] ⚡ Web search plugin preloaded");
@@ -82,10 +82,10 @@ async function resolveEffectiveMode(
   }
 
   // Query document count once - needed for multiple checks and plugin resolution
+  // Note: no roomId filter — we want agent-level document count across all rooms
   const documentCount = await memoriesRepository.countByType(
     characterId,
     "documents",
-    characterId,
   );
 
   // Already ASSISTANT mode - no upgrade needed
@@ -125,8 +125,8 @@ async function getKnowledgePlugin(): Promise<Plugin> {
 
   // Fallback to dynamic import if preload hasn't completed
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
-  _knowledgePlugin = knowledgePluginCore;
-  return knowledgePluginCore;
+  _knowledgePlugin = asPlugin(knowledgePluginCore);
+  return _knowledgePlugin;
 }
 
 async function getWebSearchPlugin(): Promise<Plugin> {
@@ -135,8 +135,8 @@ async function getWebSearchPlugin(): Promise<Plugin> {
   // Fallback to dynamic import if preload hasn't completed
   // Use local web-search plugin
   const { webSearchPlugin } = await import("./plugin-web-search/src");
-  _webSearchPlugin = webSearchPlugin;
-  return webSearchPlugin;
+  _webSearchPlugin = asPlugin(webSearchPlugin);
+  return _webSearchPlugin;
 }
 
 /** Cast external plugin to local Plugin type for cross-version compatibility. */
@@ -287,14 +287,11 @@ export class AgentLoader {
       ...conditionalPlugins,
     ];
 
-    // Load knowledge plugin for ASSISTANT mode to enable both:
-    // - Knowledge queries (if documents exist)
-    // - Uploading new documents (even if none exist yet)
-    if (options?.hasKnowledge || agentMode === AgentMode.ASSISTANT) {
+    // Only load knowledge plugin when documents actually exist
+    // Upload capability is handled separately — no need to init the full plugin
+    if (options?.hasKnowledge) {
       allPluginNames.push("@elizaos/plugin-knowledge");
-      logger.info(
-        `[AgentLoader] Loading knowledge plugin - ${options?.hasKnowledge ? "documents found" : "ASSISTANT mode (enables uploads)"}`
-      );
+      logger.info("[AgentLoader] Loading knowledge plugin - documents found");
     }
 
     for (const pluginName of allPluginNames) {

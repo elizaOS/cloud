@@ -72,12 +72,12 @@ kubectl create secret generic gateway-discord-secrets \
 Once prerequisites are in place, deploy with Helm:
 
 ```bash
-# Deploy to staging (--create-namespace creates the namespace if it doesn't exist)
+# Deploy to development (--create-namespace creates the namespace if it doesn't exist)
 helm upgrade --install gateway-discord . \
   --namespace gateway-discord \
   --create-namespace \
   -f values.yaml \
-  -f values-staging.yaml
+  -f values-development.yaml
 
 # Deploy to production
 helm upgrade --install gateway-discord . \
@@ -117,7 +117,7 @@ helm status gateway-discord -n gateway-discord
 | File | Description |
 |------|-------------|
 | `values.yaml` | Default values for all environments |
-| `values-staging.yaml` | Staging overrides (smaller resources, fewer replicas) |
+| `values-development.yaml` | Development overrides (smaller resources, fewer replicas) |
 | `values-production.yaml` | Production overrides (more resources, Prometheus enabled) |
 
 ### Key Configurable Values
@@ -161,7 +161,7 @@ Preview what will be deployed without actually deploying:
 ```bash
 helm template gateway-discord . \
   -f values.yaml \
-  -f values-staging.yaml \
+  -f values-development.yaml \
   --namespace gateway-discord
 ```
 
@@ -201,25 +201,25 @@ The GitHub Actions workflow at `.github/workflows/gateway-discord.yml` automates
 |-----|-------------|
 | `test` | Runs tests using Bun |
 | `build` | Builds Docker image and pushes to GHCR |
-| `deploy` | Deploys to staging (dev branch) or production (main branch) using Helm |
+| `deploy` | Deploys to development (dev branch) or production (main branch) using Helm |
 
 ### Triggers
 
 | Trigger | Action |
 |---------|--------|
-| Push to `dev` | Deploy to staging |
+| Push to `dev` | Deploy to development |
 | Push to `main` | Deploy to production |
 | `workflow_dispatch` | Manual deployment to selected environment |
 
 ### Required GitHub Environment Variables
 
-Add these to each GitHub environment (`staging` and `production`) under **Settings → Environments**:
+Add these to each GitHub environment (`gateway-dev` and `gateway-prd`) under **Settings → Environments**:
 
 | Variable | Example | Description |
 |----------|---------|-------------|
-| `GATEWAY_AWS_ROLE_ARN` | `arn:aws:iam::123456789:role/github-actions-gateway` | IAM role for OIDC auth |
-| `GATEWAY_AWS_REGION` | `us-east-1` | AWS region of EKS cluster |
-| `GATEWAY_CLUSTER_NAME` | `gateway-cluster` | EKS cluster name |
+| `GATEWAY_AWS_ROLE_ARN` | `arn:aws:iam::123456789:role/github-actions-gateway-dev` | IAM role for EKS access (created by Terraform) |
+| `AWS_REGION` | `us-east-1` | AWS region of EKS cluster |
+| `CLUSTER_NAME` | `gateway-cluster-dev` | EKS cluster name |
 
 ### AWS OIDC Setup (One-Time)
 

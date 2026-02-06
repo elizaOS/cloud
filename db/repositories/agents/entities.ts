@@ -39,7 +39,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .limit(1);
 
-    return result[0] || null;
+    return (result[0] || null) as Entity | null;
   }
 
   /**
@@ -53,7 +53,7 @@ export class EntitiesRepository {
       .from(entityTable)
       .where(inArray(entityTable.id, entityIds));
 
-    return results;
+    return results as Entity[];
   }
 
   /**
@@ -66,7 +66,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.agentId, agentId))
       .limit(limit);
 
-    return results;
+    return results as Entity[];
   }
 
   /**
@@ -189,7 +189,7 @@ export class EntitiesRepository {
       })
       .returning();
 
-    return entity;
+    return entity as Entity;
   }
 
   /**
@@ -202,7 +202,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .returning();
 
-    return entity;
+    return entity as Entity;
   }
 
   /**
@@ -218,7 +218,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .returning();
 
-    return entity;
+    return entity as Entity;
   }
 
   /**

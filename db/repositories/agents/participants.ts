@@ -36,7 +36,7 @@ export class ParticipantsRepository {
       .from(participantTable)
       .where(eq(participantTable.roomId, roomId));
 
-    return results;
+    return results as Participant[];
   }
 
   /**
@@ -148,10 +148,10 @@ export class ParticipantsRepository {
           ),
         )
         .limit(1);
-      return existing[0];
+      return existing[0] as Participant;
     }
 
-    const [participant] = await dbWrite
+    const results = await dbWrite
       .insert(participantTable)
       .values({
         roomId: input.roomId,
@@ -162,7 +162,7 @@ export class ParticipantsRepository {
       })
       .returning();
 
-    return participant;
+    return (results as Participant[])[0];
   }
 
   /**
@@ -206,7 +206,7 @@ export class ParticipantsRepository {
     entityId: string,
     roomState: Record<string, unknown>,
   ): Promise<Participant> {
-    const [participant] = await dbWrite
+    const results = await dbWrite
       .update(participantTable)
       .set({ roomState })
       .where(
@@ -217,7 +217,7 @@ export class ParticipantsRepository {
       )
       .returning();
 
-    return participant;
+    return (results as Participant[])[0];
   }
 }
 

@@ -2853,6 +2853,9 @@ ANTHROPIC_API_KEY=your_key_here`}
         "mcp-service": `${appName} - A Model Context Protocol service extending AI capabilities.`,
         "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint for AI coordination.`,
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
+        analytics: `${appName} - A data-driven analytics dashboard with actionable insights.`,
+        "saas-starter": `${appName} - A SaaS starter app with billing, auth, and user management.`,
+        "ai-tool": `${appName} - An AI-powered tool designed to automate and enhance workflows.`,
       };
       setAppDescription(
         fallbackDescriptions[templateType] || fallbackDescriptions.blank,
