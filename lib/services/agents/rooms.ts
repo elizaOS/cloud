@@ -241,7 +241,7 @@ export class RoomsService {
     // Create room with agentId - required for ElizaOS room lookup
     // The API route ensures agent exists before calling this
     // ElizaOS's ensureConnection creates entity/participant when first message is sent
-    const [room] = await dbWrite
+    const roomResult = (await dbWrite
       .insert(roomTable)
       .values({
         id: roomId,
@@ -252,9 +252,9 @@ export class RoomsService {
         metadata: input.metadata,
         createdAt: new Date(),
       })
-      .returning();
+      .returning()) as any[];
 
-    return room;
+    return roomResult[0] as Room;
   }
 
   /**

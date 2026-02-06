@@ -59,7 +59,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Use runtime.agentId as roomId (matching plugin pattern)
-    const roomId = runtime.agentId;
+    const roomId = runtime.agentId ?? user.id;
 
     // Create a query message
     const queryMessage = {
@@ -91,7 +91,7 @@ async function handlePOST(req: NextRequest) {
       results: limitedResults.map(
         (item): QueryResult => ({
           id: item.id,
-          content: item.content.text,
+          content: item.content.text ?? "",
           similarity: (() => {
             if (
               typeof item === "object" &&
@@ -105,7 +105,7 @@ async function handlePOST(req: NextRequest) {
             }
             return 0;
           })(),
-          metadata: item.metadata,
+          metadata: item.metadata as Record<string, unknown> | undefined,
         }),
       ),
       count: limitedResults.length,

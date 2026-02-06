@@ -40,7 +40,7 @@ async function preloadPlugins(): Promise<void> {
     });
 
     if (webSearchModule) {
-      _webSearchPlugin = webSearchModule.webSearchPlugin;
+      _webSearchPlugin = asPlugin(webSearchModule.webSearchPlugin);
     }
 
     logger.info("[AgentLoader] ⚡ Web search plugin preloaded");
@@ -125,8 +125,8 @@ async function getKnowledgePlugin(): Promise<Plugin> {
 
   // Fallback to dynamic import if preload hasn't completed
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
-  _knowledgePlugin = knowledgePluginCore;
-  return knowledgePluginCore;
+  _knowledgePlugin = asPlugin(knowledgePluginCore);
+  return _knowledgePlugin;
 }
 
 async function getWebSearchPlugin(): Promise<Plugin> {
@@ -135,8 +135,8 @@ async function getWebSearchPlugin(): Promise<Plugin> {
   // Fallback to dynamic import if preload hasn't completed
   // Use local web-search plugin
   const { webSearchPlugin } = await import("./plugin-web-search/src");
-  _webSearchPlugin = webSearchPlugin;
-  return webSearchPlugin;
+  _webSearchPlugin = asPlugin(webSearchPlugin);
+  return _webSearchPlugin;
 }
 
 /** Cast external plugin to local Plugin type for cross-version compatibility. */

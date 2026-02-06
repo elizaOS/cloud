@@ -60,7 +60,7 @@ export async function cleanupExpiredSandboxes(): Promise<{
       }
     }
 
-    const activeSandboxIds = sandboxService.getActiveSandboxes();
+    const activeSandboxIds = sandboxService.getActiveSandboxIds();
     const activeSessions = await dbRead.query.appSandboxSessions.findMany({
       where: notInArray(appSandboxSessions.status, ["stopped", "timeout"]),
     });

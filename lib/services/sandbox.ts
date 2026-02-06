@@ -391,7 +391,7 @@ export class SandboxService {
     }
 
     const devServerUrl = sandbox.domain(3000);
-    const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
+    const sandboxId = sandbox.sandboxId || extractSandboxIdFromUrl(devServerUrl);
 
     logger.info("Sandbox created", { sandboxId, devServerUrl });
     getActiveSandboxes().set(sandboxId, sandbox);

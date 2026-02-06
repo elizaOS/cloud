@@ -159,6 +159,21 @@ export function ApiRouteExplorerClient({
   }, [routes, selectedKey]);
 
   const curlExample = selected ? generateCurlExample(selected) : "";
+  const rateLimitDisplay: string = selected
+    ? typeof selected.meta?.rateLimit === "string"
+      ? selected.meta.rateLimit
+      : selected.meta?.rateLimit
+        ? `${selected.meta.rateLimit.requests}/${selected.meta.rateLimit.window}`
+        : "60/min"
+    : "60/min";
+
+  const pricingDisplay: string = selected
+    ? typeof selected.meta?.pricing === "string"
+      ? selected.meta.pricing
+      : selected.meta?.pricing && "type" in selected.meta.pricing
+        ? String(selected.meta.pricing.type)
+        : "Credits"
+    : "Credits";
 
   return (
     <div className="not-prose">
@@ -413,7 +428,7 @@ export function ApiRouteExplorerClient({
                       </span>
                     </div>
                     <div className="text-sm font-medium text-white/70">
-                      {selected.meta?.rateLimit || "60/min"}
+                      {rateLimitDisplay}
                     </div>
                   </div>
 
@@ -464,7 +479,7 @@ export function ApiRouteExplorerClient({
                       </span>
                     </div>
                     <div className="text-sm font-medium text-white/70">
-                      {selected.meta?.pricing || "Credits"}
+                      {pricingDisplay}
                     </div>
                   </div>
                 </div>

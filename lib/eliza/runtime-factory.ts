@@ -571,8 +571,22 @@ export class RuntimeFactory {
       IS_ANONYMOUS: context.isAnonymous,
     };
 
-    // Create runtime with MCP in character.settings (for plugin-mcp)
-    // and user-specific keys in opts.settings (ephemeral per-request)
+    // Create runtime with user-specific settings in opts.settings (NOT character.settings)
+    // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
+    // Note: Nested objects (like MCP settings) are JSON.stringified to preserve them
+    const runtimeSettings: Record<string, string | undefined> =
+      Object.fromEntries(
+        Object.entries(ephemeralSettings).map(([key, value]) => [
+          key,
+          typeof value === "string"
+            ? value
+            : value === null || value === undefined
+              ? undefined
+              : typeof value === "object"
+                ? JSON.stringify(value)
+                : String(value),
+        ]),
+      );
     const runtime = new AgentRuntime({
       character: {
         ...character,
@@ -581,7 +595,7 @@ export class RuntimeFactory {
       },
       plugins: filteredPlugins,
       agentId,
-      settings: ephemeralSettings as Record<string, string | boolean | number>,
+      settings: runtimeSettings,
     });
 
     runtime.registerDatabaseAdapter(dbAdapter);
