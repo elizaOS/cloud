@@ -180,7 +180,7 @@ describe("MCP OAuth Injection", () => {
       expect(mcpSettings?.servers?.google).toBeDefined();
 
       const googleServer = mcpSettings?.servers?.google as { url?: string; type?: string };
-      expect(googleServer.url).toContain("/api/mcps/google/mcp");
+      expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
       expect(googleServer.type).toBe("streamable-http");
 
       console.log("✅ Google MCP server injected for user with OAuth connection");
