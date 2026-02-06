@@ -140,7 +140,10 @@ export type ValidationResult<T> = { success: true; data: T } | { success: false;
 
 export const ResourceSelectionSchema = {
   type: "object",
-  required: ["serverName", "uri"],
+  oneOf: [
+    { required: ["serverName", "uri"] },
+    { required: ["noResourceAvailable"] },
+  ],
   properties: {
     serverName: { type: "string", minLength: 1 },
     uri: { type: "string", minLength: 1 },

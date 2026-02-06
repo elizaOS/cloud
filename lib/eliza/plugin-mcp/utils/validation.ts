@@ -3,8 +3,8 @@ import { type McpProviderData, ResourceSelectionSchema, type ValidationResult } 
 import { validateJsonSchema } from "./json";
 
 export interface ResourceSelection {
-  serverName: string;
-  uri: string;
+  serverName?: string;
+  uri?: string;
   reasoning?: string;
   noResourceAvailable?: boolean;
 }

@@ -170,6 +170,9 @@ export const readResourceAction: Action = {
       }
 
       const { serverName, uri, reasoning } = parsedSelection;
+      if (!serverName || !uri) {
+        return { text: "No resource selected.", success: false };
+      }
 
       logger.debug(`Selected resource "${uri}" on server "${serverName}" because: ${reasoning}`);
 
