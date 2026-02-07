@@ -19,6 +19,9 @@ function requireEnv(name: string, fallback?: string): string {
 }
 
 export const elizaAppConfig = {
+  // Frontend URL (the consumer-facing app, e.g. eliza.app)
+  appUrl: process.env.ELIZA_APP_URL || "https://eliza.app",
+
   // Agent configuration
   defaultAgentId: process.env.ELIZA_APP_DEFAULT_AGENT_ID || "b850bc30-45f8-0041-a00a-83df46d8555d",
 

@@ -237,10 +237,9 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   // Look up user - they must have completed OAuth first
   const userWithOrg = await elizaAppUserService.getByDiscordId(discordUserId);
   if (!userWithOrg?.organization) {
-    const elizaAppUrl = process.env.ELIZA_APP_URL || "https://eliza.app";
     await sendDiscordMessage(
       data.channel_id,
-      `Welcome! To chat with Eliza, please connect your Discord account first:\n\n${elizaAppUrl}/get-started`,
+      `Welcome! To chat with Eliza, please connect your Discord account first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
     await markAsProcessed(idempotencyKey, "discord-eliza-app");
     return NextResponse.json({ ok: true });

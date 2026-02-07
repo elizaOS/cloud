@@ -83,10 +83,9 @@ async function handleMessage(message: Message): Promise<boolean> {
   // Look up user - they must have completed OAuth first
   const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
   if (!userWithOrg?.organization) {
-    const elizaAppUrl = process.env.ELIZA_APP_URL || "https://eliza.app";
     await sendTelegramMessage(
       message.chat.id,
-      `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppUrl}/get-started`,
+      `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
     return true; // Mark as processed - don't retry
   }
@@ -215,10 +214,9 @@ async function handleCommand(message: Message): Promise<void> {
           `*Account Status*\n\n✅ Connected\n💰 Credits: $${creditBalance}\n🆔 User ID: \`${user.id.substring(0, 8)}...\``,
         );
       } else {
-        const elizaAppUrl = process.env.ELIZA_APP_URL || "https://eliza.app";
         await sendTelegramMessage(
           chatId,
-          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: ${elizaAppUrl}/get-started`,
+          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: ${elizaAppConfig.appUrl}/get-started`,
         );
       }
       break;
