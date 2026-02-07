@@ -444,8 +444,7 @@ class ElizaAppUserService {
 
   /**
    * Find or create user by Discord ID.
-   * Auto-provisions users on first message (like Blooio/iMessage).
-   * Used by Discord webhook for Eliza App bot.
+   * Used by Discord OAuth2 flow to provision accounts on first login.
    */
   async findOrCreateByDiscordId(
     discordId: string,
