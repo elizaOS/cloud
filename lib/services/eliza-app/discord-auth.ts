@@ -85,12 +85,17 @@ class DiscordAuthService {
         const errorText = await tokenResponse.text();
         logger.warn("[DiscordAuth] Token exchange failed", {
           status: tokenResponse.status,
-          error: errorText,
+          error: errorText.slice(0, 200),
         });
         return null;
       }
 
-      tokenData = await tokenResponse.json() as DiscordTokenResponse;
+      const rawToken = await tokenResponse.json();
+      if (!rawToken.access_token) {
+        logger.error("[DiscordAuth] Invalid token response - missing access_token");
+        return null;
+      }
+      tokenData = rawToken as DiscordTokenResponse;
     } catch (error) {
       logger.error("[DiscordAuth] Token exchange request failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -110,7 +115,7 @@ class DiscordAuthService {
         const errorText = await userResponse.text();
         logger.warn("[DiscordAuth] User profile fetch failed", {
           status: userResponse.status,
-          error: errorText,
+          error: errorText.slice(0, 200),
         });
         return null;
       }
@@ -156,7 +161,8 @@ class DiscordAuthService {
    */
   getAvatarUrl(userId: string, avatarHash: string | null): string | null {
     if (!avatarHash) return null;
-    return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png`;
+    const ext = avatarHash.startsWith("a_") ? "gif" : "png";
+    return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${ext}`;
   }
 
   /**
