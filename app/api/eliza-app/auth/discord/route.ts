@@ -42,13 +42,18 @@ const optionalPhoneSchema = z
   });
 
 /**
- * Request body schema: Discord OAuth2 code + redirect_uri + optional phone
+ * Request body schema: Discord OAuth2 code + redirect_uri + state (CSRF) + optional phone
  */
 const discordAuthSchema = z.object({
   // OAuth2 authorization code from Discord redirect
   code: z.string().min(1, "Authorization code is required"),
   // The redirect_uri used in the original authorization request (must match exactly)
   redirect_uri: z.string().url("Invalid redirect URI"),
+  // OAuth2 state parameter for CSRF protection (must be a 64-char hex string)
+  state: z
+    .string()
+    .min(1, "State parameter is required for CSRF protection")
+    .regex(/^[0-9a-f]{64}$/, "Invalid state parameter format"),
   // Optional phone number for cross-platform linking
   phone_number: optionalPhoneSchema,
 });
@@ -109,8 +114,14 @@ async function handleDiscordAuth(
     );
   }
 
-  const { code, redirect_uri: redirectUri, phone_number: phoneNumber } =
+  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber } =
     parseResult.data;
+
+  logger.info("[ElizaApp DiscordAuth] Processing OAuth2 callback", {
+    redirectUri,
+    statePrefix: state.slice(0, 8) + "...",
+    hasPhone: !!phoneNumber,
+  });
 
   // Exchange OAuth2 code for Discord user data
   const discordUser = await discordAuthService.verifyOAuthCode(code, redirectUri);
