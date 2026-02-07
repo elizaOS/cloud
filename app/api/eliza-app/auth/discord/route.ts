@@ -159,7 +159,8 @@ async function handleDiscordAuth(
     );
   }
 
-  const { user, organization, isNew } = result;
+  let { user } = result;
+  const { organization, isNew } = result;
 
   // If phone number was provided, link it to the user
   if (phoneNumber && !user.phone_number) {
@@ -173,6 +174,11 @@ async function handleDiscordAuth(
         },
         { status: 409 },
       );
+    }
+    // Refetch user to reflect the newly linked phone number in the response
+    const updatedUser = await elizaAppUserService.getByDiscordId(discordUser.id);
+    if (updatedUser) {
+      user = updatedUser;
     }
   }
 
@@ -198,7 +204,7 @@ async function handleDiscordAuth(
     success: true,
     user: {
       id: user.id,
-      discord_id: user.discord_id!,
+      discord_id: discordUser.id,
       discord_username: user.discord_username,
       discord_global_name: user.discord_global_name,
       phone_number: user.phone_number,
