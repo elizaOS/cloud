@@ -44,7 +44,8 @@ export const elizaAppConfig = {
   // Discord configuration
   discord: {
     botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
-    applicationId: process.env.ELIZA_APP_DISCORD_APPLICATION_ID || "",
+    applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
+    clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
   },
 
   // JWT configuration - secret required in all environments

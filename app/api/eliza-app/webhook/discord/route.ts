@@ -2,7 +2,7 @@
  * Eliza App - Discord Webhook
  *
  * Receives messages from Discord Gateway and routes them to the default Eliza agent.
- * Auto-provisions users on first message (like Blooio/iMessage).
+ * Requires users to have completed OAuth first (sends welcome message if not).
  * Uses ASSISTANT mode for full multi-step action execution.
  * DM-only - server/guild messages are filtered by gateway.
  *
@@ -23,6 +23,7 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import type { Media } from "@elizaos/core";
+import { getContentTypeFromMimeType } from "@elizaos/core";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -45,6 +46,7 @@ interface DiscordAuthor {
 }
 
 interface DiscordAttachment {
+  id?: string;
   url: string;
   content_type?: string;
   filename?: string;
@@ -162,8 +164,9 @@ function processDiscordAttachments(data: DiscordMessageData): Media[] {
   if (data.attachments?.length) {
     for (const att of data.attachments) {
       attachments.push({
+        id: att.id || att.url,
         url: att.url,
-        contentType: att.content_type,
+        contentType: att.content_type ? getContentTypeFromMimeType(att.content_type) : undefined,
         title: att.filename,
       });
     }
@@ -173,8 +176,9 @@ function processDiscordAttachments(data: DiscordMessageData): Media[] {
   if (data.voice_attachments?.length) {
     for (const va of data.voice_attachments) {
       attachments.push({
+        id: va.url,
         url: va.url,
-        contentType: va.content_type,
+        contentType: va.content_type ? getContentTypeFromMimeType(va.content_type) : undefined,
         title: va.filename,
       });
     }
@@ -230,19 +234,17 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
-  // Find or create user (auto-provision like Blooio)
-  const avatarUrl = discordAvatar
-    ? `https://cdn.discordapp.com/avatars/${discordUserId}/${discordAvatar}.png`
-    : null;
-
-  const { user: userWithOrg, organization } = await elizaAppUserService.findOrCreateByDiscordId(
-    discordUserId,
-    {
-      username: discordUsername,
-      globalName: discordGlobalName,
-      avatarUrl,
-    }
-  );
+  // Look up user - they must have completed OAuth first
+  const userWithOrg = await elizaAppUserService.getByDiscordId(discordUserId);
+  if (!userWithOrg?.organization) {
+    await sendDiscordMessage(
+      data.channel_id,
+      "Welcome! To chat with Eliza, please connect your Discord account first:\n\nhttps://eliza.app/get-started",
+    );
+    await markAsProcessed(idempotencyKey, "discord-eliza-app");
+    return NextResponse.json({ ok: true });
+  }
+  const { organization } = userWithOrg;
 
   // Generate room ID (deterministic)
   const roomId = generateElizaAppRoomId("discord", DEFAULT_AGENT_ID, discordUserId);
@@ -256,6 +258,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
         {
           id: roomId,
           agentId: DEFAULT_AGENT_ID,
+          entityId,
           source: "discord",
           type: "DM",
           name: `Discord: ${discordGlobalName || discordUsername}`,
