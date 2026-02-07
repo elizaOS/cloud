@@ -83,7 +83,7 @@ export class RoomsRepository {
       .where(eq(roomTable.id, roomId))
       .limit(1);
 
-    return result[0] || null;
+    return (result[0] || null) as Room | null;
   }
 
   /**
@@ -97,7 +97,7 @@ export class RoomsRepository {
       .from(roomTable)
       .where(inArray(roomTable.id, roomIds));
 
-    return results;
+    return results as Room[];
   }
 
   /**
@@ -116,7 +116,7 @@ export class RoomsRepository {
       return timeB - timeA; // Descending
     });
 
-    return sorted.slice(0, limit);
+    return sorted.slice(0, limit) as Room[];
   }
 
   /**
@@ -125,7 +125,7 @@ export class RoomsRepository {
    * Note: source and type are required in the database (notNull, no defaults).
    */
   async create(input: CreateRoomInput): Promise<Room> {
-    const [room] = await dbWrite
+    const roomResult = (await dbWrite
       .insert(roomTable)
       .values({
         id: input.id,
@@ -139,9 +139,9 @@ export class RoomsRepository {
         metadata: input.metadata,
         createdAt: new Date(),
       })
-      .returning();
+      .returning()) as any[];
 
-    return room;
+    return roomResult[0] as Room;
   }
 
   /**
@@ -154,7 +154,7 @@ export class RoomsRepository {
       .where(eq(roomTable.id, roomId))
       .returning();
 
-    return room;
+    return room as Room;
   }
 
   /**
@@ -273,7 +273,7 @@ export class RoomsRepository {
       return timeB - timeA;
     });
 
-    return results;
+    return results as RoomWithPreview[];
   }
 }
 

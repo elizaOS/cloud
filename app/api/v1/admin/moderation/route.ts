@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
       const admin = await adminService.promoteToAdmin({
         walletAddress,
         role,
-        grantedByWallet: auth.user?.wallet_address,
+        grantedByWallet: auth.user?.wallet_address ?? undefined,
         notes,
       });
       return NextResponse.json({
@@ -344,7 +344,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await adminService.revokeAdmin(walletAddress, auth.user?.wallet_address);
+      await adminService.revokeAdmin(
+        walletAddress,
+        auth.user?.wallet_address ?? undefined,
+      );
       return NextResponse.json({
         success: true,
         message: "Admin privileges revoked",

@@ -167,6 +167,7 @@ async function handlePOST(request: NextRequest) {
       user_id: user.id,
       organization_id: user.organization_id,
       source: "cloud",
+      character_data: {},
     });
 
     // Track agent creation in PostHog using internal UUID

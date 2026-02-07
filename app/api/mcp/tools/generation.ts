@@ -3,8 +3,8 @@
  * Tools for text, image, video, embeddings, TTS, and prompts generation
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { logger } from "@/lib/utils/logger";
@@ -25,6 +25,35 @@ import {
 import { uploadBase64Image } from "@/lib/blob";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
+
+async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>,
+): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return Buffer.from(combined.buffer, combined.byteOffset, combined.byteLength);
+}
 
 export function registerGenerationTools(server: McpServer): void {
   // Generate Text - Generate text using AI models
@@ -71,12 +100,10 @@ export function registerGenerationTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        // Start async moderation with agent tracking (doesn't block)
-        const agentId = `org:${user.organization_id}`;
-        contentModerationService.moderateAgentInBackground(
+        // Start async moderation (doesn't block)
+        contentModerationService.moderateInBackground(
           prompt,
           user.id,
-          agentId,
           undefined,
           (result) => {
             logger.warn("[MCP] generate_text moderation violation", {
@@ -245,11 +272,9 @@ export function registerGenerationTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        const agentId = `org:${user.organization_id}`;
-        contentModerationService.moderateAgentInBackground(
+        contentModerationService.moderateInBackground(
           prompt,
           user.id,
-          agentId,
           undefined,
           (result) => {
             logger.warn("[MCP] generate_image moderation violation", {
@@ -543,10 +568,11 @@ export function registerGenerationTools(server: McpServer): void {
         let audioUrl;
         try {
           const elevenLabs = await getElevenLabsService();
-          const audioBuffer = await elevenLabs.textToSpeech(
+          const audioStream = await elevenLabs.textToSpeech({
             text,
-            voiceId || "21m00Tcm4TlvDq8ikWAM",
-          );
+            voiceId: voiceId || "21m00Tcm4TlvDq8ikWAM",
+          });
+          const audioBuffer = await streamToBuffer(audioStream);
           const { uploadFromBuffer } = await import("@/lib/blob");
           audioUrl = await uploadFromBuffer(
             audioBuffer,
@@ -584,17 +610,15 @@ export function registerGenerationTools(server: McpServer): void {
     async () => {
       try {
         const elevenLabs = await getElevenLabsService();
-        const voices = await elevenLabs.listVoices();
+        const voices = await elevenLabs.getVoices();
 
         return jsonResponse({
           success: true,
-          voices: voices.map(
-            (v: { voice_id: string; name: string; category: string }) => ({
-              id: v.voice_id,
-              name: v.name,
-              category: v.category,
-            }),
-          ),
+          voices: voices.map((v) => ({
+            id: v.voiceId,
+            name: v.name ?? "Unnamed voice",
+            category: v.category ?? "premade",
+          })),
         });
       } catch (error) {
         return errorResponse(

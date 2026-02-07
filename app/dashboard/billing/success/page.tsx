@@ -21,6 +21,16 @@ export const metadata: Metadata = {
   description: "Your credit purchase was successful",
 };
 
+const MAX_CREDITS = 10000;
+
+function parseAndValidateCredits(creditsStr: string): number | null {
+  const credits = Number.parseFloat(creditsStr);
+  if (!Number.isFinite(credits) || credits <= 0 || credits > MAX_CREDITS) {
+    return null;
+  }
+  return Math.round(credits * 100) / 100;
+}
+
 interface BillingSuccessPageProps {
   searchParams: Promise<{ from?: string; session_id?: string }>;
 }

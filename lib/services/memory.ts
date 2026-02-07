@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
   memoryCache,
   type MemoryRoomContext,
@@ -9,7 +11,7 @@ import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import type { Memory, UUID } from "@elizaos/core";
+import type { AgentRuntime, Memory, UUID } from "@elizaos/core";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
@@ -98,10 +100,30 @@ export interface SummarizeConversationResult {
   participants: string[];
 }
 
+const isSummarizeConversationResult = (
+  value: unknown,
+): value is SummarizeConversationResult => {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.summary === "string" &&
+    typeof record.tokenCount === "number" &&
+    Array.isArray(record.keyTopics) &&
+    record.keyTopics.every((topic) => typeof topic === "string") &&
+    Array.isArray(record.participants) &&
+    record.participants.every((participant) => typeof participant === "string")
+  );
+};
+
 /**
  * Service for managing agent memories, conversation context, and summaries.
  */
 export class MemoryService {
+  private async getSystemRuntime(): Promise<AgentRuntime> {
+    const context = userContextService.createSystemContext(AgentMode.CHAT);
+    return runtimeFactory.createRuntimeForUser(context);
+  }
+
   // PERFORMANCE FIX: Add method to check single room ownership efficiently
   private async checkRoomOwnership(
     organizationId: string,
@@ -148,7 +170,7 @@ export class MemoryService {
   }
 
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {
-    const runtime = await runtimeFactory.getSystemRuntime();
+    const runtime = await this.getSystemRuntime();
 
     // Ensure the room exists in the database
     const roomId = input.roomId as UUID;
@@ -245,7 +267,7 @@ export class MemoryService {
       ),
     );
 
-    const runtime = await runtimeFactory.getSystemRuntime();
+    const runtime = await this.getSystemRuntime();
     logger.info(
       `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
     );
@@ -416,7 +438,7 @@ export class MemoryService {
   }
 
   async deleteMemory(input: DeleteMemoryInput): Promise<DeleteMemoryResult> {
-    const runtime = await runtimeFactory.getSystemRuntime();
+    const runtime = await this.getSystemRuntime();
     let deletedCount = 0;
 
     if (input.memoryId) {
@@ -446,7 +468,7 @@ export class MemoryService {
       return cached;
     }
 
-    const runtime = await runtimeFactory.getSystemRuntime();
+    const runtime = await this.getSystemRuntime();
 
     const memories = await runtime.getMemoriesByRoomIds({
       tableName: "messages",
@@ -494,13 +516,8 @@ export class MemoryService {
       );
       // Type guard to ensure cached content matches SummarizeConversationResult
       const cachedContent = cached.content;
-      if (
-        typeof cachedContent === "object" &&
-        cachedContent !== null &&
-        "summary" in cachedContent &&
-        typeof (cachedContent as { summary: unknown }).summary === "string"
-      ) {
-        return cachedContent as SummarizeConversationResult;
+      if (isSummarizeConversationResult(cachedContent)) {
+        return cachedContent;
       }
       // If cached content doesn't match expected structure, continue to generate new summary
     }
@@ -547,7 +564,7 @@ export class MemoryService {
       id: uuidv4() as UUID,
       roomId: input.roomId as UUID,
       entityId: context.participants[0] || ("system" as UUID),
-      agentId: (await runtimeFactory.getSystemRuntime()).agentId,
+      agentId: (await this.getSystemRuntime()).agentId,
       createdAt: Date.now(),
       content: summaryContent,
     };

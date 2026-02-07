@@ -3,8 +3,8 @@
  * Tools for saving, retrieving, deleting, and analyzing memories
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import DOMPurify from "isomorphic-dompurify";
 import {
   creditsService,
@@ -23,6 +23,15 @@ import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
 
 export function registerMemoryTools(server: McpServer): void {
+  type SaveMemoryArgs = {
+    content: string;
+    type: "fact" | "preference" | "context" | "document";
+    tags?: string[];
+    metadata?: Record<string, unknown>;
+    ttl?: number;
+    persistent?: boolean;
+    roomId: string;
+  };
   // Save Memory
   server.registerTool(
     "save_memory",
@@ -70,7 +79,7 @@ export function registerMemoryTools(server: McpServer): void {
       ttl,
       persistent = true,
       roomId,
-    }) => {
+    }: SaveMemoryArgs) => {
       try {
         const { user } = getAuthContext();
 
@@ -241,6 +250,13 @@ export function registerMemoryTools(server: McpServer): void {
           throw error;
         }
 
+        const sortOrder =
+          sortBy === "relevance" ||
+          sortBy === "recent" ||
+          sortBy === "importance"
+            ? sortBy
+            : "relevance";
+
         let memories: Awaited<
           ReturnType<typeof memoryService.retrieveMemories>
         >;
@@ -252,7 +268,7 @@ export function registerMemoryTools(server: McpServer): void {
             type,
             tags,
             limit,
-            sortBy,
+            sortBy: sortOrder,
           });
         } catch (retrieveError) {
           await reservation?.reconcile(0);

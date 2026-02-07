@@ -2,8 +2,8 @@
  * User profile tools
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import { usersService } from "@/lib/services/users";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";

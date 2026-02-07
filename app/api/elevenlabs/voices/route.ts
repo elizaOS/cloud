@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
-import type { ElevenLabsVoice } from "@/lib/types/message-content";
 
 /**
  * GET /api/elevenlabs/voices
@@ -27,8 +26,8 @@ export async function GET() {
     // Filter to only show pre-built/public ElevenLabs voices
     // Exclude custom cloned voices (category: "cloned" or "generated")
     // Only show premade voices that everyone can use
-    const publicVoices = allVoices.filter((voice): voice is ElevenLabsVoice => {
-      const category = (voice as ElevenLabsVoice).category;
+    const publicVoices = allVoices.filter((voice) => {
+      const category = voice.category;
       // Only include premade voices, exclude cloned/generated/custom voices
       return category === "premade" || category === "professional";
     });

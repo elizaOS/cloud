@@ -241,6 +241,9 @@ export class AIAppBuilderService {
         });
       }
     }
+    if (!appId) {
+      throw new Error("App ID is required to start builder session");
+    }
 
     // Determine template URL for sandbox creation
     let templateUrl: string | undefined;
@@ -974,6 +977,9 @@ export class AIAppBuilderService {
         githubRepo = app?.github_repo || null;
       }
 
+      if (!session.sandbox_id || !session.sandbox_url) {
+        throw new Error("Ready session is missing sandbox metadata");
+      }
       return {
         id: session.id,
         sandboxId: session.sandbox_id,

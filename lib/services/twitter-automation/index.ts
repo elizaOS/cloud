@@ -215,13 +215,7 @@ class TwitterAutomationService {
     await Promise.all(
       secretNames.map((name) =>
         secretsService
-          .delete(
-            {
-              organizationId,
-              name,
-            },
-            audit,
-          )
+          .deleteByName(organizationId, name, audit)
           .catch(() => {
             // Ignore if secret doesn't exist
           }),

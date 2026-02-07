@@ -4,7 +4,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
+import { TELEGRAM_API_BASE } from "@/lib/utils/telegram-api";
 import { withRetry } from "../rate-limit";
 import type {
   SocialMediaProvider,
@@ -43,11 +43,27 @@ async function telegramApiRequest<T>(
   method: string,
   params?: Record<string, unknown>,
 ): Promise<T> {
-  return withRetry<T>(
-    () => telegramBotApiRequest<T>(token, method, params),
-    async (data) => data,
+  const url = `${TELEGRAM_API_BASE}/bot${token}/${method}`;
+  const { data } = await withRetry<T>(
+    () =>
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+    async (response) => {
+      const payload = (await response.json()) as TelegramResponse<T>;
+      if (!payload.ok) {
+        throw new Error(
+          payload.description ??
+            `Telegram API error: ${payload.error_code ?? response.status}`,
+        );
+      }
+      return payload.result as T;
+    },
     { platform: "telegram", maxRetries: 3 },
   );
+  return data;
 }
 
 async function sendMediaGroup(

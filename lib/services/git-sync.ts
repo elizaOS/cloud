@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import type { SandboxInstance } from "@/lib/services/sandbox/types";
 import { githubReposService } from "./github-repos";
 
 /**
@@ -7,31 +8,6 @@ import { githubReposService } from "./github-repos";
  * Handles synchronization between sandbox files and GitHub repositories.
  * This is the critical layer that bridges sandbox development with persistent storage.
  */
-
-interface SandboxInstance {
-  id?: string;
-  status: string;
-  domain: (port: number) => string;
-  runCommand: (params: RunCommandOptions) => Promise<CommandResult>;
-  stop: () => Promise<void>;
-  extendTimeout: (durationMs: number) => Promise<void>;
-}
-
-interface RunCommandOptions {
-  cmd: string;
-  args?: string[];
-  stderr?: NodeJS.WritableStream;
-  stdout?: NodeJS.WritableStream;
-  detached?: boolean;
-  sudo?: boolean;
-  env?: Record<string, string>;
-}
-
-interface CommandResult {
-  exitCode: number;
-  stdout: () => Promise<string>;
-  stderr: () => Promise<string>;
-}
 
 declare global {
   var __sandboxInstances: Map<string, SandboxInstance> | undefined;
@@ -91,7 +67,7 @@ export class GitSyncService {
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const result = await sandbox.runCommand({ cmd: "git", args });
     return {
-      exitCode: result.exitCode,
+      exitCode: result.exitCode ?? -1,
       stdout: await result.stdout(),
       stderr: await result.stderr(),
     };

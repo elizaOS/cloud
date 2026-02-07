@@ -60,6 +60,13 @@ function generateSlugFromEmail(email: string): string {
   return `email-${prefix}-${timestamp}${random}`;
 }
 
+function generateSlugFromDiscord(username?: string, discordId?: string): string {
+  const base = username ? username.toLowerCase().replace(/[^a-z0-9]/g, "-") : discordId;
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `discord-${base}-${timestamp}${random}`;
+}
+
 async function ensureUniqueSlug(
   generateFn: () => string,
   maxAttempts = 10,
@@ -138,7 +145,7 @@ class ElizaAppUserService {
    */
   async findOrCreateByTelegramWithPhone(
     telegramData: TelegramAuthData,
-    phoneNumber: string
+    phoneNumber: string,
   ): Promise<FindOrCreateResult> {
     const telegramId = String(telegramData.id);
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -321,6 +328,16 @@ class ElizaAppUserService {
     const existingUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
 
     if (existingUser && existingUser.organization) {
+      if (!existingUser.phone_verified) {
+        await usersRepository.update(existingUser.id, {
+          phone_verified: true,
+          updated_at: new Date(),
+        });
+      }
+      logger.info("[ElizaAppUserService] Linked phone to existing user (iMessage)", {
+        userId: existingUser.id,
+        phone: `***${normalizedPhone.slice(-4)}`,
+      });
       return { user: existingUser, organization: existingUser.organization, isNew: false };
     }
 
@@ -364,6 +381,10 @@ class ElizaAppUserService {
     const existingUser = await usersRepository.findByEmailWithOrganization(normalizedEmail);
 
     if (existingUser && existingUser.organization) {
+      logger.info("[ElizaAppUserService] Linked email to existing user (iMessage)", {
+        userId: existingUser.id,
+        email: maskEmailForLogging(normalizedEmail),
+      });
       return { user: existingUser, organization: existingUser.organization, isNew: false };
     }
 
@@ -415,6 +436,131 @@ class ElizaAppUserService {
 
   async getByEmail(email: string): Promise<UserWithOrganization | undefined> {
     return usersRepository.findByEmailWithOrganization(email.toLowerCase().trim());
+  }
+
+  async getByDiscordId(discordId: string): Promise<UserWithOrganization | undefined> {
+    return usersRepository.findByDiscordIdWithOrganization(discordId);
+  }
+
+  /**
+   * Find or create user by Discord ID.
+   * Auto-provisions users on first message (like Blooio/iMessage).
+   * Used by Discord webhook for Eliza App bot.
+   */
+  async findOrCreateByDiscordId(
+    discordId: string,
+    discordData: {
+      username: string;
+      globalName?: string | null;
+      avatarUrl?: string | null;
+    }
+  ): Promise<FindOrCreateResult> {
+    // Validate required fields
+    if (!discordId?.trim()) {
+      throw new Error("Discord ID is required");
+    }
+    if (!discordData.username?.trim()) {
+      throw new Error("Discord username is required");
+    }
+
+    const existingUser = await usersRepository.findByDiscordIdWithOrganization(discordId);
+
+    if (existingUser && existingUser.organization) {
+      // Update Discord profile data if changed (non-critical - graceful degradation)
+      const updates: Partial<NewUser> = {};
+      let needsUpdate = false;
+
+      if (discordData.username && discordData.username !== existingUser.discord_username) {
+        updates.discord_username = discordData.username;
+        needsUpdate = true;
+      }
+      if (discordData.globalName !== undefined && discordData.globalName !== existingUser.discord_global_name) {
+        updates.discord_global_name = discordData.globalName || undefined;
+        needsUpdate = true;
+      }
+      if (discordData.avatarUrl !== undefined && discordData.avatarUrl !== existingUser.discord_avatar_url) {
+        updates.discord_avatar_url = discordData.avatarUrl || undefined;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        try {
+          updates.updated_at = new Date();
+          await usersRepository.update(existingUser.id, updates);
+          logger.info("[ElizaAppUserService] Updated Discord user profile", {
+            userId: existingUser.id,
+            discordId,
+          });
+        } catch (error) {
+          // Profile update is non-critical - log warning and continue with stale data
+          logger.warn("[ElizaAppUserService] Failed to update Discord profile, continuing with stale data", {
+            userId: existingUser.id,
+            discordId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return { user: existingUser, organization: existingUser.organization, isNew: false };
+    }
+
+    // Create new user with Discord identity
+    const displayName = discordData.globalName || discordData.username;
+    const organizationName = `${displayName}'s Workspace`;
+
+    try {
+      return await createUserWithOrganization({
+        userData: {
+          discord_id: discordId,
+          discord_username: discordData.username,
+          discord_global_name: discordData.globalName || undefined,
+          discord_avatar_url: discordData.avatarUrl || undefined,
+          name: displayName,
+          is_anonymous: false,
+        },
+        organizationName,
+        slugGenerator: () => generateSlugFromDiscord(discordData.username, discordId),
+      });
+    } catch (error) {
+      // Handle race condition: another request created the user first
+      if (isUniqueConstraintError(error)) {
+        const user = await usersRepository.findByDiscordIdWithOrganization(discordId);
+        if (user && user.organization) {
+          logger.info("[ElizaAppUserService] Recovered from race condition (discord)", {
+            discordId,
+          });
+          return { user, organization: user.organization, isNew: false };
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update Discord profile for an existing user.
+   */
+  async updateDiscordProfile(
+    userId: string,
+    discordData: {
+      username?: string;
+      globalName?: string | null;
+      avatarUrl?: string | null;
+    }
+  ): Promise<void> {
+    const updates: Partial<NewUser> = { updated_at: new Date() };
+
+    if (discordData.username !== undefined) {
+      updates.discord_username = discordData.username;
+    }
+    if (discordData.globalName !== undefined) {
+      updates.discord_global_name = discordData.globalName || undefined;
+    }
+    if (discordData.avatarUrl !== undefined) {
+      updates.discord_avatar_url = discordData.avatarUrl || undefined;
+    }
+
+    await usersRepository.update(userId, updates);
+    logger.info("[ElizaAppUserService] Updated Discord profile", { userId });
   }
 
   /**

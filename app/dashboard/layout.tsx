@@ -40,6 +40,7 @@ export default function DashboardLayout({
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
+  const isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
 
   // Memoize toggle callbacks to prevent child re-renders
   const handleToggleSidebar = useCallback(() => {
@@ -47,8 +48,9 @@ export default function DashboardLayout({
   }, []);
 
   const handleToggleCollapse = useCallback(() => {
+    if (isAppCreatePage) return;
     setSidebarCollapsed((prev) => !prev);
-  }, []);
+  }, [isAppCreatePage]);
 
   // Check if current path allows free access
   const isFreeModePath = FREE_MODE_PATHS.some((path) =>
@@ -67,13 +69,6 @@ export default function DashboardLayout({
       router.replace(`/login?returnTo=${returnTo}`);
     }
   }, [ready, authenticated, isFreeModePath, router, pathname]);
-
-  // Auto-collapse sidebar on app builder page
-  useEffect(() => {
-    if (pathname === "/dashboard/apps/create") {
-      setSidebarCollapsed(true);
-    }
-  }, [pathname]);
 
   // Show loading state while checking authentication
   if (!ready) {
@@ -106,7 +101,8 @@ export default function DashboardLayout({
     pathname?.startsWith("/dashboard/build");
 
   // Pages that need full width without padding
-  const isFullWidthPage = pathname?.startsWith("/dashboard/apps/create");
+  const isFullWidthPage = isAppCreatePage;
+  const isSidebarCollapsed = isAppCreatePage ? true : sidebarCollapsed;
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
@@ -127,7 +123,7 @@ export default function DashboardLayout({
           <Sidebar
             isOpen={sidebarOpen}
             onToggle={handleToggleSidebar}
-            isCollapsed={sidebarCollapsed}
+            isCollapsed={isSidebarCollapsed}
             onToggleCollapse={handleToggleCollapse}
           />
 

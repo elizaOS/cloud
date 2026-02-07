@@ -134,7 +134,10 @@ async function handleTelegramAuth(
   // to avoid TOCTOU race conditions. The service returns proper error codes.
   let result;
   try {
-    result = await elizaAppUserService.findOrCreateByTelegramWithPhone(authData, phoneNumber);
+    result = await elizaAppUserService.findOrCreateByTelegramWithPhone(
+      authData,
+      phoneNumber,
+    );
   } catch (error) {
     if (error instanceof Error) {
       if (error.message === "PHONE_ALREADY_LINKED") {
@@ -153,6 +156,26 @@ async function handleTelegramAuth(
             success: false,
             error: "Your Telegram account is already linked to a different phone number",
             code: "PHONE_MISMATCH",
+          },
+          { status: 409 },
+        );
+      }
+      if (error.message === "TELEGRAM_ALREADY_LINKED") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This Telegram account is already linked to another user",
+            code: "TELEGRAM_ALREADY_LINKED",
+          },
+          { status: 409 },
+        );
+      }
+      if (error.message === "OAUTH_ACCOUNT_ALREADY_LINKED") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This OAuth account is already linked to another user",
+            code: "OAUTH_ACCOUNT_ALREADY_LINKED",
           },
           { status: 409 },
         );

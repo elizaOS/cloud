@@ -3,8 +3,8 @@
  * Tools for managing and analyzing conversations
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import {
   creditsService,
   InsufficientCreditsError,

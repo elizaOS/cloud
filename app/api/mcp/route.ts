@@ -50,6 +50,9 @@ export async function getMcpHandler() {
     registerRedemptionTools,
     registerAnalyticsTools,
     registerGoogleTools,
+    registerLinearTools,
+    registerNotionTools,
+    registerGitHubTools,
   } = await import("./tools");
 
   mcpHandler = createMcpHandler(
@@ -68,6 +71,9 @@ export async function getMcpHandler() {
       registerRedemptionTools(server);
       registerAnalyticsTools(server);
       registerGoogleTools(server);
+      registerLinearTools(server);
+      registerNotionTools(server);
+      registerGitHubTools(server);
     },
     {},
     { basePath: "/api" },

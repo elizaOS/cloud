@@ -82,6 +82,60 @@ interface RefundEarningsParams {
   reason: string;
 }
 
+const normalizeLedgerMetadata = (
+  metadata?: Record<string, unknown>,
+): Record<string, unknown> => {
+  if (!metadata) return {};
+  const mapped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    switch (key) {
+      case "appId":
+        mapped.app_id = value;
+        break;
+      case "earningsType":
+        mapped.earnings_type = value;
+        break;
+      case "transactionUserId":
+        mapped.transaction_user_id = value;
+        break;
+      case "mcpId":
+        mapped.mcp_id = value;
+        break;
+      case "mcpName":
+        mapped.mcp_name = value;
+        break;
+      case "toolName":
+        mapped.tool_name = value;
+        break;
+      case "consumerOrgId":
+        mapped.consumer_org_id = value;
+        break;
+      case "paymentType":
+        mapped.payment_type = value;
+        break;
+      case "creditsEarned":
+        mapped.credits_earned = value;
+        break;
+      case "agentId":
+        mapped.agent_id = value;
+        break;
+      case "agentName":
+        mapped.agent_name = value;
+        break;
+      case "ipAddress":
+        mapped.ip_address = value;
+        break;
+      case "userAgent":
+        mapped.user_agent = value;
+        break;
+      default:
+        mapped[key] = value;
+        break;
+    }
+  }
+  return mapped;
+};
+
 // ============================================================================
 // SERVICE
 // ============================================================================
@@ -128,14 +182,7 @@ class RedeemableEarningsService {
    * SECURITY: This is the ONLY way earnings can be added.
    */
   async addEarnings(params: AddEarningsParams): Promise<AddEarningsResult> {
-    const {
-      userId,
-      amount,
-      source,
-      sourceId,
-      description,
-      metadata = {},
-    } = params;
+    const { userId, amount, source, sourceId, description, metadata } = params;
 
     if (amount <= 0) {
       return {
@@ -206,7 +253,7 @@ class RedeemableEarningsService {
           earnings_source: source,
           source_id: sourceId,
           description,
-          metadata,
+          metadata: normalizeLedgerMetadata(metadata),
         })
         .returning();
 
@@ -321,7 +368,10 @@ class RedeemableEarningsService {
           earnings_source: source,
           source_id: sourceId,
           description,
-          metadata: { ...metadata, type: "reconciliation_reduction" },
+          metadata: normalizeLedgerMetadata({
+            ...metadata,
+            type: "reconciliation_reduction",
+          }),
         })
         .returning();
 
@@ -382,7 +432,7 @@ class RedeemableEarningsService {
   async lockForRedemption(
     params: LockEarningsParams,
   ): Promise<LockEarningsResult> {
-    const { userId, amount, redemptionId, metadata = {} } = params;
+    const { userId, amount, redemptionId, metadata } = params;
 
     if (amount <= 0) {
       return {
@@ -467,7 +517,7 @@ class RedeemableEarningsService {
           balance_after: updated.available_balance,
           redemption_id: redemptionId,
           description: `Redemption locked: $${amount.toFixed(2)}`,
-          metadata,
+          metadata: normalizeLedgerMetadata(metadata),
         })
         .returning();
 
@@ -531,7 +581,9 @@ class RedeemableEarningsService {
         balance_after: updated.available_balance,
         redemption_id: redemptionId,
         description: `Redemption completed: $${amount.toFixed(2)} sent as elizaOS`,
-        metadata: { completed_at: new Date().toISOString() },
+        metadata: normalizeLedgerMetadata({
+          completed_at: new Date().toISOString(),
+        }),
       });
     });
 
@@ -581,7 +633,9 @@ class RedeemableEarningsService {
         balance_after: updated.available_balance,
         redemption_id: redemptionId,
         description: `Refund: ${reason}`,
-        metadata: { refunded_at: new Date().toISOString() },
+        metadata: normalizeLedgerMetadata({
+          refunded_at: new Date().toISOString(),
+        }),
       });
     });
 

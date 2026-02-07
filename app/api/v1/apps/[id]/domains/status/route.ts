@@ -31,7 +31,7 @@ export async function POST(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
-  const user = await requireAuthWithOrg(request);
+  const user = await requireAuthWithOrg();
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);

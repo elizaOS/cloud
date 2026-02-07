@@ -140,9 +140,12 @@ async function fetchDashboardDataInternal(
           characterIds,
         );
       statsMap.forEach((stats, id) => {
+        // Note: Both `status` (from AgentStats) and `deploymentStatus` (added by DashboardAgentStats)
+        // are required - they have the same value but satisfy different type requirements
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,
           messageCount: stats.messageCount,
+          status: stats.status,
           deploymentStatus: stats.status,
           lastActiveAt: stats.lastActiveAt,
         });

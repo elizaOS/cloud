@@ -177,11 +177,16 @@ function transformStatusMarkers(children: React.ReactNode): React.ReactNode {
   }
 
   // Handle React elements with children
-  if (React.isValidElement(children) && children.props.children) {
-    return React.cloneElement(children, {
-      ...children.props,
-      children: transformStatusMarkers(children.props.children),
-    });
+  if (React.isValidElement(children)) {
+    const element = children as React.ReactElement<{
+      children?: React.ReactNode;
+    }>;
+    if (element.props.children) {
+      return React.cloneElement(element, {
+        ...element.props,
+        children: transformStatusMarkers(element.props.children),
+      });
+    }
   }
 
   return children;

@@ -9,9 +9,15 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-async function handleGetPayment(req: NextRequest, context: RouteContext) {
+async function handleGetPayment(req: NextRequest, context?: RouteContext) {
   try {
     const user = await requireAuthWithOrg();
+    if (!context) {
+      return NextResponse.json(
+        { error: "Missing route params" },
+        { status: 400 },
+      );
+    }
     const { id } = await context.params;
 
     if (!user.organization_id) {

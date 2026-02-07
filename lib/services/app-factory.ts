@@ -248,6 +248,7 @@ export class AppFactoryService {
       finalAppUrl === "https://placeholder.local";
 
     if (!isPlaceholderUrl && productionUrl) {
+      const appUrl = productionUrl;
       // Fetch user info to get their name (non-blocking)
       usersService
         .getById(data.created_by_user_id)
@@ -260,7 +261,7 @@ export class AppFactoryService {
             userName,
             userId: data.created_by_user_id,
             organizationId: data.organization_id,
-            appUrl: productionUrl,
+            appUrl,
             description: data.description,
             githubRepo,
             subdomain,

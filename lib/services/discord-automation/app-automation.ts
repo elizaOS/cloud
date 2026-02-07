@@ -103,6 +103,9 @@ class DiscordAppAutomationService {
     const updatedApp = await appsRepository.update(appId, {
       discord_automation: updatedConfig,
     });
+    if (!updatedApp) {
+      throw new Error("Failed to update Discord automation settings");
+    }
 
     logger.info("[DiscordAppAutomation] Automation enabled", {
       appId,
@@ -130,6 +133,9 @@ class DiscordAppAutomationService {
         enabled: false,
       },
     });
+    if (!updatedApp) {
+      throw new Error("Failed to disable Discord automation");
+    }
 
     logger.info("[DiscordAppAutomation] Automation disabled", {
       appId,
@@ -272,7 +278,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
         system: systemPrompt,
         prompt:
           "Create a compelling Discord announcement about this app that would engage a community. Focus on what makes it unique and valuable.",
-        maxTokens: 150,
+        maxOutputTokens: 150,
       });
 
       return truncate(result.text, TRUNCATE_LENGTH);
@@ -404,7 +410,7 @@ Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your re
    * Get all apps with active Discord automation.
    */
   async getAppsWithActiveAutomation(organizationId: string): Promise<App[]> {
-    const apps = await appsRepository.findByOrganization(organizationId);
+    const apps = await appsRepository.listByOrganization(organizationId);
     return apps.filter((app) => {
       const config = app.discord_automation as DiscordAutomationConfig | null;
       return config?.enabled === true;

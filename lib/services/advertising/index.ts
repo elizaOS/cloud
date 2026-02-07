@@ -23,9 +23,8 @@ import type {
   CreateCreativeInput,
   UpdateCreativeInput,
   CampaignMetrics,
-  AD_CREDIT_RATES,
-  calculateSpendCredits,
 } from "./types";
+import { AD_CREDIT_RATES, calculateSpendCredits } from "./types";
 
 export * from "./types";
 export * from "./schemas";
@@ -192,10 +191,15 @@ class AdvertisingService {
       throw new Error("Ad account not found");
     }
 
+    const audit = {
+      actorType: "system" as const,
+      actorId: account.connected_by_user_id ?? "advertising-service",
+      source: "advertising-service",
+    };
     // Delete secrets - log but don't fail if already deleted
     if (account.access_token_secret_id) {
       await secretsService
-        .delete(account.access_token_secret_id, organizationId)
+        .delete(account.access_token_secret_id, organizationId, audit)
         .catch((e) =>
           logger.warn("[Advertising] Failed to delete access token secret", {
             error: e,
@@ -204,7 +208,7 @@ class AdvertisingService {
     }
     if (account.refresh_token_secret_id) {
       await secretsService
-        .delete(account.refresh_token_secret_id, organizationId)
+        .delete(account.refresh_token_secret_id, organizationId, audit)
         .catch((e) =>
           logger.warn("[Advertising] Failed to delete refresh token secret", {
             error: e,
@@ -263,7 +267,7 @@ class AdvertisingService {
     // Charge credits for campaign creation
     const deduction = await creditsService.deductCredits({
       organizationId: input.organizationId,
-      amount: 0.5, // AD_CREDIT_RATES.createCampaign
+      amount: AD_CREDIT_RATES.createCampaign,
       description: `Create ad campaign: ${input.name}`,
       metadata: { platform: account.platform, campaignName: input.name },
     });
@@ -293,12 +297,15 @@ class AdvertisingService {
       // Refund campaign creation credits
       await creditsService.refundCredits({
         organizationId: input.organizationId,
-        amount: 0.5,
+        amount: AD_CREDIT_RATES.createCampaign,
         description:
           "Refund: Campaign creation failed due to insufficient budget",
         metadata: {},
       });
       throw new Error("Insufficient credits for campaign budget");
+    }
+    if (!budgetDeduction.transaction) {
+      throw new Error("Failed to record budget deduction transaction");
     }
 
     // Create campaign on the platform
@@ -345,7 +352,7 @@ class AdvertisingService {
     await adTransactionsRepository.create({
       organization_id: input.organizationId,
       campaign_id: campaign.id,
-      credit_transaction_id: budgetDeduction.transactionId,
+      credit_transaction_id: budgetDeduction.transaction.id,
       type: "budget_allocation",
       amount: String(input.budgetAmount),
       currency: input.budgetCurrency || "USD",
@@ -618,7 +625,7 @@ class AdvertisingService {
     // Charge credits for creative creation
     const deduction = await creditsService.deductCredits({
       organizationId,
-      amount: 0.25, // AD_CREDIT_RATES.createCreative
+      amount: AD_CREDIT_RATES.createCreative,
       description: `Create ad creative: ${input.name}`,
       metadata: { campaignId: input.campaignId, creativeName: input.name },
     });

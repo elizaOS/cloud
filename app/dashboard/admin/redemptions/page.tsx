@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { adminService } from "@/lib/services/admin";
 import { AdminRedemptionsWrapper } from "@/components/admin/redemptions-wrapper";
 
 export const metadata: Metadata = {
@@ -10,6 +11,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminRedemptionsPage() {
-  await requireAdmin();
+  const user = await requireAuthWithOrg();
+  const isAdmin = await adminService.isUserAdmin(user.id);
+  if (!isAdmin) {
+    throw new Error("Admin access required");
+  }
   return <AdminRedemptionsWrapper />;
 }

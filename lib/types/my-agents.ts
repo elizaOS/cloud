@@ -2,6 +2,15 @@
  * My Agents type definitions.
  */
 
+import type {
+  CategoryId,
+  SortBy,
+  ExtendedCharacter,
+  SearchFilters,
+  PaginationResult,
+  CategoryInfo,
+} from "./characters";
+
 // Re-export shared character types
 export type {
   CategoryId,

@@ -80,6 +80,17 @@ export interface McpRegistryEntry {
   };
 }
 
+type RegistrySource = "platform" | "community";
+type BuiltInRegistryEntry = McpRegistryEntry & {
+  source: "platform";
+  fullEndpoint: string;
+};
+type UserRegistryEntry = ReturnType<typeof userMcpsService.toRegistryFormat> & {
+  source: "community";
+  fullEndpoint: string;
+};
+type RegistryEntry = BuiltInRegistryEntry | UserRegistryEntry;
+
 /**
  * Registry of available MCP servers
  * These can be enabled on agents via their character settings
@@ -248,6 +259,105 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       },
     },
   },
+  {
+    id: "linear",
+    name: "Linear",
+    description:
+      "Issue tracking and project management. Create, update, and manage issues, projects, teams, cycles, and labels in your Linear workspace.",
+    category: "productivity",
+    endpoint: "/api/mcps/linear/streamable-http",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "clipboard-list",
+    color: "#5E6AD2",
+    toolCount: 27,
+    features: [
+      "linear_list_issues",
+      "linear_create_issue",
+      "linear_list_projects",
+      "linear_list_teams",
+    ],
+    pricing: {
+      type: "free",
+      description: "Requires Linear OAuth connection",
+    },
+    x402Enabled: false,
+    configTemplate: {
+      servers: {
+        linear: {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcps/linear/streamable-http",
+        },
+      },
+    },
+  },
+  {
+    id: "notion",
+    name: "Notion",
+    description:
+      "Pages, databases, and knowledge management. Search, create, and update pages, blocks, databases, and comments in your Notion workspace.",
+    category: "productivity",
+    endpoint: "/api/mcps/notion/streamable-http",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "file-text",
+    color: "#000000",
+    toolCount: 21,
+    features: [
+      "notion_search",
+      "notion_create_page",
+      "notion_get_database",
+      "notion_query_data_source",
+    ],
+    pricing: {
+      type: "free",
+      description: "Requires Notion OAuth connection",
+    },
+    x402Enabled: false,
+    configTemplate: {
+      servers: {
+        notion: {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcps/notion/streamable-http",
+        },
+      },
+    },
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    description:
+      "Repository, issue, and PR management. List repos, create issues, manage pull requests, branches, commits, and files in your GitHub account.",
+    category: "productivity",
+    endpoint: "/api/mcps/github/streamable-http",
+    type: "streamable-http",
+    version: "1.0.0",
+    status: "live",
+    icon: "git-branch",
+    color: "#181717",
+    toolCount: 45,
+    features: [
+      "github_list_repos",
+      "github_create_issue",
+      "github_list_prs",
+      "github_create_pr",
+    ],
+    pricing: {
+      type: "free",
+      description: "Requires GitHub OAuth connection",
+    },
+    x402Enabled: false,
+    configTemplate: {
+      servers: {
+        github: {
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcps/github/streamable-http",
+        },
+      },
+    },
+  },
 ];
 
 /**
@@ -298,7 +408,7 @@ export async function GET(request: NextRequest) {
           details: validationResult.error.issues.map((issue) => ({
             field: issue.path.join("."),
             message: issue.message,
-            received: issue.received,
+            received: "received" in issue ? issue.received : undefined,
           })),
         },
         { status: 400 },
@@ -308,7 +418,7 @@ export async function GET(request: NextRequest) {
     const { category, status, limit, search } = validationResult.data;
 
     // Process built-in registry entries
-    const builtInRegistry = MCP_REGISTRY.map((entry) => ({
+    const builtInRegistry: BuiltInRegistryEntry[] = MCP_REGISTRY.map((entry) => ({
       ...entry,
       source: "platform" as const,
       configTemplate: {
@@ -328,7 +438,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Fetch user MCPs (public, live)
-    let userMcpRegistry: typeof builtInRegistry = [];
+    let userMcpRegistry: UserRegistryEntry[] = [];
     try {
       const userMcps = await userMcpsService.listPublic({
         category: category !== "all" ? category : undefined,
@@ -350,7 +460,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Combine registries
-    const registry = [...builtInRegistry, ...userMcpRegistry];
+    const registry: RegistryEntry[] = [...builtInRegistry, ...userMcpRegistry];
 
     let filteredRegistry = registry;
 

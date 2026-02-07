@@ -52,7 +52,7 @@ export interface FilePart extends PartBase {
 
 export interface DataPart extends PartBase {
   type: "data";
-  data: Record<string, unknown>;
+  data: object;
 }
 
 export type Part = TextPart | FilePart | DataPart;
@@ -240,7 +240,7 @@ export function createTextPart(
 }
 
 export function createDataPart(
-  data: Record<string, unknown>,
+  data: object,
   metadata?: Record<string, unknown>,
 ): DataPart {
   return { type: "data", data, metadata };

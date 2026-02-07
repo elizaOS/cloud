@@ -4,7 +4,7 @@
  * Organized to match the dashboard sidebar structure for consistency
  * and ease of navigation between docs and the platform.
  */
-export default {
+const meta = {
   index: {
     title: "Introduction",
     theme: {
@@ -149,3 +149,5 @@ export default {
     title: "Changelog",
   },
 };
+
+export default meta;

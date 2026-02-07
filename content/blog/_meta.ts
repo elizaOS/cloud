@@ -1,4 +1,4 @@
-export default {
+const meta = {
   "*": {
     type: "page",
     theme: {
@@ -6,3 +6,5 @@ export default {
     },
   },
 };
+
+export default meta;

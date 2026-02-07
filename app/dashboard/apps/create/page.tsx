@@ -482,7 +482,6 @@ export default function AppCreatorPage() {
   );
   const [appData, setAppData] = useState<AppData | null>(null);
   // Agent selection removed - agents can be added later from the app builder
-  const selectedAgentIds: string[] = [];
   // App name is auto-generated when building starts (user doesn't need to provide it)
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
@@ -1657,8 +1656,7 @@ export default function AppCreatorPage() {
           includeMonetization,
           includeAnalytics,
           includePersistentStorage,
-          linkedAgentIds:
-            selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
+          linkedAgentIds: undefined,
           sourceContext: sourceContext
             ? {
                 type: sourceContext.type,
@@ -2065,7 +2063,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     templateType,
     includeMonetization,
     includeAnalytics,
-    selectedAgentIds,
+    includePersistentStorage,
     sourceContext,
     addLog,
     router,
@@ -2073,6 +2071,7 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
     accumulateThinkingChunk,
     clearThinkingBuffer,
     scheduleThinkingUpdate,
+    getThinkingText,
   ]);
 
   // Auto-start session when in edit mode with no session
@@ -2612,7 +2611,6 @@ I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is 
       clearThinkingBuffer,
       accumulateThinkingChunk,
       scheduleThinkingUpdate,
-      getThinkingText,
     ],
   );
 
@@ -2855,6 +2853,9 @@ ANTHROPIC_API_KEY=your_key_here`}
         "mcp-service": `${appName} - A Model Context Protocol service extending AI capabilities.`,
         "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint for AI coordination.`,
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
+        analytics: `${appName} - A data-driven analytics dashboard with actionable insights.`,
+        "saas-starter": `${appName} - A SaaS starter app with billing, auth, and user management.`,
+        "ai-tool": `${appName} - An AI-powered tool designed to automate and enhance workflows.`,
       };
       setAppDescription(
         fallbackDescriptions[templateType] || fallbackDescriptions.blank,
