@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  facilitator:
+    build:
+      # Build context is the workspace root so the Dockerfile can COPY facilitator/
+      context: ../../../
+      dockerfile: eliza-cloud-v2/services/facilitator/Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - NODE_ENV=${NODE_ENV:-production}
+      - FACILITATOR_PRIVATE_KEY=${FACILITATOR_PRIVATE_KEY}
+      - EVM_NETWORKS=${EVM_NETWORKS:-base-sepolia,base}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Optional: Coinbase Developer Platform credentials for advanced settlement
+      - CDP_API_KEY=${CDP_API_KEY:-}
+      - CDP_API_SECRET=${CDP_API_SECRET:-}
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:8090/supported').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
