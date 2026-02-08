@@ -234,8 +234,11 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     type: "oauth2",
     envVars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
     endpoints: {
-      authorization: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-      token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      // Using /consumers/ to support personal Microsoft accounts (@outlook.com, @hotmail.com, @live.com)
+      // Use /common/ for multi-tenant apps that support both personal and work/school accounts
+      // Use /organizations/ for work/school accounts only
+      authorization: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+      token: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
       userInfo: "https://graph.microsoft.com/v1.0/me",
     },
     defaultScopes: [
