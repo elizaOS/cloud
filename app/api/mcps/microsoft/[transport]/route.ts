@@ -29,7 +29,7 @@ async function getMicrosoftMcpHandler() {
   if (mcpHandler) return mcpHandler;
 
   const { createMcpHandler } = await import("mcp-handler");
-  const { z } = await import("zod3");
+  const { z } = await import("zod/v3");
 
   async function getMicrosoftToken(organizationId: string): Promise<string> {
     const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "microsoft" });

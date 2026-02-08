@@ -43,7 +43,7 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
-  microsoft: { url: "/api/mcps/microsoft/streamable-http", type: "streamable-http" },
+  microsoft: { url: "/api/mcps/microsoft/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
 };
 

@@ -13,13 +13,12 @@ import {
   isValidAgentModeConfig,
 } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
-import { runtimeFactory, DEFAULT_AGENT_ID_STRING } from "@/lib/eliza/runtime-factory";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
-import { entitySettingsService } from "@/lib/services/entity-settings";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import {
@@ -28,11 +27,6 @@ import {
   clientCharacterStateSchema,
 } from "@/lib/eliza/stream-validation";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import {
-  runWithRequestContext,
-  type RequestContext,
-  type UUID,
-} from "@elizaos/core";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -398,48 +392,8 @@ export async function POST(
       logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
-    // Step 5.5: Prefetch entity settings for this user
-    // This enables per-user API keys, OAuth tokens, etc. in multi-tenant deployments
-    // The default agentId (Eliza) is used if no characterId is specified
-    const agentIdForSettings = characterId || DEFAULT_AGENT_ID_STRING;
-    const { settings: entitySettings, sources: entitySettingsSources } =
-      await entitySettingsService.prefetch(
-        userContext.userId,
-        agentIdForSettings,
-        userContext.organizationId
-      );
-
-    logger.info(
-      {
-        userId: userContext.userId,
-        agentId: agentIdForSettings,
-        settingsCount: entitySettings.size,
-        sources: Object.entries(entitySettingsSources).reduce(
-          (acc, [_, source]) => {
-            acc[source] = (acc[source] || 0) + 1;
-            return acc;
-          },
-          {} as Record<string, number>
-        ),
-      },
-      `[Stream] Prefetched ${entitySettings.size} entity settings`
-    );
-
-    // Step 5.6: Build request context for per-user settings isolation
-    const requestContext: RequestContext = {
-      entityId: userContext.userId as UUID,
-      agentId: agentIdForSettings as UUID,
-      entitySettings,
-      requestStartTime: Date.now(),
-      traceId: request.headers.get("x-trace-id") || undefined,
-      organizationId: userContext.organizationId,
-    };
-
-    // Step 6: Create runtime with user context (clean, no key fetching here!)
-    // Wrapped in request context so getSetting() checks entitySettings first
-    const runtime = await runWithRequestContext(requestContext, () =>
-      runtimeFactory.createRuntimeForUser(userContext)
-    );
+    // Step 6: Create runtime with user context
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
     // Step 6.5: For BUILD mode, store client character state in runtime settings
     // This allows the provider to use what the user currently sees on the frontend
@@ -529,8 +483,7 @@ export async function POST(
 
     // Start processing in background - this allows the response to be returned immediately
     // while chunks are streamed as they're generated
-    // IMPORTANT: Wrap in runWithRequestContext so getSetting() has access to entity settings
-    runWithRequestContext(requestContext, async () => {
+    (async () => {
       try {
         // Send connection confirmation
         await sendEvent("connected", { roomId, timestamp: Date.now() });
