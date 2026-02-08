@@ -18,8 +18,11 @@ import {
   discordAuthService,
   elizaAppUserService,
   elizaAppSessionService,
+  type ValidatedSession,
 } from "@/lib/services/eliza-app";
 import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
+import type { User } from "@/db/schemas/users";
+import type { Organization } from "@/db/schemas/organizations";
 
 /**
  * Optional E.164 phone number validation (after normalization)
@@ -123,6 +126,18 @@ async function handleDiscordAuth(
     hasPhone: !!phoneNumber,
   });
 
+  // Check for existing session (session-based linking: user already logged in via another platform)
+  const authHeader = request.headers.get("authorization");
+  let existingSession: ValidatedSession | null = null;
+  if (authHeader) {
+    existingSession = await elizaAppSessionService.validateAuthHeader(authHeader);
+    if (existingSession) {
+      logger.info("[ElizaApp DiscordAuth] Session-based linking detected", {
+        existingUserId: existingSession.userId,
+      });
+    }
+  }
+
   // Exchange OAuth2 code for Discord user data
   const discordUser = await discordAuthService.verifyOAuthCode(code, redirectUri);
 
@@ -144,52 +159,126 @@ async function handleDiscordAuth(
     discordUser.avatar,
   );
 
-  // Find or create user by Discord ID
-  let result;
-  try {
-    result = await elizaAppUserService.findOrCreateByDiscordId(discordUser.id, {
-      username: discordUser.username,
-      globalName: discordUser.global_name,
-      avatarUrl,
-    });
-  } catch (error) {
-    logger.error(
-      "[ElizaApp DiscordAuth] Unexpected error during user creation",
+  let user: User;
+  let organization: Organization;
+  let isNew: boolean;
+
+  if (existingSession) {
+    // ---- SESSION-BASED LINKING: Link Discord to existing user ----
+    const linkResult = await elizaAppUserService.linkDiscordToUser(
+      existingSession.userId,
       {
-        error: error instanceof Error ? error.message : String(error),
         discordId: discordUser.id,
+        username: discordUser.username,
+        globalName: discordUser.global_name,
+        avatarUrl,
       },
     );
-    return NextResponse.json(
-      {
-        success: false,
-        error: "An unexpected error occurred",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 },
-    );
-  }
 
-  let { user } = result;
-  const { organization, isNew } = result;
-
-  // If phone number was provided, link it to the user
-  if (phoneNumber && !user.phone_number) {
-    const linkResult = await elizaAppUserService.linkPhoneToUser(user.id, phoneNumber);
     if (!linkResult.success) {
       return NextResponse.json(
         {
           success: false,
-          error: linkResult.error || "This phone number is already linked to a different account",
-          code: "PHONE_ALREADY_LINKED",
+          error: linkResult.error || "This Discord account is already linked to another account",
+          code: "DISCORD_ALREADY_LINKED",
         },
         { status: 409 },
       );
     }
-    // Refetch user to reflect the newly linked phone number in the response
-    const updatedUser = await elizaAppUserService.getByDiscordId(discordUser.id);
-    if (updatedUser) {
-      user = updatedUser;
+
+    // Fetch the updated user
+    const updatedUser = await elizaAppUserService.getById(existingSession.userId);
+    if (!updatedUser || !updatedUser.organization) {
+      return NextResponse.json(
+        { success: false, error: "User not found after linking", code: "INTERNAL_ERROR" },
+        { status: 500 },
+      );
+    }
+
+    user = updatedUser;
+    organization = updatedUser.organization;
+    isNew = false;
+
+    logger.info("[ElizaApp DiscordAuth] Session-based Discord linking successful", {
+      userId: user.id,
+      discordId: discordUser.id,
+    });
+  } else {
+    // ---- STANDARD FLOW: Find or create user by Discord ID (with optional phone cross-linking) ----
+    let result;
+    try {
+      result = await elizaAppUserService.findOrCreateByDiscordId(
+        discordUser.id,
+        {
+          username: discordUser.username,
+          globalName: discordUser.global_name,
+          avatarUrl,
+        },
+        phoneNumber, // Pass phone for cross-platform linking (step 2 in findOrCreate)
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "PHONE_ALREADY_LINKED") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "This phone number is already linked to a different account",
+              code: "PHONE_ALREADY_LINKED",
+            },
+            { status: 409 },
+          );
+        }
+        if (error.message === "DISCORD_ALREADY_LINKED") {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "This Discord account is already linked to another user",
+              code: "DISCORD_ALREADY_LINKED",
+            },
+            { status: 409 },
+          );
+        }
+      }
+      logger.error(
+        "[ElizaApp DiscordAuth] Unexpected error during user creation",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          discordId: discordUser.id,
+        },
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: "An unexpected error occurred",
+          code: "INTERNAL_ERROR",
+        },
+        { status: 500 },
+      );
+    }
+
+    user = result.user;
+    organization = result.organization;
+    isNew = result.isNew;
+
+    // If phone was provided but not linked during findOrCreate (e.g., user already existed without phone),
+    // attempt to link it separately
+    if (phoneNumber && !user.phone_number) {
+      const linkResult = await elizaAppUserService.linkPhoneToUser(user.id, phoneNumber);
+      if (!linkResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: linkResult.error || "This phone number is already linked to a different account",
+            code: "PHONE_ALREADY_LINKED",
+          },
+          { status: 409 },
+        );
+      }
+      // Refetch user to reflect the newly linked phone number in the response
+      const updatedUser = await elizaAppUserService.getByDiscordId(discordUser.id);
+      if (updatedUser) {
+        user = updatedUser;
+      }
     }
   }
 
@@ -199,15 +288,17 @@ async function handleDiscordAuth(
     username: discordUser.username,
     phoneNumber: phoneNumber ? `***${phoneNumber.slice(-4)}` : "not provided",
     isNewUser: isNew,
+    sessionBased: !!existingSession,
   });
 
-  // Create session
+  // Create session (new session includes discord identity)
   const session = await elizaAppSessionService.createSession(
     user.id,
     organization.id,
     {
       discordId: discordUser.id,
-      ...(phoneNumber && { phoneNumber }),
+      ...(user.phone_number && { phoneNumber: user.phone_number }),
+      ...(user.telegram_id && { telegramId: user.telegram_id }),
     },
   );
 
