@@ -623,7 +623,7 @@ export async function POST(
         // Close the writer to signal stream completion
         await writer.close();
       }
-    });
+    })();
 
     // Return the response immediately - chunks will stream as they're written
     return new Response(readable, {
