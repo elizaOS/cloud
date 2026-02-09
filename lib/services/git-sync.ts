@@ -67,7 +67,7 @@ export class GitSyncService {
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const result = await sandbox.runCommand({ cmd: "git", args });
     return {
-      exitCode: result.exitCode,
+      exitCode: result.exitCode ?? -1,
       stdout: await result.stdout(),
       stderr: await result.stderr(),
     };

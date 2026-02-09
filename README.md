@@ -425,13 +425,33 @@ OPENAI_API_KEY=sk-your_openai_key
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
 
+**Eliza App variables** (for Telegram, iMessage, and Discord integrations):
+
+```env
+# JWT secret for Eliza App user sessions (required)
+ELIZA_APP_JWT_SECRET=          # Generate: openssl rand -hex 32
+
+# Telegram (optional)
+ELIZA_APP_TELEGRAM_BOT_TOKEN=  # From @BotFather
+
+# iMessage / Blooio (optional)
+ELIZA_APP_BLOOIO_API_KEY=      # From Blooio dashboard
+
+# Discord (optional)
+ELIZA_APP_DISCORD_BOT_TOKEN=         # Developer Portal → Bot
+ELIZA_APP_DISCORD_APPLICATION_ID=    # Developer Portal → General Information (also the OAuth2 Client ID)
+ELIZA_APP_DISCORD_CLIENT_SECRET=     # Developer Portal → OAuth2 → Client Secret
+```
+
+See [example.env.local](example.env.local) for the full list of Eliza App environment variables.
+
 **Generate secure passwords:**
 
 ```bash
 # Generate PRIVY_WEBHOOK_SECRET (min 32 chars)
 openssl rand -base64 32
 
-# Generate CRON_SECRET
+# Generate CRON_SECRET / ELIZA_APP_JWT_SECRET
 openssl rand -hex 32
 ```
 

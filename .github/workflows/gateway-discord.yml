@@ -116,6 +116,7 @@ jobs:
         uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
           filters: |
             terraform:
               - 'services/gateway-discord/terraform/**'
@@ -276,6 +277,7 @@ jobs:
               -target=module.github_oidc \
               -target=aws_iam_role_policy.github_actions_eks \
               -target=aws_iam_role_policy.github_actions_ecr \
+              -target=module.eks_blueprints_addons \
               -out=tfplan
           else
             echo "Running full plan (all modules)"

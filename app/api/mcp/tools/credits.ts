@@ -4,7 +4,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod3";
+import { z } from "zod/v3";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";

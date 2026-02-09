@@ -264,7 +264,7 @@ export async function executeSkillGetUsage(
     usage: records.map((r) => ({
       id: r.id,
       type: r.type,
-      model: r.model,
+      model: r.model ?? "unknown",
       inputTokens: r.input_tokens,
       outputTokens: r.output_tokens,
       totalCost: Number(r.input_cost || 0) + Number(r.output_cost || 0),
@@ -425,7 +425,10 @@ export async function executeSkillRetrieveMemories(
           ? m.memory.content
           : JSON.stringify(m.memory.content),
       score: m.score,
-      createdAt: m.memory.createdAt || new Date().toISOString(),
+      createdAt:
+        typeof m.memory.createdAt === "string"
+          ? m.memory.createdAt
+          : new Date(m.memory.createdAt ?? Date.now()).toISOString(),
     })),
     count: memories.length,
   };
