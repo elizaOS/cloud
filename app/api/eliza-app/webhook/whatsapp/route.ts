@@ -175,7 +175,14 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
         : responseContent?.text || "";
 
     if (responseText) {
-      await sendWhatsAppResponse(msg.from, responseText);
+      const sent = await sendWhatsAppResponse(msg.from, responseText);
+      if (!sent) {
+        logger.warn("[ElizaApp WhatsAppWebhook] Send failed, allowing webhook retry", {
+          to: msg.from,
+          roomId,
+        });
+        return false; // Don't mark as processed, allow webhook retry
+      }
     }
     return true;
   } catch (error) {
