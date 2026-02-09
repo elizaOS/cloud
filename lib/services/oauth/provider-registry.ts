@@ -257,7 +257,7 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       response_type: "code",
       actor: "user",
     },
-    tokenContentType: "form", // Linear requires x-www-form-urlencoded
+    tokenContentType: "json",
     storage: "platform_credentials",
     useGenericRoutes: true,
   },
@@ -322,18 +322,15 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     endpoints: {
       authorization: "https://slack.com/oauth/v2/authorize",
       token: "https://slack.com/api/oauth.v2.access",
-      // auth.test returns { ok, url, team, user, team_id, user_id, bot_id, ... }
-      // for bot tokens. No email field - bot tokens don't carry user email scope.
-      userInfo: "https://slack.com/api/auth.test",
+      userInfo: "https://slack.com/api/users.identity",
       revoke: "https://slack.com/api/auth.revoke",
     },
-    // Bot scopes only - these must also be added in Slack app's OAuth & Permissions
-    defaultScopes: ["chat:write", "channels:read", "users:read"],
-    // Maps auth.test response fields. email is intentionally absent since
-    // bot tokens don't include it (would require users:read.email scope on a user token).
+    defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
     userInfoMapping: {
-      id: "user_id",
-      displayName: "user",
+      id: "user.id",
+      email: "user.email",
+      displayName: "user.name",
+      avatarUrl: "user.image_192",
     },
     storage: "platform_credentials",
     useGenericRoutes: true,
