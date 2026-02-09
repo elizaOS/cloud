@@ -1,6 +1,6 @@
 -- Migration: Add WhatsApp identity columns to users table
 -- Supports WhatsApp authentication for Eliza App
--- Custom migration following docs/database-migrations.md guidelines
+-- Generated via: npx drizzle-kit generate --custom --name=add_whatsapp_identity_columns
 
 -- Add WhatsApp identity columns (uses IF NOT EXISTS for idempotency)
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "whatsapp_id" text;--> statement-breakpoint
