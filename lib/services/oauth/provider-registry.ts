@@ -327,10 +327,9 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     },
     defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
     userInfoMapping: {
-      id: "user.id",
-      email: "user.email",
-      displayName: "user.name",
-      avatarUrl: "user.image_192",
+      id: "user_id",
+      displayName: "user",
+      // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
     storage: "platform_credentials",
     useGenericRoutes: true,

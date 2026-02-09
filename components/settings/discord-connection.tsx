@@ -31,6 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 interface DiscordGuild {
   id: string;
@@ -259,10 +260,13 @@ export function DiscordConnection() {
                 >
                   <div className="h-12 w-12 rounded-full bg-[#5865F2] flex items-center justify-center overflow-hidden">
                     {guild.iconUrl ? (
-                      <img
+                      <Image
                         src={guild.iconUrl}
                         alt={guild.name}
+                        width={48}
+                        height={48}
                         className="h-full w-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       <span className="text-white font-semibold text-lg">

@@ -13,5 +13,5 @@ export function AppPageWrapper({ appName, children }: AppPageWrapperProps) {
     backHref: "/dashboard/apps",
   });
 
-  return <>{children}</>;
+  return children;
 }

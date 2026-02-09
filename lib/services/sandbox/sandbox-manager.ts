@@ -59,8 +59,8 @@ export interface GetSandboxOptions {
  */
 async function getSandboxSDK() {
   try {
-    const module = await import("@vercel/sandbox");
-    return module.Sandbox || module.default;
+    const sandboxModule = await import("@vercel/sandbox");
+    return sandboxModule.Sandbox || sandboxModule.default;
   } catch (error) {
     logger.error("Failed to import @vercel/sandbox", {
       error: error instanceof Error ? error.message : "Unknown",
@@ -94,17 +94,20 @@ export async function listSandboxes(
       until,
       signal,
     });
+    const parsedResult = "json" in result ? result.json : result;
+    const sandboxes = parsedResult.sandboxes ?? [];
+    const pagination = parsedResult.pagination;
 
     return {
-      sandboxes: result.sandboxes.map((s: SandboxSummary) => ({
+      sandboxes: sandboxes.map((s: SandboxSummary) => ({
         sandboxId: s.sandboxId,
         status: s.status,
         createdAt: new Date(s.createdAt),
         timeout: s.timeout,
       })),
       pagination: {
-        next: result.pagination?.next,
-        hasMore: !!result.pagination?.next,
+        next: pagination?.next,
+        hasMore: !!pagination?.next,
       },
     };
   } catch (error) {

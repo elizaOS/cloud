@@ -2,7 +2,6 @@ import { logger } from "@/lib/utils/logger";
 import {
   TWITTER_API_BASE,
   TWITTER_UPLOAD_BASE,
-  twitterApiRequest as baseTwitterApiRequest,
 } from "@/lib/utils/twitter-api";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { withRetry } from "../rate-limit";
@@ -23,11 +22,23 @@ async function twitterApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  return withRetry<T>(
-    () => baseTwitterApiRequest<T>(endpoint, accessToken, options),
-    async (data) => data,
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${TWITTER_API_BASE}${endpoint}`;
+  const { data } = await withRetry<T>(
+    () =>
+      fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      }),
+    async (response) => response.json(),
     { platform: "twitter", maxRetries: 3 },
   );
+  return data;
 }
 
 async function uploadMedia(
@@ -104,7 +115,8 @@ async function uploadMedia(
     });
 
     const formData = new FormData();
-    formData.append("media", new Blob([chunk]));
+    const chunkBytes = Uint8Array.from(chunk);
+    formData.append("media", new Blob([chunkBytes]));
 
     const appendResponse = await fetch(
       `${TWITTER_UPLOAD_BASE}/media/upload.json?${appendParams}`,

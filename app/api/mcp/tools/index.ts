@@ -17,3 +17,6 @@ export { registerRedemptionTools } from "./redemption";
 export { registerAnalyticsTools } from "./analytics";
 export { registerGoogleTools } from "./google";
 export { registerHubSpotTools } from "./hubspot";
+export { registerLinearTools } from "./linear";
+export { registerNotionTools } from "./notion";
+export { registerGitHubTools } from "./github";

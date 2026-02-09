@@ -127,7 +127,8 @@ async function withRetry<T>(
       );
     } catch (error) {
       logger.error(
-        `[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}`,
+        `[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}:`,
+        error,
       );
       if (attempt >= maxRetries) throw error;
     }
@@ -752,7 +753,8 @@ export class CloudBootstrapMessageService implements IMessageService {
             }
           } catch (error) {
             logger.error(
-              `[MultiStep] Error during model call attempt ${parseAttempt}`,
+              `[MultiStep] Error during model call attempt ${parseAttempt}:`,
+              error,
             );
             if (parseAttempt >= maxParseRetries) {
               throw error;
@@ -1027,7 +1029,8 @@ export class CloudBootstrapMessageService implements IMessageService {
         }
       } catch (error) {
         logger.error(
-          `[MultiStep] Summary generation error on attempt ${summaryAttempt}`,
+          `[MultiStep] Summary generation error on attempt ${summaryAttempt}:`,
+          error,
         );
         if (summaryAttempt >= maxSummaryRetries) {
           logger.warn(

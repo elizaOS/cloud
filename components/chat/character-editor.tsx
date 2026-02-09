@@ -34,6 +34,7 @@ interface CharacterEditorProps {
 }
 
 type MainTab = "character" | "plugins" | "files";
+const VALID_TABS: MainTab[] = ["character", "plugins", "files"];
 
 export function CharacterEditor({
   character,
@@ -47,9 +48,8 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
-  const validTabs = ["character", "plugins", "files"];
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && validTabs.includes(initialTab) ? initialTab : "character",
+    initialTab && VALID_TABS.includes(initialTab) ? initialTab : "character",
   );
   const [activeFormTab, setActiveFormTab] = useState<FormTab>("basics");
   const [showJson, setShowJson] = useState(false);
@@ -58,7 +58,7 @@ export function CharacterEditor({
   // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && validTabs.includes(tab)) {
+    if (tab && VALID_TABS.includes(tab)) {
       // Schedule state update to avoid synchronous setState in effect
       const rafId = requestAnimationFrame(() => setActiveTab(tab));
       return () => cancelAnimationFrame(rafId);
@@ -114,9 +114,7 @@ export function CharacterEditor({
             {showJson ? (
               <h2 className="text-xl font-bold text-white">JSON Editor</h2>
             ) : (
-              <>
-                <h2 className="text-xl font-bold text-white">Agent Builder</h2>
-              </>
+              <h2 className="text-xl font-bold text-white">Agent Builder</h2>
             )}
           </div>
           <div className="flex items-center justify-between w-full sm:w-auto">

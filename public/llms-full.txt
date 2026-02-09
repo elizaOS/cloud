@@ -1502,9 +1502,9 @@ Currently returns placeholder stats.
   "success": true,
   "data": {
     "stats": {
-      "viewCount": 0,
-      "interactionCount": 0,
-      "cloneCount": 0
+      "views": 0,
+      "interactions": 0,
+      "messageCount": 0
     }
   }
 }
@@ -2885,13 +2885,13 @@ Manually trigger an auto-top-up check. Useful for testing or when you want to to
   <span className="path">/api/credits/transactions</span>
 </div>
 
-Get credit transaction history.
+Get credit transaction history for your organization.
 
 ### Query Parameters
 
 | Parameter | Type    | Description                              |
 | --------- | ------- | ---------------------------------------- |
-| `limit`   | integer | Results per page (default: 100)          |
+| `limit`   | integer | Max results returned (default: 100)      |
 | `hours`   | integer | Limit results to the last N hours        |
 
 ### Response
@@ -2900,33 +2900,25 @@ Get credit transaction history.
 {
   "transactions": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "organization_id": "550e8400-e29b-41d4-a716-446655440100",
+      "id": "txn_abc123",
+      "organization_id": "org_123",
       "type": "usage",
-      "amount": -0.05,
-      "description": "Chat completion (gpt-4o)",
-      "metadata": {},
+      "amount": -100,
+      "description": "Text to speech generation",
+      "metadata": null,
       "stripe_payment_intent_id": null,
-      "created_at": "2024-01-15T10:30:00Z"
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "organization_id": "550e8400-e29b-41d4-a716-446655440100",
-      "type": "topup",
-      "amount": 50.0,
-      "description": "Stripe payment",
-      "metadata": {},
-      "stripe_payment_intent_id": "pi_1234567890",
-      "created_at": "2024-01-14T08:00:00Z"
+      "created_at": "2024-01-15T10:30:00.000Z"
     }
   ],
-  "total": 2,
+  "total": 1,
   "period": {
-    "start": "2024-01-14T08:00:00Z",
-    "end": "2024-01-15T10:30:00Z"
+    "start": "2024-01-15T09:30:00.000Z",
+    "end": "2024-01-15T10:30:00.000Z"
   }
 }
 ```
+
+Note: `offset` is not supported for this endpoint.
 
 ---
 
@@ -4368,10 +4360,10 @@ Text-to-speech generation and voice cloning capabilities.
 
 Voice APIs are available at two paths:
 
-| Pattern | Description | Use Case |
-|---------|-------------|----------|
-| `/api/v1/voice/*` | **Recommended** - Generic, provider-agnostic endpoints | New integrations, programmatic access |
-| `/api/elevenlabs/*` | Legacy endpoints (still supported) | Existing integrations, backwards compatibility |
+| Pattern | Description | Auth | Use Case |
+|---------|-------------|------|----------|
+| `/api/v1/voice/*` | **Recommended** - Generic, provider-agnostic endpoints | Session or API key | New integrations, programmatic access |
+| `/api/elevenlabs/*` | Legacy endpoints (still supported) | Session only | Existing integrations, backwards compatibility |
 
 API key authentication is available only on `/api/v1/voice/*`. Legacy `/api/elevenlabs/*` endpoints require session-based auth and do not accept API keys.
 
@@ -4489,6 +4481,13 @@ curl -X POST "https://elizacloud.ai/api/v1/voice/stt" \
 ```
 
 ### Response
+
+Returns JSON with `transcript` and `duration_ms`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `transcript` | string | Transcribed text |
+| `duration_ms` | number | Audio duration in milliseconds |
 
 ```json
 {

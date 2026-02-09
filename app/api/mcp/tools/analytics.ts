@@ -2,7 +2,7 @@
  * Analytics and discovery tools
  */
 
-import type { McpServer } from "mcp-handler";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod3";
 import { analyticsService } from "@/lib/services/analytics";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -26,9 +26,19 @@ export function registerAnalyticsTools(server: McpServer): void {
     async ({ period }) => {
       try {
         const { user } = getAuthContext();
-        const analytics = await analyticsService.getOrganizationAnalytics(
+        const now = new Date();
+        const startDate = new Date(now);
+        if (period === "day") {
+          startDate.setDate(now.getDate() - 1);
+        } else if (period === "week") {
+          startDate.setDate(now.getDate() - 7);
+        } else {
+          startDate.setMonth(now.getMonth() - 1);
+        }
+
+        const analytics = await analyticsService.getUsageStats(
           user.organization_id,
-          period,
+          { startDate, endDate: now },
         );
 
         return jsonResponse({ success: true, analytics });

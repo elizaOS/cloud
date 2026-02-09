@@ -17,6 +17,7 @@ import {
   type UUID,
   type Content,
   type Media,
+  ContentType,
   type World,
 } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
@@ -297,7 +298,7 @@ export async function routeDiscordEvent(
       const parsed = MessageCreateDataSchema.safeParse(payload.data);
       if (!parsed.success) {
         logger.warn("[DiscordRouter] Invalid MESSAGE_CREATE data", {
-          errors: parsed.error.errors,
+          errors: parsed.error.issues,
         });
         return { processed: false };
       }
@@ -481,14 +482,22 @@ function processMessage(
 
   // Process attachments
   const attachments: Media[] = [];
+  const resolveContentType = (mime?: string): ContentType | undefined => {
+    if (!mime) return undefined;
+    if (mime.startsWith("image/")) return ContentType.IMAGE;
+    if (mime.startsWith("video/")) return ContentType.VIDEO;
+    if (mime.startsWith("audio/")) return ContentType.AUDIO;
+    return ContentType.DOCUMENT;
+  };
 
   // Regular attachments
   if (data.attachments?.length) {
     for (const att of data.attachments) {
       attachments.push({
+        id: uuidv4(),
         url: att.url,
-        contentType: att.content_type || undefined,
-        title: att.filename || undefined,
+        contentType: resolveContentType(att.content_type ?? undefined),
+        title: att.filename ?? undefined,
       });
     }
   }
@@ -497,9 +506,10 @@ function processMessage(
   if (data.voice_attachments?.length) {
     for (const va of data.voice_attachments) {
       attachments.push({
+        id: uuidv4(),
         url: va.url,
-        contentType: va.content_type,
-        title: va.filename,
+        contentType: resolveContentType(va.content_type ?? undefined),
+        title: va.filename ?? undefined,
       });
     }
   }

@@ -109,10 +109,11 @@ async function uploadMedia(
     throw new Error("No media data provided");
   }
 
+  const fileBytes = Uint8Array.from(fileData);
   const formData = new FormData();
   formData.append(
     "file",
-    new Blob([fileData], { type: media.mimeType }),
+    new Blob([fileBytes], { type: media.mimeType }),
     "upload",
   );
   if (media.altText) {

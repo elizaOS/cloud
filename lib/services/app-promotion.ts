@@ -6,6 +6,7 @@ import { appsService } from "./apps";
 import { socialMediaService } from "./social-media";
 import { advertisingService } from "./advertising";
 import { seoService } from "./seo";
+import type { CreateSeoRequestParams } from "./seo";
 import { creditsService } from "./credits";
 import {
   twitterAppAutomationService,
@@ -590,7 +591,7 @@ Return ONLY valid JSON, no markdown.`;
 
   private determineSeoType(
     config: NonNullable<PromotionConfig["seo"]>,
-  ): string {
+  ): CreateSeoRequestParams["type"] {
     if (config.generateMeta && config.generateSchema) return "publish_bundle";
     if (config.generateMeta) return "meta_generate";
     if (config.generateSchema) return "schema_generate";
@@ -654,7 +655,7 @@ Return ONLY valid JSON, no markdown.`;
         headline: content.headline,
         primaryText: content.longDescription.substring(0, 500),
         description: content.shortDescription,
-        callToAction: "LEARN_MORE",
+        callToAction: "learn_more",
         destinationUrl: app.app_url,
         media: [],
       })

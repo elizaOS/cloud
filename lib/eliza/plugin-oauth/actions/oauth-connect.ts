@@ -25,33 +25,18 @@ import {
 export const oauthConnectAction: ActionWithParams = {
   name: "OAUTH_CONNECT",
   similes: [
-    "CONNECT_PLATFORM",
-    "LINK_ACCOUNT",
-    "CONNECT_GOOGLE",
-    "CONNECT_GMAIL",
-    "ADD_INTEGRATION",
-    "SETUP_CONNECTION",
-    "LINK_GOOGLE",
-    "AUTHENTICATE",
-    "CONNECT_HUBSPOT",
-    "LINK_HUBSPOT",
-    "CONNECT_LINEAR",
-    "LINK_LINEAR",
-    "CONNECT_NOTION",
-    "LINK_NOTION",
-    "CONNECT_GITHUB",
-    "LINK_GITHUB",
-    "CONNECT_SLACK",
-    "LINK_SLACK",
+    "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
+    "CONNECT_HUBSPOT", "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
+    "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
+    "LINK_HUBSPOT", "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available platforms: google, hubspot, linear, notion, github, slack.",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, hubspot, linear, slack, github, notion",
 
   parameters: {
     platform: {
       type: "string",
-      description:
-        "Platform to connect. Available: 'google', 'hubspot', 'linear', 'notion', 'github', 'slack'",
+      description: "Platform to connect. Available: google, hubspot, linear, slack, github, notion",
       required: true,
     },
   },

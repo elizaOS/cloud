@@ -72,7 +72,6 @@ export function PendingKnowledgeProcessor({
   onProcessingComplete,
 }: PendingKnowledgeProcessorProps) {
   // State is used internally for tracking but not rendered (component returns null)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_state, setState] = useState<ProcessingState>({
     status: "idle",
     totalFiles: 0,

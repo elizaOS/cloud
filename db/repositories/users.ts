@@ -149,6 +149,31 @@ export class UsersRepository {
   }
 
   /**
+   * Finds a user by Discord ID.
+   */
+  async findByDiscordId(discordId: string): Promise<User | undefined> {
+    return await dbRead.query.users.findFirst({
+      where: eq(users.discord_id, discordId),
+    });
+  }
+
+  /**
+   * Finds a user by Discord ID with organization data.
+   */
+  async findByDiscordIdWithOrganization(
+    discordId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbRead.query.users.findFirst({
+      where: eq(users.discord_id, discordId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
    * Finds a user by wallet address with organization data.
    */
   async findByWalletAddressWithOrganization(

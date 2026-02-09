@@ -32,11 +32,19 @@ import {
 
 const adapterEmbeddingDimensions = new Map<string, number>();
 
+/**
+ * Default agent ID used when no specific character/agent is specified.
+ * Exported for use in other modules that need the same default.
+ */
+export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
+
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
   hubspot: { url: "/api/mcps/hubspot/mcp", type: "streamable-http" },
+  github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
+  notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
+  linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
-  // github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {
@@ -242,6 +250,25 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
+  /** Remove all runtimes for an organization. */
+  async removeByOrganization(organizationId: string): Promise<number> {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!organizationId || !UUID_RE.test(organizationId)) {
+      return 0;
+    }
+
+    const entries = Array.from(this.cache.entries())
+      .filter(([key]) => key.includes(`:${organizationId}`));
+
+    await Promise.all(entries.map(async ([key, entry]) => {
+      await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
+      this.cache.delete(key);
+      dbAdapterPool.removeAdapter(entry.agentId as string);
+    }));
+
+    return entries.length;
+  }
+
   /** Clear all cached runtimes. WARNING: Closes shared connection pool. */
   async clear(): Promise<void> {
     await Promise.all(
@@ -393,10 +420,8 @@ const dbAdapterPool = new DbAdapterPool();
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
   private readonly DEFAULT_AGENT_ID = stringToUuid(
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
+    DEFAULT_AGENT_ID_STRING,
   ) as UUID;
-  private readonly DEFAULT_AGENT_ID_STRING =
-    "b850bc30-45f8-0041-a00a-83df46d8555d";
 
   private constructor() {
     this.initializeLoggers();
@@ -448,6 +473,15 @@ export class RuntimeFactory {
     return runtimeCache.has(agentId);
   }
 
+  /** Invalidate all runtimes for an organization (e.g., when OAuth changes). */
+  async invalidateByOrganization(organizationId: string): Promise<number> {
+    const count = await runtimeCache.removeByOrganization(organizationId);
+    if (count > 0) {
+      elizaLogger.info(`[RuntimeFactory] Invalidated ${count} runtime(s) for org ${organizationId}`);
+    }
+    return count;
+  }
+
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
     const startTime = Date.now();
     elizaLogger.info(
@@ -456,7 +490,7 @@ export class RuntimeFactory {
 
     const isDefaultCharacter =
       !context.characterId ||
-      context.characterId === this.DEFAULT_AGENT_ID_STRING;
+      context.characterId === DEFAULT_AGENT_ID_STRING;
     const loaderOptions = { webSearchEnabled: context.webSearchEnabled };
 
     const { character, plugins, modeResolution } = isDefaultCharacter
@@ -579,17 +613,21 @@ export class RuntimeFactory {
     return runtime;
   }
 
+  /**
+   * Apply user-specific context to a cached runtime.
+   *
+   * IMPORTANT: API keys, user IDs, and other settings resolved via getSetting()
+   * are now handled by the request context pattern (see packages/core/src/request-context.ts).
+   * Those settings are prefetched at request start and injected via runWithRequestContext(),
+   * so getSetting() returns the correct user's values without mutating shared state.
+   *
+   * This method only handles settings that are accessed DIRECTLY on character.settings
+   * (not via getSetting()), such as model preferences and app configurations.
+   */
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
     const charSettings = (runtime.character.settings || {}) as RuntimeSettings;
 
-    // Update character.settings (takes precedence in getSetting())
-    charSettings.ELIZAOS_API_KEY = context.apiKey;
-    charSettings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
-    charSettings.USER_ID = context.userId;
-    charSettings.ENTITY_ID = context.entityId;
-    charSettings.ORGANIZATION_ID = context.organizationId;
-    charSettings.IS_ANONYMOUS = context.isAnonymous;
-
+    // Model preferences - accessed directly, not via getSetting()
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
         context.modelPreferences.smallModel ||
@@ -599,30 +637,24 @@ export class RuntimeFactory {
         charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
+    // Image model - accessed directly
     if (context.imageModel) {
       charSettings.ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL = context.imageModel;
     }
 
+    // App prompt config - accessed directly
     if (context.appPromptConfig) {
       charSettings.appPromptConfig = context.appPromptConfig;
     }
 
-    // Also update runtime.settings for MCP (McpService checks this as fallback)
-    // This ensures MCP settings are fresh per-user even on cache hit
-    // TODO: Replace type assertion with public API when AgentRuntime exposes settings accessor
-    const runtimeSettings = (runtime as unknown as { settings: Record<string, unknown> }).settings;
-    if (runtimeSettings) {
-      const mcpSettings = this.buildMcpSettings({}, context);
-      Object.assign(runtimeSettings, {
-        ELIZAOS_API_KEY: context.apiKey,
-        ELIZAOS_CLOUD_API_KEY: context.apiKey,
-        USER_ID: context.userId,
-        ENTITY_ID: context.entityId,
-        ORGANIZATION_ID: context.organizationId,
-        IS_ANONYMOUS: context.isAnonymous,
-        ...mcpSettings,
-      });
-    }
+    // NOTE: The following are NO LONGER mutated here because they're resolved
+    // dynamically via getSetting() which checks request context first:
+    // - ELIZAOS_API_KEY / ELIZAOS_CLOUD_API_KEY
+    // - USER_ID / ENTITY_ID / ORGANIZATION_ID / IS_ANONYMOUS
+    // - MCP settings (mcp.servers with X-API-Key headers)
+    //
+    // See: packages/core/src/runtime.ts getSetting() and
+    //      lib/services/entity-settings/service.ts prefetch()
   }
 
   private transformMcpSettings(
@@ -973,7 +1005,7 @@ export class RuntimeFactory {
       elizaLogger.info(
         `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
-      for (const server of servers as any[]) {
+      for (const server of servers as Array<{ name: string; status: string; tools?: unknown[]; error?: string }>) {
         elizaLogger.info(
           `[RuntimeFactory] MCP Server: ${server.name} status=${server.status} tools=${server.tools?.length || 0} error=${server.error || 'none'}`,
         );
@@ -996,6 +1028,11 @@ export async function invalidateRuntime(agentId: string): Promise<boolean> {
 
 export function isRuntimeCached(agentId: string): boolean {
   return runtimeFactory.isRuntimeCached(agentId);
+}
+
+/** Invalidate all cached runtimes for an organization. */
+export async function invalidateByOrganization(organizationId: string): Promise<number> {
+  return runtimeFactory.invalidateByOrganization(organizationId);
 }
 
 export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };

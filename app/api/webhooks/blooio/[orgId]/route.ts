@@ -85,10 +85,13 @@ async function handleBlooioWebhook(
       if (parseError instanceof ZodError) {
         logger.warn("[BlooioWebhook] Invalid webhook payload schema", {
           orgId,
-          errors: parseError.errors.map(e => ({ path: e.path, message: e.message })),
+          errors: parseError.issues.map((e) => ({
+            path: e.path,
+            message: e.message,
+          })),
         });
         return NextResponse.json(
-          { error: "Invalid webhook payload", details: parseError.errors },
+          { error: "Invalid webhook payload", details: parseError.issues },
           { status: 400 },
         );
       }

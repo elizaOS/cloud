@@ -9,5 +9,5 @@ interface AppsPageWrapperProps {
 
 export function AppsPageWrapper({ children }: AppsPageWrapperProps) {
   useSetPageHeader({ title: "My Apps" }, []);
-  return <>{children}</>;
+  return children;
 }
