@@ -199,11 +199,18 @@ export default async function ElizaPage({ searchParams }: PageProps) {
             if (character.user_id && !isOwner) {
               try {
                 const ownerUser = await db
-                  .select({ username: users.username })
+                  .select({
+                    nickname: users.nickname,
+                    telegramUsername: users.telegram_username,
+                  })
                   .from(users)
                   .where(eq(users.id, character.user_id))
                   .limit(1);
-                creatorUsername = ownerUser[0]?.username || null;
+                const ownerRecord = ownerUser[0];
+                creatorUsername =
+                  ownerRecord?.nickname ||
+                  ownerRecord?.telegramUsername ||
+                  null;
               } catch {
                 // Ignore errors fetching creator username
               }

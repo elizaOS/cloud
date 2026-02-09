@@ -74,7 +74,7 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
         }
         const transactions: Transaction[] = Array.isArray(data.transactions)
           ? data.transactions.filter(
-              (t): t is Transaction =>
+              (t: unknown): t is Transaction =>
                 typeof t === "object" &&
                 t !== null &&
                 "amount" in t &&

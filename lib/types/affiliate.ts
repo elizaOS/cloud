@@ -43,6 +43,7 @@ export interface AffiliateData {
   affiliateId: string;
   source?: string;
   vibe?: AffiliateVibe | string;
+  autoImage?: boolean;
   backstory?: string;
   instagram?: string;
   twitter?: string;

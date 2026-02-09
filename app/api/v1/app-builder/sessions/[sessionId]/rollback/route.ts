@@ -77,6 +77,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       appId: session.app_id,
     });
 
+    if (!session.sandbox_id) {
+      return NextResponse.json(
+        { success: false, error: "Sandbox not available for this session" },
+        { status: 400 },
+      );
+    }
+
     // Perform the rollback using git reset --hard
     const rollbackResult = await performRollback(
       session.sandbox_id,

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     request.nextUrl.searchParams.get("webhook") === "true";
 
   let webhookInfo: {
-    url: string;
+    url?: string;
     hasCustomCertificate: boolean;
     pendingUpdateCount: number;
     ipAddress?: string;

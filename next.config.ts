@@ -131,6 +131,11 @@ const nextConfig: NextConfig = {
         "@walletconnect/logger": loggerStubPath,
       };
     }
+    // When DEV_LINKED=1, disable symlink resolution so webpack follows
+    // symlinked dist/ directories from dev-link.sh
+    if (process.env.DEV_LINKED === "1") {
+      config.resolve.symlinks = false;
+    }
     return config;
   },
   transpilePackages: ["next-mdx-remote"],
@@ -149,7 +154,6 @@ const nextConfig: NextConfig = {
     "pdfjs-dist",
     "canvas",
     "pdf-parse",
-    "@elizaos/plugin-mcp",
     "@modelcontextprotocol/sdk",
     "mcp-handler",
     "express",

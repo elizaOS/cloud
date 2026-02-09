@@ -95,7 +95,7 @@ const querySchema = z.object({
     .string()
     .transform((s) => s === "true")
     .optional()
-    .default("true"),
+    .default(true),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
@@ -259,6 +259,8 @@ async function fetchLocalAgents(
 
   return characters.map((char): DiscoveredService => {
     const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
+    const slug =
+      "slug" in char ? (char as { slug?: string }).slug : undefined;
 
     return {
       id: char.id,
@@ -278,7 +280,7 @@ async function fetchLocalAgents(
       x402Support: false,
       // Note: organizationId and creatorId intentionally omitted for privacy
       verified: false,
-      slug: char.slug ?? undefined,
+      slug,
       pricing: char.monetization_enabled
         ? {
             type: "credits",

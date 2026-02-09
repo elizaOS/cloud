@@ -9,6 +9,7 @@ import { dbRead, dbWrite } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { eq, and } from "drizzle-orm";
 import { secretsService } from "@/lib/services/secrets";
+import { DecryptionError } from "@/lib/services/secrets/encryption";
 import { logger } from "@/lib/utils/logger";
 import { getProvider } from "../provider-registry";
 import { refreshOAuth2Token } from "../providers";
@@ -28,6 +29,44 @@ const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
  */
 export function createGenericAdapter(platform: string): ConnectionAdapter {
   const platformEnum = platform as typeof platformCredentials.platform.enumValues[number];
+
+  async function decryptTokenSecret(
+    secretId: string,
+    organizationId: string,
+    connectionId: string,
+    tokenType: "access_token" | "refresh_token",
+  ): Promise<string> {
+    if (!secretId || !organizationId || !connectionId) {
+      throw new Error(
+        `Missing required parameters for ${platform} ${tokenType} decryption: secretId=${!!secretId}, orgId=${!!organizationId}, connId=${!!connectionId}`,
+      );
+    }
+    try {
+      return await secretsService.getDecryptedValue(secretId, organizationId);
+    } catch (error) {
+      if (error instanceof DecryptionError) {
+        logger.error(`[GenericAdapter] Token decryption failed for ${platform}`, {
+          connectionId,
+          organizationId,
+          secretId,
+          tokenType,
+          phase: error.phase,
+          error: error.message,
+        });
+
+        // Mark connection as needing re-authentication
+        await dbWrite
+          .update(platformCredentials)
+          .set({ status: "expired", updated_at: new Date() })
+          .where(eq(platformCredentials.id, connectionId));
+
+        throw new Error(
+          `${platform} ${tokenType} cannot be decrypted (${error.phase === "dek_decryption" ? "encryption key mismatch" : "data corruption"}). Please disconnect and reconnect ${platform} in Settings > Connections.`,
+        );
+      }
+      throw error;
+    }
+  }
 
   async function findCredential(organizationId: string, connectionId: string) {
     try {
@@ -126,14 +165,12 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
 
         try {
           // Get the refresh token
-          const refreshToken = await secretsService.getDecryptedValue(
+          const refreshToken = await decryptTokenSecret(
             cred.refresh_token_secret_id,
             organizationId,
+            connectionId,
+            "refresh_token",
           );
-
-          if (!refreshToken) {
-            throw new Error("Refresh token not found");
-          }
 
           // Refresh the token using the generic flow
           const refreshResult = await refreshOAuth2Token(
@@ -212,16 +249,12 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           );
         }
       } else {
-        // Get the current access token
-        const tokenValue = await secretsService.getDecryptedValue(
+        accessToken = await decryptTokenSecret(
           cred.access_token_secret_id,
           organizationId,
+          connectionId,
+          "access_token",
         );
-
-        if (!tokenValue) {
-          throw Errors.tokenRefreshFailed(platform, "Access token not found");
-        }
-        accessToken = tokenValue;
 
         // Update last used timestamp
         await dbWrite

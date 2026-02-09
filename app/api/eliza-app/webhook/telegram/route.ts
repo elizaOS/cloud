@@ -85,7 +85,7 @@ async function handleMessage(message: Message): Promise<boolean> {
   if (!userWithOrg?.organization) {
     await sendTelegramMessage(
       message.chat.id,
-      "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started",
+      `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
     return true; // Mark as processed - don't retry
   }
@@ -216,7 +216,7 @@ async function handleCommand(message: Message): Promise<void> {
       } else {
         await sendTelegramMessage(
           chatId,
-          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: https://eliza.app/get-started`,
+          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: ${elizaAppConfig.appUrl}/get-started`,
         );
       }
       break;
