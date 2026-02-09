@@ -43,6 +43,7 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
+  salesforce: { url: "/api/mcps/salesforce/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
 };
 
@@ -567,13 +568,17 @@ export class RuntimeFactory {
       ...mcpSettings,
     };
 
-    // Create runtime with user-specific settings in opts.settings (NOT character.settings)
-    // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
+    // Include MCP settings in character.settings so they survive mergeAgentSettings().
+    // runtime.getSetting("mcp") returns null for objects (core only handles string/number/boolean),
+    // so plugin-mcp falls through to character.settings.mcp. Without this, stale DB settings
+    // would override the dynamically-built MCP config.
+    const characterSettings = { ...baseSettings, ...mcpSettings };
+
     const runtime = new AgentRuntime({
       character: {
         ...character,
         id: agentId,
-        settings: baseSettings,
+        settings: characterSettings,
       },
       plugins: filteredPlugins,
       agentId,
@@ -719,14 +724,11 @@ export class RuntimeFactory {
 
     elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
 
-    const existingMcp = charSettings.mcp as Record<string, unknown> | undefined;
-    const existingServers =
-      existingMcp?.servers && typeof existingMcp.servers === "object" && !Array.isArray(existingMcp.servers)
-        ? (existingMcp.servers as Record<string, unknown>)
-        : {};
-
+    // Only use servers from MCP_SERVER_CONFIGS filtered by active connections.
+    // Don't merge with DB-stored server configs to prevent stale entries
+    // (e.g. a previously-connected platform) from leaking into the config.
     return {
-      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...enabledServers, ...existingServers } }, context.apiKey),
+      mcp: this.transformMcpSettings({ servers: enabledServers }, context.apiKey),
     };
   }
 
@@ -962,7 +964,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 2500; // Allow time for MCP server connections
+    const maxWaitMs = 15000; // Allow time for MCP server connections (dev cold start can take ~10s)
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;

@@ -101,6 +101,11 @@ Use these results to answer the user. Synthesize the information naturally.
 No actions were executed. Respond based on the conversation context.
 {{/if}}
 
+# Your Available Tools
+{{actionsWithParams}}
+
+IMPORTANT: If the user asks about your capabilities, tools, or available operations, reference the tools listed above. You have access to ALL of these tools and can execute them.
+
 ---
 
 # Response Guidelines

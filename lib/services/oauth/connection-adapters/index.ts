@@ -31,6 +31,7 @@ import {
 
 // Google now uses the generic adapter (migrated from legacy google-adapter)
 const googleAdapter = createGenericAdapter("google");
+const salesforceAdapter = createGenericAdapter("salesforce");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {
@@ -43,6 +44,7 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   notion: notionAdapter,
   github: githubAdapter,
   slack: slackAdapter,
+  salesforce: salesforceAdapter,
 };
 
 // Cache for dynamically created adapters
