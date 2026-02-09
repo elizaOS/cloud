@@ -52,13 +52,14 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
 export async function tryClaimForProcessing(key: string, source = "unknown"): Promise<boolean> {
   try {
     const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
-    const result = await dbWrite
+    const rows = await dbWrite
       .insert(idempotencyKeys)
       .values({ key, source, expires_at })
-      .onConflictDoNothing({ target: idempotencyKeys.key });
+      .onConflictDoNothing({ target: idempotencyKeys.key })
+      .returning({ key: idempotencyKeys.key });
 
-    // rowCount === 1 means we inserted (claimed), 0 means key already exists
-    return (result as unknown as { rowCount: number }).rowCount === 1;
+    // length === 1 means we inserted (claimed), 0 means key already exists (conflict)
+    return rows.length === 1;
   } catch (error) {
     logger.error("[Idempotency] Error claiming key", { key, source, error: getErrorMessage(error) });
     return true; // Fail open to avoid dropping messages
