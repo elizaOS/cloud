@@ -18,14 +18,16 @@ import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { whatsAppAuthService } from "@/lib/services/eliza-app/whatsapp-auth";
+import type { UserWithOrganization } from "@/lib/types";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { isAlreadyProcessed, markAsProcessed, removeProcessedMark } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import {
   parseWhatsAppWebhookPayload,
   extractWhatsAppMessages,
   sendWhatsAppMessage,
   markWhatsAppMessageAsRead,
+  isValidWhatsAppId,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
@@ -74,6 +76,15 @@ async function sendWhatsAppResponse(
 async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<boolean> {
   const text = msg.text?.trim();
   if (!text) return true; // Only handle text messages for now
+
+  // Validate WhatsApp ID format (digits only, 7-15 chars) before use
+  if (!isValidWhatsAppId(msg.from)) {
+    logger.warn("[ElizaApp WhatsAppWebhook] Invalid WhatsApp ID format, skipping", {
+      from: msg.from,
+      messageId: msg.messageId,
+    });
+    return true; // Mark as processed to avoid infinite retries on bad data
+  }
 
   // Mark message as read for better UX (sends blue checkmarks)
   markWhatsAppMessageAsRead(WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID, msg.messageId)
@@ -144,8 +155,12 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
   }
 
   try {
+    // Build a properly typed UserWithOrganization (FindOrCreateResult returns
+    // User + Organization separately; buildContext expects the composite type)
+    const user: UserWithOrganization = { ...userWithOrg, organization };
+
     const userContext = await userContextService.buildContext({
-      user: { ...userWithOrg, organization } as never,
+      user,
       isAnonymous: false,
       agentMode: AgentMode.ASSISTANT,
     });
@@ -257,11 +272,17 @@ async function handleWhatsAppWebhookPost(request: NextRequest): Promise<NextResp
       continue;
     }
 
+    // Claim the message immediately to prevent race conditions.
+    // If two webhook deliveries arrive concurrently, the second one
+    // will see the idempotency mark and skip (preventing duplicate processing).
+    await markAsProcessed(idempotencyKey, "whatsapp-eliza-app");
+
     const processed = await handleIncomingMessage(msg);
 
-    if (processed) {
-      await markAsProcessed(idempotencyKey, "whatsapp-eliza-app");
-    } else {
+    if (!processed) {
+      // Processing failed (e.g., lock timeout, send failure) -
+      // remove the claim so Meta's retry can re-process the message.
+      await removeProcessedMark(idempotencyKey);
       allProcessed = false;
     }
   }
@@ -287,7 +308,7 @@ async function handleWhatsAppWebhookPost(request: NextRequest): Promise<NextResp
  *
  * Must respond with the challenge value as plain text with 200 status.
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+async function handleWhatsAppWebhookGet(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
   const verifyToken = searchParams.get("hub.verify_token");
@@ -306,4 +327,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 
+export const GET = withRateLimit(handleWhatsAppWebhookGet, RateLimitPresets.STANDARD);
 export const POST = withRateLimit(handleWhatsAppWebhookPost, RateLimitPresets.AGGRESSIVE);

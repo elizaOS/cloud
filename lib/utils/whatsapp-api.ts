@@ -26,11 +26,14 @@ export interface WhatsAppSendMessageRequest {
   video?: { link: string; caption?: string };
 }
 
-export interface WhatsAppSendMessageResponse {
-  messaging_product: string;
-  contacts: Array<{ input: string; wa_id: string }>;
-  messages: Array<{ id: string; message_status?: string }>;
-}
+// Zod schema for send-message API response validation
+const WhatsAppSendMessageResponseSchema = z.object({
+  messaging_product: z.string(),
+  contacts: z.array(z.object({ input: z.string(), wa_id: z.string() })),
+  messages: z.array(z.object({ id: z.string(), message_status: z.string().optional() })),
+});
+
+export type WhatsAppSendMessageResponse = z.infer<typeof WhatsAppSendMessageResponseSchema>;
 
 export interface WhatsAppMarkReadRequest {
   messaging_product: "whatsapp";
@@ -237,8 +240,14 @@ export async function sendWhatsAppMessage(
   }
 
   try {
-    return JSON.parse(responseText) as WhatsAppSendMessageResponse;
-  } catch {
+    const parsed = JSON.parse(responseText);
+    return WhatsAppSendMessageResponseSchema.parse(parsed);
+  } catch (parseError) {
+    if (parseError instanceof z.ZodError) {
+      throw new Error(
+        `Unexpected WhatsApp API response shape: ${parseError.message} (raw: ${responseText.slice(0, 200)})`,
+      );
+    }
     throw new Error(`Invalid JSON response from WhatsApp: ${responseText}`);
   }
 }

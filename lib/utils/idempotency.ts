@@ -59,6 +59,19 @@ export async function markAsProcessed(key: string, source = "unknown"): Promise<
 }
 
 /**
+ * Remove a processing mark to allow retry.
+ * Used when a message was claimed but processing failed (e.g., lock timeout).
+ * This allows the next webhook delivery to re-process the message.
+ */
+export async function removeProcessedMark(key: string): Promise<void> {
+  try {
+    await dbWrite.delete(idempotencyKeys).where(eq(idempotencyKeys.key, key));
+  } catch (error) {
+    logger.error("[Idempotency] Error removing key", { key, error: getErrorMessage(error) });
+  }
+}
+
+/**
  * Get count of active (non-expired) idempotency keys. For monitoring.
  */
 export async function getProcessedMessagesCount(): Promise<number> {
