@@ -99,11 +99,19 @@ async function getHubSpotMcpHandler() {
               platform: "hubspot",
             });
             const active = connections.find((c) => c.status === "active");
-            return jsonResult(
-              active
-                ? { connected: true, scopes: active.scopes }
-                : { connected: false }
-            );
+            if (!active) {
+              const expired = connections.find((c) => c.status === "expired");
+              if (expired) {
+                return jsonResult({
+                  connected: false,
+                  status: "expired",
+                  message:
+                    "HubSpot connection expired. Please reconnect in Settings > Connections.",
+                });
+              }
+              return jsonResult({ connected: false });
+            }
+            return jsonResult({ connected: true, scopes: active.scopes });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
