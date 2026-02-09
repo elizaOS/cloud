@@ -29,8 +29,9 @@ import {
   slackAdapter,
 } from "./generic-adapter";
 
-// Google now uses the generic adapter (migrated from legacy google-adapter)
+// Google and Zoom use the generic adapter
 const googleAdapter = createGenericAdapter("google");
+const zoomAdapter = createGenericAdapter("zoom");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {
@@ -43,6 +44,7 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   notion: notionAdapter,
   github: githubAdapter,
   slack: slackAdapter,
+  zoom: zoomAdapter,
 };
 
 // Cache for dynamically created adapters
