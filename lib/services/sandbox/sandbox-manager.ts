@@ -14,7 +14,13 @@ import { logger } from "@/lib/utils/logger";
  */
 export interface SandboxSummary {
   sandboxId: string;
-  status: "pending" | "running" | "stopping" | "stopped" | "failed";
+  status:
+    | "pending"
+    | "running"
+    | "stopping"
+    | "stopped"
+    | "failed"
+    | "snapshotting";
   createdAt: Date;
   timeout: number;
 }
@@ -95,18 +101,24 @@ export async function listSandboxes(
       signal,
     });
     const parsedResult = "json" in result ? result.json : result;
-    const sandboxes = parsedResult.sandboxes ?? [];
+    const sandboxes = (parsedResult.sandboxes ?? []) as Array<{
+      id: string;
+      status: SandboxSummary["status"];
+      timeout: number;
+      createdAt?: string | number;
+      requestedAt?: number;
+    }>;
     const pagination = parsedResult.pagination;
 
     return {
-      sandboxes: sandboxes.map((s: SandboxSummary) => ({
-        sandboxId: s.sandboxId,
+      sandboxes: sandboxes.map((s) => ({
+        sandboxId: s.id,
         status: s.status,
-        createdAt: new Date(s.createdAt),
+        createdAt: new Date(s.createdAt ?? s.requestedAt ?? Date.now()),
         timeout: s.timeout,
       })),
       pagination: {
-        next: pagination?.next,
+        next: pagination?.next ? String(pagination.next) : undefined,
         hasMore: !!pagination?.next,
       },
     };

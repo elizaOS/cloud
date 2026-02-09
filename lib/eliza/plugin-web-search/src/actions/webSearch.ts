@@ -75,7 +75,7 @@ function MaxTokens(
 async function extractSearchParams(
   runtime: IAgentRuntime,
   message: Memory,
-  _state: State,
+  _state?: State,
 ): Promise<WebSearchParams> {
   // First, try to get params from state (custom bootstrap pattern)
   const composedState = await runtime.composeState(
@@ -267,7 +267,7 @@ export const webSearch: Action = {
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
-    state: State,
+    state?: State,
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback,
   ): Promise<ActionResult> => {

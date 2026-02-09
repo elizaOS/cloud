@@ -13,7 +13,7 @@ import {
   type RoomWithPreview,
 } from "@/db/repositories";
 import { dbWrite } from "@/db/client";
-import { roomTable } from "@/db/schemas/eliza";
+import { roomTable, entityTable, participantTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -241,7 +241,7 @@ export class RoomsService {
     // Create room with agentId - required for ElizaOS room lookup
     // The API route ensures agent exists before calling this
     // ElizaOS's ensureConnection creates entity/participant when first message is sent
-    const [room] = await dbWrite
+    const roomResult = (await dbWrite
       .insert(roomTable)
       .values({
         id: roomId,
@@ -252,9 +252,9 @@ export class RoomsService {
         metadata: input.metadata,
         createdAt: new Date(),
       })
-      .returning();
+      .returning()) as any[];
 
-    return room;
+    return roomResult[0] as Room;
   }
 
   /**
@@ -289,18 +289,28 @@ export class RoomsService {
         .returning();
 
       // Create entity (upsert - ignore if exists)
-      await entitiesRepository.create({
-        id: entityId,
-        agentId,
-        names: [entityId],
-      });
+      // Must use tx so the insert is visible within this transaction
+      await tx
+        .insert(entityTable)
+        .values({
+          id: entityId,
+          agentId,
+          names: [entityId],
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing();
 
       // Add participant
-      await participantsRepository.create({
-        roomId,
-        entityId,
-        agentId,
-      });
+      // Must use tx so it can see the room created above
+      await tx
+        .insert(participantTable)
+        .values({
+          roomId,
+          entityId,
+          agentId,
+          createdAt: new Date(),
+        })
+        .returning();
 
       return room;
     });

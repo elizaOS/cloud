@@ -117,6 +117,48 @@ export class EdgeRuntimeCache {
       logger.warn(`[EdgeCache] Failed to invalidate character: ${error}`);
     }
   }
+
+  // ─── MCP Version Tracking (cross-instance cache invalidation) ───────────
+
+  private mcpVersionKey(organizationId: string): string {
+    return `${EDGE_CACHE_PREFIX}mcp-version:${organizationId}`;
+  }
+
+  /**
+   * Bump MCP config version for an org (call on OAuth connect/disconnect).
+   * Returns the new version number.
+   */
+  async bumpMcpVersion(organizationId: string): Promise<number> {
+    if (!this.redis) return 0;
+
+    try {
+      const key = this.mcpVersionKey(organizationId);
+      const newVersion = await this.redis.incr(key);
+      // TTL of 24 hours — outlives runtime cache (30 min) to ensure cross-instance invalidation works.
+      // If version expires, degrades to local-only eviction (safe fallback).
+      await this.redis.expire(key, 86400);
+      logger.info(`[EdgeCache] Bumped MCP version for org ${organizationId}: ${newVersion}`);
+      return newVersion;
+    } catch (error) {
+      logger.warn(`[EdgeCache] Failed to bump MCP version: ${error}`);
+      return 0;
+    }
+  }
+
+  /**
+   * Get current MCP config version for an org.
+   * Returns 0 if no version exists (no OAuth changes tracked).
+   */
+  async getMcpVersion(organizationId: string): Promise<number> {
+    if (!this.redis) return 0;
+
+    try {
+      const version = await this.redis.get<number>(this.mcpVersionKey(organizationId));
+      return version ?? 0;
+    } catch {
+      return 0;
+    }
+  }
 }
 
 // Export singleton instance

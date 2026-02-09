@@ -55,6 +55,9 @@ config:
 elizaAppBot:
   # Enable the Eliza App Discord bot
   enabled: false
+  # Redis leader key - MUST be unique per environment to prevent cross-env collisions
+  # e.g. "discord:eliza-app-bot:leader:prod" or "discord:eliza-app-bot:leader:dev"
+  leaderKey: ""
 
 # Secrets configuration
 secrets:

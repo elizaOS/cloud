@@ -32,7 +32,10 @@ export const {
   messageServerTable,
   channelTable,
   channelParticipantsTable,
-} = plugin.schema;
+} = (plugin as unknown as { schema: Record<string, any> }).schema as Record<
+  string,
+  any
+>;
 
 /**
  * Re-exported ElizaOS memory plugin tables.

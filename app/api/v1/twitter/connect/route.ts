@@ -33,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userId: user.id,
       redirectUrl,
     }),
-    { ex: 600 },
+    600,
   );
 
   return NextResponse.json({
