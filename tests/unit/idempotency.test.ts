@@ -12,6 +12,7 @@ import { describe, it, expect, afterAll } from "bun:test";
 import {
   isAlreadyProcessed,
   markAsProcessed,
+  tryClaimForProcessing,
   getProcessedMessagesCount,
   cleanupExpiredKeys,
   clearProcessedMessages,
@@ -143,6 +144,51 @@ describe("Idempotency Utility", () => {
     it("clears all messages without error", async () => {
       await expect(clearProcessedMessages()).resolves.not.toThrow();
     });
+  });
+});
+
+describe("tryClaimForProcessing", () => {
+  const claimPrefix = `claim-${Date.now()}`;
+
+  afterAll(async () => {
+    try {
+      await clearProcessedMessages();
+    } catch {
+      // Ignore cleanup errors in tests
+    }
+  });
+
+  it("returns true for first claim", async () => {
+    const key = `${claimPrefix}:first-${Date.now()}`;
+    expect(await tryClaimForProcessing(key, "test")).toBe(true);
+  });
+
+  it("returns false for duplicate claim", async () => {
+    const key = `${claimPrefix}:duplicate-${Date.now()}`;
+    await tryClaimForProcessing(key, "test");
+    expect(await tryClaimForProcessing(key, "test")).toBe(false);
+  });
+
+  it("handles concurrent claims correctly - only one wins", async () => {
+    const key = `${claimPrefix}:concurrent-${Date.now()}`;
+    const results = await Promise.all([
+      tryClaimForProcessing(key, "test"),
+      tryClaimForProcessing(key, "test"),
+      tryClaimForProcessing(key, "test"),
+    ]);
+    const successCount = results.filter(r => r === true).length;
+    expect(successCount).toBe(1);
+  });
+
+  it("claimed key is visible to isAlreadyProcessed", async () => {
+    const key = `${claimPrefix}:visible-${Date.now()}`;
+    await tryClaimForProcessing(key, "test");
+    expect(await isAlreadyProcessed(key)).toBe(true);
+  });
+
+  it("uses default source when not provided", async () => {
+    const key = `${claimPrefix}:default-source-${Date.now()}`;
+    await expect(tryClaimForProcessing(key)).resolves.not.toThrow();
   });
 });
 
