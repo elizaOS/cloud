@@ -354,9 +354,14 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
-    // Release claim so the message can be retried
+    // Release claim and return 500 so the failure is visible in gateway/Vercel logs.
+    // The gateway does not currently retry failed webhooks, but releasing the claim
+    // ensures the message is retryable if retry logic is added in the future.
     await releaseProcessingClaim(idempotencyKey);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(
+      { ok: false, error: "Agent processing failed" },
+      { status: 500 }
+    );
   } finally {
     await lock.release();
   }
