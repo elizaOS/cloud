@@ -13,6 +13,7 @@ import {
   isAlreadyProcessed,
   markAsProcessed,
   tryClaimForProcessing,
+  releaseProcessingClaim,
   getProcessedMessagesCount,
   cleanupExpiredKeys,
   clearProcessedMessages,
@@ -189,6 +190,49 @@ describe("tryClaimForProcessing", () => {
   it("uses default source when not provided", async () => {
     const key = `${claimPrefix}:default-source-${Date.now()}`;
     await expect(tryClaimForProcessing(key)).resolves.not.toThrow();
+  });
+});
+
+describe("releaseProcessingClaim", () => {
+  const releasePrefix = `release-${Date.now()}`;
+
+  afterAll(async () => {
+    try {
+      await clearProcessedMessages();
+    } catch {
+      // Ignore cleanup errors in tests
+    }
+  });
+
+  it("allows re-claim after release", async () => {
+    const key = `${releasePrefix}:reclaim-${Date.now()}`;
+
+    // First claim succeeds
+    expect(await tryClaimForProcessing(key, "test")).toBe(true);
+
+    // Second claim fails (already claimed)
+    expect(await tryClaimForProcessing(key, "test")).toBe(false);
+
+    // Release the claim
+    await releaseProcessingClaim(key);
+
+    // Now re-claim should succeed
+    expect(await tryClaimForProcessing(key, "test")).toBe(true);
+  });
+
+  it("released key is no longer visible to isAlreadyProcessed", async () => {
+    const key = `${releasePrefix}:invisible-${Date.now()}`;
+
+    await tryClaimForProcessing(key, "test");
+    expect(await isAlreadyProcessed(key)).toBe(true);
+
+    await releaseProcessingClaim(key);
+    expect(await isAlreadyProcessed(key)).toBe(false);
+  });
+
+  it("does not throw when releasing a non-existent key", async () => {
+    const key = `${releasePrefix}:nonexistent-${Date.now()}`;
+    await expect(releaseProcessingClaim(key)).resolves.not.toThrow();
   });
 });
 
