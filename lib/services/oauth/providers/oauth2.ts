@@ -287,7 +287,10 @@ async function exchangeCodeForTokens(
     ...provider.tokenParams,
   };
 
-  // Include PKCE code_verifier if present
+  // Include PKCE code_verifier if present; fail early if PKCE is required but verifier is missing
+  if (provider.pkce && !codeVerifier) {
+    throw new Error(`PKCE required for ${provider.id} but code_verifier is missing from OAuth state`);
+  }
   if (codeVerifier) {
     bodyParams.code_verifier = codeVerifier;
   }

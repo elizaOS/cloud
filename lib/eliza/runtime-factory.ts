@@ -1016,7 +1016,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 15000; // Allow time for MCP server connections (dev cold start can take ~10s)
+    const maxWaitMs = Number(process.env.MCP_INIT_WAIT_MS) || 5000; // Configurable; increase for dev cold starts
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;

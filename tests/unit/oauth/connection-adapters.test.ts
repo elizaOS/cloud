@@ -58,7 +58,7 @@ describe("Connection Adapters Registry", () => {
     it("should return array of all adapters", () => {
       const adapters = getAllAdapters();
       expect(Array.isArray(adapters)).toBe(true);
-      expect(adapters.length).toBe(4); // google, twitter, twilio, blooio
+      expect(adapters.length).toBe(9); // google, twitter, twilio, blooio, linear, notion, github, slack, salesforce
     });
 
     it("should include adapters for all defined providers", () => {

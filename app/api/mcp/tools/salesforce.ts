@@ -2,8 +2,7 @@
  * Salesforce MCP Tools - Accounts, Contacts, Opportunities, Leads, SOQL/SOSL
  * Uses per-organization OAuth tokens via oauthService.
  *
- * Salesforce requires a per-org instance URL (e.g. https://mycompany.my.salesforce.com)
- * which is discovered at runtime via the userinfo endpoint and cached.
+ * Shared Salesforce utilities (fetch, cache, validation) live in lib/salesforce/client.ts.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -12,12 +11,14 @@ import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
-
-const SALESFORCE_API_VERSION = "v60.0";
-
-// Cache instance URLs per-org (30 min TTL)
-const instanceUrlCache = new Map<string, { url: string; expiresAt: number }>();
-const INSTANCE_URL_TTL_MS = 30 * 60 * 1000;
+import {
+  SALESFORCE_API_VERSION,
+  salesforceFetch as sharedSalesforceFetch,
+  validateSOQL,
+  validateSOSL,
+  stripAttributes,
+  errMsg,
+} from "@/lib/salesforce/client";
 
 async function getSalesforceToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -36,80 +37,10 @@ async function getSalesforceToken(): Promise<string> {
   }
 }
 
-/**
- * Resolve the Salesforce instance URL for an org.
- * Calls the userinfo endpoint and extracts the custom_domain or profile base URL.
- */
-async function resolveInstanceUrl(token: string, orgId: string): Promise<string> {
-  const cached = instanceUrlCache.get(orgId);
-  if (cached && cached.expiresAt > Date.now()) return cached.url;
-
-  const res = await fetch("https://login.salesforce.com/services/oauth2/userinfo", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to resolve Salesforce instance URL: ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  let instanceUrl: string | undefined;
-  if (data.urls?.custom_domain) {
-    instanceUrl = data.urls.custom_domain;
-  } else if (data.profile) {
-    const match = data.profile.match(/^(https:\/\/[^/]+)/);
-    if (match) instanceUrl = match[1];
-  }
-
-  if (!instanceUrl) {
-    throw new Error("Could not determine Salesforce instance URL from userinfo response");
-  }
-
-  instanceUrl = instanceUrl.replace(/\/$/, "");
-  instanceUrlCache.set(orgId, { url: instanceUrl, expiresAt: Date.now() + INSTANCE_URL_TTL_MS });
-
-  return instanceUrl;
-}
-
 async function salesforceFetch(path: string, options: RequestInit = {}) {
   const { user } = getAuthContext();
   const token = await getSalesforceToken();
-  const instanceUrl = await resolveInstanceUrl(token, user.organization_id);
-  const url = `${instanceUrl}${path}`;
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => []);
-    const msg = Array.isArray(error) && error[0]?.message
-      ? error[0].message
-      : error?.message || `Salesforce API error: ${response.status}`;
-    throw new Error(msg);
-  }
-
-  if (response.status === 204) return {};
-  const text = await response.text();
-  if (!text) return {};
-  return JSON.parse(text);
-}
-
-function errMsg(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function stripAttributes(records: Record<string, unknown>[] | undefined) {
-  return records?.map((r) => {
-    const { attributes, ...fields } = r;
-    return fields;
-  });
+  return sharedSalesforceFetch(token, user.organization_id, path, options);
 }
 
 export function registerSalesforceTools(server: McpServer): void {
@@ -161,13 +92,14 @@ export function registerSalesforceTools(server: McpServer): void {
     },
     async ({ query }) => {
       try {
+        validateSOQL(query);
         const data = await salesforceFetch(
           `/services/data/${SALESFORCE_API_VERSION}/query?q=${encodeURIComponent(query)}`,
         );
         return jsonResponse({
           totalSize: data.totalSize,
           done: data.done,
-          records: stripAttributes(data.records),
+          records: stripAttributes(data.records as Record<string, unknown>[] | undefined),
           nextRecordsUrl: data.nextRecordsUrl,
         });
       } catch (error) {
@@ -192,7 +124,7 @@ export function registerSalesforceTools(server: McpServer): void {
         return jsonResponse({
           totalSize: data.totalSize,
           done: data.done,
-          records: stripAttributes(data.records),
+          records: stripAttributes(data.records as Record<string, unknown>[] | undefined),
           nextRecordsUrl: data.nextRecordsUrl,
         });
       } catch (error) {
@@ -218,6 +150,7 @@ export function registerSalesforceTools(server: McpServer): void {
     },
     async ({ search }) => {
       try {
+        validateSOSL(search);
         const data = await salesforceFetch(
           `/services/data/${SALESFORCE_API_VERSION}/search?q=${encodeURIComponent(search)}`,
         );
@@ -239,7 +172,7 @@ export function registerSalesforceTools(server: McpServer): void {
     async () => {
       try {
         const data = await salesforceFetch(`/services/data/${SALESFORCE_API_VERSION}/sobjects`);
-        const objects = data.sobjects?.map((obj: Record<string, unknown>) => ({
+        const objects = (data.sobjects as Record<string, unknown>[] | undefined)?.map((obj) => ({
           name: obj.name,
           label: obj.label,
           queryable: obj.queryable,
@@ -273,7 +206,7 @@ export function registerSalesforceTools(server: McpServer): void {
         const data = await salesforceFetch(
           `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}/describe`,
         );
-        const fields = data.fields?.map((f: Record<string, unknown>) => ({
+        const fields = (data.fields as Record<string, unknown>[] | undefined)?.map((f) => ({
           name: f.name,
           label: f.label,
           type: f.type,
@@ -292,7 +225,7 @@ export function registerSalesforceTools(server: McpServer): void {
           name: data.name,
           label: data.label,
           fields,
-          recordTypeInfos: data.recordTypeInfos?.filter((rt: Record<string, unknown>) => rt.available),
+          recordTypeInfos: (data.recordTypeInfos as Record<string, unknown>[] | undefined)?.filter((rt) => rt.available),
         });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to describe object"));
@@ -427,7 +360,7 @@ export function registerSalesforceTools(server: McpServer): void {
     async ({ objectName, limit = 10 }) => {
       try {
         const data = await salesforceFetch(
-          `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}?limit=${limit}`,
+          `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}/recent?limit=${limit}`,
         );
         return jsonResponse(data);
       } catch (error) {
