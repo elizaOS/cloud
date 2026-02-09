@@ -421,7 +421,7 @@ export const linkedinProvider: SocialMediaProvider = {
         Authorization: `Bearer ${credentials.accessToken}`,
         "Content-Type": media.mimeType,
       },
-      body: imageData,
+      body: Buffer.from(imageData),
     });
 
     return { mediaId: asset };

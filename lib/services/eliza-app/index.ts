@@ -2,10 +2,11 @@
  * Eliza App Services
  *
  * Authentication and user management services for the Eliza App.
- * Primary auth: Telegram OAuth + phone number for cross-platform messaging.
+ * Auth methods: Telegram OAuth, Discord OAuth2, and iMessage (auto-provision).
  */
 
 export { telegramAuthService, type TelegramAuthData } from "./telegram-auth";
+export { discordAuthService, type DiscordUserData } from "./discord-auth";
 export {
   elizaAppSessionService,
   type ElizaAppSessionPayload,

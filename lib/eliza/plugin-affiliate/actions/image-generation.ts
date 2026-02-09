@@ -26,6 +26,23 @@ interface AffiliateImageConfig {
 
 const appearanceDescriptionCache = new Map<string, string>();
 
+type ParsedXml = Record<string, string>;
+
+function parseXmlSafe(input: string): ParsedXml {
+  const parsed = parseKeyValueXml(input);
+  if (!parsed || typeof parsed !== "object") return {};
+
+  const result: ParsedXml = {};
+  for (const [key, value] of Object.entries(
+    parsed as Record<string, unknown>,
+  )) {
+    if (typeof value === "string") {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 function extractAffiliateImageConfig(
   settings: Record<string, unknown> | undefined,
 ): AffiliateImageConfig {
@@ -208,9 +225,9 @@ async function getOrExtractAppearanceDescription(
         }
 
         if (descriptionText) {
-          const parsed = parseKeyValueXml(descriptionText);
-          let appearance = parsed?.appearance || descriptionText;
-          const gender = parsed?.gender?.toLowerCase()?.trim();
+          const parsed = parseXmlSafe(descriptionText);
+          let appearance = parsed.appearance || descriptionText;
+          const gender = parsed.gender?.toLowerCase().trim();
 
           if (gender === "woman" || gender === "man") {
             detectedGenders.push(gender);
@@ -304,9 +321,9 @@ Your response MUST be in this XML format:
         prompt: combinePrompt,
       });
 
-      const combineParsed = parseKeyValueXml(combineResponse);
+      const combineParsed = parseXmlSafe(combineResponse);
       finalAppearance =
-        combineParsed?.appearance || appearanceDescriptions.join(", ");
+        combineParsed.appearance || appearanceDescriptions.join(", ");
     }
 
     if (
@@ -874,8 +891,8 @@ export const generateImageAction = {
           prompt,
         });
 
-        const parsedXml = parseKeyValueXml(promptResponse);
-        let imagePrompt = parsedXml?.prompt || "";
+        const parsedXml = parseXmlSafe(promptResponse);
+        let imagePrompt = parsedXml.prompt || "";
 
         const appearance = appearanceResult.appearanceDescription;
 
@@ -1029,8 +1046,8 @@ export const generateImageAction = {
           const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
             prompt: captionPrompt,
           });
-          const parsedCaption = parseKeyValueXml(captionResponse);
-          if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
+          const parsedCaption = parseXmlSafe(captionResponse);
+          if (parsedCaption.caption && parsedCaption.caption.length > 10) {
             caption = parsedCaption.caption;
             // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
             if (caption.length < 30 && !caption.includes("?")) {
@@ -1125,10 +1142,10 @@ export const generateImageAction = {
       prompt,
     });
 
-    const parsedXml = parseKeyValueXml(promptResponse);
+    const parsedXml = parseXmlSafe(promptResponse);
 
     let imagePrompt =
-      parsedXml?.prompt || "Unable to generate descriptive prompt for image";
+      parsedXml.prompt || "Unable to generate descriptive prompt for image";
 
     // For affiliate characters, ensure the prompt generates human selfies
     if (affiliateConfig.isAffiliateCharacter) {

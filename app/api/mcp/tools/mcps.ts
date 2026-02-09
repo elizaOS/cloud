@@ -3,7 +3,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod3";
+import { z } from "zod/v3";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";

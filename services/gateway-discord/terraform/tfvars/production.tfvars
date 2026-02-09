@@ -67,6 +67,9 @@ github_org           = "elizaOS"
 github_repo          = "eliza-cloud-v2"
 create_oidc_provider = false # GitHub OIDC provider already exists in AWS account
 
+# Monitoring
+enable_prometheus = true
+
 # aws-auth ConfigMap
 enable_aws_auth_update = true
 

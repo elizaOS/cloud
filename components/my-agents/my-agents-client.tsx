@@ -11,7 +11,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
-import { CharacterLibraryGrid } from "./character-library-grid";
+import { CharacterLibraryGrid, type AgentWithOwnership } from "./character-library-grid";
 import { CharacterFilters } from "./character-filters";
 import type { ElizaCharacter } from "@/lib/types";
 
@@ -61,6 +61,12 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
     }
   });
 
+  const ownedCharacters: AgentWithOwnership[] = sortedCharacters.map((char) => ({
+    ...char,
+    id: char.id ?? "",
+    isOwned: true,
+  }));
+
   const handleCreateNew = useCallback(() => {
     router.push("/dashboard/build");
   }, [router]);
@@ -84,11 +90,10 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         onSortChange={setSortBy}
         totalCount={initialCharacters.length}
         filteredCount={filteredCharacters.length}
-        onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid
-        characters={sortedCharacters}
+        characters={ownedCharacters}
         viewMode={viewMode}
         onCreateNew={handleCreateNew}
       />
