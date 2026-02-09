@@ -330,6 +330,29 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  linkedin: {
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "Professional networking, profile, and social posting",
+    type: "oauth2",
+    envVars: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://www.linkedin.com/oauth/v2/authorization",
+      token: "https://www.linkedin.com/oauth/v2/accessToken",
+      userInfo: "https://api.linkedin.com/v2/userinfo",
+    },
+    defaultScopes: ["openid", "profile", "email"],
+    userInfoMapping: {
+      id: "sub",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   twitter: {
     id: "twitter",
     name: "Twitter/X",
