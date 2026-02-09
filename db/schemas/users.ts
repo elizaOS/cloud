@@ -45,6 +45,10 @@ export const users = pgTable(
     discord_global_name: text("discord_global_name"), // Discord display name
     discord_avatar_url: text("discord_avatar_url"), // Discord avatar URL
 
+    // WhatsApp identity (Eliza App)
+    whatsapp_id: text("whatsapp_id").unique(), // WhatsApp user ID (digits only, e.g. "14245074963")
+    whatsapp_name: text("whatsapp_name"), // WhatsApp profile display name
+
     // User profile
     email: text("email").unique(),
     email_verified: boolean("email_verified").default(false),
@@ -96,6 +100,7 @@ export const users = pgTable(
     telegram_id_idx: index("users_telegram_id_idx").on(table.telegram_id),
     phone_number_idx: index("users_phone_number_idx").on(table.phone_number),
     discord_id_idx: index("users_discord_id_idx").on(table.discord_id),
+    whatsapp_id_idx: index("users_whatsapp_id_idx").on(table.whatsapp_id),
   }),
 );
 

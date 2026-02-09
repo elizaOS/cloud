@@ -63,10 +63,10 @@ export interface IncomingMessage {
   from: string;
   to: string;
   body: string;
-  provider: "twilio" | "blooio";
+  provider: "twilio" | "blooio" | "whatsapp";
   providerMessageId?: string;
   mediaUrls?: string[];
-  messageType?: "sms" | "mms" | "voice" | "imessage";
+  messageType?: "sms" | "mms" | "voice" | "imessage" | "whatsapp";
   metadata?: Record<string, unknown>;
 }
 
@@ -88,7 +88,7 @@ export interface SendMessageParams {
   to: string;
   from: string;
   body: string;
-  provider: "twilio" | "blooio";
+  provider: "twilio" | "blooio" | "whatsapp";
   mediaUrls?: string[];
   organizationId: string;
 }
@@ -344,6 +344,8 @@ class MessageRouterService {
         return await this.sendViaTwilio(params);
       } else if (params.provider === "blooio") {
         return await this.sendViaBlooio(params);
+      } else if (params.provider === "whatsapp") {
+        return await this.sendViaWhatsApp(params);
       }
 
       logger.error("[MessageRouter] Unknown provider", {
@@ -454,6 +456,31 @@ class MessageRouterService {
   }
 
   /**
+   * Send message via WhatsApp Cloud API
+   */
+  private async sendViaWhatsApp(params: SendMessageParams): Promise<boolean> {
+    try {
+      const { sendWhatsAppMessage } = await import("@/lib/utils/whatsapp-api");
+      const { elizaAppConfig } = await import("@/lib/services/eliza-app/config");
+
+      const { accessToken, phoneNumberId } = elizaAppConfig.whatsapp;
+
+      if (!accessToken || !phoneNumberId) {
+        logger.error("[MessageRouter] Missing WhatsApp credentials");
+        return false;
+      }
+
+      await sendWhatsAppMessage(accessToken, phoneNumberId, params.to, params.body);
+
+      logger.info("[MessageRouter] WhatsApp message sent successfully");
+      return true;
+    } catch (error) {
+      logger.error("[MessageRouter] WhatsApp send error", { error });
+      return false;
+    }
+  }
+
+  /**
    * Log a message to the phone_message_log table
    */
   private async logMessage(params: {
@@ -538,8 +565,8 @@ class MessageRouterService {
     organizationId: string;
     agentId: string;
     phoneNumber: string;
-    provider: "twilio" | "blooio";
-    phoneType?: "sms" | "voice" | "both" | "imessage";
+    provider: "twilio" | "blooio" | "whatsapp";
+    phoneType?: "sms" | "voice" | "both" | "imessage" | "whatsapp";
     friendlyName?: string;
     capabilities?: {
       canSendSms?: boolean;

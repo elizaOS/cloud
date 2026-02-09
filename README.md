@@ -425,7 +425,7 @@ OPENAI_API_KEY=sk-your_openai_key
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
 
-**Eliza App variables** (for Telegram, iMessage, and Discord integrations):
+**Eliza App variables** (for Telegram, iMessage, Discord, and WhatsApp integrations):
 
 ```env
 # JWT secret for Eliza App user sessions (required)
@@ -441,6 +441,13 @@ ELIZA_APP_BLOOIO_API_KEY=      # From Blooio dashboard
 ELIZA_APP_DISCORD_BOT_TOKEN=         # Developer Portal → Bot
 ELIZA_APP_DISCORD_APPLICATION_ID=    # Developer Portal → General Information (also the OAuth2 Client ID)
 ELIZA_APP_DISCORD_CLIENT_SECRET=     # Developer Portal → OAuth2 → Client Secret
+
+# WhatsApp Business Cloud API (optional)
+ELIZA_APP_WHATSAPP_ACCESS_TOKEN=     # Meta Business Settings → System Users → Generate Token
+ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID=  # Meta App Dashboard → WhatsApp → API Setup
+ELIZA_APP_WHATSAPP_APP_SECRET=       # Meta App Dashboard → Settings → Basic → App Secret
+ELIZA_APP_WHATSAPP_VERIFY_TOKEN=     # Generate: openssl rand -hex 32
+ELIZA_APP_WHATSAPP_PHONE_NUMBER=     # Display phone number in E.164 format (e.g. +14245074963)
 ```
 
 See [example.env.local](example.env.local) for the full list of Eliza App environment variables.

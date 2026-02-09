@@ -18,6 +18,7 @@ export const phoneProviderEnum = pgEnum("phone_provider", [
   "twilio",
   "blooio",
   "vonage",
+  "whatsapp",
   "other",
 ]);
 
@@ -29,6 +30,7 @@ export const phoneTypeEnum = pgEnum("phone_type", [
   "voice",
   "both",
   "imessage",
+  "whatsapp",
 ]);
 
 /**

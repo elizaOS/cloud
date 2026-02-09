@@ -7,6 +7,7 @@
 
 export { telegramAuthService, type TelegramAuthData } from "./telegram-auth";
 export { discordAuthService, type DiscordUserData } from "./discord-auth";
+export { whatsAppAuthService } from "./whatsapp-auth";
 export {
   elizaAppSessionService,
   type ElizaAppSessionPayload,

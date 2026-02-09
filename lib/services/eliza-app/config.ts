@@ -44,6 +44,15 @@ export const elizaAppConfig = {
     phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
   },
 
+  // WhatsApp configuration
+  whatsapp: {
+    accessToken: requireEnv("ELIZA_APP_WHATSAPP_ACCESS_TOKEN", ""),
+    phoneNumberId: requireEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID", ""),
+    appSecret: requireEnv("ELIZA_APP_WHATSAPP_APP_SECRET", ""),
+    verifyToken: requireEnv("ELIZA_APP_WHATSAPP_VERIFY_TOKEN", ""),
+    phoneNumber: requireEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER", ""),
+  },
+
   // Discord configuration
   discord: {
     botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),

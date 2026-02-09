@@ -174,6 +174,31 @@ export class UsersRepository {
   }
 
   /**
+   * Finds a user by WhatsApp ID.
+   */
+  async findByWhatsAppId(whatsappId: string): Promise<User | undefined> {
+    return await dbRead.query.users.findFirst({
+      where: eq(users.whatsapp_id, whatsappId),
+    });
+  }
+
+  /**
+   * Finds a user by WhatsApp ID with organization data.
+   */
+  async findByWhatsAppIdWithOrganization(
+    whatsappId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await dbRead.query.users.findFirst({
+      where: eq(users.whatsapp_id, whatsappId),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
+  /**
    * Finds a user by wallet address with organization data.
    */
   async findByWalletAddressWithOrganization(

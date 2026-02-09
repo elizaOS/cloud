@@ -31,6 +31,8 @@ interface User {
   discord_username: string | null;
   discord_global_name: string | null;
   discord_avatar_url: string | null;
+  whatsapp_id: string | null;
+  whatsapp_name: string | null;
   phone_number: string | null;
   phone_verified: boolean;
   name: string | null;
@@ -92,6 +94,10 @@ function findOrgById(id: string): Organization | undefined {
   return organizations.find((o) => o.id === id);
 }
 
+function findByWhatsAppId(whatsappId: string): User | undefined {
+  return users.find((u) => u.whatsapp_id === whatsappId);
+}
+
 function createUser(data: Partial<User> & { name: string }): User {
   // Check unique constraints
   if (data.telegram_id && findByTelegramId(data.telegram_id)) {
@@ -99,6 +105,9 @@ function createUser(data: Partial<User> & { name: string }): User {
   }
   if (data.discord_id && findByDiscordId(data.discord_id)) {
     throw new Error("unique constraint: discord_id");
+  }
+  if (data.whatsapp_id && findByWhatsAppId(data.whatsapp_id)) {
+    throw new Error("unique constraint: whatsapp_id");
   }
   if (data.phone_number && findByPhone(data.phone_number)) {
     throw new Error("unique constraint: phone_number");
@@ -117,6 +126,8 @@ function createUser(data: Partial<User> & { name: string }): User {
     discord_username: data.discord_username ?? null,
     discord_global_name: data.discord_global_name ?? null,
     discord_avatar_url: data.discord_avatar_url ?? null,
+    whatsapp_id: data.whatsapp_id ?? null,
+    whatsapp_name: data.whatsapp_name ?? null,
     phone_number: data.phone_number ?? null,
     phone_verified: data.phone_verified ?? false,
     name: data.name,
@@ -138,6 +149,10 @@ function updateUser(id: string, data: Partial<User>): User {
   if (data.discord_id && data.discord_id !== user.discord_id) {
     const existing = findByDiscordId(data.discord_id);
     if (existing && existing.id !== id) throw new Error("unique constraint: discord_id");
+  }
+  if (data.whatsapp_id && data.whatsapp_id !== user.whatsapp_id) {
+    const existing = findByWhatsAppId(data.whatsapp_id);
+    if (existing && existing.id !== id) throw new Error("unique constraint: whatsapp_id");
   }
   if (data.phone_number && data.phone_number !== user.phone_number) {
     const existing = findByPhone(data.phone_number);
@@ -376,6 +391,80 @@ function linkPhoneToUser(userId: string, phoneNumber: string): LinkResult {
     return { success: true };
   } catch {
     return { success: false, error: "This phone number is already linked to another account" };
+  }
+}
+
+/**
+ * Simulates findOrCreateByWhatsAppId from user-service.ts
+ * 3-step lookup: whatsapp_id → phone (auto-derived) → create
+ */
+function findOrCreateByWhatsAppId(
+  whatsappId: string,
+  profileName?: string,
+): FindOrCreateResult {
+  const derivedPhone = `+${whatsappId.replace(/\D/g, "")}`;
+
+  // Step 1: Check by whatsapp_id
+  const existingWhatsApp = findByWhatsAppId(whatsappId);
+  if (existingWhatsApp) {
+    if (profileName && profileName !== existingWhatsApp.whatsapp_name) {
+      updateUser(existingWhatsApp.id, { whatsapp_name: profileName });
+    }
+    const org = findOrgById(existingWhatsApp.organization_id)!;
+    return { user: existingWhatsApp, organization: org, isNew: false };
+  }
+
+  // Step 2: Check by auto-derived phone
+  const existingPhone = findByPhone(derivedPhone);
+  if (existingPhone) {
+    if (existingPhone.whatsapp_id && existingPhone.whatsapp_id !== whatsappId) {
+      throw new Error("WHATSAPP_ALREADY_LINKED");
+    }
+    updateUser(existingPhone.id, {
+      whatsapp_id: whatsappId,
+      whatsapp_name: profileName ?? null,
+    });
+    const org = findOrgById(existingPhone.organization_id)!;
+    return { user: existingPhone, organization: org, isNew: false };
+  }
+
+  // Step 3: Create new user
+  const displayName = profileName || `WhatsApp ***${whatsappId.slice(-4)}`;
+  const user = createUser({
+    whatsapp_id: whatsappId,
+    whatsapp_name: profileName ?? null,
+    phone_number: derivedPhone,
+    phone_verified: true,
+    name: displayName,
+  });
+  const org = findOrgById(user.organization_id)!;
+  return { user, organization: org, isNew: true };
+}
+
+/**
+ * Simulates linkWhatsAppToUser from user-service.ts (session-based linking)
+ */
+function linkWhatsAppToUser(
+  userId: string,
+  whatsappData: { whatsappId: string; name?: string },
+): LinkResult {
+  const existingWhatsApp = findByWhatsAppId(whatsappData.whatsappId);
+
+  if (existingWhatsApp && existingWhatsApp.id !== userId) {
+    return { success: false, error: "This WhatsApp account is already linked to another account" };
+  }
+  if (existingWhatsApp && existingWhatsApp.id === userId) {
+    return { success: true }; // Idempotent
+  }
+
+  try {
+    updateUser(userId, {
+      whatsapp_id: whatsappData.whatsappId,
+      whatsapp_name: whatsappData.name ?? null,
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: "This WhatsApp account is already linked to another account" };
   }
 }
 
@@ -1027,6 +1116,114 @@ describe("Cross-Platform Account Linking", () => {
       const result = linkDiscordToUser(r2.user.id, {
         discordId: DISCORD_ID,
         username: DISCORD_USER.username,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("already linked");
+    });
+  });
+
+  // ===========================================================================
+  // WhatsApp: findOrCreateByWhatsAppId
+  // ===========================================================================
+
+  describe("findOrCreateByWhatsAppId", () => {
+    const WA_ID = "14245071234";
+    const WA_NAME = "John WhatsApp";
+    const WA_DERIVED_PHONE = "+14245071234";
+
+    test("creates new user with WhatsApp ID and auto-derived phone", () => {
+      const result = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
+      expect(result.isNew).toBe(true);
+      expect(result.user.whatsapp_id).toBe(WA_ID);
+      expect(result.user.whatsapp_name).toBe(WA_NAME);
+      expect(result.user.phone_number).toBe(WA_DERIVED_PHONE);
+      expect(result.user.phone_verified).toBe(true);
+    });
+
+    test("returns existing user when WhatsApp ID already exists", () => {
+      const r1 = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
+      const r2 = findOrCreateByWhatsAppId(WA_ID, "Updated Name");
+      expect(r2.isNew).toBe(false);
+      expect(r2.user.id).toBe(r1.user.id);
+      expect(r2.user.whatsapp_name).toBe("Updated Name");
+    });
+
+    test("links WhatsApp to existing phone user (Telegram-first)", () => {
+      const r1 = findOrCreateByTelegramWithPhone(TELEGRAM_USER, WA_DERIVED_PHONE);
+      expect(r1.user.whatsapp_id).toBeNull();
+
+      const r2 = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
+      expect(r2.isNew).toBe(false);
+      expect(r2.user.id).toBe(r1.user.id);
+      expect(r2.user.whatsapp_id).toBe(WA_ID);
+      expect(r2.user.telegram_id).toBe(String(TELEGRAM_USER.id));
+      expect(r2.user.phone_number).toBe(WA_DERIVED_PHONE);
+    });
+
+    test("links WhatsApp to existing phone user (iMessage-first)", () => {
+      const r1 = findOrCreateByPhone(WA_DERIVED_PHONE);
+      expect(r1.user.whatsapp_id).toBeNull();
+
+      const r2 = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
+      expect(r2.isNew).toBe(false);
+      expect(r2.user.id).toBe(r1.user.id);
+      expect(r2.user.whatsapp_id).toBe(WA_ID);
+    });
+
+    test("all four platforms converge to single user", () => {
+      // Step 1: WhatsApp first
+      const r1 = findOrCreateByWhatsAppId(WA_ID, WA_NAME);
+      expect(r1.isNew).toBe(true);
+
+      // Step 2: Telegram with same phone
+      const r2 = findOrCreateByTelegramWithPhone(TELEGRAM_USER, WA_DERIVED_PHONE);
+      expect(r2.isNew).toBe(false);
+      expect(r2.user.id).toBe(r1.user.id);
+
+      // Step 3: Discord with same phone
+      const r3 = findOrCreateByDiscordId(DISCORD_ID, DISCORD_USER, WA_DERIVED_PHONE);
+      expect(r3.isNew).toBe(false);
+      expect(r3.user.id).toBe(r1.user.id);
+
+      // Verify all platforms linked to single user
+      const finalUser = findById(r1.user.id)!;
+      expect(finalUser.whatsapp_id).toBe(WA_ID);
+      expect(finalUser.telegram_id).toBe(String(TELEGRAM_USER.id));
+      expect(finalUser.discord_id).toBe(DISCORD_ID);
+      expect(finalUser.phone_number).toBe(WA_DERIVED_PHONE);
+    });
+  });
+
+  // ===========================================================================
+  // linkWhatsAppToUser
+  // ===========================================================================
+
+  describe("linkWhatsAppToUser", () => {
+    const WA_ID = "14245071234";
+
+    test("links WhatsApp to user with no WhatsApp", () => {
+      const r = findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE);
+      const result = linkWhatsAppToUser(r.user.id, {
+        whatsappId: WA_ID,
+        name: "Test WA",
+      });
+      expect(result.success).toBe(true);
+      expect(findById(r.user.id)!.whatsapp_id).toBe(WA_ID);
+    });
+
+    test("returns success when WhatsApp already linked to same user (idempotent)", () => {
+      const r = findOrCreateByWhatsAppId(WA_ID, "Test");
+      const result = linkWhatsAppToUser(r.user.id, {
+        whatsappId: WA_ID,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    test("returns error when WhatsApp linked to different user", () => {
+      findOrCreateByWhatsAppId(WA_ID, "User A");
+      const r2 = findOrCreateByTelegramWithPhone(TELEGRAM_USER, PHONE);
+      const result = linkWhatsAppToUser(r2.user.id, {
+        whatsappId: WA_ID,
       });
       expect(result.success).toBe(false);
       expect(result.error).toContain("already linked");
