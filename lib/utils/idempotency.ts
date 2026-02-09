@@ -66,6 +66,18 @@ export async function tryClaimForProcessing(key: string, source = "unknown"): Pr
 }
 
 /**
+ * Release a previously claimed processing key, allowing retries.
+ * Call this when processing fails and you want the message to be retryable.
+ */
+export async function releaseProcessingClaim(key: string): Promise<void> {
+  try {
+    await dbWrite.delete(idempotencyKeys).where(eq(idempotencyKeys.key, key));
+  } catch (error) {
+    logger.error("[Idempotency] Error releasing claim", { key, error: getErrorMessage(error) });
+  }
+}
+
+/**
  * Mark a message as processed. Uses upsert to handle race conditions.
  */
 export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {

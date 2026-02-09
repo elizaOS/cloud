@@ -14,7 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { withInternalAuth } from "@/lib/auth/internal-api";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { tryClaimForProcessing } from "@/lib/utils/idempotency";
+import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
@@ -281,6 +281,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       // Handle unique constraint violation (room already created by concurrent request)
       const isUniqueViolation = (error as { code?: string }).code === "23505";
       if (!isUniqueViolation) {
+        await releaseProcessingClaim(idempotencyKey);
         throw error;
       }
       logger.debug("[ElizaApp DiscordWebhook] Room already exists (concurrent creation)", { roomId });
@@ -295,6 +296,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 
   if (!lock) {
     logger.error("[ElizaApp DiscordWebhook] Failed to acquire room lock", { roomId });
+    await releaseProcessingClaim(idempotencyKey);
     return NextResponse.json(
       { ok: false, error: "Service temporarily unavailable" },
       { status: 503 }
@@ -352,6 +354,8 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
+    // Release claim so the message can be retried
+    await releaseProcessingClaim(idempotencyKey);
     return NextResponse.json({ ok: true });
   } finally {
     await lock.release();
