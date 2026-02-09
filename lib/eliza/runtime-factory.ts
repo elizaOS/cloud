@@ -43,6 +43,7 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
+  airtable: { url: "/api/mcps/airtable/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
 };
 
@@ -540,9 +541,7 @@ export class RuntimeFactory {
     const baseSettings = this.buildSettings(character, context);
     const filteredPlugins = this.filterPlugins(plugins);
 
-    // Build MCP settings separately - these will be passed via opts.settings
-    // to avoid being persisted to the database via character.settings
-    // Pass character.settings to preserve any pre-configured MCP servers
+    // Build MCP settings - based on user's OAuth connections + character's pre-configured servers
     const mcpSettings = this.buildMcpSettings(character.settings || {}, context);
 
     // Add MCP plugin if user has OAuth connections for any MCP server
@@ -567,13 +566,19 @@ export class RuntimeFactory {
       ...mcpSettings,
     };
 
-    // Create runtime with user-specific settings in opts.settings (NOT character.settings)
-    // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
+    // MCP settings must be included in character.settings (not just ephemeral opts.settings)
+    // because the MCP plugin's getSettings() reads from character.settings as its primary source.
+    // runtime.getSetting("mcp") returns null for objects (only handles string/number/boolean),
+    // so the plugin falls through to runtime.character.settings.mcp.
+    // mergeAgentSettings() does { ...dbSettings, ...constructorSettings }, so including mcp
+    // in constructorSettings ensures dynamic MCP config overrides stale DB-stored configs.
+    const characterSettings = { ...baseSettings, ...mcpSettings };
+
     const runtime = new AgentRuntime({
       character: {
         ...character,
         id: agentId,
-        settings: baseSettings,
+        settings: characterSettings,
       },
       plugins: filteredPlugins,
       agentId,

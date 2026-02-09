@@ -27,6 +27,7 @@ import {
   notionAdapter,
   githubAdapter,
   slackAdapter,
+  airtableAdapter,
 } from "./generic-adapter";
 
 // Google now uses the generic adapter (migrated from legacy google-adapter)
@@ -43,6 +44,7 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   notion: notionAdapter,
   github: githubAdapter,
   slack: slackAdapter,
+  airtable: airtableAdapter,
 };
 
 // Cache for dynamically created adapters
