@@ -163,6 +163,13 @@ variable "create_github_actions_role" {
   default     = true
 }
 
+# Monitoring
+variable "enable_prometheus" {
+  description = "Enable Prometheus monitoring stack (kube-prometheus-stack). Only needed in production."
+  type        = bool
+  default     = false
+}
+
 # Tags
 variable "tags" {
   description = "Additional tags for all resources"

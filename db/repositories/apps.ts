@@ -290,7 +290,7 @@ export class AppsRepository {
     return {
       totalRequests: app.total_requests,
       totalUsers: app.total_users,
-      totalCreditsUsed: app.total_credits_used,
+      totalCreditsUsed: app.total_credits_used ?? "0.00",
     };
   }
 

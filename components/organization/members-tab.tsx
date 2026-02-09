@@ -185,7 +185,16 @@ export function MembersTab({ user }: MembersTabProps) {
         </div>
       ) : (
         <MembersList
-          members={members}
+          members={members.map((member) => ({
+            id: member.user?.id ?? member.user_id,
+            name: member.user?.name ?? null,
+            email: member.user?.email ?? null,
+            wallet_address: null,
+            wallet_chain_type: null,
+            role: member.role,
+            is_active: true,
+            created_at: member.created_at,
+          }))}
           currentUserId={user.id}
           currentUserRole={user.role}
           isOwner={isOwner}
@@ -206,7 +215,11 @@ export function MembersTab({ user }: MembersTabProps) {
             </div>
           ) : (
             <PendingInvitesList
-              invites={invites}
+              invites={invites.map((invite) => ({
+                ...invite,
+                inviter: null,
+                accepted_at: null,
+              }))}
               onRevoke={handleRevokeInvite}
             />
           )}

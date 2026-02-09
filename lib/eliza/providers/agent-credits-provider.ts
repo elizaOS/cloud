@@ -64,7 +64,7 @@ export const agentCreditsProvider: Provider = {
   name: "AGENT_CREDITS",
   description: "Provides agent budget and credit information",
 
-  get: async (runtime: IAgentRuntime, _message): Promise<State> => {
+  get: async (runtime: IAgentRuntime, _message) => {
     const agentId = runtime.agentId;
 
     // Try to get budget for this agent
@@ -156,7 +156,8 @@ export const agentCreditsProvider: Provider = {
     });
 
     return {
-      credits: creditsState,
+      data: { credits: creditsState },
+      values: { credits: creditsState },
     };
   },
 };

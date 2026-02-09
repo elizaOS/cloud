@@ -124,7 +124,11 @@ export async function PUT(
       );
     }
 
-    const updatedApp = await appsService.update(id, validationResult.data);
+    const updateData = {
+      ...validationResult.data,
+      app_url: validationResult.data.app_url ?? undefined,
+    };
+    const updatedApp = await appsService.update(id, updateData);
 
     logger.info(`Updated app: ${id}`, {
       appId: id,
@@ -193,7 +197,11 @@ export async function PATCH(
       );
     }
 
-    const updatedApp = await appsService.update(id, validationResult.data);
+    const updateData = {
+      ...validationResult.data,
+      app_url: validationResult.data.app_url ?? undefined,
+    };
+    const updatedApp = await appsService.update(id, updateData);
 
     logger.info(`Patched app: ${id}`, {
       appId: id,

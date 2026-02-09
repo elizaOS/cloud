@@ -147,6 +147,39 @@ module "eks" {
   }
 }
 
+# EKS Blueprints Addons - Cluster-wide addons (Prometheus, metrics-server)
+# https://registry.terraform.io/modules/aws-ia/eks-blueprints-addons/aws/latest
+module "eks_blueprints_addons" {
+  source  = "aws-ia/eks-blueprints-addons/aws"
+  version = "~> 1.23"
+
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  cluster_version   = module.eks.cluster_version
+  oidc_provider_arn = module.eks.oidc_provider_arn
+
+  # Prometheus monitoring stack -- only in production
+  enable_kube_prometheus_stack = var.enable_prometheus
+  kube_prometheus_stack = {
+    namespace = "monitoring"
+    set = [
+      { name = "grafana.enabled", value = "false" },
+    ]
+  }
+
+  # Metrics server -- needed for HPA in all environments
+  enable_metrics_server = true
+
+  # Disable CloudFormation telemetry stack (avoids needing cloudformation:CreateStack permission)
+  observability_tag = null
+
+  tags = {
+    Environment = var.environment
+  }
+
+  depends_on = [module.eks]
+}
+
 # Data source to look up existing GitHub OIDC provider (when not creating one)
 data "aws_iam_openid_connect_provider" "github" {
   count = var.create_oidc_provider ? 0 : 1
