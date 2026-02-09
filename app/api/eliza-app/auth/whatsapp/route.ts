@@ -129,6 +129,7 @@ async function handleWhatsAppAuth(
       updatedUser.id,
       updatedUser.organization.id,
       {
+        whatsappId,
         phoneNumber: updatedUser.phone_number || undefined,
         ...(updatedUser.telegram_id && { telegramId: updatedUser.telegram_id }),
         ...(updatedUser.discord_id && { discordId: updatedUser.discord_id }),
@@ -182,6 +183,7 @@ async function handleWhatsAppAuth(
     userWithOrg.id,
     userWithOrg.organization.id,
     {
+      whatsappId,
       phoneNumber: userWithOrg.phone_number || undefined,
       ...(userWithOrg.telegram_id && { telegramId: userWithOrg.telegram_id }),
       ...(userWithOrg.discord_id && { discordId: userWithOrg.discord_id }),

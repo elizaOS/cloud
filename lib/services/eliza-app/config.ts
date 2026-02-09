@@ -72,5 +72,13 @@ if (isProduction) {
   elizaAppConfig.telegram.botToken;
   elizaAppConfig.blooio.apiKey;
   elizaAppConfig.blooio.phoneNumber;
+  elizaAppConfig.discord.botToken;
+  elizaAppConfig.discord.applicationId;
+  elizaAppConfig.discord.clientSecret;
+  elizaAppConfig.whatsapp.accessToken;
+  elizaAppConfig.whatsapp.phoneNumberId;
+  elizaAppConfig.whatsapp.appSecret;
+  elizaAppConfig.whatsapp.verifyToken;
+  elizaAppConfig.whatsapp.phoneNumber;
   elizaAppConfig.jwt.secret;
 }
