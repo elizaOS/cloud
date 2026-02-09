@@ -81,7 +81,13 @@ async function getNotionMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({ organizationId: orgId, platform: "notion" });
           const active = connections.find((c) => c.status === "active");
-          if (!active) return jsonResult({ connected: false });
+          if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({ connected: false, status: "expired", message: "Notion connection expired. Please reconnect in Settings > Connections." });
+            }
+            return jsonResult({ connected: false });
+          }
           return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");

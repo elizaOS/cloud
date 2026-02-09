@@ -22,6 +22,10 @@ interface UserInfoResponse {
     telegram_id: string | null;
     telegram_username: string | null;
     telegram_first_name: string | null;
+    discord_id: string | null;
+    discord_username: string | null;
+    discord_global_name: string | null;
+    discord_avatar_url: string | null;
     phone_number: string | null;
     name: string | null;
     avatar: string | null;
@@ -98,6 +102,10 @@ async function handleGetUser(
       telegram_id: user.telegram_id,
       telegram_username: user.telegram_username,
       telegram_first_name: user.telegram_first_name,
+      discord_id: user.discord_id,
+      discord_username: user.discord_username,
+      discord_global_name: user.discord_global_name,
+      discord_avatar_url: user.discord_avatar_url,
       phone_number: user.phone_number,
       name: user.name,
       avatar: user.avatar,

@@ -201,6 +201,13 @@
     {
       "idx": 28,
       "version": "7",
+      "when": 1770317800000,
+      "tag": "0028_add_user_platform_oauth_constraint",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
       "when": 1770372642065,
       "tag": "0028_add_missing_apps_columns",
       "breakpoints": true

@@ -3,6 +3,7 @@
 # Enable Eliza App Discord bot (system-wide DM-based interactions)
 elizaAppBot:
   enabled: true
+  leaderKey: "discord:eliza-app-bot:leader:prod"
 
 # Production resource limits
 resources:

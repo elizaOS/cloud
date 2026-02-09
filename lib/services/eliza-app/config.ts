@@ -19,6 +19,9 @@ function requireEnv(name: string, fallback?: string): string {
 }
 
 export const elizaAppConfig = {
+  // Frontend URL (the consumer-facing app, e.g. eliza.app)
+  appUrl: process.env.ELIZA_APP_URL || "https://eliza.app",
+
   // Agent configuration
   defaultAgentId: process.env.ELIZA_APP_DEFAULT_AGENT_ID || "b850bc30-45f8-0041-a00a-83df46d8555d",
 
@@ -44,7 +47,8 @@ export const elizaAppConfig = {
   // Discord configuration
   discord: {
     botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
-    applicationId: process.env.ELIZA_APP_DISCORD_APPLICATION_ID || "",
+    applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
+    clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
   },
 
   // JWT configuration - secret required in all environments
