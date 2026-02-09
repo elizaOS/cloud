@@ -3,7 +3,7 @@ import { z } from "zod";
 
 interface CoinGeckoPriceData {
   [coinId: string]: {
-    [currency: string]: number;
+    [currency: string]: number | undefined;
     usd_24h_change?: number;
     usd_market_cap?: number;
     usd_24h_vol?: number;

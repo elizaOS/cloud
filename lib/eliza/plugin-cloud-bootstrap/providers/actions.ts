@@ -40,7 +40,8 @@ export const actionsProvider: Provider = {
         try {
           return (await action.validate(runtime, message, state)) ? action : null;
         } catch (e) {
-          logger.error(`[ACTIONS] validate error: ${action.name}`, e);
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
           return null;
         }
       })

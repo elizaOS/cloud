@@ -10,16 +10,7 @@ import {
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
-export function Button({
-  borderRadius = "1.75rem",
-  children,
-  as: Component = "button",
-  containerClassName,
-  borderClassName,
-  duration,
-  className,
-  ...otherProps
-}: {
+type MovingBorderButtonProps = {
   borderRadius?: string;
   children: React.ReactNode;
   as?: React.ElementType;
@@ -28,7 +19,19 @@ export function Button({
   duration?: number;
   className?: string;
   [key: string]: unknown;
-}) {
+};
+
+export function Button({
+  borderRadius = "1.75rem",
+  children,
+  as,
+  containerClassName,
+  borderClassName,
+  duration,
+  className,
+  ...otherProps
+}: MovingBorderButtonProps) {
+  const Component = (as ?? "button") as any;
   return (
     <Component
       className={cn(

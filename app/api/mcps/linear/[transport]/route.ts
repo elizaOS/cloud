@@ -92,7 +92,14 @@ async function getLinearMcpHandler() {
           const orgId = getOrgId();
           const connections = await oauthService.listConnections({ organizationId: orgId, platform: "linear" });
           const active = connections.find((c) => c.status === "active");
-          return jsonResult(active ? { connected: true, email: active.email, scopes: active.scopes } : { connected: false });
+          if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({ connected: false, status: "expired", message: "Linear connection expired. Please reconnect in Settings > Connections." });
+            }
+            return jsonResult({ connected: false });
+          }
+          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }

@@ -411,7 +411,7 @@ export class SeoService {
             "meta",
             request.locale,
             request.page_url ?? undefined,
-            request.keywords,
+            request.keywords ?? undefined,
           );
           await charge(
             SEO_PRICING.claudeGenerationFloor,
@@ -449,7 +449,7 @@ export class SeoService {
             "schema",
             request.locale,
             request.page_url ?? undefined,
-            request.keywords,
+            request.keywords ?? undefined,
           );
           await charge(
             SEO_PRICING.claudeGenerationFloor,

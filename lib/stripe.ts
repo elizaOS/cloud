@@ -157,7 +157,7 @@ export function isStripeConfigured(): boolean {
  *   return stripe.customers.create({ email });
  * }
  */
-export function assertStripeConfigured(): asserts stripe is Stripe {
+export function assertStripeConfigured(): void {
   if (!isStripeConfigured()) {
     throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
   }

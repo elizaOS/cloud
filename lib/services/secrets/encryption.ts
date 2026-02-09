@@ -1,5 +1,16 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
+export class DecryptionError extends Error {
+  constructor(
+    message: string,
+    public readonly phase: "dek_decryption" | "value_decryption",
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "DecryptionError";
+  }
+}
+
 export interface EncryptionResult {
   encryptedValue: string;
   encryptedDek: string;
@@ -175,19 +186,38 @@ export class SecretsEncryptionService {
     nonce,
     authTag,
   }: DecryptionParams): Promise<string> {
-    const dek = await this.kms.decrypt(encryptedDek);
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      dek,
-      Buffer.from(nonce, "base64"),
-    );
-    decipher.setAuthTag(Buffer.from(authTag, "base64"));
-    const result = Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, "base64")),
-      decipher.final(),
-    ]).toString("utf8");
-    dek.fill(0);
-    return result;
+    let dek: Buffer;
+    try {
+      dek = await this.kms.decrypt(encryptedDek);
+    } catch (error) {
+      throw new DecryptionError(
+        "Failed to decrypt data encryption key — SECRETS_MASTER_KEY may have changed since this secret was stored",
+        "dek_decryption",
+        error,
+      );
+    }
+
+    try {
+      const decipher = createDecipheriv(
+        "aes-256-gcm",
+        dek,
+        Buffer.from(nonce, "base64"),
+      );
+      decipher.setAuthTag(Buffer.from(authTag, "base64"));
+      const result = Buffer.concat([
+        decipher.update(Buffer.from(encryptedValue, "base64")),
+        decipher.final(),
+      ]).toString("utf8");
+      return result;
+    } catch (error) {
+      throw new DecryptionError(
+        "Failed to decrypt secret value — stored encryption data may be corrupted",
+        "value_decryption",
+        error,
+      );
+    } finally {
+      dek.fill(0);
+    }
   }
 
   async rotate(params: DecryptionParams): Promise<EncryptionResult> {

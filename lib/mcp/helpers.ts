@@ -182,7 +182,7 @@ export function withCredits<TParams, TResult>(
       const cached = await context.getToolCache(toolName, params);
       if (cached !== null) {
         logger.debug(`[MCP:${toolName}] Cache hit, returning cached result`);
-        return cached;
+        return cached as TResult;
       }
     }
 
@@ -266,7 +266,7 @@ export function withCache<TParams, TResult>(
       const cached = await context.getToolCache(toolName, params);
       if (cached !== null) {
         logger.debug(`[MCP:${toolName}] Cache hit, returning cached result`);
-        return cached;
+        return cached as TResult;
       }
     }
 

@@ -143,6 +143,13 @@ resource "kubernetes_role" "github_actions_deployer" {
     verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
   }
 
+  # Prometheus Operator CRDs (for ServiceMonitor and PrometheusRule)
+  rule {
+    api_groups = ["monitoring.coreos.com"]
+    resources  = ["servicemonitors", "prometheusrules", "podmonitors"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+
   # Events (read-only for debugging)
   rule {
     api_groups = [""]

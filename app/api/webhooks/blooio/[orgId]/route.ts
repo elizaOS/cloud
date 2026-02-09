@@ -238,20 +238,30 @@ async function handleIncomingMessage(
     protocol: event.protocol,
   });
 
+  const sender = event.sender ?? undefined;
+  if (!sender) {
+    logger.warn("[BlooioWebhook] Missing sender in event payload", { orgId });
+    return;
+  }
+
   // Use the configured Blooio phone number as the recipient (the number that received the message)
   // Fall back to external_id only if no from number is configured
   const recipient = blooioFromNumber || event.external_id || chatId;
+  if (!recipient) {
+    logger.warn("[BlooioWebhook] Missing recipient in event payload", { orgId });
+    return;
+  }
   
   // Extract and validate media URLs from attachments (prevents SSRF)
   const extractedMediaUrls = extractBlooioMediaUrls(event.attachments);
 
   // Build message context for routing
   const messageContext = {
-    from: event.sender,
+    from: sender,
     to: recipient,
     body: text || "",
     provider: "blooio" as const,
-    providerMessageId: event.message_id,
+    providerMessageId: event.message_id ?? undefined,
     mediaUrls: extractedMediaUrls,
     messageType: "imessage" as const,
     metadata: {
@@ -269,7 +279,7 @@ async function handleIncomingMessage(
   if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
     logger.info("[BlooioWebhook] Message received (agent routing not configured)", {
       orgId,
-      from: event.sender,
+      from: sender,
       text: text?.substring(0, 50),
     });
     return;
@@ -280,11 +290,11 @@ async function handleIncomingMessage(
     routeResult.agentId,
     routeResult.organizationId,
     {
-      from: event.sender,
+      from: sender,
       to: recipient,
       body: text || "",
       provider: "blooio",
-      providerMessageId: event.message_id,
+      providerMessageId: event.message_id ?? undefined,
       mediaUrls: extractedMediaUrls,
       messageType: "imessage",
     },
@@ -293,7 +303,7 @@ async function handleIncomingMessage(
   if (agentResponse) {
     // Send the response back via Blooio
     const sent = await messageRouterService.sendMessage({
-      to: event.sender,
+      to: sender,
       from: recipient,
       body: agentResponse.text,
       provider: "blooio",
