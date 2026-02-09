@@ -14,7 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { withInternalAuth } from "@/lib/auth/internal-api";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
@@ -228,9 +228,15 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     return NextResponse.json({ ok: false, error: "Invalid username" }, { status: 400 });
   }
 
-  // Idempotency check
+  // Atomic idempotency claim - prevents duplicate processing from concurrent requests.
+  // Uses INSERT ... ON CONFLICT DO NOTHING so only one caller wins the race.
   const idempotencyKey = `discord:eliza-app:${payload.event_id}`;
-  if (await isAlreadyProcessed(idempotencyKey)) {
+  const claimed = await tryClaimForProcessing(idempotencyKey, "discord-eliza-app");
+  if (!claimed) {
+    logger.info("[ElizaApp DiscordWebhook] Duplicate event skipped", {
+      eventId: payload.event_id,
+      discordUserId,
+    });
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
@@ -241,7 +247,6 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       data.channel_id,
       `Welcome! To chat with Eliza, please connect your Discord account first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
-    await markAsProcessed(idempotencyKey, "discord-eliza-app");
     return NextResponse.json({ ok: true });
   }
   const { organization } = userWithOrg;
@@ -341,15 +346,12 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       });
     }
 
-    await markAsProcessed(idempotencyKey, "discord-eliza-app");
     return NextResponse.json({ ok: true });
   } catch (error) {
     logger.error("[ElizaApp DiscordWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
-    // Mark as processed to avoid infinite retry
-    await markAsProcessed(idempotencyKey, "discord-eliza-app");
     return NextResponse.json({ ok: true });
   } finally {
     await lock.release();

@@ -44,6 +44,28 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
 }
 
 /**
+ * Atomically claim a key for processing. Returns true if THIS caller claimed it.
+ * Uses INSERT ... ON CONFLICT DO NOTHING so only one concurrent caller wins.
+ * Unlike isAlreadyProcessed + markAsProcessed, this is a single atomic operation
+ * with no TOCTOU race window.
+ */
+export async function tryClaimForProcessing(key: string, source = "unknown"): Promise<boolean> {
+  try {
+    const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
+    const result = await dbWrite
+      .insert(idempotencyKeys)
+      .values({ key, source, expires_at })
+      .onConflictDoNothing({ target: idempotencyKeys.key });
+
+    // rowCount === 1 means we inserted (claimed), 0 means key already exists
+    return (result as unknown as { rowCount: number }).rowCount === 1;
+  } catch (error) {
+    logger.error("[Idempotency] Error claiming key", { key, source, error: getErrorMessage(error) });
+    return true; // Fail open to avoid dropping messages
+  }
+}
+
+/**
  * Mark a message as processed. Uses upsert to handle race conditions.
  */
 export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {
