@@ -1573,7 +1573,7 @@ export class GatewayManager {
           this.isElizaAppLeader = false;
           await this.disconnectElizaAppBot();
         } else {
-          logger.info("Renewed Eliza App bot leadership", {
+          logger.debug("Renewed Eliza App bot leadership", {
             podName: this.config.podName,
           });
         }
@@ -1595,7 +1595,7 @@ export class GatewayManager {
         this.isElizaAppLeader = true;
         await this.connectElizaAppBot();
       } else {
-        logger.info("Eliza App bot leadership held by another pod", {
+        logger.debug("Eliza App bot leadership held by another pod", {
           podName: this.config.podName,
         });
       }
