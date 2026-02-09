@@ -95,6 +95,30 @@ class AdminService {
   }
 
   /**
+   * Get admin status + role for a wallet address in a single query.
+   */
+  async getAdminStatus(
+    walletAddress: string,
+  ): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
+    // In devnet, the default anvil wallet is super_admin
+    if (
+      isDevnet() &&
+      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
+    ) {
+      return { isAdmin: true, role: "super_admin" };
+    }
+
+    const admin = await dbRead.query.adminUsers.findFirst({
+      where: and(
+        eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
+        eq(adminUsers.isActive, true),
+      ),
+    });
+
+    return { isAdmin: !!admin, role: admin?.role ?? null };
+  }
+
+  /**
    * Promote a wallet address to admin
    */
   async promoteToAdmin(params: {

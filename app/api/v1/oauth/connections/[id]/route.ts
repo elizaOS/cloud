@@ -8,6 +8,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { oauthService, OAuthError, Errors, internalErrorResponse } from "@/lib/services/oauth";
 import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
+import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export async function DELETE(
       await Promise.all([
         invalidateByOrganization(user.organization_id),
         entitySettingsCache.invalidateUser(user.id),
+        edgeRuntimeCache.bumpMcpVersion(user.organization_id),
       ]);
     } catch (e) {
       logger.warn("[API] Cache invalidation failed", { error: String(e) });

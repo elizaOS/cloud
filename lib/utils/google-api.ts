@@ -61,7 +61,9 @@ export const DEFAULT_GOOGLE_SCOPES = [
  * Set of all allowed Google OAuth scopes
  * Used to validate user-requested scopes
  */
-export const ALLOWED_GOOGLE_SCOPES = new Set(Object.values(GOOGLE_SCOPES));
+export const ALLOWED_GOOGLE_SCOPES = new Set<string>(
+  Object.values(GOOGLE_SCOPES),
+);
 
 /**
  * Validate and filter requested scopes to only include allowed ones

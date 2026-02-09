@@ -85,6 +85,10 @@ spec:
             {{- if .Values.elizaAppBot.enabled }}
             - name: ELIZA_APP_DISCORD_BOT_ENABLED
               value: "true"
+            {{- if .Values.elizaAppBot.leaderKey }}
+            - name: ELIZA_APP_LEADER_KEY
+              value: {{ .Values.elizaAppBot.leaderKey | quote }}
+            {{- end }}
             - name: ELIZA_APP_DISCORD_BOT_TOKEN
               valueFrom:
                 secretKeyRef:

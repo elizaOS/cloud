@@ -4,7 +4,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod3";
+import { z } from "zod/v3";
 import {
   creditsService,
   InsufficientCreditsError,
