@@ -330,6 +330,30 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  asana: {
+    id: "asana",
+    name: "Asana",
+    description: "Task management, projects, and team collaboration",
+    type: "oauth2",
+    envVars: ["ASANA_CLIENT_ID", "ASANA_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://app.asana.com/-/oauth_authorize",
+      token: "https://app.asana.com/-/oauth_token",
+      userInfo: "https://app.asana.com/api/1.0/users/me",
+      revoke: "https://app.asana.com/-/oauth_revoke",
+    },
+    defaultScopes: ["default"],
+    userInfoMapping: {
+      id: "data.gid",
+      email: "data.email",
+      displayName: "data.name",
+      avatarUrl: "data.photo.image_128x128",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   twitter: {
     id: "twitter",
     name: "Twitter/X",
