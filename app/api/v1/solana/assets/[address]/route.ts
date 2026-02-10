@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeWithBody } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
+import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
 
 export const maxDuration = 30;
 
@@ -26,6 +27,17 @@ export async function GET(
   { params }: { params: Promise<{ address: string }> },
 ) {
   const { address } = await params;
+
+  // Validate Solana address format to prevent DoS and invalid requests
+  if (!isValidSolanaAddress(address)) {
+    return NextResponse.json(
+      { 
+        error: "Invalid Solana address format",
+        details: "Address must be 32-44 base58-encoded characters"
+      },
+      { status: 400 },
+    );
+  }
 
   const body = {
     jsonrpc: "2.0",
