@@ -5,6 +5,7 @@ import { DiscordGatewayConnection } from "../discord-gateway-connection";
 import { GoogleConnection } from "../google-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
+import { WhatsAppConnection } from "../whatsapp-connection";
 
 export function ConnectionsTab() {
   return (
@@ -17,7 +18,7 @@ export function ConnectionsTab() {
           </h2>
           <p className="text-sm text-muted-foreground">
             Connect messaging services for AI-powered conversations via SMS,
-            iMessage, and email.
+            iMessage, WhatsApp, and email.
           </p>
         </div>
 
@@ -25,6 +26,7 @@ export function ConnectionsTab() {
           <GoogleConnection />
           <TwilioConnection />
           <BlooioConnection />
+          <WhatsAppConnection />
         </div>
       </div>
 

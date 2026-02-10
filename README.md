@@ -442,13 +442,17 @@ ELIZA_APP_DISCORD_BOT_TOKEN=         # Developer Portal → Bot
 ELIZA_APP_DISCORD_APPLICATION_ID=    # Developer Portal → General Information (also the OAuth2 Client ID)
 ELIZA_APP_DISCORD_CLIENT_SECRET=     # Developer Portal → OAuth2 → Client Secret
 
-# WhatsApp Business Cloud API (optional)
+# WhatsApp Business Cloud API (optional — for the public Eliza App bot)
 ELIZA_APP_WHATSAPP_ACCESS_TOKEN=     # Meta Business Settings → System Users → Generate Token
 ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID=  # Meta App Dashboard → WhatsApp → API Setup
 ELIZA_APP_WHATSAPP_APP_SECRET=       # Meta App Dashboard → Settings → Basic → App Secret
 ELIZA_APP_WHATSAPP_VERIFY_TOKEN=     # Generate: openssl rand -hex 32
 ELIZA_APP_WHATSAPP_PHONE_NUMBER=     # Display phone number in E.164 format (e.g. +14245074963)
 ```
+
+**Organization-level WhatsApp** (Dashboard > Settings > Connections):
+
+> Per-organization WhatsApp credentials are stored in the database via the dashboard UI — **no env vars required**. Each organization connects their own WhatsApp Business account by entering their Access Token, Phone Number ID, and App Secret in the connections settings. The webhook URL and verify token are auto-generated and displayed after connecting.
 
 See [example.env.local](example.env.local) for the full list of Eliza App environment variables.
 

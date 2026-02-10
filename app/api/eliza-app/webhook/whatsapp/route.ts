@@ -86,12 +86,26 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
     return true; // Mark as processed to avoid infinite retries on bad data
   }
 
-  // Mark message as read for better UX (sends blue checkmarks)
-  markWhatsAppMessageAsRead(WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID, msg.messageId)
-    .catch((err) => logger.warn("[ElizaApp WhatsAppWebhook] Failed to mark as read", {
-      messageId: msg.messageId,
-      error: err instanceof Error ? err.message : String(err),
-    }));
+  // Mark message as read for better UX (sends blue checkmarks).
+  // Uses retry with backoff since the first outbound fetch can fail on cold connections.
+  const markRead = async (retries = 2) => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await markWhatsAppMessageAsRead(WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID, msg.messageId);
+        return;
+      } catch (err) {
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        } else {
+          logger.warn("[ElizaApp WhatsAppWebhook] Failed to mark as read after retries", {
+            messageId: msg.messageId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+  };
+  markRead();
 
   // Auto-provision user by WhatsApp ID (phone number digits)
   // This also auto-derives phone_number and links cross-platform
