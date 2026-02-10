@@ -27,4 +27,10 @@ export const PROXY_CONFIG = {
   // Retry configuration
   RPC_MAX_RETRIES: parseInt(process.env.RPC_MAX_RETRIES || "5"),
   RPC_INITIAL_RETRY_DELAY_MS: parseInt(process.env.RPC_INITIAL_RETRY_DELAY_MS || "1000"),
+  
+  // Market Data API configuration
+  MARKET_DATA_BASE_URL: process.env.MARKET_DATA_BASE_URL || "https://public-api.birdeye.so",
+  MARKET_DATA_TIMEOUT_MS: parseInt(process.env.MARKET_DATA_TIMEOUT_MS || "15000"),
+  MARKET_DATA_MAX_RETRIES: parseInt(process.env.MARKET_DATA_MAX_RETRIES || "3"),
+  MARKET_DATA_INITIAL_RETRY_DELAY_MS: parseInt(process.env.MARKET_DATA_INITIAL_RETRY_DELAY_MS || "500"),
 } as const;

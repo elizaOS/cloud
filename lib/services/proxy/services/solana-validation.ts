@@ -6,27 +6,7 @@
  * Typical length: 32-44 characters (most commonly 43-44)
  */
 
-const SOLANA_ADDRESS_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-
-/**
- * Validates a Solana address format
- * 
- * @param address - The address string to validate
- * @returns true if valid Solana address format
- */
-export function isValidSolanaAddress(address: string): boolean {
-  if (!address || typeof address !== "string") {
-    return false;
-  }
-
-  // Check length first (performance optimization)
-  if (address.length < 32 || address.length > 44) {
-    return false;
-  }
-
-  // Validate base58 format
-  return SOLANA_ADDRESS_REGEX.test(address);
-}
+export { isValidSolanaAddress } from "./address-validation";
 
 /**
  * Validates Solana address and throws descriptive error if invalid

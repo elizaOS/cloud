@@ -3,6 +3,7 @@ import { logger } from "@/lib/utils/logger";
 import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
+import { retryFetch } from "../fetch";
 
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
@@ -183,70 +184,6 @@ export const solanaRpcConfig: ServiceConfig = {
   },
 };
 
-/**
- * Retry wrapper with exponential backoff
- * Delays: 1s, 2s, 4s, 8s, 16s (max)
- */
-async function fetchWithRetry(
-  url: string,
-  body: unknown,
-  network: string,
-  attempt: number = 1,
-): Promise<Response> {
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(PROXY_CONFIG.UPSTREAM_TIMEOUT_MS),
-    });
-
-    // Log attempt
-    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
-    logger.debug("[Solana RPC] Attempt", {
-      attempt,
-      url: sanitizedUrl,
-      status: response.status,
-    });
-
-    // Success or non-retriable error
-    if (response.ok || response.status === 400 || response.status === 404) {
-      return response;
-    }
-
-    // Retriable error - retry if attempts remain
-    if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
-      const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-      logger.warn("[Solana RPC] Retriable error, retrying", {
-        attempt,
-        status: response.status,
-        delayMs,
-      });
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      return fetchWithRetry(url, body, network, attempt + 1);
-    }
-
-    return response;
-  } catch (error) {
-    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
-    
-    if (error instanceof Error && error.name === "TimeoutError") {
-      logger.warn("[Solana RPC] Timeout", { attempt, url: sanitizedUrl });
-      
-      // Retry on timeout if attempts remain
-      if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
-        const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-        logger.info("[Solana RPC] Retrying after timeout", { attempt, delayMs });
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-        return fetchWithRetry(url, body, network, attempt + 1);
-      }
-    }
-
-    throw error;
-  }
-}
 
 export const solanaRpcHandler: ServiceHandler = async ({
   body,
@@ -280,7 +217,21 @@ export const solanaRpcHandler: ServiceHandler = async ({
 
   try {
     // Try primary URL with retry-backoff
-    const response = await fetchWithRetry(primaryUrl, body, network);
+    const response = await retryFetch({
+      url: primaryUrl,
+      init: {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+      maxRetries: PROXY_CONFIG.RPC_MAX_RETRIES,
+      initialDelayMs: PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS,
+      timeoutMs: PROXY_CONFIG.UPSTREAM_TIMEOUT_MS,
+      serviceTag: "Solana RPC",
+      nonRetriableStatuses: [400, 404],
+    });
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -297,7 +248,21 @@ export const solanaRpcHandler: ServiceHandler = async ({
         const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;
         
         try {
-          const fallbackResponse = await fetchWithRetry(fallbackUrl, body, network);
+          const fallbackResponse = await retryFetch({
+            url: fallbackUrl,
+            init: {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(body),
+            },
+            maxRetries: PROXY_CONFIG.RPC_MAX_RETRIES,
+            initialDelayMs: PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS,
+            timeoutMs: PROXY_CONFIG.UPSTREAM_TIMEOUT_MS,
+            serviceTag: "Solana RPC",
+            nonRetriableStatuses: [400, 404],
+          });
           
           if (fallbackResponse.ok) {
             logger.info("[Solana RPC] Fallback succeeded");

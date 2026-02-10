@@ -117,6 +117,12 @@ const ENV_VARS = {
     required: false,
     description: "Solana RPC provider API key (enables Solana blockchain access)",
   },
+
+  // Market Data API
+  MARKET_DATA_PROVIDER_API_KEY: {
+    required: false,
+    description: "Market data API key (enables multi-chain token price and market data)",
+  },
 } as const;
 
 /**

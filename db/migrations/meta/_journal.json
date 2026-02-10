@@ -232,6 +232,13 @@
       "when": 1770689059409,
       "tag": "0032_married_johnny_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1770691901912,
+      "tag": "0033_seed_market_data_pricing",
+      "breakpoints": true
     }
   ]
 }
