@@ -31,6 +31,11 @@ import {
 
 // Google now uses the generic adapter (migrated from legacy google-adapter)
 const googleAdapter = createGenericAdapter("google");
+const asanaAdapter = createGenericAdapter("asana");
+const dropboxAdapter = createGenericAdapter("dropbox");
+const salesforceAdapter = createGenericAdapter("salesforce");
+const airtableAdapter = createGenericAdapter("airtable");
+const zoomAdapter = createGenericAdapter("zoom");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {
@@ -39,6 +44,11 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   twilio: twilioAdapter,
   blooio: blooioAdapter,
   // Generic OAuth2 providers
+  asana: asanaAdapter,
+  dropbox: dropboxAdapter,
+  salesforce: salesforceAdapter,
+  airtable: airtableAdapter,
+  zoom: zoomAdapter,
   linear: linearAdapter,
   notion: notionAdapter,
   github: githubAdapter,

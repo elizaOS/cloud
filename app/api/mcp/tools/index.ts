@@ -19,3 +19,8 @@ export { registerGoogleTools } from "./google";
 export { registerLinearTools } from "./linear";
 export { registerNotionTools } from "./notion";
 export { registerGitHubTools } from "./github";
+export { registerAsanaTools } from "./asana";
+export { registerDropboxTools } from "./dropbox";
+export { registerSalesforceTools } from "./salesforce";
+export { registerAirtableTools } from "./airtable";
+export { registerZoomTools } from "./zoom";
