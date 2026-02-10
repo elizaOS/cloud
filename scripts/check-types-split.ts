@@ -17,8 +17,9 @@
  */
 
 import { exec } from "node:child_process";
-import { writeFile, unlink, readFile } from "node:fs/promises";
+import { writeFile, unlink, readFile, readdir } from "node:fs/promises";
 import { promisify } from "node:util";
+import { join } from "node:path";
 
 const execAsync = promisify(exec);
 
@@ -29,7 +30,28 @@ interface CheckResult {
   duration: number;
 }
 
-const DIRECTORIES = ["db", "lib", "components", "app"];
+async function getLibSubdirectories(): Promise<string[]> {
+  try {
+    const libEntries = await readdir("lib", { withFileTypes: true });
+    return libEntries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `lib/${entry.name}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+async function getDirectoriesToCheck(): Promise<string[]> {
+  const libSubdirs = await getLibSubdirectories();
+  
+  return [
+    "db",
+    ...libSubdirs,
+    "components",
+    "app",
+  ];
+}
 
 async function createTempTsconfig(
   directory: string,
@@ -41,9 +63,11 @@ async function createTempTsconfig(
     ...baseTsconfig,
     compilerOptions: {
       ...(baseTsconfig as { compilerOptions: object }).compilerOptions,
-      // Disable incremental for temp configs to avoid conflicts
+      // Aggressive memory optimization
       incremental: false,
       tsBuildInfoFile: undefined,
+      skipLibCheck: true,
+      skipDefaultLibCheck: true,
     },
     include: [
       "next-env.d.ts",
@@ -51,7 +75,7 @@ async function createTempTsconfig(
       `${directory}/**/*.ts`,
       `${directory}/**/*.tsx`,
     ],
-    // Keep the same excludes
+    // Exclude .next types and other heavy directories
     exclude: [
       "node_modules",
       "ignore",
@@ -64,6 +88,8 @@ async function createTempTsconfig(
       "dist",
       ".turbo",
       "coverage",
+      ".next/types",
+      ".next/dev/types",
     ],
   };
 
@@ -87,7 +113,8 @@ async function checkDirectory(
       `bunx tsc --noEmit --project ${tempConfigPath} 2>&1`,
       {
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large output
-        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" },
+        // Limit to 2GB per check instead of 4GB
+        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
       }
     );
 
@@ -126,11 +153,15 @@ async function main() {
   const baseTsconfigContent = await readFile("tsconfig.json", "utf-8");
   const baseTsconfig = JSON.parse(baseTsconfigContent);
 
+  // Get directories dynamically
+  const directories = await getDirectoriesToCheck();
+  console.log(`Found ${directories.length} directories to check\n`);
+
   const results: CheckResult[] = [];
   const totalStart = Date.now();
 
   // Check each directory sequentially
-  for (const dir of DIRECTORIES) {
+  for (const dir of directories) {
     // Force garbage collection between runs if available
     if (global.gc) {
       global.gc();
