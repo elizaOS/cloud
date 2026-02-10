@@ -21,6 +21,7 @@ import {
   requiresAssistantMode,
   hasAffiliateData,
 } from "./agent-mode-types";
+import { cloudN8nPlugin } from "./plugin-n8n";
 
 // Plugin cache - preloaded at module init to eliminate dynamic import latency
 let _knowledgePlugin: Plugin | null = null;
@@ -53,7 +54,6 @@ preloadPlugins();
 
 export type ModeUpgradeReason =
   | "settings_plugin"
-  | "explicit_plugin"
   | "has_knowledge"
   | "none";
 
@@ -104,7 +104,7 @@ async function resolveEffectiveMode(
   if (hasExplicitSettingsPlugin(characterPlugins)) {
     return {
       mode: AgentMode.ASSISTANT,
-      upgradeReason: "explicit_plugin",
+      upgradeReason: "settings_plugin",
       documentCount,
     };
   }
@@ -151,6 +151,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
   "@elizaos/plugin-memory": asPlugin(memoryPlugin),
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
+  "@elizaos/plugin-n8n-workflow": cloudN8nPlugin,
   "@eliza-cloud/plugin-assistant": cloudBootstrapPlugin,
   "@eliza-cloud/plugin-affiliate": affiliatePlugin,
   "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,
