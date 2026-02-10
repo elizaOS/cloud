@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHandler } from "@/lib/services/proxy/engine";
-import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
+import { rpcConfigForChain, rpcHandlerForChain } from "@/lib/services/proxy/services/rpc";
 
 export const maxDuration = 30;
 
@@ -21,4 +21,8 @@ export async function OPTIONS() {
   });
 }
 
-export const POST = createHandler(solanaRpcConfig, solanaRpcHandler);
+export async function POST(request: NextRequest) {
+  const config = rpcConfigForChain("solana");
+  const handler = createHandler(config, rpcHandlerForChain("solana"));
+  return handler(request);
+}
