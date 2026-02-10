@@ -5,6 +5,20 @@ import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
 
+/**
+ * Market Data Service Handler
+ * 
+ * WHY provider abstraction:
+ * - Routes never mention "Birdeye" - they use generic methods like "getPrice"
+ * - This map is the ONLY place that knows about Birdeye's API structure
+ * - Swapping providers = update this map + PROXY_CONFIG.MARKET_DATA_BASE_URL
+ * - Example: Switching to CoinGecko just changes paths here, routes unchanged
+ * 
+ * WHY this specific design:
+ * - LLMs can easily add new routes without knowing provider details
+ * - Testing is easier: mock at the handler level, not per-route
+ * - Migrations are safer: change provider without touching 5+ route files
+ */
 const PROVIDER_PATHS: Record<string, string> = {
   getPrice: "/defi/price",
   getPriceHistorical: "/defi/history_price",
@@ -18,6 +32,21 @@ const PROVIDER_PATHS: Record<string, string> = {
   search: "/defi/v3/search",
 };
 
+/**
+ * WHY these methods are non-cacheable:
+ * 
+ * getTokenTrades: Real-time trade data changes every second
+ *   - Caching = users see stale trades while still paying 50% cost
+ *   - Better to always fetch fresh data
+ * 
+ * getTrending: Trending tokens change rapidly (5-15 min cycles)
+ *   - 30s cache would miss trend shifts
+ *   - Users expect "trending now" not "trending 30s ago"
+ * 
+ * search: User input is unique per query
+ *   - Cache hit rate would be extremely low
+ *   - Wasted Redis memory storing rare queries
+ */
 const NON_CACHEABLE_METHODS = new Set([
   "getTokenTrades",
   "getTrending",
@@ -30,6 +59,33 @@ export interface MarketDataRequest {
   params: Record<string, string | number | boolean>;
 }
 
+/**
+ * WHY apiKeyWithOrg auth:
+ * - Market data is a paid feature (credits required)
+ * - Must validate both API key AND org has sufficient balance
+ * - Prevents unauthorized access and unpaid usage
+ * 
+ * WHY 100 req/min rate limit:
+ * - Prevents single org from monopolizing upstream provider
+ * - Birdeye free tier = 150 req/min, we reserve margin for retries
+ * - Can increase per-org via pricing tiers later
+ * 
+ * WHY 30s cache TTL:
+ * - Token prices change every 1-5s on active pairs
+ * - 30s is stale enough to save costs but fresh enough for most use cases
+ * - Users can force refresh via Cache-Control: max-age=0 header
+ * 
+ * WHY 50% cost on cache hit:
+ * - Zero cost = users abuse cache, spam requests
+ * - 100% cost = no incentive to use caching properly
+ * - 50% = fair split of savings between user and platform
+ * 
+ * WHY 128KB max response size:
+ * - Most market data responses are <10KB
+ * - Portfolio endpoints can be 50-100KB (many tokens)
+ * - 128KB covers 99% of requests without wasting Redis memory
+ * - Oversized responses bypass cache, billed at full cost
+ */
 export const marketDataConfig: ServiceConfig = {
   id: "market-data",
   name: "Market Data",

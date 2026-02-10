@@ -11,8 +11,28 @@ export interface RetryFetchOptions {
 }
 
 /**
- * Generic retry wrapper with exponential backoff for any HTTP request
- * Sanitizes API keys from logs automatically
+ * Shared retry utility with exponential backoff for upstream API calls
+ * 
+ * WHY this exists:
+ * - Solana RPC and Market Data API both need retry logic
+ * - DRY: prevents code duplication across service handlers
+ * - Consistency: all services use same retry strategy
+ * - Maintainability: changing retry logic only requires updating one place
+ * 
+ * WHY exponential backoff:
+ * - Linear retries can overwhelm already-struggling upstream services
+ * - Exponential backoff gives upstream time to recover
+ * - Standard pattern: 1s -> 2s -> 4s -> 8s -> 16s
+ * 
+ * WHY API key sanitization:
+ * - Many providers (Helius, Birdeye) require API keys in URLs
+ * - Logs must never expose API keys for security
+ * - Automatic sanitization prevents accidental leaks
+ * 
+ * WHY non-retriable status codes:
+ * - 400 Bad Request: client error, retrying won't help
+ * - 404 Not Found: resource doesn't exist, retrying won't help
+ * - 5xx errors ARE retriable: server issues may be transient
  */
 export async function retryFetch(
   opts: RetryFetchOptions,
