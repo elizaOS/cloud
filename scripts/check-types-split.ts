@@ -30,20 +30,33 @@ interface CheckResult {
   duration: number;
 }
 
-async function getLibSubdirectories(): Promise<string[]> {
+/**
+ * Split a directory into subdirectories for smaller type-check chunks.
+ * Returns the subdirectories as an array, or [dir] if no subdirectories found.
+ */
+async function splitIntoSubdirectories(dir: string): Promise<string[]> {
   try {
-    const libEntries = await readdir("lib", { withFileTypes: true });
-    return libEntries
+    const entries = await readdir(dir, { withFileTypes: true });
+    const subdirs = entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => `lib/${entry.name}`)
+      .map((entry) => `${dir}/${entry.name}`)
       .sort();
+    
+    // If no subdirectories found, return the directory itself
+    return subdirs.length > 0 ? subdirs : [dir];
   } catch {
-    return [];
+    // If directory doesn't exist or can't be read, return it as-is
+    return [dir];
   }
 }
 
 async function getDirectoriesToCheck(): Promise<string[]> {
-  const libSubdirs = await getLibSubdirectories();
+  // Split large directories into subdirectories for smaller chunks
+  const libSubdirs = await splitIntoSubdirectories("lib");
+  
+  // If app/ or components/ grows too large, split them too:
+  // const appSubdirs = await splitIntoSubdirectories("app");
+  // const componentSubdirs = await splitIntoSubdirectories("components");
   
   return [
     "db",
