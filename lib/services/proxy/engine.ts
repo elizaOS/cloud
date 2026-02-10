@@ -183,7 +183,9 @@ export function createHandler(
             : true;
 
           if (isCacheable) {
-            const responseBody = await result.response.text();
+            // Clone response before consuming body to preserve original stream
+            const clonedResponse = result.response.clone();
+            const responseBody = await clonedResponse.text();
             const maxSize = config.cache.maxResponseSize ?? 65536;
 
             if (responseBody.length <= maxSize) {

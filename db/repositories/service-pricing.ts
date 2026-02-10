@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
   servicePricing,
@@ -49,57 +49,43 @@ export class ServicePricingRepository {
     metadata?: Record<string, unknown>,
   ): Promise<ServicePricing> {
     return await dbWrite.transaction(async (tx) => {
-      const existing = await tx.query.servicePricing.findFirst({
-        where: and(
-          eq(servicePricing.service_id, serviceId),
-          eq(servicePricing.method, method),
-        ),
-      });
-
-      let result: ServicePricing;
-      let changeType: string;
-      let oldCost: number | null = null;
-
-      if (existing) {
-        oldCost = Number(existing.cost);
-        changeType = "update";
-
-        const [updated] = await tx
-          .update(servicePricing)
-          .set({
+      // Atomic upsert using onConflictDoUpdate
+      const [result] = await tx
+        .insert(servicePricing)
+        .values({
+          service_id: serviceId,
+          method,
+          cost: cost.toString(),
+          description: description ?? null,
+          metadata: metadata ?? {},
+          updated_by: userId,
+        })
+        .onConflictDoUpdate({
+          target: [servicePricing.service_id, servicePricing.method],
+          set: {
             cost: cost.toString(),
-            description: description ?? existing.description,
-            metadata: metadata ?? existing.metadata,
+            description: sql`coalesce(${sql.param(description)}, ${servicePricing.description})`,
+            metadata: sql`coalesce(${sql.param(metadata)}, ${servicePricing.metadata})`,
             updated_by: userId,
             updated_at: new Date(),
-          })
-          .where(eq(servicePricing.id, existing.id))
-          .returning();
+          },
+        })
+        .returning();
 
-        result = updated;
-      } else {
-        changeType = "create";
+      // Determine if this was a create or update by checking the previous audit entry
+      const previousAudit = await tx.query.servicePricingAudit.findFirst({
+        where: eq(servicePricingAudit.service_pricing_id, result.id),
+        orderBy: [desc(servicePricingAudit.created_at)],
+      });
 
-        const [created] = await tx
-          .insert(servicePricing)
-          .values({
-            service_id: serviceId,
-            method,
-            cost: cost.toString(),
-            description: description ?? null,
-            metadata: metadata ?? {},
-            updated_by: userId,
-          })
-          .returning();
-
-        result = created;
-      }
+      const changeType = previousAudit ? "update" : "create";
+      const oldCost = previousAudit ? previousAudit.new_cost : null;
 
       await tx.insert(servicePricingAudit).values({
         service_pricing_id: result.id,
         service_id: serviceId,
         method,
-        old_cost: oldCost !== null ? oldCost.toString() : null,
+        old_cost: oldCost,
         new_cost: cost.toString(),
         change_type: changeType,
         changed_by: userId,

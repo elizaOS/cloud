@@ -183,6 +183,71 @@ export const solanaRpcConfig: ServiceConfig = {
   },
 };
 
+/**
+ * Retry wrapper with exponential backoff
+ * Delays: 1s, 2s, 4s, 8s, 16s (max)
+ */
+async function fetchWithRetry(
+  url: string,
+  body: unknown,
+  network: string,
+  attempt: number = 1,
+): Promise<Response> {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PROXY_CONFIG.UPSTREAM_TIMEOUT_MS),
+    });
+
+    // Log attempt
+    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
+    logger.debug("[Solana RPC] Attempt", {
+      attempt,
+      url: sanitizedUrl,
+      status: response.status,
+    });
+
+    // Success or non-retriable error
+    if (response.ok || response.status === 400 || response.status === 404) {
+      return response;
+    }
+
+    // Retriable error - retry if attempts remain
+    if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
+      const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      logger.warn("[Solana RPC] Retriable error, retrying", {
+        attempt,
+        status: response.status,
+        delayMs,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return fetchWithRetry(url, body, network, attempt + 1);
+    }
+
+    return response;
+  } catch (error) {
+    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
+    
+    if (error instanceof Error && error.name === "TimeoutError") {
+      logger.warn("[Solana RPC] Timeout", { attempt, url: sanitizedUrl });
+      
+      // Retry on timeout if attempts remain
+      if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
+        const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        logger.info("[Solana RPC] Retrying after timeout", { attempt, delayMs });
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return fetchWithRetry(url, body, network, attempt + 1);
+      }
+    }
+
+    throw error;
+  }
+}
+
 export const solanaRpcHandler: ServiceHandler = async ({
   body,
   searchParams,
@@ -198,36 +263,60 @@ export const solanaRpcHandler: ServiceHandler = async ({
     throw new Error("SOLANA_RPC_PROVIDER_API_KEY not configured");
   }
 
-  // Build provider URL based on network
-  const baseUrl = network === "mainnet" 
+  // Build primary and fallback URLs
+  const primaryBaseUrl = network === "mainnet" 
     ? PROXY_CONFIG.HELIUS_MAINNET_URL 
     : PROXY_CONFIG.HELIUS_DEVNET_URL;
+  
+  const fallbackBaseUrl = network === "mainnet"
+    ? PROXY_CONFIG.HELIUS_MAINNET_FALLBACK_URL
+    : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
   
   // Note: Helius requires API key in URL. Alternative patterns checked:
   // - Authorization header: Not supported by Helius RPC
   // - x-api-key header: Not supported by Helius RPC
   // Security: URL is never logged due to sanitization below
-  const url = `${baseUrl}/?api-key=${apiKey}`;
+  const primaryUrl = `${primaryBaseUrl}/?api-key=${apiKey}`;
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(PROXY_CONFIG.UPSTREAM_TIMEOUT_MS),
-    });
+    // Try primary URL with retry-backoff
+    const response = await fetchWithRetry(primaryUrl, body, network);
 
     if (!response.ok) {
       const errorBody = await response.text();
-      // Sanitize URL before logging (remove API key)
-      const sanitizedUrl = `https://${network}.helius-rpc.com/?api-key=***`;
-      logger.error("[Solana RPC] Upstream error", {
+      const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
+      logger.error("[Solana RPC] Primary URL failed", {
         url: sanitizedUrl,
         status: response.status,
         body: errorBody,
       });
+
+      // Try fallback if configured
+      if (fallbackBaseUrl) {
+        logger.info("[Solana RPC] Attempting fallback URL");
+        const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;
+        
+        try {
+          const fallbackResponse = await fetchWithRetry(fallbackUrl, body, network);
+          
+          if (fallbackResponse.ok) {
+            logger.info("[Solana RPC] Fallback succeeded");
+            return { response: fallbackResponse };
+          }
+          
+          const fallbackError = await fallbackResponse.text();
+          const sanitizedFallback = fallbackUrl.replace(/api-key=[^&]+/, "api-key=***");
+          logger.error("[Solana RPC] Fallback also failed", {
+            url: sanitizedFallback,
+            status: fallbackResponse.status,
+            body: fallbackError,
+          });
+        } catch (fallbackErr) {
+          logger.error("[Solana RPC] Fallback error", {
+            error: fallbackErr instanceof Error ? fallbackErr.message : "Unknown",
+          });
+        }
+      }
 
       return {
         response: NextResponse.json(
@@ -243,9 +332,8 @@ export const solanaRpcHandler: ServiceHandler = async ({
     return { response };
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
-      // Sanitize URL before logging
-      const sanitizedUrl = `https://${network}.helius-rpc.com/?api-key=***`;
-      logger.error("[Solana RPC] Upstream timeout", { url: sanitizedUrl });
+      const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
+      logger.error("[Solana RPC] All attempts timed out", { url: sanitizedUrl });
       throw new Error("timeout");
     }
     throw error;

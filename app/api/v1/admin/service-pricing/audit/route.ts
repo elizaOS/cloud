@@ -36,14 +36,13 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("service_id");
-  const limit = Math.min(
-    parseInt(url.searchParams.get("limit") || "50"),
-    500,
-  );
-  const offset = Math.max(
-    parseInt(url.searchParams.get("offset") || "0"),
-    0,
-  );
+  
+  const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
+  const validLimit = Number.isNaN(parsedLimit) || parsedLimit < 1 ? 50 : parsedLimit;
+  const limit = Math.max(1, Math.min(validLimit, 500));
+  
+  const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
+  const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
 
   if (!serviceId) {
     return NextResponse.json(

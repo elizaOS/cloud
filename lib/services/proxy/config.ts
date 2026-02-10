@@ -19,4 +19,12 @@ export const PROXY_CONFIG = {
   // Helius RPC configuration
   HELIUS_MAINNET_URL: process.env.HELIUS_MAINNET_URL || "https://mainnet.helius-rpc.com",
   HELIUS_DEVNET_URL: process.env.HELIUS_DEVNET_URL || "https://devnet.helius-rpc.com",
+  
+  // Fallback RPC URLs (used when primary fails)
+  HELIUS_MAINNET_FALLBACK_URL: process.env.HELIUS_MAINNET_FALLBACK_URL,
+  HELIUS_DEVNET_FALLBACK_URL: process.env.HELIUS_DEVNET_FALLBACK_URL,
+  
+  // Retry configuration
+  RPC_MAX_RETRIES: parseInt(process.env.RPC_MAX_RETRIES || "5"),
+  RPC_INITIAL_RETRY_DELAY_MS: parseInt(process.env.RPC_INITIAL_RETRY_DELAY_MS || "1000"),
 } as const;
