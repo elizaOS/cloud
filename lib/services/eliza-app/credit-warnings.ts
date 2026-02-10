@@ -47,4 +47,4 @@ export async function shouldSendCreditWarning(userId: string): Promise<boolean> 
  * Low credit threshold in USD.
  * Users below this balance will receive a warning.
  */
-export const LOW_CREDIT_THRESHOLD = 0.25;
+export const LOW_CREDIT_THRESHOLD = 1.0;
