@@ -40,6 +40,10 @@ export async function GET(request: NextRequest) {
     parseInt(url.searchParams.get("limit") || "50"),
     500,
   );
+  const offset = Math.max(
+    parseInt(url.searchParams.get("offset") || "0"),
+    0,
+  );
 
   if (!serviceId) {
     return NextResponse.json(
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
   const history = await servicePricingRepository.listAuditHistory(
     serviceId,
     limit,
+    offset,
   );
 
   return NextResponse.json({

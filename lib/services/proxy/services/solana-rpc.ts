@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost } from "../pricing";
+import { PROXY_CONFIG } from "../config";
 
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
@@ -101,8 +102,8 @@ function extractMethodFromBody(body: unknown): string {
     if (body.length === 0) {
       throw new Error("Invalid JSON-RPC batch: empty array");
     }
-    if (body.length > 20) {
-      throw new Error("Invalid JSON-RPC batch: maximum 20 requests");
+    if (body.length > PROXY_CONFIG.MAX_BATCH_SIZE) {
+      throw new Error(`Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.MAX_BATCH_SIZE} requests`);
     }
     return "_batch";
   }
@@ -124,7 +125,8 @@ function extractMethodFromBody(body: unknown): string {
 }
 
 async function calculateBatchCost(body: unknown[]): Promise<number> {
-  let totalCost = 0;
+  const methods: string[] = [];
+  
   for (const item of body) {
     if (!item || typeof item !== "object" || !("method" in item)) {
       throw new Error("Invalid JSON-RPC batch: malformed request");
@@ -138,10 +140,22 @@ async function calculateBatchCost(body: unknown[]): Promise<number> {
       );
     }
     
-    const cost = await getServiceMethodCost("solana-rpc", method);
-    totalCost += cost;
+    methods.push(method);
   }
-  return totalCost;
+  
+  // Fetch costs for unique methods in parallel
+  const uniqueMethods = [...new Set(methods)];
+  const costMap = new Map<string, number>();
+  
+  await Promise.all(
+    uniqueMethods.map(async (method) => {
+      const cost = await getServiceMethodCost("solana-rpc", method);
+      costMap.set(method, cost);
+    })
+  );
+  
+  // Sum costs for all requests
+  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
 }
 
 export const solanaRpcConfig: ServiceConfig = {
@@ -184,12 +198,16 @@ export const solanaRpcHandler: ServiceHandler = async ({
     throw new Error("SOLANA_RPC_PROVIDER_API_KEY not configured");
   }
 
-  // Use URL without API key - pass via query param as required by Helius
+  // Build provider URL based on network
+  const baseUrl = network === "mainnet" 
+    ? PROXY_CONFIG.HELIUS_MAINNET_URL 
+    : PROXY_CONFIG.HELIUS_DEVNET_URL;
+  
   // Note: Helius requires API key in URL. Alternative patterns checked:
   // - Authorization header: Not supported by Helius RPC
   // - x-api-key header: Not supported by Helius RPC
   // Security: URL is never logged due to sanitization below
-  const url = `https://${network}.helius-rpc.com/?api-key=${apiKey}`;
+  const url = `${baseUrl}/?api-key=${apiKey}`;
 
   try {
     const response = await fetch(url, {
@@ -198,7 +216,7 @@ export const solanaRpcHandler: ServiceHandler = async ({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(PROXY_CONFIG.UPSTREAM_TIMEOUT_MS),
     });
 
     if (!response.ok) {

@@ -215,6 +215,19 @@ export function requireValidEnvironment(): void {
     throw new Error("Invalid environment configuration");
   }
 
+  // CRITICAL: Prevent production from running with devnet admin bypass
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.DEVNET === "true"
+  ) {
+    console.error("");
+    console.error("🚨 SECURITY ERROR: Production environment with DEVNET=true");
+    console.error("   This enables admin bypass for anvil wallet (0xf39F...)");
+    console.error("   DEVNET=true must NEVER be set in production.");
+    console.error("");
+    throw new Error("DEVNET=true is not allowed in production");
+  }
+
   logger.info("✅ Environment validation passed");
   if (result.warnings.length > 0) {
     logger.info(

@@ -1,9 +1,10 @@
 import { cache } from "@/lib/cache/client";
 import { servicePricingRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
+import { PROXY_CONFIG } from "./config";
 
-const CACHE_TTL = 300;
-const CACHE_STALE_TIME = 150;
+const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
+const CACHE_STALE_TIME = PROXY_CONFIG.PRICING_CACHE_STALE_TIME;
 
 // Hardcoded fallback to prevent service outage if DB pricing is misconfigured
 // This is intentionally high to encourage fixing the DB pricing ASAP
@@ -57,7 +58,7 @@ export async function getServiceMethodCost(
     pricingMap[record.method] = record.cost;
   }
 
-  await cache.set(cacheKey, pricingMap, { ex: CACHE_TTL });
+  await cache.set(cacheKey, pricingMap, CACHE_TTL);
 
   const cost = pricingMap[method] ?? pricingMap["_default"];
   if (!cost) {

@@ -113,11 +113,13 @@ export class ServicePricingRepository {
   async listAuditHistory(
     serviceId: string,
     limit: number = 50,
+    offset: number = 0,
   ): Promise<ServicePricingAudit[]> {
     return await dbRead.query.servicePricingAudit.findMany({
       where: eq(servicePricingAudit.service_id, serviceId),
       orderBy: [desc(servicePricingAudit.created_at)],
       limit,
+      offset,
     });
   }
 }

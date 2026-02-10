@@ -208,7 +208,7 @@ export function createHandler(
                   headers: headersObj,
                   cachedAt: Date.now(),
                 },
-                { ex: ttl },
+                ttl,
               );
 
               result.response = new Response(responseBody, {
