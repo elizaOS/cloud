@@ -209,14 +209,14 @@
       "idx": 29,
       "version": "7",
       "when": 1770372642065,
-      "tag": "0028_add_missing_apps_columns",
+      "tag": "0029_add_missing_apps_columns",
       "breakpoints": true
     },
     {
       "idx": 30,
       "version": "7",
       "when": 1770518468000,
-      "tag": "0029_add_milaidy_sandboxes",
+      "tag": "0030_add_milaidy_sandboxes",
       "breakpoints": true
     }
   ]
