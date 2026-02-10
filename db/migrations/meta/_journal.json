@@ -208,8 +208,15 @@
     {
       "idx": 29,
       "version": "7",
+      "when": 1770518468000,
+      "tag": "0029_add_milaidy_sandboxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
       "when": 1770644695751,
-      "tag": "0029_add_whatsapp_identity_columns",
+      "tag": "0030_add_whatsapp_identity_columns",
       "breakpoints": true
     }
   ]
