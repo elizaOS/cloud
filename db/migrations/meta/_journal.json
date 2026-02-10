@@ -225,6 +225,13 @@
       "when": 1770681343228,
       "tag": "0031_seed_solana_rpc_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1770689059409,
+      "tag": "0032_married_johnny_storm",
+      "breakpoints": true
     }
   ]
 }

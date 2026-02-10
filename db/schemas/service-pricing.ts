@@ -46,12 +46,16 @@ export const servicePricing = pgTable(
  *
  * Append-only audit trail for all pricing changes.
  * Tracks who changed what, when, and why.
+ * 
+ * IMPORTANT: Uses ON DELETE SET NULL to preserve audit history even when
+ * pricing records are deleted. The service_id and method columns provide
+ * sufficient context for historical analysis.
  */
 export const servicePricingAudit = pgTable("service_pricing_audit", {
   id: uuid("id").defaultRandom().primaryKey(),
   service_pricing_id: uuid("service_pricing_id").references(
     () => servicePricing.id,
-    { onDelete: "cascade" },
+    { onDelete: "set null" },
   ),
   service_id: text("service_id").notNull(),
   method: text("method").notNull(),
