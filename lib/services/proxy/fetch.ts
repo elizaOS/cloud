@@ -11,6 +11,22 @@ export interface RetryFetchOptions {
 }
 
 /**
+ * Sanitize URLs to prevent API key leaks in logs
+ * 
+ * WHY multiple patterns:
+ * - Helius: API keys in query params (?api-key=xxx)
+ * - Alchemy RPC: API keys in path (/v2/{key})
+ * - Alchemy NFT: API keys in path (/v3/{key}/endpoint)
+ * - Birdeye: API keys in headers (not in URL, but we sanitize query params just in case)
+ */
+function sanitizeUrl(url: string): string {
+  return url
+    .replace(/api-key=[^&]+/gi, "api-key=***")   // Helius: ?api-key=xxx
+    .replace(/\/v2\/[^/?]+/, "/v2/***")           // Alchemy RPC: /v2/{key}
+    .replace(/\/v3\/[^/?]+/, "/v3/***");          // Alchemy NFT: /v3/{key}/...
+}
+
+/**
  * Shared retry utility with exponential backoff for upstream API calls
  * 
  * WHY this exists:
@@ -25,7 +41,7 @@ export interface RetryFetchOptions {
  * - Standard pattern: 1s -> 2s -> 4s -> 8s -> 16s
  * 
  * WHY API key sanitization:
- * - Many providers (Helius, Birdeye) require API keys in URLs
+ * - Many providers (Helius, Birdeye, Alchemy) require API keys in URLs
  * - Logs must never expose API keys for security
  * - Automatic sanitization prevents accidental leaks
  * 
@@ -54,7 +70,7 @@ export async function retryFetch(
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-    const sanitizedUrl = url.replace(/api-key=[^&]+/gi, "api-key=***");
+    const sanitizedUrl = sanitizeUrl(url);
     logger.debug(`[${serviceTag}] Attempt`, {
       attempt,
       url: sanitizedUrl,
@@ -78,7 +94,7 @@ export async function retryFetch(
 
     return response;
   } catch (error) {
-    const sanitizedUrl = url.replace(/api-key=[^&]+/gi, "api-key=***");
+    const sanitizedUrl = sanitizeUrl(url);
 
     if (error instanceof Error && error.name === "TimeoutError") {
       logger.warn(`[${serviceTag}] Timeout`, { attempt, url: sanitizedUrl });

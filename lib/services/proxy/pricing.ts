@@ -80,3 +80,60 @@ export async function invalidateServicePricingCache(
   await cache.del(cacheKey);
   logger.info(`Invalidated pricing cache for service: ${serviceId}`);
 }
+
+/**
+ * Calculate total cost for a JSON-RPC batch request
+ * 
+ * WHY this function exists:
+ * - Both Solana and EVM RPC support batch requests
+ * - Batch cost = sum of individual method costs
+ * - Extracting to shared utility prevents code duplication
+ * - Single source of truth for batch cost calculation logic
+ * 
+ * WHY parallel cost fetching:
+ * - Sequential await in loop is slow (up to 20 items * ~50ms each = 1s)
+ * - Fetching unique methods in parallel reduces latency
+ * - Example: batch with 10x getBalance + 10x getTransaction = only 2 DB/cache hits
+ * 
+ * WHY validate entire batch upfront:
+ * - One invalid method should reject the entire batch (fail-fast)
+ * - Prevents partial execution and confusing errors
+ * - Matches existing Solana RPC behavior
+ */
+export async function calculateBatchCost(
+  serviceId: string,
+  allowedMethods: Set<string>,
+  body: unknown[],
+  maxBatchSize: number,
+): Promise<number> {
+  if (body.length === 0) {
+    throw new Error("Invalid JSON-RPC batch: empty array");
+  }
+  if (body.length > maxBatchSize) {
+    throw new Error(`Invalid JSON-RPC batch: maximum ${maxBatchSize} requests`);
+  }
+
+  const methods: string[] = [];
+  for (const item of body) {
+    if (!item || typeof item !== "object" || !("method" in item)) {
+      throw new Error("Invalid JSON-RPC batch: malformed request");
+    }
+    const method = String(item.method);
+    if (!allowedMethods.has(method)) {
+      throw new Error(`Batch contains unsupported method '${method}'`);
+    }
+    methods.push(method);
+  }
+
+  // Fetch costs for unique methods in parallel (not sequentially)
+  const uniqueMethods = [...new Set(methods)];
+  const costMap = new Map<string, number>();
+  await Promise.all(
+    uniqueMethods.map(async (method) => {
+      const cost = await getServiceMethodCost(serviceId, method);
+      costMap.set(method, cost);
+    }),
+  );
+
+  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
+}

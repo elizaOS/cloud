@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import type { ServiceConfig, ServiceHandler } from "../types";
-import { getServiceMethodCost } from "../pricing";
+import { getServiceMethodCost, calculateBatchCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
 
 // Methods that should not be cached (mutations and rapidly changing data)
-const NON_CACHEABLE_METHODS = new Set([
+export const SOLANA_NON_CACHEABLE_METHODS = new Set([
   "sendTransaction",
   "simulateTransaction",
   "requestAirdrop",
@@ -16,7 +16,7 @@ const NON_CACHEABLE_METHODS = new Set([
 
 // Whitelist of allowed Solana RPC methods
 // Based on official Solana RPC API + Helius extensions (DAS, Enhanced)
-const ALLOWED_METHODS = new Set([
+export const SOLANA_ALLOWED_METHODS = new Set([
   // Tier 1 - Standard Solana RPC (fall under _default pricing)
   "getAccountInfo",
   "getBalance",
@@ -116,47 +116,13 @@ function extractMethodFromBody(body: unknown): string {
   const method = body.method;
   
   // Validate method is in whitelist
-  if (!ALLOWED_METHODS.has(method)) {
+  if (!SOLANA_ALLOWED_METHODS.has(method)) {
     throw new Error(
       `Method '${method}' is not supported. See /api/v1/solana/methods for allowed methods.`
     );
   }
 
   return method;
-}
-
-async function calculateBatchCost(body: unknown[]): Promise<number> {
-  const methods: string[] = [];
-  
-  for (const item of body) {
-    if (!item || typeof item !== "object" || !("method" in item)) {
-      throw new Error("Invalid JSON-RPC batch: malformed request");
-    }
-    const method = String(item.method);
-    
-    // Validate each method in batch
-    if (!ALLOWED_METHODS.has(method)) {
-      throw new Error(
-        `Batch contains unsupported method '${method}'. See /api/v1/solana/methods for allowed methods.`
-      );
-    }
-    
-    methods.push(method);
-  }
-  
-  // Fetch costs for unique methods in parallel
-  const uniqueMethods = [...new Set(methods)];
-  const costMap = new Map<string, number>();
-  
-  await Promise.all(
-    uniqueMethods.map(async (method) => {
-      const cost = await getServiceMethodCost("solana-rpc", method);
-      costMap.set(method, cost);
-    })
-  );
-  
-  // Sum costs for all requests
-  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
 }
 
 export const solanaRpcConfig: ServiceConfig = {
@@ -169,7 +135,7 @@ export const solanaRpcConfig: ServiceConfig = {
   },
   cache: {
     maxTTL: 60,
-    isMethodCacheable: (method) => !NON_CACHEABLE_METHODS.has(method),
+    isMethodCacheable: (method) => !SOLANA_NON_CACHEABLE_METHODS.has(method),
     maxResponseSize: 65536,
     hitCostMultiplier: 0.5,
   },
@@ -177,10 +143,10 @@ export const solanaRpcConfig: ServiceConfig = {
     const method = extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {
-      return await calculateBatchCost(body);
+      return calculateBatchCost("solana-rpc", SOLANA_ALLOWED_METHODS, body, PROXY_CONFIG.MAX_BATCH_SIZE);
     }
 
-    return await getServiceMethodCost("solana-rpc", method);
+    return getServiceMethodCost("solana-rpc", method);
   },
 };
 

@@ -239,6 +239,13 @@
       "when": 1770691901912,
       "tag": "0033_seed_market_data_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1770695656438,
+      "tag": "0034_seed_evm_rpc_pricing",
+      "breakpoints": true
     }
   ]
 }

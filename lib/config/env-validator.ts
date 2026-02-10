@@ -123,6 +123,12 @@ const ENV_VARS = {
     required: false,
     description: "Market data API key (enables multi-chain token price and market data)",
   },
+  
+  // Alchemy EVM RPC
+  ALCHEMY_API_KEY: {
+    required: false,
+    description: "Alchemy API key (enables EVM blockchain access via /api/v1/rpc/*)",
+  },
 } as const;
 
 /**
