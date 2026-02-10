@@ -89,6 +89,57 @@ Multi-chain token pricing and market data.
 
 **Pricing:** CU-based, $0.00001 per CU + 20% markup
 
+### Unified RPC (`rpc.ts`)
+
+Multi-chain JSON-RPC proxy for Solana and EVM chains.
+
+**Why unified:**
+- Standard RPC is a commodity (eth_*, Solana methods identical across providers)
+- Single endpoint `/api/v1/rpc/[chain]` for all chains
+- Provider swap = change one config, not 20 route files
+- BD deals on standard RPC don't require code changes
+
+**Architecture:**
+- Provider registry maps chains to providers (Helius for Solana, Alchemy for EVM)
+- `rpcConfigForChain(chain)` returns solanaRpcConfig for Solana, builds EVM config dynamically
+- Batch support for both Solana and EVM (shared `calculateBatchCost` utility)
+- Network selection via `?network=mainnet|testnet` query param
+
+**Backward compatibility:**
+- `/api/v1/solana/rpc` still works (delegates to unified handler)
+- Returns identical responses via `rpcConfigForChain("solana")`
+- No breaking changes
+
+**Supported chains:**
+- Solana (Helius): mainnet, devnet
+- Ethereum, Polygon, Arbitrum, Optimism, Base, zkSync, Avalanche (Alchemy)
+
+**Pricing:** CU-based per provider, 20% markup, separate `service_id` for commodity vs premium tiers
+
+### Chain Data (`chain-data.ts`)
+
+Enhanced blockchain data for EVM chains (NFTs, tokens, transfers).
+
+**Why separate from standard RPC:**
+- Enhanced APIs are 5-100x more expensive than standard RPC
+- Provider-specific (not commodity like eth_getBalance)
+- Higher margin justifies premium pricing
+- BD deals on standard RPC don't affect enhanced pricing
+
+**Dual-mode handler:**
+- REST mode: Alchemy NFT API (GET requests)
+- JSON-RPC mode: Alchemy Token/Transfers API (POST with alchemy_* methods)
+- `buildRpcParams` transforms named params to positional (provider abstraction)
+
+**Convenience routes:**
+- `GET /api/v1/chain/nfts/[chain]/[address]` - getNFTsForOwner
+- `GET /api/v1/chain/tokens/[chain]/[address]` - getTokenBalances  
+- `GET /api/v1/chain/transfers/[chain]/[address]` - getAssetTransfers
+
+**Chain support:** EVM chains only (Solana has its own DAS-based convenience routes)
+
+**Pricing:** Alchemy enhanced CU * $0.00000045 * 1.2, ranges from $0.000005 to $0.000259
+
 ## Adding a New Service
 
 Let's add Twitter API as an example:
