@@ -13,51 +13,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { adminService } from "@/lib/services/admin";
+import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-
-/**
- * Middleware to check admin access
- * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
- */
-async function requireAdmin(request: NextRequest) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-
-  if (!user.wallet_address) {
-    return {
-      error: "Wallet connection required for admin access",
-      status: 401,
-      user: null,
-      isAdmin: false,
-      role: null,
-    };
-  }
-
-  // Single cached call instead of two separate DB queries
-  const { isAdmin, role } = await adminService.getAdminStatus(
-    user.wallet_address,
-  );
-
-  if (!isAdmin) {
-    return {
-      error: "Admin access required",
-      status: 403,
-      user,
-      isAdmin: false,
-      role: null,
-    };
-  }
-
-  return {
-    error: null,
-    status: 200,
-    user,
-    isAdmin: true,
-    role,
-  };
-}
 
 /**
  * GET /api/v1/admin/moderation
@@ -69,10 +27,8 @@ async function requireAdmin(request: NextRequest) {
  * - userId: For user-detail view
  */
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request);
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  try {
+    const { user, role } = await requireAdmin(request);
 
   const url = new URL(request.url);
   const view = url.searchParams.get("view") || "overview";
@@ -103,8 +59,8 @@ export async function GET(request: NextRequest) {
         bannedUsers: bannedUsers.length,
         adminCount: admins.length,
         currentAdmin: {
-          wallet: auth.user?.wallet_address,
-          role: auth.role,
+          wallet: user.wallet_address,
+          role,
         },
       });
     }
@@ -139,7 +95,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         admins,
         total: admins.length,
-        canManageAdmins: auth.role === "super_admin",
+        canManageAdmins: role === "super_admin",
       });
     }
 
@@ -163,6 +119,12 @@ export async function GET(request: NextRequest) {
         },
         { status: 400 },
       );
+  }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Authentication failed";
+    const status = message.includes("Wallet connection") ? 401 :
+                   message.includes("Admin access") ? 403 : 401;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -196,41 +158,39 @@ const ActionSchema = z.object({
  * - notes: Additional notes
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin(request);
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
+  try {
+    const { user, role: adminRole } = await requireAdmin(request);
 
-  const body = await request.json();
-  const parsed = ActionSchema.safeParse(body);
+    const body = await request.json();
+    const parsed = ActionSchema.safeParse(body);
 
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.format() },
-      { status: 400 },
-    );
-  }
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.format() },
+        { status: 400 },
+      );
+    }
 
-  const { action, userId, walletAddress, role, reason, notes } = parsed.data;
+    const { action, userId, walletAddress, role, reason, notes } = parsed.data;
 
-  // Check permissions for admin management
-  if (
-    (action === "add_admin" || action === "revoke_admin") &&
-    auth.role !== "super_admin"
-  ) {
-    return NextResponse.json(
-      { error: "Only super_admin can manage other admins" },
-      { status: 403 },
-    );
-  }
+    // Check permissions for admin management
+    if (
+      (action === "add_admin" || action === "revoke_admin") &&
+      adminRole !== "super_admin"
+    ) {
+      return NextResponse.json(
+        { error: "Only super_admin can manage other admins" },
+        { status: 403 },
+      );
+    }
 
-  logger.info("[Admin] Action", {
-    action,
-    adminUserId: auth.user?.id,
-    adminWallet: auth.user?.wallet_address,
-    targetUserId: userId,
-    targetWallet: walletAddress,
-  });
+    logger.info("[Admin] Action", {
+      action,
+      adminUserId: user.id,
+      adminWallet: user.wallet_address,
+      targetUserId: userId,
+      targetWallet: walletAddress,
+    });
 
   switch (action) {
     case "ban": {
@@ -245,7 +205,7 @@ export async function POST(request: NextRequest) {
       }
       await adminService.banUser({
         userId,
-        adminUserId: auth.user!.id,
+        adminUserId: user.id,
         reason,
       });
       return NextResponse.json({ success: true, message: "User banned" });
@@ -255,7 +215,7 @@ export async function POST(request: NextRequest) {
       if (!userId) {
         return NextResponse.json({ error: "userId required" }, { status: 400 });
       }
-      await adminService.unbanUser(userId, auth.user!.id);
+      await adminService.unbanUser(userId, user.id);
       return NextResponse.json({ success: true, message: "User unbanned" });
     }
 
@@ -266,7 +226,7 @@ export async function POST(request: NextRequest) {
       await adminService.markUserAs({
         userId,
         status: "spammer",
-        adminUserId: auth.user!.id,
+        adminUserId: user.id,
         reason,
       });
       return NextResponse.json({
@@ -282,7 +242,7 @@ export async function POST(request: NextRequest) {
       await adminService.markUserAs({
         userId,
         status: "scammer",
-        adminUserId: auth.user!.id,
+        adminUserId: user.id,
         reason,
       });
       return NextResponse.json({
@@ -295,7 +255,7 @@ export async function POST(request: NextRequest) {
       if (!userId) {
         return NextResponse.json({ error: "userId required" }, { status: 400 });
       }
-      await adminService.unbanUser(userId, auth.user!.id);
+      await adminService.unbanUser(userId, user.id);
       return NextResponse.json({
         success: true,
         message: "User status cleared",
@@ -312,7 +272,7 @@ export async function POST(request: NextRequest) {
       const admin = await adminService.promoteToAdmin({
         walletAddress,
         role,
-        grantedByWallet: auth.user?.wallet_address ?? undefined,
+        grantedByWallet: user.wallet_address ?? undefined,
         notes,
       });
       return NextResponse.json({
@@ -336,7 +296,7 @@ export async function POST(request: NextRequest) {
 
       // Can't revoke yourself
       if (
-        walletAddress.toLowerCase() === auth.user?.wallet_address?.toLowerCase()
+        walletAddress.toLowerCase() === user.wallet_address?.toLowerCase()
       ) {
         return NextResponse.json(
           { error: "Cannot revoke your own admin privileges" },
@@ -346,7 +306,7 @@ export async function POST(request: NextRequest) {
 
       await adminService.revokeAdmin(
         walletAddress,
-        auth.user?.wallet_address ?? undefined,
+        user.wallet_address ?? undefined,
       );
       return NextResponse.json({
         success: true,
