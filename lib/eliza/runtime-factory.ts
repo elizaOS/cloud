@@ -5,6 +5,7 @@ import {
   AgentRuntime,
   stringToUuid,
   elizaLogger,
+  getRequestContext,
   type UUID,
   type Character,
   type Plugin,
@@ -748,13 +749,18 @@ export class RuntimeFactory {
   }
 
   /**
-   * Set MCP_ENABLED_SERVERS for validate() in dynamic-tool-actions.ts.
-   * Note: Request context functionality removed - MCP settings are now
-   * stored directly in character.settings.mcp during runtime creation.
+   * Set MCP_ENABLED_SERVERS in request context so validate() in
+   * dynamic-tool-actions.ts can filter tools per-user on every path.
    */
-  private setMcpEnabledServers(_context: UserContext): void {
-    // No-op: MCP enabled servers are now determined from character.settings.mcp
-    // which is set during runtime creation in createRuntimeForUser()
+  private setMcpEnabledServers(context: UserContext): void {
+    const requestCtx = getRequestContext();
+    if (!requestCtx) return;
+    const connected = this.getConnectedPlatforms(context);
+    const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
+    requestCtx.entitySettings.set(
+      "MCP_ENABLED_SERVERS",
+      JSON.stringify(enabledServers),
+    );
   }
 
   private buildMcpSettings(
