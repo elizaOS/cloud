@@ -95,6 +95,10 @@ export async function PUT(request: NextRequest) {
   const { service_id, method, cost, reason, description, metadata } =
     parsed.data;
 
+  // Double invalidation to prevent race conditions:
+  // 1. Clear cache before update (prevents serving stale data)
+  await invalidateServicePricingCache(service_id);
+
   const result = await servicePricingRepository.upsert(
     service_id,
     method,
@@ -105,6 +109,7 @@ export async function PUT(request: NextRequest) {
     metadata,
   );
 
+  // 2. Clear cache after update (ensures no cached stale data from the window)
   await invalidateServicePricingCache(service_id);
 
   logger.info("[Admin] Service pricing updated", {

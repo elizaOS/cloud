@@ -5,6 +5,10 @@ import { logger } from "@/lib/utils/logger";
 const CACHE_TTL = 300;
 const CACHE_STALE_TIME = 150;
 
+// Hardcoded fallback to prevent service outage if DB pricing is misconfigured
+// This is intentionally high to encourage fixing the DB pricing ASAP
+const FALLBACK_COST = 1.0; // $1.00 per request
+
 export class PricingNotFoundError extends Error {
   constructor(
     public readonly serviceId: string,
@@ -25,7 +29,12 @@ export async function getServiceMethodCost(
   if (cached) {
     const cost = cached[method] ?? cached["_default"];
     if (!cost) {
-      throw new PricingNotFoundError(serviceId, method);
+      logger.warn("[Pricing] Missing pricing in cache, using fallback", {
+        serviceId,
+        method,
+        fallback: FALLBACK_COST,
+      });
+      return FALLBACK_COST;
     }
     return Number(cost);
   }
@@ -35,7 +44,12 @@ export async function getServiceMethodCost(
   );
 
   if (pricingRecords.length === 0) {
-    throw new PricingNotFoundError(serviceId, method);
+    logger.error("[Pricing] No pricing records in DB, using fallback", {
+      serviceId,
+      method,
+      fallback: FALLBACK_COST,
+    });
+    return FALLBACK_COST;
   }
 
   const pricingMap: Record<string, string> = {};
@@ -47,7 +61,12 @@ export async function getServiceMethodCost(
 
   const cost = pricingMap[method] ?? pricingMap["_default"];
   if (!cost) {
-    throw new PricingNotFoundError(serviceId, method);
+    logger.warn("[Pricing] Method not found, using fallback", {
+      serviceId,
+      method,
+      fallback: FALLBACK_COST,
+    });
+    return FALLBACK_COST;
   }
 
   return Number(cost);
