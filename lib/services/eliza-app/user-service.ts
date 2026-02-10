@@ -21,7 +21,7 @@ import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
 
-const ELIZA_APP_INITIAL_CREDITS = 1.0;
+const ELIZA_APP_INITIAL_CREDITS = 5.0;
 
 function isUniqueConstraintError(error: unknown): boolean {
   if (error instanceof Error) {
