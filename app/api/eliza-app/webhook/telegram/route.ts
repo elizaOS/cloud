@@ -22,8 +22,7 @@ import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
-import { shouldSendCreditWarning, recordCreditWarning, LOW_CREDIT_THRESHOLD } from "@/lib/services/eliza-app/credit-warnings";
-import { isStripeConfigured } from "@/lib/stripe";
+import { checkCreditsAndGetMessage } from "@/lib/services/eliza-app/credit-warnings";
 import type { Update, Message } from "telegraf/types";
 
 export const dynamic = "force-dynamic";
@@ -64,48 +63,6 @@ async function sendTelegramMessage(
   return true;
 }
 
-/**
- * Check if user has low credits and send a warning with top-up link.
- * Only warns once per 24 hours to avoid spamming users.
- */
-async function checkAndSendLowCreditWarning(
-  chatId: number,
-  user: { id: string; organization?: { credit_balance: string } | null },
-): Promise<void> {
-  const balance = Number(user.organization?.credit_balance || 0);
-
-  // Only warn if below threshold
-  if (balance >= LOW_CREDIT_THRESHOLD) return;
-
-  // Check cooldown - only warn once per 24 hours
-  if (!(await shouldSendCreditWarning(user.id))) {
-    logger.debug("[ElizaApp TelegramWebhook] Skipping credit warning (cooldown)", {
-      userId: user.id,
-      balance,
-    });
-    return;
-  }
-
-  // Build warning message
-  let warningMessage = `⚠️ *Low Credits Warning*\n\nYou have $${balance.toFixed(2)} remaining.`;
-
-  // Only include payment link if Stripe is configured
-  if (isStripeConfigured()) {
-    const topUpUrl = `${elizaAppConfig.appUrl}/topup`;
-    warningMessage += `\n\n👉 [Top up your credits](${topUpUrl}) to keep chatting!`;
-  } else {
-    warningMessage += `\n\nPlease contact support to add more credits.`;
-  }
-
-  await sendTelegramMessage(chatId, warningMessage);
-  await recordCreditWarning(user.id);
-
-  logger.info("[ElizaApp TelegramWebhook] Sent low credit warning", {
-    userId: user.id,
-    balance,
-    threshold: LOW_CREDIT_THRESHOLD,
-  });
-}
 
 async function handleMessage(message: Message): Promise<boolean> {
   if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
@@ -181,6 +138,29 @@ async function handleMessage(message: Message): Promise<boolean> {
   }
 
   try {
+    // Check credits BEFORE processing to avoid wasting API calls
+    const balance = Number(organization.credit_balance || 0);
+    const creditCheck = await checkCreditsAndGetMessage(userWithOrg.id, balance, "telegram");
+
+    logger.info("[ElizaApp TelegramWebhook] Credit check", {
+      userId: userWithOrg.id,
+      balance,
+      state: creditCheck.state,
+      shouldBlock: creditCheck.shouldBlockProcessing,
+    });
+
+    // If credits are depleted, send message and skip processing
+    if (creditCheck.shouldBlockProcessing) {
+      if (creditCheck.message) {
+        await sendTelegramMessage(message.chat.id, creditCheck.message);
+      }
+      logger.info("[ElizaApp TelegramWebhook] Blocked processing - credits depleted", {
+        userId: userWithOrg.id,
+        balance,
+      });
+      return true; // Mark as processed - user notified
+    }
+
     const userContext = await userContextService.buildContext({
       user: { ...userWithOrg, organization } as never,
       isAnonymous: false,
@@ -215,8 +195,10 @@ async function handleMessage(message: Message): Promise<boolean> {
       await sendTelegramMessage(message.chat.id, responseText, message.message_id);
     }
 
-    // Check for low credits and send warning if needed
-    await checkAndSendLowCreditWarning(message.chat.id, userWithOrg);
+    // Send low credit warning if needed (after successful response)
+    if (creditCheck.message) {
+      await sendTelegramMessage(message.chat.id, creditCheck.message);
+    }
 
     return true;
   } catch (error) {
