@@ -33,7 +33,7 @@ import { logger } from "@/lib/utils/logger";
 /** Buffer multiplier for cost estimation (default 50%). Configurable via env. */
 export const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
 /** Minimum reservation amount in USD */
-export const MIN_RESERVATION = 0.01;
+export const MIN_RESERVATION = 0.000001;
 /** Default estimated output tokens when not specified */
 export const DEFAULT_OUTPUT_TOKENS = 500;
 

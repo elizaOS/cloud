@@ -111,6 +111,12 @@ const ENV_VARS = {
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters for security",
   },
+
+  // Solana RPC
+  SOLANA_RPC_PROVIDER_API_KEY: {
+    required: false,
+    description: "Solana RPC provider API key (enables Solana blockchain access)",
+  },
 } as const;
 
 /**

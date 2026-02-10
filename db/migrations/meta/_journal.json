@@ -204,6 +204,27 @@
       "when": 1770317800000,
       "tag": "0028_add_user_platform_oauth_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1770681211631,
+      "tag": "0029_dapper_ultimates",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1770681332083,
+      "tag": "0030_slippery_nightmare",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1770681343228,
+      "tag": "0031_seed_solana_rpc_pricing",
+      "breakpoints": true
     }
   ]
 }

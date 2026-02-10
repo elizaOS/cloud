@@ -18,6 +18,7 @@ export * from "./invoices";
 export * from "./generations";
 export * from "./jobs";
 export * from "./model-pricing";
+export * from "./service-pricing";
 export * from "./provider-health";
 export * from "./conversations";
 export * from "./user-characters";
