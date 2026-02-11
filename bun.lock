@@ -19,8 +19,9 @@
         "@elizaos/plugin-elevenlabs": "^1.6.0",
         "@elizaos/plugin-elizacloud": "^1.7.5",
         "@elizaos/plugin-knowledge": "^1.6.1",
+        "@elizaos/plugin-mcp": "1.8.2",
         "@elizaos/plugin-memory": "1.1.2",
-        "@elizaos/plugin-n8n-workflow": "1.0.12",
+        "@elizaos/plugin-n8n-workflow": "1.1.0",
         "@elizaos/plugin-sql": "1.7.1",
         "@elizaos/plugin-web-search": "^1.0.1",
         "@fal-ai/client": "^1.8.3",
@@ -171,22 +172,22 @@
     },
   },
   "overrides": {
-    "@elizaos/core": "1.7.3-alpha.2",
-    "@walletconnect/core": "2.22.4",
-    "@walletconnect/logger": "3.0.0",
-    "@walletconnect/sign-client": "2.22.4",
-    "@walletconnect/types": "2.22.4",
     "@walletconnect/universal-provider": "2.22.4",
-    "@walletconnect/utils": "2.22.4",
     "ai": "^6.0.48",
-    "base-x": "3.0.11",
     "bs58": "4.0.1",
+    "thread-stream": "3.1.0",
     "on-exit-leak-free": "2.1.2",
-    "pino": "10.0.0",
-    "pino-std-serializers": "7.0.0",
+    "@walletconnect/sign-client": "2.22.4",
     "process-warning": "5.0.0",
     "sonic-boom": "3.8.1",
-    "thread-stream": "3.1.0",
+    "pino-std-serializers": "7.0.0",
+    "pino": "10.0.0",
+    "@walletconnect/core": "2.22.4",
+    "base-x": "3.0.11",
+    "@walletconnect/logger": "3.0.0",
+    "@elizaos/core": "1.7.3-alpha.2",
+    "@walletconnect/types": "2.22.4",
+    "@walletconnect/utils": "2.22.4",
   },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.31", "", {}, "sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA=="],
@@ -425,9 +426,11 @@
 
     "@elizaos/plugin-knowledge": ["@elizaos/plugin-knowledge@1.6.1", "", { "dependencies": { "@ai-sdk/anthropic": "^2.0.17", "@ai-sdk/google": "^2.0.14", "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.7.0", "@openrouter/ai-sdk-provider": "^1.2.0", "@tanstack/react-query": "^5.51.1", "ai": "^5.0.48", "clsx": "^2.1.1", "dotenv": "^17.2.0", "lucide-react": "^0.525.0", "mammoth": "^1.9.0", "multer": "^2.0.1", "react": "^19.1.0", "react-dom": "^19.1.0", "react-force-graph-2d": "^1.27.1", "tailwind-merge": "^3.3.1", "unpdf": "^1.4.0", "zod": "3.25.76" } }, "sha512-6YpP53Xod3+6qpWRCFBbnZImugPD5YKTc1An3LkFhweq1BeXK5CTzUax5bWoQEdAkz5OJUtcUxTtPeGL2d8b4w=="],
 
+    "@elizaos/plugin-mcp": ["@elizaos/plugin-mcp@1.8.2", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.7.0" }, "peerDependencies": { "@elizaos/core": "*" } }, "sha512-TWjxTTqWVWmv3kOTp1h2/SiQ6SRgwLKck7w/NoCWw1mCmiHTC8UUkHanikz1AeBDKunhC+c59+uJrdGOGmTxgg=="],
+
     "@elizaos/plugin-memory": ["@elizaos/plugin-memory@1.1.2", "", { "dependencies": { "@elizaos/core": "latest", "drizzle-orm": "^0.45.0" } }, "sha512-osqOrr5Xzw6uP3QdxR4dLAybuvBIhMM0kaGV3fwl9wlZNo/hAXnFBdFjR3bXsD65UesILdnHsxyh0w8Ri2aYKA=="],
 
-    "@elizaos/plugin-n8n-workflow": ["@elizaos/plugin-n8n-workflow@1.0.12", "", { "dependencies": { "drizzle-orm": "^0.45.1" }, "peerDependencies": { "@elizaos/core": "1.7.2" } }, "sha512-ZyWTWpXXp7xfy624YkOKg8mQyvlOdO8fvDB8bpp4RDc4y18WfTiy0dz51W/Ik7eIUrdg5Q/+9p06lH12jb02ag=="],
+    "@elizaos/plugin-n8n-workflow": ["@elizaos/plugin-n8n-workflow@1.1.0", "", { "dependencies": { "drizzle-orm": "^0.45.1" }, "peerDependencies": { "@elizaos/core": "1.7.2" } }, "sha512-q5IItyYOQaAhkVKf1c1YexUPMv3FAMMCe5xWUeWIgItAcZLt9TLx9qvY69lURNvf6yT1mVbib7hua6oKUqzgYg=="],
 
     "@elizaos/plugin-ollama": ["@elizaos/plugin-ollama@1.2.4", "", { "dependencies": { "@ai-sdk/ui-utils": "^1.2.8", "@elizaos/core": "^1.0.0", "ai": "^4.3.9", "js-tiktoken": "^1.0.18", "ollama-ai-provider": "^1.2.0", "tsup": "8.4.0" } }, "sha512-UYarYfp8ebA4O+/BQtXWwcpLB5J+t4ThW0xdOcvfze5ZNOU51WMprG5EV8SafbhC/qj2sVFba85IdM+t5C5FEw=="],
 
