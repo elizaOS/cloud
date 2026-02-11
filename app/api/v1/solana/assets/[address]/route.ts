@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { executeWithBody } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
-import { handleCorsOptions } from "@/lib/services/proxy/cors";
+import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
@@ -33,7 +33,7 @@ export async function GET(
         error: "Invalid Solana address",
         details: "Address must be a valid base58-encoded public key"
       },
-      { status: 400 },
+      { status: 400, headers: getCorsHeaders("GET, OPTIONS") },
     );
   }
 
@@ -48,5 +48,13 @@ export async function GET(
     },
   };
 
-  return executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
+  const response = await executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
+  
+  // Add CORS headers to response
+  const corsHeaders = getCorsHeaders("GET, OPTIONS");
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  
+  return response;
 }

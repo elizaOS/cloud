@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { servicePricingRepository } from "@/db/repositories";
-import { handleCorsOptions } from "@/lib/services/proxy/cors";
+import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
@@ -38,10 +38,13 @@ export async function GET() {
     }))
     .sort((a, b) => a.method.localeCompare(b.method));
 
-  return NextResponse.json({
-    service: "solana-rpc",
-    total: activeMethods.length,
-    methods: activeMethods,
-    note: "Methods are dynamically managed via database. Add new methods via admin API.",
-  });
+  return NextResponse.json(
+    {
+      service: "solana-rpc",
+      total: activeMethods.length,
+      methods: activeMethods,
+      note: "Methods are dynamically managed via database. Add new methods via admin API.",
+    },
+    { headers: getCorsHeaders("GET, OPTIONS") }
+  );
 }
