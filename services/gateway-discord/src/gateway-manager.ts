@@ -1232,6 +1232,12 @@ export class GatewayManager {
       if (response.ok) {
         conn.eventsRouted++;
         conn.consecutiveFailures = 0;
+        logger.info("Event forwarded", {
+          connectionId,
+          eventType,
+          eventId: payload.event_id,
+          channelId: payload.channel_id,
+        });
       } else {
         conn.eventsFailed++;
         conn.consecutiveFailures++;
@@ -1566,6 +1572,10 @@ export class GatewayManager {
           });
           this.isElizaAppLeader = false;
           await this.disconnectElizaAppBot();
+        } else {
+          logger.debug("Renewed Eliza App bot leadership", {
+            podName: this.config.podName,
+          });
         }
         return;
       }
@@ -1584,6 +1594,10 @@ export class GatewayManager {
         });
         this.isElizaAppLeader = true;
         await this.connectElizaAppBot();
+      } else {
+        logger.debug("Eliza App bot leadership held by another pod", {
+          podName: this.config.podName,
+        });
       }
     } catch (error) {
       logger.error("Error in Eliza App leader election", {
@@ -1641,6 +1655,9 @@ export class GatewayManager {
 
     try {
       await this.elizaAppClient.login(botToken);
+      logger.info("Eliza App bot login successful", {
+        podName: this.config.podName,
+      });
     } catch (error) {
       logger.error("Failed to login Eliza App bot", {
         podName: this.config.podName,
@@ -1681,6 +1698,14 @@ export class GatewayManager {
       return;
     }
 
+    logger.info("Eliza App DM received", {
+      podName: this.config.podName,
+      messageId: message.id,
+      channelId: message.channelId,
+      authorId: message.author.id,
+      authorUsername: message.author.username,
+    });
+
     // Forward to Eliza App webhook
     const webhookUrl = `${this.config.elizaCloudUrl}/api/eliza-app/webhook/discord`;
 
@@ -1718,7 +1743,13 @@ export class GatewayManager {
         timeout: EVENT_FORWARD_TIMEOUT_MS,
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        logger.info("Eliza App DM forwarded", {
+          podName: this.config.podName,
+          messageId: message.id,
+          status: response.status,
+        });
+      } else {
         logger.error("Eliza App webhook failed", {
           podName: this.config.podName,
           status: response.status,

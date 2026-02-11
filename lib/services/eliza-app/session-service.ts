@@ -13,6 +13,7 @@ export interface ElizaAppSessionPayload extends JWTPayload {
   userId: string;
   organizationId: string;
   telegramId?: string;
+  discordId?: string;
   phoneNumber?: string;
 }
 
@@ -25,6 +26,7 @@ export interface ValidatedSession {
   userId: string;
   organizationId: string;
   telegramId?: string;
+  discordId?: string;
   phoneNumber?: string;
 }
 
@@ -42,7 +44,7 @@ class ElizaAppSessionService {
   async createSession(
     userId: string,
     organizationId: string,
-    identifiers?: { telegramId?: string; phoneNumber?: string },
+    identifiers?: { telegramId?: string; discordId?: string; phoneNumber?: string },
   ): Promise<SessionResult> {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = new Date((now + SESSION_DURATION_SECONDS) * 1000);
@@ -51,6 +53,7 @@ class ElizaAppSessionService {
       userId,
       organizationId,
       ...(identifiers?.telegramId && { telegramId: identifiers.telegramId }),
+      ...(identifiers?.discordId && { discordId: identifiers.discordId }),
       ...(identifiers?.phoneNumber && { phoneNumber: identifiers.phoneNumber }),
     };
 
@@ -92,6 +95,7 @@ class ElizaAppSessionService {
         userId: payload.userId,
         organizationId: payload.organizationId,
         telegramId: payload.telegramId,
+        discordId: payload.discordId,
         phoneNumber: payload.phoneNumber,
       };
     } catch (error) {
