@@ -36,6 +36,8 @@ const dropboxAdapter = createGenericAdapter("dropbox");
 const salesforceAdapter = createGenericAdapter("salesforce");
 const airtableAdapter = createGenericAdapter("airtable");
 const zoomAdapter = createGenericAdapter("zoom");
+const jiraAdapter = createGenericAdapter("jira");
+const linkedinAdapter = createGenericAdapter("linkedin");
 
 // Static adapters for known platforms
 const staticAdapters: Record<string, ConnectionAdapter> = {
@@ -49,6 +51,8 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   salesforce: salesforceAdapter,
   airtable: airtableAdapter,
   zoom: zoomAdapter,
+  jira: jiraAdapter,
+  linkedin: linkedinAdapter,
   linear: linearAdapter,
   notion: notionAdapter,
   github: githubAdapter,

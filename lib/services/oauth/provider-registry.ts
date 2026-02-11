@@ -486,6 +486,57 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  jira: {
+    id: "jira",
+    name: "Jira",
+    description: "Issue tracking, project management, and agile boards",
+    type: "oauth2",
+    envVars: ["JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://auth.atlassian.com/authorize",
+      token: "https://auth.atlassian.com/oauth/token",
+      userInfo: "https://api.atlassian.com/me",
+    },
+    defaultScopes: ["read:jira-work", "read:jira-user", "write:jira-work", "read:me", "offline_access"],
+    userInfoMapping: {
+      id: "account_id",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+      username: "nickname",
+    },
+    authParams: {
+      audience: "api.atlassian.com",
+      prompt: "consent",
+    },
+    tokenContentType: "json",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  linkedin: {
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "Professional networking, posts, and profiles",
+    type: "oauth2",
+    envVars: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://www.linkedin.com/oauth/v2/authorization",
+      token: "https://www.linkedin.com/oauth/v2/accessToken",
+      userInfo: "https://api.linkedin.com/v2/userinfo",
+    },
+    defaultScopes: ["openid", "profile", "email", "w_member_social"],
+    userInfoMapping: {
+      id: "sub",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   twitter: {
     id: "twitter",
     name: "Twitter/X",

@@ -49,6 +49,8 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   salesforce: { url: "/api/mcps/salesforce/mcp", type: "streamable-http" },
   airtable: { url: "/api/mcps/airtable/mcp", type: "streamable-http" },
   zoom: { url: "/api/mcps/zoom/mcp", type: "streamable-http" },
+  jira: { url: "/api/mcps/jira/mcp", type: "streamable-http" },
+  linkedin: { url: "/api/mcps/linkedin/mcp", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {
@@ -1018,7 +1020,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 2500; // Allow time for MCP server connections
+    const maxWaitMs = 15000; // Allow time for MCP server connections (dev cold start can take ~10s)
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;

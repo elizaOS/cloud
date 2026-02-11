@@ -19,6 +19,7 @@
         "@elizaos/plugin-elevenlabs": "^1.6.0",
         "@elizaos/plugin-elizacloud": "^1.7.5",
         "@elizaos/plugin-knowledge": "^1.6.1",
+        "@elizaos/plugin-mcp": "1.8.2",
         "@elizaos/plugin-memory": "1.1.2",
         "@elizaos/plugin-n8n-workflow": "1.0.12",
         "@elizaos/plugin-sql": "1.7.1",
@@ -424,6 +425,8 @@
     "@elizaos/plugin-elizacloud": ["@elizaos/plugin-elizacloud@1.7.5", "", { "dependencies": { "@ai-sdk/openai": "^2.0.88", "@elizaos/core": "^1.7.0", "ai": "^5.0.116", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^4.2.1" } }, "sha512-ziHBbCjDwUA7dk9BsxgwuAv7Klc2cnmgeMj/NHsJ1fL4uVAkGHgkl/jSjp8551FCZSthKfHZOydTwOrYOJ0syg=="],
 
     "@elizaos/plugin-knowledge": ["@elizaos/plugin-knowledge@1.6.1", "", { "dependencies": { "@ai-sdk/anthropic": "^2.0.17", "@ai-sdk/google": "^2.0.14", "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.7.0", "@openrouter/ai-sdk-provider": "^1.2.0", "@tanstack/react-query": "^5.51.1", "ai": "^5.0.48", "clsx": "^2.1.1", "dotenv": "^17.2.0", "lucide-react": "^0.525.0", "mammoth": "^1.9.0", "multer": "^2.0.1", "react": "^19.1.0", "react-dom": "^19.1.0", "react-force-graph-2d": "^1.27.1", "tailwind-merge": "^3.3.1", "unpdf": "^1.4.0", "zod": "3.25.76" } }, "sha512-6YpP53Xod3+6qpWRCFBbnZImugPD5YKTc1An3LkFhweq1BeXK5CTzUax5bWoQEdAkz5OJUtcUxTtPeGL2d8b4w=="],
+
+    "@elizaos/plugin-mcp": ["@elizaos/plugin-mcp@1.8.2", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.7.0" }, "peerDependencies": { "@elizaos/core": "*" } }, "sha512-TWjxTTqWVWmv3kOTp1h2/SiQ6SRgwLKck7w/NoCWw1mCmiHTC8UUkHanikz1AeBDKunhC+c59+uJrdGOGmTxgg=="],
 
     "@elizaos/plugin-memory": ["@elizaos/plugin-memory@1.1.2", "", { "dependencies": { "@elizaos/core": "latest", "drizzle-orm": "^0.45.0" } }, "sha512-osqOrr5Xzw6uP3QdxR4dLAybuvBIhMM0kaGV3fwl9wlZNo/hAXnFBdFjR3bXsD65UesILdnHsxyh0w8Ri2aYKA=="],
 

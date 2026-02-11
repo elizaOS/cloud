@@ -58,6 +58,8 @@ export async function getMcpHandler() {
     registerSalesforceTools,
     registerAirtableTools,
     registerZoomTools,
+    registerJiraTools,
+    registerLinkedInTools,
   } = await import("./tools");
 
   mcpHandler = createMcpHandler(
@@ -84,6 +86,8 @@ export async function getMcpHandler() {
       registerSalesforceTools(server);
       registerAirtableTools(server);
       registerZoomTools(server);
+      registerJiraTools(server);
+      registerLinkedInTools(server);
     },
     {},
     { basePath: "/api" },
