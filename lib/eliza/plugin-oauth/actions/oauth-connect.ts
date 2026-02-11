@@ -29,16 +29,20 @@ export const oauthConnectAction: ActionWithParams = {
     "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
     "CONNECT_MICROSOFT", "CONNECT_OUTLOOK",
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
-    "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION", "LINK_MICROSOFT",
-    "LINK_OUTLOOK",
+    "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
+    "CONNECT_ASANA", "LINK_ASANA", "CONNECT_DROPBOX", "LINK_DROPBOX",
+    "CONNECT_SALESFORCE", "LINK_SALESFORCE", "CONNECT_AIRTABLE", "LINK_AIRTABLE",
+    "CONNECT_ZOOM", "LINK_ZOOM",
+    "CONNECT_JIRA", "LINK_JIRA", "CONNECT_LINKEDIN", "LINK_LINKEDIN",
+    "LINK_MICROSOFT", "LINK_OUTLOOK",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, microsoft",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, linear, slack, github, notion, microsoft",
+      description: "Platform to connect. Available: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
