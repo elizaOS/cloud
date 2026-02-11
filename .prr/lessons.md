@@ -27,6 +27,12 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:200 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:88 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:200 - "Code review requests for tests require actual test files, not TODO comments—implement the test cases in a new .test.ts or .spec.ts file."
+- Fix for app/api/v1/admin/service-pricing/route.ts:76 - tool modified wrong files (db/migrations/0033_add_service_billing_and_entity_settings.sql), need to modify app/api/v1/admin/service-pricing/route.ts
+- Fix for app/api/v1/admin/service-pricing/route.ts:174 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:44 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:35 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:76 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:32 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -83,6 +89,11 @@
 - Fix for app/api/v1/admin/moderation/route.ts:132 - tool made no changes without explanation - trying different approach
 - Fix for app/api/v1/admin/moderation/route.ts:227 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:400 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:163 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:218 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:164 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:215 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:391 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -99,6 +110,7 @@
 
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:53 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:101 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
@@ -138,3 +150,7 @@
 ### __tests__/api/admin/service-pricing.test.ts
 
 - Fix for __tests__/api/admin/service-pricing.test.ts:124 - No verification result returned, treating as failed
+
+### /route.ts
+
+- Fix for app/api/v1/solana/assets/[address]/route.ts:36 - No verification result returned, treating as failed

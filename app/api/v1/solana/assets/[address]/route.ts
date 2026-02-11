@@ -33,7 +33,7 @@ export async function GET(
         error: "Invalid Solana address",
         details: "Address must be a valid base58-encoded public key"
       },
-      { status: 400, headers: getCorsHeaders("GET, OPTIONS") },
+      { status: 400, headers: getCorsHeaders() },
     );
   }
 

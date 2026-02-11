@@ -32,18 +32,17 @@ export async function GET(request: NextRequest) {
     const result = await requireAdmin(request);
     const user = result.user;
 
-  try {
     const url = new URL(request.url);
     const serviceId = url.searchParams.get("service_id");
 
-  if (!serviceId) {
-    return NextResponse.json(
-      { error: "service_id query parameter required" },
-      { status: 400 },
-    );
-  }
+    if (!serviceId) {
+      return NextResponse.json(
+        { error: "service_id query parameter required" },
+        { status: 400 },
+      );
+    }
 
-  const pricing = await servicePricingRepository.listByService(serviceId);
+    const pricing = await servicePricingRepository.listByService(serviceId);
 
   return NextResponse.json({
     service_id: serviceId,

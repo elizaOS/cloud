@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
     const { user, role } = await requireAdmin(request);
 
     const url = new URL(request.url);
-  const view = url.searchParams.get("view") || "overview";
-  const limit = Math.min(
-    parseInt(url.searchParams.get("limit") || "100"),
-    1000,
-  );
-  const userId = url.searchParams.get("userId");
+    const view = url.searchParams.get("view") || "overview";
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") || "100"),
+      1000,
+    );
+    const userId = url.searchParams.get("userId");
 
   switch (view) {
     case "overview": {
