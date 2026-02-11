@@ -227,6 +227,46 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: true,
   },
 
+  microsoft: {
+    id: "microsoft",
+    name: "Microsoft",
+    description: "Outlook Mail, Calendar, and OneDrive",
+    type: "oauth2",
+    envVars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+    endpoints: {
+      // Using /consumers/ to support personal Microsoft accounts (@outlook.com, @hotmail.com, @live.com)
+      // Use /common/ for multi-tenant apps that support both personal and work/school accounts
+      // Use /organizations/ for work/school accounts only
+      authorization: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+      token: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+      userInfo: "https://graph.microsoft.com/v1.0/me",
+    },
+    defaultScopes: [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "User.Read",
+      "Calendars.Read",
+      "Calendars.ReadWrite",
+      "Mail.Read",
+      "Mail.ReadWrite",
+      "Mail.Send",
+    ],
+    userInfoMapping: {
+      id: "id",
+      email: "mail",
+      displayName: "displayName",
+      username: "userPrincipalName",
+    },
+    authParams: {
+      response_mode: "query",
+      prompt: "consent",
+    },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
   linear: {
     id: "linear",
     name: "Linear",
