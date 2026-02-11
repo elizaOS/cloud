@@ -42,8 +42,14 @@ async function getJiraMcpHandler() {
     return result.accessToken;
   }
 
-  async function getCloudId(organizationId: string): Promise<string> {
-    const token = await getJiraToken(organizationId);
+  // Cache cloud IDs per-org (30 min TTL)
+  const cloudIdCache = new Map<string, { id: string; expiresAt: number }>();
+  const CLOUD_ID_TTL_MS = 30 * 60 * 1000;
+
+  async function getCloudId(token: string, organizationId: string): Promise<string> {
+    const cached = cloudIdCache.get(organizationId);
+    if (cached && cached.expiresAt > Date.now()) return cached.id;
+
     const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
@@ -51,15 +57,13 @@ async function getJiraMcpHandler() {
       throw new Error(`Failed to get Jira accessible resources: ${response.status}`);
     }
     const resources = await response.json();
-    logger.info("[JiraMCP] accessible-resources response", {
-      organizationId,
-      resourceCount: Array.isArray(resources) ? resources.length : 0,
-      resources: JSON.stringify(resources),
-    });
     if (!Array.isArray(resources) || resources.length === 0) {
       throw new Error("No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.");
     }
-    return resources[0].id;
+
+    const cloudId = resources[0].id;
+    cloudIdCache.set(organizationId, { id: cloudId, expiresAt: Date.now() + CLOUD_ID_TTL_MS });
+    return cloudId;
   }
 
   async function jiraApi(
@@ -69,14 +73,13 @@ async function getJiraMcpHandler() {
     body?: unknown,
   ) {
     const token = await getJiraToken(orgId);
-    const cloudId = await getCloudId(orgId);
+    const cloudId = await getCloudId(token, orgId);
     const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3${path}`;
 
     logger.info("[JiraMCP] API request", {
       method,
       url,
       cloudId,
-      tokenPrefix: token.substring(0, 10) + "...",
     });
 
     const headers: Record<string, string> = {

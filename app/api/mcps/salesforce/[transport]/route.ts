@@ -370,7 +370,7 @@ async function getSalesforceMcpHandler() {
         async ({ objectName, limit = 10 }) => {
           try {
             const orgId = getOrgId();
-            const data = await salesforceFetch(orgId, `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}?limit=${limit}`);
+            const data = await salesforceFetch(orgId, `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}/recent?limit=${limit}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed to get recent records");

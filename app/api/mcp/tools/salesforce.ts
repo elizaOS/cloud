@@ -427,7 +427,7 @@ export function registerSalesforceTools(server: McpServer): void {
     async ({ objectName, limit = 10 }) => {
       try {
         const data = await salesforceFetch(
-          `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}?limit=${limit}`,
+          `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}/recent?limit=${limit}`,
         );
         return jsonResponse(data);
       } catch (error) {

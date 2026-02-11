@@ -31,8 +31,14 @@ async function getJiraToken(): Promise<string> {
   }
 }
 
-async function getCloudId(): Promise<string> {
-  const token = await getJiraToken();
+// Cache cloud IDs per-org (30 min TTL)
+const cloudIdCache = new Map<string, { id: string; expiresAt: number }>();
+const CLOUD_ID_TTL_MS = 30 * 60 * 1000;
+
+async function getCloudId(token: string, orgId: string): Promise<string> {
+  const cached = cloudIdCache.get(orgId);
+  if (cached && cached.expiresAt > Date.now()) return cached.id;
+
   const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
@@ -40,19 +46,19 @@ async function getCloudId(): Promise<string> {
     throw new Error(`Failed to get Jira accessible resources: ${response.status}`);
   }
   const resources = await response.json();
-  logger.info("[JiraMCP] accessible-resources response", {
-    resourceCount: Array.isArray(resources) ? resources.length : 0,
-    resources: JSON.stringify(resources),
-  });
   if (!Array.isArray(resources) || resources.length === 0) {
     throw new Error("No Jira sites found. Ensure your Atlassian account has access to a Jira Cloud site.");
   }
-  return resources[0].id;
+
+  const cloudId = resources[0].id;
+  cloudIdCache.set(orgId, { id: cloudId, expiresAt: Date.now() + CLOUD_ID_TTL_MS });
+  return cloudId;
 }
 
 async function jiraApi(method: string, path: string, body?: unknown) {
+  const { user } = getAuthContext();
   const token = await getJiraToken();
-  const cloudId = await getCloudId();
+  const cloudId = await getCloudId(token, user.organization_id);
   const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3${path}`;
 
   const headers: Record<string, string> = {
