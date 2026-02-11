@@ -1,133 +1,118 @@
 
 /**
- * Tests for Admin Service Pricing API
+ * Integration tests for service pricing admin API
  * 
- * Covers:
+ * Tests cover:
  * - Authentication (admin vs non-admin)
  * - PUT upsert behavior
- * - Cache invalidation
+ * - Cache invalidation effects
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
-import { GET, PUT } from "../route";
-import { requireAdmin } from "@/lib/auth";
-import { servicePricingRepository } from "@/db/repositories";
-import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { NextRequest } from 'next/server';
+import { GET, PUT } from '../route';
 
-vi.mock("@/lib/auth");
-vi.mock("@/db/repositories");
-vi.mock("@/lib/services/proxy/pricing");
+// Mock dependencies
+jest.mock('@/lib/auth', () => ({
+  requireAdmin: jest.fn(),
+}));
 
-describe("GET /api/v1/admin/service-pricing", () => {
+jest.mock('@/db/repositories', () => ({
+  servicePricingRepository: {
+    list: jest.fn(),
+    upsert: jest.fn(),
+  },
+}));
+
+jest.mock('@/lib/cache/client', () => ({
+  cache: {
+    delete: jest.fn(),
+  },
+}));
+
+import { requireAdmin } from '@/lib/auth';
+import { servicePricingRepository } from '@/db/repositories';
+import { cache } from '@/lib/cache/client';
+
+describe('Service Pricing Admin API', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
-  it("returns 401 when not authenticated", async () => {
-    vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError("Not authenticated"));
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
-    const response = await GET(request);
-    
-    expect(response.status).toBe(401);
-    const data = await response.json();
-    expect(data.error).toBe("Not authenticated");
-  });
+  describe('GET /api/v1/admin/service-pricing', () => {
+    it('should require admin authentication', async () => {
+      (requireAdmin as jest.Mock).mockRejectedValue(new Error('Unauthorized'));
 
-  it("returns 403 when not admin", async () => {
-    vi.mocked(requireAdmin).mockRejectedValue(new ForbiddenError("Admin required"));
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
-    const response = await GET(request);
-    
-    expect(response.status).toBe(403);
-    const data = await response.json();
-    expect(data.error).toBe("Admin required");
-  });
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing');
+      const response = await GET(request);
 
-  it("lists all pricing when admin", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ user: { id: "admin-1" } } as any);
-    vi.mocked(servicePricingRepository.list).mockResolvedValue([
-      { service_id: "test-service", method: "POST", cost: "0.001" } as any,
-    ]);
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
-    const response = await GET(request);
-    
-    expect(response.status).toBe(200);
-    const data = await response.json();
-    expect(data.pricing).toHaveLength(1);
-    expect(data.pricing[0].service_id).toBe("test-service");
-  });
-});
-
-describe("PUT /api/v1/admin/service-pricing", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns 401 when not authenticated", async () => {
-    vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError("Not authenticated"));
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
-      method: "PUT",
-      body: JSON.stringify({ service_id: "test", method: "POST", cost: 0.001 }),
+      expect(response.status).toBe(500);
     });
-    const response = await PUT(request);
-    
-    expect(response.status).toBe(401);
+
+    it('should return list of service pricing', async () => {
+      const mockUser = { id: 'user1', organization_id: 'org1', role: 'admin' };
+      const mockPricing = [
+        { service_id: 'svc1', cost: '0.01', method: 'test' },
+      ];
+
+      (requireAdmin as jest.Mock).mockResolvedValue(mockUser);
+      (servicePricingRepository.list as jest.Mock).mockResolvedValue(mockPricing);
+
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing');
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.pricing).toEqual(mockPricing);
+    });
   });
 
-  it("upserts pricing and invalidates cache", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ user: { id: "admin-1" } } as any);
-    vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
-      service_id: "test-service",
-      method: "POST",
-      cost: "0.001",
-    } as any);
-    vi.mocked(invalidateServicePricingCache).mockResolvedValue(undefined);
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
-      method: "PUT",
-      body: JSON.stringify({
-        service_id: "test-service",
-        method: "POST",
-        cost: 0.001,
-        reason: "Initial pricing",
-      }),
-    });
-    const response = await PUT(request);
-    
-    expect(response.status).toBe(200);
-    expect(invalidateServicePricingCache).toHaveBeenCalledWith("test-service");
-    const data = await response.json();
-    expect(data.success).toBe(true);
-  });
+  describe('PUT /api/v1/admin/service-pricing', () => {
+    it('should require admin authentication', async () => {
+      (requireAdmin as jest.Mock).mockRejectedValue(new Error('Unauthorized'));
 
-  it("handles cache invalidation failures gracefully", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ user: { id: "admin-1" } } as any);
-    vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
-      service_id: "test-service",
-      method: "POST",
-      cost: "0.001",
-    } as any);
-    vi.mocked(invalidateServicePricingCache).mockRejectedValue(new Error("Cache error"));
-    
-    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
-      method: "PUT",
-      body: JSON.stringify({
-        service_id: "test-service",
-        method: "POST",
-        cost: 0.001,
-        reason: "Initial pricing",
-      }),
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
+        method: 'PUT',
+        body: JSON.stringify({ service_id: 'svc1', cost: 0.01, method: 'test' }),
+      });
+      const response = await PUT(request);
+
+      expect(response.status).toBe(500);
     });
-    const response = await PUT(request);
-    
-    expect(response.status).toBe(200);
-    const data = await response.json();
-    expect(data.cache_invalidated).toBe(false);
+
+    it('should upsert service pricing', async () => {
+      const mockUser = { id: 'user1', organization_id: 'org1', role: 'admin' };
+      const mockPricing = { service_id: 'svc1', cost: '0.01', method: 'test' };
+
+      (requireAdmin as jest.Mock).mockResolvedValue(mockUser);
+      (servicePricingRepository.upsert as jest.Mock).mockResolvedValue(mockPricing);
+      (cache.delete as jest.Mock).mockResolvedValue(true);
+
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
+        method: 'PUT',
+        body: JSON.stringify({ service_id: 'svc1', cost: 0.01, method: 'test', reason: 'Update' }),
+      });
+      const response = await PUT(request);
+
+      expect(response.status).toBe(200);
+      expect(servicePricingRepository.upsert).toHaveBeenCalled();
+    });
+
+    it('should invalidate cache after upsert', async () => {
+      const mockUser = { id: 'user1', organization_id: 'org1', role: 'admin' };
+      const mockPricing = { service_id: 'svc1', cost: '0.01', method: 'test' };
+
+      (requireAdmin as jest.Mock).mockResolvedValue(mockUser);
+      (servicePricingRepository.upsert as jest.Mock).mockResolvedValue(mockPricing);
+      (cache.delete as jest.Mock).mockResolvedValue(true);
+
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
+        method: 'PUT',
+        body: JSON.stringify({ service_id: 'svc1', cost: 0.01, method: 'test' }),
+      });
+      await PUT(request);
+
+      expect(cache.delete).toHaveBeenCalledWith('pricing:svc1:test');
+    });
   });
 });

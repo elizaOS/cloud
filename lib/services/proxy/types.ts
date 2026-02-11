@@ -27,7 +27,7 @@ export interface ServiceConfig {
   auth: AuthLevel;
   rateLimit?: RateLimitConfig;
   cache?: CacheConfig;
-  getCost: (body: unknown, searchParams: URLSearchParams) => Promise<number>;
+  getCost: (body: ProxyRequestBody, searchParams: URLSearchParams) => Promise<number>;
 }
 
 export interface HandlerContext {

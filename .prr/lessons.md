@@ -29,6 +29,9 @@
 - Fix for lib/services/proxy/engine.ts:172 - When removing a negation check, verify the intended logic gate—don't eliminate the condition itself, refactor it to properly express the intent.
 - Fix for lib/services/proxy/engine.ts:86 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:250 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:93 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:41 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:93 - When adding a fallback path for missing data, remove the early return that makes the fallback unreachable, or commit to only one strategy (reject or fallback).
 
 ### db/repositories/service-pricing.ts
 
@@ -43,6 +46,7 @@
 - Fix for app/api/v1/admin/moderation/route.ts:209 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:131 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:209 - When adding a try block to handle an async operation, immediately add the matching catch block with error handling before moving on to other code.
+- Fix for app/api/v1/admin/moderation/route.ts:231 - tool made no changes without explanation - trying different approach
 
 ### /terminal/route.ts
 
@@ -65,6 +69,7 @@
 ### lib/services/proxy/services/solana-rpc.ts
 
 - Fix for lib/services/proxy/services/solana-rpc.ts:275 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:314 - No verification result returned, treating as failed
 
 ### scripts/check-types-split.ts
 

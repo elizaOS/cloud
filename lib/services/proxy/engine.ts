@@ -36,15 +36,68 @@ async function getAuthForLevel(request: NextRequest, level: AuthLevel) {
 function buildCacheKey(
   serviceId: string,
   orgId: string,
-  body: unknown,
+  body: ProxyRequestBody,
   searchParams: URLSearchParams,
 ): string {
-  const contentHash = createHash("sha256")
-    .update(JSON.stringify(body) + searchParams.toString())
-    .digest("hex")
-    .substring(0, 16);
-  return `svc:${serviceId}:${orgId}:${contentHash}`;
-}
+  try {
+    const contentHash = createHash("sha256")
+      .update(JSON.stringify(body) + searchParams.toString())
+      .digest("hex")
+      .substring(0, 16);
+    return `svc:${serviceId}:${orgId}:${contentHash}`;
+  } catch (error) {
+    logger.warn("Failed to serialize body for cache key", { error });
+    // Fallback to a generic key without body content
+    return `svc:${serviceId}:${orgId}:fallback`;
+  }
+}</search>
+</change>
+
+<change path="lib/services/proxy/engine.ts">
+<search>import type {
+  ServiceConfig,
+  ServiceHandler,
+  HandlerContext,
+  HandlerResult,
+  AuthLevel,
+} from "./types";</search>
+<replace>import type {
+  ServiceConfig,
+  ServiceHandler,
+  HandlerContext,
+  HandlerResult,
+  AuthLevel,
+  ProxyRequestBody,
+} from "./types";</change>
+</change>
+
+<change path="lib/services/proxy/services/solana-rpc.ts">
+<search>export const solanaRpcConfig: ServiceConfig = {
+  id: "solana-rpc",
+  name: "Solana RPC",
+  auth: "apiKeyWithOrg",
+  rateLimit: {
+    windowMs: 60000,
+    maxRequests: 100,
+  },
+  cache: {
+    enabled: true,
+    ttl: 60,
+  },
+  getCost: async (body: Record<string, unknown> | Record<string, unknown>[])</search>
+<replace>export const solanaRpcConfig: ServiceConfig = {
+  id: "solana-rpc",
+  name: "Solana RPC",
+  auth: "apiKeyWithOrg",
+  rateLimit: {
+    windowMs: 60000,
+    maxRequests: 100,
+  },
+  cache: {
+    enabled: true,
+    ttl: 60,
+  },
+  getCost: async (body: ProxyRequestBody | ProxyRequestBody[])
 
 export function createHandler(
   config: ServiceConfig,

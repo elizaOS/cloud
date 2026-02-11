@@ -65,6 +65,7 @@ export class ServicePricingRepository {
   ): Promise<ServicePricing> {
     return await dbWrite.transaction(async (tx) => {
       const costStr = cost.toString();
+      const metadataJson = metadata ? JSON.stringify(metadata) : null;
 
       // Atomic upsert with conflict detection via xmax and old cost via subquery.
       // xmax=0 means INSERT (new row), xmax!=0 means UPDATE (conflict resolved).
