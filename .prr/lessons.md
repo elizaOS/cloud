@@ -43,6 +43,9 @@
 - Fix for lib/services/proxy/engine.ts:101 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:139 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:306 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:118 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:103 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:141 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -51,6 +54,8 @@
 - Fix for db/repositories/service-pricing.ts:63 - When a comment requires changes across multiple files, implement ALL of them: define the type, then update each file that references it.
 - Fix for db/repositories/service-pricing.ts:120 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:121 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:124 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:64 - No verification result returned, treating as failed
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -67,6 +72,9 @@
 - Fix for app/api/v1/admin/moderation/route.ts:160 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:228 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:404 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:132 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:174 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:132 - tool made no changes without explanation - trying different approach
 
 ### /terminal/route.ts
 

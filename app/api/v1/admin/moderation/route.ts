@@ -18,7 +18,6 @@ import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
-import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 
 /**
  * GET /api/v1/admin/moderation
@@ -211,18 +210,15 @@ export async function POST(request: NextRequest) {
     user = result.user;
     adminRole = result.role;
   } catch (error) {
-    if (error instanceof WalletRequiredError) {
+    if (error instanceof AuthenticationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof AdminRequiredError) {
+    if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error("[Admin] Moderation POST auth error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
       { status: 500 },
     );
   }
@@ -390,10 +386,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
   } catch (error) {
-    if (error instanceof WalletRequiredError) {
+    if (error instanceof AuthenticationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof AdminRequiredError) {
+    if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error("[Admin] Moderation POST error", { error });

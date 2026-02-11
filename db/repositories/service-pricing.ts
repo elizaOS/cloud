@@ -64,6 +64,23 @@ export class ServicePricingRepository {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<ServicePricing> {
+    // Validate metadata constraints at runtime
+    if (metadata) {
+      const keys = Object.keys(metadata);
+      if (keys.length > 20) {
+        throw new Error("Metadata cannot have more than 20 keys");
+      }
+      for (const key of keys) {
+        if (key.length > 100) {
+          throw new Error(`Metadata key exceeds 100 character limit: ${key.substring(0, 20)}...`);
+        }
+        const val = metadata[key];
+        if (typeof val === "string" && val.length > 1000) {
+          throw new Error(`Metadata value for key '${key}' exceeds 1000 character limit`);
+        }
+      }
+    }
+
     // Race-condition safe: Postgres INSERT ... ON CONFLICT DO UPDATE is atomic
     // under concurrent access. No application-level retry needed.
     return await dbWrite.transaction(async (tx) => {

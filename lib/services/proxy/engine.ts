@@ -99,7 +99,8 @@ function buildCacheKey(
     enabled: true,
     ttl: 60,
   },
-  getCost: async (body: ProxyRequestBody | ProxyRequestBody[])
+  getCost: async (body: ProxyRequestBody | ProxyRequestBody[]) => Promise<number>,
+};
 
 export function createHandler(
   config: ServiceConfig,
@@ -114,8 +115,17 @@ export function createHandler(
       const { user } = auth;
       const apiKey = "apiKey" in auth ? auth.apiKey : undefined;
 
-      const body =
-        request.method === "POST" ? await request.json() : null;
+      let body = null;
+      if (request.method === "POST") {
+        try {
+          body = await request.json();
+        } catch {
+          return NextResponse.json(
+            { error: "Invalid JSON body" },
+            { status: 400 },
+          );
+        }
+      }
 
       const cost = await config.getCost(body, searchParams);
 
@@ -129,13 +139,6 @@ export function createHandler(
       if (!user.organization_id) {
         return NextResponse.json(
           { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required to use this service" },
           { status: 403 },
         );
       }
