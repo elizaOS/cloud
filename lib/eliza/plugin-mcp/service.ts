@@ -32,6 +32,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { type McpToolAction, createMcpToolActions } from "./actions/dynamic-tool-actions";
+import { Tier2ToolIndex } from "./search/bm25-index";
 import { McpSchemaCache, getSchemaCache } from "./cache";
 import { type McpToolCompatibility, createMcpToolCompatibilitySync } from "./tool-compatibility";
 import {
@@ -70,6 +71,7 @@ export class McpService extends Service {
   private toolCompatibility: McpToolCompatibility | null = null;
   private initPromise: Promise<void> | null = null;
   private registeredActions = new Map<string, McpToolAction>();
+  private tier2Index = new Tier2ToolIndex();
   private schemaCache = getSchemaCache();
   private lazyConnections = new Map<string, McpServerConfig>();
   /** Per-key mutex to prevent concurrent requests from creating duplicate connections */
@@ -502,6 +504,10 @@ export class McpService extends Service {
 
   getRegisteredActions(): McpToolAction[] {
     return Array.from(this.registeredActions.values());
+  }
+
+  getTier2Index(): Tier2ToolIndex {
+    return this.tier2Index;
   }
 
   isLazyConnection(serverName: string): boolean {
