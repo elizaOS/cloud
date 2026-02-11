@@ -98,6 +98,7 @@
 - Fix for db/repositories/service-pricing.ts:88 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/assets/[address]/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/pricing.ts, lib/services/proxy/services/solana-rpc.ts), need to modify db/repositories/service-pricing.ts
 - Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/engine.ts), need to modify db/repositories/service-pricing.ts
+- Fix for db/repositories/service-pricing.ts:140 - No verification result returned, treating as failed
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -134,6 +135,11 @@
 - Fix for app/api/v1/admin/moderation/route.ts:309 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:130 - Replace the incorrect `instanceof` checks for `WalletRequiredError` and `AdminRequiredError` with the correct ones for `AuthenticationError` and `ForbiddenError`—don't add duplicate handlers.
 - Fix for app/api/v1/admin/moderation/route.ts:201 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:136 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:130 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:198 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:330 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:196 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -169,6 +175,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:252 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:267 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:236 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:221 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:129 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
@@ -221,3 +229,13 @@
 - Fix for app/api/v1/solana/assets/[address]/route.ts:36 - No verification result returned, treating as failed
 - Fix for app/api/v1/solana/assets/[address]/route.ts:60 - No verification result returned, treating as failed
 - Fix for app/api/v1/solana/assets/[address]/route.ts:36 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/auth.ts, lib/services/proxy/engine.ts), need to modify app/api/v1/solana/assets/[address]/route.ts
+- Fix for app/api/v1/solana/assets/[address]/route.ts:69 - No verification result returned, treating as failed
+- Fix for app/api/v1/solana/assets/[address]/route.ts:68 - No verification result returned, treating as failed
+
+### app/api/v1/solana/rpc/route.ts
+
+- Fix for app/api/v1/solana/rpc/route.ts:41 - No verification result returned, treating as failed
+
+### /files/route.ts
+
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/files/route.ts:15 - No verification result returned, treating as failed

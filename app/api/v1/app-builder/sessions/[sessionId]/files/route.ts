@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
@@ -12,8 +13,9 @@ interface RouteParams {
 // GET /api/v1/app-builder/sessions/[sessionId]/files
 // List files in the sandbox
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { sessionId } = await params;
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
 
   // Verify session ownership
   const session = await aiAppBuilder.getSession(sessionId, user.id);

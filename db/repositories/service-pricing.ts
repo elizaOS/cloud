@@ -60,7 +60,7 @@ export class ServicePricingRepository {
     reason?: string,
     description?: string,
     /** Flat key-value metadata. Keys limited to 100 chars, values limited to 1000 chars, max 20 keys. */
-    metadata?: Record<string, string | number | boolean | null>,
+    metadata?: Record<string, string | number | boolean | null | undefined>,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<ServicePricing> {

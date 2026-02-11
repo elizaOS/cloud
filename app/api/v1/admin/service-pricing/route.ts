@@ -47,17 +47,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const url = new URL(request.url);
+  const serviceId = url.searchParams.get("service_id");
+
+  if (!serviceId) {
+    return NextResponse.json(
+      { error: "service_id query parameter is required" },
+      { status: 400 },
+    );
+  }
+
   try {
-    const url = new URL(request.url);
-    const serviceId = url.searchParams.get("service_id");
-
-    if (!serviceId) {
-      return NextResponse.json(
-        { error: "service_id query parameter is required" },
-        { status: 400 },
-      );
-    }
-
     const pricing = await servicePricingRepository.listByService(serviceId);
 
     return NextResponse.json({
@@ -94,6 +94,7 @@ const UpsertSchema = z.object({
 
 export async function PUT(request: NextRequest) {
   let user;
+  
   try {
     const result = await requireAdmin(request);
     user = result.user;
@@ -114,8 +115,8 @@ export async function PUT(request: NextRequest) {
   let body;
   try {
     body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
   }
 
   const parsed = UpsertSchema.safeParse(body);

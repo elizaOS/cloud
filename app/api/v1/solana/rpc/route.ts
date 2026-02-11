@@ -27,16 +27,10 @@ export async function POST(request: NextRequest) {
   const response = await baseHandler(request);
   
   // Add CORS headers to response
-  const corsHeaders = getCorsHeaders("POST, OPTIONS");
+  const corsHeaders = getCorsHeaders();
   for (const [key, value] of Object.entries(corsHeaders)) {
     response.headers.set(key, value);
   }
     
-    return response;
-  } catch (error) {
-    return new NextResponse("Internal Server Error", {
-      status: 500,
-      headers: getCorsHeaders(),
-    });
-  }
+  return response;
 }

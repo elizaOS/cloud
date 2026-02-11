@@ -177,25 +177,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-  let adminRole: string;
-
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-    adminRole = result.role;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Moderation POST auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
 
   let body;
   try {
@@ -295,6 +276,12 @@ export async function POST(request: NextRequest) {
       }
 
       case "add_admin": {
+        if (adminRole !== "super_admin") {
+          return NextResponse.json(
+            { error: "Super admin privileges required" },
+            { status: 403 },
+          );
+        }
         if (!targetWalletAddress) {
           return NextResponse.json(
             { error: "targetWalletAddress is required" },
@@ -315,9 +302,21 @@ export async function POST(request: NextRequest) {
       }
 
       case "revoke_admin": {
+        if (adminRole !== "super_admin") {
+          return NextResponse.json(
+            { error: "Super admin privileges required" },
+            { status: 403 },
+          );
+        }
         if (!targetWalletAddress) {
           return NextResponse.json(
             { error: "targetWalletAddress is required" },
+            { status: 400 },
+          );
+        }
+        if (targetWalletAddress === user.wallet_address) {
+          return NextResponse.json(
+            { error: "Cannot revoke your own admin privileges" },
             { status: 400 },
           );
         }
