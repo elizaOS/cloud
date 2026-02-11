@@ -208,29 +208,36 @@
     {
       "idx": 29,
       "version": "7",
-      "when": 1770681211631,
-      "tag": "0029_dapper_ultimates",
+      "when": 1770372642065,
+      "tag": "0029_add_missing_apps_columns",
       "breakpoints": true
     },
     {
       "idx": 30,
       "version": "7",
-      "when": 1770681332083,
-      "tag": "0030_slippery_nightmare",
+      "when": 1770518468000,
+      "tag": "0030_add_milaidy_sandboxes",
       "breakpoints": true
     },
     {
       "idx": 31,
       "version": "7",
-      "when": 1770681343228,
-      "tag": "0031_seed_solana_rpc_pricing",
+      "when": 1770600000000,
+      "tag": "0031_add_n8n_credential_mappings",
       "breakpoints": true
     },
     {
       "idx": 32,
       "version": "7",
-      "when": 1770689059409,
-      "tag": "0032_married_johnny_storm",
+      "when": 1770600100000,
+      "tag": "0032_add_microsoft_platform_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1770681211631,
+      "tag": "0033_add_service_billing_and_entity_settings",
       "breakpoints": true
     }
   ]
