@@ -38,6 +38,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:173 - tool modified wrong files (app/api/v1/admin/service-pricing/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 - Fix for app/api/v1/admin/service-pricing/route.ts:206 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:108 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:220 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:122 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -123,6 +125,9 @@
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:229 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - When sanitizing paths for shell interpolation, always escape or quote the entire command string, not just the path variable—both components need protection.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:144 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:227 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:97 - No verification result returned, treating as failed
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -148,6 +153,7 @@
 - Fix for lib/services/proxy/services/solana-rpc.ts:379 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:276 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:341 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:341 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify lib/services/proxy/services/solana-rpc.ts
 
 ### scripts/check-types-split.ts
 
@@ -174,3 +180,4 @@
 ### /route.ts
 
 - Fix for app/api/v1/solana/assets/[address]/route.ts:36 - No verification result returned, treating as failed
+- Fix for app/api/v1/solana/assets/[address]/route.ts:60 - No verification result returned, treating as failed

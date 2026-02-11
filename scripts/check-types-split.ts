@@ -39,7 +39,7 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
     const entries = await readdir(dir, { withFileTypes: true });
     const subdirs = entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => join(dir, entry.name))
+      .map((entry) => `${dir}/${entry.name}`)
       .sort();
     
     // If no subdirectories found, return the directory itself
@@ -47,7 +47,20 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
   } catch {
     // If directory doesn't exist or can't be read, return it as-is
     return [dir];
-  }
+  }</search>
+</change>
+
+<change path="lib/services/proxy/pricing.ts">
+<search>const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
+
+// Hardcoded fallback to prevent service outage if DB pricing is misconfigured
+// This is intentionally high to encourage fixing the DB pricing ASAP
+const FALLBACK_COST = 1.0; // $1.00 per request</search>
+<replace>const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
+
+// Hardcoded fallback to prevent service outage if DB pricing is misconfigured
+// This is intentionally high to encourage fixing the DB pricing ASAP
+const FALLBACK_COST = 1.0; // $1.00 per request
 }
 
 async function getDirectoriesToCheck(): Promise<string[]> {

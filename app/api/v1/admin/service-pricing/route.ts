@@ -54,6 +54,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
   try {
     const url = new URL(request.url);</search>
 <replace>export async function GET(request: NextRequest) {

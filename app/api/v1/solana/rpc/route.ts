@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const response = await baseHandler(request as any);
   
   // Add CORS headers to response
-  const corsHeaders = getCorsHeaders("POST, OPTIONS");
+  const corsHeaders = getCorsHeaders();
   Object.entries(corsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
