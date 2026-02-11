@@ -24,6 +24,7 @@ import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
 import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
+import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -206,6 +207,7 @@ async function handleCallback(
         invalidateByOrganization(result.organizationId),
         entitySettingsCache.invalidateUser(result.userId),
         edgeRuntimeCache.bumpMcpVersion(result.organizationId),
+        incrementOAuthVersion(result.organizationId, platformLower),
       ]);
     } catch (e) {
       logger.warn(`[OAuth ${platform}] Cache invalidation failed`, { error: String(e) });
