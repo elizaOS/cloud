@@ -309,6 +309,92 @@ if (dailyCost > organization.spendingLimit * 2) {
 
 ---
 
+## Known Issues & Mitigations
+
+### Cache Invalidation Race Condition (Pricing)
+
+**Issue:** Race condition between pricing updates and cache population can result in stale pricing being cached.
+
+**Scenario:**
+```
+T1: Admin updates pricing in DB
+T2: Admin invalidates cache
+T3: Request A - cache miss, reads from DB replica (replication lag)
+T4: Request A - writes stale pricing to cache
+T5: Subsequent requests use stale pricing for up to 5 minutes
+```
+
+**Impact:**
+- **Severity**: Medium-High (billing accuracy)
+- **Probability**: Low (requires specific timing + replica lag)
+- **Duration**: Up to 5 minutes (CACHE_TTL)
+- **Financial Risk**: Limited by fallback pricing ($1.00/request)
+
+**Mitigations in Place:**
+
+1. **Double Cache Invalidation**
+   - Clear cache before AND after DB update
+   - Reduces race window to microseconds
+   - Catches most concurrent cache writes
+
+2. **Short Cache TTL (5 minutes)**
+   - Limits maximum exposure time
+   - Stale pricing auto-expires quickly
+   - Lower TTL would increase DB load
+
+3. **High Fallback Pricing ($1.00)**
+   - If pricing not found, defaults to $1.00/request
+   - Prevents undercharging (revenue protection)
+   - Incentivizes fixing missing pricing quickly
+
+4. **Database Transactions**
+   - Pricing updates are atomic
+   - Audit trail preserved
+   - Rollback on failure
+
+5. **Critical Logging**
+   ```typescript
+   logger.error("[Admin] CRITICAL: Post-invalidation failed after DB update", {
+     db_updated: true,
+     cache_stale: true,
+     impact: "Stale pricing in cache until TTL expires"
+   });
+   ```
+
+6. **Monitoring Recommendations**
+   - Alert on CRITICAL log level
+   - Track cache invalidation failures
+   - Monitor pricing update frequency
+   - Check replica lag metrics
+
+**Alternative Solutions (Not Implemented):**
+
+| Solution | Pros | Cons | Why Not Used |
+|----------|------|------|--------------|
+| Versioned cache keys | Eliminates race | Complex key management, memory usage | Complexity vs risk trade-off |
+| Distributed locks | Strong consistency | Latency, lock contention | Performance impact |
+| Transaction-scoped invalidation | Atomic operations | Couples Redis to Postgres | Architectural violation |
+| Read-through cache only | No stale writes | Higher DB load | Capacity concerns |
+
+**Accepted Risk:**
+
+We accept this race condition because:
+1. Probability is very low (specific timing required)
+2. Impact is bounded (5 minute TTL)
+3. Financial risk is mitigated (high fallback pricing)
+4. Monitoring makes issues visible
+5. Alternative solutions have unacceptable trade-offs
+
+**When to Revisit:**
+
+Consider implementing versioned cache keys if:
+- Pricing updates become frequent (> 10/hour)
+- Revenue impact from stale pricing exceeds monitoring costs
+- Replica lag consistently exceeds 1 second
+- Customer complaints about incorrect billing increase
+
+---
+
 ## Security Checklist
 
 When adding new public API endpoints:

@@ -13,11 +13,24 @@
  * - Fail-fast on cache errors (makes failures visible)
  * - TTL safety net prevents indefinite staleness
  * 
+ * KNOWN RACE CONDITION:
+ * Pricing updates can race with cache population, resulting in stale
+ * pricing being cached. See detailed analysis in:
+ * - app/api/v1/admin/service-pricing/route.ts (implementation comments)
+ * - docs/api-security.md (risk assessment and mitigations)
+ * 
+ * Summary:
+ * - Impact: Stale pricing cached for up to 5 minutes
+ * - Probability: Low (requires specific timing + replica lag)
+ * - Mitigation: Short TTL, high fallback pricing, double invalidation
+ * - Accepted risk: Trade-off between consistency and operational complexity
+ * 
  * Monitoring Points:
  * - Cache hit/miss ratio
  * - Cache invalidation failures (CRITICAL)
  * - Fallback pricing usage (indicates missing data)
  * - Cache operation latency
+ * - Replica lag (impacts race probability)
  */
 
 import { cache } from "@/lib/cache/client";
@@ -42,6 +55,36 @@ export class PricingNotFoundError extends Error {
   }
 }
 
+/**
+ * Gets pricing for a service method with cache-aside pattern
+ * 
+ * RACE CONDITION AWARENESS:
+ * This function has a known race condition with pricing updates.
+ * 
+ * Scenario: Admin updates pricing while this function executes
+ * 1. Admin pre-invalidates cache
+ * 2. Admin updates DB
+ * 3. This function: cache miss, reads from DB
+ * 4. Admin post-invalidates cache
+ * 5. This function: writes to cache (might be stale if replica lag)
+ * 
+ * Impact: Cached pricing might be stale for up to CACHE_TTL (5min)
+ * 
+ * Mitigations:
+ * - Short CACHE_TTL (5 minutes) limits exposure
+ * - High FALLBACK_COST ($1.00) prevents undercharging
+ * - Double invalidation reduces window (but doesn't eliminate it)
+ * - Database transactions ensure consistency
+ * 
+ * Alternative solutions considered:
+ * - Distributed locks: Adds latency and complexity
+ * - Versioned cache keys: More complex key management
+ * - Read-repair on write: Doesn't solve initial read problem
+ * 
+ * @param serviceId - Service identifier
+ * @param method - Method name
+ * @returns Cost in USD
+ */
 export async function getServiceMethodCost(
   serviceId: string,
   method: string,
@@ -62,6 +105,8 @@ export async function getServiceMethodCost(
     return Number(cost);
   }
 
+  // Cache miss - fetch from database
+  // NOTE: This read might race with admin pricing updates
   const pricingRecords = await servicePricingRepository.listByService(
     serviceId,
   );
@@ -80,6 +125,8 @@ export async function getServiceMethodCost(
     pricingMap[record.method] = record.cost;
   }
 
+  // Write to cache - race condition possible here
+  // Admin might invalidate between our read and this write
   await cache.set(cacheKey, pricingMap, CACHE_TTL);
 
   const cost = pricingMap[method] ?? pricingMap["_default"];
