@@ -21,6 +21,17 @@ export interface RateLimitConfig {
   keyGenerator?: (request: NextRequest) => string;
 }
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export type JsonRpcRequest = {
+  jsonrpc?: string;
+  id?: JsonValue;
+  method: string;
+  params?: JsonValue[];
+};
+
+export type JsonRpcBatchRequest = JsonRpcRequest[];
+
 export type ProxyRequestBody = Record<string, unknown>;
 
 export interface ServiceConfig {

@@ -24,6 +24,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:101 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:87 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:100 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:200 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:88 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -75,6 +77,8 @@
 - Fix for app/api/v1/admin/moderation/route.ts:132 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:174 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:132 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:227 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:400 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -83,6 +87,9 @@
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:210 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:136 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:218 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - When sanitizing inputs for shell commands, validate ALL variables being interpolated, not just the path—the `command` variable also needs quoting/escaping.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:137 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - No verification result returned, treating as failed
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -103,6 +110,8 @@
 - Fix for lib/services/proxy/services/solana-rpc.ts:315 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:46 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:379 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:276 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:341 - No verification result returned, treating as failed
 
 ### scripts/check-types-split.ts
 

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   try {
     const { user, role } = await requireAdmin(request);
 
-  const url = new URL(request.url);
+    const url = new URL(request.url);
   const view = url.searchParams.get("view") || "overview";
   const limit = Math.min(
     parseInt(url.searchParams.get("limit") || "100"),

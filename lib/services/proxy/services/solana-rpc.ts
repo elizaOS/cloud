@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import type { ProxyRequestBody } from "../types";
+import type { ProxyRequestBody, JsonRpcRequest, JsonRpcBatchRequest } from "../types";
 import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
