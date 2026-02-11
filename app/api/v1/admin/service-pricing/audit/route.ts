@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
+import { logger } from "@/lib/utils/logger";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
+import { logger } from "@/lib/utils/logger";
 import { servicePricingRepository } from "@/db/repositories";
 
 export async function GET(request: NextRequest) {

@@ -17,6 +17,7 @@ import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 
 /**
  * GET /api/v1/admin/moderation
@@ -28,7 +29,8 @@ import { z } from "zod";
  * - userId: For user-detail view
  */
 export async function GET(request: NextRequest) {
-  const { user, role } = await requireAdmin(request);
+  try {
+    const { user, role } = await requireAdmin(request);
 
   const url = new URL(request.url);
   const view = url.searchParams.get("view") || "overview";
@@ -119,6 +121,19 @@ export async function GET(request: NextRequest) {
         },
         { status: 400 },
       );
+  }
+  } catch (error) {
+    if (error instanceof WalletRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof AdminRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Moderation GET error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 

@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
@@ -29,6 +30,7 @@ import { z } from "zod";
 export async function GET(request: NextRequest) {
   const { user } = await requireAdmin(request);
 
+  try {
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("service_id");
 
@@ -54,6 +56,19 @@ export async function GET(request: NextRequest) {
       updated_at: p.updated_at,
     })),
   });
+  } catch (error) {
+    if (error instanceof WalletRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof AdminRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing GET error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }
 
 const UpsertSchema = z.object({

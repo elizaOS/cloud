@@ -71,14 +71,19 @@ export function createHandler(
         );
       }
 
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
+          { status: 403 },
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
         amount: cost,
         description: config.name,
       });
-
-      let cached = false;
 
       if (config.cache && body && !Array.isArray(body)) {
         const cacheControl = request.headers.get("cache-control");
@@ -113,8 +118,6 @@ export function createHandler(
             if (cachedResponse) {
               const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
               if (age <= clientMaxAge) {
-                cached = true;
-
                 const hitMultiplier = config.cache.hitCostMultiplier ?? 0.5;
                 await reservation.reconcile(cost * hitMultiplier);
 
@@ -169,7 +172,6 @@ export function createHandler(
         config.cache &&
         body &&
         !Array.isArray(body) &&
-        !cached &&
         result.response.ok
       ) {
         const cacheControl = request.headers.get("cache-control");
@@ -240,8 +242,8 @@ export function createHandler(
             type: config.id,
             provider: config.id,
             input_cost: actualCost,
-            output_cost: 0,
-            markup: 0,
+            output_cost: String(0),
+            markup: String(0),
             duration_ms: Date.now() - startTime,
             is_successful: isSuccessful,
             error_message: isSuccessful ? undefined : `Upstream returned ${result.response.status}`,
