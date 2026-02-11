@@ -46,8 +46,8 @@ function buildCacheKey(
       .digest("hex")
       .substring(0, 16);
     return `svc:${serviceId}:${orgId}:${contentHash}`;
-  } catch (error) {
-    logger.warn("Failed to serialize body for cache key", { error });
+  } catch {
+    logger.warn("Failed to serialize body for cache key");
     // Fallback to a generic key without body content
     return `svc:${serviceId}:${orgId}:fallback`;
   }
@@ -132,6 +132,13 @@ export function createHandler(
       if (!user.organization_id) {
         return Response.json(
           { error: "Organization required for billing" },
+          { status: 403 },
+        );
+      }
+
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
           { status: 403 },
         );
       }

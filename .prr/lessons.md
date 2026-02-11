@@ -26,6 +26,7 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:100 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:200 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:88 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:200 - "Code review requests for tests require actual test files, not TODO comments—implement the test cases in a new .test.ts or .spec.ts file."
 
 ### lib/services/proxy/engine.ts
 
@@ -48,6 +49,9 @@
 - Fix for lib/services/proxy/engine.ts:118 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:103 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:141 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:151 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:315 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:104 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -94,6 +98,7 @@
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:53 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:101 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
@@ -129,3 +134,7 @@
 ### lib/auth.ts
 
 - Fix for lib/auth.ts:15 - No verification result returned, treating as failed
+
+### __tests__/api/admin/service-pricing.test.ts
+
+- Fix for __tests__/api/admin/service-pricing.test.ts:124 - No verification result returned, treating as failed

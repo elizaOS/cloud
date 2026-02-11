@@ -26,7 +26,11 @@ CREATE TABLE "service_pricing_audit" (
 	"reason" text,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );--> statement-breakpoint
-ALTER TABLE "service_pricing_audit" ADD CONSTRAINT "service_pricing_audit_service_pricing_id_service_pricing_id_fk" FOREIGN KEY ("service_pricing_id") REFERENCES "public"."service_pricing"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'service_pricing_audit_service_pricing_id_service_pricing_id_fk') THEN
+    ALTER TABLE "service_pricing_audit" ADD CONSTRAINT "service_pricing_audit_service_pricing_id_service_pricing_id_fk" FOREIGN KEY ("service_pricing_id") REFERENCES "public"."service_pricing"("id") ON DELETE set null ON UPDATE no action;
+  END IF;
+END $$;--> statement-breakpoint
 CREATE UNIQUE INDEX "service_pricing_service_method_idx" ON "service_pricing" USING btree ("service_id","method");--> statement-breakpoint
 
 -- Entity settings (per-user runtime settings with encryption)
@@ -43,7 +47,11 @@ CREATE TABLE "entity_settings" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );--> statement-breakpoint
-ALTER TABLE "entity_settings" ADD CONSTRAINT "entity_settings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'entity_settings_user_id_users_id_fk') THEN
+    ALTER TABLE "entity_settings" ADD CONSTRAINT "entity_settings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+  END IF;
+END $$;--> statement-breakpoint
 CREATE UNIQUE INDEX "entity_settings_user_agent_key_idx" ON "entity_settings" USING btree ("user_id","agent_id","key");--> statement-breakpoint
 CREATE INDEX "entity_settings_user_idx" ON "entity_settings" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "entity_settings_user_agent_idx" ON "entity_settings" USING btree ("user_id","agent_id");--> statement-breakpoint
@@ -76,6 +84,51 @@ CREATE UNIQUE INDEX IF NOT EXISTS "seo_requests_idempotency_idx" ON "seo_request
 -- Tier 1 (default): 1 credit = $0.000006, Tier 2: 10 credits = $0.000060, Tier 3: 100 credits = $0.000600
 INSERT INTO "service_pricing" ("id", "service_id", "method", "cost", "description", "metadata", "is_active", "updated_by", "created_at", "updated_at") VALUES
   (gen_random_uuid(), 'solana-rpc', '_default', '0.000006', 'Standard Solana RPC call', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  -- Tier 1 methods (1 credit = $0.000006)
+  (gen_random_uuid(), 'solana-rpc', 'getBalance', '0.000006', 'Tier 1 - Get balance', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getAccountInfo', '0.000006', 'Tier 1 - Get account info', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getHealth', '0.000006', 'Tier 1 - Get health', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getSlot', '0.000006', 'Tier 1 - Get slot', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getBlockHeight', '0.000006', 'Tier 1 - Get block height', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getSlotLeader', '0.000006', 'Tier 1 - Get slot leader', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getSupply', '0.000006', 'Tier 1 - Get supply', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTokenAccountBalance', '0.000006', 'Tier 1 - Get token account balance', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTokenAccountsByDelegate', '0.000006', 'Tier 1 - Get token accounts by delegate', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTokenAccountsByOwner', '0.000006', 'Tier 1 - Get token accounts by owner', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTokenLargestAccounts', '0.000006', 'Tier 1 - Get token largest accounts', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTokenSupply', '0.000006', 'Tier 1 - Get token supply', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getTransactionCount', '0.000006', 'Tier 1 - Get transaction count', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getVersion', '0.000006', 'Tier 1 - Get version', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getVoteAccounts', '0.000006', 'Tier 1 - Get vote accounts', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getEpochInfo', '0.000006', 'Tier 1 - Get epoch info', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getEpochSchedule', '0.000006', 'Tier 1 - Get epoch schedule', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getFeeForMessage', '0.000006', 'Tier 1 - Get fee for message', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getGenesisHash', '0.000006', 'Tier 1 - Get genesis hash', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getIdentity', '0.000006', 'Tier 1 - Get identity', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getInflationGovernor', '0.000006', 'Tier 1 - Get inflation governor', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getInflationRate', '0.000006', 'Tier 1 - Get inflation rate', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getLargestAccounts', '0.000006', 'Tier 1 - Get largest accounts', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getLatestBlockhash', '0.000006', 'Tier 1 - Get latest blockhash', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getRecentBlockhash', '0.000006', 'Tier 1 - Get recent blockhash', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getMinimumBalanceForRentExemption', '0.000006', 'Tier 1 - Get minimum balance for rent exemption', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getMultipleAccounts', '0.000006', 'Tier 1 - Get multiple accounts', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getRecentPerformanceSamples', '0.000006', 'Tier 1 - Get recent performance samples', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getRecentPrioritizationFees', '0.000006', 'Tier 1 - Get recent prioritization fees', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getStakeMinimumDelegation', '0.000006', 'Tier 1 - Get stake minimum delegation', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'isBlockhashValid', '0.000006', 'Tier 1 - Is blockhash valid', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'minimumLedgerSlot', '0.000006', 'Tier 1 - Minimum ledger slot', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'requestAirdrop', '0.000006', 'Tier 1 - Request airdrop', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'sendTransaction', '0.000006', 'Tier 1 - Send transaction', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'simulateTransaction', '0.000006', 'Tier 1 - Simulate transaction', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getStakeActivation', '0.000006', 'Tier 1 - Get stake activation', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getMaxRetransmitSlot', '0.000006', 'Tier 1 - Get max retransmit slot', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getMaxShredInsertSlot', '0.000006', 'Tier 1 - Get max shred insert slot', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getLeaderSchedule', '0.000006', 'Tier 1 - Get leader schedule', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getBlockProduction', '0.000006', 'Tier 1 - Get block production', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getBlockCommitment', '0.000006', 'Tier 1 - Get block commitment', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getHighestSnapshotSlot', '0.000006', 'Tier 1 - Get highest snapshot slot', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  (gen_random_uuid(), 'solana-rpc', 'getSignatureStatuses', '0.000006', 'Tier 1 - Get signature statuses', '{"provider_credits": 1, "tier": 1}'::jsonb, true, 'system', NOW(), NOW()),
+  -- Tier 2 methods (10 credits = $0.000060)
   (gen_random_uuid(), 'solana-rpc', 'getAsset', '0.000060', 'DAS API - Get asset', '{"provider_credits": 10, "tier": 2}'::jsonb, true, 'system', NOW(), NOW()),
   (gen_random_uuid(), 'solana-rpc', 'getAssetsByOwner', '0.000060', 'DAS API - Get assets by owner', '{"provider_credits": 10, "tier": 2}'::jsonb, true, 'system', NOW(), NOW()),
   (gen_random_uuid(), 'solana-rpc', 'searchAssets', '0.000060', 'DAS API - Search assets', '{"provider_credits": 10, "tier": 2}'::jsonb, true, 'system', NOW(), NOW()),

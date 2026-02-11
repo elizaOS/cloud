@@ -214,7 +214,7 @@ describe("Service Pricing Admin API - Integration", () => {
       });
       const response = await PUT(request);
       expect(response.status).toBe(200);
-      expect(mockInvalidateCache).toHaveBeenCalledWith("solana-rpc", "getBalance");
+      expect(mockInvalidateCache).toHaveBeenCalledWith("solana-rpc");
     });
 
     it("handles cache invalidation failure gracefully", async () => {

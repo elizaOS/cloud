@@ -27,28 +27,10 @@ import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
-function safeParseJson(request: NextRequest): Promise<unknown> {
-  return request.json().catch(() => null);
-}
-
 export async function GET(request: NextRequest) {
-  let user;
   try {
     const result = await requireAdmin(request);
-    user = result.user;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+    const user = result.user;
 
   try {
     const url = new URL(request.url);
@@ -80,6 +62,12 @@ export async function GET(request: NextRequest) {
     if (error instanceof WalletRequiredError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     logger.error("[Admin] Service pricing GET error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
@@ -101,23 +89,9 @@ const UpsertSchema = z.object({
 });
 
 export async function PUT(request: NextRequest) {
-  let user;
   try {
     const result = await requireAdmin(request);
-    user = result.user;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+    const user = result.user;
 
   let body;
   try {
@@ -199,15 +173,15 @@ export async function PUT(request: NextRequest) {
   }
 
   logger.info("[Admin] Service pricing updated", {
-    service_id,
-    method,
-    cost,
-    updated_by: user.id,
-    reason,
-    cache_invalidated: cacheInvalidated,
-  });
+      service_id,
+      method,
+      cost,
+      updated_by: user.id,
+      reason,
+      cache_invalidated: cacheInvalidated,
+    });
 
-  return NextResponse.json({
+    return NextResponse.json({
     success: true,
     pricing: {
       id: result.id,

@@ -129,16 +129,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
-    logger.error("[Admin] Moderation GET error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }</search>
-</change>
-
-<change path="lib/services/proxy/engine.ts">
-<search>      const reservation = await creditsService.reserve({
+    const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
         amount: cost,

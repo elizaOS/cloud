@@ -243,7 +243,7 @@ async function extractMethodFromBody(body: unknown): Promise<string> {
   return method;
 }
 
-async function calculateBatchCost(body: Array<{ method?: string; params?: unknown[]; id?: string | number | null; jsonrpc?: string }>): Promise<number> {
+async function calculateBatchCost(body: JsonRpcBatchRequest): Promise<number> {
   const allowedMethods = await getAllowedMethods();
   const methodCounts = new Map<string, number>();
 

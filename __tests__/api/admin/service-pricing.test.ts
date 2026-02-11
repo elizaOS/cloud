@@ -121,7 +121,7 @@ describe("Admin Service Pricing API", () => {
       });
       const response = await PUT(request as any);
       expect(response.status).toBe(200);
-      expect(mockedInvalidateCache).toHaveBeenCalledWith("solana-rpc", "getBalance");
+      expect(mockedInvalidateCache).toHaveBeenCalledWith("solana-rpc");
     });
 
     it("should return 401 for unauthenticated PUT requests", async () => {

@@ -5,7 +5,21 @@ import { logger } from "@/lib/utils/logger";
 import { servicePricingRepository } from "@/db/repositories";
 
 export async function GET(request: NextRequest) {
-  await requireAdmin(request);
+  try {
+    await requireAdmin(request);
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing audit auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("service_id");
