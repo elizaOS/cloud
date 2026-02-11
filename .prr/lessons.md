@@ -36,6 +36,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:173 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:75 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:173 - tool modified wrong files (app/api/v1/admin/service-pricing/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
+- Fix for app/api/v1/admin/service-pricing/route.ts:206 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:108 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -61,6 +63,7 @@
 - Fix for lib/services/proxy/engine.ts:151 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:315 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:104 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:322 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/admin/service-pricing/__tests__/route.test.ts, app/api/v1/admin/service-pricing/audit/route.ts, app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, db/repositories/service-pricing.ts, scripts/check-types-split.ts), need to modify lib/services/proxy/engine.ts
 
 ### db/repositories/service-pricing.ts
 
@@ -71,6 +74,8 @@
 - Fix for db/repositories/service-pricing.ts:121 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:124 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:64 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:141 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:88 - No verification result returned, treating as failed
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -98,6 +103,10 @@
 - Fix for app/api/v1/admin/moderation/route.ts:215 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:391 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:157 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:157 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:212 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:158 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:385 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -111,6 +120,9 @@
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:138 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:222 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:229 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - When sanitizing paths for shell interpolation, always escape or quote the entire command string, not just the path variable—both components need protection.
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 

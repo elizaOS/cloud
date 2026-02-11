@@ -40,7 +40,21 @@ export async function GET(request: NextRequest) {
   try {
     const result = await requireAdmin(request);
     user = result.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 
+  try {
     const url = new URL(request.url);</search>
 <replace>export async function GET(request: NextRequest) {
   let user;
