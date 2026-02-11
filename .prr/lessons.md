@@ -5,6 +5,10 @@
 > You can edit this file manually or let prr update it.
 > To share lessons across your team, commit this file to your repo.
 
+## Global Lessons
+
+- fixer made no changes
+
 ## File-Specific Lessons
 
 ### app/api/v1/admin/service-pricing/route.ts
@@ -123,6 +127,7 @@
 - Fix for app/api/v1/admin/moderation/route.ts:117 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:118 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:309 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:130 - Replace the incorrect `instanceof` checks for `WalletRequiredError` and `AdminRequiredError` with the correct ones for `AuthenticationError` and `ForbiddenError`—don't add duplicate handlers.
 
 ### /terminal/route.ts
 
@@ -154,6 +159,7 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:174 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:215 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:184 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:234 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
