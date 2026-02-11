@@ -97,6 +97,7 @@
 - Fix for app/api/v1/admin/moderation/route.ts:164 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:215 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:391 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:157 - tool made no changes without explanation - trying different approach
 
 ### /terminal/route.ts
 
@@ -108,6 +109,8 @@
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - When sanitizing inputs for shell commands, validate ALL variables being interpolated, not just the path—the `command` variable also needs quoting/escaping.
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:137 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:138 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:222 - No verification result returned, treating as failed
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -146,6 +149,7 @@
 
 - Fix for app/api/v1/admin/service-pricing/route.test.ts:31 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.test.ts:81 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.test.ts:33 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/rpc/route.ts, app/api/v1/solana/transactions/[address]/route.ts, scripts/check-types-split.ts), need to modify app/api/v1/admin/service-pricing/route.test.ts
 
 ### lib/auth.ts
 

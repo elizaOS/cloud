@@ -19,7 +19,6 @@
 import { exec } from "node:child_process";
 import { writeFile, unlink, readFile, readdir } from "node:fs/promises";
 import { promisify } from "node:util";
-import { join } from "node:path";
 
 const execAsync = promisify(exec);
 
