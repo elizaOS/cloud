@@ -69,12 +69,19 @@ export const searchActionsAction: Action = {
       return { success: true, text, data: { query, platform, resultCount: 0 } };
     }
 
-    // Register discovered actions on the runtime (skip already-registered)
+    // Register discovered actions on the runtime (skip already-registered).
+    // Re-check runtime.actions right before each registration to avoid races
+    // with concurrent SEARCH_ACTIONS calls.
     const existingNames = new Set(runtime.actions.map((a) => a.name));
     const newlyRegistered: string[] = [];
 
     for (const entry of results) {
       if (existingNames.has(entry.actionName)) continue;
+      // TOCTOU mitigation: re-check against live runtime.actions
+      if (runtime.actions.some((a) => a.name === entry.actionName)) {
+        existingNames.add(entry.actionName);
+        continue;
+      }
       const action = createMcpToolAction(entry.serverName, entry.tool, existingNames);
       runtime.registerAction(action);
       existingNames.add(action.name);
@@ -159,7 +166,11 @@ export const listConnectionsAction: Action = {
     "CONNECTED_SERVICES",
   ],
 
-  validate: async () => true,
+  validate: async (runtime: IAgentRuntime) => {
+    // Requires authenticated org context (set immutably by RuntimeFactory)
+    const orgId = runtime.getSetting("ORGANIZATION_ID") as string | undefined;
+    return !!orgId;
+  },
 
   handler: async (
     runtime: IAgentRuntime,
@@ -182,7 +193,6 @@ export const listConnectionsAction: Action = {
     const platform = (params.platform as string) || undefined;
 
     let connections: Array<{
-      id: string;
       platform: string;
       status: string;
       email?: string;
@@ -197,7 +207,11 @@ export const listConnectionsAction: Action = {
         platform,
       });
     } catch (e) {
-      logger.error({ error: e }, "[LIST_CONNECTIONS] Failed to fetch connections");
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error({ error: msg }, "[LIST_CONNECTIONS] Failed to fetch connections");
+      if (msg.includes("Cannot find module")) {
+        return { success: false, error: "OAuth service not available" };
+      }
       return { success: false, error: "Failed to fetch OAuth connections" };
     }
 
@@ -212,10 +226,9 @@ export const listConnectionsAction: Action = {
     const lines: string[] = [`Found ${connections.length} connection(s):\n`];
     for (const conn of connections) {
       const email = conn.email ? ` (${conn.email})` : "";
-      const scopes = conn.scopes.length > 0 ? conn.scopes.join(", ") : "default";
       const linked = conn.linkedAt.toISOString().split("T")[0];
       lines.push(`- **${conn.platform}**${email} — Status: ${conn.status}`);
-      lines.push(`  Scopes: ${scopes} | Linked: ${linked}`);
+      lines.push(`  Connected: ${linked}`);
     }
 
     const text = lines.join("\n");
@@ -227,14 +240,8 @@ export const listConnectionsAction: Action = {
       data: {
         platform,
         connectionCount: connections.length,
-        connections: connections.map((c) => ({
-          id: c.id,
-          platform: c.platform,
-          status: c.status,
-          email: c.email,
-          scopes: c.scopes,
-          linkedAt: c.linkedAt,
-        })),
+        platforms: [...new Set(connections.map((c) => c.platform))],
+        hasActive: connections.some((c) => c.status === "active"),
       },
     };
   },

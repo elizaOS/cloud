@@ -33,7 +33,7 @@ import type {
 
 import { type McpToolAction, createMcpToolActions } from "./actions/dynamic-tool-actions";
 import { Tier2ToolIndex, type Tier2ToolEntry } from "./search/bm25-index";
-import { isCrucialTool } from "./tool-visibility";
+import { getCrucialToolsForServer, isCrucialTool } from "./tool-visibility";
 import { toActionName } from "./utils/action-naming";
 import { McpSchemaCache, getSchemaCache } from "./cache";
 import { type McpToolCompatibility, createMcpToolCompatibilitySync } from "./tool-compatibility";
@@ -464,12 +464,14 @@ export class McpService extends Service {
   private registerToolsAsActions(serverName: string, tools: Tool[]): void {
     if (!tools?.length) return;
 
-    // Split tools into Tier-1 (crucial, always visible) and Tier-2 (discoverable via SEARCH_ACTIONS)
+    // Split tools into Tier-1 (crucial, always visible) and Tier-2 (discoverable via SEARCH_ACTIONS).
+    // Servers without a curated crucial-tools list register ALL tools as Tier-1 (old behavior).
+    const hasCuratedList = getCrucialToolsForServer(serverName).length > 0;
     const crucialTools: Tool[] = [];
     const tier2Entries: Tier2ToolEntry[] = [];
 
     for (const tool of tools) {
-      if (isCrucialTool(serverName, tool.name)) {
+      if (!hasCuratedList || isCrucialTool(serverName, tool.name)) {
         crucialTools.push(tool);
       } else {
         tier2Entries.push({
