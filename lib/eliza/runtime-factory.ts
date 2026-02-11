@@ -40,19 +40,19 @@ const adapterEmbeddingDimensions = new Map<string, number>();
 export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
-  google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
-  github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
-  notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
-  linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
-  asana: { url: "/api/mcps/asana/mcp", type: "streamable-http" },
-  dropbox: { url: "/api/mcps/dropbox/mcp", type: "streamable-http" },
-  salesforce: { url: "/api/mcps/salesforce/mcp", type: "streamable-http" },
-  airtable: { url: "/api/mcps/airtable/mcp", type: "streamable-http" },
-  zoom: { url: "/api/mcps/zoom/mcp", type: "streamable-http" },
-  jira: { url: "/api/mcps/jira/mcp", type: "streamable-http" },
-  linkedin: { url: "/api/mcps/linkedin/mcp", type: "streamable-http" },
-  microsoft: { url: "/api/mcps/microsoft/mcp", type: "streamable-http" },
-  // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
+  google: { url: "/api/mcps/google/streamable-http", type: "streamable-http" },
+  github: { url: "/api/mcps/github/streamable-http", type: "streamable-http" },
+  notion: { url: "/api/mcps/notion/streamable-http", type: "streamable-http" },
+  linear: { url: "/api/mcps/linear/streamable-http", type: "streamable-http" },
+  asana: { url: "/api/mcps/asana/streamable-http", type: "streamable-http" },
+  dropbox: { url: "/api/mcps/dropbox/streamable-http", type: "streamable-http" },
+  salesforce: { url: "/api/mcps/salesforce/streamable-http", type: "streamable-http" },
+  airtable: { url: "/api/mcps/airtable/streamable-http", type: "streamable-http" },
+  zoom: { url: "/api/mcps/zoom/streamable-http", type: "streamable-http" },
+  jira: { url: "/api/mcps/jira/streamable-http", type: "streamable-http" },
+  linkedin: { url: "/api/mcps/linkedin/streamable-http", type: "streamable-http" },
+  microsoft: { url: "/api/mcps/microsoft/streamable-http", type: "streamable-http" },
+  // twitter: { url: "/api/mcps/twitter/streamable-http", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {
