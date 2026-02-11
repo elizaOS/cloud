@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, getTableColumns } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
   servicePricing,
@@ -60,15 +60,21 @@ export class ServicePricingRepository {
     reason?: string,
     description?: string,
     metadata?: Record<string, unknown>,
+    ipAddress?: string,
+    userAgent?: string,
   ): Promise<ServicePricing> {
     return await dbWrite.transaction(async (tx) => {
-      // Atomic upsert using onConflictDoUpdate
-      const [result] = await tx
+      const costStr = cost.toString();
+
+      // Atomic upsert with conflict detection via xmax and old cost via subquery.
+      // xmax=0 means INSERT (new row), xmax!=0 means UPDATE (conflict resolved).
+      // The subquery fetches the previous cost from the audit trail in the same statement.
+      const [row] = await tx
         .insert(servicePricing)
         .values({
           service_id: serviceId,
           method,
-          cost: cost.toString(),
+          cost: costStr,
           description: description ?? null,
           metadata: metadata ?? {},
           updated_by: userId,
@@ -76,33 +82,36 @@ export class ServicePricingRepository {
         .onConflictDoUpdate({
           target: [servicePricing.service_id, servicePricing.method],
           set: {
-            cost: cost.toString(),
-            description: sql`coalesce(${sql.param(description)}, ${servicePricing.description})`,
-            metadata: sql`coalesce(${sql.param(metadata)}, ${servicePricing.metadata})`,
+            cost: costStr,
+            description: sql`coalesce(${sql.param(description ?? null)}, ${servicePricing.description})`,
+            metadata: sql`coalesce(${sql.param(metadata ?? null)}::jsonb, ${servicePricing.metadata})`,
             updated_by: userId,
             updated_at: new Date(),
           },
         })
-        .returning();
+        .returning({
+          ...getTableColumns(servicePricing),
+          wasUpdate: sql<boolean>`xmax::text::int > 0`,
+          previousCost: sql<string | null>`(
+            SELECT new_cost FROM service_pricing_audit
+            WHERE service_pricing_id = ${servicePricing.id}
+            ORDER BY created_at DESC LIMIT 1
+          )`,
+        });
 
-      // Determine if this was a create or update by checking the previous audit entry
-      const previousAudit = await tx.query.servicePricingAudit.findFirst({
-        where: eq(servicePricingAudit.service_pricing_id, result.id),
-        orderBy: [desc(servicePricingAudit.created_at)],
-      });
-
-      const changeType = previousAudit ? "update" : "create";
-      const oldCost = previousAudit ? previousAudit.new_cost : null;
+      const { wasUpdate, previousCost, ...result } = row;
 
       await tx.insert(servicePricingAudit).values({
         service_pricing_id: result.id,
         service_id: serviceId,
         method,
-        old_cost: oldCost,
-        new_cost: cost.toString(),
-        change_type: changeType,
+        old_cost: wasUpdate ? previousCost : null,
+        new_cost: costStr,
+        change_type: wasUpdate ? "update" : "create",
         changed_by: userId,
         reason: reason ?? null,
+        ip_address: ipAddress ?? null,
+        user_agent: userAgent ?? null,
       });
 
       return result;

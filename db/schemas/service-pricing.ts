@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   jsonb,
   numeric,
   pgTable,
@@ -51,21 +52,33 @@ export const servicePricing = pgTable(
  * pricing records are deleted. The service_id and method columns provide
  * sufficient context for historical analysis.
  */
-export const servicePricingAudit = pgTable("service_pricing_audit", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  service_pricing_id: uuid("service_pricing_id").references(
-    () => servicePricing.id,
-    { onDelete: "set null" },
-  ),
-  service_id: text("service_id").notNull(),
-  method: text("method").notNull(),
-  old_cost: numeric("old_cost", { precision: 12, scale: 6 }),
-  new_cost: numeric("new_cost", { precision: 12, scale: 6 }).notNull(),
-  change_type: text("change_type").notNull(),
-  changed_by: text("changed_by").notNull(),
-  reason: text("reason"),
-  created_at: timestamp("created_at").notNull().defaultNow(),
-});
+export const servicePricingAudit = pgTable(
+  "service_pricing_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    service_pricing_id: uuid("service_pricing_id").references(
+      () => servicePricing.id,
+      { onDelete: "set null" },
+    ),
+    service_id: text("service_id").notNull(),
+    method: text("method").notNull(),
+    old_cost: numeric("old_cost", { precision: 12, scale: 6 }),
+    new_cost: numeric("new_cost", { precision: 12, scale: 6 }).notNull(),
+    change_type: text("change_type").notNull(),
+    changed_by: text("changed_by").notNull(),
+    reason: text("reason"),
+    ip_address: text("ip_address"),
+    user_agent: text("user_agent"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    service_idx: index("service_pricing_audit_service_idx").on(table.service_id),
+    pricing_id_created_idx: index("service_pricing_audit_pricing_created_idx").on(
+      table.service_pricing_id,
+      table.created_at,
+    ),
+  }),
+);
 
 export type ServicePricing = InferSelectModel<typeof servicePricing>;
 export type NewServicePricing = InferInsertModel<typeof servicePricing>;

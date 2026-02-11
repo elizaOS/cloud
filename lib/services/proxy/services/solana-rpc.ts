@@ -15,6 +15,22 @@ const NON_CACHEABLE_METHODS = new Set([
   "getLatestBlockhash",
 ]);
 
+// Tier 2+ methods: 10-100 Helius credits per call (vs 1 credit for tier 1).
+// Helius charges per request regardless of response status, so every retry is
+// real upstream spend. These methods use RPC_EXPENSIVE_MAX_RETRIES (default 2).
+const EXPENSIVE_METHODS = new Set([
+  // Tier 2 — DAS API (10 credits)
+  "getAsset", "getAssetsByOwner", "searchAssets", "getTokenAccounts",
+  "getAssetProof", "getAssetProofBatch", "getAssetsByAuthority",
+  "getAssetsByCreator", "getAssetsByGroup", "getAssetBatch",
+  "getSignaturesForAsset", "getNftEditions",
+  // Tier 2 — Complex/Historical (10 credits)
+  "getProgramAccounts", "getBlock", "getBlocks", "getBlocksWithLimit",
+  "getTransaction", "getSignaturesForAddress", "getBlockTime", "getInflationReward",
+  // Tier 3 — Enhanced/ZK (100 credits)
+  "getTransactionsForAddress", "getValidityProof",
+]);
+
 /**
  * Hardcoded Fallback Whitelist
  * 
@@ -227,40 +243,35 @@ async function extractMethodFromBody(body: unknown): Promise<string> {
 }
 
 async function calculateBatchCost(body: unknown[]): Promise<number> {
-  const methods: string[] = [];
-  
-  // Get allowed methods once for the entire batch (cached)
   const allowedMethods = await getAllowedMethods();
-  
+  const methodCounts = new Map<string, number>();
+
   for (const item of body) {
     if (!item || typeof item !== "object" || !("method" in item)) {
       throw new Error("Invalid JSON-RPC batch: malformed request");
     }
     const method = String(item.method);
-    
-    // Validate each method in batch against database whitelist
+
     if (!allowedMethods.has(method)) {
       throw new Error(
         `Batch contains unsupported method '${method}'. See /api/v1/solana/methods for allowed methods.`
       );
     }
-    
-    methods.push(method);
+
+    methodCounts.set(method, (methodCounts.get(method) ?? 0) + 1);
   }
-  
-  // Fetch costs for unique methods in parallel
-  const uniqueMethods = [...new Set(methods)];
-  const costMap = new Map<string, number>();
-  
-  await Promise.all(
-    uniqueMethods.map(async (method) => {
-      const cost = await getServiceMethodCost("solana-rpc", method);
-      costMap.set(method, cost);
-    })
+
+  const costs = await Promise.all(
+    Array.from(methodCounts.keys()).map(async (method) => ({
+      method,
+      cost: await getServiceMethodCost("solana-rpc", method),
+    }))
   );
-  
-  // Sum costs for all requests
-  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
+
+  return costs.reduce(
+    (total, { method, cost }) => total + cost * methodCounts.get(method)!,
+    0
+  );
 }
 
 export const solanaRpcConfig: ServiceConfig = {
@@ -278,7 +289,7 @@ export const solanaRpcConfig: ServiceConfig = {
     hitCostMultiplier: 0.5,
   },
   getCost: async (body: unknown) => {
-    const method = extractMethodFromBody(body);
+    const method = await extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {
       return await calculateBatchCost(body);
@@ -288,73 +299,135 @@ export const solanaRpcConfig: ServiceConfig = {
   },
 };
 
-/**
- * Retry wrapper with exponential backoff
- * Delays: 1s, 2s, 4s, 8s, 16s (max)
- * 
- * SECURITY: All URL logging uses sanitization to prevent API key leakage
- * Pattern: /api-key=[^&]+/ → api-key=***
- */
-async function fetchWithRetry(
-  url: string,
-  body: unknown,
-  network: string,
-  attempt: number = 1,
-): Promise<Response> {
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(PROXY_CONFIG.UPSTREAM_TIMEOUT_MS),
+/** Sanitize URL by masking API key for safe logging */
+function sanitizeUrl(url: string): string {
+  return url.replace(/api-key=[^&]+/, "api-key=***");
+}
+
+// ---------------------------------------------------------------------------
+// Circuit breaker — per-network (mainnet / devnet)
+//
+// Tracks consecutive upstream failures. After THRESHOLD failures the circuit
+// opens and all requests fast-fail with 503 for OPEN_DURATION_MS.  When the
+// open period elapses, one probe request is allowed through (half-open):
+//   • success → circuit closes (state deleted)
+//   • failure → circuit re-opens immediately (failures still >= threshold)
+// ---------------------------------------------------------------------------
+const circuitBreaker = new Map<string, { failures: number; openUntil: number }>();
+
+function isCircuitOpen(network: string): boolean {
+  const cb = circuitBreaker.get(network);
+  if (!cb) return false;
+  return Date.now() < cb.openUntil;
+}
+
+function recordCircuitSuccess(network: string): void {
+  circuitBreaker.delete(network);
+}
+
+function recordCircuitFailure(network: string): void {
+  const cb = circuitBreaker.get(network) ?? { failures: 0, openUntil: 0 };
+  cb.failures++;
+  if (cb.failures >= PROXY_CONFIG.RPC_CIRCUIT_FAILURE_THRESHOLD) {
+    cb.openUntil = Date.now() + PROXY_CONFIG.RPC_CIRCUIT_OPEN_DURATION_MS;
+    logger.error("[Solana RPC] Circuit breaker opened", {
+      network,
+      failures: cb.failures,
+      openForMs: PROXY_CONFIG.RPC_CIRCUIT_OPEN_DURATION_MS,
     });
-
-    // SECURITY: Sanitize URL before logging (removes API key)
-    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
-    logger.debug("[Solana RPC] Attempt", {
-      attempt,
-      url: sanitizedUrl,
-      status: response.status,
-    });
-
-    // Success or non-retriable error
-    if (response.ok || response.status === 400 || response.status === 404) {
-      return response;
-    }
-
-    // Retriable error - retry if attempts remain
-    if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
-      const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-      logger.warn("[Solana RPC] Retriable error, retrying", {
-        attempt,
-        status: response.status,
-        delayMs,
-      });
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      return fetchWithRetry(url, body, network, attempt + 1);
-    }
-
-    return response;
-  } catch (error) {
-    // SECURITY: Sanitize URL before logging (removes API key)
-    const sanitizedUrl = url.replace(/api-key=[^&]+/, "api-key=***");
-    
-    if (error instanceof Error && error.name === "TimeoutError") {
-      logger.warn("[Solana RPC] Timeout", { attempt, url: sanitizedUrl });
-      
-      // Retry on timeout if attempts remain
-      if (attempt < PROXY_CONFIG.RPC_MAX_RETRIES) {
-        const delayMs = PROXY_CONFIG.RPC_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-        logger.info("[Solana RPC] Retrying after timeout", { attempt, delayMs });
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-        return fetchWithRetry(url, body, network, attempt + 1);
-      }
-    }
-
-    throw error;
   }
+  circuitBreaker.set(network, cb);
+}
+
+/** Fewer retries for expensive methods / batch requests to limit upstream spend. */
+function getMaxRetries(body: unknown): number {
+  if (Array.isArray(body)) return PROXY_CONFIG.RPC_EXPENSIVE_MAX_RETRIES;
+  if (body && typeof body === "object" && "method" in body) {
+    if (EXPENSIVE_METHODS.has(String(body.method))) {
+      return PROXY_CONFIG.RPC_EXPENSIVE_MAX_RETRIES;
+    }
+  }
+  return PROXY_CONFIG.RPC_MAX_RETRIES;
+}
+
+interface FetchAttemptLog {
+  attempt: number;
+  url: string;
+  status?: number;
+  error?: string;
+  durationMs: number;
+}
+
+interface FetchResult {
+  response: Response;
+  fetchLogs: FetchAttemptLog[];
+}
+
+/**
+ * Retry wrapper with exponential backoff and per-attempt audit logging.
+ * Delays: 1s, 2s, 4s, 8s… capped at RPC_MAX_RETRY_DELAY_MS (default 16s).
+ * Retries on: TimeoutError, 5xx status codes.
+ * Does NOT retry: 2xx (success), 400, 404 (non-retriable client errors).
+ */
+async function fetchWithRetry(url: string, body: unknown, maxRetries?: number): Promise<FetchResult> {
+  const fetchLogs: FetchAttemptLog[] = [];
+  const sanitized = sanitizeUrl(url);
+  const maxAttempts = maxRetries ?? PROXY_CONFIG.RPC_MAX_RETRIES;
+  const {
+    RPC_INITIAL_RETRY_DELAY_MS: initialDelay,
+    RPC_MAX_RETRY_DELAY_MS: maxDelay,
+    UPSTREAM_TIMEOUT_MS: timeoutMs,
+  } = PROXY_CONFIG;
+
+  let lastResponse: Response | undefined;
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const start = Date.now();
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      fetchLogs.push({
+        attempt,
+        url: sanitized,
+        status: response.status,
+        durationMs: Date.now() - start,
+      });
+
+      if (response.ok || response.status === 400 || response.status === 404) {
+        return { response, fetchLogs };
+      }
+
+      lastResponse = response;
+    } catch (error) {
+      const isTimeout = error instanceof Error && error.name === "TimeoutError";
+
+      fetchLogs.push({
+        attempt,
+        url: sanitized,
+        error: isTimeout ? "TimeoutError" : (error instanceof Error ? error.message : String(error)),
+        durationMs: Date.now() - start,
+      });
+
+      if (!isTimeout) throw error;
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    if (attempt < maxAttempts) {
+      const delayMs = Math.min(initialDelay * Math.pow(2, attempt - 1), maxDelay);
+      logger.warn("[Solana RPC] Retrying", { attempt, delayMs, url: sanitized });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (lastResponse) return { response: lastResponse, fetchLogs };
+  throw lastError!;
 }
 
 export const solanaRpcHandler: ServiceHandler = async ({
@@ -367,54 +440,25 @@ export const solanaRpcHandler: ServiceHandler = async ({
     throw new Error("Invalid network: must be mainnet or devnet");
   }
 
-  /**
-   * API KEY IN URL - REQUIRED BY HELIUS, PROPERLY SECURED
-   * 
-   * IMPORTANT: Helius RPC requires API key in URL query parameter.
-   * 
-   * Why API key is in URL:
-   * - Helius does NOT support Authorization header
-   * - Helius does NOT support X-API-Key header
-   * - URL parameter is the ONLY supported authentication method
-   * 
-   * Security measures in place:
-   * 1. API key is NEVER logged directly
-   * 2. ALL URLs are sanitized before logging (api-key=***)
-   * 3. Sanitization pattern: /api-key=[^&]+/ → api-key=***
-   * 4. Applied in 6+ locations (fetchWithRetry, error handlers, timeouts)
-   * 5. No URL logging without sanitization (verified below)
-   * 
-   * Sanitization locations:
-   * - Line 312: fetchWithRetry debug logs
-   * - Line 338: fetchWithRetry error logs
-   * - Line 398: Primary URL failure logs
-   * - Line 419: Fallback URL failure logs
-   * - Line 446: Timeout error logs
-   * 
-   * Additional protections:
-   * - API key read from environment (never hardcoded)
-   * - HTTPS-only communication (encrypted in transit)
-   * - Server-side only (never exposed to client)
-   * - No URL reflection in error messages to client
-   * 
-   * Verified secure against:
-   * ✅ Application logs (all sanitized)
-   * ✅ Error stack traces (caught and sanitized)
-   * ✅ Debug output (sanitized at source)
-   * ✅ Retry logs (sanitized at source)
-   * 
-   * External logging (outside our control):
-   * ⚠️  Helius server logs will contain the API key (unavoidable)
-   * ⚠️  TLS inspection proxies could intercept (use trusted networks)
-   * ✅ Browser logs (N/A - server-side only)
-   * ✅ Network logs (encrypted via HTTPS)
-   */
+  // Circuit breaker — fast-fail if upstream is consistently down
+  if (isCircuitOpen(network)) {
+    logger.warn("[Solana RPC] Circuit open, fast-failing", { network });
+    return {
+      response: NextResponse.json(
+        { error: "Service temporarily unavailable", code: 503 },
+        { status: 503 },
+      ),
+      usageMetadata: { circuit_open: true },
+    };
+  }
+
+  // Helius requires API key in URL (no header auth). All URL logging goes through
+  // sanitizeUrl() which masks the key as api-key=***.
   const apiKey = process.env.SOLANA_RPC_PROVIDER_API_KEY;
   if (!apiKey) {
     throw new Error("SOLANA_RPC_PROVIDER_API_KEY not configured");
   }
 
-  // Build primary and fallback URLs
   const primaryBaseUrl = network === "mainnet" 
     ? PROXY_CONFIG.HELIUS_MAINNET_URL 
     : PROXY_CONFIG.HELIUS_DEVNET_URL;
@@ -424,74 +468,81 @@ export const solanaRpcHandler: ServiceHandler = async ({
     : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
   
   const primaryUrl = `${primaryBaseUrl}/?api-key=${apiKey}`;
+  const maxRetries = getMaxRetries(body);
+  const fetchLogs: FetchAttemptLog[] = [];
+  let primaryTimedOut = false;
+  let primaryStatus: number | undefined;
 
+  // Try primary URL with retries (fewer for expensive methods)
   try {
-    // Try primary URL with retry-backoff
-    const response = await fetchWithRetry(primaryUrl, body, network);
+    const primary = await fetchWithRetry(primaryUrl, body, maxRetries);
+    fetchLogs.push(...primary.fetchLogs);
 
-    if (!response.ok) {
-      // Client errors (4xx) from upstream should be passed through, not retried or fallback'd.
-      // These indicate invalid requests that would fail on any node (e.g. bad params).
-      if (response.status >= 400 && response.status < 500) {
-        return { response };
-      }
-
-      const errorBody = await response.text();
-      // SECURITY: Sanitize URL before logging (removes API key)
-      const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
-      logger.error("[Solana RPC] Primary URL failed", {
-        url: sanitizedUrl,
-        status: response.status,
-        body: errorBody,
-      });
-
-      // Try fallback if configured (only for server errors)
-      if (fallbackBaseUrl) {
-        logger.info("[Solana RPC] Attempting fallback URL");
-        const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;
-        
-        try {
-          const fallbackResponse = await fetchWithRetry(fallbackUrl, body, network);
-          
-          if (fallbackResponse.ok) {
-            logger.info("[Solana RPC] Fallback succeeded");
-            return { response: fallbackResponse };
-          }
-          
-          const fallbackError = await fallbackResponse.text();
-          // SECURITY: Sanitize URL before logging (removes API key)
-          const sanitizedFallback = fallbackUrl.replace(/api-key=[^&]+/, "api-key=***");
-          logger.error("[Solana RPC] Fallback also failed", {
-            url: sanitizedFallback,
-            status: fallbackResponse.status,
-            body: fallbackError,
-          });
-        } catch (fallbackErr) {
-          logger.error("[Solana RPC] Fallback error", {
-            error: fallbackErr instanceof Error ? fallbackErr.message : "Unknown",
-          });
-        }
-      }
-
-      return {
-        response: NextResponse.json(
-          {
-            error: "Upstream RPC error",
-            code: response.status,
-          },
-          { status: 502 },
-        ),
-      };
+    if (primary.response.ok || (primary.response.status >= 400 && primary.response.status < 500)) {
+      recordCircuitSuccess(network);
+      return { response: primary.response, usageMetadata: { fetch_logs: fetchLogs } };
     }
 
-    return { response };
+    primaryStatus = primary.response.status;
+    const errorBody = await primary.response.text();
+    logger.error("[Solana RPC] Primary URL failed after retries", {
+      url: sanitizeUrl(primaryUrl),
+      status: primaryStatus,
+      body: errorBody,
+      attempts: primary.fetchLogs.length,
+    });
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
-      // SECURITY: Sanitize URL before logging (removes API key)
-      const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
-      logger.error("[Solana RPC] All attempts timed out", { url: sanitizedUrl });
-      throw new Error("timeout");
+      primaryTimedOut = true;
+      logger.error("[Solana RPC] Primary URL timed out after retries", {
+        url: sanitizeUrl(primaryUrl),
+        attempts: fetchLogs.length,
+      });
+    } else {
+      throw error;
     }
-    throw error;
   }
+
+  // Primary failed — try fallback if configured (same retry budget)
+  if (fallbackBaseUrl) {
+    const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;
+    logger.info("[Solana RPC] Attempting fallback URL");
+
+    try {
+      const fallback = await fetchWithRetry(fallbackUrl, body, maxRetries);
+      fetchLogs.push(...fallback.fetchLogs);
+
+      if (fallback.response.ok) {
+        logger.info("[Solana RPC] Fallback succeeded");
+        recordCircuitSuccess(network);
+        return { response: fallback.response, usageMetadata: { fetch_logs: fetchLogs } };
+      }
+
+      const fallbackError = await fallback.response.text();
+      logger.error("[Solana RPC] Fallback also failed", {
+        url: sanitizeUrl(fallbackUrl),
+        status: fallback.response.status,
+        body: fallbackError,
+      });
+    } catch (fallbackErr) {
+      logger.error("[Solana RPC] Fallback error", {
+        error: fallbackErr instanceof Error ? fallbackErr.message : "Unknown",
+      });
+    }
+  }
+
+  // Both URLs exhausted — record failure for circuit breaker
+  recordCircuitFailure(network);
+
+  if (primaryTimedOut) {
+    throw new Error("timeout");
+  }
+
+  return {
+    response: NextResponse.json(
+      { error: "Upstream RPC error", code: primaryStatus ?? 502 },
+      { status: 502 },
+    ),
+    usageMetadata: { fetch_logs: fetchLogs },
+  };
 };

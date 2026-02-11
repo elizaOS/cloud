@@ -239,6 +239,13 @@
       "when": 1770681211631,
       "tag": "0033_add_service_billing_and_entity_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1770839140636,
+      "tag": "0034_improve_service_pricing_audit",
+      "breakpoints": true
     }
   ]
 }

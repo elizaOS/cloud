@@ -11,6 +11,7 @@ import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,
@@ -302,11 +303,11 @@ export async function requireAuth(): Promise<UserWithOrganization> {
   const user = await getCurrentUser();
 
   if (!user) {
-    throw new Error("Unauthorized: Authentication required");
+    throw new AuthenticationError("Authentication required");
   }
 
   if (!user.is_active) {
-    throw new Error("Forbidden: User account is inactive");
+    throw new ForbiddenError("User account is inactive");
   }
 
   return user;
@@ -322,21 +323,21 @@ export async function requireAuthWithOrg(): Promise<
   const user = await getCurrentUser();
 
   if (!user) {
-    throw new Error("Unauthorized: Authentication required");
+    throw new AuthenticationError("Authentication required");
   }
 
   if (!user.is_active) {
-    throw new Error("Forbidden: User account is inactive");
+    throw new ForbiddenError("User account is inactive");
   }
 
   if (!user.organization_id) {
-    throw new Error(
-      "Forbidden: This feature requires a full account. Please sign up to continue.",
+    throw new ForbiddenError(
+      "This feature requires a full account. Please sign up to continue.",
     );
   }
 
   if (!user.organization || !user.organization?.is_active) {
-    throw new Error("Forbidden: Organization is inactive");
+    throw new ForbiddenError("Organization is inactive");
   }
 
   return user as UserWithOrganization & {
@@ -354,13 +355,13 @@ export async function requireOrganization(
   const user = await requireAuth();
 
   if (user.organization_id !== organizationId) {
-    throw new Error(
-      `Forbidden: User does not have access to organization ${organizationId}`,
+    throw new ForbiddenError(
+      `User does not have access to organization ${organizationId}`,
     );
   }
 
   if (!user.organization?.is_active) {
-    throw new Error("Forbidden: Organization is inactive");
+    throw new ForbiddenError("Organization is inactive");
   }
 
   return user;
@@ -375,8 +376,8 @@ export async function requireRole(
   const user = await requireAuth();
 
   if (!allowedRoles.includes(user.role)) {
-    throw new Error(
-      `Forbidden: User role ${user.role} is not in allowed roles: ${allowedRoles.join(", ")}`,
+    throw new ForbiddenError(
+      `User role ${user.role} is not in allowed roles: ${allowedRoles.join(", ")}`,
     );
   }
 
@@ -421,29 +422,29 @@ export async function requireAuthOrApiKey(
     const apiKey = await apiKeysService.validateApiKey(apiKeyHeader);
 
     if (!apiKey) {
-      throw new Error("Invalid or expired API key");
+      throw new AuthenticationError("Invalid or expired API key");
     }
 
     if (!apiKey.is_active) {
-      throw new Error("API key is inactive");
+      throw new ForbiddenError("API key is inactive");
     }
 
     if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-      throw new Error("API key has expired");
+      throw new AuthenticationError("API key has expired");
     }
 
     const user = await getUserFromApiKey(apiKey);
 
     if (!user) {
-      throw new Error("User associated with API key not found");
+      throw new AuthenticationError("User associated with API key not found");
     }
 
     if (!user.is_active) {
-      throw new Error("User account is inactive");
+      throw new ForbiddenError("User account is inactive");
     }
 
     if (!user.organization?.is_active) {
-      throw new Error("Organization is inactive");
+      throw new ForbiddenError("Organization is inactive");
     }
 
     await apiKeysService.incrementUsage(apiKey.id);
@@ -460,7 +461,7 @@ export async function requireAuthOrApiKey(
     const bearerValue = authHeader.substring(7).trim();
 
     if (bearerValue.length === 0) {
-      throw new Error("Invalid authorization header");
+      throw new AuthenticationError("Invalid authorization header");
     }
 
     // If the bearer token looks like a JWT, try to validate it as a Privy token first
@@ -472,15 +473,15 @@ export async function requireAuthOrApiKey(
         const user = await usersService.getByPrivyId(verifiedClaims.userId);
 
         if (!user) {
-          throw new Error("User not found");
+          throw new AuthenticationError("User not found");
         }
 
         if (!user.is_active) {
-          throw new Error("User account is inactive");
+          throw new ForbiddenError("User account is inactive");
         }
 
         if (!user.organization?.is_active) {
-          throw new Error("Organization is inactive");
+          throw new ForbiddenError("Organization is inactive");
         }
 
         return {
@@ -496,25 +497,25 @@ export async function requireAuthOrApiKey(
 
     if (apiKey) {
       if (!apiKey.is_active) {
-        throw new Error("API key is inactive");
+        throw new ForbiddenError("API key is inactive");
       }
 
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-        throw new Error("API key has expired");
+        throw new AuthenticationError("API key has expired");
       }
 
       const user = await getUserFromApiKey(apiKey);
 
       if (!user) {
-        throw new Error("User associated with API key not found");
+        throw new AuthenticationError("User associated with API key not found");
       }
 
       if (!user.is_active) {
-        throw new Error("User account is inactive");
+        throw new ForbiddenError("User account is inactive");
       }
 
       if (!user.organization?.is_active) {
-        throw new Error("Organization is inactive");
+        throw new ForbiddenError("Organization is inactive");
       }
 
       await apiKeysService.incrementUsage(apiKey.id);
@@ -528,10 +529,10 @@ export async function requireAuthOrApiKey(
 
     // If it looked like a JWT but failed verification, give a helpful error
     if (looksLikeJwt(bearerValue)) {
-      throw new Error("Invalid or expired token");
+      throw new AuthenticationError("Invalid or expired token");
     }
 
-    throw new Error("Invalid or expired API key");
+    throw new AuthenticationError("Invalid or expired API key");
   }
 
   // Fall back to session authentication (cookie-based)
@@ -563,8 +564,8 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
   const result = await requireAuthOrApiKey(request);
 
   if (!result.user.organization_id || !result.user.organization) {
-    throw new Error(
-      "Forbidden: This feature requires a full account. Please sign up to continue.",
+    throw new ForbiddenError(
+      "This feature requires a full account. Please sign up to continue.",
     );
   }
 
@@ -626,12 +627,12 @@ export async function requireAdmin(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   if (!user.wallet_address) {
-    throw new Error("Wallet connection required for admin access");
+    throw new AuthenticationError("Wallet connection required for admin access");
   }
 
   const isAdmin = await adminService.isAdmin(user.wallet_address);
   if (!isAdmin) {
-    throw new Error("Admin access required");
+    throw new ForbiddenError("Admin access required");
   }
 
   const role = await adminService.getAdminRole(user.wallet_address);

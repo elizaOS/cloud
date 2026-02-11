@@ -41,4 +41,15 @@ export const PROXY_CONFIG = {
   // Retry configuration
   RPC_MAX_RETRIES: parseInt(process.env.RPC_MAX_RETRIES || "5"),
   RPC_INITIAL_RETRY_DELAY_MS: parseInt(process.env.RPC_INITIAL_RETRY_DELAY_MS || "1000"),
+  RPC_MAX_RETRY_DELAY_MS: parseInt(process.env.RPC_MAX_RETRY_DELAY_MS || "16000"),
+
+  // Reduced retries for expensive methods (tier 2+: 10-100 provider credits per call).
+  // Helius charges per request, not per successful response, so every retry is real spend.
+  RPC_EXPENSIVE_MAX_RETRIES: parseInt(process.env.RPC_EXPENSIVE_MAX_RETRIES || "2"),
+
+  // Circuit breaker — stops retrying when upstream is consistently failing.
+  // Opens after THRESHOLD consecutive failures, stays open for OPEN_DURATION_MS,
+  // then allows one probe request (half-open). Success resets the circuit.
+  RPC_CIRCUIT_FAILURE_THRESHOLD: parseInt(process.env.RPC_CIRCUIT_FAILURE_THRESHOLD || "10"),
+  RPC_CIRCUIT_OPEN_DURATION_MS: parseInt(process.env.RPC_CIRCUIT_OPEN_DURATION_MS || "30000"),
 } as const;

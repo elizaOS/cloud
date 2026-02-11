@@ -34,8 +34,8 @@ import { logger } from "@/lib/utils/logger";
 export const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
 /** Minimum reservation amount in USD */
 export const MIN_RESERVATION = 0.000001;
-/** Epsilon for reconcile comparisons - must be smaller than MIN_RESERVATION */
-const EPSILON = MIN_RESERVATION * 0.1; // 0.0000001
+/** Epsilon for reconcile float comparisons — 10% of MIN_RESERVATION */
+export const EPSILON = MIN_RESERVATION * 0.1;
 /** Default estimated output tokens when not specified */
 export const DEFAULT_OUTPUT_TOKENS = 500;
 

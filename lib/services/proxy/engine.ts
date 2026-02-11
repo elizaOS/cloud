@@ -18,7 +18,7 @@ import type {
   HandlerResult,
   AuthLevel,
 } from "./types";
-import crypto from "crypto";
+import { createHash } from "node:crypto";
 
 async function getAuthForLevel(request: NextRequest, level: AuthLevel) {
   switch (level) {
@@ -39,8 +39,7 @@ function buildCacheKey(
   body: unknown,
   searchParams: URLSearchParams,
 ): string {
-  const contentHash = crypto
-    .createHash("sha256")
+  const contentHash = createHash("sha256")
     .update(JSON.stringify(body) + searchParams.toString())
     .digest("hex")
     .substring(0, 16);
@@ -65,6 +64,13 @@ export function createHandler(
 
       const cost = await config.getCost(body, searchParams);
 
+      if (!user.organization_id) {
+        return Response.json(
+          { error: "Organization required for billing" },
+          { status: 403 },
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -73,7 +79,6 @@ export function createHandler(
       });
 
       let cached = false;
-      let cacheAge: number | undefined;
 
       if (config.cache && body && !Array.isArray(body)) {
         const cacheControl = request.headers.get("cache-control");
@@ -109,7 +114,6 @@ export function createHandler(
               const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
               if (age <= clientMaxAge) {
                 cached = true;
-                cacheAge = age;
 
                 const hitMultiplier = config.cache.hitCostMultiplier ?? 0.5;
                 await reservation.reconcile(cost * hitMultiplier);
@@ -225,6 +229,8 @@ export function createHandler(
         }
       }
 
+      const isSuccessful = result.response.ok;
+
       (async () => {
         try {
           await usageService.create({
@@ -237,7 +243,8 @@ export function createHandler(
             output_cost: 0,
             markup: 0,
             duration_ms: Date.now() - startTime,
-            is_successful: true,
+            is_successful: isSuccessful,
+            error_message: isSuccessful ? undefined : `Upstream returned ${result.response.status}`,
             metadata: { cached: false, ...(result.usageMetadata ?? {}) },
           });
         } catch (error) {
