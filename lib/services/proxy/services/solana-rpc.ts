@@ -388,6 +388,12 @@ export const solanaRpcHandler: ServiceHandler = async ({
     const response = await fetchWithRetry(primaryUrl, body, network);
 
     if (!response.ok) {
+      // Client errors (4xx) from upstream should be passed through, not retried or fallback'd.
+      // These indicate invalid requests that would fail on any node (e.g. bad params).
+      if (response.status >= 400 && response.status < 500) {
+        return { response };
+      }
+
       const errorBody = await response.text();
       const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
       logger.error("[Solana RPC] Primary URL failed", {
@@ -396,7 +402,7 @@ export const solanaRpcHandler: ServiceHandler = async ({
         body: errorBody,
       });
 
-      // Try fallback if configured
+      // Try fallback if configured (only for server errors)
       if (fallbackBaseUrl) {
         logger.info("[Solana RPC] Attempting fallback URL");
         const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;

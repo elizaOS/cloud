@@ -270,7 +270,11 @@ export function createHandler(
       }
 
       if (error instanceof Error) {
-        if (error.message.includes("validation") || error.message.includes("Invalid")) {
+        if (
+          error.message.includes("validation") ||
+          error.message.includes("Invalid") ||
+          error.message.includes("not supported")
+        ) {
           return NextResponse.json(
             { error: error.message },
             { status: 400 },

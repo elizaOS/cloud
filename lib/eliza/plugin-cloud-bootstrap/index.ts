@@ -23,7 +23,6 @@ import {
   oauthRevokeAction,
   userAuthStatusProvider,
 } from "../plugin-oauth";
-
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
 export * from "./types";
@@ -44,7 +43,7 @@ class MessageServiceInstaller extends Service {
 
     // Replace DefaultMessageService with our custom implementation
     logger.info(
-      "[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)"
+      "[CloudBootstrap] Installing CloudBootstrapMessageService (post-initialization)",
     );
     runtime.messageService = new CloudBootstrapMessageService();
     logger.info("[CloudBootstrap] CloudBootstrapMessageService installed");
@@ -98,7 +97,8 @@ const events = {
 
 export const cloudBootstrapPlugin: Plugin = {
   name: "cloud-bootstrap",
-  description: "Multi-step message execution with action params for eliza-cloud-v2",
+  description:
+    "Multi-step message execution with action params for eliza-cloud-v2",
   actions: [
     generateImageAction,
     oauthConnectAction,

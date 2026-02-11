@@ -44,6 +44,41 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
 }
 
 /**
+ * Atomically claim a key for processing. Returns true if THIS caller claimed it.
+ * Uses INSERT ... ON CONFLICT DO NOTHING so only one concurrent caller wins.
+ * Unlike isAlreadyProcessed + markAsProcessed, this is a single atomic operation
+ * with no TOCTOU race window.
+ */
+export async function tryClaimForProcessing(key: string, source = "unknown"): Promise<boolean> {
+  try {
+    const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
+    const rows = await dbWrite
+      .insert(idempotencyKeys)
+      .values({ key, source, expires_at })
+      .onConflictDoNothing({ target: idempotencyKeys.key })
+      .returning({ key: idempotencyKeys.key });
+
+    // length === 1 means we inserted (claimed), 0 means key already exists (conflict)
+    return rows.length === 1;
+  } catch (error) {
+    logger.error("[Idempotency] Error claiming key", { key, source, error: getErrorMessage(error) });
+    return true; // Fail open to avoid dropping messages
+  }
+}
+
+/**
+ * Release a previously claimed processing key, allowing retries.
+ * Call this when processing fails and you want the message to be retryable.
+ */
+export async function releaseProcessingClaim(key: string): Promise<void> {
+  try {
+    await dbWrite.delete(idempotencyKeys).where(eq(idempotencyKeys.key, key));
+  } catch (error) {
+    logger.error("[Idempotency] Error releasing claim", { key, error: getErrorMessage(error) });
+  }
+}
+
+/**
  * Mark a message as processed. Uses upsert to handle race conditions.
  */
 export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {
