@@ -59,10 +59,13 @@ export class ServicePricingRepository {
     userId: string,
     reason?: string,
     description?: string,
+    /** Flat key-value metadata. Keys limited to 100 chars, values to 1000 chars, max 20 keys. */
     metadata?: Record<string, string | number | boolean | null>,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<ServicePricing> {
+    // Race-condition safe: Postgres INSERT ... ON CONFLICT DO UPDATE is atomic
+    // under concurrent access. No application-level retry needed.
     return await dbWrite.transaction(async (tx) => {
       const costStr = cost.toString();
       const metadataJson = metadata ? JSON.stringify(metadata) : null;
@@ -120,6 +123,10 @@ export class ServicePricingRepository {
     });
   }
 
+  /**
+   * List audit history for a service.
+   * Uses read replica for audit queries (eventually consistent).
+   */
   async listAuditHistory(
     serviceId: string,
     limit: number = 50,

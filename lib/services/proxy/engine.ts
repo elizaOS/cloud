@@ -140,13 +140,6 @@ export function createHandler(
         );
       }
 
-      if (!user.organization_id) {
-        return new Response(
-          JSON.stringify({ error: "Organization membership required to use this service" }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
-        );
-      }
-
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -311,8 +304,8 @@ export function createHandler(
             type: config.id,
             provider: config.id,
             input_cost: actualCost,
-            output_cost: String(0),
-            markup: String(0),
+            output_cost: 0,
+            markup: 0,
             duration_ms: Date.now() - startTime,
             is_successful: isSuccessful,
             error_message: isSuccessful ? undefined : `Upstream returned ${result.response.status}`,

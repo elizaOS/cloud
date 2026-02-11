@@ -19,6 +19,11 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:97 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:33 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:180 - When a review requests "add tests," create actual test files with test cases, not TODO comments documenting what tests should exist.
+- Fix for app/api/v1/admin/service-pricing/route.ts:184 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:62 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:101 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:87 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:100 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -34,6 +39,10 @@
 - Fix for lib/services/proxy/engine.ts:41 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:93 - When adding a fallback path for missing data, remove the early return that makes the fallback unreachable, or commit to only one strategy (reject or fallback).
 - Fix for lib/services/proxy/engine.ts:146 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:42 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:101 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:139 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:306 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -41,6 +50,7 @@
 - Fix for db/repositories/service-pricing.ts:63 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:63 - When a comment requires changes across multiple files, implement ALL of them: define the type, then update each file that references it.
 - Fix for db/repositories/service-pricing.ts:120 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:121 - No verification result returned, treating as failed
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -51,12 +61,20 @@
 - Fix for app/api/v1/admin/moderation/route.ts:209 - When adding a try block to handle an async operation, immediately add the matching catch block with error handling before moving on to other code.
 - Fix for app/api/v1/admin/moderation/route.ts:231 - tool made no changes without explanation - trying different approach
 - Fix for app/api/v1/admin/moderation/route.ts:231 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:172 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:244 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:20 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:160 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:228 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:404 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:83 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:128 - No verification result returned, treating as failed
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:210 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:136 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:218 - No verification result returned, treating as failed
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -74,7 +92,23 @@
 
 - Fix for lib/services/proxy/services/solana-rpc.ts:275 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:314 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:315 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:46 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:379 - No verification result returned, treating as failed
 
 ### scripts/check-types-split.ts
 
 - Fix for scripts/check-types-split.ts:22 - No verification result returned, treating as failed
+
+### app/api/v1/admin/service-pricing/__tests__/route.test.ts
+
+- Fix for app/api/v1/admin/service-pricing/__tests__/route.test.ts:30 - No verification result returned, treating as failed
+
+### app/api/v1/admin/service-pricing/route.test.ts
+
+- Fix for app/api/v1/admin/service-pricing/route.test.ts:31 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.test.ts:81 - No verification result returned, treating as failed
+
+### lib/auth.ts
+
+- Fix for lib/auth.ts:15 - No verification result returned, treating as failed

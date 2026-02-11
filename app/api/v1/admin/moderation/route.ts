@@ -13,7 +13,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, WalletRequiredError, AdminRequiredError } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
@@ -222,20 +223,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-    adminRole = result.role;
-  } catch (error) {
-    if (error instanceof WalletRequiredError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof AdminRequiredError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Moderation POST auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
       { status: 500 },
     );
   }

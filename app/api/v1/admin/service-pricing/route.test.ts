@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GET, PUT } from './route';
 import { NextRequest } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
+import { WalletRequiredError, AdminRequiredError } from '@/lib/auth-errors';
 import { servicePricingRepository } from '@/db/repositories';
 import { cache } from '@/lib/cache/client';
 
@@ -22,11 +23,12 @@ describe('Service Pricing Admin API', () => {
 
   describe('GET /api/v1/admin/service-pricing', () => {
     it('should require admin authentication', async () => {
-      vi.mocked(requireAdmin).mockRejectedValue(new Error('Unauthorized'));
+      vi.mocked(requireAdmin).mockRejectedValue(new WalletRequiredError());
       
       const request = new NextRequest('http://localhost/api/v1/admin/service-pricing');
       
-      await expect(GET(request)).rejects.toThrow('Unauthorized');
+      const response = await GET(request);
+      expect(response.status).toBe(401);
       expect(requireAdmin).toHaveBeenCalledTimes(1);
     });
 
@@ -67,7 +69,7 @@ describe('Service Pricing Admin API', () => {
         method: 'default',
         updated_at: new Date()
       });
-      vi.mocked(cache.delete).mockResolvedValue(true);
+      vi.mocked(cache.del).mockResolvedValue(true);
 
       const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
         method: 'PUT',
@@ -77,7 +79,7 @@ describe('Service Pricing Admin API', () => {
       const response = await PUT(request);
       
       expect(response.status).toBe(200);
-      expect(cache.delete).toHaveBeenCalledWith('pricing:svc-1:default');
+      expect(cache.del).toHaveBeenCalledWith('pricing:svc-1:default');
       const data = await response.json();
       expect(data.pricing.service_id).toBe('svc-1');
     });
@@ -91,7 +93,7 @@ describe('Service Pricing Admin API', () => {
         method: 'default',
         updated_at: new Date()
       });
-      vi.mocked(cache.delete).mockRejectedValue(new Error('Cache error'));
+      vi.mocked(cache.del).mockRejectedValue(new Error('Cache error'));
 
       const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
         method: 'PUT',

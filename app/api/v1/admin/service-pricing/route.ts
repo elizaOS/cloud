@@ -80,9 +80,6 @@ export async function GET(request: NextRequest) {
     if (error instanceof WalletRequiredError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof AdminRequiredError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
     logger.error("[Admin] Service pricing GET error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
@@ -97,11 +94,30 @@ const UpsertSchema = z.object({
   cost: z.number().positive(),
   reason: z.string(),
   description: z.string().optional(),
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  metadata: z.record(z.string().max(100), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()])).refine(
+    (val) => Object.keys(val).length <= 20,
+    { message: "Metadata must have at most 20 keys" },
+  ).optional(),
 });
 
 export async function PUT(request: NextRequest) {
-  const { user } = await requireAdmin(request);
+  let user;
+  try {
+    const result = await requireAdmin(request);
+    user = result.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 
   let body;
   try {
