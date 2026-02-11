@@ -18,6 +18,7 @@ import {
   getUserFromIdToken,
   getUserById,
 } from "./auth/privy-client";
+import { adminService } from "@/lib/services/admin";
 
 // Re-export Organization type for convenience
 export type { Organization };

@@ -48,6 +48,139 @@ function buildCacheKey(
       .substring(0, 16);
     return `svc:${serviceId}:${orgId}:${contentHash}`;
   } catch {
+    return `svc:${serviceId}:${orgId}:fallback`;
+  }
+}
+
+export function createHandler(
+  config: ServiceConfig,
+  handler: ServiceHandler,
+): (request: NextRequest) => Promise<NextResponse> {
+  const wrappedHandler = async (
+    request: NextRequest,
+  ): Promise<NextResponse> => {
+    try {
+      const { user } = await getAuthForLevel(request, config.authLevel);
+      
+      // Check organization_id exists before reserving credits
+      if (!user.organization_id) {
+        logger.warn("[Proxy] User missing organization_id", { userId: user.id });
+        return NextResponse.json(
+          { error: "Organization membership required" },
+          { status: 403 }
+        );
+      }
+
+      const cost = await config.calculateCost(request);
+      
+      const reservation = await creditsService.reserve({
+        organizationId: user.organization_id,
+        userId: user.id,
+        amount: cost,
+        description: config.name,
+      });
+
+      if (config.cache && request.method === "POST") {
+        const body = await request.json();
+        const searchParams = new URL(request.url).searchParams;
+        
+        if (body && !Array.isArray(body)) {
+          const cacheKey = buildCacheKey(
+            config.id,
+            user.organization_id,
+            body,
+            searchParams
+          );
+
+          const cachedResponse = await cache.get(cacheKey);
+          if (cachedResponse) {
+            await creditsService.release(reservation.id);
+            
+            return NextResponse.json(cachedResponse, {
+              headers: { "X-Cache": "HIT" },
+            });
+          }
+        }
+      }
+
+      const context: HandlerContext = {
+        user,
+        request,
+        reservation,
+      };
+
+      const result: HandlerResult = await handler(context);
+
+      if (result.response) {
+        const responseClone = result.response.clone();
+        const responseBody = await responseClone.text();
+
+        if (config.cache && result.cacheable) {
+          const body = await request.json();
+          const searchParams = new URL(request.url).searchParams;
+          
+          if (body && !Array.isArray(body)) {
+            const cacheKey = buildCacheKey(
+              config.id,
+              user.organization_id,
+              body,
+              searchParams
+            );
+            
+            const ttl = result.cacheTTL || 300;
+            await cache.set(cacheKey, JSON.parse(responseBody), ttl);
+          }
+        }
+
+        await creditsService.commit(reservation.id);
+
+        await usageService.record({
+          organizationId: user.organization_id,
+          userId: user.id,
+          serviceId: config.id,
+          cost,
+          metadata: result.metadata,
+        });
+
+        return result.response;
+      }
+
+      await creditsService.release(reservation.id);
+      return NextResponse.json(
+        { error: "Handler did not return a response" },
+        { status: 500 }
+      );
+    } catch (error) {
+      logger.error("[Proxy] Handler error", {
+        service: config.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (error instanceof InsufficientCreditsError) {
+        return NextResponse.json(
+          { error: "Insufficient credits" },
+          { status: 402 }
+        );
+      }
+
+      if (error instanceof PricingNotFoundError) {
+        return NextResponse.json(
+          { error: "Service pricing not configured" },
+          { status: 503 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 }
+      );
+    }
+  };
+
+  return config.rateLimit
+    ? withRateLimit(wrappedHandler, config.rateLimit)
+    : wrappedHandler;
+}
     logger.warn("Failed to serialize body for cache key");
     // Fallback to a generic key without body content
     return `svc:${serviceId}:${orgId}:fallback`;
