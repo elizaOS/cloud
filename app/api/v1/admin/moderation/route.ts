@@ -128,13 +128,7 @@ export async function GET(request: NextRequest) {
     }
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    const reservation = await creditsService.reserve({
-        organizationId: user.organization_id,
-        userId: user.id,
-        amount: cost,
-        description: config.name,
-      });</search>
+    }</search>
 <replace>      if (!user.organization_id) {
         return NextResponse.json(
           { error: "Organization required for billing" },

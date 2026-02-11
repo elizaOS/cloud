@@ -21,7 +21,45 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const url = new URL(request.url);
+  try {
+    const url = new URL(request.url);</search>
+</change>
+
+<change path="app/api/v1/admin/service-pricing/audit/route.ts">
+<search>      history: history.map(h => ({
+        id: h.id,
+        service_id: h.serviceId,
+        method: h.method,
+        old_cost: h.oldCost ? Number(h.oldCost) : null,
+        new_cost: Number(h.newCost),
+        change_type: h.changeType,
+        changed_by: h.changedBy,
+        reason: h.reason,
+        created_at: h.createdAt,
+      })),
+    });
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing audit error", { error });</search>
+<replace>      history: history.map(h => ({
+        id: h.id,
+        service_id: h.serviceId,
+        method: h.method,
+        old_cost: h.oldCost ? Number(h.oldCost) : null,
+        new_cost: Number(h.newCost),
+        change_type: h.changeType,
+        changed_by: h.changedBy,
+        reason: h.reason,
+        created_at: h.createdAt,
+      })),
+    });
+  } catch (error) {
+    logger.error("[Admin] Service pricing audit error", { error });
   const serviceId = url.searchParams.get("service_id");
   
   const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);

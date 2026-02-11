@@ -9,7 +9,6 @@
  * Billing: Usage tracked per organization
  */
 
-import { NextRequest } from "next/server";
 import { createHandler } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
@@ -23,8 +22,8 @@ export async function OPTIONS() {
 // Wrap handler to add CORS headers to all responses (success and error)
 const baseHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
-export async function POST(request: NextRequest) {
-  const response = await baseHandler(request);
+export async function POST(request: Request) {
+  const response = await baseHandler(request as any);
   
   // Add CORS headers to response
   const corsHeaders = getCorsHeaders("POST, OPTIONS");

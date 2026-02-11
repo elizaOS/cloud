@@ -67,6 +67,16 @@ describe("PUT /api/v1/admin/service-pricing", () => {
     expect(response.status).toBe(401);
   });
 
+  it("should return 403 when not admin", async () => {
+    mockRequireAdmin.mockRejectedValue(new ForbiddenError("Not admin"));
+    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+      method: "PUT",
+      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" })
+    });
+    const response = await PUT(request);
+    expect(response.status).toBe(403);
+  });
+
   it("should upsert pricing and invalidate cache", async () => {
     const mockUser = { id: "user-1", organization_id: "org-1" };
     mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true });
@@ -83,9 +93,10 @@ describe("PUT /api/v1/admin/service-pricing", () => {
       method: "PUT",
       body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" })
     });
+    
     const response = await PUT(request);
     
     expect(response.status).toBe(200);
-    expect(mockInvalidateCache).toHaveBeenCalled();
+    expect(mockInvalidateCache).toHaveBeenCalledWith("test", "default");
   });
 });

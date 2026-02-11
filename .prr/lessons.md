@@ -33,6 +33,9 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:35 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:76 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:32 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:173 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:75 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:173 - tool modified wrong files (app/api/v1/admin/service-pricing/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 
 ### lib/services/proxy/engine.ts
 
@@ -111,6 +114,7 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:53 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:101 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - Before adding seed data to a migration, verify the complete list doesn't already exist elsewhere in the file to avoid duplicates.
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
