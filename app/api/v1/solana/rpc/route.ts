@@ -24,14 +24,13 @@ export async function OPTIONS() {
 const baseHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
 export async function POST(request: NextRequest) {
-  try {
-    const response = await baseHandler(request);
-    
-    // Add CORS headers to response
-    const corsHeaders = getCorsHeaders();
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      response.headers.set(key, value);
-    }
+  const response = await baseHandler(request);
+  
+  // Add CORS headers to response
+  const corsHeaders = getCorsHeaders();
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value);
+  }
     
     return response;
   } catch (error) {

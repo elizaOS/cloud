@@ -30,8 +30,27 @@ import { z } from "zod";
  * - userId: For user-detail view
  */
 export async function GET(request: NextRequest) {
+  let user;
+  let role: string;
   try {
-    const { user, role } = await requireAdmin(request);
+    const result = await requireAdmin(request);
+    user = result.user;
+    role = result.role;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Moderation GET auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+
+  try {
 
     const url = new URL(request.url);
     const view = url.searchParams.get("view") || "overview";
@@ -139,6 +158,25 @@ const ActionSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   let user: Awaited<ReturnType<typeof requireAdmin>>["user"];
+  let adminRole: string;
+
+  try {
+    const result = await requireAdmin(request);
+    user = result.user;
+    adminRole = result.role;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Moderation POST auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
   let adminRole: string;
 
   try {

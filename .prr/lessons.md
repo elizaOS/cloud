@@ -88,6 +88,7 @@
 - Fix for db/repositories/service-pricing.ts:64 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:141 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:88 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/assets/[address]/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/pricing.ts, lib/services/proxy/services/solana-rpc.ts), need to modify db/repositories/service-pricing.ts
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -119,6 +120,9 @@
 - Fix for app/api/v1/admin/moderation/route.ts:212 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:158 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:385 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:117 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:118 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:309 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -148,6 +152,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:165 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:205 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:174 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:215 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:184 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
@@ -167,6 +173,7 @@
 - Fix for lib/services/proxy/services/solana-rpc.ts:276 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:341 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:341 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify lib/services/proxy/services/solana-rpc.ts
+- Fix for lib/services/proxy/services/solana-rpc.ts:278 - No verification result returned, treating as failed
 
 ### scripts/check-types-split.ts
 

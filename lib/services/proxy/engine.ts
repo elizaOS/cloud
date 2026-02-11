@@ -88,6 +88,13 @@ export function createHandler(
       const cost = await config.getCost(body, searchParams);
 
       // Reserve credits
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
+          { status: 403 },
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -128,7 +135,7 @@ export function createHandler(
                     output_tokens: 0,
                     input_cost: String(cost),
                     output_cost: String(0),
-                    markup: String(0),
+            markup: String(0),
                     metadata: { cached: true },
                   });
                 } catch (error) {
