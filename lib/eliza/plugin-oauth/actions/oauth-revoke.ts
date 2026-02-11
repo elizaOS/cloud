@@ -32,6 +32,7 @@ export const oauthRevokeAction: ActionWithParams = {
     "DISCONNECT_ASANA", "DISCONNECT_DROPBOX", "DISCONNECT_SALESFORCE", "DISCONNECT_AIRTABLE", "DISCONNECT_ZOOM",
     "DISCONNECT_JIRA", "REMOVE_JIRA", "UNLINK_JIRA",
     "DISCONNECT_LINKEDIN", "REMOVE_LINKEDIN", "UNLINK_LINKEDIN",
+    "DISCONNECT_MICROSOFT", "DISCONNECT_OUTLOOK", "REMOVE_MICROSOFT",
   ],
   description:
     "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account.",
@@ -39,7 +40,7 @@ export const oauthRevokeAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to disconnect: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin",
+      description: "Platform to disconnect: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
