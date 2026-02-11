@@ -51,6 +51,8 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   zoom: { url: "/api/mcps/zoom/mcp", type: "streamable-http" },
   jira: { url: "/api/mcps/jira/mcp", type: "streamable-http" },
   linkedin: { url: "/api/mcps/linkedin/mcp", type: "streamable-http" },
+  microsoft: { url: "/api/mcps/microsoft/mcp", type: "streamable-http" },
+  // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {
