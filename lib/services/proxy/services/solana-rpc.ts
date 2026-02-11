@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
+import type { ProxyRequestBody } from "../types";
 import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
@@ -327,7 +328,7 @@ export const solanaRpcConfig: ServiceConfig = {
     maxResponseSize: 65536,
     hitCostMultiplier: 0.5,
   },
-  getCost: async (body: Record<string, unknown> | Record<string, unknown>[]) => {
+  getCost: async (body: ProxyRequestBody) => {
     const method = await extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {
@@ -379,7 +380,7 @@ function recordCircuitFailure(network: string): void {
 }
 
 /** Fewer retries for expensive methods / batch requests to limit upstream spend. */
-function getMaxRetries(body: unknown): number {
+function getMaxRetries(body: JsonRpcRequest | JsonRpcBatchRequest): number {
   if (Array.isArray(body)) return PROXY_CONFIG.RPC_EXPENSIVE_MAX_RETRIES;
   if (body && typeof body === "object" && "method" in body) {
     if (EXPENSIVE_METHODS.has(String(body.method))) {

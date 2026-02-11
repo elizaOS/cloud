@@ -17,6 +17,7 @@ import type {
   HandlerContext,
   HandlerResult,
   AuthLevel,
+  ProxyRequestBody,
 } from "./types";
 import { createHash } from "node:crypto";
 
@@ -60,6 +61,7 @@ function buildCacheKey(
   HandlerContext,
   HandlerResult,
   AuthLevel,
+  ProxyRequestBody,
 } from "./types";</search>
 <replace>import type {
   ServiceConfig,
@@ -135,6 +137,13 @@ export function createHandler(
         return NextResponse.json(
           { error: "Organization membership required to use this service" },
           { status: 403 },
+        );
+      }
+
+      if (!user.organization_id) {
+        return new Response(
+          JSON.stringify({ error: "Organization membership required to use this service" }),
+          { status: 403, headers: { "Content-Type": "application/json" } },
         );
       }
 

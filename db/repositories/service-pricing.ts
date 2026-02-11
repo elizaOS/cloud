@@ -70,6 +70,7 @@ export class ServicePricingRepository {
       // Atomic upsert with conflict detection via xmax and old cost via subquery.
       // xmax=0 means INSERT (new row), xmax!=0 means UPDATE (conflict resolved).
       // The subquery fetches the previous cost from the audit trail in the same statement.
+      // Atomic upsert - INSERT ... ON CONFLICT DO UPDATE is race-condition safe in Postgres
       const [row] = await tx
         .insert(servicePricing)
         .values({

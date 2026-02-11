@@ -21,6 +21,8 @@ export interface RateLimitConfig {
   keyGenerator?: (request: NextRequest) => string;
 }
 
+export type ProxyRequestBody = Record<string, unknown>;
+
 export interface ServiceConfig {
   id: string;
   name: string;
@@ -31,7 +33,7 @@ export interface ServiceConfig {
 }
 
 export interface HandlerContext {
-  body: unknown;
+  body: ProxyRequestBody;
   auth: { user: UserWithOrganization; apiKey?: ApiKey };
   searchParams: URLSearchParams;
 }

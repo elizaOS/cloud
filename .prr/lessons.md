@@ -18,6 +18,7 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:180 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:97 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:33 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:180 - When a review requests "add tests," create actual test files with test cases, not TODO comments documenting what tests should exist.
 
 ### lib/services/proxy/engine.ts
 
@@ -32,12 +33,14 @@
 - Fix for lib/services/proxy/engine.ts:93 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:41 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:93 - When adding a fallback path for missing data, remove the early return that makes the fallback unreachable, or commit to only one strategy (reject or fallback).
+- Fix for lib/services/proxy/engine.ts:146 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
 - Fix for db/repositories/service-pricing.ts:119 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:63 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:63 - When a comment requires changes across multiple files, implement ALL of them: define the type, then update each file that references it.
+- Fix for db/repositories/service-pricing.ts:120 - No verification result returned, treating as failed
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -47,6 +50,7 @@
 - Fix for app/api/v1/admin/moderation/route.ts:131 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:209 - When adding a try block to handle an async operation, immediately add the matching catch block with error handling before moving on to other code.
 - Fix for app/api/v1/admin/moderation/route.ts:231 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:231 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 

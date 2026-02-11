@@ -27,6 +27,10 @@ import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+function safeParseJson(request: NextRequest): Promise<unknown> {
+  return request.json().catch(() => null);
+}
+
 export async function GET(request: NextRequest) {
   let user;
   try {
