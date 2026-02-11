@@ -60,13 +60,14 @@ const PROVIDER_METHODS: Record<string, ProviderMethod> = {
     // Alchemy expects: params: [{ fromAddress, toAddress, category, maxCount, pageKey }]
     // Filter out null/undefined values to avoid sending them to Alchemy
     buildRpcParams: (p) => {
-      const params: Record<string, unknown> = {
-        fromAddress: p.fromAddress,
-        category: p.category ? [p.category] : ["external", "erc20", "erc721", "erc1155"],
-        maxCount: p.maxCount ? "0x" + Number(p.maxCount).toString(16) : "0x64",
+      const params: Record<string, string | string[]> = {
+        category: p.category ? [String(p.category)] : ["external", "erc20", "erc721", "erc1155"],
       };
-      if (p.toAddress) params.toAddress = p.toAddress;
-      if (p.pageKey) params.pageKey = p.pageKey;
+      if (p.fromAddress) params.fromAddress = String(p.fromAddress);
+      if (p.toAddress) params.toAddress = String(p.toAddress);
+      if (p.pageKey) params.pageKey = String(p.pageKey);
+      const count = Number(p.maxCount);
+      params.maxCount = (!p.maxCount || Number.isNaN(count)) ? "0x64" : "0x" + count.toString(16);
       return [params];
     },
   },
