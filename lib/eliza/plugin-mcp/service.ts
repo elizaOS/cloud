@@ -32,7 +32,9 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { type McpToolAction, createMcpToolActions } from "./actions/dynamic-tool-actions";
-import { Tier2ToolIndex } from "./search/bm25-index";
+import { Tier2ToolIndex, type Tier2ToolEntry } from "./search/bm25-index";
+import { isCrucialTool } from "./tool-visibility";
+import { toActionName } from "./utils/action-naming";
 import { McpSchemaCache, getSchemaCache } from "./cache";
 import { type McpToolCompatibility, createMcpToolCompatibilitySync } from "./tool-compatibility";
 import {
@@ -72,6 +74,7 @@ export class McpService extends Service {
   private initPromise: Promise<void> | null = null;
   private registeredActions = new Map<string, McpToolAction>();
   private tier2Index = new Tier2ToolIndex();
+  private tier2Tools: Tier2ToolEntry[] = [];
   private schemaCache = getSchemaCache();
   private lazyConnections = new Map<string, McpServerConfig>();
   /** Per-key mutex to prevent concurrent requests from creating duplicate connections */
@@ -461,23 +464,56 @@ export class McpService extends Service {
   private registerToolsAsActions(serverName: string, tools: Tool[]): void {
     if (!tools?.length) return;
 
-    const existing = new Set([
-      ...this.runtime.actions.map((a) => a.name),
-      ...this.registeredActions.keys(),
-    ]);
-    const actions = createMcpToolActions(serverName, tools, existing);
+    // Split tools into Tier-1 (crucial, always visible) and Tier-2 (discoverable via SEARCH_ACTIONS)
+    const crucialTools: Tool[] = [];
+    const tier2Entries: Tier2ToolEntry[] = [];
 
-    for (const action of actions) {
-      if (!this.registeredActions.has(action.name)) {
-        this.runtime.registerAction(action);
-        this.registeredActions.set(action.name, action);
+    for (const tool of tools) {
+      if (isCrucialTool(serverName, tool.name)) {
+        crucialTools.push(tool);
+      } else {
+        tier2Entries.push({
+          serverName,
+          toolName: tool.name,
+          actionName: toActionName(serverName, tool.name),
+          platform: serverName.toLowerCase(),
+          tool,
+        });
       }
     }
 
-    logger.info(`[MCP] Registered ${actions.length} actions for ${serverName}`);
+    // Register Tier-1 crucial tools as runtime actions
+    if (crucialTools.length > 0) {
+      const existing = new Set([
+        ...this.runtime.actions.map((a) => a.name),
+        ...this.registeredActions.keys(),
+      ]);
+      const actions = createMcpToolActions(serverName, crucialTools, existing);
+
+      for (const action of actions) {
+        if (!this.registeredActions.has(action.name)) {
+          this.runtime.registerAction(action);
+          this.registeredActions.set(action.name, action);
+        }
+      }
+    }
+
+    // Add Tier-2 tools to the discoverable index
+    if (tier2Entries.length > 0) {
+      this.tier2Tools = [
+        ...this.tier2Tools.filter((t) => t.serverName !== serverName),
+        ...tier2Entries,
+      ];
+      this.tier2Index.build(this.tier2Tools);
+    }
+
+    logger.info(
+      `[MCP] ${serverName}: ${crucialTools.length} crucial (registered), ${tier2Entries.length} tier-2 (indexed)`
+    );
   }
 
   private unregisterToolsAsActions(serverName: string): void {
+    // Remove Tier-1 actions
     const toRemove: string[] = [];
     for (const [name, action] of this.registeredActions) {
       if (action._mcpMeta.serverName === serverName) toRemove.push(name);
@@ -487,6 +523,13 @@ export class McpService extends Service {
       const idx = this.runtime.actions.findIndex((a) => a.name === name);
       if (idx !== -1) this.runtime.actions.splice(idx, 1);
       this.registeredActions.delete(name);
+    }
+
+    // Remove Tier-2 entries and rebuild index
+    const hadTier2 = this.tier2Tools.some((t) => t.serverName === serverName);
+    if (hadTier2) {
+      this.tier2Tools = this.tier2Tools.filter((t) => t.serverName !== serverName);
+      this.tier2Index.build(this.tier2Tools);
     }
   }
 
