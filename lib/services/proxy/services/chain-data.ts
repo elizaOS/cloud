@@ -58,13 +58,18 @@ const PROVIDER_METHODS: Record<string, ProviderMethod> = {
     path: "/v2/{apiKey}",
     rpcMethod: "alchemy_getAssetTransfers",
     // Alchemy expects: params: [{ fromAddress, toAddress, category, maxCount, pageKey }]
-    buildRpcParams: (p) => [{
-      fromAddress: p.fromAddress,
-      toAddress: p.toAddress,
-      category: p.category ? [p.category] : ["external", "erc20", "erc721", "erc1155"],
-      maxCount: p.maxCount ? Number(p.maxCount) : 100,
-      pageKey: p.pageKey,
-    }],
+    // Filter out null/undefined values to avoid sending them to Alchemy
+    buildRpcParams: (p) => {
+      const params: Record<string, string | string[]> = {
+        category: p.category ? [String(p.category)] : ["external", "erc20", "erc721", "erc1155"],
+      };
+      if (p.fromAddress) params.fromAddress = String(p.fromAddress);
+      if (p.toAddress) params.toAddress = String(p.toAddress);
+      if (p.pageKey) params.pageKey = String(p.pageKey);
+      const count = Number(p.maxCount);
+      params.maxCount = (!p.maxCount || Number.isNaN(count)) ? "0x64" : "0x" + count.toString(16);
+      return [params];
+    },
   },
 };
 

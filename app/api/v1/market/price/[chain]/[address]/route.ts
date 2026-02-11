@@ -95,4 +95,3 @@ export async function GET(
   // - Consistent behavior across all service routes
   return executeWithBody(marketDataConfig, marketDataHandler, request, body);
 }
-}

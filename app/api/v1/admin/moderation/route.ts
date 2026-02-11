@@ -317,6 +317,12 @@ export async function POST(request: NextRequest) {
     default:
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Authentication failed";
+    const status = message.includes("Wallet connection") ? 401 :
+                   message.includes("Admin access") ? 403 : 401;
+    return NextResponse.json({ error: message }, { status });
+  }
 }
 
 /**
