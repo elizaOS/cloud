@@ -83,6 +83,7 @@
 - Fix for lib/services/proxy/engine.ts:96 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:43 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:236 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:242 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -96,6 +97,7 @@
 - Fix for db/repositories/service-pricing.ts:141 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:88 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/assets/[address]/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/pricing.ts, lib/services/proxy/services/solana-rpc.ts), need to modify db/repositories/service-pricing.ts
+- Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/engine.ts), need to modify db/repositories/service-pricing.ts
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -165,6 +167,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:184 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:234 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:252 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:267 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:236 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 

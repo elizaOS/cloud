@@ -79,7 +79,7 @@ export function createHandler(
         );
       }
 
-      const reservation = await creditsService.reserve({
+      await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
         amount: cost,

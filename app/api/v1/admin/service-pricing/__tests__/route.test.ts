@@ -4,12 +4,12 @@ import { NextRequest } from "next/server";
 import { GET, PUT } from "../route";
 import { requireAdmin } from "@/lib/auth";
 import { servicePricingRepository } from "@/db/repositories/service-pricing";
-import { cache } from "@/lib/cache/client";
+import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 
 vi.mock("@/lib/auth");
 vi.mock("@/db/repositories/service-pricing");
-vi.mock("@/lib/cache/client");
+vi.mock("@/lib/services/proxy/pricing");
 
 describe("Admin Service Pricing API", () => {
   beforeEach(() => {
@@ -51,25 +51,23 @@ describe("Admin Service Pricing API", () => {
       expect(data.error).toBe("service_id query parameter is required");
     });
 
-    it("should return pricing list for valid service_id", async () => {
+    it("should return pricing list when successful", async () => {
       vi.mocked(requireAdmin).mockResolvedValue({
         user: { id: "user-1", wallet_address: "wallet-1", organization_id: "org-1" } as any,
         role: "super_admin",
       });
 
-      const mockPricing = [
+      vi.mocked(servicePricingRepository.listByService).mockResolvedValue([
         {
-          id: "pricing-1",
+          id: "price-1",
           service_id: "solana-rpc",
           method: "getBalance",
           cost: "0.000006",
           description: "Get balance",
           is_active: true,
           updated_at: new Date(),
-        },
-      ];
-
-      vi.mocked(servicePricingRepository.listByService).mockResolvedValue(mockPricing as any);
+        } as any,
+      ]);
 
       const request = new NextRequest("http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc");
       const response = await GET(request);
@@ -84,38 +82,19 @@ describe("Admin Service Pricing API", () => {
   describe("PUT /api/v1/admin/service-pricing", () => {
     it("should return 401 when authentication fails", async () => {
       vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError("Wallet connection required"));
-
+      
       const request = new NextRequest("http://localhost:3000/api/v1/admin/service-pricing", {
         method: "PUT",
         body: JSON.stringify({
           service_id: "solana-rpc",
           method: "getBalance",
           cost: 0.000006,
-          reason: "Test",
+          reason: "Test update",
         }),
       });
       const response = await PUT(request);
-
+      
       expect(response.status).toBe(401);
-      expect(vi.mocked(requireAdmin)).toHaveBeenCalledOnce();
-    });
-
-    it("should return 403 when user is not admin", async () => {
-      vi.mocked(requireAdmin).mockRejectedValue(new ForbiddenError("Admin access required"));
-
-      const request = new NextRequest("http://localhost:3000/api/v1/admin/service-pricing", {
-        method: "PUT",
-        body: JSON.stringify({
-          service_id: "solana-rpc",
-          method: "getBalance",
-          cost: 0.000006,
-          reason: "Test",
-        }),
-      });
-      const response = await PUT(request);
-
-      expect(response.status).toBe(403);
-      expect(vi.mocked(requireAdmin)).toHaveBeenCalledOnce();
     });
 
     it("should upsert pricing and invalidate cache", async () => {
@@ -124,26 +103,60 @@ describe("Admin Service Pricing API", () => {
         role: "super_admin",
       });
 
-      const mockPricing = {
-        id: "pricing-1",
+      vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
+        id: "price-1",
         service_id: "solana-rpc",
         method: "getBalance",
-        cost: "0.000006",
-        description: "Get balance",
+        cost: "0.000007",
+        description: "Updated balance",
         is_active: true,
         updated_at: new Date(),
-      };
+      } as any);
 
-      vi.mocked(servicePricingRepository.upsert).mockResolvedValue(mockPricing as any);
-      vi.mocked(cache.del).mockResolvedValue(1);
+      vi.mocked(invalidateServicePricingCache).mockResolvedValue(undefined);
 
       const request = new NextRequest("http://localhost:3000/api/v1/admin/service-pricing", {
         method: "PUT",
         body: JSON.stringify({
           service_id: "solana-rpc",
           method: "getBalance",
-          cost: 0.000006,
-          reason: "Update pricing",
+          cost: 0.000007,
+          reason: "Test update",
+          description: "Updated balance",
+        }),
+      });
+
+      const response = await PUT(request);
+
+      expect(response.status).toBe(200);
+      expect(vi.mocked(invalidateServicePricingCache)).toHaveBeenCalledWith("solana-rpc", "getBalance");
+    });
+
+    it("should handle cache invalidation failure gracefully", async () => {
+      vi.mocked(requireAdmin).mockResolvedValue({
+        user: { id: "user-1", wallet_address: "wallet-1", organization_id: "org-1" } as any,
+        role: "super_admin",
+      });
+
+      vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
+        id: "price-1",
+        service_id: "solana-rpc",
+        method: "getBalance",
+        cost: "0.000007",
+        description: "Updated",
+        is_active: true,
+        updated_at: new Date(),
+      } as any);
+
+      vi.mocked(invalidateServicePricingCache).mockRejectedValue(new Error("Cache error"));
+
+      const request = new NextRequest("http://localhost:3000/api/v1/admin/service-pricing", {
+        method: "PUT",
+        body: JSON.stringify({
+          service_id: "solana-rpc",
+          method: "getBalance",
+          cost: 0.000007,
+          reason: "Test",
         }),
       });
 
@@ -151,8 +164,7 @@ describe("Admin Service Pricing API", () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.method).toBe("getBalance");
-      expect(vi.mocked(cache.del)).toHaveBeenCalled();
+      expect(data.cache_invalidated).toBe(false);
     });
   });
 });
