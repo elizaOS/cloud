@@ -13,6 +13,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:40 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:149 - Code refactoring alone doesn't satisfy test-coverage requests—must create accompanying test files with specific test cases for auth, upsert, and cache behavior.
 - Fix for app/api/v1/admin/service-pricing/route.ts:149 - When a review requests "add accompanying tests," the fix must include the actual test files, not just comments referencing them.
+- Fix for app/api/v1/admin/service-pricing/route.ts:164 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:42 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -22,3 +24,37 @@
 - Fix for lib/services/proxy/engine.ts:172 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:63 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:172 - When removing a negation check, verify the intended logic gate—don't eliminate the condition itself, refactor it to properly express the intent.
+- Fix for lib/services/proxy/engine.ts:86 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:250 - No verification result returned, treating as failed
+
+### db/repositories/service-pricing.ts
+
+- Fix for db/repositories/service-pricing.ts:119 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:63 - No verification result returned, treating as failed
+
+### app/api/v1/admin/moderation/route.ts
+
+- Fix for app/api/v1/admin/moderation/route.ts:137 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:173 - No verification result returned, treating as failed
+
+### /terminal/route.ts
+
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:83 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:128 - No verification result returned, treating as failed
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:210 - No verification result returned, treating as failed
+
+### db/migrations/0033_add_service_billing_and_entity_settings.sql
+
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:53 - No verification result returned, treating as failed
+
+### db/migrations/0034_improve_service_pricing_audit.sql
+
+- Fix for db/migrations/0034_improve_service_pricing_audit.sql:4 - No verification result returned, treating as failed
+
+### db/schemas/service-pricing.ts
+
+- Fix for db/schemas/service-pricing.ts:31 - No verification result returned, treating as failed
+
+### lib/services/proxy/services/solana-rpc.ts
+
+- Fix for lib/services/proxy/services/solana-rpc.ts:275 - No verification result returned, treating as failed

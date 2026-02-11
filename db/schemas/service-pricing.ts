@@ -26,7 +26,7 @@ export const servicePricing = pgTable(
     cost: numeric("cost", { precision: 12, scale: 6 }).notNull(),
     description: text("description"),
     metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
+      .$type<Record<string, string | number | boolean | null>>()
       .default({})
       .notNull(),
     is_active: boolean("is_active").default(true).notNull(),

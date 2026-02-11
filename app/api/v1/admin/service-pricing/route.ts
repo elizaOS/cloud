@@ -20,7 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, WalletRequiredError, AdminRequiredError } from "@/lib/auth";
 import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
@@ -28,11 +28,27 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
-  const { user } = await requireAdmin(request);
+  let user;
+  try {
+    const result = await requireAdmin(request);
+    user = result.user;
+  } catch (error) {
+    if (error instanceof WalletRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof AdminRequiredError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 
   try {
-  const url = new URL(request.url);
-  const serviceId = url.searchParams.get("service_id");
+    const url = new URL(request.url);
+    const serviceId = url.searchParams.get("service_id");
 
   if (!serviceId) {
     return NextResponse.json(
@@ -144,13 +160,13 @@ export async function PUT(request: NextRequest) {
       const { cache } = await import("@/lib/cache/client");
       await cache.del("solana-rpc:allowed-methods");
     }
-  } catch (error) {
+  } catch (cacheError) {
     cacheInvalidated = false;
     logger.error("[Admin] CRITICAL: Post-invalidation failed after DB update", {
       service_id,
       method,
       new_cost: cost,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: cacheError instanceof Error ? cacheError.message : "Unknown error",
     });
 
     // Emergency re-invalidation (fire-and-forget)

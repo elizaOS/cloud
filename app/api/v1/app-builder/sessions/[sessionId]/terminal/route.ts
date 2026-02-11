@@ -82,6 +82,13 @@ export async function POST(
     );
   }
 
+  if (cwd !== undefined && typeof cwd !== "string") {
+    return NextResponse.json(
+      { success: false, error: "cwd must be a string" },
+      { status: 400 },
+    );
+  }
+
   // Validate command
   const validation = isCommandAllowed(command);
   if (!validation.allowed) {
@@ -122,8 +129,9 @@ export async function POST(
   if (cwd && cwd !== "~" && cwd !== "/app" && cwd !== ".") {
     // Handle relative paths from project root
     const targetDir = cwd.startsWith("/") ? cwd : cwd.replace(/^~\/?/, "");
-    if (targetDir && targetDir !== ".") {
-      fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
+    // Sanitize: reject path traversal and shell metacharacters
+    if (targetDir && targetDir !== "." && /^[a-zA-Z0-9_\-./]+$/.test(targetDir) && !targetDir.includes("..")) {
+      fullCommand = `cd '${targetDir}' && ${command}`;
     }
   }
 
@@ -204,8 +212,8 @@ export async function GET(
           const targetDir = cwd.startsWith("/")
             ? cwd
             : cwd.replace(/^~\/?/, "");
-          if (targetDir && targetDir !== ".") {
-            fullCommand = `cd ${targetDir} 2>/dev/null && ${command}`;
+          if (targetDir && targetDir !== "." && /^[a-zA-Z0-9_\-./]+$/.test(targetDir) && !targetDir.includes("..")) {
+            fullCommand = `cd '${targetDir}' && ${command}`;
           }
         }
         const result = await sandbox.runCommand({

@@ -6,6 +6,45 @@ import { PROXY_CONFIG } from "../config";
 import { servicePricingRepository } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 
+const RETRY_DELAYS_MS = [0, 1000, 2000, 4000];
+
+async function fetchWithRetry(
+  url: string,
+  body: unknown,
+  maxRetries?: number,
+): Promise<Response> {
+  const delays = maxRetries !== undefined
+    ? RETRY_DELAYS_MS.slice(0, maxRetries + 1)
+    : RETRY_DELAYS_MS;
+  let lastError: unknown;
+  for (const delay of delays) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (response.ok || response.status < 500) {
+        return response;
+      }
+      lastError = new Error(`Upstream returned ${response.status}`);
+      logger.warn("[Solana RPC] Retryable upstream error", {
+        status: response.status,
+        attempt: delays.indexOf(delay) + 1,
+      });
+    } catch (error) {
+      lastError = error;
+      logger.warn("[Solana RPC] Fetch attempt failed", {
+        error: error instanceof Error ? error.message : "Unknown",
+        attempt: delays.indexOf(delay) + 1,
+      });
+    }
+  }
+  throw lastError;
+}
+
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
   "sendTransaction",
@@ -242,7 +281,7 @@ async function extractMethodFromBody(body: unknown): Promise<string> {
   return method;
 }
 
-async function calculateBatchCost(body: unknown[]): Promise<number> {
+async function calculateBatchCost(body: Array<{ method?: string; params?: unknown[]; id?: string | number | null; jsonrpc?: string }>): Promise<number> {
   const allowedMethods = await getAllowedMethods();
   const methodCounts = new Map<string, number>();
 
@@ -288,7 +327,7 @@ export const solanaRpcConfig: ServiceConfig = {
     maxResponseSize: 65536,
     hitCostMultiplier: 0.5,
   },
-  getCost: async (body: unknown) => {
+  getCost: async (body: Record<string, unknown> | Record<string, unknown>[]) => {
     const method = await extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {

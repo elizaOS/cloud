@@ -50,7 +50,11 @@ CREATE INDEX "entity_settings_user_agent_idx" ON "entity_settings" USING btree (
 CREATE INDEX "entity_settings_key_idx" ON "entity_settings" USING btree ("key");--> statement-breakpoint
 
 -- New FK on existing table
-ALTER TABLE "app_sandbox_sessions" ADD CONSTRAINT "app_sandbox_sessions_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'app_sandbox_sessions_app_id_apps_id_fk') THEN
+    ALTER TABLE "app_sandbox_sessions" ADD CONSTRAINT "app_sandbox_sessions_app_id_apps_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."apps"("id") ON DELETE cascade ON UPDATE no action;
+  END IF;
+END $$;--> statement-breakpoint
 
 -- New indexes on existing tables
 CREATE INDEX IF NOT EXISTS "agent_budgets_paused_idx" ON "agent_budgets" USING btree ("is_paused");--> statement-breakpoint

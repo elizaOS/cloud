@@ -39,7 +39,7 @@ import { logger } from "@/lib/utils/logger";
 import { PROXY_CONFIG } from "./config";
 
 const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
-const CACHE_STALE_TIME = PROXY_CONFIG.PRICING_CACHE_STALE_TIME;
+// CACHE_STALE_TIME removed - was declared but unused (no stale-while-revalidate implemented)
 
 // Hardcoded fallback to prevent service outage if DB pricing is misconfigured
 // This is intentionally high to encourage fixing the DB pricing ASAP

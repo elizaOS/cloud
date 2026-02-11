@@ -22,7 +22,7 @@ export const PROXY_CONFIG = {
    * - Higher TTL: Lower DB load, longer stale data exposure
    */
   PRICING_CACHE_TTL: parseInt(process.env.PRICING_CACHE_TTL || "300"),
-  PRICING_CACHE_STALE_TIME: parseInt(process.env.PRICING_CACHE_STALE_TIME || "150"),
+   parseInt(process.env.PRICING_CACHE_STALE_TIME || "150"),
   
   // Request timeouts (milliseconds)
   UPSTREAM_TIMEOUT_MS: parseInt(process.env.UPSTREAM_TIMEOUT_MS || "25000"),

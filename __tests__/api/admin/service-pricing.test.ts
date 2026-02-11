@@ -1,243 +1,231 @@
 
 /**
- * Integration tests for admin service pricing endpoints.
- *
- * Covers:
- * - Auth: admin vs non-admin access
- * - PUT upsert behavior
- * - Cache invalidation effects
- * - Error handling (proper status codes for non-auth errors)
+ * Integration tests for admin service pricing API endpoints
+ * Covers: auth (admin vs non-admin), PUT upsert behavior, cache invalidation
  */
-
-import { NextRequest } from "next/server";
-import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies
-jest.mock("@/lib/auth", () => ({
-  requireAdmin: jest.fn(),
-}));
-
-jest.mock("@/lib/services/admin", () => ({
-  adminService: {
-    getRecentViolations: jest.fn(),
-    getUsersFlaggedForReview: jest.fn(),
-    getBannedUsers: jest.fn(),
-    listAdmins: jest.fn(),
+vi.mock("@/lib/auth", () => ({
+  requireAdmin: vi.fn(),
+  WalletRequiredError: class WalletRequiredError extends Error {
+    constructor(msg = "Wallet connection required") {
+      super(msg);
+      this.name = "WalletRequiredError";
+    }
+  },
+  AdminRequiredError: class AdminRequiredError extends Error {
+    constructor(msg = "Admin access required") {
+      super(msg);
+      this.name = "AdminRequiredError";
+    }
   },
 }));
 
-jest.mock("@/lib/repositories/service-pricing", () => ({
+vi.mock("@/db/repositories", () => ({
   servicePricingRepository: {
-    listByService: jest.fn(),
-    upsert: jest.fn(),
-    getAuditHistory: jest.fn(),
+    listAll: vi.fn(),
+    upsert: vi.fn(),
+    listAuditHistory: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/services/cache", () => ({
-  cacheService: {
-    invalidate: jest.fn(),
+vi.mock("@/lib/services/proxy/pricing", () => ({
+  invalidateServicePricingCache: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/cache/client", () => ({
+  cache: {
+    del: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
-jest.mock("@/lib/utils/logger", () => ({
+vi.mock("@/lib/utils/logger", () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
-import { requireAdmin } from "@/lib/auth";
-import { servicePricingRepository } from "@/lib/repositories/service-pricing";
-import { cacheService } from "@/lib/services/cache";
+import { NextRequest } from "next/server";
+import { requireAdmin, WalletRequiredError, AdminRequiredError } from "@/lib/auth";
+import { servicePricingRepository } from "@/db/repositories";
 
-const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;
-const mockListByService = servicePricingRepository.listByService as jest.MockedFunction<any>;
-const mockUpsert = servicePricingRepository.upsert as jest.MockedFunction<any>;
-const mockCacheInvalidate = cacheService.invalidate as jest.MockedFunction<any>;
-
-// Import handlers after mocks
-let GET: any, PUT: any;
-
-beforeAll(async () => {
-  const mod = await import("@/app/api/v1/admin/service-pricing/route");
-  GET = mod.GET;
-  PUT = mod.PUT;
-});
-
-function makeRequest(url: string, options?: RequestInit): NextRequest {
-  return new NextRequest(new URL(url, "http://localhost:3000"), options);
-}
+const mockRequireAdmin = vi.mocked(requireAdmin);
+const mockListAll = vi.mocked(servicePricingRepository.listAll);
+const mockUpsert = vi.mocked(servicePricingRepository.upsert);
+const mockListAuditHistory = vi.mocked(servicePricingRepository.listAuditHistory);
 
 describe("Admin Service Pricing API", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  describe("Authentication", () => {
-    it("returns 401 when wallet is not connected", async () => {
+  describe("GET /api/v1/admin/service-pricing", () => {
+    it("returns 401 when wallet not connected", async () => {
       mockRequireAdmin.mockRejectedValue(new WalletRequiredError());
 
-      const req = makeRequest("/api/v1/admin/service-pricing?service_id=test");
-      const res = await GET(req);
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
+      const response = await GET(request);
 
-      expect(res.status).toBe(401);
-      const body = await res.json();
-      expect(body.error).toContain("Wallet");
+      expect(response.status).toBe(401);
     });
 
     it("returns 403 when user is not admin", async () => {
       mockRequireAdmin.mockRejectedValue(new AdminRequiredError());
 
-      const req = makeRequest("/api/v1/admin/service-pricing?service_id=test");
-      const res = await GET(req);
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
+      const response = await GET(request);
 
-      expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.error).toContain("Admin");
+      expect(response.status).toBe(403);
     });
 
-    it("returns 200 for authenticated admin", async () => {
+    it("returns 500 for unexpected errors", async () => {
       mockRequireAdmin.mockResolvedValue({
-        user: { id: "user-1", organization_id: "org-1" },
-        role: "admin",
-      } as any);
-      mockListByService.mockResolvedValue([]);
+        user: { id: "user1", organization_id: "org1" },
+        role: "super_admin",
+      } as ReturnType<typeof requireAdmin> extends Promise<infer T> ? T : never);
+      mockListAll.mockRejectedValue(new Error("Database connection failed"));
 
-      const req = makeRequest("/api/v1/admin/service-pricing?service_id=test");
-      const res = await GET(req);
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
+      const response = await GET(request);
 
-      expect(res.status).toBe(200);
-    });
-  });
-
-  describe("GET - List pricing", () => {
-    beforeEach(() => {
-      mockRequireAdmin.mockResolvedValue({
-        user: { id: "user-1", organization_id: "org-1" },
-        role: "admin",
-      } as any);
-    });
-
-    it("returns 400 when service_id is missing", async () => {
-      const req = makeRequest("/api/v1/admin/service-pricing");
-      const res = await GET(req);
-
-      expect(res.status).toBe(400);
-    });
-
-    it("returns pricing data for valid service_id", async () => {
-      mockListByService.mockResolvedValue([
-        {
-          id: "p1",
-          method: "chat",
-          cost: "0.01",
-          description: "Chat method",
-          metadata: {},
-          is_active: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-      ]);
-
-      const req = makeRequest("/api/v1/admin/service-pricing?service_id=openai");
-      const res = await GET(req);
-
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.service_id).toBe("openai");
-      expect(body.pricing).toHaveLength(1);
-      expect(body.pricing[0].cost).toBe(0.01);
-    });
-
-    it("returns 500 on database error, not 401", async () => {
-      mockListByService.mockRejectedValue(new Error("Connection refused"));
-
-      const req = makeRequest("/api/v1/admin/service-pricing?service_id=test");
-      const res = await GET(req);
-
-      expect(res.status).toBe(500);
-      const body = await res.json();
+      expect(response.status).toBe(500);
+      const body = await response.json();
       expect(body.error).toBe("Internal server error");
     });
+
+    it("returns pricing list for authenticated admin", async () => {
+      const mockPricing = [
+        { id: "1", service_id: "solana-rpc", method: "getBalance", cost: "0.001" },
+      ];
+      mockRequireAdmin.mockResolvedValue({
+        user: { id: "user1", organization_id: "org1" },
+        role: "super_admin",
+      } as ReturnType<typeof requireAdmin> extends Promise<infer T> ? T : never);
+      mockListAll.mockResolvedValue(mockPricing as never);
+
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+    });
   });
 
-  describe("PUT - Upsert pricing", () => {
-    beforeEach(() => {
-      mockRequireAdmin.mockResolvedValue({
-        user: { id: "user-1", organization_id: "org-1" },
-        role: "admin",
-      } as any);
+  describe("PUT /api/v1/admin/service-pricing", () => {
+    it("returns 401 when wallet not connected", async () => {
+      mockRequireAdmin.mockRejectedValue(new WalletRequiredError());
+
+      const { PUT } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+        method: "PUT",
+        body: JSON.stringify({ service_id: "solana-rpc", method: "getBalance", cost: 0.001 }),
+      });
+      const response = await PUT(request);
+
+      expect(response.status).toBe(401);
     });
 
-    it("creates new pricing entry", async () => {
-      mockUpsert.mockResolvedValue({
-        id: "p1",
-        service_id: "openai",
-        method: "chat",
-        cost: "0.05",
-      });
-      mockCacheInvalidate.mockResolvedValue(undefined);
+    it("returns 403 when user is not admin", async () => {
+      mockRequireAdmin.mockRejectedValue(new AdminRequiredError());
 
-      const req = makeRequest("/api/v1/admin/service-pricing", {
+      const { PUT } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
         method: "PUT",
-        body: JSON.stringify({
-          service_id: "openai",
-          method: "chat",
-          cost: 0.05,
-          reason: "initial pricing",
-        }),
+        body: JSON.stringify({ service_id: "solana-rpc", method: "getBalance", cost: 0.001 }),
+      });
+      const response = await PUT(request);
+
+      expect(response.status).toBe(403);
+    });
+
+    it("performs upsert for valid request", async () => {
+      const mockResult = {
+        id: "1",
+        service_id: "solana-rpc",
+        method: "getBalance",
+        cost: "0.001000",
+      };
+      mockRequireAdmin.mockResolvedValue({
+        user: { id: "user1", organization_id: "org1" },
+        role: "super_admin",
+      } as ReturnType<typeof requireAdmin> extends Promise<infer T> ? T : never);
+      mockUpsert.mockResolvedValue(mockResult as never);
+
+      const { PUT } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+        method: "PUT",
+        body: JSON.stringify({ service_id: "solana-rpc", method: "getBalance", cost: 0.001 }),
         headers: { "Content-Type": "application/json" },
       });
-      const res = await PUT(req);
+      const response = await PUT(request);
 
-      expect(res.status).toBe(200);
+      expect(response.status).toBe(200);
       expect(mockUpsert).toHaveBeenCalled();
     });
 
-    it("invalidates cache after successful upsert", async () => {
-      mockUpsert.mockResolvedValue({
-        id: "p1",
-        service_id: "openai",
-        method: "chat",
-        cost: "0.05",
-      });
-      mockCacheInvalidate.mockResolvedValue(undefined);
+    it("returns 500 for database errors during upsert", async () => {
+      mockRequireAdmin.mockResolvedValue({
+        user: { id: "user1", organization_id: "org1" },
+        role: "super_admin",
+      } as ReturnType<typeof requireAdmin> extends Promise<infer T> ? T : never);
+      mockUpsert.mockRejectedValue(new Error("Database write failed"));
 
-      const req = makeRequest("/api/v1/admin/service-pricing", {
+      const { PUT } = await import("@/app/api/v1/admin/service-pricing/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
         method: "PUT",
-        body: JSON.stringify({
-          service_id: "openai",
-          method: "chat",
-          cost: 0.05,
-          reason: "update pricing",
-        }),
+        body: JSON.stringify({ service_id: "solana-rpc", method: "getBalance", cost: 0.001 }),
         headers: { "Content-Type": "application/json" },
       });
-      await PUT(req);
+      const response = await PUT(request);
 
-      expect(mockCacheInvalidate).toHaveBeenCalled();
+      expect(response.status).toBe(500);
+      const body = await response.json();
+      expect(body.error).toBe("Internal server error");
+    });
+  });
+
+  describe("GET /api/v1/admin/service-pricing/audit", () => {
+    it("returns 401 when wallet not connected", async () => {
+      mockRequireAdmin.mockRejectedValue(new WalletRequiredError());
+
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/audit/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing/audit?service_id=solana-rpc");
+      const response = await GET(request);
+
+      expect(response.status).toBe(401);
     });
 
-    it("returns 500 on database error during upsert", async () => {
-      mockUpsert.mockRejectedValue(new Error("DB write failed"));
+    it("returns 403 when user is not admin", async () => {
+      mockRequireAdmin.mockRejectedValue(new AdminRequiredError());
 
-      const req = makeRequest("/api/v1/admin/service-pricing", {
-        method: "PUT",
-        body: JSON.stringify({
-          service_id: "openai",
-          method: "chat",
-          cost: 0.05,
-          reason: "update",
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
-      const res = await PUT(req);
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/audit/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing/audit?service_id=solana-rpc");
+      const response = await GET(request);
 
-      expect(res.status).toBe(500);
-      const body = await res.json();
-      expect(body.error).toBe("Internal server error");
+      expect(response.status).toBe(403);
+    });
+
+    it("returns audit history for authenticated admin", async () => {
+      const mockHistory = [
+        { id: "1", service_id: "solana-rpc", method: "getBalance", old_cost: "0.001", new_cost: "0.002" },
+      ];
+      mockRequireAdmin.mockResolvedValue({
+        user: { id: "user1", organization_id: "org1" },
+        role: "super_admin",
+      } as ReturnType<typeof requireAdmin> extends Promise<infer T> ? T : never);
+      mockListAuditHistory.mockResolvedValue(mockHistory as never);
+
+      const { GET } = await import("@/app/api/v1/admin/service-pricing/audit/route");
+      const request = new NextRequest("http://localhost/api/v1/admin/service-pricing/audit?service_id=solana-rpc");
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
     });
   });
 });

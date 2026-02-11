@@ -78,6 +78,13 @@ export function createHandler(
         );
       }
 
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required to use this service" },
+          { status: 403 },
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -88,7 +95,7 @@ export function createHandler(
       if (config.cache && body && !Array.isArray(body)) {
         const cacheControl = request.headers.get("cache-control");
         const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1]) : 0;
+        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
 
         if (clientMaxAge > 0) {
           const method =
@@ -176,7 +183,7 @@ export function createHandler(
       ) {
         const cacheControl = request.headers.get("cache-control");
         const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1]) : 0;
+        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
 
         if (clientMaxAge > 0) {
           const method =
