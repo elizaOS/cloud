@@ -18,6 +18,7 @@
 
 import { exec } from "node:child_process";
 import { writeFile, unlink, readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -38,7 +39,7 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
     const entries = await readdir(dir, { withFileTypes: true });
     const subdirs = entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => `${dir}/${entry.name}`)
+      .map((entry) => join(dir, entry.name))
       .sort();
     
     // If no subdirectories found, return the directory itself

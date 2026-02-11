@@ -182,8 +182,8 @@ export function createHandler(
             input_tokens: result.inputTokens ?? 0,
             output_tokens: result.outputTokens ?? 0,
             input_cost: String(cost),
-            output_cost: String(0),
-            markup: String(0),
+            output_cost: 0,
+            markup: 0,
             metadata: result.metadata,
           });
         } catch (error) {

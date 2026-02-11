@@ -50,6 +50,12 @@ export async function GET(
   
   // Add CORS headers to response
   const corsHeaders = getCorsHeaders("GET, OPTIONS");
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value);
+  }
+  
+  // Add CORS headers to response
+  const corsHeaders = getCorsHeaders("GET, OPTIONS");
   Object.entries(corsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });

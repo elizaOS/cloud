@@ -44,6 +44,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:129 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:65 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:227 - When a review requests tests for critical features, code refactoring alone doesn't satisfy it—create the test files first before submitting.
+- Fix for app/api/v1/admin/service-pricing/route.ts:166 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:80 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -72,6 +74,8 @@
 - Fix for lib/services/proxy/engine.ts:322 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/admin/service-pricing/__tests__/route.test.ts, app/api/v1/admin/service-pricing/audit/route.ts, app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, db/repositories/service-pricing.ts, scripts/check-types-split.ts), need to modify lib/services/proxy/engine.ts
 - Fix for lib/services/proxy/engine.ts:158 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:322 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:96 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:43 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -142,6 +146,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - Before adding seed data to a migration, verify the complete list doesn't already exist elsewhere in the file to avoid duplicates.
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:165 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:205 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:174 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 

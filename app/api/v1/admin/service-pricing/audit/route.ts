@@ -57,6 +57,12 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     logger.error("[Admin] Service pricing audit error", { error });
     return NextResponse.json(
       { error: "Internal server error" },

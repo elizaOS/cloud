@@ -40,6 +40,9 @@ import { PROXY_CONFIG } from "./config";
 
 const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
 
+// Note: Stale-while-revalidate not currently implemented.
+// TTL-based expiration provides sufficient freshness guarantees.
+
 // Hardcoded fallback to prevent service outage if DB pricing is misconfigured
 // This is intentionally high to encourage fixing the DB pricing ASAP
 const FALLBACK_COST = 1.0; // $1.00 per request

@@ -9,6 +9,7 @@
  * Billing: Usage tracked per organization
  */
 
+import { NextRequest, NextResponse } from "next/server";
 import { createHandler } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
@@ -22,14 +23,21 @@ export async function OPTIONS() {
 // Wrap handler to add CORS headers to all responses (success and error)
 const baseHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
-export async function POST(request: Request) {
-  const response = await baseHandler(request as any);
-  
-  // Add CORS headers to response
-  const corsHeaders = getCorsHeaders();
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
-  
-  return response;
+export async function POST(request: NextRequest) {
+  try {
+    const response = await baseHandler(request);
+    
+    // Add CORS headers to response
+    const corsHeaders = getCorsHeaders();
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      response.headers.set(key, value);
+    }
+    
+    return response;
+  } catch (error) {
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: getCorsHeaders(),
+    });
+  }
 }
