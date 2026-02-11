@@ -1,3 +1,25 @@
+/**
+ * Service Pricing Cache Management
+ * 
+ * CRITICAL: Revenue-generating functionality - pricing must be accurate
+ * 
+ * Cache Strategy:
+ * - Cache-aside pattern with TTL-based expiration
+ * - Fallback to $1.00/request if pricing not found (prevents undercharging)
+ * - Double invalidation on updates (pre + post DB write)
+ * 
+ * Consistency Model:
+ * - Eventually consistent (bounded by TTL)
+ * - Fail-fast on cache errors (makes failures visible)
+ * - TTL safety net prevents indefinite staleness
+ * 
+ * Monitoring Points:
+ * - Cache hit/miss ratio
+ * - Cache invalidation failures (CRITICAL)
+ * - Fallback pricing usage (indicates missing data)
+ * - Cache operation latency
+ */
+
 import { cache } from "@/lib/cache/client";
 import { servicePricingRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
@@ -73,10 +95,41 @@ export async function getServiceMethodCost(
   return Number(cost);
 }
 
+/**
+ * Invalidates pricing cache for a service
+ * 
+ * CRITICAL: This function must succeed to maintain cache consistency.
+ * If this fails after a DB update, pricing data will be inconsistent
+ * until TTL expires (default 5 minutes).
+ * 
+ * Fail-fast design: Errors propagate to caller for visibility.
+ * 
+ * @throws Error if cache deletion fails
+ */
 export async function invalidateServicePricingCache(
   serviceId: string,
 ): Promise<void> {
   const cacheKey = `service-pricing:${serviceId}`;
-  await cache.del(cacheKey);
-  logger.info(`Invalidated pricing cache for service: ${serviceId}`);
+  
+  try {
+    await cache.del(cacheKey);
+    logger.info("[Pricing] Cache invalidated successfully", { 
+      serviceId,
+      cacheKey 
+    });
+  } catch (error) {
+    // CRITICAL: Cache invalidation failure creates inconsistency
+    logger.error("[Pricing] CRITICAL: Cache invalidation failed", {
+      serviceId,
+      cacheKey,
+      error: error instanceof Error ? error.message : "Unknown error",
+      ttl: CACHE_TTL,
+      impact: `Stale pricing may persist for up to ${CACHE_TTL}s`,
+    });
+    
+    // Re-throw to make failure visible to caller (fail-fast)
+    throw new Error(
+      `Failed to invalidate pricing cache for ${serviceId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
 }

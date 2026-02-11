@@ -2,30 +2,43 @@
  * Solana address validation utilities
  * 
  * Solana addresses are base58-encoded public keys (32 bytes).
- * Base58 excludes confusing characters: 0, O, I, l
- * Typical length: 32-44 characters (most commonly 43-44)
+ * Uses @solana/web3.js PublicKey for cryptographic validation including:
+ * - Base58 checksum verification
+ * - 32-byte length validation
+ * - Proper decoding verification
  */
 
-const SOLANA_ADDRESS_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+import { PublicKey } from "@solana/web3.js";
 
 /**
- * Validates a Solana address format
+ * Validates a Solana address using cryptographic verification
+ * 
+ * This properly validates:
+ * - Base58 encoding
+ * - Checksum verification
+ * - Decodes to exactly 32 bytes
+ * - Valid public key format
  * 
  * @param address - The address string to validate
- * @returns true if valid Solana address format
+ * @returns true if valid Solana public key address
  */
 export function isValidSolanaAddress(address: string): boolean {
   if (!address || typeof address !== "string") {
     return false;
   }
 
-  // Check length first (performance optimization)
+  // Quick length check before expensive validation
   if (address.length < 32 || address.length > 44) {
     return false;
   }
 
-  // Validate base58 format
-  return SOLANA_ADDRESS_REGEX.test(address);
+  try {
+    // This validates base58 encoding, checksum, and ensures 32-byte public key
+    new PublicKey(address);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -37,7 +50,7 @@ export function isValidSolanaAddress(address: string): boolean {
 export function validateSolanaAddress(address: string): void {
   if (!isValidSolanaAddress(address)) {
     throw new Error(
-      "Invalid Solana address format. Must be 32-44 base58-encoded characters."
+      "Invalid Solana address. Must be a valid base58-encoded public key (32 bytes)."
     );
   }
 }

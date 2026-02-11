@@ -3,50 +3,43 @@ import { requireAdmin } from "@/lib/auth";
 import { servicePricingRepository } from "@/db/repositories";
 
 export async function GET(request: NextRequest) {
-  try {
-    await requireAdmin(request);
+  await requireAdmin(request);
 
-    const url = new URL(request.url);
-    const serviceId = url.searchParams.get("service_id");
-    
-    const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
-    const validLimit = Number.isNaN(parsedLimit) || parsedLimit < 1 ? 50 : parsedLimit;
-    const limit = Math.max(1, Math.min(validLimit, 500));
-    
-    const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
-    const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
+  const url = new URL(request.url);
+  const serviceId = url.searchParams.get("service_id");
+  
+  const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
+  const validLimit = Number.isNaN(parsedLimit) || parsedLimit < 1 ? 50 : parsedLimit;
+  const limit = Math.max(1, Math.min(validLimit, 500));
+  
+  const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
+  const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
 
-    if (!serviceId) {
-      return NextResponse.json(
-        { error: "service_id query parameter required" },
-        { status: 400 },
-      );
-    }
-
-    const history = await servicePricingRepository.listAuditHistory(
-      serviceId,
-      limit,
-      offset,
+  if (!serviceId) {
+    return NextResponse.json(
+      { error: "service_id query parameter required" },
+      { status: 400 },
     );
-
-    return NextResponse.json({
-      service_id: serviceId,
-      history: history.map((h) => ({
-        id: h.id,
-        service_pricing_id: h.service_pricing_id,
-        method: h.method,
-        old_cost: h.old_cost ? Number(h.old_cost) : null,
-        new_cost: Number(h.new_cost),
-        change_type: h.change_type,
-        changed_by: h.changed_by,
-        reason: h.reason,
-        created_at: h.created_at,
-      })),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
   }
+
+  const history = await servicePricingRepository.listAuditHistory(
+    serviceId,
+    limit,
+    offset,
+  );
+
+  return NextResponse.json({
+    service_id: serviceId,
+    history: history.map((h) => ({
+      id: h.id,
+      service_pricing_id: h.service_pricing_id,
+      method: h.method,
+      old_cost: h.old_cost ? Number(h.old_cost) : null,
+      new_cost: Number(h.new_cost),
+      change_type: h.change_type,
+      changed_by: h.changed_by,
+      reason: h.reason,
+      created_at: h.created_at,
+    })),
+  });
 }

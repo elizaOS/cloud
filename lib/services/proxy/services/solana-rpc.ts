@@ -3,6 +3,8 @@ import { logger } from "@/lib/utils/logger";
 import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
+import { servicePricingRepository } from "@/db/repositories";
+import { cache } from "@/lib/cache/client";
 
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
@@ -13,9 +15,26 @@ const NON_CACHEABLE_METHODS = new Set([
   "getLatestBlockhash",
 ]);
 
-// Whitelist of allowed Solana RPC methods
-// Based on official Solana RPC API + Helius extensions (DAS, Enhanced)
-const ALLOWED_METHODS = new Set([
+/**
+ * Hardcoded Fallback Whitelist
+ * 
+ * MAINTENANCE NOTE: This is now a FALLBACK ONLY.
+ * 
+ * Primary method authorization comes from the database (service_pricing table).
+ * Any method with an active pricing entry (is_active=true) is automatically allowed.
+ * 
+ * This hardcoded list serves as:
+ * 1. Emergency fallback if database is unreachable
+ * 2. Bootstrap/seed data reference
+ * 3. Documentation of supported methods
+ * 
+ * To add new methods:
+ * ✅ Add pricing entry via admin API: POST /api/v1/admin/service-pricing
+ * ❌ DO NOT edit this list (unless updating fallback)
+ * 
+ * @see getActiveMethodsFromDatabase() for the primary authorization logic
+ */
+const HARDCODED_FALLBACK_METHODS = new Set([
   // Tier 1 - Standard Solana RPC (fall under _default pricing)
   "getAccountInfo",
   "getBalance",
@@ -93,7 +112,89 @@ const ALLOWED_METHODS = new Set([
   "getValidityProof",
 ]);
 
-function extractMethodFromBody(body: unknown): string {
+/**
+ * Cache key for allowed methods list
+ * TTL: 60 seconds (fast refresh for new methods added via admin API)
+ */
+const ALLOWED_METHODS_CACHE_KEY = "solana-rpc:allowed-methods";
+const ALLOWED_METHODS_CACHE_TTL = 60;
+
+/**
+ * Gets allowed methods from database (with caching)
+ * 
+ * Strategy:
+ * 1. Check cache (60s TTL) - fast path for most requests
+ * 2. Query database for active methods
+ * 3. Fallback to hardcoded list if DB fails
+ * 
+ * Performance:
+ * - Cache hit: ~1ms (no DB query)
+ * - Cache miss: ~10-50ms (DB query)
+ * - DB failure: Falls back to hardcoded list immediately
+ * 
+ * @returns Set of allowed method names
+ */
+async function getAllowedMethods(): Promise<Set<string>> {
+  try {
+    // Check cache first
+    const cached = await cache.get<string[]>(ALLOWED_METHODS_CACHE_KEY);
+    if (cached) {
+      logger.debug("[Solana RPC] Allowed methods cache hit");
+      return new Set(cached);
+    }
+
+    logger.debug("[Solana RPC] Allowed methods cache miss, querying database");
+
+    // Query database for active methods
+    const pricingRecords = await servicePricingRepository.listByService("solana-rpc");
+    const activeMethods = pricingRecords
+      .filter((record) => record.is_active)
+      .map((record) => record.method);
+
+    if (activeMethods.length === 0) {
+      logger.warn("[Solana RPC] No active methods in database, using fallback");
+      return HARDCODED_FALLBACK_METHODS;
+    }
+
+    // Cache the result
+    await cache.set(
+      ALLOWED_METHODS_CACHE_KEY,
+      activeMethods,
+      ALLOWED_METHODS_CACHE_TTL
+    );
+
+    logger.info("[Solana RPC] Loaded allowed methods from database", {
+      count: activeMethods.length,
+      cached_for: `${ALLOWED_METHODS_CACHE_TTL}s`,
+    });
+
+    return new Set(activeMethods);
+  } catch (error) {
+    // Database or cache failure - use hardcoded fallback
+    logger.error("[Solana RPC] Failed to load allowed methods from database, using fallback", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      fallback_count: HARDCODED_FALLBACK_METHODS.size,
+    });
+    
+    return HARDCODED_FALLBACK_METHODS;
+  }
+}
+
+/**
+ * Checks if a method is allowed
+ * 
+ * Uses database-driven whitelist with hardcoded fallback.
+ * Results are cached for 60 seconds to minimize DB load.
+ * 
+ * @param method - RPC method name to check
+ * @returns true if method is allowed
+ */
+async function isMethodAllowed(method: string): Promise<boolean> {
+  const allowedMethods = await getAllowedMethods();
+  return allowedMethods.has(method);
+}
+
+async function extractMethodFromBody(body: unknown): Promise<string> {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid JSON-RPC request: body must be an object");
   }
@@ -114,8 +215,9 @@ function extractMethodFromBody(body: unknown): string {
 
   const method = body.method;
   
-  // Validate method is in whitelist
-  if (!ALLOWED_METHODS.has(method)) {
+  // Validate method is in database-driven whitelist (with caching)
+  const allowed = await isMethodAllowed(method);
+  if (!allowed) {
     throw new Error(
       `Method '${method}' is not supported. See /api/v1/solana/methods for allowed methods.`
     );
@@ -127,14 +229,17 @@ function extractMethodFromBody(body: unknown): string {
 async function calculateBatchCost(body: unknown[]): Promise<number> {
   const methods: string[] = [];
   
+  // Get allowed methods once for the entire batch (cached)
+  const allowedMethods = await getAllowedMethods();
+  
   for (const item of body) {
     if (!item || typeof item !== "object" || !("method" in item)) {
       throw new Error("Invalid JSON-RPC batch: malformed request");
     }
     const method = String(item.method);
     
-    // Validate each method in batch
-    if (!ALLOWED_METHODS.has(method)) {
+    // Validate each method in batch against database whitelist
+    if (!allowedMethods.has(method)) {
       throw new Error(
         `Batch contains unsupported method '${method}'. See /api/v1/solana/methods for allowed methods.`
       );

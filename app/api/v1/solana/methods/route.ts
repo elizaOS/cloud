@@ -1,0 +1,47 @@
+/**
+ * Solana RPC Methods List API
+ * 
+ * Returns the list of currently allowed Solana RPC methods.
+ * Methods are dynamically loaded from the database (service_pricing table).
+ * 
+ * Public endpoint - no authentication required.
+ * Useful for:
+ * - API consumers to discover available methods
+ * - Integration testing
+ * - Documentation generation
+ * 
+ * CORS: Unrestricted by design - see lib/services/proxy/cors.ts
+ */
+
+import { NextResponse } from "next/server";
+import { servicePricingRepository } from "@/db/repositories";
+import { handleCorsOptions } from "@/lib/services/proxy/cors";
+
+export const maxDuration = 30;
+
+export async function OPTIONS() {
+  return handleCorsOptions("GET, OPTIONS");
+}
+
+export async function GET() {
+  const pricingRecords = await servicePricingRepository.listByService(
+    "solana-rpc"
+  );
+
+  // Only return active methods
+  const activeMethods = pricingRecords
+    .filter((record) => record.is_active)
+    .map((record) => ({
+      method: record.method,
+      cost: Number(record.cost),
+      description: record.description,
+    }))
+    .sort((a, b) => a.method.localeCompare(b.method));
+
+  return NextResponse.json({
+    service: "solana-rpc",
+    total: activeMethods.length,
+    methods: activeMethods,
+    note: "Methods are dynamically managed via database. Add new methods via admin API.",
+  });
+}

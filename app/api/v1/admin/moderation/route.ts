@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
 
 /**
@@ -27,8 +28,7 @@ import { z } from "zod";
  * - userId: For user-detail view
  */
 export async function GET(request: NextRequest) {
-  try {
-    const { user, role } = await requireAdmin(request);
+  const { user, role } = await requireAdmin(request);
 
   const url = new URL(request.url);
   const view = url.searchParams.get("view") || "overview";
@@ -120,12 +120,6 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
   }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
-  }
 }
 
 const ActionSchema = z.object({
@@ -158,39 +152,44 @@ const ActionSchema = z.object({
  * - notes: Additional notes
  */
 export async function POST(request: NextRequest) {
+  const { user, role: adminRole } = await requireAdmin(request);
+
+  let body;
   try {
-    const { user, role: adminRole } = await requireAdmin(request);
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-    const body = await request.json();
-    const parsed = ActionSchema.safeParse(body);
+  const parsed = ActionSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request", details: parsed.error.format() },
-        { status: 400 },
-      );
-    }
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
+  }
 
-    const { action, userId, walletAddress, role, reason, notes } = parsed.data;
+  const { action, userId, walletAddress, role, reason, notes } = parsed.data;
 
-    // Check permissions for admin management
-    if (
-      (action === "add_admin" || action === "revoke_admin") &&
-      adminRole !== "super_admin"
-    ) {
-      return NextResponse.json(
-        { error: "Only super_admin can manage other admins" },
-        { status: 403 },
-      );
-    }
+  // Check permissions for admin management
+  if (
+    (action === "add_admin" || action === "revoke_admin") &&
+    adminRole !== "super_admin"
+  ) {
+    return NextResponse.json(
+      { error: "Only super_admin can manage other admins" },
+      { status: 403 },
+    );
+  }
 
-    logger.info("[Admin] Action", {
-      action,
-      adminUserId: user.id,
-      adminWallet: user.wallet_address,
-      targetUserId: userId,
-      targetWallet: walletAddress,
-    });
+  logger.info("[Admin] Action", {
+    action,
+    adminUserId: user.id,
+    adminWallet: user.wallet_address,
+    targetUserId: userId,
+    targetWallet: walletAddress,
+  });
 
   switch (action) {
     case "ban": {
@@ -341,23 +340,15 @@ export async function HEAD(request: NextRequest) {
     // Use the less restrictive auth that doesn't require organization
     // This allows checking admin status for users without full accounts
     const { requireAuthOrApiKey } = await import("@/lib/auth");
-    let user;
+    const result = await requireAuthOrApiKey(request);
 
-    try {
-      const result = await requireAuthOrApiKey(request);
-      user = result.user;
-    } catch {
-      // Not authenticated - return not-admin
-      return notAdminResponse();
-    }
-
-    if (!user?.wallet_address) {
+    if (!result.user?.wallet_address) {
       return notAdminResponse();
     }
 
     // Single cached call instead of two separate DB queries
     const { isAdmin, role } = await adminService.getAdminStatus(
-      user.wallet_address,
+      result.user.wallet_address,
     );
 
     return new NextResponse(null, {
@@ -368,7 +359,7 @@ export async function HEAD(request: NextRequest) {
       },
     });
   } catch {
-    // Any other error - return not-admin status
+    // Not authenticated or any other error - return not-admin status
     return notAdminResponse();
   }
 }

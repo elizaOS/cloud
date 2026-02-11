@@ -6,7 +6,21 @@
  */
 
 export const PROXY_CONFIG = {
-  // Pricing cache TTL (seconds)
+  /**
+   * Pricing cache TTL (seconds)
+   * 
+   * CRITICAL: This TTL is a safety net for cache consistency.
+   * If cache invalidation fails after DB update, stale pricing will
+   * persist until this TTL expires.
+   * 
+   * Default: 300s (5 minutes)
+   * - Short enough to limit revenue exposure from stale pricing
+   * - Long enough to reduce DB load from cache misses
+   * 
+   * Trade-offs:
+   * - Lower TTL: Faster consistency, higher DB load
+   * - Higher TTL: Lower DB load, longer stale data exposure
+   */
   PRICING_CACHE_TTL: parseInt(process.env.PRICING_CACHE_TTL || "300"),
   PRICING_CACHE_STALE_TIME: parseInt(process.env.PRICING_CACHE_STALE_TIME || "150"),
   

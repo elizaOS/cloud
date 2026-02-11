@@ -1,24 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * Solana RPC Proxy Endpoint
+ * 
+ * Public API for proxying Solana RPC requests with rate limiting and billing.
+ * 
+ * CORS: Unrestricted by design - see lib/services/proxy/cors.ts for security rationale.
+ * Authentication: API key required (X-API-Key header)
+ * Rate Limiting: Per API key
+ * Billing: Usage tracked per organization
+ */
+
 import { createHandler } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
+import { handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, Cache-Control",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(),
-  });
+  return handleCorsOptions("POST, OPTIONS");
 }
 
 export const POST = createHandler(solanaRpcConfig, solanaRpcHandler);

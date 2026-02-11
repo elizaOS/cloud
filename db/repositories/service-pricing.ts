@@ -30,12 +30,25 @@ export class ServicePricingRepository {
     });
   }
 
-  async listByService(serviceId: string): Promise<ServicePricing[]> {
+  /**
+   * Lists all pricing records for a service
+   * 
+   * @param serviceId - Service identifier (e.g., "solana-rpc")
+   * @param activeOnly - If true, only return active methods (default: true)
+   * @returns Array of service pricing records
+   */
+  async listByService(
+    serviceId: string,
+    activeOnly: boolean = true
+  ): Promise<ServicePricing[]> {
+    const conditions = [eq(servicePricing.service_id, serviceId)];
+    
+    if (activeOnly) {
+      conditions.push(eq(servicePricing.is_active, true));
+    }
+
     return await dbRead.query.servicePricing.findMany({
-      where: and(
-        eq(servicePricing.service_id, serviceId),
-        eq(servicePricing.is_active, true),
-      ),
+      where: and(...conditions),
     });
   }
 

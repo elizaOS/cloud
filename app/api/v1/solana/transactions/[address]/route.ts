@@ -1,25 +1,23 @@
+/**
+ * Solana Transactions API - Get transactions by address
+ * 
+ * Public API for retrieving transaction history for a Solana address.
+ * 
+ * CORS: Unrestricted by design - see lib/services/proxy/cors.ts for security rationale.
+ * Authentication: API key required (X-API-Key header)
+ * Rate Limiting: Per API key
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { executeWithBody } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
+import { handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, Cache-Control",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(),
-  });
+  return handleCorsOptions("GET, OPTIONS");
 }
 
 export async function GET(
@@ -32,8 +30,8 @@ export async function GET(
   if (!isValidSolanaAddress(address)) {
     return NextResponse.json(
       { 
-        error: "Invalid Solana address format",
-        details: "Address must be 32-44 base58-encoded characters"
+        error: "Invalid Solana address",
+        details: "Address must be a valid base58-encoded public key"
       },
       { status: 400 },
     );
