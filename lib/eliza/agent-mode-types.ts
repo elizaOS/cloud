@@ -132,6 +132,7 @@ export interface ConditionalPluginSettings {
   webSearch?: {
     enabled: boolean;
   };
+  n8n?: Record<string, unknown>;
 }
 
 /**
@@ -141,6 +142,7 @@ export interface ConditionalPluginSettings {
 export const SETTINGS_PLUGIN_MAP = {
   mcp: "@elizaos/plugin-mcp",
   webSearch: "@elizaos/plugin-web-search",
+  n8n: "@elizaos/plugin-n8n-workflow",
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
@@ -151,6 +153,21 @@ function hasValidConfiguration(
   key: keyof typeof SETTINGS_PLUGIN_MAP,
   settings: Record<string, unknown>,
 ): boolean {
+  if (key === "n8n") {
+    const secrets =
+      settings.secrets && typeof settings.secrets === "object"
+        ? (settings.secrets as Record<string, unknown>)
+        : {};
+    const apiKey = settings.N8N_API_KEY ?? secrets.N8N_API_KEY;
+    const host = settings.N8N_HOST ?? secrets.N8N_HOST;
+    return (
+      typeof apiKey === "string" &&
+      apiKey.length > 0 &&
+      typeof host === "string" &&
+      host.length > 0
+    );
+  }
+
   const value = settings[key];
   if (value == null) return false;
 
