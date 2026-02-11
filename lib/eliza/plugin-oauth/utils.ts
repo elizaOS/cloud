@@ -26,9 +26,25 @@ export function extractParams(message: Memory, state?: State): Record<string, un
   return (content.actionParams || content.actionInput || state?.data?.actionParams || {}) as Record<string, unknown>;
 }
 
+const PLATFORM_ALIASES: Record<string, string> = {
+  outlook: "microsoft",
+  hotmail: "microsoft",
+  onedrive: "microsoft",
+  gmail: "google",
+  "google calendar": "google",
+  gcal: "google",
+  gdrive: "google",
+  x: "twitter",
+  imessage: "blooio",
+  sms: "twilio",
+  "linear.app": "linear",
+  gh: "github",
+};
+
 export function extractPlatform(message: Memory, state?: State): string | undefined {
-  const params = extractParams(message, state);
-  return (params.platform as string)?.toLowerCase()?.trim();
+  const raw = (extractParams(message, state).platform as string)?.toLowerCase()?.trim();
+  if (!raw) return undefined;
+  return PLATFORM_ALIASES[raw] || raw;
 }
 
 export interface UserLookupResult {
