@@ -15,6 +15,9 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:149 - When a review requests "add accompanying tests," the fix must include the actual test files, not just comments referencing them.
 - Fix for app/api/v1/admin/service-pricing/route.ts:164 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:42 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:180 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:97 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:33 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -31,11 +34,15 @@
 
 - Fix for db/repositories/service-pricing.ts:119 - No verification result returned, treating as failed
 - Fix for db/repositories/service-pricing.ts:63 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:63 - When a comment requires changes across multiple files, implement ALL of them: define the type, then update each file that references it.
 
 ### app/api/v1/admin/moderation/route.ts
 
 - Fix for app/api/v1/admin/moderation/route.ts:137 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:173 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:209 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:131 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:209 - When adding a try block to handle an async operation, immediately add the matching catch block with error handling before moving on to other code.
 
 ### /terminal/route.ts
 
@@ -58,3 +65,7 @@
 ### lib/services/proxy/services/solana-rpc.ts
 
 - Fix for lib/services/proxy/services/solana-rpc.ts:275 - No verification result returned, treating as failed
+
+### scripts/check-types-split.ts
+
+- Fix for scripts/check-types-split.ts:22 - No verification result returned, treating as failed

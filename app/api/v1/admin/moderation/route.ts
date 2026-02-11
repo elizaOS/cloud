@@ -123,10 +123,10 @@ export async function GET(request: NextRequest) {
       );
   }
   } catch (error) {
-    if (error instanceof WalletRequiredError) {
+    if (error instanceof AuthenticationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof AdminRequiredError) {
+    if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error("[Admin] Moderation GET error", { error });
@@ -134,7 +134,29 @@ export async function GET(request: NextRequest) {
       { error: "Internal server error" },
       { status: 500 },
     );
-  }
+  }</search>
+</change>
+
+<change path="lib/services/proxy/engine.ts">
+<search>      const reservation = await creditsService.reserve({
+        organizationId: user.organization_id,
+        userId: user.id,
+        amount: cost,
+        description: config.name,
+      });</search>
+<replace>      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization required for billing" },
+          { status: 403 },
+        );
+      }
+
+      const reservation = await creditsService.reserve({
+        organizationId: user.organization_id,
+        userId: user.id,
+        amount: cost,
+        description: config.name,
+      });
 }
 
 const ActionSchema = z.object({

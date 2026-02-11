@@ -20,8 +20,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, WalletRequiredError, AdminRequiredError } from "@/lib/auth";
-import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
+import { requireAdmin } from "@/lib/auth";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
     const result = await requireAdmin(request);
     user = result.user;
   } catch (error) {
-    if (error instanceof WalletRequiredError) {
+    if (error instanceof AuthenticationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof AdminRequiredError) {
+    if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error("[Admin] Service pricing auth error", { error });
@@ -93,7 +93,7 @@ const UpsertSchema = z.object({
   cost: z.number().positive(),
   reason: z.string(),
   description: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 });
 
 export async function PUT(request: NextRequest) {
