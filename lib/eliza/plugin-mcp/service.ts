@@ -22,7 +22,6 @@ const requestContextReady = (async () => {
   }
 })();
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type {
@@ -114,6 +113,16 @@ export class McpService extends Service {
       await Promise.allSettled(
         entries.map(async ([name, config]) => {
           try {
+            // In production, only streamable-http is supported (SSE is deprecated on Vercel).
+            // stdio is only allowed in development/local environments.
+            if (process.env.NODE_ENV === "production" && config.type !== "streamable-http") {
+              logger.warn(
+                `[MCP] Skipping server "${name}": transport "${config.type}" is not supported in production (only streamable-http is allowed)`
+              );
+              results.failed.push(name);
+              return;
+            }
+
             const hash = this.schemaCache.hashConfig(config);
 
             // Try cache first
@@ -290,7 +299,7 @@ export class McpService extends Service {
   private createHttpTransport(
     name: string,
     config: HttpMcpServerConfig
-  ): SSEClientTransport | StreamableHTTPClientTransport {
+  ): StreamableHTTPClientTransport {
     if (!config.url) throw new Error(`Missing URL for server ${name}`);
     const url = new URL(config.url);
     const headers: Record<string, string> = { ...config.headers };
@@ -312,9 +321,7 @@ export class McpService extends Service {
     }
 
     const opts = Object.keys(headers).length > 0 ? { requestInit: { headers } } : undefined;
-    return config.type === "sse"
-      ? new SSEClientTransport(url, opts)
-      : new StreamableHTTPClientTransport(url, opts);
+    return new StreamableHTTPClientTransport(url, opts);
   }
 
   private setupTransportHandlers(
