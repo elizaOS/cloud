@@ -29,6 +29,7 @@ export const oauthRevokeAction: ActionWithParams = {
     "DISCONNECT", "REMOVE_CONNECTION", "UNLINK", "REVOKE_ACCESS",
     "DELETE_CONNECTION", "DISCONNECT_GOOGLE", "REMOVE_GOOGLE",
     "DISCONNECT_LINEAR", "DISCONNECT_SLACK", "DISCONNECT_GITHUB", "DISCONNECT_NOTION",
+    "DISCONNECT_MICROSOFT", "DISCONNECT_OUTLOOK", "REMOVE_MICROSOFT",
   ],
   description:
     "Disconnect an OAuth platform. Removes stored tokens and revokes access. Use when user wants to unlink or remove a connected account.",
@@ -36,7 +37,7 @@ export const oauthRevokeAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to disconnect: google, linear, slack, github, notion",
+      description: "Platform to disconnect: google, linear, slack, github, notion, microsoft",
       required: true,
     },
   },
