@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
@@ -22,78 +23,44 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const url = new URL(request.url);</search>
-</change>
+    const url = new URL(request.url);
+    const serviceId = url.searchParams.get("service_id");
+    const rawLimit = url.searchParams.get("limit");
+    const parsedLimit = rawLimit ? parseInt(rawLimit, 10) : 50;
+    const limit =
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 500)
+        : 50;
 
-<change path="app/api/v1/admin/service-pricing/audit/route.ts">
-<search>      history: history.map(h => ({
-        id: h.id,
-        service_id: h.serviceId,
-        method: h.method,
-        old_cost: h.oldCost ? Number(h.oldCost) : null,
-        new_cost: Number(h.newCost),
-        change_type: h.changeType,
-        changed_by: h.changedBy,
-        reason: h.reason,
-        created_at: h.createdAt,
-      })),
-    });
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
+    if (!serviceId) {
+      return NextResponse.json(
+        { error: "service_id query parameter is required" },
+        { status: 400 },
+      );
     }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing audit error", { error });</search>
-<replace>      history: history.map(h => ({
+
+    const history = await servicePricingRepository.listAuditHistory(
+      serviceId,
+      limit,
+    );
+
+    return NextResponse.json({
+      service_id: serviceId,
+      history: history.map(h => ({
         id: h.id,
-        service_id: h.serviceId,
         method: h.method,
-        old_cost: h.oldCost ? Number(h.oldCost) : null,
-        new_cost: Number(h.newCost),
-        change_type: h.changeType,
-        changed_by: h.changedBy,
+        old_cost: h.old_cost,
+        new_cost: h.new_cost,
         reason: h.reason,
-        created_at: h.createdAt,
+        updated_by: h.updated_by,
+        created_at: h.created_at,
       })),
     });
   } catch (error) {
     logger.error("[Admin] Service pricing audit error", { error });
-  const serviceId = url.searchParams.get("service_id");
-  
-  const parsedLimit = parseInt(url.searchParams.get("limit") || "50", 10);
-  const validLimit = Number.isNaN(parsedLimit) || parsedLimit < 1 ? 50 : parsedLimit;
-  const limit = Math.max(1, Math.min(validLimit, 500));
-  
-  const parsedOffset = parseInt(url.searchParams.get("offset") || "0", 10);
-  const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
-
-  if (!serviceId) {
     return NextResponse.json(
-      { error: "service_id query parameter required" },
-      { status: 400 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
-
-  const history = await servicePricingRepository.listAuditHistory(
-    serviceId,
-    limit,
-    offset,
-  );
-
-  return NextResponse.json({
-    service_id: serviceId,
-    history: history.map((h) => ({
-      id: h.id,
-      service_pricing_id: h.service_pricing_id,
-      method: h.method,
-      old_cost: h.old_cost ? Number(h.old_cost) : null,
-      new_cost: Number(h.new_cost),
-      change_type: h.change_type,
-      changed_by: h.changed_by,
-      reason: h.reason,
-      created_at: h.created_at,
-    })),
-  });
 }

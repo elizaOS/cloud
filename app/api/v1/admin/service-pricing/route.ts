@@ -1,3 +1,4 @@
+
 /**
  * Admin Service Pricing Management API
  * 
@@ -31,42 +32,6 @@ export async function GET(request: NextRequest) {
   let user;
   try {
     const result = await requireAdmin(request);
-    user = result.user;</search>
-</change>
-
-<change path="app/api/v1/admin/service-pricing/route.ts">
-<search>export async function GET(request: NextRequest) {
-  let user;
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  try {
-    const url = new URL(request.url);</search>
-<replace>export async function GET(request: NextRequest) {
-  let user;
-  try {
-    const result = await requireAdmin(request);
     user = result.user;
   } catch (error) {
     if (error instanceof AuthenticationError) {
@@ -83,44 +48,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const url = new URL(request.url);
-    const user = result.user;
-
     const url = new URL(request.url);
     const serviceId = url.searchParams.get("service_id");
 
     if (!serviceId) {
       return NextResponse.json(
-        { error: "service_id query parameter required" },
+        { error: "service_id query parameter is required" },
         { status: 400 },
       );
     }
 
     const pricing = await servicePricingRepository.listByService(serviceId);
 
-  return NextResponse.json({
-    service_id: serviceId,
-    pricing: pricing.map((p) => ({
-      id: p.id,
-      method: p.method,
-      cost: Number(p.cost),
-      description: p.description,
-      metadata: p.metadata,
-      is_active: p.is_active,
-      updated_by: p.updated_by,
-      updated_at: p.updated_at,
-    })),
-  });
+    return NextResponse.json({
+      service_id: serviceId,
+      pricing: pricing.map((p) => ({
+        id: p.id,
+        method: p.method,
+        cost: p.cost,
+        description: p.description,
+        is_active: p.is_active,
+        updated_at: p.updated_at,
+      })),
+    });
   } catch (error) {
-    if (error instanceof WalletRequiredError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
     logger.error("[Admin] Service pricing GET error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
@@ -137,14 +88,28 @@ const UpsertSchema = z.object({
   description: z.string().optional(),
   metadata: z.record(z.string().max(100), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()])).refine(
     (val) => Object.keys(val).length <= 20,
-    { message: "Metadata must have at most 20 keys" },
+    { message: "Metadata cannot have more than 20 keys" },
   ).optional(),
 });
 
 export async function PUT(request: NextRequest) {
+  let user;
   try {
     const result = await requireAdmin(request);
-    const user = result.user;
+    user = result.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    logger.error("[Admin] Service pricing auth error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 
   let body;
   try {
@@ -154,78 +119,52 @@ export async function PUT(request: NextRequest) {
   }
 
   const parsed = UpsertSchema.safeParse(body);
-
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.format() },
+      { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 },
     );
   }
 
-  const { service_id, method, cost, reason, description, metadata } =
-    parsed.data;
+  const { service_id, method, cost, reason, description, metadata } = parsed.data;
 
-  // Double cache invalidation: pre (clear stale) → DB update → post (clear any
-  // data cached during update window). Replica-lag race after post-invalidate is
-  // bounded by the 5-minute cache TTL. See file header for monitoring notes.
-
-  // Step 1: Pre-invalidation (fail-fast)
-  logger.debug("[Admin] Pre-invalidating pricing cache", { service_id });
-  await invalidateServicePricingCache(service_id);
-
-  // Step 2: Database update (source of truth)
-  logger.debug("[Admin] Updating pricing in database", {
-    service_id,
-    method,
-    cost,
-  });
-  const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? null;
-  const userAgent = request.headers.get("user-agent") ?? null;
-
-  const result = await servicePricingRepository.upsert(
-    service_id,
-    method,
-    cost,
-    user.id,
-    reason,
-    description,
-    metadata,
-    ipAddress ?? undefined,
-    userAgent ?? undefined,
-  );
-
-  // Step 3: Post-invalidation (critical - DB already updated)
-  // If this fails the DB update still succeeded; return success with a warning
-  // rather than a 500 (which would trick the admin into retrying the upsert).
-  let cacheInvalidated = true;
   try {
-    await invalidateServicePricingCache(service_id);
-
-    if (service_id === "solana-rpc") {
-      const { cache } = await import("@/lib/cache/client");
-      await cache.del("solana-rpc:allowed-methods");
+    // Pre-update cache invalidation
+    let cacheInvalidated = false;
+    try {
+      await invalidateServicePricingCache(service_id, method);
+      cacheInvalidated = true;
+    } catch (error) {
+      logger.warn("[Admin] Pre-update cache invalidation failed", {
+        service_id,
+        method,
+        error: error instanceof Error ? error.message : "Unknown",
+      });
     }
-  } catch (cacheError) {
-    cacheInvalidated = false;
-    logger.error("[Admin] CRITICAL: Post-invalidation failed after DB update", {
+
+    const result = await servicePricingRepository.upsert(
       service_id,
       method,
-      new_cost: cost,
-      error: cacheError instanceof Error ? cacheError.message : "Unknown error",
-    });
+      cost,
+      user.id,
+      reason,
+      description,
+      metadata,
+    );
 
-    // Emergency re-invalidation (fire-and-forget)
-    invalidateServicePricingCache(service_id).catch((retryError) => {
-      logger.error("[Admin] Emergency cache clear also failed", {
+    // Post-update cache invalidation
+    try {
+      await invalidateServicePricingCache(service_id, method);
+      cacheInvalidated = true;
+    } catch (retryError) {
+      logger.error("[Admin] CRITICAL: Post-update cache invalidation failed", {
         service_id,
+        method,
         retryError: retryError instanceof Error ? retryError.message : "Unknown",
       });
-    });
-  }
+    }
 
-  logger.info("[Admin] Service pricing updated", {
+    logger.info("[Admin] Service pricing updated", {
       service_id,
       method,
       cost,
@@ -235,15 +174,22 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({
-    success: true,
-    pricing: {
-      id: result.id,
-      service_id: result.service_id,
-      method: result.method,
-      cost: Number(result.cost),
-      description: result.description,
-      metadata: result.metadata,
-    },
-    cache_invalidated: cacheInvalidated,
-  });
+      success: true,
+      pricing: {
+        id: result.id,
+        service_id: result.service_id,
+        method: result.method,
+        cost: result.cost,
+        is_active: result.is_active,
+        updated_at: result.updated_at,
+      },
+      cache_invalidated: cacheInvalidated,
+    });
+  } catch (error) {
+    logger.error("[Admin] Service pricing PUT error", { error });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }

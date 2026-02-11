@@ -32,7 +32,18 @@ export type JsonRpcRequest = {
 
 export type JsonRpcBatchRequest = JsonRpcRequest[];
 
-export type ProxyRequestBody = Record<string, unknown>;
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export interface JsonRpcRequest {
+  jsonrpc?: string;
+  id?: JsonValue;
+  method: string;
+  params?: JsonValue;
+}
+
+export type JsonRpcBatchRequest = JsonRpcRequest[];
+
+export type ProxyRequestBody = JsonRpcRequest | JsonRpcBatchRequest | Record<string, unknown> | null;
 
 export interface ServiceConfig {
   id: string;

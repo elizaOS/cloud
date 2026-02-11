@@ -1,24 +1,31 @@
 
 /**
- * Shared CORS utilities for proxy service routes.
+ * Shared CORS utilities for proxy services
  * 
- * CORS: Unrestricted by design for public API endpoints.
- * All Solana route files share these helpers to ensure consistent CORS behavior.
+ * Security Rationale:
+ * These endpoints are public APIs consumed by browser-based dApps.
+ * CORS is unrestricted by design because:
+ * 1. Authentication is handled via API keys (X-API-Key header)
+ * 2. Rate limiting is per API key
+ * 3. Billing is per organization
+ * 
+ * The API key requirement provides the actual access control,
+ * not CORS restrictions.
  */
 
-import { NextResponse } from "next/server";
-
-export function getCorsHeaders(): Record<string, string> {
+export function getCorsHeaders(methods?: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+    "Access-Control-Allow-Methods": methods || "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key",
     "Access-Control-Max-Age": "86400",
   };
 }
 
-export function handleCorsOptions(allowMethods: string = "GET, POST, OPTIONS"): NextResponse {
-  const headers = getCorsHeaders();
-  headers["Access-Control-Allow-Methods"] = allowMethods;
-  return new NextResponse(null, { status: 204, headers });
+export function handleCorsOptions(methods: string): Response {
+  return new Response(null, {
+    status: 204,
+    headers: getCorsHeaders(methods),
+  });
 }

@@ -139,7 +139,8 @@ export async function POST(
     // Sanitize: reject path traversal and shell metacharacters
     if (targetDir && targetDir !== "." && /^[a-zA-Z0-9_\-./]+$/.test(targetDir) && !targetDir.includes("..")) {
       const safePath = targetDir.replace(/'/g, "'\\''");
-      fullCommand = `cd '${safePath}' && ${fullCommand}`;
+      const safeCmd = fullCommand.replace(/'/g, "'\\''");
+      fullCommand = `cd '${safePath}' && sh -c '${safeCmd}'`;
     }
   }
 
@@ -222,7 +223,8 @@ export async function GET(
             : cwd.replace(/^~\/?/, "");
           if (targetDir && targetDir !== "." && /^[a-zA-Z0-9_\-./]+$/.test(targetDir) && !targetDir.includes("..")) {
             const safePath = targetDir.replace(/'/g, "'\\''");
-            fullCommand = `cd '${safePath}' && ${fullCommand}`;
+            const safeCmd = fullCommand.replace(/'/g, "'\\''");
+            fullCommand = `cd '${safePath}' && sh -c '${safeCmd}'`;
           }
         }
         const result = await sandbox.runCommand({

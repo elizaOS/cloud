@@ -37,9 +37,9 @@ describe("GET /api/v1/admin/service-pricing", () => {
 
   it("should return pricing list for valid service_id", async () => {
     const mockUser = { id: "user-1", organization_id: "org-1" };
-    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true });
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
     mockListByService.mockResolvedValue([
-      { id: "1", service_id: "test", method: "default", cost: "0.01", updated_at: new Date() }
+      { id: "1", service_id: "test", method: "default", cost: "0.01", updated_at: new Date() } as any
     ]);
 
     const request = new NextRequest("http://localhost/api/v1/admin/service-pricing?service_id=test");
@@ -49,6 +49,15 @@ describe("GET /api/v1/admin/service-pricing", () => {
     const data = await response.json();
     expect(data.service_id).toBe("test");
     expect(data.pricing).toHaveLength(1);
+  });
+
+  it("should return 400 when service_id is missing", async () => {
+    const mockUser = { id: "user-1", organization_id: "org-1" };
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
+
+    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing");
+    const response = await GET(request);
+    expect(response.status).toBe(400);
   });
 });
 
@@ -61,7 +70,8 @@ describe("PUT /api/v1/admin/service-pricing", () => {
     mockRequireAdmin.mockRejectedValue(new AuthenticationError("Not authenticated"));
     const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
       method: "PUT",
-      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" })
+      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" }),
+      headers: { "content-type": "application/json" },
     });
     const response = await PUT(request);
     expect(response.status).toBe(401);
@@ -71,7 +81,8 @@ describe("PUT /api/v1/admin/service-pricing", () => {
     mockRequireAdmin.mockRejectedValue(new ForbiddenError("Not admin"));
     const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
       method: "PUT",
-      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" })
+      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" }),
+      headers: { "content-type": "application/json" },
     });
     const response = await PUT(request);
     expect(response.status).toBe(403);
@@ -79,24 +90,80 @@ describe("PUT /api/v1/admin/service-pricing", () => {
 
   it("should upsert pricing and invalidate cache", async () => {
     const mockUser = { id: "user-1", organization_id: "org-1" };
-    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true });
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
     mockUpsert.mockResolvedValue({
-      id: "1",
-      service_id: "test",
-      method: "default",
-      cost: "0.01",
-      updated_at: new Date()
-    });
+      id: "1", service_id: "svc-1", method: "default", cost: "0.01",
+      is_active: true, updated_at: new Date(),
+    } as any);
     mockInvalidateCache.mockResolvedValue(undefined);
 
     const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
       method: "PUT",
-      body: JSON.stringify({ service_id: "test", method: "default", cost: 0.01, reason: "test" })
+      body: JSON.stringify({
+        service_id: "svc-1",
+        method: "default",
+        cost: 0.01,
+        reason: "Initial pricing",
+      }),
+      headers: { "content-type": "application/json" },
     });
-    
+
     const response = await PUT(request);
-    
     expect(response.status).toBe(200);
-    expect(mockInvalidateCache).toHaveBeenCalledWith("test", "default");
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(mockInvalidateCache).toHaveBeenCalledWith("svc-1", "default");
+  });
+
+  it("should return 400 for invalid JSON", async () => {
+    const mockUser = { id: "user-1", organization_id: "org-1" };
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
+
+    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+      method: "PUT",
+      body: "not json",
+      headers: { "content-type": "application/json" },
+    });
+    const response = await PUT(request);
+    expect(response.status).toBe(400);
+  });
+
+  it("should return 400 for invalid request body", async () => {
+    const mockUser = { id: "user-1", organization_id: "org-1" };
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
+
+    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+      method: "PUT",
+      body: JSON.stringify({ service_id: "test" }), // missing required fields
+      headers: { "content-type": "application/json" },
+    });
+    const response = await PUT(request);
+    expect(response.status).toBe(400);
+  });
+
+  it("should succeed even if cache invalidation fails", async () => {
+    const mockUser = { id: "user-1", organization_id: "org-1" };
+    mockRequireAdmin.mockResolvedValue({ user: mockUser, role: "admin", isAdmin: true } as any);
+    mockUpsert.mockResolvedValue({
+      id: "1", service_id: "svc-1", method: "default", cost: "0.01",
+      is_active: true, updated_at: new Date(),
+    } as any);
+    mockInvalidateCache.mockRejectedValue(new Error("Cache error"));
+
+    const request = new NextRequest("http://localhost/api/v1/admin/service-pricing", {
+      method: "PUT",
+      body: JSON.stringify({
+        service_id: "svc-1",
+        method: "default",
+        cost: 0.01,
+        reason: "test",
+      }),
+      headers: { "content-type": "application/json" },
+    });
+
+    const response = await PUT(request);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.cache_invalidated).toBe(false);
   });
 });

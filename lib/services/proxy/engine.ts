@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import {
   requireAuth,
@@ -51,71 +52,25 @@ function buildCacheKey(
     // Fallback to a generic key without body content
     return `svc:${serviceId}:${orgId}:fallback`;
   }
-}</search>
-</change>
-
-<change path="lib/services/proxy/engine.ts">
-<search>import type {
-  ServiceConfig,
-  ServiceHandler,
-  HandlerContext,
-  HandlerResult,
-  AuthLevel,
-  ProxyRequestBody,
-} from "./types";</search>
-<replace>import type {
-  ServiceConfig,
-  ServiceHandler,
-  HandlerContext,
-  HandlerResult,
-  AuthLevel,
-  ProxyRequestBody,
-} from "./types";</change>
-</change>
-
-<change path="lib/services/proxy/services/solana-rpc.ts">
-<search>export const solanaRpcConfig: ServiceConfig = {
-  id: "solana-rpc",
-  name: "Solana RPC",
-  auth: "apiKeyWithOrg",
-  rateLimit: {
-    windowMs: 60000,
-    maxRequests: 100,
-  },
-  cache: {
-    enabled: true,
-    ttl: 60,
-  },
-  getCost: async (body: Record<string, unknown> | Record<string, unknown>[])</search>
-<replace>export const solanaRpcConfig: ServiceConfig = {
-  id: "solana-rpc",
-  name: "Solana RPC",
-  auth: "apiKeyWithOrg",
-  rateLimit: {
-    windowMs: 60000,
-    maxRequests: 100,
-  },
-  cache: {
-    enabled: true,
-    ttl: 60,
-  },
-  getCost: async (body: ProxyRequestBody | ProxyRequestBody[]) => Promise<number>,
-};
+}
 
 export function createHandler(
   config: ServiceConfig,
-  work: ServiceHandler,
-): (request: NextRequest) => Promise<Response> {
-  const handler = async (request: NextRequest): Promise<Response> => {
-    const startTime = Date.now();
-    const searchParams = new URL(request.url).searchParams;
-
+  handler: ServiceHandler,
+) {
+  return async (request: NextRequest) => {
     try {
       const auth = await getAuthForLevel(request, config.auth);
-      const { user } = auth;
-      const apiKey = "apiKey" in auth ? auth.apiKey : undefined;
+      const user = "user" in auth ? auth.user : (auth as any).user;
 
-      let body = null;
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
+          { status: 403 },
+        );
+      }
+
+      let body: ProxyRequestBody = null;
       if (request.method === "POST") {
         try {
           body = await request.json();
@@ -127,29 +82,12 @@ export function createHandler(
         }
       }
 
+      const searchParams = new URL(request.url).searchParams;
+
+      // Get cost for this request
       const cost = await config.getCost(body, searchParams);
 
-      if (!user.organization_id) {
-        return Response.json(
-          { error: "Organization required for billing" },
-          { status: 403 },
-        );
-      }
-
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
+      // Reserve credits
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -166,236 +104,146 @@ export function createHandler(
           const method =
             body && typeof body === "object" && "method" in body
               ? String(body.method)
-              : "_default";
+              : "unknown";
 
-          const isCacheable = config.cache.isMethodCacheable
-            ? config.cache.isMethodCacheable(method)
-            : true;
+          const cacheKey = buildCacheKey(
+            config.id,
+            user.organization_id,
+            body,
+            searchParams,
+          );
 
-          if (isCacheable) {
-            const cacheKey = buildCacheKey(
-              config.id,
-              user.organization_id,
-              body,
-              searchParams,
-            );
-
-            const cachedResponse = await cache.get<{
-              body: string;
-              status: number;
-              headers: Record<string, string>;
-              cachedAt: number;
-            }>(cacheKey);
-
+          try {
+            const cachedResponse = await cache.get(cacheKey);
             if (cachedResponse) {
-              const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
-              if (age <= clientMaxAge) {
-                const hitMultiplier = config.cache.hitCostMultiplier ?? 0.5;
-                await reservation.reconcile(cost * hitMultiplier);
+              // Track usage for cache hits too
+              void (async () => {
+                try {
+                  await usageService.create({
+                    organization_id: user.organization_id,
+                    user_id: user.id,
+                    service_type: config.id,
+                    method,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    input_cost: String(cost),
+                    output_cost: String(0),
+                    markup: String(0),
+                    metadata: { cached: true },
+                  });
+                } catch (error) {
+                  logger.error("[Proxy Engine] Usage tracking failed", { error });
+                }
+              })();
 
-                const response = new Response(cachedResponse.body, {
-                  status: cachedResponse.status,
-                  headers: {
-                    ...cachedResponse.headers,
-                    "X-Cache": "HIT",
-                    "X-Cache-Age": String(age),
-                  },
-                });
-
-                (async () => {
-                  try {
-                    await usageService.create({
-                      organization_id: user.organization_id,
-                      user_id: user.id,
-                      api_key_id: apiKey?.id,
-                      type: config.id,
-                      provider: config.id,
-                      input_cost: cost * hitMultiplier,
-                      output_cost: 0,
-                      markup: 0,
-                      duration_ms: Date.now() - startTime,
-                      is_successful: true,
-                      metadata: { cached: true, cache_age: age },
-                    });
-                  } catch (error) {
-                    logger.error("[Proxy Engine] Usage tracking failed (cache hit)", { error });
-                  }
-                })();
-
-                return response;
-              }
-            }
-          }
-        }
-      }
-
-      let result: HandlerResult;
-      try {
-        result = await work({ body, auth, searchParams });
-      } catch (error) {
-        await reservation.reconcile(0);
-        throw error;
-      }
-
-      const actualCost = result.actualCost ?? cost;
-      await reservation.reconcile(actualCost);
-
-      if (
-        config.cache &&
-        body &&
-        !Array.isArray(body) &&
-        result.response.ok
-      ) {
-        const cacheControl = request.headers.get("cache-control");
-        const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
-
-        if (clientMaxAge > 0) {
-          const method =
-            body && typeof body === "object" && "method" in body
-              ? String(body.method)
-              : "_default";
-
-          const isCacheable = config.cache.isMethodCacheable
-            ? config.cache.isMethodCacheable(method)
-            : true;
-
-          if (isCacheable) {
-            // Clone response before consuming body to preserve original stream
-            const clonedResponse = result.response.clone();
-            const responseBody = await clonedResponse.text();
-            const maxSize = config.cache.maxResponseSize ?? 65536;
-
-            if (responseBody.length <= maxSize) {
-              const cacheKey = buildCacheKey(
-                config.id,
-                user.organization_id,
-                body,
-                searchParams,
-              );
-
-              const ttl = Math.min(clientMaxAge, config.cache.maxTTL);
-              const headersObj: Record<string, string> = {};
-              result.response.headers.forEach((value, key) => {
-                headersObj[key] = value;
-              });
-
-              await cache.set(
-                cacheKey,
-                {
-                  body: responseBody,
-                  status: result.response.status,
-                  headers: headersObj,
-                  cachedAt: Date.now(),
-                },
-                ttl,
-              );
-
-              result.response = new Response(responseBody, {
-                status: result.response.status,
+              return new Response(cachedResponse, {
+                status: 200,
                 headers: {
-                  ...headersObj,
-                  "X-Cache": "MISS",
+                  "content-type": "application/json",
+                  "x-cache": "HIT",
                 },
               });
             }
+          } catch (error) {
+            logger.warn("[Proxy Engine] Cache read failed", { error });
           }
         }
       }
 
-      const isSuccessful = result.response.ok;
+      const context: HandlerContext = {
+        user,
+        body,
+        searchParams,
+        reservation,
+      };
 
-      (async () => {
+      const result = await handler(context);
+
+      // Finalize reservation
+      if (result.success) {
+        await creditsService.commit(reservation);
+      } else {
+        await creditsService.release(reservation);
+      }
+
+      // Track usage
+      const method =
+        body && typeof body === "object" && "method" in body
+          ? String(body.method)
+          : "unknown";
+
+      void (async () => {
         try {
           await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,
-            api_key_id: apiKey?.id,
-            type: config.id,
-            provider: config.id,
-            input_cost: actualCost,
-            output_cost: 0,
-            markup: 0,
-            duration_ms: Date.now() - startTime,
-            is_successful: isSuccessful,
-            error_message: isSuccessful ? undefined : `Upstream returned ${result.response.status}`,
-            metadata: { cached: false, ...(result.usageMetadata ?? {}) },
+            service_type: config.id,
+            method,
+            input_tokens: result.inputTokens ?? 0,
+            output_tokens: result.outputTokens ?? 0,
+            input_cost: String(cost),
+            output_cost: String(0),
+            markup: String(0),
+            metadata: result.metadata,
           });
         } catch (error) {
           logger.error("[Proxy Engine] Usage tracking failed", { error });
         }
       })();
 
-      return result.response;
+      // Cache successful responses
+      if (result.success && config.cache && body && !Array.isArray(body)) {
+        const cacheKey = buildCacheKey(
+          config.id,
+          user.organization_id,
+          body,
+          searchParams,
+        );
+        try {
+          const responseText = typeof result.response === "string"
+            ? result.response
+            : JSON.stringify(result.response);
+          await cache.set(cacheKey, responseText, config.cache.ttl);
+        } catch (error) {
+          logger.warn("[Proxy Engine] Cache write failed", { error });
+        }
+      }
+
+      return result.nextResponse ?? NextResponse.json(result.response);
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
         return NextResponse.json(
-          {
-            error: "Insufficient credits",
-            required: error.required,
-            available: error.available,
-          },
+          { error: "Insufficient credits" },
           { status: 402 },
         );
       }
-
       if (error instanceof PricingNotFoundError) {
-        logger.error("[Proxy Engine] Pricing configuration error", {
-          serviceId: error.serviceId,
-          method: error.method,
-        });
         return NextResponse.json(
-          { error: "Service temporarily unavailable" },
-          { status: 500 },
+          { error: "Service method not supported" },
+          { status: 400 },
         );
       }
-
-      if (error instanceof Error) {
-        if (
-          error.message.includes("validation") ||
-          error.message.includes("Invalid") ||
-          error.message.includes("not supported")
-        ) {
-          return NextResponse.json(
-            { error: error.message },
-            { status: 400 },
-          );
-        }
-
-        if (error.name === "TimeoutError" || error.message.includes("timeout")) {
-          return NextResponse.json(
-            { error: "Upstream service timeout" },
-            { status: 504 },
-          );
-        }
-      }
-
-      logger.error("[Proxy Engine] Handler error", { error });
+      logger.error("[Proxy Engine] Unhandled error", { error });
       return NextResponse.json(
-        { error: "Upstream service error" },
+        { error: "Internal server error" },
         { status: 502 },
       );
     }
   };
-
-  if (config.rateLimit) {
-    return withRateLimit(handler, config.rateLimit);
-  }
-
-  return handler;
 }
 
 export async function executeWithBody(
   config: ServiceConfig,
-  work: ServiceHandler,
+  handler: ServiceHandler,
   request: NextRequest,
-  body: unknown,
-): Promise<Response> {
-  const handler = createHandler(config, work);
-  const mockRequest = new NextRequest(request.url, {
+  body: ProxyRequestBody,
+) {
+  const wrappedHandler = createHandler(config, handler);
+  // Override request body for GET-with-body patterns
+  const modifiedRequest = new NextRequest(request.url, {
     method: "POST",
     headers: request.headers,
     body: JSON.stringify(body),
   });
-  return handler(mockRequest);
+  return wrappedHandler(modifiedRequest);
 }
