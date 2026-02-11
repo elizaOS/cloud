@@ -50,6 +50,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:227 - When a review requests tests for critical features, code refactoring alone doesn't satisfy it—create the test files first before submitting.
 - Fix for app/api/v1/admin/service-pricing/route.ts:166 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:80 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:172 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:86 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -80,6 +82,7 @@
 - Fix for lib/services/proxy/engine.ts:322 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:96 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:43 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:236 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 

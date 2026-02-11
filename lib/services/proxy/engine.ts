@@ -73,6 +73,12 @@ export function createHandler(
 
       const cost = await config.calculateCost(request);
       
+      if (!user.organization_id) {
+        throw new PricingNotFoundError(
+          "Organization required for proxy service billing"
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,

@@ -50,6 +50,15 @@ export async function GET(
 
   const response = await executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
   
+  const corsHeaders = getCorsHeaders();
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value);
+  }
+
+  return response;
+
+  const response = await executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
+  
   // Add CORS headers to response
   const corsHeaders = getCorsHeaders();
   Object.entries(corsHeaders).forEach(([key, value]) => {
