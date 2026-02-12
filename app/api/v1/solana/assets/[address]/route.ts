@@ -70,10 +70,4 @@ export async function GET(
       headers: getCorsHeaders("GET, OPTIONS"),
     });
   }
-  } catch {
-    return new NextResponse("Internal Server Error", {
-      status: 500,
-      headers: getCorsHeaders("GET, OPTIONS"),
-    });
-  }
 }
