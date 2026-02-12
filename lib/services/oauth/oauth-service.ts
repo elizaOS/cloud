@@ -123,8 +123,7 @@ class OAuthService {
     // getValidToken caches a still-active token under the new version key.
     await adapter.revoke(organizationId, connectionId);
 
-    await incrementOAuthVersion(organizationId, adapter.platform);
-    const version = await getOAuthVersion(organizationId, adapter.platform);
+    const version = await incrementOAuthVersion(organizationId, adapter.platform);
     await tokenCache.invalidate(organizationId, connectionId, version);
 
     logger.info("[OAuthService] Connection revoked", { organizationId, connectionId, platform: adapter.platform });
