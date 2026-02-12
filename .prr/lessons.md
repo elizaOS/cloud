@@ -11,58 +11,17 @@
 
 ## File-Specific Lessons
 
-### app/api/v1/admin/service-pricing/route.ts
-
-- Fix for app/api/v1/admin/service-pricing/route.ts:149 - Code refactoring alone doesn't satisfy test-coverage requests—must create accompanying test files with specific test cases for auth, upsert, and cache behavior.
-- Fix for app/api/v1/admin/service-pricing/route.ts:149 - When a review requests "add accompanying tests," the fix must include the actual test files, not just comments referencing them.
-- Fix for app/api/v1/admin/service-pricing/route.ts:180 - When a review requests "add tests," create actual test files with test cases, not TODO comments documenting what tests should exist.
-- Fix for app/api/v1/admin/service-pricing/route.ts:200 - "Code review requests for tests require actual test files, not TODO comments—implement the test cases in a new .test.ts or .spec.ts file."
-- Fix for app/api/v1/admin/service-pricing/route.ts:76 - tool modified wrong files (db/migrations/0033_add_service_billing_and_entity_settings.sql), need to modify app/api/v1/admin/service-pricing/route.ts
-- Fix for app/api/v1/admin/service-pricing/route.ts:173 - tool modified wrong files (app/api/v1/admin/service-pricing/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
-- Fix for app/api/v1/admin/service-pricing/route.ts:227 - When a review requests tests for critical features, code refactoring alone doesn't satisfy it—create the test files first before submitting.
-- Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
-- Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify app/api/v1/admin/service-pricing/route.ts
-
 ### lib/services/proxy/engine.ts
 
-- Fix for lib/services/proxy/engine.ts:172 - When removing a negation check, verify the intended logic gate—don't eliminate the condition itself, refactor it to properly express the intent.
-- Fix for lib/services/proxy/engine.ts:93 - When adding a fallback path for missing data, remove the early return that makes the fallback unreachable, or commit to only one strategy (reject or fallback).
-- Fix for lib/services/proxy/engine.ts:322 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/admin/service-pricing/__tests__/route.test.ts, app/api/v1/admin/service-pricing/audit/route.ts, app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, db/repositories/service-pricing.ts, scripts/check-types-split.ts), need to modify lib/services/proxy/engine.ts
-- Fix for lib/services/proxy/engine.ts:44 - The diff does not define ProxyRequestBody type or replace `unknown` types with it across the four locations mentioned
-- Fix for lib/services/proxy/engine.ts:254 - The diff shows only one organization_id check, but does not confirm removal of the two other duplicate checks mentioned
-- Fix for lib/services/proxy/engine.ts:44 - The diff removes organization_id validation instead of defining and threading `ProxyRequestBody` type through function signatures.
-
-### db/repositories/service-pricing.ts
-
-- Fix for db/repositories/service-pricing.ts:63 - When a comment requires changes across multiple files, implement ALL of them: define the type, then update each file that references it.
-- Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/assets/[address]/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/pricing.ts, lib/services/proxy/services/solana-rpc.ts), need to modify db/repositories/service-pricing.ts
-- Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/engine.ts), need to modify db/repositories/service-pricing.ts
-- Fix for db/repositories/service-pricing.ts:140 - Replace the `findFirst` + conditional `insert`/`update` pattern with a single `.insert(...).onConflictDoUpdate(...)` call to eliminate the race condition.
-- Fix for db/repositories/service-pricing.ts:140 - The change only modified the metadata type signature but did not implement the core fix—replacing the `findFirst` + conditional `insert`/`update` pattern with `INSERT ... ON CONFLICT DO UPDATE` to eliminate the race condition.
-- Fix for db/repositories/service-pricing.ts:64 - Changed `Record<string, string | number | boolean | null | undefined>` to `Record<string, unknown>`, which is less specific, not more. The review asked to define a concrete `ServicePricingMetadata` interface and use it in both schema and repository.
+- Fix for lib/services/proxy/engine.ts:261 - Diff removes duplicate organization_id checks and numeric/string type inconsistencies, but doesn't address the core issue: organization_id can be missing when requireAuth returns anonymous users without reserve() support.
+- Fix for lib/services/proxy/engine.ts:254 - Removes the organization_id check entirely instead of consolidating the three duplicate checks into one
+- Fix for lib/services/proxy/engine.ts:261 - The diff addresses unrelated variable naming and metadata tracking, but completely ignores the critical `organization_id` null check issue mentioned in the review comment.
+- Fix for lib/services/proxy/engine.ts:254 - The diff does not consolidate duplicate `organization_id` checks. The comment requests removing two of three identical checks, but the provided diff only changes cache and metadata variables.
 
 ### app/api/v1/admin/moderation/route.ts
 
-- Fix for app/api/v1/admin/moderation/route.ts:209 - When adding a try block to handle an async operation, immediately add the matching catch block with error handling before moving on to other code.
-- Fix for app/api/v1/admin/moderation/route.ts:231 - tool made no changes without explanation - trying different approach
-- Fix for app/api/v1/admin/moderation/route.ts:132 - tool made no changes without explanation - trying different approach
-- Fix for app/api/v1/admin/moderation/route.ts:157 - tool made no changes without explanation - trying different approach
-- Fix for app/api/v1/admin/moderation/route.ts:130 - Replace the incorrect `instanceof` checks for `WalletRequiredError` and `AdminRequiredError` with the correct ones for `AuthenticationError` and `ForbiddenError`—don't add duplicate handlers.
-- Fix for app/api/v1/admin/moderation/route.ts:201 - tool made no changes without explanation - trying different approach
-- Fix for app/api/v1/admin/moderation/route.ts:177 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:130 - Comment asks to add missing AuthenticationError/ForbiddenError imports, but diff removes those imports instead and switches to requireAdminWithResponse utility.
 
-### db/migrations/0033_add_service_billing_and_entity_settings.sql
+### app/api/v1/admin/service-pricing/route.ts
 
-- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - Before adding seed data to a migration, verify the complete list doesn't already exist elsewhere in the file to avoid duplicates.
-
-### lib/services/proxy/services/solana-rpc.ts
-
-- Fix for lib/services/proxy/services/solana-rpc.ts:341 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify lib/services/proxy/services/solana-rpc.ts
-
-### scripts/check-types-split.ts
-
-- Fix for scripts/check-types-split.ts:21 - When a review comment offers two alternatives, choose the better one that both fixes the issue AND solves the underlying problem, not just the simpler option.
-
-### app/api/v1/admin/service-pricing/route.test.ts
-
-- Fix for app/api/v1/admin/service-pricing/route.test.ts:33 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/rpc/route.ts, app/api/v1/solana/transactions/[address]/route.ts, scripts/check-types-split.ts), need to modify app/api/v1/admin/service-pricing/route.test.ts
+- Fix for app/api/v1/admin/service-pricing/route.ts:167 - "Review comments requesting tests require actual test files, not just TODO comments—implement the tests in a new test file, don't document them."

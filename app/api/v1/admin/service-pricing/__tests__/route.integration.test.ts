@@ -8,49 +8,42 @@
  * - Cache invalidation effects
  */
 
-import { NextRequest } from "next/server";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
 
 // Mock dependencies before imports
-jest.mock("@/lib/auth", () => ({
-  requireAdmin: jest.fn(),
+vi.mock("@/lib/api/admin-auth", () => ({
+  requireAdminWithResponse: vi.fn(),
 }));
 
-jest.mock("@/db/repositories", () => ({
+vi.mock("@/db/repositories", () => ({
   servicePricingRepository: {
-    list: jest.fn(),
-    upsert: jest.fn(),
-    listAuditHistory: jest.fn(),
+    listByService: vi.fn(),
+    upsert: vi.fn(),
   },
 }));
 
-jest.mock("@/lib/services/proxy/pricing", () => ({
-  invalidateServicePricingCache: jest.fn(),
+vi.mock("@/lib/services/proxy/pricing", () => ({
+  invalidateServicePricingCache: vi.fn(),
 }));
 
-jest.mock("@/lib/cache/client", () => ({
-  cache: {
-    delete: jest.fn(),
-  },
-}));
-
-jest.mock("@/lib/utils/logger", () => ({
+vi.mock("@/lib/utils/logger", () => ({
   logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { GET, PUT } from "../route";
 
-const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;
-const mockList = servicePricingRepository.list as jest.MockedFunction<typeof servicePricingRepository.list>;
-const mockUpsert = servicePricingRepository.upsert as jest.MockedFunction<typeof servicePricingRepository.upsert>;
-const mockInvalidateCache = invalidateServicePricingCache as jest.MockedFunction<typeof invalidateServicePricingCache>;
+const mockRequireAdminWithResponse = vi.mocked(requireAdminWithResponse);
+const mockListByService = vi.mocked(servicePricingRepository.listByService);
+const mockUpsert = vi.mocked(servicePricingRepository.upsert);
+const mockInvalidateCache = vi.mocked(invalidateServicePricingCache);
 
 function createRequest(method: string, url: string, body?: unknown): NextRequest {
   const init: RequestInit = { method };
@@ -63,37 +56,46 @@ function createRequest(method: string, url: string, body?: unknown): NextRequest
 
 describe("Service Pricing Admin API - Integration", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("Auth: admin vs non-admin", () => {
     it("GET returns 401 for unauthenticated requests", async () => {
-      mockRequireAdmin.mockRejectedValue(new AuthenticationError("Not authenticated"));
+      mockRequireAdminWithResponse.mockResolvedValue(
+        NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
+      );
       const request = createRequest("GET", "http://localhost/api/v1/admin/service-pricing");
       const response = await GET(request);
       expect(response.status).toBe(401);
     });
 
     it("GET returns 403 for non-admin users", async () => {
-      mockRequireAdmin.mockRejectedValue(new ForbiddenError("Admin access required"));
+      mockRequireAdminWithResponse.mockResolvedValue(
+        NextResponse.json({ error: "Admin access required" }, { status: 403 }),
+      );
       const request = createRequest("GET", "http://localhost/api/v1/admin/service-pricing");
       const response = await GET(request);
       expect(response.status).toBe(403);
     });
 
     it("GET returns 200 for admin users", async () => {
-      mockRequireAdmin.mockResolvedValue({
+      mockRequireAdminWithResponse.mockResolvedValue({
         user: { id: "user1", wallet_address: "0x123", organization_id: "org1" },
         role: "admin",
       } as any);
-      mockList.mockResolvedValue([]);
-      const request = createRequest("GET", "http://localhost/api/v1/admin/service-pricing");
+      mockListByService.mockResolvedValue([]);
+      const request = createRequest(
+        "GET",
+        "http://localhost/api/v1/admin/service-pricing?service_id=solana-rpc",
+      );
       const response = await GET(request);
       expect(response.status).toBe(200);
     });
 
     it("PUT returns 401 for unauthenticated requests", async () => {
-      mockRequireAdmin.mockRejectedValue(new AuthenticationError("Not authenticated"));
+      mockRequireAdminWithResponse.mockResolvedValue(
+        NextResponse.json({ error: "Not authenticated" }, { status: 401 }),
+      );
       const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
         service_id: "test",
         method: "test",
@@ -105,7 +107,9 @@ describe("Service Pricing Admin API - Integration", () => {
     });
 
     it("PUT returns 403 for non-admin users", async () => {
-      mockRequireAdmin.mockRejectedValue(new ForbiddenError("Admin access required"));
+      mockRequireAdminWithResponse.mockResolvedValue(
+        NextResponse.json({ error: "Admin access required" }, { status: 403 }),
+      );
       const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
         service_id: "test",
         method: "test",
@@ -119,7 +123,7 @@ describe("Service Pricing Admin API - Integration", () => {
 
   describe("PUT upsert behavior", () => {
     beforeEach(() => {
-      mockRequireAdmin.mockResolvedValue({
+      mockRequireAdminWithResponse.mockResolvedValue({
         user: { id: "user1", wallet_address: "0x123", organization_id: "org1" },
         role: "admin",
       } as any);
@@ -150,8 +154,6 @@ describe("Service Pricing Admin API - Integration", () => {
         "Initial pricing",
         undefined,
         undefined,
-        expect.any(String),
-        expect.any(String),
       );
     });
 
@@ -191,7 +193,7 @@ describe("Service Pricing Admin API - Integration", () => {
 
   describe("Cache invalidation", () => {
     beforeEach(() => {
-      mockRequireAdmin.mockResolvedValue({
+      mockRequireAdminWithResponse.mockResolvedValue({
         user: { id: "user1", wallet_address: "0x123", organization_id: "org1" },
         role: "admin",
       } as any);

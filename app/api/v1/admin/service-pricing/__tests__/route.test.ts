@@ -1,13 +1,12 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { GET, PUT } from '../route';
-import { requireAdmin } from '@/lib/auth';
-import { AuthenticationError, ForbiddenError } from '@/lib/api/errors';
+import { requireAdminWithResponse } from '@/lib/api/admin-auth';
 import { servicePricingRepository } from '@/db/repositories/service-pricing';
 import { invalidateServicePricingCache } from '@/lib/services/proxy/pricing';
 
-vi.mock('@/lib/auth');
+vi.mock('@/lib/api/admin-auth');
 vi.mock('@/db/repositories/service-pricing');
 vi.mock('@/lib/services/proxy/pricing');
 
@@ -19,25 +18,29 @@ describe('Service Pricing Admin Routes', () => {
   describe('GET /api/v1/admin/service-pricing', () => {
     it('should return 401 when wallet is not connected', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
-      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Wallet connection required'));
+      vi.mocked(requireAdminWithResponse).mockResolvedValue(
+        NextResponse.json({ error: 'Wallet connection required' }, { status: 401 }),
+      );
 
       const response = await GET(request);
       expect(response.status).toBe(401);
-      expect(requireAdmin).toHaveBeenCalledOnce();
+      expect(requireAdminWithResponse).toHaveBeenCalledOnce();
     });
 
     it('should return 403 when user is not admin', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
-      vi.mocked(requireAdmin).mockRejectedValue(new ForbiddenError('Admin access required'));
+      vi.mocked(requireAdminWithResponse).mockResolvedValue(
+        NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
+      );
 
       const response = await GET(request);
       expect(response.status).toBe(403);
-      expect(requireAdmin).toHaveBeenCalledOnce();
+      expect(requireAdminWithResponse).toHaveBeenCalledOnce();
     });
 
     it('should return service pricing data', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
-      vi.mocked(requireAdmin).mockResolvedValue({
+      vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
         role: 'super_admin',
       });
@@ -66,7 +69,9 @@ describe('Service Pricing Admin Routes', () => {
 
   describe('PUT /api/v1/admin/service-pricing', () => {
     it('should return 401 for unauthenticated requests', async () => {
-      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Not authenticated'));
+      vi.mocked(requireAdminWithResponse).mockResolvedValue(
+        NextResponse.json({ error: 'Not authenticated' }, { status: 401 }),
+      );
       const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
         method: 'PUT',
         body: JSON.stringify({
@@ -82,7 +87,7 @@ describe('Service Pricing Admin Routes', () => {
     });
 
     it('should upsert pricing and invalidate cache', async () => {
-      vi.mocked(requireAdmin).mockResolvedValue({
+      vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
         role: 'super_admin',
       });
