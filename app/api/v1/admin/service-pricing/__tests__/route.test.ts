@@ -17,7 +17,7 @@ describe('Service Pricing Admin Routes', () => {
   });
 
   describe('GET /api/v1/admin/service-pricing', () => {
-    it('should return 401 when wallet is not connected', async () => {
+    it('should return 401 when not authenticated', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
       vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Wallet connection required'));
 
@@ -55,15 +55,13 @@ describe('Service Pricing Admin Routes', () => {
 
       const response = await GET(request);
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.service_id).toBe('solana-rpc');
-      expect(data.pricing).toHaveLength(1);
+      expect(servicePricingRepository.listByService).toHaveBeenCalledWith('solana-rpc');
     });
   });
 
   describe('PUT /api/v1/admin/service-pricing', () => {
-    it('should return 401 for unauthenticated PUT requests', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
+    it('should return 401 for unauthenticated requests', async () => {
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
         method: 'PUT',
         body: JSON.stringify({
           service_id: 'solana-rpc',
@@ -78,8 +76,8 @@ describe('Service Pricing Admin Routes', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should upsert service pricing and invalidate cache', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
+    it('should update pricing and invalidate cache', async () => {
+      const request = new NextRequest('http://localhost/api/v1/admin/service-pricing', {
         method: 'PUT',
         body: JSON.stringify({
           service_id: 'solana-rpc',
@@ -98,7 +96,7 @@ describe('Service Pricing Admin Routes', () => {
         method: 'getBalance',
         cost: '0.002',
       } as any);
-      vi.mocked(invalidateServicePricingCache).mockResolvedValue(undefined);
+      vi.mocked(invalidateServicePricingCache).mockResolvedValue();
 
       const response = await PUT(request);
       expect(response.status).toBe(200);

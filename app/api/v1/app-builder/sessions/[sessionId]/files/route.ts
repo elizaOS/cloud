@@ -13,9 +13,10 @@ interface RouteParams {
 // GET /api/v1/app-builder/sessions/[sessionId]/files
 // List files in the sandbox
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { user } = await requireAuthOrApiKeyWithOrg(request);
+  const { sessionId } = await params;
+  
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { sessionId } = await params;
 
   // Verify session ownership
   const session = await aiAppBuilder.getSession(sessionId, user.id);
