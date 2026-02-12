@@ -98,6 +98,8 @@ export interface InitiateAuthParams {
   redirectUrl?: string;
   /** Specific scopes to request (overrides defaults) */
   scopes?: string[];
+  /** Platform-specific handle (required for Bluesky AT Protocol) */
+  handle?: string;
 }
 
 /**

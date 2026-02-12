@@ -45,6 +45,7 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
   microsoft: { url: "/api/mcps/microsoft/mcp", type: "streamable-http" },
+  bluesky: { url: "/api/mcps/bluesky/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
 };
 

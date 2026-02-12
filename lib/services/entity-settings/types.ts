@@ -84,4 +84,5 @@ export const OAUTH_PROVIDER_TO_SETTING_KEY: Record<string, string> = {
   spotify: "SPOTIFY_ACCESS_TOKEN",
   twitch: "TWITCH_ACCESS_TOKEN",
   slack: "SLACK_ACCESS_TOKEN",
+  bluesky: "BLUESKY_ACCESS_TOKEN",
 };

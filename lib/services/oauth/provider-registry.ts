@@ -442,6 +442,23 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     useGenericRoutes: false,
   },
 
+  bluesky: {
+    id: "bluesky",
+    name: "Bluesky",
+    description: "AT Protocol social network - posts, timeline, notifications",
+    type: "oauth2",
+    envVars: ["BLUESKY_PRIVATE_KEY"],
+    defaultScopes: ["atproto", "transition:generic"],
+    storage: "platform_credentials",
+    useGenericRoutes: false,
+    routes: {
+      initiate: "/api/v1/oauth/bluesky/initiate",
+      callback: "/api/v1/oauth/bluesky/callback",
+      status: "",
+      disconnect: "",
+    },
+  },
+
   blooio: {
     id: "blooio",
     name: "Blooio",

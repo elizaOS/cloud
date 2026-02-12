@@ -17,6 +17,7 @@ import {
   getSupportedPlatforms,
   isSupportedPlatform,
   extractPlatform,
+  extractParams,
   lookupUser,
   isUserLookupError,
   capitalize,
@@ -27,19 +28,24 @@ export const oauthConnectAction: ActionWithParams = {
   similes: [
     "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
     "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
-    "CONNECT_MICROSOFT", "CONNECT_OUTLOOK",
+    "CONNECT_MICROSOFT", "CONNECT_OUTLOOK", "CONNECT_BLUESKY", "CONNECT_BSKY",
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
     "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION", "LINK_MICROSOFT",
-    "LINK_OUTLOOK",
+    "LINK_OUTLOOK", "LINK_BLUESKY", "LINK_BSKY",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, microsoft",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, microsoft, bluesky. For Bluesky, the user must provide their handle (e.g., alice.bsky.social).",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, linear, slack, github, notion, microsoft",
+      description: "Platform to connect. Available: google, linear, slack, github, notion, microsoft, bluesky",
       required: true,
+    },
+    handle: {
+      type: "string",
+      description: "User's handle on the platform. Required for Bluesky (e.g., alice.bsky.social).",
+      required: false,
     },
   },
 
@@ -79,6 +85,19 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
+    // Extract handle parameter (required for Bluesky)
+    const params = extractParams(message, state);
+    const handle = (params.handle as string)?.trim();
+
+    if (platform === "bluesky" && !handle) {
+      return {
+        text: "To connect Bluesky, I need your handle. Please provide it like: \"connect bluesky alice.bsky.social\"",
+        success: false,
+        error: "MISSING_HANDLE",
+        data: { actionName },
+      };
+    }
+
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
 
@@ -87,9 +106,10 @@ export const oauthConnectAction: ActionWithParams = {
 
     if (await oauthService.isPlatformConnected(organizationId, platform)) {
       const connections = await oauthService.listConnections({ organizationId, platform });
-      const email = connections.find((c) => c.status === "active")?.email || "";
+      const identifier = connections.find((c) => c.status === "active")?.email
+        || connections.find((c) => c.status === "active")?.username || "";
       return {
-        text: `Your ${platformName} account is already connected${email ? ` (${email})` : ""}.`,
+        text: `Your ${platformName} account is already connected${identifier ? ` (${identifier})` : ""}.`,
         success: true,
         data: { actionName, alreadyConnected: true },
       };
@@ -103,6 +123,7 @@ export const oauthConnectAction: ActionWithParams = {
         organizationId,
         userId: user.id,
         platform,
+        handle,
         redirectUrl: `${baseUrl}/auth/success`,
       });
     } catch (err) {
@@ -141,6 +162,10 @@ export const oauthConnectAction: ActionWithParams = {
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
       { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "connect bluesky alice.bsky.social" } },
+      { name: "{{name2}}", content: { text: "Connect Bluesky: https://bsky.social/oauth/authorize?...", actions: ["OAUTH_CONNECT"] } },
     ],
   ] as ActionExample[][],
 };

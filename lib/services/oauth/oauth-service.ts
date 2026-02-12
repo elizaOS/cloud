@@ -63,10 +63,12 @@ class OAuthService {
       return { authUrl: result.authUrl, state: result.state };
     }
 
-    // Legacy provider-specific handlers (only Twitter remains - uses OAuth 1.0a)
+    // Provider-specific handlers (non-generic OAuth flows)
     switch (platform) {
       case "twitter":
         return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
+      case "bluesky":
+        return this.initiateBlueskyAuth(organizationId, userId, params.handle, redirectUrl);
       default:
         throw Errors.platformNotSupported(platform);
     }
@@ -85,6 +87,20 @@ class OAuthService {
     );
 
     return { authUrl: result.url, state: result.oauthToken };
+  }
+
+  private async initiateBlueskyAuth(organizationId: string, userId: string, handle?: string, redirectUrl?: string): Promise<InitiateAuthResult> {
+    if (!handle) {
+      throw new Error("Bluesky requires a handle (e.g., alice.bsky.social) to initiate OAuth");
+    }
+    const { initiateBlueskyAuth } = await import("./providers/bluesky-at");
+    const result = await initiateBlueskyAuth({
+      organizationId,
+      userId,
+      handle,
+      redirectUrl: redirectUrl || DEFAULT_REDIRECT,
+    });
+    return { authUrl: result.authUrl };
   }
 
   /** List all OAuth connections for an organization */

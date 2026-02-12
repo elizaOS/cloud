@@ -39,6 +39,8 @@ const PLATFORM_ALIASES: Record<string, string> = {
   sms: "twilio",
   "linear.app": "linear",
   gh: "github",
+  bsky: "bluesky",
+  "blue sky": "bluesky",
 };
 
 export function extractPlatform(message: Memory, state?: State): string | undefined {

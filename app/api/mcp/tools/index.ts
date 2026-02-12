@@ -19,3 +19,4 @@ export { registerGoogleTools } from "./google";
 export { registerLinearTools } from "./linear";
 export { registerNotionTools } from "./notion";
 export { registerGitHubTools } from "./github";
+export { registerBlueskyTools } from "./bluesky";

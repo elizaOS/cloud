@@ -21,6 +21,7 @@ export interface ConnectionAdapter {
 import { twitterAdapter } from "./twitter-adapter";
 import { twilioAdapter } from "./twilio-adapter";
 import { blooioAdapter } from "./blooio-adapter";
+import { blueskyAdapter } from "./bluesky-adapter";
 import {
   createGenericAdapter,
   linearAdapter,
@@ -39,6 +40,7 @@ const staticAdapters: Record<string, ConnectionAdapter> = {
   twitter: twitterAdapter,
   twilio: twilioAdapter,
   blooio: blooioAdapter,
+  bluesky: blueskyAdapter,
   // Generic OAuth2 providers
   linear: linearAdapter,
   notion: notionAdapter,
