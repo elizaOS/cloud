@@ -306,11 +306,12 @@ export async function syncUserFromPrivy(
   }
 
   // Create organization, add credits, and create user in a transaction.
-  // The tx object is passed to each service call so they can participate in
-  // the transaction. If a service method does not accept or use the tx
-  // parameter, its writes will bypass this transaction and won't be rolled
-  // back on failure — verify that each service called here actually uses the
-  // provided tx before relying on atomicity guarantees.
+  // IMPORTANT: The tx object is passed to each service call, but service methods
+  // must explicitly use the tx connection for writes to participate in this
+  // transaction. If a service ignores the tx parameter and uses its own global
+  // connection, those writes will NOT be rolled back on failure, potentially
+  // leaving orphaned records (e.g., org created but user creation fails).
+  // Verify each service's implementation accepts tx before relying on atomicity.
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
