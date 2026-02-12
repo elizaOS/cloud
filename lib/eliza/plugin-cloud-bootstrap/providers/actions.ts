@@ -53,9 +53,11 @@ export const actionsProvider: Provider = {
     // Get discoverable tool count from MCP service (Tier-2 tools not in the visible set)
     let discoverableToolCount = 0;
     try {
-      const mcpSvc = runtime.getService("mcp");
-      if (mcpSvc && typeof (mcpSvc as Record<string, unknown>).getTier2Index === "function") {
-        const index = (mcpSvc as { getTier2Index: () => { getToolCount: () => number } }).getTier2Index();
+      const mcpSvc = runtime.getService("mcp") as unknown as
+        | { getTier2Index?: () => { getToolCount: () => number } }
+        | undefined;
+      if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
+        const index = mcpSvc.getTier2Index();
         const count = index?.getToolCount?.();
         if (typeof count === "number") discoverableToolCount = count;
       }

@@ -596,9 +596,11 @@ export class CloudBootstrapMessageService implements IMessageService {
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
     const traceActionResult: MultiStepActionResult[] = [];
+    const discoveredActions = new Set<string>();
     let totalActionsExecuted = 0;
     let lastActionKey = "";
     let accumulatedState: State = state;
+    let finishResponse: string | null = null;
 
     const maxIterations =
       options?.maxMultiStepIterations ??
@@ -621,6 +623,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         "RECENT_MESSAGES",
         "ACTION_STATE",
         "ACTIONS",
+        "CHARACTER",
         "USER_AUTH_STATUS",
         // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
         // via McpService.registerToolsAsActions() and appear in ACTIONS provider
@@ -672,6 +675,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             "RECENT_MESSAGES",
             "ACTION_STATE",
             "ACTIONS",
+            "CHARACTER",
             "USER_AUTH_STATUS",
             // NOTE: "MCP" provider removed - MCP tools are now native actions
           ],
@@ -680,12 +684,16 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Also set on state.data for consistency
         accumulatedState.data.actionResults = traceActionResult;
 
+        const remainingSteps = maxIterations - iterationCount;
         const stateWithIterationContext = {
           ...accumulatedState,
           iterationCount,
           maxIterations,
           traceActionResult,
           totalActionsExecuted,
+          discoveredActions: discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "",
+          stepsWarning: remainingSteps <= 2,
+          remainingSteps,
         };
 
         const prompt = composePromptFromState({
@@ -801,9 +809,10 @@ export class CloudBootstrapMessageService implements IMessageService {
         lastActionKey = dedupKey;
 
         if (!action) {
+          // Deprecated fallback: isFinish without an action
           if (isFinish === "true" || isFinish === true) {
             logger.info(
-              `[MultiStep] Task complete at iteration ${iterationCount}`,
+              `[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`,
             );
             await streamThinking("response", "\n--- Completing task ---\n");
             break;
@@ -811,6 +820,24 @@ export class CloudBootstrapMessageService implements IMessageService {
           logger.warn(
             `[MultiStep] No action at iteration ${iterationCount}, forcing completion`,
           );
+          break;
+        }
+
+        // Handle FINISH action — extract response param, skip normal action execution
+        if (action === "FINISH") {
+          let actionParams: Record<string, unknown> = {};
+          if (parameters) {
+            if (typeof parameters === "string") {
+              try { actionParams = JSON.parse(parameters); } catch { /* ignore */ }
+            } else if (typeof parameters === "object") {
+              actionParams = parameters;
+            }
+          }
+          finishResponse = (actionParams.response as string) || "";
+          logger.info(
+            `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
+          );
+          await streamThinking("response", "\n--- FINISH ---\n");
           break;
         }
 
@@ -875,6 +902,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             text?: string;
             success?: boolean;
             values?: Record<string, unknown>;
+            data?: Record<string, unknown>;
           } | null = null;
 
           await runtime.processActions(
@@ -926,6 +954,18 @@ export class CloudBootstrapMessageService implements IMessageService {
           }
           totalActionsExecuted++;
 
+          // Track newly discovered actions from SEARCH_ACTIONS for explicit visibility
+          if (action === "SEARCH_ACTIONS" && actionResult.success && result) {
+            const data = (result as Record<string, unknown>).data as Record<string, unknown> | undefined;
+            const newlyRegistered = data?.newlyRegistered as string[] | undefined;
+            if (newlyRegistered?.length) {
+              newlyRegistered.forEach(name => discoveredActions.add(name));
+              logger.info(
+                `[MultiStep] Discovered actions: ${newlyRegistered.join(", ")}`,
+              );
+            }
+          }
+
           await streamThinking(
             "actions",
             `\nAction ${action} ${success ? "succeeded" : "failed"}: ${actionResult.text || "(no output)"}\n`,
@@ -965,9 +1005,10 @@ export class CloudBootstrapMessageService implements IMessageService {
           );
         }
 
+        // Deprecated fallback: isFinish flag without FINISH action
         if (isFinish === "true" || isFinish === true) {
           logger.info(
-            `[MultiStep] Task complete at iteration ${iterationCount}`,
+            `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
           );
           break;
         }
@@ -979,6 +1020,41 @@ export class CloudBootstrapMessageService implements IMessageService {
       );
     }
 
+    // If FINISH was called, use its response directly — skip summary LLM call
+    if (finishResponse !== null) {
+      logger.info("[MultiStep] Using FINISH response, skipping summary LLM call");
+
+      const responseContent: Content = {
+        actions: ["FINISH"],
+        text: finishResponse,
+        thought: "FINISH action called by decision LLM.",
+        simple: true,
+      };
+
+      if (options?.onStreamChunk) {
+        await options.onStreamChunk(finishResponse, message.id as UUID);
+      }
+
+      const responseMessages: Memory[] = [
+        {
+          id: asUUID(v4()),
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
+          content: responseContent,
+          roomId: message.roomId,
+          createdAt: Date.now(),
+        },
+      ];
+
+      return {
+        responseContent,
+        responseMessages,
+        state: accumulatedState,
+        mode: "simple",
+      };
+    }
+
+    // Fallback: summary LLM call (FINISH wasn't called — hit max iterations or isFinish fallback)
     await streamThinking("response", "\n--- Generating final response ---\n");
 
     // Inject actionResults into message metadata BEFORE composeState
@@ -1004,6 +1080,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     accumulatedState.totalActionsExecuted = totalActionsExecuted;
     accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
     accumulatedState.values.hasActionResults = traceActionResult.length > 0;
+    accumulatedState.values.discoveredActions = discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
 
     const summaryPrompt = composePromptFromState({
       state: accumulatedState,

@@ -3,22 +3,6 @@
  * Summary phase: character personality for user-facing response.
  */
 
-export const MULTISTEP_DECISION_SYSTEM = `You are an AI task executor that helps complete user requests by selecting and executing actions.
-
-Your role:
-- Understand what the user is asking for
-- Select the appropriate action(s) to fulfill the request
-- Extract parameters accurately from the conversation
-- Execute actions in optimal sequence
-- Know when the task is complete
-
-Do NOT:
-- Generate creative responses or conversation
-- Add personality or style to your decisions
-- Engage in roleplay
-
-Focus purely on action selection and task completion.`;
-
 export const multiStepDecisionTemplate = `<system>
 You are an AI task executor that helps complete user requests by selecting and executing actions.
 
@@ -27,14 +11,13 @@ Your role:
 - Select the appropriate action(s) to fulfill the request
 - Extract parameters accurately from the conversation
 - Execute actions in optimal sequence
-- Know when the task is complete
+- Know when the task is complete and call FINISH with a response
 
-Do NOT:
-- Generate creative responses or conversation
-- Add personality or style to your decisions
-- Engage in roleplay
+{{bio}}
 
-Focus purely on action selection and task completion.
+{{messageDirections}}
+
+When calling FINISH, respond AS {{agentName}} using their voice and style.
 </system>
 
 <task>
@@ -47,8 +30,10 @@ Determine the next action to execute to fulfill the user's request.
 ---
 
 # Execution Status
-**Step**: {{iterationCount}} of {{maxIterations}}
 **Actions Completed**: {{totalActionsExecuted}}
+{{#if stepsWarning}}
+**{{remainingSteps}} step(s) remaining.** Call FINISH soon.
+{{/if}}
 
 {{#if traceActionResult.length}}
 ## Results from Previous Actions
@@ -61,6 +46,11 @@ Previous action(s) completed (tool discovery). Check Available Actions below for
 {{else}}
 No actions executed yet. Analyze the user's request and select the first action.
 {{/if}}
+{{/if}}
+
+{{#if discoveredActions}}
+## Recently Discovered Tools
+{{discoveredActions}}
 {{/if}}
 
 ---
@@ -79,10 +69,7 @@ No actions executed yet. Analyze the user's request and select the first action.
 2. **No redundancy**: Never repeat the same action with identical parameters
 3. **Parameter extraction**: Use exact values from the user's message
 4. **Tool discovery**: If no listed action fits, use SEARCH_ACTIONS with specific keywords from the user's request (e.g., 'list repositories' not 'search for tools')
-5. **Completion criteria**: Set isFinish=true when:
-   - User's request is fully satisfied
-   - No additional actions would add value
-   - An unrecoverable error occurred
+5. **Completion**: When the task is done, call FINISH with your response in {{agentName}}'s voice.
 
 ---
 
@@ -90,10 +77,9 @@ No actions executed yet. Analyze the user's request and select the first action.
 
 <output>
 <response>
-  <thought>Step {{iterationCount}}/{{maxIterations}}. Actions: {{traceActionResult.length}}. [Your analysis]</thought>
-  <action>ACTION_NAME or ""</action>
+  <thought>[Your analysis of what to do next]</thought>
+  <action>ACTION_NAME</action>
   <parameters>{"param": "value"}</parameters>
-  <isFinish>true|false</isFinish>
 </response>
 </output>`;
 
@@ -130,6 +116,11 @@ Use these results to answer the user. Synthesize the information naturally.
 {{else}}
 No actions were executed. Respond based on the conversation context.
 {{/if}}
+{{/if}}
+
+{{#if discoveredActions}}
+## Recently Discovered Tools
+{{discoveredActions}}
 {{/if}}
 
 ---
