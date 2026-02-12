@@ -426,22 +426,14 @@ async function handleVerify(request: NextRequest) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
-</search>
 </change>
 
 <change path="app/api/auth/siwe/verify/route.ts">
 <search>
-    if (isDuplicateError) {
-      await organizationsService.delete(organization.id);
-
-      // The winning request may not have committed yet, so retry with backoff.
+    
 </search>
 <replace>
-    if (isDuplicateError) {
-      // Race condition: another request created this wallet first.
-      // The transaction already rolled back, so no cleanup needed.
-      // The winning request may not have committed yet, so retry with backoff.
-    // Handle race condition: two concurrent SIWE requests for the same new
+    
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
     // means the second insert fails. We clean up the orphaned org we just
     // created and fall through to return the user the first request created.
