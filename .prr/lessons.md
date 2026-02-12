@@ -23,6 +23,10 @@
 - Fix for app/api/auth/siwe/verify/route.ts:406 - Partial implementation of the prompt. Error propagation was added (good), but the fix lacks the core requirement: making org+credits+user creation atomic via a DB transaction. The comment also references 23505 duplicate-wallet handling cleanup that isn't addressed.
 - Fix for app/api/auth/siwe/verify/route.ts:426 - When a review comment requests test coverage, the fix must include the test suite first—production code changes alone don't satisfy the requirement.
 - Fix for app/api/auth/siwe/verify/route.ts:426 - Transaction wraps org+credits+user creation, but no test coverage added. Comment explicitly requested "unit/integration coverage for nonce issuance, verify success paths, and key failure modes."
+- Fix for app/api/auth/siwe/verify/route.ts:442 - Diff shows no changes related to tests. Comment requests "unit/integration coverage for nonce issuance, verify success paths, key failure modes" but no test files were created or modified.
+- Fix for app/api/auth/siwe/verify/route.ts:121 - Diff only adds atomicConsume import but does not define SiweVerifyBody type or replace the `unknown` types. Comment requests defining explicit string type for message/signature but body variable still uses unknown.
+- Fix for app/api/auth/siwe/verify/route.ts:176 - Diff does not address the actual issue. Comment notes "cache.set() silently does nothing when Redis unavailable" causing nonce failures, but the fix shown only updates the nonce/route.ts error handling to use try/catch. The verify/route.ts endpoint still has no availability check for the consumed nonce.
+- Fix for app/api/auth/siwe/verify/route.ts:176 - When fixing a two-endpoint flow, address both the producer (nonce) and consumer (verify) endpoints—not just the consumer error handling.
 
 ### public/.well-known/llms-full.txt
 
