@@ -1,7 +1,6 @@
 import { type IAgentRuntime, type Plugin, logger } from "@elizaos/core";
 import { readResourceAction } from "./actions/readResourceAction";
 import { searchActionsAction, listConnectionsAction } from "./actions/search-actions";
-import { finishAction } from "../plugin-cloud-bootstrap/actions/finish";
 import { provider } from "./provider";
 import { McpService } from "./service";
 
@@ -42,7 +41,7 @@ const mcpPlugin: Plugin = {
   },
 
   services: [McpService],
-  actions: [readResourceAction, searchActionsAction, listConnectionsAction, finishAction],
+  actions: [readResourceAction, searchActionsAction, listConnectionsAction],
   providers: [provider],
 };
 
