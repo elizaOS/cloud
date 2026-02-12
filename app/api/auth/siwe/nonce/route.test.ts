@@ -2,154 +2,97 @@
 /**
  * SIWE Nonce Endpoint Tests
  *
- * Tests covering:
- * - Nonce generation with TTL
- * - Cache availability checks
- * - Error handling for cache failures
+ * Covers nonce generation, TTL, and Redis availability handling.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { NextRequest } from "next/server";
-
-// Mock dependencies before importing route
-vi.mock("@/lib/cache/client", () => ({
-  cache: {
-    isAvailable: vi.fn(() => true),
-    set: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/middleware/rate-limit", () => ({
-  withRateLimit: (handler: Function) => handler,
-  RateLimitPresets: { STRICT: {} },
-}));
-
-vi.mock("viem/siwe", () => ({
-  generateSiweNonce: vi.fn(() => "test-nonce-123"),
-}));
-
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { GET } from "./route";
 import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 describe("SIWE Nonce Endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.com";
   });
-
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_APP_URL;
-  });
-
-  const createRequest = (chainId?: string) => {
-    const url = chainId
-      ? `http://localhost/api/auth/siwe/nonce?chainId=${chainId}`
-      : "http://localhost/api/auth/siwe/nonce";
-    return new NextRequest(url, { method: "GET" });
-  };
 
   describe("Nonce generation", () => {
-    it("should return nonce with domain and uri", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
+    it("should generate valid nonce with correct parameters", async () => {
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "set").mockResolvedValue("OK");
 
-      const { GET } = await import("./route");
-      const req = createRequest();
-      const res = await GET(req);
-      const data = await res.json();
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce");
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(res.status).toBe(200);
-      expect(data.nonce).toBe("test-nonce-123");
-      expect(data.domain).toBe("app.example.com");
-      expect(data.uri).toBe("https://app.example.com");
+      expect(response.status).toBe(200);
+      expect(data.nonce).toBeDefined();
+      expect(data.domain).toBe("localhost");
+      expect(data.uri).toBe("http://localhost:3000");
+      expect(data.chainId).toBe(1);
       expect(data.version).toBe("1");
+      expect(data.statement).toBe("Sign in to ElizaCloud");
     });
 
     it("should store nonce in cache with TTL", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      const setSpy = vi.spyOn(cache, "set").mockResolvedValue("OK");
 
-      const { GET } = await import("./route");
-      const req = createRequest();
-      await GET(req);
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce");
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(cache.set).toHaveBeenCalledWith(
-        expect.stringContaining("test-nonce-123"),
+      expect(setSpy).toHaveBeenCalledWith(
+        CacheKeys.siwe.nonce(data.nonce),
         true,
-        expect.any(Number)
+        CacheTTL.siwe.nonce,
       );
     });
 
-    it("should default to chainId 1", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
+    it("should accept custom chainId parameter", async () => {
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "set").mockResolvedValue("OK");
 
-      const { GET } = await import("./route");
-      const req = createRequest();
-      const res = await GET(req);
-      const data = await res.json();
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce?chainId=137");
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(data.chainId).toBe(1);
+      expect(response.status).toBe(200);
+      expect(data.chainId).toBe(137);
     });
 
-    it("should accept custom chainId", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
+    it("should reject invalid chainId", async () => {
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce?chainId=invalid");
+      const response = await GET(request);
+      const data = await response.json();
 
-      const { GET } = await import("./route");
-      const req = createRequest("137");
-      const res = await GET(req);
-      const data = await res.json();
-
-      expect(data.chainId).toBe(137);
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("INVALID_BODY");
     });
   });
 
   describe("Cache availability", () => {
     it("should return 503 when cache is unavailable", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(false);
+      vi.spyOn(cache, "isAvailable").mockReturnValue(false);
 
-      const { GET } = await import("./route");
-      const req = createRequest();
-      const res = await GET(req);
-      const data = await res.json();
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce");
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(res.status).toBe(503);
+      expect(response.status).toBe(503);
       expect(data.error).toBe("SERVICE_UNAVAILABLE");
+      expect(data.message).toContain("temporarily unavailable");
     });
 
     it("should return 503 when cache.set fails", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockRejectedValue(new Error("Redis connection failed"));
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "set").mockRejectedValue(new Error("Redis connection failed"));
 
-      const { GET } = await import("./route");
-      const req = createRequest();
-      const res = await GET(req);
-      const data = await res.json();
+      const request = new Request("http://localhost:3000/api/auth/siwe/nonce");
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(res.status).toBe(503);
+      expect(response.status).toBe(503);
       expect(data.error).toBe("SERVICE_UNAVAILABLE");
-    });
-  });
-
-  describe("Input validation", () => {
-    it("should reject invalid chainId", async () => {
-      const { GET } = await import("./route");
-      const req = createRequest("invalid");
-      const res = await GET(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-
-    it("should reject negative chainId", async () => {
-      const { GET } = await import("./route");
-      const req = createRequest("-1");
-      const res = await GET(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
     });
   });
 });

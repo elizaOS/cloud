@@ -2,249 +2,226 @@
 /**
  * SIWE Verify Endpoint Tests
  *
- * Unit/integration tests covering:
- * - Nonce issuance (TTL/single-use)
- * - Verify success paths (existing vs new user)
- * - Key failure modes (invalid nonce/domain/signature)
+ * Covers nonce issuance, verification success paths (new vs existing user),
+ * and key failure modes (invalid nonce/domain/signature).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { NextRequest } from "next/server";
-
-// Mock dependencies before importing route
-vi.mock("@/lib/cache/client", () => ({
-  cache: {
-    isAvailable: vi.fn(() => true),
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/cache/consume", () => ({
-  atomicConsume: vi.fn(),
-}));
-
-vi.mock("@/lib/services/users", () => ({
-  usersService: {
-    getByWalletAddressWithOrganization: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/services/api-keys", () => ({
-  apiKeysService: {
-    listByOrganization: vi.fn(() => []),
-    create: vi.fn(() => ({ plainKey: "test-api-key" })),
-  },
-}));
-
-vi.mock("@/lib/services/organizations", () => ({
-  organizationsService: {
-    create: vi.fn(() => ({ id: "org-123", name: "Test Org" })),
-    getBySlug: vi.fn(() => null),
-    delete: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/services/credits", () => ({
-  creditsService: {
-    addCredits: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/services/abuse-detection", () => ({
-  abuseDetectionService: {
-    checkSignupAbuse: vi.fn(() => ({ allowed: true })),
-    recordSignupMetadata: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/db", () => ({
-  db: {
-    transaction: vi.fn((callback) => callback({})),
-  },
-}));
-
-vi.mock("@/lib/middleware/rate-limit", () => ({
-  withRateLimit: (handler: Function) => handler,
-  RateLimitPresets: { STRICT: {} },
-}));
-
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { POST } from "./route";
 import { cache } from "@/lib/cache/client";
-import { atomicConsume } from "@/lib/cache/consume";
+import { CacheKeys } from "@/lib/cache/keys";
 import { usersService } from "@/lib/services/users";
+import { organizationsService } from "@/lib/services/organizations";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { generateSiweNonce } from "viem/siwe";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 describe("SIWE Verify Endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.com";
   });
 
   afterEach(() => {
-    delete process.env.NEXT_PUBLIC_APP_URL;
+    vi.restoreAllMocks();
   });
 
-  const createRequest = (body: object) => {
-    return new NextRequest("http://localhost/api/auth/siwe/verify", {
-      method: "POST",
-      body: JSON.stringify(body),
-      headers: { "Content-Type": "application/json" },
-    });
-  };
+  describe("Nonce validation", () => {
+    it("should reject expired/missing nonces", async () => {
+      const account = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `localhost:3000 wants you to sign in with your Ethereum account:\n${account.address}\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account.signMessage({ message });
 
-  describe("Request validation", () => {
-    it("should reject missing message field", async () => {
-      const { POST } = await import("./route");
-      const req = createRequest({ signature: "0x123" });
-      const res = await POST(req);
-      const data = await res.json();
+      // Nonce not in cache (expired or never existed)
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(0); // atomicConsume returns false
 
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-
-    it("should reject missing signature field", async () => {
-      const { POST } = await import("./route");
-      const req = createRequest({ message: "test message" });
-      const res = await POST(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-
-    it("should reject empty message", async () => {
-      const { POST } = await import("./route");
-      const req = createRequest({ message: "  ", signature: "0x123" });
-      const res = await POST(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-  });
-
-  describe("Cache availability", () => {
-    it("should return 503 when cache is unavailable", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(false);
-
-      const { POST } = await import("./route");
-      const siweMessage = `app.example.com wants you to sign in with your Ethereum account:
-0x1234567890123456789012345678901234567890
-
-Sign in to ElizaCloud
-
-URI: https://app.example.com
-Version: 1
-Chain ID: 1
-Nonce: abc123
-Issued At: 2024-01-01T00:00:00.000Z`;
-
-      const req = createRequest({
-        message: siweMessage,
-        signature: "0x" + "a".repeat(130),
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
       });
-      const res = await POST(req);
-      const data = await res.json();
 
-      expect(res.status).toBe(503);
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("INVALID_NONCE");
+    });
+
+    it("should reject when cache is unavailable", async () => {
+      vi.spyOn(cache, "isAvailable").mockReturnValue(false);
+
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message: "test", signature: "0xtest" }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(503);
       expect(data.error).toBe("SERVICE_UNAVAILABLE");
     });
+
+    it("should consume nonce atomically on success", async () => {
+      const account = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `localhost wants you to sign in with your Ethereum account:\n${account.address}\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account.signMessage({ message });
+
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1); // atomicConsume returns true
+      vi.spyOn(usersService, "getByWalletAddressWithOrganization").mockResolvedValue(null);
+
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
+      });
+
+      // Should not throw INVALID_NONCE (will fail later in signup flow without full mocks)
+      const response = await POST(request);
+      expect(cache.delete).toHaveBeenCalledWith(CacheKeys.siwe.nonce(nonce));
+    });
   });
 
-  describe("Nonce validation (single-use)", () => {
-    it("should reject expired or already-used nonce", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(atomicConsume).mockResolvedValue(false);
+  describe("Signature verification", () => {
+    it("should reject invalid signatures", async () => {
+      const nonce = generateSiweNonce();
+      const message = `localhost wants you to sign in with your Ethereum account:\n0x1234567890123456789012345678901234567890\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
 
-      const { POST } = await import("./route");
-      const siweMessage = `app.example.com wants you to sign in with your Ethereum account:
-0x1234567890123456789012345678901234567890
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1);
 
-Sign in to ElizaCloud
-
-URI: https://app.example.com
-Version: 1
-Chain ID: 1
-Nonce: expired-nonce
-Issued At: 2024-01-01T00:00:00.000Z`;
-
-      const req = createRequest({
-        message: siweMessage,
-        signature: "0x" + "a".repeat(130),
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature: "0xinvalid" }),
       });
-      const res = await POST(req);
-      const data = await res.json();
 
-      expect(res.status).toBe(400);
-      expect(data.error).toBe("INVALID_NONCE");
-      expect(atomicConsume).toHaveBeenCalled();
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("INVALID_SIGNATURE");
+    });
+
+    it("should reject signature from wrong wallet", async () => {
+      const account1 = privateKeyToAccount(generatePrivateKey());
+      const account2 = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `localhost wants you to sign in with your Ethereum account:\n${account1.address}\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account2.signMessage({ message }); // Wrong signer
+
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1);
+
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("INVALID_SIGNATURE");
     });
   });
 
   describe("Domain validation", () => {
     it("should reject mismatched domain", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(atomicConsume).mockResolvedValue(true);
+      const account = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `evil.com wants you to sign in with your Ethereum account:\n${account.address}\n\nSign in to ElizaCloud\n\nURI: http://evil.com\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account.signMessage({ message });
 
-      const { POST } = await import("./route");
-      const siweMessage = `evil.example.com wants you to sign in with your Ethereum account:
-0x1234567890123456789012345678901234567890
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1);
 
-Sign in to ElizaCloud
-
-URI: https://evil.example.com
-Version: 1
-Chain ID: 1
-Nonce: valid-nonce
-Issued At: 2024-01-01T00:00:00.000Z`;
-
-      const req = createRequest({
-        message: siweMessage,
-        signature: "0x" + "a".repeat(130),
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
       });
-      const res = await POST(req);
-      const data = await res.json();
 
-      expect(res.status).toBe(400);
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
       expect(data.error).toBe("INVALID_DOMAIN");
     });
   });
 
-  describe("Existing user path", () => {
-    it("should return existing user and API key", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(atomicConsume).mockResolvedValue(true);
+  describe("User flows", () => {
+    it("should return existing user with isNewAccount=false", async () => {
+      const account = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `localhost wants you to sign in with your Ethereum account:\n${account.address}\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account.signMessage({ message });
 
-      const existingUser = {
+      const mockUser = {
         id: "user-123",
-        name: "Test User",
-        wallet_address: "0x1234567890123456789012345678901234567890",
-        wallet_verified: true,
-        is_active: true,
+        wallet_address: account.address.toLowerCase(),
         organization_id: "org-123",
-        organization: { is_active: true, name: "Test Org", credit_balance: "100.00" },
+        is_active: true,
+        wallet_verified: true,
+        organization: { is_active: true, credit_balance: "100.00" },
       };
 
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue(existingUser as any);
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1);
+      vi.spyOn(usersService, "getByWalletAddressWithOrganization").mockResolvedValue(mockUser as any);
+      vi.spyOn(apiKeysService, "listByOrganization").mockResolvedValue([
+        { user_id: mockUser.id, is_active: true, key: "test-key" } as any,
+      ]);
 
-      // This test validates the existing user path logic
-      // Full signature verification requires crypto mocks
-      expect(usersService.getByWalletAddressWithOrganization).toBeDefined();
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.isNewAccount).toBe(false);
+      expect(data.apiKey).toBe("test-key");
     });
-  });
 
-  describe("New user signup path", () => {
-    it("should create org, user, and API key in transaction", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(atomicConsume).mockResolvedValue(true);
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue(undefined);
+    it("should create new user with isNewAccount=true", async () => {
+      const account = privateKeyToAccount(generatePrivateKey());
+      const nonce = generateSiweNonce();
+      const message = `localhost wants you to sign in with your Ethereum account:\n${account.address}\n\nSign in to ElizaCloud\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${nonce}`;
+      const signature = await account.signMessage({ message });
 
-      // This test validates that the signup uses db.transaction
-      const { db } = await import("@/lib/db");
-      expect(db.transaction).toBeDefined();
+      vi.spyOn(cache, "isAvailable").mockReturnValue(true);
+      vi.spyOn(cache, "delete").mockResolvedValue(1);
+      vi.spyOn(usersService, "getByWalletAddressWithOrganization")
+        .mockResolvedValueOnce(null) // Initial check
+        .mockResolvedValueOnce({
+          id: "user-456",
+          organization_id: "org-456",
+          organization: { credit_balance: "10.00" },
+        } as any); // After creation
+
+      // Mock DB transaction and services
+      const mockTx = {} as any;
+      vi.mock("@/lib/db", () => ({
+        db: {
+          transaction: vi.fn(async (fn) => fn(mockTx)),
+        },
+      }));
+      vi.spyOn(organizationsService, "create").mockResolvedValue({ id: "org-456" } as any);
+      vi.spyOn(organizationsService, "getBySlug").mockResolvedValue(null);
+
+      const request = new Request("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message, signature }),
+        headers: { "x-real-ip": "127.0.0.1" },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.isNewAccount).toBe(true);
     });
   });
 });

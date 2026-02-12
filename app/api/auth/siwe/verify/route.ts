@@ -33,6 +33,7 @@ import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
 import { abuseDetectionService } from "@/lib/services/abuse-detection";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
+// Import from shared utility to ensure SIWE and Privy auth create accounts consistently
 import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
 import type { UserWithOrganization } from "@/lib/types";
 import { db } from "@/lib/db";
@@ -66,7 +67,7 @@ async function resolveApiKeyForUser(
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "Default API Key",
+    name: "SIWE API Key",
     is_active: true,
   });
 
@@ -364,7 +365,7 @@ async function handleVerify(request: NextRequest) {
         {
           user_id: user.id,
           organization_id: org.id,
-          name: "Default API Key",
+          name: "SIWE API Key",
           is_active: true,
         },
         tx,
