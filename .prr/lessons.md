@@ -55,6 +55,9 @@
 - Fix for app/api/auth/siwe/verify/route.ts:123 - The diff contains syntax errors and does not introduce the `SiweVerifyBody` type or replace `unknown` with explicit string types as requested.
 - Fix for app/api/auth/siwe/verify/route.ts:123 - When fixing type annotations, identify and modify ALL type declarations - don't just fix whitespace. The `SiweVerifyBody` type must be added before the body variable assignment.
 - Fix for app/api/auth/siwe/verify/route.ts:428 - tool modified wrong files (app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:428 - The code change only modifies a type annotation and does not add any tests. The review comment explicitly requests unit/integration tests for nonce TTL, verify success paths, and failure modes.
+- Fix for app/api/auth/siwe/verify/route.ts:178 - The diff only changes a type annotation and does not add Redis availability checks or fallback logic. The review requires detecting when Redis is unavailable and either failing fast or falling back to an alternative storage mechanism.
+- Fix for app/api/auth/siwe/verify/route.ts:428 - The diff shows only a type annotation change and does not remove the XML markup (lines 429–506) that the review identifies as accidentally committed tool output.
 
 ### public/.well-known/llms-full.txt
 
@@ -73,6 +76,7 @@
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication across multiple files, update ALL affected files to use the shared import—not just the documentation in the shared module.
+- Fix for lib/utils/signup-helpers.ts:28 - tool modified wrong files (lib/privy-sync.ts), need to modify lib/utils/signup-helpers.ts
 
 ### app/api/auth/siwe/nonce/route.ts
 
