@@ -148,6 +148,17 @@ async function handleVerify(request: NextRequest) {
   }
 
   // --- Nonce validation ---
+  // First check if cache is available. If Redis is down, nonces can't be validated.
+  if (!cache.isAvailable()) {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Authentication service temporarily unavailable. Please try again later.",
+      },
+      { status: 503 },
+    );
+  }
+
   // Atomic consume: delete returns the count of keys deleted (1 if existed, 0 if not).
   // This prevents race conditions where two concurrent requests could both
   // pass a get() check before either deletes the nonce.

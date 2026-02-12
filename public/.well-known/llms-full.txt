@@ -5676,7 +5676,7 @@ api_key = result['apiKey']
 
 ```bash
 curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
-  -H "X-API-Key: eliza_xxxxxxxxxxxx" \
+  -H "X-API-Key: ek_live_xxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
