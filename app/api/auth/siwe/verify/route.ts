@@ -100,6 +100,10 @@ function buildSuccessResponse(
   });
 }
 
+/**
+ * Request body type for SIWE verification endpoint.
+ * Both fields are required but typed as optional to allow proper validation.
+ */
 type SiweVerifyBody = { message?: string; signature?: string };
 
 async function handleVerify(request: NextRequest) {
