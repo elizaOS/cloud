@@ -83,7 +83,8 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
     loggedRunIds.set(runId, new Set());
     cleanupLoggedRunIds();
   }
-  const loggedStatuses = loggedRunIds.get(runId)!;
+  const loggedStatuses = loggedRunIds.get(runId);
+  if (!loggedStatuses) return; // Shouldn't happen, but guard against it
   if (loggedStatuses.has(status)) {
     logger.debug(`[CloudBootstrap] Skipping duplicate log: runId=${runId} status=${status}`);
     return;
@@ -125,7 +126,7 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
     type: "run_event",
     body,
   }).catch((e) => {
-    logger.debug(`[CloudBootstrap] Background log write failed: ${e}`);
+    logger.warn(`[CloudBootstrap] Background log write failed: ${e}`);
   });
 }
 
