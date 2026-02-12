@@ -288,6 +288,12 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
+        if (adminRole !== "super_admin") {
+          return NextResponse.json(
+            { error: "Super admin privileges required" },
+            { status: 403 },
+          );
+        }
         await adminService.addAdmin(
           targetWalletAddress,
           role || "admin",

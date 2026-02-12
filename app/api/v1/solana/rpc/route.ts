@@ -20,17 +20,23 @@ export async function OPTIONS() {
   return handleCorsOptions("POST, OPTIONS");
 }
 
-// Wrap handler to add CORS headers to all responses (success and error)
-const baseHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
+const basePostHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
 export async function POST(request: NextRequest) {
-  const response = await baseHandler(request);
-  
-  // Add CORS headers to response
-  const corsHeaders = getCorsHeaders();
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    response.headers.set(key, value);
+  try {
+    const response = await basePostHandler(request);
+
+    // Add CORS headers to response
+    const corsHeaders = getCorsHeaders();
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
+  } catch (error) {
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: getCorsHeaders(),
+    });
   }
-    
-  return response;
 }

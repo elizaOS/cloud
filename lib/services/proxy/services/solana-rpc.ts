@@ -7,8 +7,6 @@ import { PROXY_CONFIG } from "../config";
 import { servicePricingRepository } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 
-
-
 // Methods that should not be cached (mutations and rapidly changing data)
 const NON_CACHEABLE_METHODS = new Set([
   "sendTransaction",

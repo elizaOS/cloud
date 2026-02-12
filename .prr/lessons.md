@@ -86,6 +86,7 @@
 - Fix for lib/services/proxy/engine.ts:236 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:242 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:249 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:256 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -101,6 +102,7 @@
 - Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/moderation/route.ts, app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts, app/api/v1/solana/assets/[address]/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/pricing.ts, lib/services/proxy/services/solana-rpc.ts), need to modify db/repositories/service-pricing.ts
 - Fix for db/repositories/service-pricing.ts:140 - tool modified wrong files (app/api/v1/admin/service-pricing/route.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/services/proxy/engine.ts), need to modify db/repositories/service-pricing.ts
 - Fix for db/repositories/service-pricing.ts:140 - No verification result returned, treating as failed
+- Fix for db/repositories/service-pricing.ts:140 - Replace the `findFirst` + conditional `insert`/`update` pattern with a single `.insert(...).onConflictDoUpdate(...)` call to eliminate the race condition.
 
 ### app/api/v1/admin/moderation/route.ts
 
@@ -142,6 +144,10 @@
 - Fix for app/api/v1/admin/moderation/route.ts:198 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:330 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:196 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:182 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:179 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:346 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:177 - No verification result returned, treating as failed
 
 ### /terminal/route.ts
 
@@ -181,6 +187,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:129 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:238 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:207 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:216 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:185 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
@@ -201,6 +209,7 @@
 - Fix for lib/services/proxy/services/solana-rpc.ts:341 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/services/solana-rpc.ts:341 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify lib/services/proxy/services/solana-rpc.ts
 - Fix for lib/services/proxy/services/solana-rpc.ts:278 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/services/solana-rpc.ts:343 - No verification result returned, treating as failed
 
 ### scripts/check-types-split.ts
 
@@ -235,10 +244,12 @@
 - Fix for app/api/v1/solana/assets/[address]/route.ts:36 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/auth.ts, lib/services/proxy/engine.ts), need to modify app/api/v1/solana/assets/[address]/route.ts
 - Fix for app/api/v1/solana/assets/[address]/route.ts:69 - No verification result returned, treating as failed
 - Fix for app/api/v1/solana/assets/[address]/route.ts:68 - No verification result returned, treating as failed
+- Fix for app/api/v1/solana/assets/[address]/route.ts:70 - No verification result returned, treating as failed
 
 ### app/api/v1/solana/rpc/route.ts
 
 - Fix for app/api/v1/solana/rpc/route.ts:41 - No verification result returned, treating as failed
+- Fix for app/api/v1/solana/rpc/route.ts:36 - No verification result returned, treating as failed
 
 ### /files/route.ts
 

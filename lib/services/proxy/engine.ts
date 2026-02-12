@@ -21,6 +21,7 @@ import type {
   ProxyRequestBody,
 } from "./types";
 import { createHash } from "node:crypto";
+import { getCorsHeaders } from "./cors";
 
 async function getAuthForLevel(request: NextRequest, level: AuthLevel) {
   switch (level) {
@@ -47,7 +48,11 @@ function buildCacheKey(
       .digest("hex")
       .substring(0, 16);
     return `svc:${serviceId}:${orgId}:${contentHash}`;
-  } catch {
+  } catch (error) {
+    logger.warn("[Proxy] Failed to build cache key, using fallback", {
+      serviceId,
+      error: error instanceof Error ? error.message : "Unknown",
+    });
     return `svc:${serviceId}:${orgId}:fallback`;
   }
 }
@@ -287,8 +292,8 @@ export function createHandler(
                     input_tokens: 0,
                     output_tokens: 0,
                     input_cost: String(cost),
-                    output_cost: String(0),
-            markup: String(0),
+                    output_cost: 0,
+            markup: 0,
                     metadata: { cached: true },
                   });
                 } catch (error) {
