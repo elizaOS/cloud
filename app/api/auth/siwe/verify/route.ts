@@ -34,6 +34,7 @@ import { abuseDetectionService } from "@/lib/services/abuse-detection";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
 import type { UserWithOrganization } from "@/lib/types";
+import { db } from "@/lib/db";
 
 function truncateAddress(address: string): string {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
@@ -304,55 +305,78 @@ async function handleVerify(request: NextRequest) {
 
   const displayName = truncateAddress(address);
 
-  const organization = await organizationsService.create({
-    name: `${displayName}'s Organization`,
-    slug: orgSlug,
-    credit_balance: "0.00",
-  });
-
-  await abuseDetectionService.recordSignupMetadata(organization.id, {
-    ipAddress: ip,
-    userAgent,
-  });
-
-  const initialCredits = getInitialCredits();
-  if (initialCredits > 0) {
-    // If the credits service fails (e.g., transaction logging issue), fall
-    // back to directly setting the org balance. The user shouldn't lose their
-    // welcome credits because of an internal bookkeeping error.
-    try {
-      await creditsService.addCredits({
-        organizationId: organization.id,
-        amount: initialCredits,
-        description: "Initial free credits - Welcome bonus",
-        metadata: {
-          type: "initial_free_credits",
-          source: "siwe_signup",
-        },
-      });
-    } catch {
-      await organizationsService.update(organization.id, {
-        credit_balance: String(initialCredits),
-      });
-    }
-  }
-
+  // Wrap org + credits + user creation in a single DB transaction.
+  // If any step fails, all changes are rolled back atomically.
+  let organization;
   try {
-    await usersService.create({
-      wallet_address: address.toLowerCase(),
-      wallet_chain_type: "ethereum",
-      wallet_verified: true,
-      // null because SIWE users aren't created through Privy. If they later
-      // sign in via Privy web UI with the same wallet, the sync process will
-      // link the accounts by setting this field.
-      privy_user_id: null,
-      name: displayName,
-      avatar: getRandomUserAvatar(),
-      organization_id: organization.id,
-      role: "owner",
-      is_active: true,
+    organization = await db.transaction(async (tx) => {
+      const org = await organizationsService.create(
+        {
+          name: `${displayName}'s Organization`,
+          slug: orgSlug,
+          credit_balance: "0.00",
+        },
+        tx,
+      );
+
+      await abuseDetectionService.recordSignupMetadata(
+        org.id,
+        {
+          ipAddress: ip,
+          userAgent,
+        },
+        tx,
+      );
+
+      const initialCredits = getInitialCredits();
+      if (initialCredits > 0) {
+        await creditsService.addCredits(
+          {
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          },
+          tx,
+        );
+      }
+
+      await usersService.create(
+        {
+          wallet_address: address.toLowerCase(),
+          wallet_chain_type: "ethereum",
+          wallet_verified: true,
+          privy_user_id: null,
+          name: displayName,
+          avatar: getRandomUserAvatar(),
+          organization_id: org.id,
+          role: "owner",
+          is_active: true,
+        },
+        tx,
+      );
+
+      return org;
     });
   } catch (error) {
+</search>
+</change>
+
+<change path="app/api/auth/siwe/verify/route.ts">
+<search>
+    if (isDuplicateError) {
+      await organizationsService.delete(organization.id);
+
+      // The winning request may not have committed yet, so retry with backoff.
+</search>
+<replace>
+    if (isDuplicateError) {
+      // Race condition: another request created this wallet first.
+      // The transaction already rolled back, so no cleanup needed.
+      // The winning request may not have committed yet, so retry with backoff.
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
     // means the second insert fails. We clean up the orphaned org we just
