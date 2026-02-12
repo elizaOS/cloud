@@ -78,10 +78,7 @@ async function handleGetNonce(request: NextRequest) {
 
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing.
-  // Use explicit fallback chain: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = getAppUrl();
   const url = new URL(appUrl);
 
   return NextResponse.json({

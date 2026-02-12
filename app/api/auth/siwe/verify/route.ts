@@ -189,10 +189,7 @@ async function handleVerify(request: NextRequest) {
   // --- Domain validation ---
   // Prevents phishing: if an attacker tricks a user into signing a message
   // for a different domain, it won't pass verification here.
-  // Use explicit fallback chain: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = getAppUrl();
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {
@@ -311,8 +308,11 @@ async function handleVerify(request: NextRequest) {
   // The transaction object (tx) is passed to each service call so they use
   // the transactional connection. If any step fails, all changes are rolled
   // back atomically, preventing orphaned organizations or users without API keys.
-  // NOTE: Each service must forward `tx` to its repository layer for this to
-  // be effective. If a service ignores `tx`, that write is non-transactional.
+  // TODO: Verify that organizationsService.create, creditsService.addCredits,
+  // usersService.create, and apiKeysService.create actually accept and use the
+  // `tx` parameter. If any service ignores `tx` and uses the global `dbWrite`
+  // connection, that write is non-transactional and won't roll back on failure.
+  // creditsService.addCredits in particular may run its own internal transaction.
   let signupResult: { user: UserWithOrganization; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
