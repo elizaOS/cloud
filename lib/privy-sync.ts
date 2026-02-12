@@ -325,22 +325,15 @@ export async function syncUserFromPrivy(
   const initialCredits = getInitialCredits();
 
   if (initialCredits > 0) {
-    try {
-      await creditsService.addCredits({
-        organizationId: organization.id,
-        amount: initialCredits,
-        description: "Initial free credits - Welcome bonus",
-        metadata: {
-          type: "initial_free_credits",
-          source: "signup",
-        },
-      });
-    } catch (error) {
-      // Fallback: update organization balance directly if addCredits fails
-      await organizationsService.update(organization.id, {
-        credit_balance: String(initialCredits),
-      });
-    }
+    await creditsService.addCredits({
+      organizationId: organization.id,
+      amount: initialCredits,
+      description: "Initial free credits - Welcome bonus",
+      metadata: {
+        type: "initial_free_credits",
+        source: "signup",
+      },
+    });
   }
 
   // Create user - handle race condition where another request created the user

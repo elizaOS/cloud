@@ -58,6 +58,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:428 - The code change only modifies a type annotation and does not add any tests. The review comment explicitly requests unit/integration tests for nonce TTL, verify success paths, and failure modes.
 - Fix for app/api/auth/siwe/verify/route.ts:178 - The diff only changes a type annotation and does not add Redis availability checks or fallback logic. The review requires detecting when Redis is unavailable and either failing fast or falling back to an alternative storage mechanism.
 - Fix for app/api/auth/siwe/verify/route.ts:428 - The diff shows only a type annotation change and does not remove the XML markup (lines 429–506) that the review identifies as accidentally committed tool output.
+- Fix for app/api/auth/siwe/verify/route.ts:428 - When a review requires "accompanying automated tests," documentation comments alone are insufficient—actual test files must be written and committed.
 
 ### public/.well-known/llms-full.txt
 
@@ -82,3 +83,8 @@
 ### app/api/auth/siwe/nonce/route.ts
 
 - Fix for app/api/auth/siwe/nonce/route.ts:69 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/nonce/route.ts
+
+### lib/privy-sync.ts
+
+- Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: duplicate imports, missing `generateSlugFromEmail` definition, missing `SyncOptions` type, missing `emailService` import, and orphaned JSDoc at line 27.
+- Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: missing `generateSlugFromEmail` definition, `SyncOptions` type, `emailService` import, duplicate imports of `generateSlugFromWallet` and `creditsService`, and orphaned JSDoc.
