@@ -19,7 +19,6 @@ vi.mock('@/lib/services/proxy/pricing', () => ({
 vi.mock('@/lib/cache/client', () => ({
   cache: {
     del: vi.fn().mockResolvedValue(true),
-    delete: vi.fn().mockResolvedValue(true),
   },
 }));
 
