@@ -680,17 +680,18 @@ export async function POST(
         perfTrace.mark("send-response");
         const traceResult = perfTrace.end();
 
-        // Send completion event with perf trace data
-        await sendEvent("done", {
-          timestamp: Date.now(),
-          perfTrace: {
+        // Send completion event (include perf trace only when tracing is enabled)
+        const donePayload: Record<string, unknown> = { timestamp: Date.now() };
+        if (traceResult.traceId) {
+          donePayload.perfTrace = {
             totalMs: traceResult.totalMs,
             phases: traceResult.phases.map((p) => ({
               name: p.name,
               durationMs: p.durationMs,
             })),
-          },
-        });
+          };
+        }
+        await sendEvent("done", donePayload);
       } catch (error) {
         logger.error("[Stream Messages] Error:", error);
         perfTrace.end(); // Ensure trace is logged even on error
