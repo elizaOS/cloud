@@ -44,19 +44,19 @@ async function handleGetNonce(request: NextRequest) {
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,
   // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   // Check cache availability before generating nonce
-    if (!cache.isAvailable()) {
-      return NextResponse.json(
-        {
-          error: "SERVICE_UNAVAILABLE",
-          message: "Authentication service temporarily unavailable. Please try again later.",
-        },
-        { status: 503 },
-      );
-    }
+  if (!cache.isAvailable()) {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Authentication service temporarily unavailable. Please try again later.",
+      },
+      { status: 503 },
+    );
+  }
 
-    const nonce = generateSiweNonce();
-  
-    const setSuccess = await cache.set(
+  const nonce = generateSiweNonce();
+
+  try {
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
   } catch {
     return NextResponse.json(
