@@ -98,9 +98,8 @@ export function createHandler(
       if (config.cache && body && !Array.isArray(body)) {
         const cacheControl = request.headers.get("cache-control");
         const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const cacheAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
 
-        if (cacheAge > 0) {
+        if (maxAgeMatch && parseInt(maxAgeMatch[1], 10) > 0) {
           const method =
             body && typeof body === "object" && "method" in body
               ? String(body.method)

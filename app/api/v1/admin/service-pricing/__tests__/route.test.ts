@@ -7,7 +7,7 @@ import { servicePricingRepository } from '@/db/repositories/service-pricing';
 import { invalidateServicePricingCache } from '@/lib/services/proxy/pricing';
 
 vi.mock('@/lib/api/admin-auth');
-vi.mock('@/db/repositories/service-pricing');
+vi.mock('@/db/repositories');
 vi.mock('@/lib/services/proxy/pricing');
 
 describe('Service Pricing Admin Routes', () => {
