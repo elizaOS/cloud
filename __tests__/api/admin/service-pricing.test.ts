@@ -12,13 +12,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies
-vi.mock("@/lib/auth", () => ({
-  requireAdmin: vi.fn(),
+vi.mock("@/lib/api/admin-auth", () => ({
+  requireAdminWithResponse: vi.fn(),
 }));
 
 vi.mock("@/db/repositories", () => ({
   servicePricingRepository: {
-    listAll: vi.fn(),
+    listByService: vi.fn(),
     upsert: vi.fn(),
     listAuditHistory: vi.fn(),
   },
