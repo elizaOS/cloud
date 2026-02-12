@@ -411,23 +411,55 @@ export async function POST(
       logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
-    perfTrace.mark("entity-settings");
-    // Step 5.5: Prefetch entity settings for this user
-    // This enables per-user API keys, OAuth tokens, etc. in multi-tenant deployments
-    // The default agentId (Eliza) is used if no characterId is specified
+    perfTrace.mark("entity-settings+create-runtime");
+    // PERF: Steps 5.5 + 6 parallelized — entity-settings prefetch and runtime
+    // creation run concurrently. Entity settings are only read during message
+    // processing (via getSetting()), not during runtime construction, so it's
+    // safe to populate the shared Map after runtime creation completes.
+    //
+    // Previously sequential: entity-settings (665ms) → create-runtime (485ms) = ~1,150ms
+    // Now parallel: max(entity-settings, create-runtime) ≈ ~665ms → saves ~485ms
     const agentIdForSettings = characterId || DEFAULT_AGENT_ID_STRING;
-    const { settings: entitySettings, sources: entitySettingsSources } =
-      await entitySettingsService.prefetch(
+
+    // Create request context with a mutable entitySettings Map.
+    // It starts empty and gets populated once the prefetch completes.
+    // Type matches RequestContext.entitySettings: Map<string, EntitySettingValue>
+    const entitySettingsMap: RequestContext["entitySettings"] = new Map();
+    const requestContext: RequestContext = {
+      entityId: userContext.userId as UUID,
+      agentId: agentIdForSettings as UUID,
+      entitySettings: entitySettingsMap,
+      requestStartTime: Date.now(),
+      traceId: request.headers.get("x-trace-id") || undefined,
+      organizationId: userContext.organizationId,
+    };
+
+    // Run entity settings prefetch and runtime creation in parallel
+    const [entitySettingsResult, runtimeResult] = await Promise.all([
+      entitySettingsService.prefetch(
         userContext.userId,
         agentIdForSettings,
         userContext.organizationId
-      );
+      ),
+      runWithRequestContext(requestContext, () =>
+        runtimeFactory.createRuntimeForUser(userContext)
+      ),
+    ]);
+
+    // Inject prefetched entity settings into the shared Map
+    // (used by getSetting() during message processing)
+    for (const [key, value] of entitySettingsResult.settings) {
+      entitySettingsMap.set(key, value);
+    }
+
+    const entitySettingsSources = entitySettingsResult.sources;
+    const runtime = runtimeResult;
 
     logger.info(
       {
         userId: userContext.userId,
         agentId: agentIdForSettings,
-        settingsCount: entitySettings.size,
+        settingsCount: entitySettingsResult.settings.size,
         sources: Object.entries(entitySettingsSources).reduce(
           (acc, [_, source]) => {
             acc[source] = (acc[source] || 0) + 1;
@@ -436,24 +468,7 @@ export async function POST(
           {} as Record<string, number>
         ),
       },
-      `[Stream] Prefetched ${entitySettings.size} entity settings`
-    );
-
-    // Step 5.6: Build request context for per-user settings isolation
-    const requestContext: RequestContext = {
-      entityId: userContext.userId as UUID,
-      agentId: agentIdForSettings as UUID,
-      entitySettings,
-      requestStartTime: Date.now(),
-      traceId: request.headers.get("x-trace-id") || undefined,
-      organizationId: userContext.organizationId,
-    };
-
-    perfTrace.mark("create-runtime");
-    // Step 6: Create runtime with user context (clean, no key fetching here!)
-    // Wrapped in request context so getSetting() checks entitySettings first
-    const runtime = await runWithRequestContext(requestContext, () =>
-      runtimeFactory.createRuntimeForUser(userContext)
+      `[Stream] Prefetched ${entitySettingsResult.settings.size} entity settings (parallel with runtime)`
     );
 
     // Step 6.5: For BUILD mode, store client character state in runtime settings
