@@ -10,12 +10,10 @@
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { generateSlugFromWallet, getInitialCredits, DEFAULT_INITIAL_CREDITS } from "@/lib/utils/signup-helpers";
-import { generateSlugFromWallet, getInitialCredits, DEFAULT_INITIAL_CREDITS } from "@/lib/utils/signup-helpers";
+import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
 import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
-import { creditsService } from "@/lib/services/credits";
 import { organizationInvitesRepository } from "@/db/repositories";
 import {
   abuseDetectionService,
@@ -23,22 +21,29 @@ import {
 } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
-import { generateSlugFromWallet, getInitialCredits, DEFAULT_INITIAL_CREDITS } from "@/lib/utils/signup-helpers";
+import { emailService } from "@/lib/services/email";
+import type { User as PrivyUser } from "@privy-io/server-auth";
+
+/**
+ * Options for syncing a Privy user.
+ */
+interface SyncOptions {
+  signupContext?: SignupContext;
+  skipAbuseCheck?: boolean;
+}
+
+/**
+ * Generates a unique organization slug from an email address.
  *
  * @param email - Email address.
  * @returns Unique slug string.
  */
-// generateSlugFromWallet is imported from @/lib/utils/signup-helpers
-
-/**
- * Generates a unique organization slug from a wallet address.
- *
- * @param walletAddress - Wallet address.
- * @returns Unique slug string.
- */
-import { generateSlugFromWallet } from "@/lib/utils/signup-helpers";
-
-import type { User as PrivyUser } from "@privy-io/server-auth";
+function generateSlugFromEmail(email: string): string {
+  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `${prefix}-${timestamp}${random}`;
+}
 
 /**
  * Type for Privy user data that handles both SDK User and webhook payloads.
