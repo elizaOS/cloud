@@ -304,26 +304,28 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Create organization with zero balance initially
+  // Create organization, add credits, and create user.
+  // If any step after org creation fails, clean up the orphaned organization.
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
     credit_balance: "0.00",
   });
 
-  // Record signup metadata for future abuse detection
-  if (signupContext) {
-    await abuseDetectionService.recordSignupMetadata(
-      organization.id,
-      signupContext,
-    );
-  }
+  try {
+    // Record signup metadata for future abuse detection
+    if (signupContext) {
+      await abuseDetectionService.recordSignupMetadata(
+        organization.id,
+        signupContext,
+      );
+    }
 
-  // Add initial free credits via creditsService for proper tracking
-  const initialCredits = getInitialCredits();
+    // Add initial free credits via creditsService for proper tracking.
+    // Errors propagate; the outer catch cleans up the orphaned organization.
+    const initialCredits = getInitialCredits();
 
-  if (initialCredits > 0) {
-    try {
+    if (initialCredits > 0) {
       await creditsService.addCredits({
         organizationId: organization.id,
         amount: initialCredits,
@@ -333,19 +335,9 @@ export async function syncUserFromPrivy(
           source: "signup",
         },
       });
-    } catch (creditError) {
-      // Clean up the orphaned organization before propagating
-      try {
-        await organizationsService.delete(organization.id);
-      } catch {
-        console.error(`[PrivySync] Failed to clean up org ${organization.id} after credit error`);
-      }
-      throw creditError;
     }
-  }
 
-  // Create user - handle race condition where another request created the user
-  try {
+    // Create user - handle race condition where another request created the user
     await usersService.create({
       privy_user_id: privyUserId,
       email: email || null,
@@ -371,6 +363,20 @@ export async function syncUserFromPrivy(
           typeof error.cause === "object" &&
           "code" in error.cause &&
           error.cause.code === "23505"));
+
+    if (!isDuplicateError) {
+      // Non-duplicate error (e.g., credits failure, metadata recording, etc.)
+      // Clean up the orphaned organization and rethrow
+      try {
+        await organizationsService.delete(organization.id);
+      } catch (cleanupError) {
+        console.error(
+          `[PrivySync] Failed to clean up org ${organization.id} after error:`,
+          cleanupError,
+        );
+      }
+      throw error;
+    }
 
     if (isDuplicateError) {
       // Try to find existing user with retries (in case parallel transaction hasn't committed yet)

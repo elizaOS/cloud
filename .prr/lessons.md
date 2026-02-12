@@ -60,6 +60,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:428 - The diff shows only a type annotation change and does not remove the XML markup (lines 429–506) that the review identifies as accidentally committed tool output.
 - Fix for app/api/auth/siwe/verify/route.ts:428 - When a review requires "accompanying automated tests," documentation comments alone are insufficient—actual test files must be written and committed.
 - Fix for app/api/auth/siwe/verify/route.ts:376 - When converting service calls to use transactions, replace ALL service method calls within the transaction block, not just some—check for any remaining ones.
+- Fix for app/api/auth/siwe/verify/route.ts:429 - tool modified wrong files (app/api/auth/siwe/verify/__tests__/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
 
 ### public/.well-known/llms-full.txt
 
