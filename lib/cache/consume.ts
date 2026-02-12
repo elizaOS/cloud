@@ -1,5 +1,5 @@
 
-import { cache, redis } from "./client";
+import { cache } from "./client";
 
 /**
  * Atomically consume a cache key (delete and return whether it existed).
@@ -9,11 +9,11 @@ import { cache, redis } from "./client";
  * making this truly atomic - no race condition between check and delete.
  */
 export async function atomicConsume(key: string): Promise<boolean> {
-  if (!cache.isAvailable() || !redis) {
+  if (!cache.isAvailable()) {
     return false;
   }
   
   // Redis DEL returns number of keys deleted (1 if existed, 0 if not)
-  const deleted = await redis.del(key);
+  const deleted = await cache.del(key);
   return deleted === 1;
 }
