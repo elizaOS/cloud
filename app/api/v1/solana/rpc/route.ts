@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { createHandler } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
