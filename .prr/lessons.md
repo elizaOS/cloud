@@ -5,6 +5,10 @@
 > You can edit this file manually or let prr update it.
 > To share lessons across your team, commit this file to your repo.
 
+## Global Lessons
+
+- fixer made no changes
+
 ## File-Specific Lessons
 
 ### app/api/auth/siwe/verify/route.ts
@@ -40,6 +44,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint issue, add availability checks to BOTH endpoints—the nonce generator and the verifier—not just one.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - When a review requests "accompanying automated tests," create the actual test file with implementations, not just documentation comments referencing it.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:178 - "Both endpoints must check cache availability - verify alone is insufficient since nonce endpoint returns 200 despite silent failure."
 
 ### public/.well-known/llms-full.txt
 
@@ -57,3 +62,7 @@
 
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
+
+### app/api/auth/siwe/nonce/route.ts
+
+- Fix for app/api/auth/siwe/nonce/route.ts:69 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/nonce/route.ts

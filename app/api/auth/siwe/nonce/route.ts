@@ -15,9 +15,9 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { generateSiweNonce } from "viem/siwe";
+import { type NextRequest, NextResponse } from "next/server";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { CacheKeys } from "@/lib/cache/keys";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleGetNonce(request: NextRequest) {
