@@ -45,6 +45,8 @@
 - Fix for app/api/auth/siwe/verify/route.ts:505 - When a review requests "accompanying automated tests," create the actual test file with implementations, not just documentation comments referencing it.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:178 - "Both endpoints must check cache availability - verify alone is insufficient since nonce endpoint returns 200 despite silent failure."
+- Fix for app/api/auth/siwe/verify/route.ts:506 - The diff is malformed and contains no test file additions. Comment explicitly requests unit/integration tests for nonce TTL, verify paths, and failure modes.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - The file already has the fix in place!
 
 ### public/.well-known/llms-full.txt
 

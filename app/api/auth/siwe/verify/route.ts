@@ -425,20 +425,9 @@ async function handleVerify(request: NextRequest) {
   return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
 }
 
-export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
-</change>
-
-<change path="app/api/auth/siwe/verify/route.ts">
-<search>
-    
+// wallet. The unique constraint on wallet_address (Postgres error 23505)
 </search>
-<replace>
-    
-    // wallet. The unique constraint on wallet_address (Postgres error 23505)
-    // means the second insert fails. We clean up the orphaned org we just
-    // created and fall through to return the user the first request created.
-    // Drizzle may wrap the pg error in .cause, so we check both levels.
-    const isDuplicateError =
+
       error &&
       typeof error === "object" &&
       (("code" in error && error.code === "23505") ||
