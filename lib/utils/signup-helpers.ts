@@ -1,35 +1,40 @@
 
 /**
- * Shared signup utilities used by both SIWE and Privy authentication flows.
- * 
- * IMPORTANT: Keep these functions in sync across all auth paths. Changes here
- * affect both SIWE-created and Privy-created accounts.
+ * Shared signup helpers used by both SIWE and Privy authentication flows.
+ *
+ * IMPORTANT: Any changes here affect both auth paths. Update tests for both
+ * flows when modifying this module.
  */
 
-export const DEFAULT_INITIAL_CREDITS = 5.0;
+import crypto from "crypto";
 
+const DEFAULT_INITIAL_CREDITS = 5.0;
+
+/**
+ * Generates a URL-safe slug from a wallet address.
+ *
+ * Format: first 6 hex chars + random 6 hex chars, lowercased.
+ * This gives enough entropy to avoid collisions while keeping slugs short
+ * and recognizable (the prefix matches the wallet).
+ */
+export function generateSlugFromWallet(walletAddress: string): string {
+  const prefix = walletAddress.replace(/^0x/i, "").substring(0, 6).toLowerCase();
+  const random = crypto.randomBytes(3).toString("hex");
+  return `${prefix}-${random}`;
+}
+
+/**
+ * Returns the initial credit amount for new signups.
+ *
+ * Reads from INITIAL_FREE_CREDITS env var, falling back to DEFAULT_INITIAL_CREDITS.
+ */
 export function getInitialCredits(): number {
-  const envValue = process.env.INITIAL_FREE_CREDITS;
-  if (envValue) {
-    const parsed = parseFloat(envValue);
+  const envCredits = process.env.INITIAL_FREE_CREDITS;
+  if (envCredits !== undefined) {
+    const parsed = parseFloat(envCredits);
     if (!isNaN(parsed) && parsed >= 0) {
       return parsed;
     }
   }
   return DEFAULT_INITIAL_CREDITS;
-}
-
-export function generateSlugFromWallet(walletAddress: string): string {
-  const shortAddress = walletAddress.substring(0, 8);
-  const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).slice(-4);
-  return `wallet-${sanitized}-${timestamp}${random}`;
-}
-
-export function generateSlugFromEmail(email: string): string {
-  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).slice(-4);
-  return `${prefix}-${timestamp}${random}`;
 }

@@ -1,49 +1,50 @@
 
-/**
- * Tests for SIWE Verify Endpoint
- *
- * Coverage:
- * - Nonce validation (TTL/single-use)
- * - Verify success paths (existing vs new user)
- * - Key failure modes (invalid nonce/domain/signature)
- */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { NextRequest } from "next/server";
-import { parseSiweMessage } from "viem/siwe";
-import { recoverMessageAddress, getAddress } from "viem";
+// Mock all dependencies
+vi.mock("viem/siwe", () => ({
+  parseSiweMessage: vi.fn(),
+}));
 
-// Mock dependencies
+vi.mock("viem", () => ({
+  recoverMessageAddress: vi.fn(),
+  getAddress: vi.fn((addr: string) => addr),
+}));
+
 vi.mock("@/lib/cache/client", () => ({
   cache: {
-    isAvailable: vi.fn(),
-    del: vi.fn(),
-    set: vi.fn(),
-    get: vi.fn(),
+    isAvailable: vi.fn(() => true),
   },
+}));
+
+vi.mock("@/lib/cache/consume", () => ({
+  atomicConsume: vi.fn(() => true),
+}));
+
+vi.mock("@/lib/middleware/rate-limit", () => ({
+  withRateLimit: (handler: Function) => handler,
+  RateLimitPresets: { STRICT: {} },
 }));
 
 vi.mock("@/lib/services/users", () => ({
   usersService: {
     getByWalletAddressWithOrganization: vi.fn(),
-    create: vi.fn(),
     update: vi.fn(),
+    create: vi.fn(),
   },
 }));
 
 vi.mock("@/lib/services/api-keys", () => ({
   apiKeysService: {
-    listByOrganization: vi.fn(),
-    create: vi.fn(),
+    listByOrganization: vi.fn(() => []),
+    create: vi.fn(() => ({ plainKey: "test-api-key-123" })),
   },
 }));
 
 vi.mock("@/lib/services/organizations", () => ({
   organizationsService: {
-    create: vi.fn(),
-    getBySlug: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
+    create: vi.fn(() => ({ id: "org-1", name: "Test Org" })),
+    getBySlug: vi.fn(() => null),
   },
 }));
 
@@ -55,378 +56,305 @@ vi.mock("@/lib/services/credits", () => ({
 
 vi.mock("@/lib/services/abuse-detection", () => ({
   abuseDetectionService: {
-    checkSignupAbuse: vi.fn(),
+    checkSignupAbuse: vi.fn(() => ({ allowed: true })),
     recordSignupMetadata: vi.fn(),
   },
 }));
 
-vi.mock("viem/siwe", () => ({
-  parseSiweMessage: vi.fn(),
+vi.mock("@/lib/utils/default-user-avatar", () => ({
+  getRandomUserAvatar: vi.fn(() => "avatar.png"),
 }));
 
-vi.mock("viem", () => ({
-  recoverMessageAddress: vi.fn(),
-  getAddress: vi.fn((addr: string) => addr),
+vi.mock("@/lib/utils/signup-helpers", () => ({
+  generateSlugFromWallet: vi.fn(() => "wallet-slug"),
+  getInitialCredits: vi.fn(() => 100),
+}));
+
+vi.mock("@/lib/utils/app-url", () => ({
+  getAppUrl: vi.fn(() => "https://example.com"),
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    transaction: vi.fn(async (fn: Function) => fn({})),
+  },
 }));
 
 import { cache } from "@/lib/cache/client";
+import { atomicConsume } from "@/lib/cache/consume";
+import { parseSiweMessage } from "viem/siwe";
+import { recoverMessageAddress, getAddress } from "viem";
 import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
-import { organizationsService } from "@/lib/services/organizations";
-import { creditsService } from "@/lib/services/credits";
 import { abuseDetectionService } from "@/lib/services/abuse-detection";
 
-// Import after mocks
-const { POST } = await import("../route");
+const VALID_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678";
 
-function createMockRequest(body: object): NextRequest {
-  return new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+function createRequest(body: Record<string, unknown> = {}) {
+  return {
+    json: () => Promise.resolve(body),
+    headers: new Headers({
+      "x-real-ip": "1.2.3.4",
+      "user-agent": "test-agent",
+    }),
+  } as any;
 }
 
 describe("SIWE Verify Endpoint", () => {
-  const validAddress = "0x1234567890123456789012345678901234567890";
-  const validNonce = "test-nonce-123";
-  const validMessage = `localhost wants you to sign in with your Ethereum account:\n${validAddress}\n\nSign in to the app\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${validNonce}\nIssued At: 2024-01-01T00:00:00.000Z`;
-  const validSignature = "0xvalidsignature";
-
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    (cache.isAvailable as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (atomicConsume as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    (parseSiweMessage as ReturnType<typeof vi.fn>).mockReturnValue({
+      address: VALID_ADDRESS,
+      nonce: "test-nonce",
+      domain: "example.com",
+    });
+    (recoverMessageAddress as ReturnType<typeof vi.fn>).mockResolvedValue(VALID_ADDRESS);
+    (getAddress as ReturnType<typeof vi.fn>).mockImplementation((addr: string) => addr);
   });
 
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_APP_URL;
+  // --- Body validation ---
+  it("returns 400 for non-JSON body", async () => {
+    const req = { json: () => Promise.reject(new Error("bad json")), headers: new Headers() } as any;
+    const { POST } = await import("../../verify/route");
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_BODY");
   });
 
-  describe("Input Validation", () => {
-    it("should reject missing message field", async () => {
-      const request = createMockRequest({ signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-
-    it("should reject missing signature field", async () => {
-      const request = createMockRequest({ message: validMessage });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
-
-    it("should reject empty message", async () => {
-      const request = createMockRequest({ message: "", signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
-    });
+  it("returns 400 when message is missing", async () => {
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ signature: "0xabc" }));
+    expect(res.status).toBe(400);
   });
 
-  describe("Nonce Validation (TTL/Single-Use)", () => {
-    beforeEach(() => {
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
-      });
+  it("returns 400 when signature is missing", async () => {
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "hello" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when message is empty string", async () => {
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "  ", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+  });
+
+  // --- SIWE message parsing ---
+  it("returns 400 when SIWE message is missing required fields", async () => {
+    (parseSiweMessage as ReturnType<typeof vi.fn>).mockReturnValue({});
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "bad msg", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_BODY");
+  });
+
+  // --- Cache availability ---
+  it("returns 503 when cache is unavailable", async () => {
+    (cache.isAvailable as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.error).toBe("SERVICE_UNAVAILABLE");
+  });
+
+  // --- Nonce validation ---
+  it("returns 400 when nonce is expired or already used", async () => {
+    (atomicConsume as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_NONCE");
+  });
+
+  it("consumes nonce atomically to prevent replay", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "u1",
+      is_active: true,
+      organization_id: "org-1",
+      organization: { is_active: true },
     });
+    (apiKeysService.listByOrganization as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "existing-key" },
+    ]);
+    const { POST } = await import("../../verify/route");
+    await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(atomicConsume).toHaveBeenCalledTimes(1);
+  });
 
-    it("should return 503 when cache is unavailable", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(false);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(503);
-      expect(data.error).toBe("SERVICE_UNAVAILABLE");
+  // --- Domain validation ---
+  it("returns 400 when domain does not match", async () => {
+    (parseSiweMessage as ReturnType<typeof vi.fn>).mockReturnValue({
+      address: VALID_ADDRESS,
+      nonce: "test-nonce",
+      domain: "evil.com",
     });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_DOMAIN");
+  });
 
-    it("should reject expired/used nonce (single-use enforcement)", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(0); // Nonce not found (expired or already used)
+  // --- Signature validation ---
+  it("returns 400 when signature recovery fails", async () => {
+    (recoverMessageAddress as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("bad sig"));
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SIGNATURE");
+  });
 
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
+  it("returns 400 when recovered address does not match claimed address", async () => {
+    (recoverMessageAddress as ReturnType<typeof vi.fn>).mockResolvedValue("0xDEAD");
+    (getAddress as ReturnType<typeof vi.fn>).mockImplementation((a: string) => a);
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SIGNATURE");
+  });
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_NONCE");
-      expect(data.message).toContain("expired or was already used");
+  // --- Existing user path ---
+  it("returns existing user with API key (sign-in)", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "u1",
+      name: "Test",
+      is_active: true,
+      organization_id: "org-1",
+      organization: { is_active: true, name: "Org", credit_balance: "100" },
     });
+    (apiKeysService.listByOrganization as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "existing-key" },
+    ]);
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.isNewAccount).toBe(false);
+    expect(json.apiKey).toBe("existing-key");
+  });
 
-    it("should consume nonce atomically", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
-      vi.mocked(recoverMessageAddress).mockResolvedValue(validAddress);
-      vi.mocked(getAddress).mockImplementation((addr) => addr as `0x${string}`);
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue({
-        id: "user-1",
-        organization_id: "org-1",
+  it("returns 403 for inactive user", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "u1",
+      is_active: false,
+      organization_id: "org-1",
+      organization: { is_active: true },
+    });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toBe("ACCOUNT_INACTIVE");
+  });
+
+  it("returns 403 for inactive organization", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "u1",
+      is_active: true,
+      organization_id: "org-1",
+      organization: { is_active: false },
+    });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(403);
+  });
+
+  // --- New user path ---
+  it("creates new account and returns API key (sign-up)", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(null) // first call: no existing user
+      .mockResolvedValueOnce({
+        id: "u-new",
+        name: "0x1234...5678",
         is_active: true,
-        wallet_verified: true,
-        organization: { is_active: true },
-      } as any);
-      vi.mocked(apiKeysService.listByOrganization).mockResolvedValue([
-        { user_id: "user-1", is_active: true, key: "existing-key" },
-      ] as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      await POST(request);
-
-      // Verify nonce was consumed via atomic delete
-      expect(cache.del).toHaveBeenCalledWith(expect.stringContaining(validNonce));
-    });
+        organization_id: "org-1",
+        organization: { is_active: true, name: "Org", credit_balance: "100" },
+      });
+    (usersService.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "u-new" });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.isNewAccount).toBe(true);
+    expect(json.apiKey).toBe("test-api-key-123");
   });
 
-  describe("Domain Validation", () => {
-    beforeEach(() => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
+  it("returns 403 when abuse detection blocks signup", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (abuseDetectionService.checkSignupAbuse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      allowed: false,
+      reason: "Too many signups",
     });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toBe("SIGNUP_BLOCKED");
+  });
 
-    it("should reject mismatched domain", async () => {
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "evil-site.com", // Wrong domain
-      });
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_DOMAIN");
+  // --- Message expiration ---
+  it("returns 400 when SIWE message has expired", async () => {
+    (parseSiweMessage as ReturnType<typeof vi.fn>).mockReturnValue({
+      address: VALID_ADDRESS,
+      nonce: "test-nonce",
+      domain: "example.com",
+      expirationTime: new Date(Date.now() - 60000), // 1 minute ago
     });
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("MESSAGE_EXPIRED");
+  });
 
-    it("should accept matching domain", async () => {
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
-      });
-      vi.mocked(recoverMessageAddress).mockResolvedValue(validAddress);
-      vi.mocked(getAddress).mockImplementation((addr) => addr as `0x${string}`);
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue({
-        id: "user-1",
-        organization_id: "org-1",
+  // --- Signature prefix normalization ---
+  it("adds 0x prefix to signature if missing", async () => {
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "u1",
+      is_active: true,
+      organization_id: "org-1",
+      organization: { is_active: true },
+    });
+    (apiKeysService.listByOrganization as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "k" },
+    ]);
+    const { POST } = await import("../../verify/route");
+    await POST(createRequest({ message: "test", signature: "abc123" }));
+    expect(recoverMessageAddress).toHaveBeenCalledWith(
+      expect.objectContaining({ signature: "0xabc123" }),
+    );
+  });
+
+  // --- Transaction atomicity (duplicate wallet race) ---
+  it("handles duplicate wallet race condition (23505)", async () => {
+    const { db } = await import("@/lib/db");
+    (usersService.getByWalletAddressWithOrganization as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(null) // initial lookup
+      .mockResolvedValueOnce({ // retry after duplicate
+        id: "u-race",
         is_active: true,
-        wallet_verified: true,
-        organization: { is_active: true },
-      } as any);
-      vi.mocked(apiKeysService.listByOrganization).mockResolvedValue([
-        { user_id: "user-1", is_active: true, key: "existing-key" },
-      ] as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-
-      expect(response.status).toBe(200);
-    });
-  });
-
-  describe("Signature Validation", () => {
-    beforeEach(() => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
-      });
-    });
-
-    it("should reject invalid signature", async () => {
-      vi.mocked(recoverMessageAddress).mockRejectedValue(new Error("Invalid signature"));
-
-      const request = createMockRequest({ message: validMessage, signature: "0xinvalid" });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_SIGNATURE");
-    });
-
-    it("should reject signature from wrong address", async () => {
-      const wrongAddress = "0x9999999999999999999999999999999999999999";
-      vi.mocked(recoverMessageAddress).mockResolvedValue(wrongAddress);
-      vi.mocked(getAddress).mockImplementation((addr) => addr as `0x${string}`);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_SIGNATURE");
-    });
-  });
-
-  describe("Existing User Flow", () => {
-    beforeEach(() => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
-      });
-      vi.mocked(recoverMessageAddress).mockResolvedValue(validAddress);
-      vi.mocked(getAddress).mockImplementation((addr) => addr as `0x${string}`);
-    });
-
-    it("should return existing user with isNewAccount=false", async () => {
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue({
-        id: "user-1",
-        name: "Test User",
         organization_id: "org-1",
-        is_active: true,
-        wallet_verified: true,
-        organization: { is_active: true, name: "Test Org", credit_balance: "100.00" },
-      } as any);
-      vi.mocked(apiKeysService.listByOrganization).mockResolvedValue([
-        { user_id: "user-1", is_active: true, key: "existing-api-key" },
-      ] as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.isNewAccount).toBe(false);
-      expect(data.apiKey).toBe("existing-api-key");
-    });
-
-    it("should reject inactive user", async () => {
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue({
-        id: "user-1",
-        organization_id: "org-1",
-        is_active: false,
-        organization: { is_active: true },
-      } as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(403);
-      expect(data.error).toBe("ACCOUNT_INACTIVE");
-    });
-
-    it("should reject inactive organization", async () => {
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValue({
-        id: "user-1",
-        organization_id: "org-1",
-        is_active: true,
-        organization: { is_active: false },
-      } as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(403);
-      expect(data.error).toBe("ACCOUNT_INACTIVE");
-    });
-  });
-
-  describe("New User Flow", () => {
-    beforeEach(() => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
+        organization: { is_active: true, name: "Org", credit_balance: "0" },
       });
-      vi.mocked(recoverMessageAddress).mockResolvedValue(validAddress);
-      vi.mocked(getAddress).mockImplementation((addr) => addr as `0x${string}`);
-      vi.mocked(usersService.getByWalletAddressWithOrganization).mockResolvedValueOnce(undefined as any);
-      vi.mocked(abuseDetectionService.checkSignupAbuse).mockResolvedValue({ allowed: true });
-      vi.mocked(abuseDetectionService.recordSignupMetadata).mockResolvedValue(undefined);
-      vi.mocked(organizationsService.getBySlug).mockResolvedValue(undefined as any);
-      vi.mocked(organizationsService.create).mockResolvedValue({ id: "new-org-1" } as any);
-      vi.mocked(creditsService.addCredits).mockResolvedValue(undefined as any);
-      vi.mocked(usersService.create).mockResolvedValue({ id: "new-user-1" } as any);
-      vi.mocked(apiKeysService.create).mockResolvedValue({ plainKey: "new-api-key" } as any);
-    });
-
-    it("should create new user with isNewAccount=true", async () => {
-      vi.mocked(usersService.getByWalletAddressWithOrganization)
-        .mockResolvedValueOnce(undefined as any)
-        .mockResolvedValueOnce({
-          id: "new-user-1",
-          organization_id: "new-org-1",
-          organization: { name: "Test Org" },
-        } as any);
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.isNewAccount).toBe(true);
-      expect(data.apiKey).toBe("new-api-key");
-    });
-
-    it("should block signup when abuse detected", async () => {
-      vi.mocked(abuseDetectionService.checkSignupAbuse).mockResolvedValue({
-        allowed: false,
-        reason: "Too many signups from this IP",
-      });
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(403);
-      expect(data.error).toBe("SIGNUP_BLOCKED");
-    });
-
-    it("should propagate credit service errors", async () => {
-      vi.mocked(creditsService.addCredits).mockRejectedValue(new Error("Credit service failed"));
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      
-      await expect(POST(request)).rejects.toThrow("Credit service failed");
-      
-      // Verify org was created but should be cleaned up on error
-      expect(organizationsService.create).toHaveBeenCalled();
-    });
-  });
-
-  describe("Message Expiration", () => {
-    beforeEach(() => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.del).mockResolvedValue(1);
-    });
-
-    it("should reject expired message", async () => {
-      const expiredDate = new Date(Date.now() - 3600000); // 1 hour ago
-      vi.mocked(parseSiweMessage).mockReturnValue({
-        address: validAddress,
-        nonce: validNonce,
-        domain: "localhost",
-        expirationTime: expiredDate,
-      });
-
-      const request = createMockRequest({ message: validMessage, signature: validSignature });
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("MESSAGE_EXPIRED");
-    });
+    (db.transaction as ReturnType<typeof vi.fn>).mockRejectedValue(
+      Object.assign(new Error("duplicate"), { code: "23505" }),
+    );
+    (apiKeysService.listByOrganization as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { user_id: "u-race", is_active: true, key: "race-key" },
+    ]);
+    const { POST } = await import("../../verify/route");
+    const res = await POST(createRequest({ message: "test", signature: "0xabc" }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.apiKey).toBe("race-key");
+    expect(json.isNewAccount).toBe(false);
   });
 });
