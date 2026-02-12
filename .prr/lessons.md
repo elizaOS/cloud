@@ -36,6 +36,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:177 - The code change does not address Redis unavailability or add fallback/availability checks. Comment requires detecting when Redis is unavailable and either failing fast or providing a fallback mechanism.
 - Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint flow, add availability checks to BOTH endpoints, not just the consumer endpoint that was mentioned in the error path.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:505 - When addressing "add tests" feedback, the fix must include actual test code/files, not just comments describing what tests should exist.
 
 ### public/.well-known/llms-full.txt
 
