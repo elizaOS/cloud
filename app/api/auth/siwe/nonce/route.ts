@@ -59,6 +59,12 @@ async function handleGetNonce(request: NextRequest) {
 
   try {
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
+    // Verify the nonce was actually persisted (cache.set returns void,
+    // so a silent no-op wouldn't throw but would leave the nonce unverifiable)
+    const stored = await cache.get(CacheKeys.siwe.nonce(nonce));
+    if (!stored) {
+      throw new Error("Nonce not persisted after cache.set");
+    }
   } catch {
     return NextResponse.json(
       {

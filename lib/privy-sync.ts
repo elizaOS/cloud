@@ -325,15 +325,25 @@ export async function syncUserFromPrivy(
   const initialCredits = getInitialCredits();
 
   if (initialCredits > 0) {
-    await creditsService.addCredits({
-      organizationId: organization.id,
-      amount: initialCredits,
-      description: "Initial free credits - Welcome bonus",
-      metadata: {
-        type: "initial_free_credits",
-        source: "signup",
-      },
-    });
+    try {
+      await creditsService.addCredits({
+        organizationId: organization.id,
+        amount: initialCredits,
+        description: "Initial free credits - Welcome bonus",
+        metadata: {
+          type: "initial_free_credits",
+          source: "signup",
+        },
+      });
+    } catch (creditError) {
+      // Clean up the orphaned organization before propagating
+      try {
+        await organizationsService.delete(organization.id);
+      } catch {
+        console.error(`[PrivySync] Failed to clean up org ${organization.id} after credit error`);
+      }
+      throw creditError;
+    }
   }
 
   // Create user - handle race condition where another request created the user
