@@ -23,11 +23,12 @@ export async function OPTIONS() {
 const basePostHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
 export async function POST(request: NextRequest) {
+  const corsHeaders = getCorsHeaders("POST, OPTIONS");
+  
   try {
     const response = await basePostHandler(request);
 
     // Add CORS headers to response
-    const corsHeaders = getCorsHeaders("POST, OPTIONS");
     for (const [key, value] of Object.entries(corsHeaders)) {
       response.headers.set(key, value);
     }

@@ -12,6 +12,19 @@ import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 
+// Security: Sanitize cwd path to prevent command injection
+function sanitizeCwdPath(cwd: string): string | null {
+  // Only allow alphanumeric, dash, underscore, dot, and forward slash
+  if (!/^[a-zA-Z0-9_\-./]+$/.test(cwd)) {
+    return null;
+  }
+  // Prevent path traversal
+  if (cwd.includes("..")) {
+    return null;
+  }
+  return cwd;
+}
+
 // Security: Blocked commands that could be dangerous
 const BLOCKED_COMMANDS = [
   /rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?[\/~]/, // rm with / or ~ targets
@@ -103,6 +116,13 @@ export async function POST(
   if (!command || typeof command !== "string") {
     return NextResponse.json(
       { success: false, error: "Command is required" },
+      { status: 400 },
+    );
+  }
+
+  if (cwd !== undefined && typeof cwd !== "string") {
+    return NextResponse.json(
+      { success: false, error: "cwd must be a string" },
       { status: 400 },
     );
   }
