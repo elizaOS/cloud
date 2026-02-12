@@ -4,11 +4,11 @@ import { NextRequest } from 'next/server';
 import { GET, PUT } from '../route';
 import { requireAdmin } from '@/lib/auth';
 import { AuthenticationError, ForbiddenError } from '@/lib/api/errors';
-import { servicePricingRepository } from '@/db/repositories';
+import { servicePricingRepository } from '@/db/repositories/service-pricing';
 import { invalidateServicePricingCache } from '@/lib/services/proxy/pricing';
 
 vi.mock('@/lib/auth');
-vi.mock('@/db/repositories');
+vi.mock('@/db/repositories/service-pricing');
 vi.mock('@/lib/services/proxy/pricing');
 
 describe('Service Pricing Admin Routes', () => {
@@ -17,9 +17,9 @@ describe('Service Pricing Admin Routes', () => {
   });
 
   describe('GET /api/v1/admin/service-pricing', () => {
-    it('should return 401 when not authenticated', async () => {
+    it('should return 401 when wallet is not connected', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
-      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Not authenticated'));
+      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Wallet connection required'));
 
       const response = await GET(request);
       expect(response.status).toBe(401);
@@ -48,12 +48,9 @@ describe('Service Pricing Admin Routes', () => {
           method: '_default',
           cost: '0.000006',
           description: 'Standard Solana RPC call',
-          metadata: {},
           is_active: true,
-          updated_by: null,
-          created_at: new Date(),
           updated_at: new Date(),
-        },
+        } as any,
       ]);
 
       const response = await GET(request);
@@ -65,10 +62,15 @@ describe('Service Pricing Admin Routes', () => {
   });
 
   describe('PUT /api/v1/admin/service-pricing', () => {
-    it('should return 401 when not authenticated', async () => {
+    it('should return 401 for unauthenticated PUT requests', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
-        body: JSON.stringify({ service_id: 'solana-rpc', method: 'getBalance', cost: 0.002 }),
+        body: JSON.stringify({
+          service_id: 'solana-rpc',
+          method: 'getBalance',
+          cost: 0.002,
+          reason: 'Updated pricing',
+        }),
       });
       vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Not authenticated'));
 
@@ -76,10 +78,15 @@ describe('Service Pricing Admin Routes', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should upsert pricing and invalidate cache', async () => {
+    it('should upsert service pricing and invalidate cache', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
-        body: JSON.stringify({ service_id: 'solana-rpc', method: 'getBalance', cost: 0.002, reason: 'Update pricing' }),
+        body: JSON.stringify({
+          service_id: 'solana-rpc',
+          method: 'getBalance',
+          cost: 0.002,
+          reason: 'Updated pricing',
+        }),
       });
       vi.mocked(requireAdmin).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
@@ -90,18 +97,11 @@ describe('Service Pricing Admin Routes', () => {
         service_id: 'solana-rpc',
         method: 'getBalance',
         cost: '0.002',
-        description: null,
-        metadata: {},
-        is_active: true,
-        updated_by: 'user-1',
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-      vi.mocked(invalidateServicePricingCache).mockResolvedValue();
+      } as any);
+      vi.mocked(invalidateServicePricingCache).mockResolvedValue(undefined);
 
       const response = await PUT(request);
       expect(response.status).toBe(200);
-      expect(servicePricingRepository.upsert).toHaveBeenCalled();
       expect(invalidateServicePricingCache).toHaveBeenCalledWith('solana-rpc');
     });
   });

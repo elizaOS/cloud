@@ -253,6 +253,13 @@ export function createHandler(
         );
       }
 
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
+          { status: 403 },
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
