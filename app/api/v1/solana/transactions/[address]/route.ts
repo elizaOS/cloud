@@ -28,12 +28,13 @@ export async function GET(
 
   // Validate Solana address format to prevent DoS and invalid requests
   if (!isValidSolanaAddress(address)) {
+    const corsHeaders = getCorsHeaders("GET, OPTIONS");
     return NextResponse.json(
       { 
         error: "Invalid Solana address",
         details: "Address must be a valid base58-encoded public key"
       },
-      { status: 400, headers: getCorsHeaders("GET, OPTIONS") },
+      { status: 400, headers: corsHeaders },
     );
   }
 

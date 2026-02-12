@@ -28,7 +28,7 @@ export async function GET(
 
   // Validate Solana address format to prevent DoS and invalid requests
   if (!isValidSolanaAddress(address)) {
-    const corsHeaders = getCorsHeaders();
+    const corsHeaders = getCorsHeaders("GET, OPTIONS");
     return NextResponse.json(
       { 
         error: "Invalid Solana address",
