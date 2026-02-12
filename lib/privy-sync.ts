@@ -32,8 +32,6 @@ interface SyncOptions {
   skipAbuseCheck?: boolean;
 }
 
-
-
 /**
  * Type for Privy user data that handles both SDK User and webhook payloads.
  * Uses the SDK User type as the base since it's more complete.
