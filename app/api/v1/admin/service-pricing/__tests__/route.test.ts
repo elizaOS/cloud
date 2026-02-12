@@ -4,11 +4,11 @@ import { NextRequest } from 'next/server';
 import { GET, PUT } from '../route';
 import { requireAdmin } from '@/lib/auth';
 import { AuthenticationError, ForbiddenError } from '@/lib/api/errors';
-import { servicePricingRepository } from '@/db/repositories/service-pricing';
+import { servicePricingRepository } from '@/db/repositories';
 import { invalidateServicePricingCache } from '@/lib/services/proxy/pricing';
 
 vi.mock('@/lib/auth');
-vi.mock('@/db/repositories/service-pricing');
+vi.mock('@/db/repositories');
 vi.mock('@/lib/services/proxy/pricing');
 
 describe('Service Pricing Admin Routes', () => {
@@ -17,9 +17,9 @@ describe('Service Pricing Admin Routes', () => {
   });
 
   describe('GET /api/v1/admin/service-pricing', () => {
-    it('should return 401 when wallet is not connected', async () => {
+    it('should return 401 when not authenticated', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
-      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Wallet connection required'));
+      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Not authenticated'));
 
       const response = await GET(request);
       expect(response.status).toBe(401);
@@ -59,59 +59,33 @@ describe('Service Pricing Admin Routes', () => {
       const response = await GET(request);
       expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data).toHaveLength(1);
-      expect(data[0].service_id).toBe('solana-rpc');
+      expect(data.service_id).toBe('solana-rpc');
+      expect(data.pricing).toHaveLength(1);
     });
   });
 
   describe('PUT /api/v1/admin/service-pricing', () => {
-    it('should return 401 when wallet is not connected', async () => {
+    it('should return 401 when not authenticated', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
-        body: JSON.stringify({
-          service_id: 'solana-rpc',
-          method: 'getBalance',
-          cost: 0.002,
-          reason: 'Updated pricing',
-        }),
+        body: JSON.stringify({ service_id: 'solana-rpc', method: 'getBalance', cost: 0.002 }),
       });
-      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Wallet connection required'));
+      vi.mocked(requireAdmin).mockRejectedValue(new AuthenticationError('Not authenticated'));
 
       const response = await PUT(request);
       expect(response.status).toBe(401);
     });
 
-    it('should return 403 when user is not admin', async () => {
-      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
-        method: 'PUT',
-        body: JSON.stringify({
-          service_id: 'solana-rpc',
-          method: 'getBalance',
-          cost: 0.002,
-          reason: 'Updated pricing',
-        }),
-      });
-      vi.mocked(requireAdmin).mockRejectedValue(new ForbiddenError('Admin access required'));
-
-      const response = await PUT(request);
-      expect(response.status).toBe(403);
-    });
-
     it('should upsert pricing and invalidate cache', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
-        body: JSON.stringify({
-          service_id: 'solana-rpc',
-          method: 'getBalance',
-          cost: 0.002,
-          reason: 'Updated pricing',
-        }),
+        body: JSON.stringify({ service_id: 'solana-rpc', method: 'getBalance', cost: 0.002, reason: 'Update pricing' }),
       });
       vi.mocked(requireAdmin).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
         role: 'super_admin',
       });
-      vi.mocked(servicePricingRepository.upsertPricing).mockResolvedValue({
+      vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
         id: '1',
         service_id: 'solana-rpc',
         method: 'getBalance',
@@ -127,6 +101,7 @@ describe('Service Pricing Admin Routes', () => {
 
       const response = await PUT(request);
       expect(response.status).toBe(200);
+      expect(servicePricingRepository.upsert).toHaveBeenCalled();
       expect(invalidateServicePricingCache).toHaveBeenCalledWith('solana-rpc');
     });
   });

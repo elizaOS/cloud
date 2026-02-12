@@ -28,7 +28,7 @@ export async function GET(
 
   // Validate Solana address format to prevent DoS and invalid requests
   if (!isValidSolanaAddress(address)) {
-    const corsHeaders = getCorsHeaders("GET, OPTIONS");
+    const corsHeaders = getCorsHeaders();
     return NextResponse.json(
       { 
         error: "Invalid Solana address",
@@ -50,8 +50,8 @@ export async function GET(
   };
 
   const response = await executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
-
-  const corsHeaders = getCorsHeaders("GET, OPTIONS");
+  
+  const corsHeaders = getCorsHeaders();
   for (const [key, value] of Object.entries(corsHeaders)) {
     response.headers.set(key, value);
   }

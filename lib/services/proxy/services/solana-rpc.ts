@@ -211,7 +211,7 @@ async function isMethodAllowed(method: string): Promise<boolean> {
   return allowedMethods.has(method);
 }
 
-async function extractMethodFromBody(body: unknown): Promise<string> {
+async function extractMethodFromBody(body: JsonRpcRequest | JsonRpcBatchRequest): Promise<string> {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid JSON-RPC request: body must be an object");
   }
