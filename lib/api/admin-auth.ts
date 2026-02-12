@@ -10,10 +10,10 @@ export async function requireAdminWithResponse(
   try {
     return await requireAdmin(request);
   } catch (error) {
-    if (error instanceof AuthenticationError) {
+    if (error instanceof WalletRequiredError || error instanceof AuthenticationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    if (error instanceof ForbiddenError) {
+    if (error instanceof AdminRequiredError || error instanceof ForbiddenError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error(logMessage, { error });
