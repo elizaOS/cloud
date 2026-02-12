@@ -24,27 +24,34 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  const pricingRecords = await servicePricingRepository.listByService(
-    "solana-rpc"
-  );
+  try {
+    const pricingRecords = await servicePricingRepository.listByService(
+      "solana-rpc"
+    );
 
-  // Only return active methods
-  const activeMethods = pricingRecords
-    .filter((record) => record.is_active)
-    .map((record) => ({
-      method: record.method,
-      cost: Number(record.cost),
-      description: record.description,
-    }))
-    .sort((a, b) => a.method.localeCompare(b.method));
+    // Only return active methods
+    const activeMethods = pricingRecords
+      .filter((record) => record.is_active)
+      .map((record) => ({
+        method: record.method,
+        cost: Number(record.cost),
+        description: record.description,
+      }))
+      .sort((a, b) => a.method.localeCompare(b.method));
 
-  return NextResponse.json(
-    {
-      service: "solana-rpc",
-      total: activeMethods.length,
-      methods: activeMethods,
-      note: "Methods are dynamically managed via database. Add new methods via admin API.",
-    },
-    { headers: getCorsHeaders("GET, OPTIONS") }
-  );
+    return NextResponse.json(
+      {
+        service: "solana-rpc",
+        total: activeMethods.length,
+        methods: activeMethods,
+        note: "Methods are dynamically managed via database. Add new methods via admin API.",
+      },
+      { headers: getCorsHeaders("GET, OPTIONS") }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: getCorsHeaders("GET, OPTIONS") }
+    );
+  }
 }

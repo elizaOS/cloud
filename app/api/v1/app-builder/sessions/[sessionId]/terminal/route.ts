@@ -150,6 +150,17 @@ export async function POST(
       );
     }
 
+    // Validate cwd if provided
+    if (cwd && typeof cwd === "string") {
+      const sanitizedCwd = sanitizeCwdPath(cwd);
+      if (!sanitizedCwd) {
+        return NextResponse.json(
+          { success: false, error: "Invalid working directory path" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Get sandbox instance
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
