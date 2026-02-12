@@ -60,6 +60,13 @@ export interface MessageOptions {
   agentModeConfig?: AgentModeConfig;
   onStreamChunk?: StreamChunkCallback;
   onReasoningChunk?: ReasoningChunkCallback;
+  /**
+   * PERF: Override multi-step mode.
+   * Set to false for messaging app channels (Telegram/Discord/iMessage) where
+   * single-shot mode (1 LLM call) is preferred over multi-step (2+ LLM calls).
+   * Defaults to true for backward compatibility.
+   */
+  useMultiStep?: boolean;
 }
 
 export class MessageHandler {
@@ -136,8 +143,10 @@ export class MessageHandler {
         onReasoningChunk,
       });
     } else {
+      // PERF: useMultiStep defaults to true but can be overridden to false
+      // for messaging app channels where single-shot (1 LLM call) is preferred.
       const messageOptions: CloudMessageOptions = {
-        useMultiStep: true,
+        useMultiStep: options.useMultiStep !== false,
         onStreamChunk,
         onReasoningChunk,
       };
@@ -241,7 +250,13 @@ export class MessageHandler {
       );
     });
 
-    await generateRoomTitle(roomId);
+    // PERF: Fire-and-forget room title generation -- don't block the response.
+    // Title generation makes a separate LLM call (1-3s) that the user doesn't need to wait for.
+    generateRoomTitle(roomId).catch((e) => {
+      elizaLogger.warn(
+        `[MessageHandler] Room title generation failed for room ${roomId}: ${e}`,
+      );
+    });
 
     return { message: responseMemory, usage };
   }

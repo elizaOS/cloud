@@ -22,6 +22,7 @@ import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 import type { Update, Message } from "telegraf/types";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,48 @@ async function sendTelegramMessage(
   return true;
 }
 
+/**
+ * PERF: Send "typing" indicator to show the user that the bot is processing.
+ * This dramatically improves perceived latency -- users see immediate feedback
+ * instead of waiting 3-8s with no indication.
+ * Telegram automatically clears the typing indicator after 5 seconds,
+ * so we repeat it periodically for longer processing.
+ */
+async function sendTypingAction(chatId: number): Promise<void> {
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          action: "typing",
+        }),
+      },
+    );
+  } catch (error) {
+    // Non-critical, don't fail the request
+    logger.debug("[ElizaApp TelegramWebhook] Failed to send typing action", {
+      chatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Start a periodic typing indicator that auto-refreshes every 4 seconds.
+ * Returns a cleanup function to stop the interval.
+ * Telegram clears typing after 5s, so we refresh at 4s to maintain continuity.
+ */
+function startTypingIndicator(chatId: number): () => void {
+  // Send immediately
+  sendTypingAction(chatId);
+  // Refresh every 4 seconds
+  const interval = setInterval(() => sendTypingAction(chatId), 4000);
+  return () => clearInterval(interval);
+}
+
 async function handleMessage(message: Message): Promise<boolean> {
   if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
   if (message.chat.type !== "private") return true; // Not applicable, mark as processed
@@ -80,9 +123,18 @@ async function handleMessage(message: Message): Promise<boolean> {
     return true; // Command handled, mark as processed
   }
 
+  // PERF: Granular timing for the webhook pipeline
+  const perfTrace = createPerfTrace("telegram-webhook");
+
+  // PERF: Start typing indicator immediately to show the user we're processing.
+  // This gives instant visual feedback while we perform auth, room setup, and LLM calls.
+  const stopTyping = startTypingIndicator(message.chat.id);
+
+  perfTrace.mark("user-lookup");
   // Look up user - they must have completed OAuth first
   const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
   if (!userWithOrg?.organization) {
+    stopTyping();
     await sendTelegramMessage(
       message.chat.id,
       `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
@@ -94,6 +146,7 @@ async function handleMessage(message: Message): Promise<boolean> {
   const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
   const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
+  perfTrace.mark("room-setup");
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {
     await roomsService.createRoom({
@@ -123,6 +176,7 @@ async function handleMessage(message: Message): Promise<boolean> {
     }
   }
 
+  perfTrace.mark("acquire-lock");
   // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
   const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
     maxRetries: 10,
@@ -131,6 +185,7 @@ async function handleMessage(message: Message): Promise<boolean> {
   });
 
   if (!lock) {
+    stopTyping();
     logger.error("[ElizaApp TelegramWebhook] Failed to acquire room lock", { roomId });
     return false; // Don't mark as processed - allow retry
   }
@@ -151,9 +206,13 @@ async function handleMessage(message: Message): Promise<boolean> {
       mode: "assistant",
     });
 
+    perfTrace.mark("create-runtime");
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
     const messageHandler = createMessageHandler(runtime, userContext);
 
+    perfTrace.mark("message-processing");
+    // PERF: Use single-shot mode for Telegram (1 LLM call instead of 2+).
+    // Messaging app conversations are primarily conversational and don't need multi-step tool use.
     const result = await messageHandler.process({
       roomId,
       text,
@@ -166,11 +225,18 @@ async function handleMessage(message: Message): Promise<boolean> {
         ? responseContent
         : responseContent?.text || "";
 
+    // Stop typing indicator before sending the response
+    stopTyping();
+
+    perfTrace.mark("send-response");
     if (responseText) {
       await sendTelegramMessage(message.chat.id, responseText, message.message_id);
     }
+    perfTrace.end();
     return true;
   } catch (error) {
+    stopTyping();
+    perfTrace.end();
     logger.error("[ElizaApp TelegramWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,

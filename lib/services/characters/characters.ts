@@ -32,33 +32,63 @@ const characterCacheKey = (id: string) => `character:data:${id}`;
 const CHARACTER_CACHE_TTL = CacheTTL.agent.characterData; // 1 hour
 
 /**
+ * PERF: In-memory cache for character data (60s TTL).
+ * Characters rarely change during active sessions. This eliminates the Redis
+ * round-trip (~5ms) for repeated lookups within the same serverless instance.
+ */
+const IN_MEMORY_CHAR_CACHE = new Map<string, { character: UserCharacter; expiresAt: number }>();
+const IN_MEMORY_CHAR_TTL_MS = 60_000; // 60 seconds
+const IN_MEMORY_CHAR_MAX_SIZE = 100;
+
+/**
  * Service for character CRUD operations.
  */
 export class CharactersService {
   /**
    * Get character by ID with caching.
-   * PERFORMANCE: Cache hit reduces latency from ~50ms to ~5ms
+   * PERFORMANCE: 3-layer cache: in-memory (~0ms) > Redis (~5ms) > DB (~50ms)
    */
   async getById(id: string): Promise<UserCharacter | undefined> {
+    // PERF: Check in-memory cache first (eliminates Redis round-trip)
+    const inMemoryEntry = IN_MEMORY_CHAR_CACHE.get(id);
+    if (inMemoryEntry && Date.now() < inMemoryEntry.expiresAt) {
+      logger.debug(`[Characters] ⚡ In-memory cache HIT: ${id}`);
+      return inMemoryEntry.character;
+    }
+
     const cacheKey = characterCacheKey(id);
 
-    // Try cache first
+    // Try Redis cache
     const cached = await cache.get<UserCharacter>(cacheKey);
     if (cached) {
-      logger.debug(`[Characters] ⚡ Cache HIT: ${id}`);
+      logger.debug(`[Characters] ⚡ Redis cache HIT: ${id}`);
+      // Populate in-memory cache from Redis hit
+      this._setInMemoryCache(id, cached);
       return cached;
     }
 
     // Fetch from database
     const character = await userCharactersRepository.findById(id);
 
-    // Cache for future requests (1 hour)
+    // Cache for future requests (Redis: 1 hour, in-memory: 60s)
     if (character) {
       await cache.set(cacheKey, character, CHARACTER_CACHE_TTL);
+      this._setInMemoryCache(id, character);
       logger.debug(`[Characters] Cache MISS, cached: ${id}`);
     }
 
     return character;
+  }
+
+  /** PERF: Set in-memory cache with size-based eviction */
+  private _setInMemoryCache(id: string, character: UserCharacter): void {
+    if (IN_MEMORY_CHAR_CACHE.size >= IN_MEMORY_CHAR_MAX_SIZE) {
+      const keys = Array.from(IN_MEMORY_CHAR_CACHE.keys());
+      for (let i = 0; i < Math.floor(keys.length / 2); i++) {
+        IN_MEMORY_CHAR_CACHE.delete(keys[i]);
+      }
+    }
+    IN_MEMORY_CHAR_CACHE.set(id, { character, expiresAt: Date.now() + IN_MEMORY_CHAR_TTL_MS });
   }
 
   /**
@@ -66,6 +96,8 @@ export class CharactersService {
    * CRITICAL: This now also invalidates the in-memory runtime cache
    */
   async invalidateCache(id: string): Promise<void> {
+    // PERF: Also invalidate in-memory cache
+    IN_MEMORY_CHAR_CACHE.delete(id);
     // Import dynamically to avoid circular dependency
     const { invalidateCharacterCache } =
       await import("@/lib/cache/character-cache");

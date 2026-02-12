@@ -35,6 +35,7 @@ import {
   refreshStateAfterAction,
   getActionResultsFromCache,
 } from "../utils/state";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 import type {
   MultiStepActionResult,
   StrategyMode,
@@ -270,6 +271,10 @@ export class CloudBootstrapMessageService implements IMessageService {
     startTime: number,
     options?: CloudMessageOptions,
   ): Promise<MessageProcessingResult> {
+    // PERF: Granular timing for message processing phases
+    const perfTrace = createPerfTrace("cloud-bootstrap-message");
+    perfTrace.mark("init");
+
     const agentResponses = latestResponseIds.get(runtime.agentId)!;
 
     // Skip messages from self
@@ -449,10 +454,14 @@ export class CloudBootstrapMessageService implements IMessageService {
       };
     }
 
-    // Compose initial state
+    perfTrace.mark("compose-state");
+    // PERF: Compose initial state with minimal providers.
+    // The full provider set (RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS) will be fetched
+    // once inside runMultiStepCore/runSingleShotCore and cached for the entire request.
+    // Avoid fetching RECENT_MESSAGES and ACTIONS twice by only getting ENTITIES and CHARACTER here.
     let state = await runtime.composeState(
       message,
-      ["ENTITIES", "CHARACTER", "RECENT_MESSAGES", "ACTIONS"],
+      ["ENTITIES", "CHARACTER"],
       true,
     );
 
@@ -463,6 +472,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         String(runtime.getSetting("USE_MULTI_STEP") ?? "true"),
       );
 
+    perfTrace.mark("llm-processing");
     // Run appropriate processing strategy
     let result: StrategyResult;
     if (useMultiStep) {
@@ -573,6 +583,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       source: "CloudBootstrapMessageService",
     } as never);
 
+    perfTrace.mark("finalize");
+    perfTrace.end();
     logger.info(`[CloudBootstrap] Completed in ${Date.now() - startTime}ms`);
 
     return {
@@ -615,6 +627,8 @@ export class CloudBootstrapMessageService implements IMessageService {
       logger.debug("[MultiStep] MCP service ready");
     }
 
+    // PERF: Fetch stable providers ONCE upfront, then only refresh ACTION_STATE per iteration.
+    // RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS do not change during a single message processing cycle.
     accumulatedState = await runtime.composeState(
       message,
       [
@@ -628,6 +642,29 @@ export class CloudBootstrapMessageService implements IMessageService {
       true,
     );
     accumulatedState.data.actionResults = traceActionResult;
+
+    // Cache stable provider values from the initial composeState call.
+    // These providers fetch data that doesn't change during message processing:
+    // - RECENT_MESSAGES: messages in the room (we haven't added new ones to the query yet)
+    // - ACTIONS: available actions (static for the runtime)
+    // - USER_AUTH_STATUS: OAuth connections (static for the request)
+    // We snapshot the values object entries for these providers so composePromptFromState
+    // can resolve template variables (e.g., {{recentMessages}}, {{actionNames}}) correctly.
+    const cachedStableValues: Record<string, unknown> = {};
+    const stableProviderKeys = [
+      "recentMessages", "actions", "actionNames", "actionExamples",
+      "actionsWithDescriptions", "actionsWithParams", "userAuthStatus",
+    ];
+    for (const key of stableProviderKeys) {
+      const val = accumulatedState.values?.[key] ?? (accumulatedState as Record<string, unknown>)[key];
+      if (val !== undefined) {
+        cachedStableValues[key] = val;
+      }
+    }
+    // Also cache provider data (used by action execution, not templates)
+    const cachedStableData = accumulatedState.data
+      ? { actionsData: accumulatedState.data.actionsData }
+      : {};
 
     const streamThinking = async (
       phase: string,
@@ -669,17 +706,21 @@ export class CloudBootstrapMessageService implements IMessageService {
           },
         };
 
-        accumulatedState = await runtime.composeState(
+        // PERF: Only refresh ACTION_STATE per iteration (it changes after actions execute).
+        // Reuse cached RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS from the initial fetch.
+        const actionOnlyState = await runtime.composeState(
           messageWithResults,
           [
-            "RECENT_MESSAGES",
             "ACTION_STATE",
-            "ACTIONS",
-            "USER_AUTH_STATUS",
-            // NOTE: "MCP" provider removed - MCP tools are now native actions
           ],
           true,
         );
+        // Merge: start with fresh ACTION_STATE, overlay cached stable provider values
+        accumulatedState = {
+          ...actionOnlyState,
+          values: { ...actionOnlyState.values, ...cachedStableValues },
+          data: { ...actionOnlyState.data, ...cachedStableData },
+        };
         // Also set on state.data for consistency
         accumulatedState.data.actionResults = traceActionResult;
 
@@ -707,8 +748,10 @@ export class CloudBootstrapMessageService implements IMessageService {
         logger.info(`[LLM:multiStepDecision] User Prompt:\n${prompt}`);
         logger.info("==============================================");
 
+        // PERF: Reduced from 5 to 2 retries. Each retry adds 1-4s with exponential backoff.
+        // Fall back to raw text cleaning sooner rather than waiting 15+ seconds.
         const maxParseRetries = parseInt(
-          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "5"),
+          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
         );
         let stepResultRaw = "";
         let parsedStep: ParsedMultiStepDecision | null = null;
@@ -787,6 +830,7 @@ export class CloudBootstrapMessageService implements IMessageService {
               `[MultiStep] Task complete at iteration ${iterationCount}`,
             );
             await streamThinking("response", "\n--- Completing task ---\n");
+
             break;
           }
           logger.warn(
@@ -969,11 +1013,19 @@ export class CloudBootstrapMessageService implements IMessageService {
       },
     };
 
-    accumulatedState = await runtime.composeState(
+    // PERF: Only refresh ACTION_STATE and CHARACTER for the summary.
+    // Reuse cached RECENT_MESSAGES and USER_AUTH_STATUS from the initial fetch.
+    const summaryFreshState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "CHARACTER", "USER_AUTH_STATUS"],
+      ["ACTION_STATE", "CHARACTER"],
       true,
     );
+    // Merge: start with fresh ACTION_STATE + CHARACTER, overlay cached stable values
+    accumulatedState = {
+      ...summaryFreshState,
+      values: { ...summaryFreshState.values, ...cachedStableValues },
+      data: { ...summaryFreshState.data, ...cachedStableData },
+    };
     // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
 
@@ -992,8 +1044,9 @@ export class CloudBootstrapMessageService implements IMessageService {
     logger.info(`[LLM:multiStepSummary] User Prompt:\n${summaryPrompt}`);
     logger.info("==============================================");
 
+    // PERF: Reduced from 5 to 2 retries. Each retry adds 1-4s with exponential backoff.
     const maxSummaryRetries = parseInt(
-      String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "5"),
+      String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "2"),
     );
     let finalOutput = "";
     let summary: Record<string, unknown> | null = null;

@@ -74,10 +74,45 @@ function hashToken(token: string): string {
 }
 
 /**
+ * PERF: In-memory cache for Privy token verification (30s TTL).
+ * Eliminates Redis round-trip for repeated requests from the same user
+ * within the same serverless function instance. This saves ~5-301ms per request.
+ */
+const IN_MEMORY_PRIVY_CACHE = new Map<string, { claims: AuthTokenClaims; expiresAt: number }>();
+const IN_MEMORY_PRIVY_TTL_MS = 30_000; // 30 seconds
+const IN_MEMORY_PRIVY_MAX_SIZE = 200;
+
+function getFromInMemoryPrivyCache(tokenHash: string): AuthTokenClaims | null {
+  const entry = IN_MEMORY_PRIVY_CACHE.get(tokenHash);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    IN_MEMORY_PRIVY_CACHE.delete(tokenHash);
+    return null;
+  }
+  return entry.claims;
+}
+
+function setInMemoryPrivyCache(tokenHash: string, claims: AuthTokenClaims): void {
+  // Simple size-based eviction: clear half the cache when full
+  if (IN_MEMORY_PRIVY_CACHE.size >= IN_MEMORY_PRIVY_MAX_SIZE) {
+    const keys = Array.from(IN_MEMORY_PRIVY_CACHE.keys());
+    for (let i = 0; i < Math.floor(keys.length / 2); i++) {
+      IN_MEMORY_PRIVY_CACHE.delete(keys[i]);
+    }
+  }
+  IN_MEMORY_PRIVY_CACHE.set(tokenHash, {
+    claims,
+    expiresAt: Date.now() + IN_MEMORY_PRIVY_TTL_MS,
+  });
+}
+
+/**
  * Verify a Privy auth token with caching
  *
- * On cache hit: Returns cached claims immediately (~5ms)
- * On cache miss: Calls Privy API, caches result, returns claims (~100-200ms)
+ * Cache layers (fastest to slowest):
+ * 1. In-memory cache: ~0ms (same serverless instance, 30s TTL)
+ * 2. Redis cache: ~5ms (cross-instance, 5min TTL)
+ * 3. Privy API: ~100-200ms (external API call)
  *
  * @param token - The Privy auth token from cookies or Authorization header
  * @returns Verified claims or null if invalid/expired
@@ -91,7 +126,20 @@ export async function verifyAuthTokenCached(
   const startTime = Date.now();
 
   try {
-    // 1. Check cache first
+    // 0. PERF: Check in-memory cache first (eliminates Redis round-trip)
+    const inMemoryCached = getFromInMemoryPrivyCache(tokenHash);
+    if (inMemoryCached) {
+      const now = Math.floor(Date.now() / 1000);
+      if (inMemoryCached.expiration > now) {
+        logger.debug("[PrivyClient] ✓ In-memory cache hit for token verification", {
+          tokenHash: tokenHash.substring(0, 8),
+          durationMs: Date.now() - startTime,
+        });
+        return inMemoryCached;
+      }
+    }
+
+    // 1. Check Redis cache
     const cached = await cache.get<CachedPrivyClaims>(cacheKey);
 
     if (cached) {
@@ -105,13 +153,18 @@ export async function verifyAuthTokenCached(
         });
 
         // Return in the AuthTokenClaims format
-        return {
+        const redisCachedClaims = {
           userId: cached.userId,
           appId: cached.appId,
           issuer: cached.issuer,
           issuedAt: cached.issuedAt,
           expiration: cached.expiration,
         } as AuthTokenClaims;
+
+        // PERF: Populate in-memory cache from Redis hit to avoid Redis round-trip next time
+        setInMemoryPrivyCache(tokenHash, redisCachedClaims);
+
+        return redisCachedClaims;
       } else {
         // Token has expired, delete from cache
         logger.debug("[PrivyClient] Cached token expired, removing", {
@@ -134,7 +187,7 @@ export async function verifyAuthTokenCached(
       return null;
     }
 
-    // 3. Cache the result
+    // 3. Cache the result (both Redis and in-memory)
     // Calculate TTL: minimum of our configured TTL and token's remaining lifetime
     const now = Math.floor(Date.now() / 1000);
     const tokenRemainingSeconds = claims.expiration - now;
@@ -162,6 +215,9 @@ export async function verifyAuthTokenCached(
         durationMs: Date.now() - startTime,
       });
     }
+
+    // PERF: Also cache in-memory for subsequent requests in the same instance
+    setInMemoryPrivyCache(tokenHash, claims);
 
     return claims;
   } catch (error) {
@@ -191,12 +247,15 @@ export async function verifyAuthTokenCached(
 export async function invalidatePrivyTokenCache(token: string): Promise<void> {
   const tokenHash = hashToken(token);
 
+  // PERF: Also invalidate in-memory cache
+  IN_MEMORY_PRIVY_CACHE.delete(tokenHash);
+
   await Promise.all([
     cache.del(CacheKeys.session.privy(tokenHash)),
     cache.del(CacheKeys.session.user(tokenHash)),
   ]);
 
-  logger.debug("[PrivyClient] ✓ Invalidated token cache", {
+  logger.debug("[PrivyClient] ✓ Invalidated token cache (in-memory + Redis)", {
     tokenHash: tokenHash.substring(0, 8),
   });
 }

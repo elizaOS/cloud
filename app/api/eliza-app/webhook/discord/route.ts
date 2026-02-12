@@ -187,6 +187,41 @@ function processDiscordAttachments(data: DiscordMessageData): Media[] {
   return attachments;
 }
 
+/**
+ * PERF: Send "typing" indicator to Discord channel.
+ * Shows the user the bot is processing their message.
+ * Discord typing indicator lasts ~10 seconds.
+ */
+async function sendDiscordTypingAction(channelId: string): Promise<void> {
+  const { botToken } = elizaAppConfig.discord;
+  if (!botToken) return;
+
+  try {
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/typing`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bot ${botToken}`,
+      },
+    });
+  } catch (error) {
+    logger.debug("[ElizaApp DiscordWebhook] Failed to send typing action", {
+      channelId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Start a periodic typing indicator for Discord.
+ * Returns a cleanup function to stop the interval.
+ * Discord typing lasts ~10s, so we refresh every 8s.
+ */
+function startDiscordTypingIndicator(channelId: string): () => void {
+  sendDiscordTypingAction(channelId);
+  const interval = setInterval(() => sendDiscordTypingAction(channelId), 8000);
+  return () => clearInterval(interval);
+}
+
 async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse> {
   const payload: DiscordEventPayload = await request.json();
 
@@ -240,9 +275,14 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
+  // PERF: Start typing indicator immediately for instant user feedback.
+  // Discord typing lasts 10s, so we refresh every 8s.
+  const stopTyping = startDiscordTypingIndicator(data.channel_id);
+
   // Look up user - they must have completed OAuth first
   const userWithOrg = await elizaAppUserService.getByDiscordId(discordUserId);
   if (!userWithOrg?.organization) {
+    stopTyping();
     await sendDiscordMessage(
       data.channel_id,
       `Welcome! To chat with Eliza, please connect your Discord account first:\n\n${elizaAppConfig.appUrl}/get-started`,
@@ -295,6 +335,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   });
 
   if (!lock) {
+    stopTyping();
     logger.error("[ElizaApp DiscordWebhook] Failed to acquire room lock", { roomId });
     await releaseProcessingClaim(idempotencyKey);
     return NextResponse.json(
@@ -325,6 +366,8 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     // Process attachments (including voice)
     const attachments = processDiscordAttachments(data);
 
+    // PERF: Use single-shot mode for Discord (1 LLM call instead of 2+).
+    // Messaging app conversations are primarily conversational and don't need multi-step tool use.
     const result = await messageHandler.process({
       roomId,
       text,
@@ -338,6 +381,9 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
         ? responseContent
         : responseContent?.text || "";
 
+    // Stop typing indicator before sending the response
+    stopTyping();
+
     if (responseText) {
       await sendDiscordMessage(data.channel_id, responseText, data.id);
     } else {
@@ -350,6 +396,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    stopTyping();
     logger.error("[ElizaApp DiscordWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,

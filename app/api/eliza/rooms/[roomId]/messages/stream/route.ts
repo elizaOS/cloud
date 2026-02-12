@@ -33,6 +33,7 @@ import {
   type RequestContext,
   type UUID,
 } from "@elizaos/core";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -56,6 +57,10 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
+    // PERF: Granular timing for the entire request pipeline
+    const perfTrace = createPerfTrace("stream-route");
+    perfTrace.mark("parse-request");
+
     // Step 1: Parse request body FIRST (needed for session token check and agent mode)
     const { roomId } = await ctx.params;
     const body = await request.json();
@@ -132,6 +137,7 @@ export async function POST(
     }
 
     // Step 2: Authentication & Context Building
+    perfTrace.mark("auth");
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
@@ -141,30 +147,17 @@ export async function POST(
     // Set webSearchEnabled on context (defaults to true)
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
 
-    // Step 2.5: Check if user is blocked due to moderation violations
-    if (await contentModerationService.shouldBlockUser(userContext.userId)) {
-      logger.warn("[Stream] User blocked due to moderation violations", {
-        userId: userContext.userId,
-      });
-      return new Response(
-        JSON.stringify({
-          error:
-            "Your account has been suspended due to policy violations. Please contact support.",
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // Step 2.6: Start content moderation in parallel (non-blocking race pattern)
-    // Moderation runs alongside processing - if it flags content BEFORE we start streaming, we block
-    // If streaming starts first, moderation continues in background and tracks violations
+    perfTrace.mark("parallel-checks");
+    // PERF: Run independent checks in parallel after auth (Stan's primary recommendation).
+    // shouldBlockUser, room lookup, anonymous limit check, and app credits check
+    // are all independent reads that were previously sequential (~500-800ms savings).
     const moderationCheck = contentModerationService.startModerationCheck(
       text,
       userContext.userId,
       roomId,
     );
 
-    // The moderation continues in background - violations are logged and tracked
+    // Background moderation tracking (non-blocking)
     if (moderationCheck.moderationPromise) {
       moderationCheck.moderationPromise
         .then((result) => {
@@ -185,66 +178,86 @@ export async function POST(
         });
     }
 
-    // Step 3: Rate limiting for anonymous users
-    if (userContext.isAnonymous && userContext.sessionToken) {
-      const limitCheck = await checkAnonymousLimit(userContext.sessionToken);
+    // Run all independent checks in parallel
+    const [
+      isBlocked,
+      room,
+      anonymousLimitResult,
+      monetizationSettingsResult,
+    ] = await Promise.all([
+      // Check if user is blocked due to moderation violations
+      contentModerationService.shouldBlockUser(userContext.userId),
+      // Get room data (needed for character assignment)
+      roomsRepository.findById(roomId),
+      // Check anonymous rate limit (conditional but safe to always check)
+      (userContext.isAnonymous && userContext.sessionToken)
+        ? checkAnonymousLimit(userContext.sessionToken)
+        : Promise.resolve(null),
+      // Check app monetization settings (conditional but safe to always check)
+      userContext.appId
+        ? appCreditsService.getMonetizationSettings(userContext.appId)
+        : Promise.resolve(null),
+    ]);
 
-      if (!limitCheck.allowed) {
-        const errorMessage =
-          limitCheck.reason === "message_limit"
-            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue!`
-            : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
+    // Process parallel results: user block check
+    if (isBlocked) {
+      logger.warn("[Stream] User blocked due to moderation violations", {
+        userId: userContext.userId,
+      });
+      return new Response(
+        JSON.stringify({
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Process parallel results: anonymous rate limit
+    if (anonymousLimitResult && !anonymousLimitResult.allowed) {
+      const errorMessage =
+        anonymousLimitResult.reason === "message_limit"
+          ? `You've reached your free message limit (${anonymousLimitResult.limit} messages). Sign up to continue!`
+          : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
+
+      return new Response(
+        JSON.stringify({
+          error: errorMessage,
+          requiresSignup: true,
+          reason: anonymousLimitResult.reason,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Process parallel results: app credit balance check
+    if (monetizationSettingsResult?.monetizationEnabled && userContext.appId) {
+      const MINIMUM_MESSAGE_COST = 0.001;
+      const balanceCheck = await appCreditsService.checkBalance(
+        userContext.appId,
+        userContext.userId,
+        MINIMUM_MESSAGE_COST,
+      );
+
+      if (!balanceCheck.sufficient) {
+        logger.warn("[Stream] Insufficient app credits", {
+          appId: userContext.appId,
+          userId: userContext.userId,
+          balance: balanceCheck.balance,
+          required: MINIMUM_MESSAGE_COST,
+        });
 
         return new Response(
           JSON.stringify({
-            error: errorMessage,
-            requiresSignup: true,
-            reason: limitCheck.reason,
+            error: "Insufficient credits",
+            details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
+            requiresPurchase: true,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } },
+          { status: 402, headers: { "Content-Type": "application/json" } },
         );
       }
     }
-
-    // Step 3.5: App credit balance check (miniapp billing)
-    // Only check if app has monetization enabled - otherwise user uses org credits
-    if (userContext.appId) {
-      const monetizationSettings =
-        await appCreditsService.getMonetizationSettings(userContext.appId);
-
-      // Only enforce app-specific credit check if monetization is enabled
-      if (monetizationSettings?.monetizationEnabled) {
-        // Estimate minimum cost (actual cost calculated after processing)
-        const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
-
-        const balanceCheck = await appCreditsService.checkBalance(
-          userContext.appId,
-          userContext.userId,
-          MINIMUM_MESSAGE_COST,
-        );
-
-        if (!balanceCheck.sufficient) {
-          logger.warn("[Stream] Insufficient app credits", {
-            appId: userContext.appId,
-            userId: userContext.userId,
-            balance: balanceCheck.balance,
-            required: MINIMUM_MESSAGE_COST,
-          });
-
-          return new Response(
-            JSON.stringify({
-              error: "Insufficient credits",
-              details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
-              requiresPurchase: true,
-            }),
-            { status: 402, headers: { "Content-Type": "application/json" } },
-          );
-        }
-      }
-    }
-
-    // Step 4: Get character assignment for room from agentId (single source of truth)
-    const room = await roomsRepository.findById(roomId);
+    perfTrace.mark("character-check");
     let characterId: string | undefined = room?.agentId || undefined;
 
     // Step 4.1: Check if room is locked (character was created/saved)
@@ -398,6 +411,7 @@ export async function POST(
       logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
+    perfTrace.mark("entity-settings");
     // Step 5.5: Prefetch entity settings for this user
     // This enables per-user API keys, OAuth tokens, etc. in multi-tenant deployments
     // The default agentId (Eliza) is used if no characterId is specified
@@ -435,6 +449,7 @@ export async function POST(
       organizationId: userContext.organizationId,
     };
 
+    perfTrace.mark("create-runtime");
     // Step 6: Create runtime with user context (clean, no key fetching here!)
     // Wrapped in request context so getSetting() checks entitySettings first
     const runtime = await runWithRequestContext(requestContext, () =>
@@ -477,6 +492,7 @@ export async function POST(
       );
     }
 
+    perfTrace.mark("message-handler");
     // Step 7: Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);
 
@@ -579,6 +595,7 @@ export async function POST(
         };
 
         // Process message and get response (using user's actual ID)
+        perfTrace.mark("message-processing");
         logger.info("[Stream Messages] Processing message with streaming...");
         const result = await messageHandler.process({
           roomId,
@@ -659,10 +676,24 @@ export async function POST(
           }
         }
 
-        // Send completion event
-        await sendEvent("done", { timestamp: Date.now() });
+        // PERF: End trace and log all phase timings
+        perfTrace.mark("send-response");
+        const traceResult = perfTrace.end();
+
+        // Send completion event with perf trace data
+        await sendEvent("done", {
+          timestamp: Date.now(),
+          perfTrace: {
+            totalMs: traceResult.totalMs,
+            phases: traceResult.phases.map((p) => ({
+              name: p.name,
+              durationMs: p.durationMs,
+            })),
+          },
+        });
       } catch (error) {
         logger.error("[Stream Messages] Error:", error);
+        perfTrace.end(); // Ensure trace is logged even on error
         await sendEvent("error", {
           message: error instanceof Error ? error.message : "Processing failed",
         });

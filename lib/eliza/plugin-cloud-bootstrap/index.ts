@@ -55,7 +55,41 @@ class MessageServiceInstaller extends Service {
   async stop(): Promise<void> {}
 }
 
+// PERF: Track logged runIds to prevent duplicate log writes per run.
+// Each run should only log RUN_STARTED once and RUN_ENDED/RUN_TIMEOUT once.
+const loggedRunIds = new Map<string, Set<string>>();
+const MAX_LOGGED_RUN_IDS = 500; // Prevent unbounded growth
+
+function cleanupLoggedRunIds(): void {
+  if (loggedRunIds.size > MAX_LOGGED_RUN_IDS) {
+    // Remove oldest entries (first half)
+    const keys = Array.from(loggedRunIds.keys());
+    const toRemove = keys.slice(0, Math.floor(keys.length / 2));
+    for (const key of toRemove) {
+      loggedRunIds.delete(key);
+    }
+  }
+}
+
+// PERF: Cap payload size to prevent >1MB log writes from blocking the pipeline
+const MAX_LOG_BODY_SIZE = 10_000; // 10KB max for log body JSON
+
 async function logRunEvent(payload: RunEventPayload): Promise<void> {
+  const runId = payload.runId as string;
+  const status = payload.status as string;
+
+  // Deduplicate: skip if this runId+status combo was already logged
+  if (!loggedRunIds.has(runId)) {
+    loggedRunIds.set(runId, new Set());
+    cleanupLoggedRunIds();
+  }
+  const loggedStatuses = loggedRunIds.get(runId)!;
+  if (loggedStatuses.has(status)) {
+    logger.debug(`[CloudBootstrap] Skipping duplicate log: runId=${runId} status=${status}`);
+    return;
+  }
+  loggedStatuses.add(status);
+
   const body: Record<string, unknown> = {
     runId: payload.runId,
     status: payload.status,
@@ -69,13 +103,29 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
   // Only include end-state fields when present
   if (payload.endTime !== undefined) body.endTime = payload.endTime;
   if (payload.duration !== undefined) body.duration = payload.duration;
-  if (payload.error !== undefined) body.error = payload.error;
+  if (payload.error !== undefined) {
+    // Cap error message size
+    const errorStr = String(payload.error);
+    body.error = errorStr.length > 1000 ? errorStr.substring(0, 1000) + "...(truncated)" : errorStr;
+  }
 
-  await payload.runtime.log({
+  // PERF: Cap total payload size to prevent oversized writes from blocking
+  const bodyJson = JSON.stringify(body);
+  if (bodyJson.length > MAX_LOG_BODY_SIZE) {
+    logger.warn(`[CloudBootstrap] Log payload too large (${bodyJson.length} bytes), truncating`);
+    body.error = body.error || "(payload truncated)";
+    body._truncated = true;
+  }
+
+  // PERF: Fire-and-forget -- don't await the log write, let it complete in the background.
+  // This prevents synchronous log writes from blocking the response pipeline.
+  payload.runtime.log({
     entityId: payload.entityId,
     roomId: payload.roomId,
     type: "run_event",
     body,
+  }).catch((e) => {
+    logger.debug(`[CloudBootstrap] Background log write failed: ${e}`);
   });
 }
 
