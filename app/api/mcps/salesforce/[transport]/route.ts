@@ -379,7 +379,7 @@ async function getSalesforceMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/salesforce", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/salesforce/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

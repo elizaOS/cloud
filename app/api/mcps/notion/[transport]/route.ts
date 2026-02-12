@@ -434,7 +434,7 @@ async function getNotionMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/notion", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/notion/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

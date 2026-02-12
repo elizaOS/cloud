@@ -240,7 +240,7 @@ async function getGoogleMcpHandler() {
       });
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/google", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/google/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

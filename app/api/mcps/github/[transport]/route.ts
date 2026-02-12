@@ -1037,7 +1037,7 @@ async function getGitHubMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/github", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/github/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

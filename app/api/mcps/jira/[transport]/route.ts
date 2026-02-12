@@ -447,7 +447,7 @@ async function getJiraMcpHandler() {
       });
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/jira", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/jira/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

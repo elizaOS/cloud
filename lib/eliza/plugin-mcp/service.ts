@@ -64,6 +64,8 @@ export class McpService extends Service {
 
   private connections = new Map<string, McpConnection>();
   private connectionStates = new Map<string, ConnectionState>();
+  /** Tracks the API key used when each connection was created, for staleness detection. */
+  private connectionApiKeys = new Map<string, string>();
   private mcpProvider: McpProvider = {
     values: { mcp: {}, mcpText: "" },
     data: { mcp: {} },
@@ -282,6 +284,7 @@ export class McpService extends Service {
       }
       this.connections.delete(name);
     }
+    this.connectionApiKeys.delete(name);
     const state = this.connectionStates.get(name);
     if (state) {
       if (state.pingInterval) clearInterval(state.pingInterval);
@@ -325,6 +328,11 @@ export class McpService extends Service {
       }
     }
 
+    // Track API key used for this connection so we can detect rotation later
+    if (apiKey && typeof apiKey === "string") {
+      this.connectionApiKeys.set(name, apiKey);
+    }
+
     const opts = Object.keys(headers).length > 0 ? { requestInit: { headers } } : undefined;
     return new StreamableHTTPClientTransport(url, opts);
   }
@@ -336,6 +344,12 @@ export class McpService extends Service {
     isStdio: boolean
   ): void {
     conn.transport.onerror = async (e) => {
+      const isAbortError = e?.name === "AbortError";
+      if (!isStdio && isAbortError) {
+        logger.debug({ error: e, server: name }, `[MCP] Suppressed transport AbortError: ${name}`);
+        return;
+      }
+
       const msg = e?.message || "";
       if (isStdio || (!msg.includes("SSE") && !msg.includes("timeout") && msg !== "undefined")) {
         logger.error({ error: e, server: name }, `[MCP] Transport error: ${name}`);
@@ -555,6 +569,14 @@ export class McpService extends Service {
     return this.tier2Index;
   }
 
+  /** Remove promoted actions from both the source array and BM25 index. */
+  removeFromTier2(actionNames: string[]): void {
+    if (actionNames.length === 0) return;
+    const nameSet = new Set(actionNames);
+    this.tier2Tools = this.tier2Tools.filter((t) => !nameSet.has(t.actionName));
+    this.tier2Index.build(this.tier2Tools);
+  }
+
   isLazyConnection(serverName: string): boolean {
     return this.lazyConnections.has(serverName);
   }
@@ -586,7 +608,20 @@ export class McpService extends Service {
     await requestContextReady;
 
     const connectionKey = this.getConnectionKey(serverName);
-    if (this.connections.has(connectionKey) || this.connections.has(serverName)) return;
+
+    // API key freshness guard: if the key rotated since connection creation, disconnect stale connection
+    const matchedKey = this.connections.has(connectionKey) ? connectionKey
+      : this.connections.has(serverName) ? serverName : null;
+    if (matchedKey) {
+      const currentKey = this.runtime.getSetting("ELIZAOS_API_KEY") ?? "";
+      const storedKey = this.connectionApiKeys.get(matchedKey) ?? "";
+      if (currentKey !== storedKey) {
+        logger.info(`[MCP] API key changed for ${matchedKey}, reconnecting`);
+        await this.disconnect(matchedKey);
+      } else {
+        return;
+      }
+    }
 
     // Serialize per-key to prevent concurrent requests from creating duplicate connections
     const inflight = this.connectionLocks.get(connectionKey);

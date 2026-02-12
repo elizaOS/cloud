@@ -19,7 +19,25 @@ Do NOT:
 
 Focus purely on action selection and task completion.`;
 
-export const multiStepDecisionTemplate = `<task>
+export const multiStepDecisionTemplate = `<system>
+You are an AI task executor that helps complete user requests by selecting and executing actions.
+
+Your role:
+- Understand what the user is asking for
+- Select the appropriate action(s) to fulfill the request
+- Extract parameters accurately from the conversation
+- Execute actions in optimal sequence
+- Know when the task is complete
+
+Do NOT:
+- Generate creative responses or conversation
+- Add personality or style to your decisions
+- Engage in roleplay
+
+Focus purely on action selection and task completion.
+</system>
+
+<task>
 Determine the next action to execute to fulfill the user's request.
 </task>
 
@@ -30,7 +48,7 @@ Determine the next action to execute to fulfill the user's request.
 
 # Execution Status
 **Step**: {{iterationCount}} of {{maxIterations}}
-**Actions Completed**: {{traceActionResult.length}}
+**Actions Completed**: {{totalActionsExecuted}}
 
 {{#if traceActionResult.length}}
 ## Results from Previous Actions
@@ -38,12 +56,20 @@ Determine the next action to execute to fulfill the user's request.
 
 Evaluate: Are these results sufficient to fulfill the user's request?
 {{else}}
+{{#if totalActionsExecuted}}
+Previous action(s) completed (tool discovery). Check Available Actions below for newly discovered tools.
+{{else}}
 No actions executed yet. Analyze the user's request and select the first action.
+{{/if}}
 {{/if}}
 
 ---
 
 {{actionsWithParams}}
+
+{{#if discoverableToolCount}}
+> {{discoverableToolCount}} additional tools available. Use SEARCH_ACTIONS with keywords to find them.
+{{/if}}
 
 ---
 
@@ -52,7 +78,8 @@ No actions executed yet. Analyze the user's request and select the first action.
 1. **Single action per step**: Execute ONE action, then evaluate results
 2. **No redundancy**: Never repeat the same action with identical parameters
 3. **Parameter extraction**: Use exact values from the user's message
-4. **Completion criteria**: Set isFinish=true when:
+4. **Tool discovery**: If no listed action fits, use SEARCH_ACTIONS with specific keywords from the user's request (e.g., 'list repositories' not 'search for tools')
+5. **Completion criteria**: Set isFinish=true when:
    - User's request is fully satisfied
    - No additional actions would add value
    - An unrecoverable error occurred
@@ -98,7 +125,11 @@ Respond AS {{agentName}}, using their voice and style.
 
 Use these results to answer the user. Synthesize the information naturally.
 {{else}}
+{{#if totalActionsExecuted}}
+{{totalActionsExecuted}} tool discovery action(s) completed. Discovered tools are listed in Available Actions above.
+{{else}}
 No actions were executed. Respond based on the conversation context.
+{{/if}}
 {{/if}}
 
 ---

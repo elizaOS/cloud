@@ -411,7 +411,7 @@ async function getAirtableMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/airtable", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/airtable/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

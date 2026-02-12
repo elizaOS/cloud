@@ -447,7 +447,8 @@ const handler = createMcpHandler(
   },
   {
     redisUrl: process.env.REDIS_URL,
-    basePath: "/api/mcps/crypto",
+    streamableHttpEndpoint: "/api/mcps/crypto/streamable-http",
+    disableSse: true,
     maxDuration: 300,
   },
 );

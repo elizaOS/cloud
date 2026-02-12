@@ -325,7 +325,7 @@ async function getZoomMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/zoom", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/zoom/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

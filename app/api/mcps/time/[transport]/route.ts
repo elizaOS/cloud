@@ -778,7 +778,8 @@ const handler = createMcpHandler(
   },
   {
     redisUrl: process.env.REDIS_URL,
-    basePath: "/api/mcps/time",
+    streamableHttpEndpoint: "/api/mcps/time/streamable-http",
+    disableSse: true,
     maxDuration: 30,
   },
 );

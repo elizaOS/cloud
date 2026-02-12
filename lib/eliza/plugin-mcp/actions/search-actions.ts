@@ -10,15 +10,19 @@ import {
 import type { McpService } from "../service";
 import { MCP_SERVICE_NAME } from "../types";
 import { createMcpToolAction } from "./dynamic-tool-actions";
+import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 
 // ─── SEARCH_ACTIONS ─────────────────────────────────────────────────────────
 
-export const searchActionsAction: Action = {
+export const searchActionsAction: ActionWithParams = {
   name: "SEARCH_ACTIONS",
   description:
-    "Search for available MCP tool actions by keyword. Discovers tools beyond the always-visible set. " +
-    "Returns matching actions with descriptions and parameter schemas. " +
-    "Found actions are automatically registered so the agent can use them.",
+    "Search for additional tool actions not shown in your current toolset. " +
+    "Uses BM25 keyword matching against action names and descriptions across all connected platforms. " +
+    "IMPORTANT: Use specific verbs and nouns from the user's request as the query. " +
+    "Good queries: 'list pull requests', 'send email', 'create calendar event'. " +
+    "Bad queries: 'search tools', 'find actions', 'capabilities'. " +
+    "If the user's request is vague, search for the platform name (e.g., 'linear', 'github').",
   similes: [
     "FIND_ACTIONS",
     "DISCOVER_ACTIONS",
@@ -27,6 +31,36 @@ export const searchActionsAction: Action = {
     "DISCOVER_TOOLS",
     "LOOKUP_ACTIONS",
   ],
+  parameters: {
+    query: {
+      type: "string",
+      description:
+        "Keyword search query matched against action names and descriptions. " +
+        "Use specific verbs and nouns (e.g., 'create calendar event', 'list pull requests', 'send email').",
+      required: true,
+    },
+    platform: {
+      type: "string",
+      description: "Filter results to a single connected platform. Omit to search all.",
+      required: false,
+      enum: [
+        "google", "github", "linear", "notion", "jira", "asana",
+        "airtable", "salesforce", "dropbox", "microsoft", "zoom", "linkedin",
+      ],
+    },
+    limit: {
+      type: "number",
+      description: "Maximum results to return (default 10, max 20).",
+      required: false,
+      default: 10,
+    },
+    offset: {
+      type: "number",
+      description: "Skip first N results for pagination when initial search didn't find what you need.",
+      required: false,
+      default: 0,
+    },
+  },
 
   validate: async () => true,
 
@@ -35,7 +69,7 @@ export const searchActionsAction: Action = {
     message: Memory,
     state?: State,
     _options?: Record<string, unknown>,
-    callback?: HandlerCallback
+    _callback?: HandlerCallback
   ): Promise<ActionResult> => {
     const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
     if (!svc) {
@@ -51,35 +85,40 @@ export const searchActionsAction: Action = {
 
     const query = (params.query as string) || (content.text as string) || "";
     const platform = (params.platform as string) || undefined;
-    const rawLimit = Number(params.limit) || 8;
+    const rawLimit = Number(params.limit) || 10;
     const limit = Math.min(Math.max(rawLimit, 1), 20);
+    const offset = Math.max(Number(params.offset) || 0, 0);
 
     if (!query.trim()) {
       return { success: false, error: "A search query is required" };
     }
 
     const tier2Index = svc.getTier2Index();
-    const results = tier2Index.search(query, platform, limit);
+    const results = tier2Index.search(query, platform, limit, offset);
 
     if (results.length === 0) {
-      const text = platform
-        ? `No actions found matching "${query}" for platform "${platform}".`
-        : `No actions found matching "${query}".`;
-      if (callback) await callback({ text });
-      return { success: true, text, data: { query, platform, resultCount: 0 } };
+      return {
+        success: true,
+        text: platform
+          ? `No actions found matching "${query}" for platform "${platform}".`
+          : `No actions found matching "${query}".`,
+        data: { query, platform, offset, resultCount: 0, totalAvailable: tier2Index.getToolCount() },
+      };
     }
 
     // Register discovered actions on the runtime (skip already-registered).
-    // Re-check runtime.actions right before each registration to avoid races
-    // with concurrent SEARCH_ACTIONS calls.
     const existingNames = new Set(runtime.actions.map((a) => a.name));
     const newlyRegistered: string[] = [];
+    const alreadyRegistered: string[] = [];
 
     for (const entry of results) {
-      if (existingNames.has(entry.actionName)) continue;
-      // TOCTOU mitigation: re-check against live runtime.actions
+      if (existingNames.has(entry.actionName)) {
+        alreadyRegistered.push(entry.actionName);
+        continue;
+      }
       if (runtime.actions.some((a) => a.name === entry.actionName)) {
         existingNames.add(entry.actionName);
+        alreadyRegistered.push(entry.actionName);
         continue;
       }
       const action = createMcpToolAction(entry.serverName, entry.tool, existingNames);
@@ -88,24 +127,14 @@ export const searchActionsAction: Action = {
       newlyRegistered.push(action.name);
     }
 
-    // Format results like the ACTIONS provider does
-    const lines: string[] = [`Found ${results.length} action(s) for "${query}":\n`];
-    for (const entry of results) {
-      const desc = entry.tool.description || "No description";
-      const props = entry.tool.inputSchema?.properties;
-      const paramSummary = props
-        ? Object.keys(props as Record<string, unknown>).join(", ")
-        : "none";
-      lines.push(`- **${entry.actionName}**: ${desc}`);
-      lines.push(`  Platform: ${entry.platform} | Params: ${paramSummary}`);
-    }
-
+    // Remove promoted actions from both Tier-2 source array and BM25 index
+    // so discoverableToolCount stays accurate and reconnect doesn't restore them
     if (newlyRegistered.length > 0) {
-      lines.push(`\n${newlyRegistered.length} new action(s) registered and ready to use.`);
+      svc.removeFromTier2(newlyRegistered);
     }
 
-    const text = lines.join("\n");
-    if (callback) await callback({ text });
+    // Transparent: no callback — results appear as new actions in next iteration's Available Actions
+    const text = `Registered ${newlyRegistered.length} new action(s) for "${query}". They are now callable.`;
 
     return {
       success: true,
@@ -113,8 +142,11 @@ export const searchActionsAction: Action = {
       data: {
         query,
         platform,
+        offset,
         resultCount: results.length,
+        totalAvailable: tier2Index.getToolCount(),
         newlyRegistered,
+        alreadyRegistered,
         actions: results.map((r) => ({
           name: r.actionName,
           serverName: r.serverName,

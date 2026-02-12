@@ -119,10 +119,11 @@ class OAuthService {
     const adapter = await this.findAdapterForConnection(connectionId);
     if (!adapter) throw Errors.connectionNotFound(connectionId);
 
-    // Increment version to invalidate all cached tokens for this platform
-    await incrementOAuthVersion(organizationId, adapter.platform);
-
+    // Revoke FIRST, then bump version — prevents race where concurrent
+    // getValidToken caches a still-active token under the new version key.
     await adapter.revoke(organizationId, connectionId);
+
+    await incrementOAuthVersion(organizationId, adapter.platform);
     const version = await getOAuthVersion(organizationId, adapter.platform);
     await tokenCache.invalidate(organizationId, connectionId, version);
 

@@ -735,7 +735,8 @@ const handler = createMcpHandler(
   },
   {
     redisUrl: process.env.REDIS_URL,
-    basePath: "/api/mcps/weather",
+    streamableHttpEndpoint: "/api/mcps/weather/streamable-http",
+    disableSse: true,
     maxDuration: 30,
   },
 );

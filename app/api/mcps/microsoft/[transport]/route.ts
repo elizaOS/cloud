@@ -236,7 +236,7 @@ async function getMicrosoftMcpHandler() {
       });
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/microsoft", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/microsoft/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

@@ -210,7 +210,7 @@ async function getLinkedInMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/linkedin", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/linkedin/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

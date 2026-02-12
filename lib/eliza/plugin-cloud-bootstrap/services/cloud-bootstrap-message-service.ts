@@ -29,20 +29,20 @@ import {
   multiStepDecisionTemplate,
   multiStepSummaryTemplate,
   shouldRespondTemplate,
-  MULTISTEP_DECISION_SYSTEM,
 } from "../templates/multi-step";
 import {
   refreshStateAfterAction,
   getActionResultsFromCache,
 } from "../utils/state";
-import type {
-  MultiStepActionResult,
-  StrategyMode,
-  StrategyResult,
-  CloudMessageOptions,
-  ParsedMultiStepDecision,
-  StreamChunkCallback,
-  ReasoningChunkCallback,
+import {
+  type MultiStepActionResult,
+  type StrategyMode,
+  type StrategyResult,
+  type CloudMessageOptions,
+  type ParsedMultiStepDecision,
+  type StreamChunkCallback,
+  type ReasoningChunkCallback,
+  TRANSPARENT_META_ACTIONS,
 } from "../types";
 
 const latestResponseIds = new Map<string, Map<string, string>>();
@@ -596,14 +596,14 @@ export class CloudBootstrapMessageService implements IMessageService {
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
     const traceActionResult: MultiStepActionResult[] = [];
+    let totalActionsExecuted = 0;
+    let lastActionKey = "";
     let accumulatedState: State = state;
 
     const maxIterations =
       options?.maxMultiStepIterations ??
       parseInt(String(runtime.getSetting("MAX_MULTISTEP_ITERATIONS") ?? "6"));
     let iterationCount = 0;
-
-    const originalSystemPrompt = runtime.character.system;
 
     // Wait for MCP service to finish initializing (registering tool actions)
     const mcpService = runtime.getService("mcp");
@@ -642,13 +642,10 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     };
 
-    runtime.character.system = MULTISTEP_DECISION_SYSTEM;
-
-    try {
-      while (iterationCount < maxIterations) {
-        iterationCount++;
-        logger.debug(
-          `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
+    while (iterationCount < maxIterations) {
+      iterationCount++;
+      logger.debug(
+        `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
         );
 
         await streamThinking(
@@ -688,6 +685,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           iterationCount,
           maxIterations,
           traceActionResult,
+          totalActionsExecuted,
         };
 
         const prompt = composePromptFromState({
@@ -780,6 +778,27 @@ export class CloudBootstrapMessageService implements IMessageService {
         }
 
         const { thought, action, isFinish, parameters } = parsedStep;
+
+        // Dedup guard: detect identical consecutive calls
+        // Sort keys for deterministic comparison (key order varies across LLM outputs)
+        const canonicalParams = (() => {
+          if (!parameters || typeof parameters !== "object") return JSON.stringify(parameters || {});
+          const obj = parameters as Record<string, unknown>;
+          const sorted: Record<string, unknown> = {};
+          for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
+          return JSON.stringify(sorted);
+        })();
+        const dedupKey = action ? `${action}::${canonicalParams}` : "";
+        if (action && dedupKey === lastActionKey) {
+          logger.warn(`[MultiStep] Duplicate action detected: ${action} with same params. Forcing completion.`);
+          traceActionResult.push({
+            data: { actionName: action },
+            success: false,
+            error: `Duplicate call detected — ${action} was already executed with these parameters. Try a different action or set isFinish=true.`,
+          });
+          break;
+        }
+        lastActionKey = dedupKey;
 
         if (!action) {
           if (isFinish === "true" || isFinish === true) {
@@ -896,7 +915,16 @@ export class CloudBootstrapMessageService implements IMessageService {
             values: result?.values as Record<string, unknown> | undefined,
             error: success ? undefined : (result?.text as string | undefined),
           };
-          traceActionResult.push(actionResult);
+
+          // Transparent meta-actions (e.g., SEARCH_ACTIONS) don't appear in
+          // # Previous Action Results on success — their side-effects (registering
+          // new actions) are sufficient. Failures are still recorded so the LLM
+          // can retry with different parameters.
+          const isTransparent = TRANSPARENT_META_ACTIONS.has(action) && actionResult.success;
+          if (!isTransparent) {
+            traceActionResult.push(actionResult);
+          }
+          totalActionsExecuted++;
 
           await streamThinking(
             "actions",
@@ -945,13 +973,10 @@ export class CloudBootstrapMessageService implements IMessageService {
         }
       }
 
-      if (iterationCount >= maxIterations) {
-        logger.warn(
-          `[MultiStep] Reached maximum iterations (${maxIterations})`,
-        );
-      }
-    } finally {
-      runtime.character.system = originalSystemPrompt;
+    if (iterationCount >= maxIterations) {
+      logger.warn(
+        `[MultiStep] Reached maximum iterations (${maxIterations})`,
+      );
     }
 
     await streamThinking("response", "\n--- Generating final response ---\n");
@@ -971,11 +996,14 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     accumulatedState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "CHARACTER", "USER_AUTH_STATUS"],
+      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS"],
       true,
     );
     // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
+    accumulatedState.totalActionsExecuted = totalActionsExecuted;
+    accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
+    accumulatedState.values.hasActionResults = traceActionResult.length > 0;
 
     const summaryPrompt = composePromptFromState({
       state: accumulatedState,

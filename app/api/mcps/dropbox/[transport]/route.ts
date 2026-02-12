@@ -371,7 +371,7 @@ async function getDropboxMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/dropbox", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/dropbox/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

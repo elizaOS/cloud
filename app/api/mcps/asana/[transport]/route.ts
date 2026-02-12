@@ -393,7 +393,7 @@ async function getAsanaMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/asana", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/asana/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

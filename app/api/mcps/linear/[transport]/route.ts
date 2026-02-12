@@ -827,7 +827,7 @@ async function getLinearMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/linear", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/linear/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;

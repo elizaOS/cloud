@@ -158,53 +158,209 @@ function isCrucialTool(serverName: string, toolName: string): boolean {
 
 ### `SEARCH_ACTIONS`
 
-**Description:** Search for additional tools across connected platforms. Found tools become available as normal actions in subsequent steps.
+**Description:** A transparent meta-action that discovers Tier-2 tools and registers them on the runtime. Unlike normal actions, SEARCH_ACTIONS does not produce visible output in `# Previous Action Results`. Its sole effect is that found tools appear in `# Available Actions (with parameter schemas)` on the next multi-step iteration. The LLM never sees SEARCH_ACTIONS as a "result" — it simply sees new tools become available.
 
-**Input Schema:**
+#### 4.1 Input Schema
+
 ```typescript
-{
-  query: string;          // Required. Natural language search query.
-  platform?: string;      // Optional. Filter to specific provider (e.g., "github").
-  limit?: number;         // Optional. Max results, default 8, max 20.
+interface SearchActionsInput {
+  /**
+   * Search keywords matched against tool names, descriptions, and provider tags.
+   * Uses BM25 keyword matching — specific nouns and verbs work best.
+   * Good: "list commits", "send email", "create calendar event"
+   * Bad: "stuff", "do things", "help me"
+   */
+  query: string;          // Required
+
+  /**
+   * Filter results to a single OAuth provider.
+   * Enum: "google" | "linear" | "github" | "notion" | "asana" | "dropbox"
+   *      | "salesforce" | "airtable" | "zoom" | "jira" | "linkedin" | "microsoft"
+   */
+  platform?: string;      // Optional
+
+  /**
+   * Maximum number of results to return.
+   * Clamped to [1, 20].
+   */
+  limit?: number;         // Optional, default: 10, max: 20
+
+  /**
+   * Skip first N results. Use with limit for pagination through large catalogs.
+   * Example: limit=10, offset=10 returns results 11-20.
+   */
+  offset?: number;        // Optional, default: 0
 }
 ```
 
-**Handler behavior:**
+#### 4.2 Handler Behavior
 
-1. BM25 search the Tier-2 catalog (pre-filtered by user's connected OAuth platforms)
-2. For each result, check if already registered on runtime
-3. If not registered: call `createMcpToolAction(serverName, tool, existingNames)` → push to `runtime.actions`
-4. Return formatted output matching `actionsWithParams` format (same as ACTIONS provider uses)
+1. Extract `query`, `platform`, `limit`, `offset` from action parameters.
+2. Validate `query` is non-empty. Return error if missing (errors ARE visible — see 4.3).
+3. BM25 search the Tier-2 catalog. Pre-filter by user's connected OAuth platforms. Apply `platform` filter if provided.
+4. Apply `offset` (skip first N results), then take up to `limit` results.
+5. For each result, check if already registered on `runtime.actions` (by action name).
+6. If not registered: call `createMcpToolAction(serverName, tool, existingNames)` → `runtime.registerAction(action)`.
+7. Return `ActionResult` with `success: true` and metadata (see 4.5 for data shape). **Do not** call `callback()` — the text output is intentionally suppressed.
 
-**Output:**
+#### 4.3 Transparency Rule
+
+SEARCH_ACTIONS is a **transparent** action. Its execution trace is handled differently from all other actions:
+
+| Aspect | Normal Actions | SEARCH_ACTIONS |
+|--------|---------------|----------------|
+| Recorded in `traceActionResult[]` | Yes | **No** (suppressed) |
+| Visible in `# Previous Action Results` | Yes | **No** |
+| Tools registered on `runtime.actions` | N/A | **Yes** — the only side effect |
+| Tools visible in `# Available Actions` next iteration | N/A | **Yes** |
+| Error on failure | Shown in results | **Yes** — errors ARE recorded in `traceActionResult[]` |
+
+**Implementation:** The multi-step loop in `CloudBootstrapMessageService` checks `actionName === "SEARCH_ACTIONS"` after execution. On success, the result is **not** pushed to `traceActionResult[]`. On failure (`success: false`), the error IS pushed so the LLM can recover.
+
+**Why transparent?** If SEARCH_ACTIONS output appeared in `# Previous Action Results`, the LLM would see a wall of tool descriptions as "results" and might try to summarize them instead of using them. By suppressing the output and letting tools appear naturally in `# Available Actions`, the LLM treats discovered tools identically to Tier-1 tools — no special handling needed.
+
+#### 4.4 Return Value Shape
+
+```typescript
+// On success:
+{
+  success: true,
+  data: {
+    query: string,
+    platform: string | undefined,
+    offset: number,
+    limit: number,
+    resultCount: number,          // total results returned
+    totalAvailable: number,       // total matches before offset/limit (for pagination)
+    newlyRegistered: string[],    // action names registered this call
+    alreadyRegistered: string[],  // action names that were already on runtime
+  }
+}
+
+// On error (e.g., empty query):
+{
+  success: false,
+  error: "A search query is required"
+}
 ```
-Found 3 additional actions:
 
-## GITHUB_LIST_COMMITS
-List commits for a repository branch
-Parameters:
-- `owner` (required): string - Repository owner
-- `repo` (required): string - Repository name
-- `sha` (optional): string - Branch name or commit SHA
-- `per_page` (optional): number - Results per page (default 30)
+Note: Even though `success: true` results are not shown to the LLM, the return value is used internally for logging, analytics, and debugging.
 
-## GITHUB_GET_COMMIT
-Get details of a specific commit
-Parameters:
-- `owner` (required): string - Repository owner
-- `repo` (required): string - Repository name
-- `ref` (required): string - Commit SHA
+#### 4.5 Examples
 
-## GITHUB_COMPARE_COMMITS
-Compare two commits
-Parameters:
-- `owner` (required): string - Repository owner
-- `repo` (required): string - Repository name
-- `base` (required): string - Base commit SHA
-- `head` (required): string - Head commit SHA
+**Example 1: Search → Discover → Use**
+
+```
+Iteration 1:
+  # Available Actions (with parameter schemas)
+  ... Tier-1 tools (github_list_repos, github_list_prs, ...) ...
+  SEARCH_ACTIONS, LIST_CONNECTIONS
+
+  LLM decides: "I need to list commits but don't see that action. Search for it."
+  LLM calls: SEARCH_ACTIONS({ query: "list commits repository", platform: "github" })
+
+  Handler:
+    → BM25 finds: GITHUB_LIST_COMMITS (score 8.2), GITHUB_GET_COMMIT (5.1), GITHUB_COMPARE_COMMITS (3.7)
+    → Registers all 3 on runtime.actions
+    → Returns { success: true, data: { newlyRegistered: ["GITHUB_LIST_COMMITS", ...], ... } }
+    → Result is NOT pushed to traceActionResult[]
+
+  # Previous Action Results
+  (empty — SEARCH_ACTIONS was transparent)
+
+Iteration 2:
+  refreshStateAfterAction() → recomposes state
+  ACTIONS provider validates runtime.actions (now includes discovered tools)
+
+  # Available Actions (with parameter schemas)
+  ... Tier-1 tools ...
+  SEARCH_ACTIONS, LIST_CONNECTIONS
+  GITHUB_LIST_COMMITS({ owner: string, repo: string, sha?: string, per_page?: number })
+  GITHUB_GET_COMMIT({ owner: string, repo: string, ref: string })
+  GITHUB_COMPARE_COMMITS({ owner: string, repo: string, base: string, head: string })
+
+  LLM sees GITHUB_LIST_COMMITS as a normal available action.
+  LLM calls: GITHUB_LIST_COMMITS({ owner: "elizaOS", repo: "eliza", per_page: 10 })
+  → Normal execution via McpService.callTool()
+
+Iteration 3:
+  # Previous Action Results
+  1. GITHUB_LIST_COMMITS - Success
+     Output: [10 commits with SHAs, messages, authors...]
+
+  LLM synthesizes response. Sets isFinish=true.
 ```
 
-**After SEARCH_ACTIONS executes:** The next multi-step iteration's `refreshStateAfterAction()` recomposes state → ACTIONS provider validates all `runtime.actions` (now includes discovered tools) → LLM sees them as normal actions → calls them directly.
+**Example 2: No Results**
+
+```
+Iteration 1:
+  LLM calls: SEARCH_ACTIONS({ query: "deploy kubernetes pod" })
+
+  Handler:
+    → BM25 returns 0 results (no k8s tools in catalog)
+    → Nothing registered
+    → Returns { success: true, data: { resultCount: 0, newlyRegistered: [] } }
+    → Result is NOT pushed to traceActionResult[]
+
+Iteration 2:
+  # Available Actions — unchanged (no new tools appeared)
+  # Previous Action Results — empty
+
+  LLM sees no new tools. Proceeds without them or tries a different query.
+```
+
+**Example 3: Pagination**
+
+```
+Iteration 1:
+  LLM calls: SEARCH_ACTIONS({ query: "google", limit: 5 })
+  → Returns 5 results, totalAvailable: 18
+  → 5 tools registered
+
+Iteration 2:
+  LLM sees 5 new Google tools but needs more.
+  LLM calls: SEARCH_ACTIONS({ query: "google", limit: 5, offset: 5 })
+  → Returns next 5 results
+  → 5 more tools registered
+
+Iteration 3:
+  LLM now has 10 Google tools available. Proceeds with the one it needs.
+```
+
+**Example 4: Error (Visible)**
+
+```
+Iteration 1:
+  LLM calls: SEARCH_ACTIONS({ query: "" })
+
+  Handler:
+    → Returns { success: false, error: "A search query is required" }
+    → Error IS pushed to traceActionResult[]
+
+Iteration 2:
+  # Previous Action Results
+  1. SEARCH_ACTIONS - Failed
+     Error: A search query is required
+
+  LLM sees the error and retries with a proper query.
+```
+
+#### 4.6 Edge Cases
+
+| Case | Behavior |
+|------|----------|
+| Empty query (`""` or whitespace) | Return `{ success: false, error: "A search query is required" }`. Error visible in trace. |
+| All results already registered | No-op for registration. Return `success: true` with `newlyRegistered: []`, `alreadyRegistered: [...]`. Still transparent. |
+| `platform` not in user's connected providers | BM25 search runs but returns 0 results (catalog only contains tools for connected platforms). |
+| `platform` is invalid string | Treated as filter — no matches, 0 results. No error. |
+| `offset` >= total results | Returns 0 results. No error. |
+| `limit` > 20 | Clamped to 20. |
+| `limit` < 1 | Clamped to 1. |
+| MCP service unavailable | Return `{ success: false, error: "MCP service not available" }`. Error visible in trace. |
+| BM25 index empty (no Tier-2 tools) | Returns 0 results. Possible when no OAuth providers are connected or all tools are Tier-1. |
+| Concurrent SEARCH_ACTIONS calls | Safe. Registration uses TOCTOU mitigation: re-check `runtime.actions` before each `registerAction()`. Duplicate names are skipped. |
+| Action naming collision with existing action | `createMcpToolAction()` appends `_2`, `_3` suffixes. Existing mechanism. |
 
 ### `LIST_CONNECTIONS`
 
@@ -264,13 +420,13 @@ class Tier2ToolIndex {
     });
   }
 
-  search(query: string, platform?: string, limit = 8): Tier2ToolEntry[] {
-    const results = this.bm25.search(query, limit * 2); // overfetch for filtering
+  search(query: string, platform?: string, limit = 10, offset = 0): Tier2ToolEntry[] {
+    const results = this.bm25.search(query, (offset + limit) * 2); // overfetch for filtering
     let entries = results.map(r => this.tools[r.index]);
     if (platform) {
       entries = entries.filter(e => e.platform === platform);
     }
-    return entries.slice(0, limit);
+    return entries.slice(offset, offset + limit);
   }
 }
 ```
@@ -481,9 +637,9 @@ These are hard facts from research, not proposals:
 
 ## 10. Multi-Step Loop Integration
 
-### Zero Changes to CloudBootstrapMessageService
+### Minimal Change to CloudBootstrapMessageService
 
-The existing multi-step loop works unchanged. SEARCH_ACTIONS is a normal action.
+The multi-step loop requires one small change: after executing an action, check if `actionName === "SEARCH_ACTIONS"` and `result.success === true`. If so, **do not** push the result to `traceActionResult[]`. This implements the transparency rule from Section 4.3. All other actions (including SEARCH_ACTIONS errors) are recorded normally.
 
 ### Example Flow: User Asks "Show me recent commits on the eliza repo"
 
@@ -497,21 +653,33 @@ Iteration 1:
   SEARCH_ACTIONS handler:
     → BM25 search finds: GITHUB_LIST_COMMITS (score 8.2), GITHUB_GET_COMMIT (score 5.1)
     → Registers both as real actions on runtime.actions
-    → Returns formatted descriptions with parameter schemas
+    → Returns { success: true, data: { newlyRegistered: [...] } }
+    → Result NOT pushed to traceActionResult[] (transparency rule)
 
 Iteration 2:
   refreshStateAfterAction() → recomposes state
   ACTIONS provider → validates all runtime.actions (now includes GITHUB_LIST_COMMITS!)
-  ACTION_STATE provider → shows search results from previous step
-  LLM sees: Tier-1 + SEARCH_ACTIONS + LIST_CONNECTIONS + GITHUB_LIST_COMMITS + GITHUB_GET_COMMIT
+
+  # Previous Action Results
+  (empty — SEARCH_ACTIONS was transparent)
+
+  # Available Actions (with parameter schemas)
+  ... Tier-1 + SEARCH_ACTIONS + LIST_CONNECTIONS ...
+  GITHUB_LIST_COMMITS({ owner: string, repo: string, sha?: string, per_page?: number })
+  GITHUB_GET_COMMIT({ owner: string, repo: string, ref: string })
+
+  LLM sees GITHUB_LIST_COMMITS as a normal action. No awareness that SEARCH_ACTIONS ran.
   LLM calls: GITHUB_LIST_COMMITS({ owner: "elizaOS", repo: "eliza", per_page: 10 })
 
   Normal action execution via McpService.callTool("github", "list_commits", params)
   → Per-request token fetch → API call → results
 
 Iteration 3:
-  LLM sees commit results in ACTION_STATE
-  LLM sets isFinish=true
+  # Previous Action Results
+  1. GITHUB_LIST_COMMITS - Success
+     Output: [commit list...]
+
+  LLM sees commit results. Sets isFinish=true.
 
 Summary Phase:
   Character personality applied
@@ -564,6 +732,7 @@ Summary Phase: "I've created the Linear issue 'Fix bug'..."
 | `lib/eliza/plugin-mcp/actions/dynamic-tool-actions.ts` | No changes needed — `createMcpToolAction()` already produces standard actions |
 | `lib/eliza/plugin-mcp/index.ts` | Add `SEARCH_ACTIONS` and `LIST_CONNECTIONS` to plugin `actions` array |
 | `lib/eliza/plugin-mcp/provider.ts` | Update MCP provider text: show Tier-1 tools + "N additional tools available via SEARCH_ACTIONS" |
+| `lib/eliza/plugin-cloud-bootstrap/services/cloud-bootstrap-message-service.ts` | After action execution: if `actionName === "SEARCH_ACTIONS" && result.success`, skip pushing to `traceActionResult[]` (transparency rule, Section 4.3) |
 
 ### P2 — OAuth Cache Versioning (Medium, 1-2d)
 
