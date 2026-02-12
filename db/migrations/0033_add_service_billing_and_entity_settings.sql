@@ -156,4 +156,8 @@ INSERT INTO "service_pricing" ("id", "service_id", "method", "cost", "descriptio
   (gen_random_uuid(), 'solana-rpc', 'getInflationReward', '0.000060', 'Historical - Get inflation reward', '{"provider_credits": 10, "tier": 2}'::jsonb, true, 'system', NOW(), NOW()),
   (gen_random_uuid(), 'solana-rpc', 'getTransactionsForAddress', '0.000600', 'Enhanced - Get transactions for address', '{"provider_credits": 100, "tier": 3}'::jsonb, true, 'system', NOW(), NOW()),
   (gen_random_uuid(), 'solana-rpc', 'getValidityProof', '0.000600', 'ZK Proof - Get validity proof', '{"provider_credits": 100, "tier": 3}'::jsonb, true, 'system', NOW(), NOW())
-ON CONFLICT (service_id, method) DO NOTHING;
+ON CONFLICT (service_id, method) DO UPDATE SET
+  cost = EXCLUDED.cost,
+  description = EXCLUDED.description,
+  metadata = EXCLUDED.metadata,
+  updated_at = NOW();
