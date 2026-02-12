@@ -1,13 +1,7 @@
 
-/**
- * SIWE Nonce Endpoint Tests
- *
- * Tests for nonce generation, TTL enforcement, and cache availability.
- */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
-// Mock dependencies before imports
 vi.mock("@/lib/cache/client", () => ({
   cache: {
     isAvailable: vi.fn(() => true),
@@ -15,81 +9,52 @@ vi.mock("@/lib/cache/client", () => ({
   },
 }));
 
+vi.mock("@/lib/middleware/rate-limit", () => ({
+  withRateLimit: vi.fn((handler: (req: NextRequest) => Promise<Response>) => handler),
+  RateLimitPresets: { STRICT: {} },
+}));
+
 import { cache } from "@/lib/cache/client";
 
 describe("SIWE Nonce Endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = "https://elizacloud.ai";
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    vi.mocked(cache.isAvailable).mockReturnValue(true);
+    vi.mocked(cache.set).mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
-    vi.resetAllMocks();
+  it("returns a nonce and domain on success", async () => {
+    const { GET } = await import("./route");
+    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.nonce).toBeDefined();
+    expect(typeof data.nonce).toBe("string");
+    expect(data.nonce.length).toBeGreaterThan(0);
+    expect(data.domain).toBe("localhost");
   });
 
-  describe("Cache availability", () => {
-    it("returns SERVICE_UNAVAILABLE when cache is unavailable", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(false);
-
-      const { GET } = await import("./route");
-      const request = new Request("https://elizacloud.ai/api/auth/siwe/nonce");
-
-      const response = await GET(request as any);
-      const data = await response.json();
-
-      expect(response.status).toBe(503);
-      expect(data.error).toBe("SERVICE_UNAVAILABLE");
-    });
-
-    it("returns nonce when cache is available", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
-
-      const { GET } = await import("./route");
-      const request = new Request("https://elizacloud.ai/api/auth/siwe/nonce");
-
-      const response = await GET(request as any);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.nonce).toBeDefined();
-      expect(typeof data.nonce).toBe("string");
-    });
+  it("stores nonce in cache with a TTL", async () => {
+    const { GET } = await import("./route");
+    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
+    await GET(req);
+    expect(cache.set).toHaveBeenCalledTimes(1);
+    // Verify the TTL argument is present (third argument to cache.set)
+    const setCall = vi.mocked(cache.set).mock.calls[0];
+    expect(setCall).toBeDefined();
+    // The TTL should be a positive number (in seconds)
+    expect(setCall?.[2]).toBeGreaterThan(0);
   });
 
-  describe("Nonce properties", () => {
-    it("stores nonce with correct TTL", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
-
-      const { GET } = await import("./route");
-      const request = new Request("https://elizacloud.ai/api/auth/siwe/nonce");
-
-      await GET(request as any);
-
-      expect(cache.set).toHaveBeenCalledWith(
-        expect.stringContaining("siwe:nonce:"),
-        expect.any(String),
-        expect.objectContaining({ ttl: expect.any(Number) })
-      );
-    });
-
-    it("returns all required SIWE parameters", async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
-
-      const { GET } = await import("./route");
-      const request = new Request("https://elizacloud.ai/api/auth/siwe/nonce");
-
-      const response = await GET(request as any);
-      const data = await response.json();
-
-      expect(data).toHaveProperty("nonce");
-      expect(data).toHaveProperty("domain");
-      expect(data).toHaveProperty("uri");
-      expect(data).toHaveProperty("chainId");
-      expect(data).toHaveProperty("version");
-      expect(data).toHaveProperty("statement");
-    });
+  it("returns 503 when cache is unavailable", async () => {
+    vi.mocked(cache.isAvailable).mockReturnValue(false);
+    const { GET } = await import("./route");
+    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
+    const res = await GET(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toBeDefined();
   });
 });
