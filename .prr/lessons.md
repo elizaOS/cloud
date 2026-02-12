@@ -8,9 +8,6 @@
 ## Global Lessons
 
 ## File-Specific Lessons
-
-
-- Fix for app/api/auth/siwe/verify/route.ts:406 - No transactional wrapping or error handling changes to signup flow
 - Fix for app/api/auth/siwe/verify/route.ts:183 - Cache availability check is only in nonce endpoint, not verify endpoint
 - Fix for app/api/auth/siwe/verify/route.ts:426 - Cache availability check was added, but comment asked for automated tests (unit/integration coverage for nonce TTL, verify paths, failure modes). Adding a runtime check doesn't fulfill the testing requirement.
 - Fix for app/api/auth/siwe/verify/route.ts:319 - Only cache availability check was added. Comment explicitly asks for DB transaction wrapping or compensating cleanup around org/user/API key creation to prevent orphaned records on failure.

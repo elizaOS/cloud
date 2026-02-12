@@ -68,7 +68,7 @@ async function resolveApiKeyForUser(
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "Default API Key",
+    name: "SIWE API Key",
     is_active: true,
   });
 
