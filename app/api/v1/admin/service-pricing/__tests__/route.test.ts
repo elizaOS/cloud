@@ -118,6 +118,7 @@ describe('Service Pricing Admin Routes', () => {
       const response = await PUT(request);
       expect(response.status).toBe(200);
       expect(invalidateServicePricingCache).toHaveBeenCalledWith('solana-rpc');
+      expect(invalidateServicePricingCache).toHaveBeenCalledTimes(2);
     });
   });
 });

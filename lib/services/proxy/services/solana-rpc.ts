@@ -370,7 +370,11 @@ interface FetchResult {
  * Retries on: TimeoutError, 5xx status codes.
  * Does NOT retry: 2xx (success), 400, 404 (non-retriable client errors).
  */
-async function fetchWithRetry(url: string, body: unknown, maxRetries?: number): Promise<FetchResult> {
+async function fetchWithRetry(
+  url: string,
+  body: JsonRpcRequest | JsonRpcBatchRequest,
+  maxRetries?: number
+): Promise<FetchResult> {
   const fetchLogs: FetchAttemptLog[] = [];
   const sanitized = sanitizeUrl(url);
   const maxAttempts = maxRetries ?? PROXY_CONFIG.RPC_MAX_RETRIES;
