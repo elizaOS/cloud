@@ -1,5 +1,5 @@
 
-import { cache } from "./client";
+import { cache, redis } from "./client";
 
 /**
  * Atomically consume a cache key: delete it and return the number of keys removed.
@@ -13,5 +13,7 @@ import { cache } from "./client";
  * we only need to know whether the nonce existed, not its value.
  */
 export async function atomicConsume(key: string): Promise<number> {
-  return cache.del(key);
+  // Use raw redis client which returns the delete count (0 or 1)
+  // cache.del() returns void, so we need the underlying client
+  return await redis.del(key);
 }

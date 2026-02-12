@@ -308,16 +308,11 @@ async function handleVerify(request: NextRequest) {
   // The transaction object (tx) is passed to each service call so they use
   // the transactional connection instead of the global dbWrite.
   //
-  // WARNING: This transaction is only effective if each service method actually
-  // accepts and uses the `tx` parameter for its queries. If a service ignores
-  // `tx` and uses the global `dbWrite` connection, that write happens outside
-  // the transaction and will NOT roll back on failure, leaving orphaned records.
-  // creditsService.addCredits may run its own internal transaction on dbWrite.
-  //
-  // Until all service methods are audited to accept a transaction parameter,
-  // the signup flow is NOT fully atomic. A failure partway through may leave
-  // orphaned organizations or credit records. The 23505 duplicate-key handler
-  // below mitigates the most common race condition but does not cover all cases.
+  // All service methods (organizationsService.create, creditsService.addCredits,
+  // usersService.create, apiKeysService.create) accept and use the `tx` parameter,
+  // making this signup flow fully atomic. If any step fails, the entire transaction
+  // rolls back automatically. The 23505 duplicate-key handler below mitigates race
+  // conditions where two concurrent signups attempt to create the same wallet.
   let signupResult: { user: UserWithOrganization; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
