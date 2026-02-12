@@ -46,3 +46,7 @@
 ### lib/cache/consume.ts
 
 - Fix for lib/cache/consume.ts:21 - The function is still exported and unused. The comment requests removal of dead code, not refactoring its imports.
+
+### lib/utils/signup-helpers.ts
+
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.

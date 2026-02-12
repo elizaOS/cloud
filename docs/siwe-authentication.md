@@ -34,8 +34,8 @@ Returns a one-time nonce and all parameters needed to construct a valid SIWE mes
 ```json
 {
   "nonce": "a1b2c3d4e5f6g7h8",
-  "domain": "elizaos.ai",
-  "uri": "https://elizaos.ai",
+  "domain": "elizacloud.ai",
+  "uri": "https://elizacloud.ai",
   "chainId": 1,
   "version": "1",
   "statement": "Sign in to ElizaCloud"
@@ -57,7 +57,7 @@ Verifies a signed SIWE message. Creates a new account if the wallet is unknown, 
 **Response (success):**
 ```json
 {
-  "apiKey": "eliza_...",
+  "apiKey": "ek_live_...",
   "address": "0xAbC...123",
   "isNewAccount": true,
   "user": {
@@ -173,10 +173,6 @@ SIWE auth → get API key → create crypto payment → confirm payment → use 
 ```
 
 These routes were updated from `requireAuthWithOrg()` (Privy-only) to `requireAuthOrApiKeyWithOrg(req)` (Privy or API key) to support this flow.
-
-```text
-SIWE auth → get API key → create crypto payment → confirm payment → use services
-```
 
 ## Files
 
