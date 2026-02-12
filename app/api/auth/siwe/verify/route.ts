@@ -309,13 +309,12 @@ async function handleVerify(request: NextRequest) {
   const displayName = truncateAddress(address);
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
-  // The transaction object (tx) is passed to each service call so they use
-  // the transactional connection instead of the global dbWrite.
+  // The transaction object (tx) is passed to each service call. Service methods
+  // that accept the tx parameter will use the transactional connection; those that
+  // don't will use their default connection (which may not participate in this transaction).
   //
-  // All service methods (organizationsService.create, creditsService.addCredits,
-  // usersService.create, apiKeysService.create) accept and use the `tx` parameter,
-  // making this signup flow fully atomic. If any step fails, the entire transaction
-  // rolls back automatically. The 23505 duplicate-key handler below mitigates race
+  // If any step fails within the transaction block, Drizzle will roll back the
+  // transaction automatically. The 23505 duplicate-key handler below mitigates race
   // conditions where two concurrent signups attempt to create the same wallet.
   let signupResult: { user: UserWithOrganization; plainKey: string };
   try {

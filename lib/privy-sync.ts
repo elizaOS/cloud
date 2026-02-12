@@ -307,6 +307,9 @@ export async function syncUserFromPrivy(
 
   // Create organization, add credits, and create user in a transaction.
   // If any step fails, all changes are rolled back atomically.
+  // IMPORTANT: Verify that all service methods actually accept and use the `tx`
+  // parameter. If services use internal dbWrite instead of tx, this transaction
+  // wrapper won't be effective.
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
