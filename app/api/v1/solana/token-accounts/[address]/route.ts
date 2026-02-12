@@ -47,6 +47,8 @@ export async function GET(
     },
   };
 
+  const corsHeaders = getCorsHeaders("GET, OPTIONS");
+
   try {
     const response = await executeWithBody(
       solanaRpcConfig,
@@ -55,7 +57,6 @@ export async function GET(
       body,
     );
 
-    const corsHeaders = getCorsHeaders("GET, OPTIONS");
     for (const [key, value] of Object.entries(corsHeaders)) {
       response.headers.set(key, value);
     }
@@ -64,7 +65,7 @@ export async function GET(
   } catch {
     return new NextResponse("Internal Server Error", {
       status: 500,
-      headers: getCorsHeaders("GET, OPTIONS"),
+      headers: corsHeaders,
     });
   }
 }
