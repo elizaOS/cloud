@@ -309,7 +309,7 @@ async function handleVerify(request: NextRequest) {
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
   // If any step fails, all changes are rolled back atomically.
-  let signupResult: { organization: typeof organization; plainKey: string };
+  let signupResult: { organization: Awaited<ReturnType<typeof organizationsService.create>>; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
       const org = await organizationsService.create(
