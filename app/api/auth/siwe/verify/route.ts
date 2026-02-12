@@ -424,7 +424,5 @@ async function handleVerify(request: NextRequest) {
 
   return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
 }
-return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
-}
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
