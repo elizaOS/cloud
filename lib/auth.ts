@@ -12,7 +12,6 @@ import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
-import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,

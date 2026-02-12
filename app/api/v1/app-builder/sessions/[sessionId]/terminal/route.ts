@@ -100,12 +100,19 @@ export async function POST(
 
     const { command, cwd } = body as { command: string; cwd?: string };
 
-    if (!command || typeof command !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Command is required" },
-        { status: 400 },
-      );
-    }
+  if (!command || typeof command !== "string") {
+    return NextResponse.json(
+      { success: false, error: "Command is required" },
+      { status: 400 },
+    );
+  }
+
+  if (cwd !== undefined && typeof cwd !== "string") {
+    return NextResponse.json(
+      { success: false, error: "cwd must be a string" },
+      { status: 400 },
+    );
+  }
 
     if (cwd !== undefined && typeof cwd !== "string") {
       return NextResponse.json(
