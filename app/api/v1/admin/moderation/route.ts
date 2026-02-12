@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+}
 
 const ActionSchema = z.object({
   action: z.enum([

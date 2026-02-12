@@ -16,6 +16,11 @@ vi.mock('@/db/repositories', () => ({
 vi.mock('@/lib/services/proxy/pricing', () => ({
   invalidateServicePricingCache: vi.fn().mockResolvedValue(true),
 }));
+vi.mock('@/lib/cache/client', () => ({
+  cache: {
+    del: vi.fn().mockResolvedValue(true),
+  },
+}));
 
 describe('Service Pricing Admin Routes', () => {
   beforeEach(() => {
