@@ -33,16 +33,36 @@ export async function GET(
   }
   const { sessionId } = await params;
 
-  await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+  try {
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
-  const url = new URL(request.url);
-  const rawTail = parseInt(url.searchParams.get("tail") || "50", 10);
-  const tail = Math.min(Math.max(isNaN(rawTail) ? 50 : rawTail, 1), 1000);
+    const url = new URL(request.url);
+    const rawTail = parseInt(url.searchParams.get("tail") || "50", 10);
+    const tail = Math.min(Math.max(isNaN(rawTail) ? 50 : rawTail, 1), 1000);
 
-  const logs = await aiAppBuilder.getLogs(sessionId, user.id, tail);
+    const logs = await aiAppBuilder.getLogs(sessionId, user.id, tail);
 
-  return NextResponse.json({
-    success: true,
-    logs,
-  });
+    return NextResponse.json({
+      success: true,
+      logs,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
+    }
+    logger.error("[App Builder] Logs GET error", { error });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }

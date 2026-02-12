@@ -20,6 +20,25 @@ import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
 
+export async function HEAD(request: NextRequest) {
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Moderation HEAD auth error",
+  );
+
+  const headers = new Headers();
+
+  if (authResult instanceof NextResponse) {
+    headers.set("X-Is-Admin", "false");
+    headers.set("X-Admin-Role", "");
+    return new NextResponse(null, { status: 200, headers });
+  }
+
+  headers.set("X-Is-Admin", "true");
+  headers.set("X-Admin-Role", authResult.role);
+  return new NextResponse(null, { status: 200, headers });
+}
+
 /**
  * GET /api/v1/admin/moderation
  * Get admin dashboard data.
@@ -135,7 +154,7 @@ const ActionSchema = z.object({
   targetUserId: z.string().optional(),
   targetWalletAddress: z.string().optional(),
   reason: z.string().optional(),
-  role: z.string().optional(),
+  role: z.enum(["super_admin", "moderator", "viewer"]).optional(),
 });
 
 /**
@@ -184,7 +203,11 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        await adminService.banUser(targetUserId, user.id, reason);
+        await adminService.banUser({
+          userId: targetUserId,
+          adminUserId: user.id,
+          reason: reason || "",
+        });
         logger.info("[Admin] User banned", {
           targetUserId,
           adminId: user.id,
@@ -266,20 +289,14 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (adminRole !== "super_admin") {
-          return NextResponse.json(
-            { error: "Super admin privileges required" },
-            { status: 403 },
-          );
-        }
         await adminService.addAdmin(
           targetWalletAddress,
-          role || "admin",
+          role || "moderator",
           user.id,
         );
         logger.info("[Admin] Admin added", {
           targetWalletAddress,
-          role: role || "admin",
+          role: role || "moderator",
           adminId: user.id,
         });
         return NextResponse.json({ success: true, action: "add_admin" });
@@ -298,13 +315,19 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (targetWalletAddress === user.wallet_address) {
+        if (
+          targetWalletAddress.toLowerCase() ===
+          (user.wallet_address || "").toLowerCase()
+        ) {
           return NextResponse.json(
             { error: "Cannot revoke your own admin privileges" },
             { status: 400 },
           );
         }
-        await adminService.revokeAdmin(targetWalletAddress, user.id);
+        await adminService.revokeAdmin(
+          targetWalletAddress,
+          user.wallet_address,
+        );
         logger.info("[Admin] Admin revoked", {
           targetWalletAddress,
           adminId: user.id,

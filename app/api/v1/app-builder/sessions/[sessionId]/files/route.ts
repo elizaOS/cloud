@@ -38,54 +38,74 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
   const { sessionId } = await params;
 
-  // Verify session ownership
-  const session = await aiAppBuilder.getSession(sessionId, user.id);
-  if (!session) {
+  try {
+    // Verify session ownership
+    const session = await aiAppBuilder.getSession(sessionId, user.id);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const path = searchParams.get("path") || ".";
+
+    const allFiles = await sandboxService.listFiles(session.sandboxId, path);
+
+    // Filter out hidden directories and common non-source directories
+    const EXCLUDED_PATTERNS = [
+      /^\.git\//,
+      /\/\.git\//,
+      /^\.next\//,
+      /\/\.next\//,
+      /^node_modules\//,
+      /\/node_modules\//,
+      /^\.pnpm\//,
+      /\/\.pnpm\//,
+      /^\.cache\//,
+      /\/\.cache\//,
+      /^dist\//,
+      /\/dist\//,
+      /^\.turbo\//,
+      /\/\.turbo\//,
+      /\.lock$/,
+      /lock\.json$/,
+    ];
+
+    const files = allFiles.filter((file) => {
+      // Normalize path for matching
+      const normalized = file.startsWith("./") ? file.slice(2) : file;
+      return !EXCLUDED_PATTERNS.some((pattern) => pattern.test(normalized));
+    });
+
+    // Build a tree structure
+    const fileTree = buildFileTree(files, path);
+
+    return NextResponse.json({
+      success: true,
+      files,
+      tree: fileTree,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
+    }
+    logger.error("[App Builder] Files GET error", { error });
     return NextResponse.json(
-      { success: false, error: "Session not found" },
-      { status: 404 },
+      { success: false, error: "Internal server error" },
+      { status: 500 },
     );
   }
-
-  const searchParams = request.nextUrl.searchParams;
-  const path = searchParams.get("path") || ".";
-
-  const allFiles = await sandboxService.listFiles(session.sandboxId, path);
-
-  // Filter out hidden directories and common non-source directories
-  const EXCLUDED_PATTERNS = [
-    /^\.git\//,
-    /\/\.git\//,
-    /^\.next\//,
-    /\/\.next\//,
-    /^node_modules\//,
-    /\/node_modules\//,
-    /^\.pnpm\//,
-    /\/\.pnpm\//,
-    /^\.cache\//,
-    /\/\.cache\//,
-    /^dist\//,
-    /\/dist\//,
-    /^\.turbo\//,
-    /\/\.turbo\//,
-    /\.lock$/,
-    /lock\.json$/,
-  ];
-
-  const files = allFiles.filter((file) => {
-    // Normalize path for matching
-    const normalized = file.startsWith("./") ? file.slice(2) : file;
-    return !EXCLUDED_PATTERNS.some((pattern) => pattern.test(normalized));
-  });
-
-  // Build a tree structure
-  const fileTree = buildFileTree(files, path);
-
-  return NextResponse.json({
-    success: true,
-    files,
-    tree: fileTree,
-  });
 }
 
 // POST /api/v1/app-builder/sessions/[sessionId]/files
@@ -122,69 +142,89 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   const { sessionId } = await params;
 
-  // Verify session ownership
-  const session = await aiAppBuilder.getSession(sessionId, user.id);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, error: "Session not found" },
-      { status: 404 },
-    );
-  }
-
-  let body;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON" },
-      { status: 400 },
-    );
-  }
-
-  const validation = FileOperationSchema.safeParse(body);
-
-  if (!validation.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Invalid request",
-        details: validation.error.format(),
-      },
-      { status: 400 },
-    );
-  }
-
-  const { operation, path, content } = validation.data;
-
-  if (operation === "read") {
-    const fileContent = await sandboxService.readFile(
-      session.sandboxId,
-      path,
-    );
-    return NextResponse.json({
-      success: true,
-      content: fileContent,
-      path,
-    });
-  } else if (operation === "write") {
-    if (content === undefined) {
+    // Verify session ownership
+    const session = await aiAppBuilder.getSession(sessionId, user.id);
+    if (!session) {
       return NextResponse.json(
-        { success: false, error: "Content required for write operation" },
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON" },
         { status: 400 },
       );
     }
-    await sandboxService.writeFile(session.sandboxId, path, content);
-    return NextResponse.json({
-      success: true,
-      message: "File written successfully",
-      path,
-    });
-  }
 
-  return NextResponse.json(
-    { success: false, error: "Invalid operation" },
-    { status: 400 },
-  );
+    const validation = FileOperationSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid request",
+          details: validation.error.format(),
+        },
+        { status: 400 },
+      );
+    }
+
+    const { operation, path, content } = validation.data;
+
+    if (operation === "read") {
+      const fileContent = await sandboxService.readFile(
+        session.sandboxId,
+        path,
+      );
+      return NextResponse.json({
+        success: true,
+        content: fileContent,
+        path,
+      });
+    } else if (operation === "write") {
+      if (content === undefined) {
+        return NextResponse.json(
+          { success: false, error: "Content required for write operation" },
+          { status: 400 },
+        );
+      }
+      await sandboxService.writeFile(session.sandboxId, path, content);
+      return NextResponse.json({
+        success: true,
+        message: "File written successfully",
+        path,
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Invalid operation" },
+      { status: 400 },
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
+    }
+    logger.error("[App Builder] Files POST error", { error });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }
 
 interface FileTreeNode {
