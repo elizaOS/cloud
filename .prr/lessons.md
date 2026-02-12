@@ -34,6 +34,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:502 - The code change does not add any test files or test coverage. Comment requests "unit/integration coverage for nonce issuance, verify success paths, and key failure modes."
 - Fix for app/api/auth/siwe/verify/route.ts:122 - The code change does not address the `unknown` type issue. The diff shows changes to transaction handling but not to the request body type annotation around line 119-138.
 - Fix for app/api/auth/siwe/verify/route.ts:177 - The code change does not address Redis unavailability or add fallback/availability checks. Comment requires detecting when Redis is unavailable and either failing fast or providing a fallback mechanism.
+- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint flow, add availability checks to BOTH endpoints, not just the consumer endpoint that was mentioned in the error path.
 
 ### public/.well-known/llms-full.txt
 
