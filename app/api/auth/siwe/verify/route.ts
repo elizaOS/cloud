@@ -424,64 +424,6 @@ async function handleVerify(request: NextRequest) {
 
   return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
 }
-
-// wallet. The unique constraint on wallet_address (Postgres error 23505)
 </search>
 
-      error &&
-      typeof error === "object" &&
-      (("code" in error && error.code === "23505") ||
-        ("cause" in error &&
-          error.cause &&
-          typeof error.cause === "object" &&
-          "code" in error.cause &&
-          error.cause.code === "23505"));
-
-    if (isDuplicateError) {
-      await organizationsService.delete(organization.id);
-
-      // The winning request may not have committed yet, so retry with backoff.
-      let raceUser: UserWithOrganization | undefined;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
-          );
-        }
-        raceUser = await usersService.getByWalletAddressWithOrganization(
-          address.toLowerCase(),
-        );
-        if (raceUser) break;
-      }
-
-      if (raceUser && raceUser.organization_id) {
-        if (!raceUser.wallet_verified) {
-          await usersService.update(raceUser.id, { wallet_verified: true });
-        }
-        const apiKey = await resolveApiKeyForUser(raceUser);
-        return buildSuccessResponse(raceUser, apiKey, address, false);
-      }
-    }
-
-    throw error;
-  }
-
-  const newUser = await usersService.getByWalletAddressWithOrganization(
-    address.toLowerCase(),
-  );
-
-  if (!newUser || !newUser.organization_id) {
-    throw new Error("Failed to fetch newly created SIWE user");
-  }
-
-  const { plainKey } = await apiKeysService.create({
-    user_id: newUser.id,
-    organization_id: newUser.organization_id,
-    name: "Default API Key",
-    is_active: true,
-  });
-
-  return buildSuccessResponse(newUser, plainKey, address, true);
-}
-
-export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
+      export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);

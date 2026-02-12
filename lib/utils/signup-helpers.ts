@@ -26,3 +26,10 @@ export function generateSlugFromWallet(walletAddress: string): string {
   const timestamp = Date.now().toString(36).slice(-4);
   return `wallet-${sanitized}-${timestamp}${random}`;
 }
+
+export function generateSlugFromEmail(email: string): string {
+  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `${prefix}-${timestamp}${random}`;
+}

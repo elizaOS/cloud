@@ -10,7 +10,7 @@
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
+import { generateSlugFromWallet, generateSlugFromEmail, getInitialCredits } from "@/lib/utils/signup-helpers";
 import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -32,18 +32,7 @@ interface SyncOptions {
   skipAbuseCheck?: boolean;
 }
 
-/**
- * Generates a unique organization slug from an email address.
- *
- * @param email - Email address.
- * @returns Unique slug string.
- */
-function generateSlugFromEmail(email: string): string {
-  const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).slice(-4);
-  return `${prefix}-${timestamp}${random}`;
-}
+
 
 /**
  * Type for Privy user data that handles both SDK User and webhook payloads.
