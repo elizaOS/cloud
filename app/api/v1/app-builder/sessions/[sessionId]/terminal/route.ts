@@ -118,13 +118,6 @@ export async function POST(
     );
   }
 
-  if (cwd !== undefined && typeof cwd !== "string") {
-    return NextResponse.json(
-      { success: false, error: "cwd must be a string" },
-      { status: 400 },
-    );
-  }
-
   // Validate command
   const validation = isCommandAllowed(command);
   if (!validation.allowed) {

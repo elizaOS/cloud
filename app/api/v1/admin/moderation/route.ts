@@ -330,21 +330,6 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
-        if (!targetWalletAddress) {
-          return NextResponse.json(
-            { error: "targetWalletAddress is required" },
-            { status: 400 },
-          );
-        }
-        if (
-          targetWalletAddress.toLowerCase() ===
-          (user.wallet_address || "").toLowerCase()
-        ) {
-          return NextResponse.json(
-            { error: "Cannot revoke your own admin privileges" },
-            { status: 400 },
-          );
-        }
         await adminService.revokeAdmin(
           targetWalletAddress,
           user.wallet_address,

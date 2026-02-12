@@ -64,13 +64,7 @@ export function createHandler(
       const user = "user" in auth ? auth.user : (auth as any).user;
 
       if (!user || !user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
-      let body: ProxyRequestBody = null;
+let body: ProxyRequestBody = null;
       if (request.method === "POST") {
         try {
           body = await request.json();
@@ -88,13 +82,6 @@ export function createHandler(
       const cost = await config.getCost(body, searchParams);
 
       // Reserve credits
-      if (!user.organization_id) {
-        return Response.json(
-          { error: "Organization required for billing" },
-          { status: 403 }
-        );
-      }
-
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,
@@ -133,9 +120,9 @@ export function createHandler(
                     input_tokens: 0,
                     output_tokens: 0,
                     input_cost: String(cost),
-                    output_cost: String(0),
-                    markup: String(0),
-                    metadata: { cached: true, cacheAge },
+                    output_cost: "0",
+                    markup: "0",
+                    metadata: { cached: true },
                   });
                 } catch (error) {
                   logger.error("[Proxy Engine] Usage tracking failed", { error });

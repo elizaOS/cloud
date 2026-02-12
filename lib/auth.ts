@@ -614,7 +614,6 @@ export async function getUserFromRequest(
 }
 
 // Admin authentication - requires wallet connection and admin role
-import { adminService } from "@/lib/services/admin";
 
 export interface AdminAuthResult {
   user: UserWithOrganization;
@@ -628,12 +627,12 @@ export async function requireAdmin(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   if (!user.wallet_address) {
-    throw new WalletRequiredError("Wallet connection required for admin access");
+    throw new AuthenticationError("Wallet connection required for admin access");
   }
 
   const isAdmin = await adminService.isAdmin(user.wallet_address);
   if (!isAdmin) {
-    throw new AdminRequiredError("Admin access required");
+    throw new ForbiddenError("Admin access required");
   }
 
   const role = await adminService.getAdminRole(user.wallet_address);
