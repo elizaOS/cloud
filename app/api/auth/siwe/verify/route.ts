@@ -102,8 +102,10 @@ function buildSuccessResponse(
 
 
 
+type SiweVerifyBody = { message?: string; signature?: string };
+
 async function handleVerify(request: NextRequest) {
-  let body: { message?: string; signature?: string };
+  let body: SiweVerifyBody;
   try {
     body = await request.json();
   } catch {
