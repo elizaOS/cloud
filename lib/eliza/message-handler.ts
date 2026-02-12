@@ -60,13 +60,6 @@ export interface MessageOptions {
   agentModeConfig?: AgentModeConfig;
   onStreamChunk?: StreamChunkCallback;
   onReasoningChunk?: ReasoningChunkCallback;
-  /**
-   * PERF: Override multi-step mode.
-   * Set to false for messaging app channels (Telegram/Discord/iMessage) where
-   * single-shot mode (1 LLM call) is preferred over multi-step (2+ LLM calls).
-   * Defaults to true for backward compatibility.
-   */
-  useMultiStep?: boolean;
 }
 
 export class MessageHandler {
@@ -143,10 +136,8 @@ export class MessageHandler {
         onReasoningChunk,
       });
     } else {
-      // PERF: useMultiStep defaults to true but can be overridden to false
-      // for messaging app channels where single-shot (1 LLM call) is preferred.
       const messageOptions: CloudMessageOptions = {
-        useMultiStep: options.useMultiStep !== false,
+        useMultiStep: true,
         onStreamChunk,
         onReasoningChunk,
       };
