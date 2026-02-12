@@ -35,6 +35,23 @@ interface OAuth2State {
   redirectUrl: string;
   scopes: string[];
   createdAt: number;
+  codeVerifier?: string;
+}
+
+/**
+ * Generate PKCE code verifier and challenge.
+ * Uses S256 challenge method per RFC 7636.
+ */
+async function generatePKCE(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+  // Generate 32 random bytes → 43-char base64url string
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const codeVerifier = Buffer.from(bytes).toString("base64url");
+
+  // SHA-256 hash of verifier → base64url encoded
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+  const codeChallenge = Buffer.from(digest).toString("base64url");
+
+  return { codeVerifier, codeChallenge };
 }
 
 /**
@@ -113,6 +130,15 @@ export async function initiateOAuth2(
   // Generate cryptographically secure state
   const state = crypto.randomUUID();
 
+  // Generate PKCE if required by provider
+  let codeVerifier: string | undefined;
+  let codeChallenge: string | undefined;
+  if (provider.pkce) {
+    const pkce = await generatePKCE();
+    codeVerifier = pkce.codeVerifier;
+    codeChallenge = pkce.codeChallenge;
+  }
+
   // Store state for callback verification
   const stateData: OAuth2State = {
     organizationId: params.organizationId,
@@ -121,6 +147,7 @@ export async function initiateOAuth2(
     redirectUrl,
     scopes,
     createdAt: Date.now(),
+    codeVerifier,
   };
 
   await cache.set(`oauth2:${provider.id}:${state}`, stateData, STATE_TTL_SECONDS);
@@ -136,6 +163,12 @@ export async function initiateOAuth2(
   }
 
   authUrl.searchParams.set("state", state);
+
+  // Add PKCE parameters
+  if (codeChallenge) {
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+  }
 
   // Add provider-specific authorization parameters
   if (provider.authParams) {
@@ -181,10 +214,10 @@ export async function handleOAuth2Callback(
   // Delete state to prevent replay attacks
   await cache.del(stateKey);
 
-  const { organizationId, userId, redirectUrl, scopes } = stateData;
+  const { organizationId, userId, redirectUrl, scopes, codeVerifier } = stateData;
 
   // Exchange code for tokens
-  const tokens = await exchangeCodeForTokens(provider, code);
+  const tokens = await exchangeCodeForTokens(provider, code, codeVerifier);
 
   // Fetch user info: userInfo endpoint, token metadata endpoint, or from token response
   let userInfo: ExtractedUserInfo;
@@ -228,7 +261,8 @@ export async function handleOAuth2Callback(
  */
 async function exchangeCodeForTokens(
   provider: OAuthProviderConfig,
-  code: string
+  code: string,
+  codeVerifier?: string
 ): Promise<TokenResponse> {
   const clientId = getClientId(provider);
   const clientSecret = getClientSecret(provider);
@@ -253,6 +287,11 @@ async function exchangeCodeForTokens(
     client_secret: clientSecret,
     ...provider.tokenParams,
   };
+
+  // Include PKCE code_verifier if present
+  if (codeVerifier) {
+    bodyParams.code_verifier = codeVerifier;
+  }
 
   // Build headers
   const headers: Record<string, string> = {
@@ -333,6 +372,7 @@ async function fetchUserInfo(
 
   // Handle GraphQL endpoints (e.g., Linear) - requires userInfoGraphQLQuery in config
   const graphqlQuery = provider.endpoints.userInfoGraphQLQuery;
+  const userInfoMethod = provider.endpoints.userInfoMethod || "GET";
 
   let response: Response;
   if (graphqlQuery) {
@@ -343,6 +383,15 @@ async function fetchUserInfo(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ query: graphqlQuery }),
+    });
+  } else if (userInfoMethod === "POST") {
+    // Some providers (e.g., Dropbox) require POST for user info
+    response = await fetch(provider.endpoints.userInfo, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
     });
   } else {
     response = await fetch(provider.endpoints.userInfo, {

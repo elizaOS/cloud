@@ -27,16 +27,22 @@ export const oauthConnectAction: ActionWithParams = {
   similes: [
     "CONNECT_PLATFORM", "LINK_ACCOUNT", "CONNECT_GOOGLE", "CONNECT_GMAIL",
     "CONNECT_HUBSPOT", "CONNECT_LINEAR", "CONNECT_SLACK", "CONNECT_GITHUB", "CONNECT_NOTION",
+    "CONNECT_MICROSOFT", "CONNECT_OUTLOOK",
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
     "LINK_HUBSPOT", "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION",
+    "CONNECT_ASANA", "LINK_ASANA", "CONNECT_DROPBOX", "LINK_DROPBOX",
+    "CONNECT_SALESFORCE", "LINK_SALESFORCE", "CONNECT_AIRTABLE", "LINK_AIRTABLE",
+    "CONNECT_ZOOM", "LINK_ZOOM",
+    "CONNECT_JIRA", "LINK_JIRA", "CONNECT_LINKEDIN", "LINK_LINKEDIN",
+    "LINK_MICROSOFT", "LINK_OUTLOOK",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, hubspot, linear, slack, github, notion",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, hubspot, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, hubspot, linear, slack, github, notion",
+      description: "Platform to connect. Available: google, hubspot, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -63,8 +69,9 @@ export const oauthConnectAction: ActionWithParams = {
     );
 
     if (!platform) {
+      const supported = getSupportedPlatforms();
       return {
-        text: "Which platform do you want to connect? Currently available: Google, HubSpot, Linear, Notion, GitHub, Slack",
+        text: `Which platform do you want to connect? Currently available: ${supported.map(capitalize).join(", ") || "none configured"}`,
         success: false,
         error: "MISSING_PLATFORM",
         data: { actionName },

@@ -1,7 +1,17 @@
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-config({ path: ".env.local" });
+// Environment file mapping:
+// - .env.local       → localhost (docker postgres)
+// - .env.development → staging (Neon EU)
+// - .env.production  → production (Neon US)
+const envFiles: Record<string, string> = {
+  local: ".env.local",
+  development: ".env.development",
+  production: ".env.production",
+};
+const envFile = envFiles[process.env.NODE_ENV || "local"] || ".env.local";
+config({ path: envFile });
 
 export default defineConfig({
   schema: "./db/schemas/index.ts",
