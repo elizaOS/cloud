@@ -49,24 +49,16 @@ export async function GET(request: NextRequest) {
   const pricing = await servicePricingRepository.listByService(serviceId);
 
   return NextResponse.json({
-      service_id: serviceId,
-      pricing: pricing.map((p) => ({
-        id: p.id,
-        method: p.method,
-        cost: p.cost,
-        description: p.description,
-        is_active: p.is_active,
-        updated_at: p.updated_at,
-      })),
-    });
-  } catch (error) {
-    logger.error("[Admin] Service pricing GET error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    service_id: serviceId,
+    pricing: pricing.map((p) => ({
+      id: p.id,
+      method: p.method,
+      cost: p.cost,
+      description: p.description,
+      is_active: p.is_active,
+      updated_at: p.updated_at,
+    })),
+  });
 }
 
 const UpsertSchema = z.object({

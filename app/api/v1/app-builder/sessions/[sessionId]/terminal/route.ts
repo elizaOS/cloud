@@ -125,25 +125,26 @@ export async function POST(
     );
   }
 
-    // Validate command
-    const validation = isCommandAllowed(command);
-    if (!validation.allowed) {
+  // Validate command
+  const validation = isCommandAllowed(command);
+  if (!validation.allowed) {
+    return NextResponse.json(
+      { success: false, error: validation.reason, blocked: true },
+      { status: 403 },
+    );
+  }
+
+  // Validate cwd if provided
+  let sanitizedCwd: string | null = null;
+  if (cwd && typeof cwd === "string") {
+    sanitizedCwd = sanitizeCwdPath(cwd);
+    if (!sanitizedCwd) {
       return NextResponse.json(
-        { success: false, error: validation.reason, blocked: true },
-        { status: 403 },
+        { success: false, error: "Invalid working directory path" },
+        { status: 400 },
       );
     }
-
-    // Validate cwd if provided
-    if (cwd && typeof cwd === "string") {
-      const sanitizedCwd = sanitizeCwdPath(cwd);
-      if (!sanitizedCwd) {
-        return NextResponse.json(
-          { success: false, error: "Invalid working directory path" },
-          { status: 400 },
-        );
-      }
-    }
+  }
 
     // Get sandbox instance
     const session = await aiAppBuilder.getSession(sessionId, user.id);
