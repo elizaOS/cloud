@@ -27,6 +27,10 @@
 - Fix for app/api/auth/siwe/verify/route.ts:121 - Diff only adds atomicConsume import but does not define SiweVerifyBody type or replace the `unknown` types. Comment requests defining explicit string type for message/signature but body variable still uses unknown.
 - Fix for app/api/auth/siwe/verify/route.ts:176 - Diff does not address the actual issue. Comment notes "cache.set() silently does nothing when Redis unavailable" causing nonce failures, but the fix shown only updates the nonce/route.ts error handling to use try/catch. The verify/route.ts endpoint still has no availability check for the consumed nonce.
 - Fix for app/api/auth/siwe/verify/route.ts:176 - When fixing a two-endpoint flow, address both the producer (nonce) and consumer (verify) endpoints—not just the consumer error handling.
+- Fix for app/api/auth/siwe/verify/route.ts:443 - The code change adds race condition logic but includes zero test files or test cases for nonce TTL, verification paths, or failure modes.
+- Fix for app/api/auth/siwe/verify/route.ts:122 - The diff does not change the request body type from `unknown` to an explicit type like `SiweVerifyBody` with `message?: string` and `signature?: string`.
+- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing cache unavailability issues, add error handling to both the write endpoint (nonce) and read endpoint (verify), not just one.
+- Fix for app/api/auth/siwe/verify/route.ts:443 - The diff adds race condition logic but provides no test coverage for nonce TTL, single-use validation, or signature verification paths as requested.
 
 ### public/.well-known/llms-full.txt
 
