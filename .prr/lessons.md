@@ -52,6 +52,8 @@
 - Fix for app/api/auth/siwe/verify/route.ts:487 - The diff removes code without adding any test files or test coverage for nonce TTL, single-use validation, or verify success/failure paths.
 - Fix for app/api/auth/siwe/verify/route.ts:123 - The diff removes code without replacing `unknown` types with explicit string types or a named `SiweVerifyBody` interface.
 - Fix for app/api/auth/siwe/verify/route.ts:123 - When a comment specifies a type change (like replacing `unknown`), implement that type definition first before fixing any formatting or indentation issues.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff contains syntax errors and does not introduce the `SiweVerifyBody` type or replace `unknown` with explicit string types as requested.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - When fixing type annotations, identify and modify ALL type declarations - don't just fix whitespace. The `SiweVerifyBody` type must be added before the body variable assignment.
 
 ### public/.well-known/llms-full.txt
 
@@ -69,6 +71,7 @@
 
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication across multiple files, update ALL affected files to use the shared import—not just the documentation in the shared module.
 
 ### app/api/auth/siwe/nonce/route.ts
 
