@@ -64,7 +64,13 @@ export function createHandler(
       const user = "user" in auth ? auth.user : (auth as any).user;
 
       if (!user || !user.organization_id) {
-let body: ProxyRequestBody = null;
+        return NextResponse.json(
+          { error: "Organization membership required for billing" },
+          { status: 403 },
+        );
+      }
+
+      let body: ProxyRequestBody = null;
       if (request.method === "POST") {
         try {
           body = await request.json();

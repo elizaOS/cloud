@@ -12,6 +12,20 @@ import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 
+// Sanitize cwd path to prevent command injection
+function sanitizeCwdPath(cwd: string): string | null {
+  if (!cwd) return null;
+  // Reject shell metacharacters
+  if (/[;&|$`"'\n\r]/.test(cwd)) return null;
+  // Strip leading ~/ and normalize
+  const stripped = cwd.replace(/^~\/?/, "");
+  // Reject path traversal
+  if (stripped.includes("..")) return null;
+  // Only allow safe characters
+  if (!/^[a-zA-Z0-9_\-./]+$/.test(stripped)) return null;
+  return stripped;
+}
+
 
 
 
