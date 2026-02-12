@@ -485,10 +485,6 @@ export async function syncUserFromPrivy(
 }
 
 /**
- * Ensure user has a default API key for programmatic access
- * Creates one if it doesn't exist
- */
-/**
  * Ensures a user has a default API key for programmatic access.
  * Creates one if it doesn't exist.
  *

@@ -1,12 +1,28 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
+
+// Mock dependencies before imports
+const mockCacheSet = vi.fn();
+const mockCacheGet = vi.fn();
+const mockCacheIsAvailable = vi.fn();
 
 vi.mock("@/lib/cache/client", () => ({
   cache: {
-    set: vi.fn(),
-    isAvailable: vi.fn(() => true),
+    set: (...args: unknown[]) => mockCacheSet(...args),
+    get: (...args: unknown[]) => mockCacheGet(...args),
+    isAvailable: () => mockCacheIsAvailable(),
   },
+}));
+
+vi.mock("@/lib/cache/keys", () => ({
+  CacheTTL: { siwe: { nonce: 300 } },
+  CacheKeys: {
+    siwe: { nonce: (n: string) => `siwe:nonce:${n}` },
+  },
+}));
+
+vi.mock("viem/siwe", () => ({
+  generateSiweNonce: () => "mock-nonce-abc123",
 }));
 
 vi.mock("@/lib/middleware/rate-limit", () => ({
@@ -14,59 +30,106 @@ vi.mock("@/lib/middleware/rate-limit", () => ({
   RateLimitPresets: { STRICT: {} },
 }));
 
-vi.mock("@/lib/cache/keys", () => ({
-  CacheKeys: {
-    siwe: {
-      nonce: (n: string) => `siwe:nonce:${n}`,
-    },
-  },
-}));
+import { GET } from "./route";
+import { NextRequest } from "next/server";
 
-import { cache } from "@/lib/cache/client";
+function makeRequest(params?: Record<string, string>): NextRequest {
+  const url = new URL("http://localhost:3000/api/auth/siwe/nonce");
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+  }
+  return new NextRequest(url);
+}
 
-describe("SIWE Nonce Endpoint", () => {
+describe("SIWE nonce endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    mockCacheIsAvailable.mockReturnValue(true);
+    mockCacheSet.mockResolvedValue(undefined);
+    mockCacheGet.mockResolvedValue(true);
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.com";
   });
 
-  it("returns 503 when cache is unavailable", async () => {
-    (cache.isAvailable as ReturnType<typeof vi.fn>).mockReturnValue(false);
-
-    // Dynamic import to get the handler after mocks are set up
-    const { GET } = await import("./route");
-    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
-    const res = await GET(req);
-    expect(res.status).toBe(503);
-  });
-
-  it("returns a nonce and domain when cache is available", async () => {
-    (cache.isAvailable as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (cache.set as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-
-    const { GET } = await import("./route");
-    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
-    const res = await GET(req);
-    const json = await res.json();
-
+  it("returns a nonce with expected fields", async () => {
+    const res = await GET(makeRequest());
     expect(res.status).toBe(200);
-    expect(json).toHaveProperty("nonce");
-    expect(typeof json.nonce).toBe("string");
-    expect(json.nonce.length).toBeGreaterThan(0);
-    expect(json).toHaveProperty("domain");
+    const body = await res.json();
+    expect(body).toMatchObject({
+      nonce: "mock-nonce-abc123",
+      domain: "app.example.com",
+      uri: "https://app.example.com",
+      chainId: 1,
+      version: "1",
+    });
   });
 
   it("stores nonce in cache with TTL", async () => {
-    (cache.isAvailable as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (cache.set as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    await GET(makeRequest());
+    expect(mockCacheSet).toHaveBeenCalledWith(
+      "siwe:nonce:mock-nonce-abc123",
+      true,
+      300,
+    );
+  });
 
-    const { GET } = await import("./route");
-    const req = new NextRequest("http://localhost:3000/api/auth/siwe/nonce");
-    await GET(req);
+  it("returns 503 when cache is unavailable", async () => {
+    mockCacheIsAvailable.mockReturnValue(false);
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("SERVICE_UNAVAILABLE");
+  });
 
-    expect(cache.set).toHaveBeenCalledTimes(1);
-    // Verify TTL is set (third argument should be an options object or number)
-    const setCall = (cache.set as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(setCall.length).toBeGreaterThanOrEqual(3);
+  it("returns 503 when nonce fails to persist", async () => {
+    mockCacheGet.mockResolvedValue(null);
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("SERVICE_UNAVAILABLE");
+  });
+
+  it("returns 503 when cache.set throws", async () => {
+    mockCacheSet.mockRejectedValue(new Error("Redis down"));
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(503);
+  });
+
+  it("accepts custom chainId", async () => {
+    const res = await GET(makeRequest({ chainId: "137" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.chainId).toBe(137);
+  });
+
+  it("rejects invalid chainId", async () => {
+    const res = await GET(makeRequest({ chainId: "-1" }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("INVALID_BODY");
+  });
+
+  it("rejects non-numeric chainId", async () => {
+    const res = await GET(makeRequest({ chainId: "abc" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("falls back to VERCEL_URL when NEXT_PUBLIC_APP_URL is unset", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.VERCEL_URL = "my-app.vercel.app";
+    const res = await GET(makeRequest());
+    const body = await res.json();
+    expect(body.domain).toBe("my-app.vercel.app");
+    expect(body.uri).toBe("https://my-app.vercel.app");
+    delete process.env.VERCEL_URL;
+  });
+
+  it("falls back to localhost when no env vars set", async () => {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_URL;
+    const res = await GET(makeRequest());
+    const body = await res.json();
+    expect(body.domain).toBe("localhost");
   });
 });

@@ -35,6 +35,7 @@ import { abuseDetectionService } from "@/lib/services/abuse-detection";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 // Import from shared utility to ensure SIWE and Privy auth create accounts consistently
 import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
+import { getAppUrl } from "@/lib/utils/app-url";
 import type { UserWithOrganization } from "@/lib/types";
 import { db } from "@/lib/db";
 
@@ -180,9 +181,7 @@ async function handleVerify(request: NextRequest) {
   // --- Domain validation ---
   // Prevents phishing: if an attacker tricks a user into signing a message
   // for a different domain, it won't pass verification here.
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = getAppUrl();
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {
