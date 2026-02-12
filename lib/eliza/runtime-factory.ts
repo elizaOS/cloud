@@ -44,6 +44,13 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
+  asana: { url: "/api/mcps/asana/mcp", type: "streamable-http" },
+  dropbox: { url: "/api/mcps/dropbox/mcp", type: "streamable-http" },
+  salesforce: { url: "/api/mcps/salesforce/mcp", type: "streamable-http" },
+  airtable: { url: "/api/mcps/airtable/mcp", type: "streamable-http" },
+  zoom: { url: "/api/mcps/zoom/mcp", type: "streamable-http" },
+  jira: { url: "/api/mcps/jira/mcp", type: "streamable-http" },
+  linkedin: { url: "/api/mcps/linkedin/mcp", type: "streamable-http" },
   microsoft: { url: "/api/mcps/microsoft/mcp", type: "streamable-http" },
   bluesky: { url: "/api/mcps/bluesky/mcp", type: "streamable-http" },
   // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
@@ -765,7 +772,7 @@ export class RuntimeFactory {
   }
 
   private buildMcpSettings(
-    charSettings: Record<string, unknown>,
+    _charSettings: Record<string, unknown>,
     context: UserContext,
   ): { mcp?: Record<string, unknown> } {
     const connected = this.getConnectedPlatforms(context);
@@ -777,14 +784,10 @@ export class RuntimeFactory {
 
     elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
 
-    const existingMcp = charSettings.mcp as Record<string, unknown> | undefined;
-    const existingServers =
-      existingMcp?.servers && typeof existingMcp.servers === "object" && !Array.isArray(existingMcp.servers)
-        ? (existingMcp.servers as Record<string, unknown>)
-        : {};
-
+    // Only use servers from MCP_SERVER_CONFIGS — don't merge with DB-stored
+    // server configs which can contain stale full URLs from previous ngrok sessions
     return {
-      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...existingServers, ...enabledServers } }),
+      mcp: this.transformMcpSettings({ servers: enabledServers }),
     };
   }
 
@@ -1020,7 +1023,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 2500; // Allow time for MCP server connections
+    const maxWaitMs = 15000; // Allow time for MCP server connections (dev cold start can take ~10s)
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;

@@ -32,14 +32,18 @@ export const oauthConnectAction: ActionWithParams = {
     "ADD_INTEGRATION", "SETUP_CONNECTION", "LINK_GOOGLE", "AUTHENTICATE",
     "LINK_LINEAR", "LINK_SLACK", "LINK_GITHUB", "LINK_NOTION", "LINK_MICROSOFT",
     "LINK_OUTLOOK", "LINK_BLUESKY", "LINK_BSKY",
+    "CONNECT_ASANA", "LINK_ASANA", "CONNECT_DROPBOX", "LINK_DROPBOX",
+    "CONNECT_SALESFORCE", "LINK_SALESFORCE", "CONNECT_AIRTABLE", "LINK_AIRTABLE",
+    "CONNECT_ZOOM", "LINK_ZOOM",
+    "CONNECT_JIRA", "LINK_JIRA", "CONNECT_LINKEDIN", "LINK_LINKEDIN",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, microsoft, bluesky. For Bluesky, the user must provide their handle (e.g., alice.bsky.social).",
+    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, microsoft, bluesky, asana, dropbox, salesforce, airtable, zoom, jira, linkedin. For Bluesky, the user must provide their handle (e.g., alice.bsky.social).",
 
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to connect. Available: google, linear, slack, github, notion, microsoft, bluesky",
+      description: "Platform to connect. Available: google, linear, slack, github, notion, microsoft, bluesky, asana, dropbox, salesforce, airtable, zoom, jira, linkedin",
       required: true,
     },
     handle: {
