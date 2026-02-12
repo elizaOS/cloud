@@ -81,6 +81,20 @@ describe('Service Pricing Admin Routes', () => {
       expect(requireAdminWithResponse).toHaveBeenCalledOnce();
     });
 
+    it('should return 400 for invalid JSON', async () => {
+      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
+        method: 'PUT',
+        body: '{',
+      });
+      vi.mocked(requireAdminWithResponse).mockResolvedValue({
+        user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        role: 'admin',
+      });
+
+      const response = await PUT(request);
+      expect(response.status).toBe(400);
+    });
+
     it('should update service pricing', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
@@ -112,6 +126,41 @@ describe('Service Pricing Admin Routes', () => {
       const response = await PUT(request);
       expect(response.status).toBe(200);
       expect(invalidateServicePricingCache).toHaveBeenCalledWith('solana-rpc');
+      expect(invalidateServicePricingCache).toHaveBeenCalledTimes(2);
+    });
+
+    it('should update service pricing when cache invalidation fails', async () => {
+      const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
+        method: 'PUT',
+        body: JSON.stringify({
+          service_id: 'solana-rpc',
+          method: 'getBalance',
+          cost: 0.002,
+          reason: 'Updated pricing',
+        }),
+      });
+      vi.mocked(requireAdminWithResponse).mockResolvedValue({
+        user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        role: 'admin',
+      });
+      vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
+        id: '1',
+        service_id: 'solana-rpc',
+        method: 'getBalance',
+        cost: '0.002',
+        description: null,
+        is_active: true,
+        metadata: {},
+        updated_by: 'user-1',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      vi.mocked(invalidateServicePricingCache)
+        .mockRejectedValueOnce(new Error('Cache error'))
+        .mockResolvedValueOnce();
+
+      const response = await PUT(request);
+      expect(response.status).toBe(200);
       expect(invalidateServicePricingCache).toHaveBeenCalledTimes(2);
     });
   });

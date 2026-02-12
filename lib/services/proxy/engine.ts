@@ -63,7 +63,7 @@ export function createHandler(
       const auth = await getAuthForLevel(request, config.auth);
       const user = "user" in auth ? auth.user : (auth as any).user;
 
-      if (!user.organization_id) {
+      if (!user || !user.organization_id) {
         return NextResponse.json(
           { error: "Organization membership required for billing" },
           { status: 403 },
