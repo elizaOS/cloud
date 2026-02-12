@@ -53,6 +53,8 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:172 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:86 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:167 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
+- Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 
 ### lib/services/proxy/engine.ts
 
@@ -148,25 +150,7 @@
 - Fix for app/api/v1/admin/moderation/route.ts:179 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:346 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/moderation/route.ts:177 - No verification result returned, treating as failed
-
-### /terminal/route.ts
-
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:83 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:128 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:210 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:136 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:218 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - When sanitizing inputs for shell commands, validate ALL variables being interpolated, not just the path—the `command` variable also needs quoting/escaping.
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:137 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:220 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:138 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:222 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:229 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:145 - When sanitizing paths for shell interpolation, always escape or quote the entire command string, not just the path variable—both components need protection.
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:144 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:227 - No verification result returned, treating as failed
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:97 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/moderation/route.ts:177 - tool made no changes without explanation - trying different approach
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -237,20 +221,14 @@
 
 - Fix for __tests__/api/admin/service-pricing.test.ts:124 - No verification result returned, treating as failed
 
-### /route.ts
-
-- Fix for app/api/v1/solana/assets/[address]/route.ts:36 - No verification result returned, treating as failed
-- Fix for app/api/v1/solana/assets/[address]/route.ts:60 - No verification result returned, treating as failed
-- Fix for app/api/v1/solana/assets/[address]/route.ts:36 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts, db/migrations/0033_add_service_billing_and_entity_settings.sql, lib/auth.ts, lib/services/proxy/engine.ts), need to modify app/api/v1/solana/assets/[address]/route.ts
-- Fix for app/api/v1/solana/assets/[address]/route.ts:69 - No verification result returned, treating as failed
-- Fix for app/api/v1/solana/assets/[address]/route.ts:68 - No verification result returned, treating as failed
-- Fix for app/api/v1/solana/assets/[address]/route.ts:70 - No verification result returned, treating as failed
-
 ### app/api/v1/solana/rpc/route.ts
 
 - Fix for app/api/v1/solana/rpc/route.ts:41 - No verification result returned, treating as failed
 - Fix for app/api/v1/solana/rpc/route.ts:36 - No verification result returned, treating as failed
 
-### /files/route.ts
+### /route.ts
 
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/files/route.ts:15 - No verification result returned, treating as failed
+- Fix for app/api/v1/solana/assets/[address]/route.ts - The diff only removes duplicate code from one file but doesn't address the core issue: extracting the identical getCorsHeaders() and OPTIONS handler into a shared utility across all four Solana route files.
+- Fix for app/api/v1/solana/assets/[address]/route.ts:69 - The diff removes unreachable duplicate code but ignores the secondary issue: the reachable getCorsHeaders() call (line 53) lacks the methods argument, causing incorrect Allow-Methods header.
+- Fix for app/api/v1/solana/assets/[address]/route.ts:69 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/solana/assets/[address]/route.ts:69 - The diff only adds the methods argument but doesn't remove the unreachable duplicate code (lines 59-68) that follows the return statement
