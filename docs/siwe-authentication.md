@@ -8,7 +8,7 @@ Agents need to sign up, fund accounts, and access services without a browser. Pr
 
 ## Agent Lifecycle
 
-```
+```text
 1. GET  /api/auth/siwe/nonce          → { nonce, domain, uri, chainId, ... }
 2. Sign SIWE message locally with wallet private key
 3. POST /api/auth/siwe/verify         → { apiKey, address, isNewAccount, ... }
@@ -174,7 +174,7 @@ SIWE auth → get API key → create crypto payment → confirm payment → use 
 
 These routes were updated from `requireAuthWithOrg()` (Privy-only) to `requireAuthOrApiKeyWithOrg(req)` (Privy or API key) to support this flow.
 
-```
+```text
 
 ## Files
 

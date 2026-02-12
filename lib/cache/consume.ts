@@ -1,19 +1,30 @@
 
-import { cache } from "./client";
+import { cache, redis } from "./client";
 
 /**
  * Atomically consume a cache key: delete it and return the number of keys removed.
  *
  * Returns 1 if the key existed and was deleted, 0 if it did not exist.
  *
- * Note: This uses cache.get() + cache.del() which has a small TOCTOU window.
- * A truly atomic implementation would require the raw Redis client to use
- * a single DEL command (which returns the delete count). The cache wrapper's
- * del() returns void, so we approximate atomicity with get-then-delete.
- * For nonce consumption, the 5-minute TTL and rate limiting provide
- * additional protection against replay within this small window.
+ * Uses a single Redis DEL command which is atomic — it returns the number of
+ * keys actually removed. This prevents TOCTOU race conditions where two
+ * concurrent requests could both read the key before either deletes it.
+ *
+ * Falls back to get-then-delete if the raw Redis client is unavailable.
  */
 export async function atomicConsume(key: string): Promise<number> {
+  // Prefer raw Redis DEL for atomicity: DEL returns the count of keys removed
+  // (1 if existed, 0 if not), making it a single atomic check-and-remove.
+  if (redis) {
+    try {
+      const count = await redis.del(key);
+      return count;
+    } catch {
+      // Fall through to non-atomic path
+    }
+  }
+
+  // Fallback: non-atomic get+del (has a small TOCTOU window)
   const value = await cache.get(key);
   if (value === null || value === undefined) {
     return 0;
