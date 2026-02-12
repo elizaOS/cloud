@@ -5432,7 +5432,7 @@ See [App Domains](/docs/app-domains) for complete domain management documentatio
 
 URL: https://elizacloud.ai/docs/authentication
 
-Summary: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
+Summary: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, SIWE wallet authentication, and x402 payments.
 
 # Authentication
 
@@ -5444,12 +5444,13 @@ Secure your API requests with elizaOS Cloud authentication methods.
 
 elizaOS Cloud supports multiple authentication methods:
 
-| Method        | Use Case           | Header                         |
-| ------------- | ------------------ | ------------------------------ |
-| **API Key**   | Server-to-server   | `Authorization: Bearer ek_xxx` |
-| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx`            |
-| **Session**   | Browser apps       | Cookie-based                   |
-| **x402**      | Crypto payments    | `X-PAYMENT: ...`               |
+| Method        | Use Case                        | Header                         |
+| ------------- | ------------------------------- | ------------------------------ |
+| **API Key**   | Server-to-server                | `Authorization: Bearer ek_xxx` |
+| **X-API-Key** | Alternative header              | `X-API-Key: ek_xxx`            |
+| **Session**   | Browser apps                    | Cookie-based (Privy)           |
+| **SIWE**      | Programmatic wallet auth        | EIP-4361 sign-in flow          |
+| **x402**      | Crypto payments                 | `X-PAYMENT: ...`               |
 
 ## API Keys
 
@@ -5554,6 +5555,166 @@ curl -X POST "https://elizacloud.ai/api/v1/api-keys/{id}/regenerate" \
 curl -X DELETE "https://elizacloud.ai/api/v1/api-keys/{id}" \
   -H "Authorization: Bearer ek_live_xxxxxxxxxxxx"
 ```
+
+## SIWE Authentication (Wallet Sign-In)
+
+Sign-In With Ethereum (EIP-4361) enables programmatic authentication using any Ethereum wallet. This is designed for AI agents and scripts that need to sign up, fund an account, and access services without a browser.
+
+### How It Works
+
+1. Request a nonce and message parameters from the server
+2. Construct and sign a SIWE message with your wallet
+3. Submit the signed message to get an API key
+4. Use the API key for all subsequent requests
+
+The verify endpoint handles both **sign-up** (new wallet) and **sign-in** (existing wallet) automatically. You don't need to know which case applies -- just sign and submit.
+
+### Step 1: Get a Nonce
+
+  
+```bash
+curl -X GET "https://elizacloud.ai/api/auth/siwe/nonce"
+```
+  
+  
+```javascript
+const nonceRes = await fetch('https://elizacloud.ai/api/auth/siwe/nonce');
+const params = await nonceRes.json();
+// { nonce, domain, uri, chainId, version, statement }
+```
+  
+  
+```python
+
+params = requests.get('https://elizacloud.ai/api/auth/siwe/nonce').json()
+# { nonce, domain, uri, chainId, version, statement }
+```
+  
+
+**Response:**
+
+```json
+{
+  "nonce": "a1b2c3d4e5f6g7h8",
+  "domain": "elizaos.ai",
+  "uri": "https://elizaos.ai",
+  "chainId": 1,
+  "version": "1",
+  "statement": "Sign in to ElizaCloud"
+}
+```
+
+Pass `?chainId=137` (or any chain ID) to specify your wallet's network.
+
+### Step 2: Sign the SIWE Message
+
+Construct an EIP-4361 message using the parameters from step 1, then sign it with your wallet:
+
+```javascript
+
+const account = privateKeyToAccount('0x...');
+
+const message = createSiweMessage({
+  address: account.address,
+  ...params,  // nonce, domain, uri, chainId, version, statement from step 1
+  issuedAt: new Date(),
+});
+
+const signature = await account.signMessage({ message });
+```
+
+### Step 3: Verify and Get API Key
+
+  
+```bash
+curl -X POST "https://elizacloud.ai/api/auth/siwe/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "<siwe-message>", "signature": "0x..."}'
+```
+  
+  
+```javascript
+const verifyRes = await fetch('https://elizacloud.ai/api/auth/siwe/verify', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message, signature }),
+});
+const { apiKey, isNewAccount } = await verifyRes.json();
+```
+  
+  
+```python
+result = requests.post('https://elizacloud.ai/api/auth/siwe/verify', json={
+    'message': message,
+    'signature': signature,
+}).json()
+api_key = result['apiKey']
+```
+  
+
+**Response:**
+
+```json
+{
+  "apiKey": "eliza_...",
+  "address": "0xAbC...123",
+  "isNewAccount": true,
+  "user": {
+    "id": "uuid",
+    "name": "0xAbC...0123",
+    "privyLinked": false
+  },
+  "organization": {
+    "id": "uuid",
+    "name": "0xAbC...0123's Organization",
+    "creditBalance": "5.00"
+  }
+}
+```
+
+### Step 4: Use the API Key
+
+```bash
+curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+  -H "X-API-Key: eliza_xxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+### Error Responses
+
+All errors include a machine-readable `error` slug and a human-readable `message`:
+
+| Error Slug | HTTP | Meaning |
+|------------|------|---------|
+| `INVALID_BODY` | 400 | Missing or malformed message/signature |
+| `INVALID_NONCE` | 400 | Nonce expired (5 min TTL) or already used |
+| `INVALID_DOMAIN` | 400 | SIWE message domain doesn't match server |
+| `MESSAGE_EXPIRED` | 400 | Client-set expiration time has passed |
+| `INVALID_SIGNATURE` | 400 | Signature doesn't match claimed address |
+| `ACCOUNT_INACTIVE` | 403 | Account or organization deactivated |
+| `SIGNUP_BLOCKED` | 403 | Abuse detection rejected signup |
+
+### Agent Lifecycle
+
+After authenticating with SIWE, an agent can complete the full lifecycle programmatically:
+
+1. **Authenticate** via SIWE (above) to get an API key
+2. **Fund** the account via `POST /api/crypto/payments` with the API key
+3. **Confirm** payment via `POST /api/crypto/payments/{id}/confirm`
+4. **Use services** -- chat, image generation, agents, containers, etc.
+
+  New accounts created through SIWE receive initial free credits. The exact amount
+  is configured server-side.
+
+### SIWE vs Privy
+
+SIWE and Privy are parallel authentication paths:
+
+- **Privy**: For web users. Supports OAuth, email, embedded wallets. Session-based.
+- **SIWE**: For agents and scripts. Any EOA wallet. Returns an API key.
+
+If a wallet is used with both methods, accounts are linked automatically. The `privyLinked` field in the verify response indicates whether a web account exists for the wallet.
 
 ## Session Authentication
 

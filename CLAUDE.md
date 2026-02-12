@@ -49,4 +49,24 @@ db/
   repositories/# Data access layer
 components/    # React components
 scripts/       # CLI utilities
+docs/          # Internal technical docs
 ```
+
+## Authentication
+
+Two parallel auth paths:
+
+- **Privy** -- Web users (OAuth, email, embedded wallets). Session/cookie-based. Handled by `lib/auth.ts`.
+- **SIWE** -- Programmatic agents (any EOA wallet). Returns an API key. See `docs/siwe-authentication.md`.
+
+Both produce a `UserWithOrganization` that the rest of the app consumes. API endpoints use `requireAuthOrApiKeyWithOrg(req)` to accept either Privy sessions or API keys.
+
+### SIWE Endpoints
+- `GET  /api/auth/siwe/nonce`  -- Returns nonce + SIWE message params
+- `POST /api/auth/siwe/verify` -- Verifies signature, handles sign-up/sign-in, returns API key
+
+### Key Implementation Details
+- Addresses: `getAddress()` for comparison, `.toLowerCase()` for DB lookups
+- Nonces: single-use, 5-min TTL, stored in Redis (`CacheKeys.siwe.nonce`)
+- New users get org + initial credits + API key in one request
+- Race conditions on concurrent signup handled via 23505 duplicate key detection

@@ -55,7 +55,7 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/app-domains
 - Apps — Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
   https://elizacloud.ai/docs/apps
-- Authentication — Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
+- Authentication — Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, SIWE wallet authentication, and x402 payments.
   https://elizacloud.ai/docs/authentication
 - Billing & Credits — Understand elizaOS Cloud pricing, credits system, and billing management.
   https://elizacloud.ai/docs/billing
