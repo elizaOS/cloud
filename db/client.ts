@@ -49,20 +49,18 @@
 
 import { drizzle as drizzleNode } from "drizzle-orm/node-postgres";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
-import { drizzle as drizzleNeonHttp } from "drizzle-orm/neon-http";
 import { Pool as PgPool } from "pg";
-import { Pool as NeonPool, neonConfig, neon } from "@neondatabase/serverless";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
 import * as schema from "./schemas";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import ws from "ws";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema> | NeonHttpDatabase<typeof schema>;
+type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 
 type DatabaseRegion = "na" | "eu" | "apac";
 type DatabaseRole = "read" | "write";
@@ -247,41 +245,6 @@ function createConnection(url: string): Database {
   }
 }
 
-/**
- * PERF: Create a stateless Neon HTTP connection.
- *
- * Uses the `neon()` HTTP driver from `@neondatabase/serverless` which makes
- * stateless HTTP requests instead of maintaining a WebSocket pool.
- *
- * Advantages over WebSocket pool for serverless:
- * - Zero connection setup overhead (no WebSocket handshake)
- * - No connection pool management
- * - Better for one-shot queries in short-lived serverless functions
- *
- * Disadvantages:
- * - Slightly higher per-query latency (~5-10ms more per query)
- * - No connection reuse within a single request
- * - No transaction support (each query is independent)
- *
- * Use cases:
- * - Webhook handlers that make 1-3 read queries then exit
- * - Background jobs with infrequent database access
- * - Serverless functions that don't benefit from connection pooling
- *
- * DO NOT use for:
- * - Write operations (use dbWrite with WebSocket pool)
- * - Transactions
- * - Long-lived processes with many queries
- */
-function createNeonHttpConnection(url: string): Database {
-  if (!isNeonDatabase(url)) {
-    // Fall back to regular connection for non-Neon databases
-    return createConnection(url);
-  }
-  const sql = neon(url);
-  return drizzleNeonHttp(sql, { schema }) as unknown as Database;
-}
-
 // ============================================================================
 // Connection Manager
 // ============================================================================
@@ -291,41 +254,16 @@ function createNeonHttpConnection(url: string): Database {
  */
 class DatabaseConnectionManager {
   private connections: Map<string, Database> = new Map();
-  private httpConnections: Map<string, Database> = new Map();
   private initialized = false;
 
   /**
-   * Get or create a database connection (WebSocket pool)
+   * Get or create a database connection
    */
   getConnection(url: string): Database {
     if (!this.connections.has(url)) {
       this.connections.set(url, createConnection(url));
     }
     return this.connections.get(url)!;
-  }
-
-  /**
-   * PERF: Get or create a Neon HTTP connection (stateless, no pool).
-   * Use for one-shot reads in serverless webhook handlers.
-   */
-  getHttpConnection(url: string): Database {
-    if (!this.httpConnections.has(url)) {
-      this.httpConnections.set(url, createNeonHttpConnection(url));
-    }
-    return this.httpConnections.get(url)!;
-  }
-
-  /**
-   * Get HTTP read connection for current region.
-   * Falls back to regular read connection if not a Neon database.
-   */
-  getHttpReadConnection(): Database {
-    const region = getCurrentRegion();
-    const url = getDatabaseUrl(region, "read") || getPrimaryDatabaseUrl();
-    if (isNeonDatabase(url)) {
-      return this.getHttpConnection(url);
-    }
-    return this.getConnection(url);
   }
 
   /**
@@ -432,26 +370,6 @@ export const dbRead = new Proxy({} as Database, {
 export const dbWrite = new Proxy({} as Database, {
   get: (_, prop) => {
     const database = connectionManager.getWriteConnection();
-    const value = database[prop as keyof typeof database];
-    return typeof value === "function" ? value.bind(database) : value;
-  },
-});
-
-/**
- * PERF: HTTP-based read database -- stateless, no WebSocket pool overhead.
- * Use for one-shot read queries in webhook handlers and short-lived serverless functions.
- * For Neon databases, uses the HTTP driver; for non-Neon, falls back to regular pool.
- *
- * NOTE: DO NOT use for writes, transactions, or long-lived processes.
- * Use dbWrite for all write operations.
- *
- * @example
- * // One-shot read in a webhook handler
- * const user = await dbHttpRead.query.users.findFirst({ where: eq(users.id, userId) });
- */
-export const dbHttpRead = new Proxy({} as Database, {
-  get: (_, prop) => {
-    const database = connectionManager.getHttpReadConnection();
     const value = database[prop as keyof typeof database];
     return typeof value === "function" ? value.bind(database) : value;
   },

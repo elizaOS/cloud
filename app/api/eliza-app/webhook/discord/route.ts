@@ -366,8 +366,6 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     // Process attachments (including voice)
     const attachments = processDiscordAttachments(data);
 
-    // PERF: Use single-shot mode for Discord (1 LLM call instead of 2+).
-    // Messaging app conversations are primarily conversational and don't need multi-step tool use.
     const result = await messageHandler.process({
       roomId,
       text,

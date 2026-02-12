@@ -211,8 +211,6 @@ async function handleMessage(message: Message): Promise<boolean> {
     const messageHandler = createMessageHandler(runtime, userContext);
 
     perfTrace.mark("message-processing");
-    // PERF: Use single-shot mode for Telegram (1 LLM call instead of 2+).
-    // Messaging app conversations are primarily conversational and don't need multi-step tool use.
     const result = await messageHandler.process({
       roomId,
       text,

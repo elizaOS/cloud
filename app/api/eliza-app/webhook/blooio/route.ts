@@ -227,8 +227,6 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
     const messageHandler = createMessageHandler(runtime, userContext);
 
-    // PERF: Use single-shot mode for iMessage/Blooio (1 LLM call instead of 2+).
-    // Messaging app conversations are primarily conversational and don't need multi-step tool use.
     const result = await messageHandler.process({
       roomId,
       text: fullMessage,

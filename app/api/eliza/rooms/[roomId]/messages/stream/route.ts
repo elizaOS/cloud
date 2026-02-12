@@ -148,7 +148,7 @@ export async function POST(
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
 
     perfTrace.mark("parallel-checks");
-    // PERF: Run independent checks in parallel after auth (Stan's primary recommendation).
+    // PERF: Run independent checks in parallel after auth.
     // shouldBlockUser, room lookup, anonymous limit check, and app credits check
     // are all independent reads that were previously sequential (~500-800ms savings).
     const moderationCheck = contentModerationService.startModerationCheck(
