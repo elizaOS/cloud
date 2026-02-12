@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   cryptoPaymentsService,
   CryptoPaymentError,
@@ -25,7 +25,7 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
@@ -125,7 +125,7 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(

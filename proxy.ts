@@ -201,6 +201,7 @@ const publicPaths = [
   "/api/eliza-app/auth", // Eliza App public auth endpoints
   "/api/eliza-app/webhook", // Eliza App webhooks (they verify their own signatures)
   "/api/eliza-app/user", // Eliza App user endpoints (uses own session validation)
+  "/api/auth/siwe",
 ];
 
 const publicPathPatterns = [

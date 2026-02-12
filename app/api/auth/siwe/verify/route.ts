@@ -1,0 +1,426 @@
+/**
+ * SIWE Verify Endpoint
+ *
+ * Handles both sign-in (existing wallet) and sign-up (new wallet) in a single
+ * request. This is intentional: agents shouldn't need to know whether an account
+ * exists before authenticating. They sign a message and get back an API key.
+ *
+ * The response always includes `isNewAccount` so callers can branch on it if
+ * they need to (e.g., show a welcome flow or skip straight to funding).
+ *
+ * Security model:
+ * - Nonce is single-use (consumed from Redis before proceeding)
+ * - Domain in the SIWE message must match our canonical app URL
+ * - Signature is verified via ecrecover, not trusted from the client
+ * - Rate limited with STRICT preset (unauthenticated endpoint)
+ * - Abuse detection runs before any resource creation on signup
+ *
+ * Why not IP-bind nonces: Agents run on serverless infra, VPNs, and shared
+ * IPs. Binding nonces to IP would break legitimate use without meaningful
+ * security gain over HTTPS + single-use + TTL.
+ */
+
+import { type NextRequest, NextResponse } from "next/server";
+import { parseSiweMessage } from "viem/siwe";
+import { recoverMessageAddress, getAddress, type Hex } from "viem";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys } from "@/lib/cache/keys";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { usersService } from "@/lib/services/users";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { organizationsService } from "@/lib/services/organizations";
+import { creditsService } from "@/lib/services/credits";
+import { abuseDetectionService } from "@/lib/services/abuse-detection";
+import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
+import type { UserWithOrganization } from "@/lib/types";
+
+const DEFAULT_INITIAL_CREDITS = 5.0;
+
+function getInitialCredits(): number {
+  const envValue = process.env.INITIAL_FREE_CREDITS;
+  if (envValue) {
+    const parsed = parseFloat(envValue);
+    if (!isNaN(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_INITIAL_CREDITS;
+}
+
+function generateSlugFromWallet(walletAddress: string): string {
+  const shortAddress = walletAddress.substring(0, 8);
+  const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `wallet-${sanitized}-${timestamp}${random}`;
+}
+
+function truncateAddress(address: string): string {
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+}
+
+/**
+ * Finds an active API key for this user, or creates one.
+ *
+ * NOTE: For existing keys, this returns the plaintext key stored in the `key`
+ * column of api_keys. The current schema stores plaintext alongside a SHA-256
+ * hash. This means SIWE re-authentication recovers the original key rather
+ * than issuing a new one -- which is the correct behavior for agents that may
+ * have lost their key and are re-authenticating to recover access.
+ *
+ * If the schema ever migrates to hash-only storage, this function will need
+ * to issue new keys on every auth (or return a key prefix for identification).
+ */
+async function resolveApiKeyForUser(
+  user: UserWithOrganization,
+): Promise<string> {
+  const keys = await apiKeysService.listByOrganization(user.organization_id!);
+  const existing = keys.find((k) => k.user_id === user.id && k.is_active);
+
+  if (existing) {
+    return existing.key;
+  }
+
+  const { plainKey } = await apiKeysService.create({
+    user_id: user.id,
+    organization_id: user.organization_id!,
+    name: "SIWE API Key",
+    is_active: true,
+  });
+
+  return plainKey;
+}
+
+function buildSuccessResponse(
+  user: UserWithOrganization,
+  apiKey: string,
+  address: string,
+  isNewAccount: boolean,
+) {
+  return NextResponse.json({
+    apiKey,
+    address,
+    isNewAccount,
+    user: {
+      id: user.id,
+      name: user.name,
+      // Tells callers whether this wallet was previously linked through Privy
+      // (web signup). Useful for agents to know if a web dashboard exists.
+      privyLinked: !!user.privy_user_id,
+    },
+    organization: {
+      id: user.organization_id,
+      name: user.organization?.name,
+      creditBalance: user.organization?.credit_balance,
+    },
+  });
+}
+
+async function handleVerify(request: NextRequest) {
+  let body: { message?: unknown; signature?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        error: "INVALID_BODY",
+        message: "Request must include 'message' and 'signature' fields.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (
+    typeof body.message !== "string" ||
+    body.message.trim().length === 0 ||
+    typeof body.signature !== "string" ||
+    body.signature.trim().length === 0
+  ) {
+    return NextResponse.json(
+      {
+        error: "INVALID_BODY",
+        message: "Request must include 'message' and 'signature' fields.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const message = body.message;
+  // Some wallets/libraries omit the 0x prefix on hex signatures.
+  const signature = body.signature.startsWith("0x")
+    ? body.signature
+    : `0x${body.signature}`;
+
+  const parsed = parseSiweMessage(message);
+
+  // parseSiweMessage returns all fields as optional. We must verify the
+  // security-critical ones exist before proceeding.
+  if (!parsed.address || !parsed.nonce || !parsed.domain) {
+    return NextResponse.json(
+      {
+        error: "INVALID_BODY",
+        message: "SIWE message is missing required fields.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // --- Nonce validation ---
+  // Check existence, then immediately delete. This is get-then-delete rather
+  // than atomic pop because our cache wrapper's del() returns void. The
+  // combination of single-use nonce + 5-minute TTL + signature binding makes
+  // the race window negligible.
+  const nonceExists = await cache.get(CacheKeys.siwe.nonce(parsed.nonce));
+  if (!nonceExists) {
+    return NextResponse.json(
+      {
+        error: "INVALID_NONCE",
+        message:
+          "The nonce has expired or was already used. Request a new nonce and try again.",
+      },
+      { status: 400 },
+    );
+  }
+
+  await cache.del(CacheKeys.siwe.nonce(parsed.nonce));
+
+  // --- Domain validation ---
+  // Prevents phishing: if an attacker tricks a user into signing a message
+  // for a different domain, it won't pass verification here.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizaos.ai";
+  const expectedDomain = new URL(appUrl).hostname;
+
+  if (parsed.domain !== expectedDomain) {
+    return NextResponse.json(
+      {
+        error: "INVALID_DOMAIN",
+        message:
+          "The SIWE message domain does not match this server. Use the domain returned by the nonce endpoint.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (parsed.expirationTime && parsed.expirationTime < new Date()) {
+    return NextResponse.json(
+      {
+        error: "MESSAGE_EXPIRED",
+        message:
+          "The SIWE message has expired. Request a new nonce and sign again.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // --- Signature verification ---
+  // recoverMessageAddress takes the RAW message string (not the parsed object)
+  // because it needs to hash the exact bytes that were signed per EIP-191.
+  let recoveredAddress: string;
+  try {
+    recoveredAddress = await recoverMessageAddress({
+      message,
+      signature: signature as Hex,
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        error: "INVALID_SIGNATURE",
+        message:
+          "The signature does not match the claimed wallet address. Verify you are signing the exact message string.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // getAddress() normalizes to EIP-55 checksum case. Ethereum addresses are
+  // case-insensitive (0xABC == 0xabc) so raw string comparison would be wrong.
+  if (getAddress(recoveredAddress) !== getAddress(parsed.address)) {
+    return NextResponse.json(
+      {
+        error: "INVALID_SIGNATURE",
+        message:
+          "The signature does not match the claimed wallet address. Verify you are signing the exact message string.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // Canonical checksummed form for response; lowercase for DB lookups (the DB
+  // stores addresses lowercase for consistent indexing).
+  const address = getAddress(recoveredAddress);
+
+  // --- Existing user path ---
+  const existingUser = await usersService.getByWalletAddressWithOrganization(
+    address.toLowerCase(),
+  );
+
+  if (existingUser) {
+    if (!existingUser.is_active || !existingUser.organization?.is_active || !existingUser.organization_id) {
+      return NextResponse.json(
+        {
+          error: "ACCOUNT_INACTIVE",
+          message: "This account or organization has been deactivated.",
+        },
+        { status: 403 },
+      );
+    }
+
+    // Mark wallet as verified for users who originally signed up through Privy.
+    // This proves they own the wallet (not just linked it via Privy OAuth).
+    if (!existingUser.wallet_verified) {
+      await usersService.update(existingUser.id, { wallet_verified: true });
+    }
+
+    const apiKey = await resolveApiKeyForUser(existingUser);
+    return buildSuccessResponse(existingUser, apiKey, address, false);
+  }
+
+  // --- New user path ---
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
+  const userAgent = request.headers.get("user-agent") || "unknown";
+
+  // Abuse detection runs BEFORE any resource creation to avoid creating
+  // orphaned orgs/users that need cleanup.
+  const abuseCheck = await abuseDetectionService.checkSignupAbuse({
+    ipAddress: ip,
+    userAgent,
+  });
+
+  if (!abuseCheck.allowed) {
+    return NextResponse.json(
+      {
+        error: "SIGNUP_BLOCKED",
+        message:
+          abuseCheck.reason || "Signup blocked due to suspicious activity.",
+      },
+      { status: 403 },
+    );
+  }
+
+  let orgSlug = generateSlugFromWallet(address);
+  let slugAttempts = 0;
+  while (await organizationsService.getBySlug(orgSlug)) {
+    slugAttempts++;
+    if (slugAttempts > 10) {
+      throw new Error("Failed to generate unique organization slug");
+    }
+    orgSlug = generateSlugFromWallet(address);
+  }
+
+  const displayName = truncateAddress(address);
+
+  const organization = await organizationsService.create({
+    name: `${displayName}'s Organization`,
+    slug: orgSlug,
+    credit_balance: "0.00",
+  });
+
+  await abuseDetectionService.recordSignupMetadata(organization.id, {
+    ipAddress: ip,
+    userAgent,
+  });
+
+  const initialCredits = getInitialCredits();
+  if (initialCredits > 0) {
+    // If the credits service fails (e.g., transaction logging issue), fall
+    // back to directly setting the org balance. The user shouldn't lose their
+    // welcome credits because of an internal bookkeeping error.
+    try {
+      await creditsService.addCredits({
+        organizationId: organization.id,
+        amount: initialCredits,
+        description: "Initial free credits - Welcome bonus",
+        metadata: {
+          type: "initial_free_credits",
+          source: "siwe_signup",
+        },
+      });
+    } catch {
+      await organizationsService.update(organization.id, {
+        credit_balance: String(initialCredits),
+      });
+    }
+  }
+
+  try {
+    await usersService.create({
+      wallet_address: address.toLowerCase(),
+      wallet_chain_type: "ethereum",
+      wallet_verified: true,
+      // null because SIWE users aren't created through Privy. If they later
+      // sign in via Privy web UI with the same wallet, the sync process will
+      // link the accounts by setting this field.
+      privy_user_id: null,
+      name: displayName,
+      avatar: getRandomUserAvatar(),
+      organization_id: organization.id,
+      role: "owner",
+      is_active: true,
+    });
+  } catch (error) {
+    // Handle race condition: two concurrent SIWE requests for the same new
+    // wallet. The unique constraint on wallet_address (Postgres error 23505)
+    // means the second insert fails. We clean up the orphaned org we just
+    // created and fall through to return the user the first request created.
+    // Drizzle may wrap the pg error in .cause, so we check both levels.
+    const isDuplicateError =
+      error &&
+      typeof error === "object" &&
+      (("code" in error && error.code === "23505") ||
+        ("cause" in error &&
+          error.cause &&
+          typeof error.cause === "object" &&
+          "code" in error.cause &&
+          error.cause.code === "23505"));
+
+    if (isDuplicateError) {
+      await organizationsService.delete(organization.id);
+
+      // The winning request may not have committed yet, so retry with backoff.
+      let raceUser: UserWithOrganization | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
+          );
+        }
+        raceUser = await usersService.getByWalletAddressWithOrganization(
+          address.toLowerCase(),
+        );
+        if (raceUser) break;
+      }
+
+      if (raceUser && raceUser.organization_id) {
+        if (!raceUser.wallet_verified) {
+          await usersService.update(raceUser.id, { wallet_verified: true });
+        }
+        const apiKey = await resolveApiKeyForUser(raceUser);
+        return buildSuccessResponse(raceUser, apiKey, address, false);
+      }
+    }
+
+    throw error;
+  }
+
+  const newUser = await usersService.getByWalletAddressWithOrganization(
+    address.toLowerCase(),
+  );
+
+  if (!newUser || !newUser.organization_id) {
+    throw new Error("Failed to fetch newly created SIWE user");
+  }
+
+  const { plainKey } = await apiKeysService.create({
+    user_id: newUser.id,
+    organization_id: newUser.organization_id,
+    name: "Default API Key",
+    is_active: true,
+  });
+
+  return buildSuccessResponse(newUser, plainKey, address, true);
+}
+
+export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -93,7 +93,7 @@ async function handleConfirmPayment(
   }
 
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const { id } = await context.params;
 
     if (!user.organization_id) {
