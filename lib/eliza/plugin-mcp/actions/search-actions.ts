@@ -110,6 +110,8 @@ export const searchActionsAction: ActionWithParams = {
     const existingNames = new Set(runtime.actions.map((a) => a.name));
     const newlyRegistered: string[] = [];
     const alreadyRegistered: string[] = [];
+    // Track original tier-2 names for removal (before collision adjustment)
+    const promotedTier2Names: string[] = [];
 
     for (const entry of results) {
       if (existingNames.has(entry.actionName)) {
@@ -125,12 +127,15 @@ export const searchActionsAction: ActionWithParams = {
       runtime.registerAction(action);
       existingNames.add(action.name);
       newlyRegistered.push(action.name);
+      // Use the original tier-2 actionName (not collision-adjusted) for removal
+      promotedTier2Names.push(entry.actionName);
     }
 
     // Remove promoted actions from both Tier-2 source array and BM25 index
-    // so discoverableToolCount stays accurate and reconnect doesn't restore them
-    if (newlyRegistered.length > 0) {
-      svc.removeFromTier2(newlyRegistered);
+    // so discoverableToolCount stays accurate and reconnect doesn't restore them.
+    // Uses original tier-2 names, not collision-adjusted registered names.
+    if (promotedTier2Names.length > 0) {
+      svc.removeFromTier2(promotedTier2Names);
     }
 
     // Transparent: no callback — results appear as new actions in next iteration's Available Actions
