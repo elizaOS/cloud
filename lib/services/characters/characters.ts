@@ -80,12 +80,23 @@ export class CharactersService {
     return character;
   }
 
-  /** PERF: Set in-memory cache with size-based eviction */
+  /** PERF: Set in-memory cache with expired-first eviction */
   private _setInMemoryCache(id: string, character: UserCharacter): void {
     if (IN_MEMORY_CHAR_CACHE.size >= IN_MEMORY_CHAR_MAX_SIZE) {
-      const keys = Array.from(IN_MEMORY_CHAR_CACHE.keys());
-      for (let i = 0; i < Math.floor(keys.length / 2); i++) {
-        IN_MEMORY_CHAR_CACHE.delete(keys[i]);
+      // First pass: evict expired entries
+      const now = Date.now();
+      for (const [key, value] of IN_MEMORY_CHAR_CACHE) {
+        if (now > value.expiresAt) {
+          IN_MEMORY_CHAR_CACHE.delete(key);
+        }
+      }
+      // Second pass: if still over capacity, evict oldest entries (by insertion order)
+      if (IN_MEMORY_CHAR_CACHE.size >= IN_MEMORY_CHAR_MAX_SIZE) {
+        const keys = Array.from(IN_MEMORY_CHAR_CACHE.keys());
+        const toRemove = keys.length - Math.floor(IN_MEMORY_CHAR_MAX_SIZE * 0.75);
+        for (let i = 0; i < toRemove; i++) {
+          IN_MEMORY_CHAR_CACHE.delete(keys[i]);
+        }
       }
     }
     IN_MEMORY_CHAR_CACHE.set(id, { character, expiresAt: Date.now() + IN_MEMORY_CHAR_TTL_MS });

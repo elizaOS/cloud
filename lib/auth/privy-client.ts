@@ -76,7 +76,7 @@ function hashToken(token: string): string {
 /**
  * PERF: In-memory cache for Privy token verification (30s TTL).
  * Eliminates Redis round-trip for repeated requests from the same user
- * within the same serverless function instance. This saves ~5-301ms per request.
+ * within the same serverless function instance. This saves ~5-30ms per request.
  */
 const IN_MEMORY_PRIVY_CACHE = new Map<string, { claims: AuthTokenClaims; expiresAt: number }>();
 const IN_MEMORY_PRIVY_TTL_MS = 30_000; // 30 seconds
@@ -93,11 +93,21 @@ function getFromInMemoryPrivyCache(tokenHash: string): AuthTokenClaims | null {
 }
 
 function setInMemoryPrivyCache(tokenHash: string, claims: AuthTokenClaims): void {
-  // Simple size-based eviction: clear half the cache when full
   if (IN_MEMORY_PRIVY_CACHE.size >= IN_MEMORY_PRIVY_MAX_SIZE) {
-    const keys = Array.from(IN_MEMORY_PRIVY_CACHE.keys());
-    for (let i = 0; i < Math.floor(keys.length / 2); i++) {
-      IN_MEMORY_PRIVY_CACHE.delete(keys[i]);
+    // First pass: evict expired entries
+    const now = Date.now();
+    for (const [key, value] of IN_MEMORY_PRIVY_CACHE) {
+      if (now > value.expiresAt) {
+        IN_MEMORY_PRIVY_CACHE.delete(key);
+      }
+    }
+    // Second pass: if still over capacity, evict oldest entries (by insertion order)
+    if (IN_MEMORY_PRIVY_CACHE.size >= IN_MEMORY_PRIVY_MAX_SIZE) {
+      const keys = Array.from(IN_MEMORY_PRIVY_CACHE.keys());
+      const toRemove = keys.length - Math.floor(IN_MEMORY_PRIVY_MAX_SIZE * 0.75);
+      for (let i = 0; i < toRemove; i++) {
+        IN_MEMORY_PRIVY_CACHE.delete(keys[i]);
+      }
     }
   }
   IN_MEMORY_PRIVY_CACHE.set(tokenHash, {
