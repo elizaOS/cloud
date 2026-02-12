@@ -5668,7 +5668,8 @@ api_key = result['apiKey']
     "id": "uuid",
     "name": "0xAbC...0123's Organization",
     "creditBalance": "5.00"
-  }
+  },
+  "apiKey": "ek_live_xxxxxxxxxxxx"
 }
 ```
 
