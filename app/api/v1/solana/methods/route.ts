@@ -29,9 +29,9 @@ export async function GET() {
       "solana-rpc"
     );
 
-    // Only return active methods
+    // Only return active methods, excluding internal entries (prefixed with _)
     const activeMethods = pricingRecords
-      .filter((record) => record.is_active)
+      .filter((record) => record.is_active && !record.method.startsWith("_"))
       .map((record) => ({
         method: record.method,
         cost: Number(record.cost),
