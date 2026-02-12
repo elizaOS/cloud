@@ -295,23 +295,24 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  let orgSlug = generateSlugFromWallet(address);
-  let slugAttempts = 0;
-  while (await organizationsService.getBySlug(orgSlug)) {
-    slugAttempts++;
-    if (slugAttempts > 10) {
-      throw new Error("Failed to generate unique organization slug");
-    }
-    orgSlug = generateSlugFromWallet(address);
-  }
-
   const displayName = truncateAddress(address);
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
   // If any step fails, all changes are rolled back atomically.
+  // Slug generation is also inside the transaction to avoid TOCTOU races.
   let signupResult: { organization: Awaited<ReturnType<typeof organizationsService.create>>; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
+      let orgSlug = generateSlugFromWallet(address);
+      let slugAttempts = 0;
+      while (await organizationsService.getBySlug(orgSlug, tx)) {
+        slugAttempts++;
+        if (slugAttempts > 10) {
+          throw new Error("Failed to generate unique organization slug");
+        }
+        orgSlug = generateSlugFromWallet(address);
+      }
+
       const org = await organizationsService.create(
         {
           name: `${displayName}'s Organization`,
@@ -366,7 +367,7 @@ async function handleVerify(request: NextRequest) {
           user_id: user.id,
           organization_id: org.id,
           name: "Default API Key",
-    is_active: true,
+          is_active: true,
         },
         tx,
       );
