@@ -37,6 +37,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint flow, add availability checks to BOTH endpoints, not just the consumer endpoint that was mentioned in the error path.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:505 - When addressing "add tests" feedback, the fix must include actual test code/files, not just comments describing what tests should exist.
+- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint issue, add availability checks to BOTH endpoints—the nonce generator and the verifier—not just one.
 
 ### public/.well-known/llms-full.txt
 
@@ -53,3 +54,4 @@
 ### lib/utils/signup-helpers.ts
 
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
