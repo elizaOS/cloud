@@ -77,6 +77,7 @@
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
 - Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication across multiple files, update ALL affected files to use the shared import—not just the documentation in the shared module.
 - Fix for lib/utils/signup-helpers.ts:28 - tool modified wrong files (lib/privy-sync.ts), need to modify lib/utils/signup-helpers.ts
+- Fix for lib/utils/signup-helpers.ts:28 - Documentation-only changes don't fix duplication issues—must actually remove duplicate code and update all call sites to import from the shared module.
 
 ### app/api/auth/siwe/nonce/route.ts
 
