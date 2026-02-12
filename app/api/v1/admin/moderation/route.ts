@@ -300,7 +300,7 @@ export async function POST(request: NextRequest) {
         await adminService.addAdmin(
           targetWalletAddress,
           validRole,
-          user.id,
+          user.wallet_address,
         );
         logger.info("[Admin] Admin added", {
           targetWalletAddress,

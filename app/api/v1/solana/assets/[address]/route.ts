@@ -49,7 +49,7 @@ export async function GET(
     },
   };
 
-  const corsHeaders = getCorsHeaders();
+  const corsHeaders = getCorsHeaders("GET, OPTIONS");
 
   try {
     const response = await executeWithBody(
