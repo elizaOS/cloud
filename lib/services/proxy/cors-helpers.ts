@@ -7,10 +7,12 @@
 
 import { NextResponse } from "next/server";
 
-export function getCorsHeaders(): Record<string, string> {
+export function getCorsHeaders(
+  methods = "GET, POST, OPTIONS",
+): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": methods,
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
     "Access-Control-Max-Age": "86400",
   };
@@ -19,9 +21,6 @@ export function getCorsHeaders(): Record<string, string> {
 export function handleCorsOptions(methods = "GET, POST, OPTIONS"): NextResponse {
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      ...getCorsHeaders(),
-      "Access-Control-Allow-Methods": methods,
-    },
+    headers: getCorsHeaders(methods),
   });
 }

@@ -21,30 +21,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export async function GET(request: NextRequest) {
-  let user;
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Service pricing auth error",
+  );
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
 
   const url = new URL(request.url);
@@ -93,24 +82,14 @@ const UpsertSchema = z.object({
 });
 
 export async function PUT(request: NextRequest) {
-  let user;
-  
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Service pricing auth error",
+  );
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
+  const user = authResult.user;
 
   let body;
   try {
@@ -133,7 +112,7 @@ export async function PUT(request: NextRequest) {
     // Pre-update cache invalidation
     let cacheInvalidated = false;
     try {
-      await invalidateServicePricingCache(service_id, method);
+      await invalidateServicePricingCache(service_id);
       cacheInvalidated = true;
     } catch (error) {
       logger.warn("[Admin] Pre-update cache invalidation failed", {
@@ -155,7 +134,7 @@ export async function PUT(request: NextRequest) {
 
     // Post-update cache invalidation
     try {
-      await invalidateServicePricingCache(service_id, method);
+      await invalidateServicePricingCache(service_id);
       cacheInvalidated = true;
     } catch (retryError) {
       logger.error("[Admin] CRITICAL: Post-update cache invalidation failed", {
@@ -187,12 +166,6 @@ export async function PUT(request: NextRequest) {
       cache_invalidated: cacheInvalidated,
     });
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
     logger.error("[Admin] Service pricing PUT error", { error });
     return NextResponse.json(
       { error: "Internal server error" },

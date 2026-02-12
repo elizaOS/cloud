@@ -23,13 +23,20 @@ export async function OPTIONS() {
 const basePostHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
 
 export async function POST(request: NextRequest) {
-  const response = await basePostHandler(request);
+  try {
+    const response = await basePostHandler(request);
 
-  // Add CORS headers to response
-  const corsHeaders = getCorsHeaders();
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    response.headers.set(key, value);
+    // Add CORS headers to response
+    const corsHeaders = getCorsHeaders("POST, OPTIONS");
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
+  } catch {
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: getCorsHeaders("POST, OPTIONS"),
+    });
   }
-
-  return response;
 }

@@ -14,8 +14,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
+import type { AdminAuthResult } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
@@ -32,23 +32,15 @@ import { z } from "zod";
 export async function GET(request: NextRequest) {
   let user;
   let role: string;
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-    role = result.role;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Moderation GET auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Moderation GET auth error",
+  );
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
+  user = authResult.user;
+  role = authResult.role;
 
   try {
 
@@ -122,12 +114,6 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
     logger.error("[Admin] Moderation GET error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
@@ -157,26 +143,18 @@ const ActionSchema = z.object({
  * Perform admin actions: ban, unban, mark users, manage admins.
  */
 export async function POST(request: NextRequest) {
-  let user: Awaited<ReturnType<typeof requireAdmin>>["user"];
+  let user: AdminAuthResult["user"];
   let adminRole: string;
 
-  try {
-    const result = await requireAdmin(request);
-    user = result.user;
-    adminRole = result.role;
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Moderation POST auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Moderation POST auth error",
+  );
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
+  user = authResult.user;
+  adminRole = authResult.role;
 
   let body;
   try {

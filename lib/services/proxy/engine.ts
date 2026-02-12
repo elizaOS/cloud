@@ -8,7 +8,6 @@ import {
 } from "@/lib/auth";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
-import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
 import { PricingNotFoundError } from "./pricing";
@@ -16,12 +15,10 @@ import type {
   ServiceConfig,
   ServiceHandler,
   HandlerContext,
-  HandlerResult,
   AuthLevel,
   ProxyRequestBody,
 } from "./types";
 import { createHash } from "node:crypto";
-import { getCorsHeaders } from "./cors";
 
 async function getAuthForLevel(request: NextRequest, level: AuthLevel) {
   switch (level) {
@@ -60,147 +57,6 @@ function buildCacheKey(
 export function createHandler(
   config: ServiceConfig,
   handler: ServiceHandler,
-): (request: NextRequest) => Promise<NextResponse> {
-  const wrappedHandler = async (
-    request: NextRequest,
-  ): Promise<NextResponse> => {
-    try {
-      const { user } = await getAuthForLevel(request, config.authLevel);
-      
-      // Check organization_id exists before reserving credits
-      if (!user.organization_id) {
-        logger.warn("[Proxy] User missing organization_id", { userId: user.id });
-        return NextResponse.json(
-          { error: "Organization membership required" },
-          { status: 403 }
-        );
-      }
-
-      const cost = await config.calculateCost(request);
-      
-      if (!user.organization_id) {
-        throw new PricingNotFoundError(
-          "Organization required for proxy service billing"
-        );
-      }
-
-      await creditsService.reserve({
-        organizationId: user.organization_id,
-        userId: user.id,
-        amount: cost,
-        description: config.name,
-      });
-
-      if (config.cache && request.method === "POST") {
-        const body = await request.json();
-        const searchParams = new URL(request.url).searchParams;
-        
-        if (body && !Array.isArray(body)) {
-          const cacheKey = buildCacheKey(
-            config.id,
-            user.organization_id,
-            body,
-            searchParams
-          );
-
-          const cachedResponse = await cache.get(cacheKey);
-          if (cachedResponse) {
-            await creditsService.release(reservation.id);
-            
-            return NextResponse.json(cachedResponse, {
-              headers: { "X-Cache": "HIT" },
-            });
-          }
-        }
-      }
-
-      const context: HandlerContext = {
-        user,
-        request,
-        reservation,
-      };
-
-      const result: HandlerResult = await handler(context);
-
-      if (result.response) {
-        const responseClone = result.response.clone();
-        const responseBody = await responseClone.text();
-
-        if (config.cache && result.cacheable) {
-          const body = await request.json();
-          const searchParams = new URL(request.url).searchParams;
-          
-          if (body && !Array.isArray(body)) {
-            const cacheKey = buildCacheKey(
-              config.id,
-              user.organization_id,
-              body,
-              searchParams
-            );
-            
-            const ttl = result.cacheTTL || 300;
-            await cache.set(cacheKey, JSON.parse(responseBody), ttl);
-          }
-        }
-
-        await creditsService.commit(reservation.id);
-
-        await usageService.record({
-          organizationId: user.organization_id,
-          userId: user.id,
-          serviceId: config.id,
-          cost,
-          metadata: result.metadata,
-        });
-
-        return result.response;
-      }
-
-      await creditsService.release(reservation.id);
-      return NextResponse.json(
-        { error: "Handler did not return a response" },
-        { status: 500 }
-      );
-    } catch (error) {
-      logger.error("[Proxy] Handler error", {
-        service: config.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      if (error instanceof InsufficientCreditsError) {
-        return NextResponse.json(
-          { error: "Insufficient credits" },
-          { status: 402 }
-        );
-      }
-
-      if (error instanceof PricingNotFoundError) {
-        return NextResponse.json(
-          { error: "Service pricing not configured" },
-          { status: 503 }
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 }
-      );
-    }
-  };
-
-  return config.rateLimit
-    ? withRateLimit(wrappedHandler, config.rateLimit)
-    : wrappedHandler;
-}
-    logger.warn("Failed to serialize body for cache key");
-    // Fallback to a generic key without body content
-    return `svc:${serviceId}:${orgId}:fallback`;
-  }
-}
-
-export function createHandler(
-  config: ServiceConfig,
-  handler: ServiceHandler,
 ) {
   return async (request: NextRequest) => {
     try {
@@ -232,20 +88,6 @@ export function createHandler(
       const cost = await config.getCost(body, searchParams);
 
       // Reserve credits
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization membership required for billing" },
-          { status: 403 },
-        );
-      }
-
       if (!user.organization_id) {
         return NextResponse.json(
           { error: "Organization membership required for billing" },
@@ -292,8 +134,8 @@ export function createHandler(
                     input_tokens: 0,
                     output_tokens: 0,
                     input_cost: String(cost),
-                    output_cost: 0,
-            markup: 0,
+                    output_cost: String(0),
+                    markup: String(0),
                     metadata: { cached: true },
                   });
                 } catch (error) {
@@ -347,8 +189,8 @@ export function createHandler(
             input_tokens: result.inputTokens ?? 0,
             output_tokens: result.outputTokens ?? 0,
             input_cost: String(cost),
-            output_cost: 0,
-            markup: 0,
+            output_cost: String(0),
+            markup: String(0),
             metadata: result.metadata,
           });
         } catch (error) {

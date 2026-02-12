@@ -1,25 +1,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { logger } from "@/lib/utils/logger";
 import { servicePricingRepository } from "@/db/repositories";
 
 export async function GET(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
-    logger.error("[Admin] Service pricing audit auth error", { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Service pricing audit auth error",
+  );
+  if (authResult instanceof NextResponse) {
+    return authResult;
   }
 
   try {
@@ -57,12 +48,6 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return NextResponse.json({ error: error.message }, { status: 401 });
-    }
-    if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
     logger.error("[Admin] Service pricing audit error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
