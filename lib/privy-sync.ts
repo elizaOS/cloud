@@ -9,7 +9,8 @@
 
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
-import { emailService } from "@/lib/services/email";
+import { creditsService } from "@/lib/services/credits";
+import { generateSlugFromWallet, getInitialCredits, DEFAULT_INITIAL_CREDITS } from "@/lib/utils/signup-helpers";
 import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";

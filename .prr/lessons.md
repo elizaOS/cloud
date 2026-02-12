@@ -31,6 +31,9 @@
 - Fix for app/api/auth/siwe/verify/route.ts:122 - The diff does not change the request body type from `unknown` to an explicit type like `SiweVerifyBody` with `message?: string` and `signature?: string`.
 - Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing cache unavailability issues, add error handling to both the write endpoint (nonce) and read endpoint (verify), not just one.
 - Fix for app/api/auth/siwe/verify/route.ts:443 - The diff adds race condition logic but provides no test coverage for nonce TTL, single-use validation, or signature verification paths as requested.
+- Fix for app/api/auth/siwe/verify/route.ts:502 - The code change does not add any test files or test coverage. Comment requests "unit/integration coverage for nonce issuance, verify success paths, and key failure modes."
+- Fix for app/api/auth/siwe/verify/route.ts:122 - The code change does not address the `unknown` type issue. The diff shows changes to transaction handling but not to the request body type annotation around line 119-138.
+- Fix for app/api/auth/siwe/verify/route.ts:177 - The code change does not address Redis unavailability or add fallback/availability checks. Comment requires detecting when Redis is unavailable and either failing fast or providing a fallback mechanism.
 
 ### public/.well-known/llms-full.txt
 
@@ -39,3 +42,7 @@
 ### public/llms-full.txt
 
 - Fix for public/llms-full.txt:5673 - The diff shown only updates the apiKey at line 5659. The comment requests standardization across "related samples and tests" but doesn't confirm whether line 5677-5681 or other occurrences were also updated.
+
+### lib/cache/consume.ts
+
+- Fix for lib/cache/consume.ts:21 - The function is still exported and unused. The comment requests removal of dead code, not refactoring its imports.
