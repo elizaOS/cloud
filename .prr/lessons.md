@@ -47,6 +47,11 @@
 - Fix for app/api/auth/siwe/verify/route.ts:178 - "Both endpoints must check cache availability - verify alone is insufficient since nonce endpoint returns 200 despite silent failure."
 - Fix for app/api/auth/siwe/verify/route.ts:506 - The diff is malformed and contains no test file additions. Comment explicitly requests unit/integration tests for nonce TTL, verify paths, and failure modes.
 - Fix for app/api/auth/siwe/verify/route.ts:123 - The file already has the fix in place!
+- Fix for app/api/auth/siwe/verify/route.ts:487 - The diff only deletes code without adding any test files or test cases for nonce TTL, user flows, or signature validation.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff only deletes code without replacing `unknown` type with explicit `SiweVerifyBody` type definition or string types.
+- Fix for app/api/auth/siwe/verify/route.ts:487 - The diff removes code without adding any test files or test coverage for nonce TTL, single-use validation, or verify success/failure paths.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff removes code without replacing `unknown` types with explicit string types or a named `SiweVerifyBody` interface.
+- Fix for app/api/auth/siwe/verify/route.ts:123 - When a comment specifies a type change (like replacing `unknown`), implement that type definition first before fixing any formatting or indentation issues.
 
 ### public/.well-known/llms-full.txt
 
