@@ -154,7 +154,7 @@ const ActionSchema = z.object({
   targetUserId: z.string().optional(),
   targetWalletAddress: z.string().optional(),
   reason: z.string().optional(),
-  role: z.enum(["super_admin", "moderator", "viewer"]).optional(),
+  role: z.enum(["super_admin", "moderator", "viewer"]).default("moderator"),
 });
 
 /**
