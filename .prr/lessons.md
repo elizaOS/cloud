@@ -39,6 +39,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:505 - When addressing "add tests" feedback, the fix must include actual test code/files, not just comments describing what tests should exist.
 - Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint issue, add availability checks to BOTH endpoints—the nonce generator and the verifier—not just one.
 - Fix for app/api/auth/siwe/verify/route.ts:505 - When a review requests "accompanying automated tests," create the actual test file with implementations, not just documentation comments referencing it.
+- Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
 
 ### public/.well-known/llms-full.txt
 
