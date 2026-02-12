@@ -1,5 +1,5 @@
 
-import { cache, redis } from "./client";
+import { redis } from "./client";
 
 /**
  * Atomically consume a cache key: delete it and return the number of keys removed.

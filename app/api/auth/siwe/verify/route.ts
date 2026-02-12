@@ -68,7 +68,7 @@ async function resolveApiKeyForUser(
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "SIWE API Key",
+    name: "Default API Key",
     is_active: true,
   });
 
@@ -100,18 +100,10 @@ function buildSuccessResponse(
   });
 }
 
-/**
- * Request body type for SIWE verification endpoint.
- * Both fields are required but typed as optional to allow proper validation
- * and provide clear error messages when missing.
- */
-type SiweVerifyBody = {
-  message?: string;
-  signature?: string;
-};
+
 
 async function handleVerify(request: NextRequest) {
-  let body: SiweVerifyBody;
+  let body: { message?: string; signature?: string };
   try {
     body = await request.json();
   } catch {
