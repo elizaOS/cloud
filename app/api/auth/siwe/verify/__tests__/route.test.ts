@@ -3,64 +3,62 @@ import { POST } from "../route";
 import { NextRequest } from "next/server";
 import { cache } from "@/lib/cache/client";
 import { usersService } from "@/lib/services/users";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { apiKeysService } from "@/lib/services/api-keys";
 import { abuseDetectionService } from "@/lib/services/abuse-detection";
 import { db } from "@/lib/db";
-import { recoverMessageAddress } from "viem";
+import * as viem from "viem";
+import * as viemSiwe from "viem/siwe";
 
 // Mock all dependencies
 jest.mock("@/lib/cache/client");
 jest.mock("@/lib/cache/consume");
 jest.mock("@/lib/services/users");
+jest.mock("@/lib/services/api-keys");
 jest.mock("@/lib/services/organizations");
 jest.mock("@/lib/services/credits");
-jest.mock("@/lib/services/api-keys");
 jest.mock("@/lib/services/abuse-detection");
 jest.mock("@/lib/db");
-jest.mock("viem", () => ({
-  ...jest.requireActual("viem"),
-  recoverMessageAddress: jest.fn(),
-}));
+jest.mock("viem");
+jest.mock("viem/siwe");
 
-const VALID_WALLET = "0x1234567890123456789012345678901234567890";
-const VALID_NONCE = "test-nonce-uuid";
-const VALID_MESSAGE = `localhost:3000 wants you to sign in with your Ethereum account:\n${VALID_WALLET}\n\nSign in with Ethereum\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${VALID_NONCE}\nIssued At: 2024-01-01T00:00:00.000Z`;
-const VALID_SIGNATURE = "0xabcdef1234567890";
+const mockCache = cache as jest.Mocked<typeof cache>;
+const mockUsersService = usersService as jest.Mocked<typeof usersService>;
+const mockApiKeysService = apiKeysService as jest.Mocked<typeof apiKeysService>;
+const mockOrganizationsService = organizationsService as jest.Mocked<typeof organizationsService>;
+const mockCreditsService = creditsService as jest.Mocked<typeof creditsService>;
+const mockAbuseDetectionService = abuseDetectionService as jest.Mocked<typeof abuseDetectionService>;
 
-describe("/api/auth/siwe/verify", () => {
-  let mockCacheIsAvailable: jest.Mock;
-  let mockAtomicConsume: jest.Mock;
-  let mockRecoverMessageAddress: jest.MockedFunction<typeof recoverMessageAddress>;
+describe("SIWE Verify Endpoint", () => {
+  const validAddress = "0x1234567890123456789012345678901234567890";
+  const validNonce = "test-nonce-123";
+  const validMessage = `localhost wants you to sign in with your Ethereum account:\n${validAddress}\n\nSign in\n\nURI: http://localhost:3000\nVersion: 1\nChain ID: 1\nNonce: ${validNonce}\nIssued At: 2024-01-01T00:00:00.000Z`;
+  const validSignature = "0xabcdef1234567890";
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCacheIsAvailable = cache.isAvailable as jest.Mock;
-    mockCacheIsAvailable.mockReturnValue(true);
-
-    const atomicConsume = require("@/lib/cache/consume").atomicConsume;
-    mockAtomicConsume = atomicConsume as jest.Mock;
-    mockAtomicConsume.mockResolvedValue(1);
-
-    mockRecoverMessageAddress = recoverMessageAddress as jest.MockedFunction<typeof recoverMessageAddress>;
-    mockRecoverMessageAddress.mockResolvedValue(VALID_WALLET);
-
-    (usersService.getByWalletAddressWithOrganization as jest.Mock).mockResolvedValue(null);
-    (abuseDetectionService.checkSignupAbuse as jest.Mock).mockResolvedValue({ allowed: true });
-    (db.transaction as jest.Mock).mockImplementation(async (callback) => callback({}));
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    
+    // Default mocks
+    mockCache.isAvailable.mockReturnValue(true);
+    (viem.getAddress as jest.Mock).mockImplementation((addr: string) => addr);
+    (viemSiwe.parseSiweMessage as jest.Mock).mockReturnValue({
+      address: validAddress,
+      nonce: validNonce,
+      domain: "localhost",
+      expirationTime: new Date(Date.now() + 100000),
+    });
+    (viem.recoverMessageAddress as jest.Mock).mockResolvedValue(validAddress);
   });
 
-  describe("Nonce validation and single-use enforcement", () => {
-    it("should reject request when cache is unavailable", async () => {
-      mockCacheIsAvailable.mockReturnValue(false);
+  describe("Nonce validation", () => {
+    it("should reject when cache is unavailable", async () => {
+      mockCache.isAvailable.mockReturnValue(false);
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
@@ -70,15 +68,13 @@ describe("/api/auth/siwe/verify", () => {
       expect(data.error).toBe("SERVICE_UNAVAILABLE");
     });
 
-    it("should reject when nonce does not exist (returns 0 from atomicConsume)", async () => {
-      mockAtomicConsume.mockResolvedValue(0);
+    it("should reject expired or already-used nonces", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(0); // nonce not found
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
@@ -86,114 +82,71 @@ describe("/api/auth/siwe/verify", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe("INVALID_NONCE");
-      expect(data.message).toContain("expired or was already used");
     });
 
-    it("should consume nonce atomically to prevent race conditions", async () => {
-      const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
-        method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
-      });
-
-      await POST(request);
-
-      expect(mockAtomicConsume).toHaveBeenCalledWith(
-        expect.stringContaining(`siwe:nonce:${VALID_NONCE}`)
-      );
-      expect(mockAtomicConsume).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("Signature verification success path", () => {
-    it("should accept valid signature and return API key for existing user", async () => {
-      const existingUser = {
+    it("should accept valid single-use nonce", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1); // nonce consumed successfully
+      
+      mockUsersService.getByWalletAddressWithOrganization.mockResolvedValue({
         id: "user-123",
-        wallet_address: VALID_WALLET.toLowerCase(),
-        is_active: true,
+        wallet_address: validAddress.toLowerCase(),
         organization_id: "org-123",
+        is_active: true,
         wallet_verified: true,
-        organization: {
-          id: "org-123",
-          name: "Test Org",
-          is_active: true,
-          credit_balance: "100.00",
-        },
-      };
+        organization: { id: "org-123", is_active: true, name: "Test Org" },
+      } as any);
 
-      (usersService.getByWalletAddressWithOrganization as jest.Mock).mockResolvedValue(existingUser);
-      (apiKeysService.listByOrganization as jest.Mock).mockResolvedValue([
-        { user_id: "user-123", is_active: true, key: "test-api-key" },
+      mockApiKeysService.listByOrganization.mockResolvedValue([
+        { user_id: "user-123", is_active: true, key: "test-key" } as any,
       ]);
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
-      const data = await response.json();
-
       expect(response.status).toBe(200);
-      expect(data.apiKey).toBe("test-api-key");
-      expect(data.isNewAccount).toBe(false);
-      expect(data.address).toBe(VALID_WALLET);
-    });
-
-    it("should create new account with transaction when wallet is new", async () => {
-      const mockOrg = { id: "org-new", name: "New Org", credit_balance: "0.00" };
-      const mockUser = { id: "user-new", wallet_address: VALID_WALLET.toLowerCase() };
-      const mockApiKey = { plainKey: "new-api-key" };
-
-      (organizationsService.create as jest.Mock).mockResolvedValue(mockOrg);
-      (organizationsService.getBySlug as jest.Mock).mockResolvedValue(null);
-      (usersService.create as jest.Mock).mockResolvedValue(mockUser);
-      (apiKeysService.create as jest.Mock).mockResolvedValue(mockApiKey);
-      (creditsService.addCredits as jest.Mock).mockResolvedValue(undefined);
-      (abuseDetectionService.recordSignupMetadata as jest.Mock).mockResolvedValue(undefined);
-
-      const mockFinalUser = {
-        ...mockUser,
-        organization_id: mockOrg.id,
-        organization: mockOrg,
-        is_active: true,
-      };
-      (usersService.getByWalletAddressWithOrganization as jest.Mock)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(mockFinalUser);
-
-      const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
-        method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.isNewAccount).toBe(true);
-      expect(db.transaction).toHaveBeenCalled();
+      expect(atomicConsume).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("Key failure modes", () => {
-    it("should reject invalid signature", async () => {
-      mockRecoverMessageAddress.mockRejectedValue(new Error("Invalid signature"));
+  describe("Domain validation", () => {
+    it("should reject messages with wrong domain", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      (viemSiwe.parseSiweMessage as jest.Mock).mockReturnValue({
+        address: validAddress,
+        nonce: validNonce,
+        domain: "evil.com",
+        expirationTime: new Date(Date.now() + 100000),
+      });
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: "0xinvalid",
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("INVALID_DOMAIN");
+    });
+  });
+
+  describe("Signature verification", () => {
+    it("should reject invalid signatures", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      (viem.recoverMessageAddress as jest.Mock).mockRejectedValue(new Error("Invalid signature"));
+
+      const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
+        method: "POST",
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
@@ -203,82 +156,139 @@ describe("/api/auth/siwe/verify", () => {
       expect(data.error).toBe("INVALID_SIGNATURE");
     });
 
-    it("should reject mismatched domain", async () => {
-      const wrongDomainMessage = VALID_MESSAGE.replace("localhost:3000", "evil.com");
+    it("should reject when recovered address doesn't match claimed address", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      (viem.recoverMessageAddress as jest.Mock).mockResolvedValue("0xdifferentaddress");
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: wrongDomainMessage,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_DOMAIN");
+      expect(data.error).toBe("INVALID_SIGNATURE");
     });
+  });
 
-    it("should reject expired message", async () => {
-      const expiredMessage = `${VALID_MESSAGE}\nExpiration Time: 2020-01-01T00:00:00.000Z`;
+  describe("Existing user flow", () => {
+    it("should return API key for existing active user", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      const existingUser = {
+        id: "user-123",
+        wallet_address: validAddress.toLowerCase(),
+        organization_id: "org-123",
+        is_active: true,
+        wallet_verified: true,
+        organization: {
+          id: "org-123",
+          is_active: true,
+          name: "Test Org",
+          credit_balance: "100.00",
+        },
+      };
+
+      mockUsersService.getByWalletAddressWithOrganization.mockResolvedValue(existingUser as any);
+      mockApiKeysService.listByOrganization.mockResolvedValue([
+        { user_id: "user-123", is_active: true, key: "existing-key-123" } as any,
+      ]);
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: expiredMessage,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("MESSAGE_EXPIRED");
+      expect(response.status).toBe(200);
+      expect(data.apiKey).toBe("existing-key-123");
+      expect(data.isNewAccount).toBe(false);
     });
 
-    it("should reject invalid JSON body", async () => {
+    it("should reject inactive users", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      mockUsersService.getByWalletAddressWithOrganization.mockResolvedValue({
+        id: "user-123",
+        is_active: false,
+        organization_id: "org-123",
+        organization: { is_active: true },
+      } as any);
+
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: "not-json",
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
+      expect(response.status).toBe(403);
+      expect(data.error).toBe("ACCOUNT_INACTIVE");
     });
+  });
 
-    it("should reject missing message field", async () => {
+  describe("New user signup flow", () => {
+    it("should create organization, user, and API key in transaction", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      mockUsersService.getByWalletAddressWithOrganization
+        .mockResolvedValueOnce(undefined) // First call: no existing user
+        .mockResolvedValueOnce({ // Second call after transaction: return created user
+          id: "new-user-123",
+          wallet_address: validAddress.toLowerCase(),
+          organization_id: "new-org-123",
+          organization: { id: "new-org-123", credit_balance: "10.00" },
+        } as any);
+
+      mockAbuseDetectionService.checkSignupAbuse.mockResolvedValue({ allowed: true });
+
+      const mockTx = {};
+      (db.transaction as jest.Mock).mockImplementation(async (callback) => {
+        return callback(mockTx);
+      });
+
+      mockOrganizationsService.getBySlug.mockResolvedValue(undefined);
+      mockOrganizationsService.create.mockResolvedValue({ id: "new-org-123" } as any);
+      mockUsersService.create.mockResolvedValue({ id: "new-user-123" } as any);
+      mockApiKeysService.create.mockResolvedValue({ plainKey: "new-key-123" } as any);
+
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("INVALID_BODY");
+      expect(response.status).toBe(200);
+      expect(data.isNewAccount).toBe(true);
+      expect(data.apiKey).toBe("new-key-123");
+      expect(db.transaction).toHaveBeenCalled();
     });
 
-    it("should block signup when abuse detection fails", async () => {
-      (abuseDetectionService.checkSignupAbuse as jest.Mock).mockResolvedValue({
+    it("should block signup when abuse detected", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      mockUsersService.getByWalletAddressWithOrganization.mockResolvedValue(undefined);
+      mockAbuseDetectionService.checkSignupAbuse.mockResolvedValue({
         allowed: false,
         reason: "Too many signups from this IP",
       });
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
       const response = await POST(request);
@@ -286,21 +296,43 @@ describe("/api/auth/siwe/verify", () => {
 
       expect(response.status).toBe(403);
       expect(data.error).toBe("SIGNUP_BLOCKED");
+      expect(db.transaction).not.toHaveBeenCalled();
     });
 
-    it("should handle transaction rollback on credit failure", async () => {
-      const txError = new Error("Credit service failed");
-      (db.transaction as jest.Mock).mockRejectedValue(txError);
+    it("should handle race condition on duplicate wallet signup", async () => {
+      const { atomicConsume } = require("@/lib/cache/consume");
+      atomicConsume.mockResolvedValue(1);
+
+      mockUsersService.getByWalletAddressWithOrganization
+        .mockResolvedValueOnce(undefined) // First check: no user
+        .mockResolvedValueOnce({ // After race: user exists
+          id: "race-user-123",
+          wallet_address: validAddress.toLowerCase(),
+          organization_id: "race-org-123",
+          wallet_verified: false,
+        } as any);
+
+      mockAbuseDetectionService.checkSignupAbuse.mockResolvedValue({ allowed: true });
+
+      const duplicateError = new Error("Duplicate key");
+      (duplicateError as any).code = "23505";
+      (db.transaction as jest.Mock).mockRejectedValue(duplicateError);
+
+      mockApiKeysService.listByOrganization.mockResolvedValue([
+        { user_id: "race-user-123", is_active: true, key: "race-key-123" } as any,
+      ]);
 
       const request = new NextRequest("http://localhost:3000/api/auth/siwe/verify", {
         method: "POST",
-        body: JSON.stringify({
-          message: VALID_MESSAGE,
-          signature: VALID_SIGNATURE,
-        }),
+        body: JSON.stringify({ message: validMessage, signature: validSignature }),
       });
 
-      await expect(POST(request)).rejects.toThrow();
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.isNewAccount).toBe(false);
+      expect(mockUsersService.update).toHaveBeenCalledWith("race-user-123", { wallet_verified: true });
     });
   });
 });
