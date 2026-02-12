@@ -40,13 +40,7 @@ function generateSlugFromEmail(email: string): string {
  * @param walletAddress - Wallet address.
  * @returns Unique slug string.
  */
-function generateSlugFromWallet(walletAddress: string): string {
-  const shortAddress = walletAddress.substring(0, 8);
-  const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).slice(-4);
-  return `wallet-${sanitized}-${timestamp}${random}`;
-}
+import { generateSlugFromWallet } from "@/lib/utils/signup-helpers";
 
 import type { User as PrivyUser } from "@privy-io/server-auth";
 

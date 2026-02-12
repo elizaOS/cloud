@@ -306,11 +306,11 @@ async function handleVerify(request: NextRequest) {
 
   const displayName = truncateAddress(address);
 
-  // Wrap org + credits + user creation in a single DB transaction.
+  // Wrap org + credits + user + API key creation in a single DB transaction.
   // If any step fails, all changes are rolled back atomically.
-  let organization;
+  let signupResult: { organization: typeof organization; plainKey: string };
   try {
-    organization = await db.transaction(async (tx) => {
+    signupResult = await db.transaction(async (tx) => {
       const org = await organizationsService.create(
         {
           name: `${displayName}'s Organization`,
@@ -345,7 +345,7 @@ async function handleVerify(request: NextRequest) {
         );
       }
 
-      await usersService.create(
+      const user = await usersService.create(
         {
           wallet_address: address.toLowerCase(),
           wallet_chain_type: "ethereum",
@@ -360,7 +360,17 @@ async function handleVerify(request: NextRequest) {
         tx,
       );
 
-      return org;
+      const { plainKey } = await apiKeysService.create(
+        {
+          user_id: user.id,
+          organization_id: org.id,
+          name: "Default API Key",
+          is_active: true,
+        },
+        tx,
+      );
+
+      return { organization: org, plainKey };
     });
   } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
@@ -411,14 +421,7 @@ async function handleVerify(request: NextRequest) {
     throw new Error("Failed to fetch newly created SIWE user");
   }
 
-  const { plainKey } = await apiKeysService.create({
-    user_id: newUser.id,
-    organization_id: newUser.organization_id,
-    name: "Default API Key",
-    is_active: true,
-  });
-
-  return buildSuccessResponse(newUser, plainKey, address, true);
+  return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
