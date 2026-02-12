@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { executeWithBody } from "@/lib/services/proxy/engine";
 import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
 import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
-import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors-helpers";
+import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
