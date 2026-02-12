@@ -50,6 +50,7 @@ export async function GET(
   };
 
   try {
+    try {
     const response = await executeWithBody(
       solanaRpcConfig,
       solanaRpcHandler,
@@ -63,6 +64,12 @@ export async function GET(
     }
 
     return response;
+  } catch {
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: getCorsHeaders("GET, OPTIONS"),
+    });
+  }
   } catch {
     return new NextResponse("Internal Server Error", {
       status: 500,

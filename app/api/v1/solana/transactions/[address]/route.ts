@@ -47,19 +47,26 @@ export async function GET(
     },
   };
 
-  const response = await executeWithBody(
-    solanaRpcConfig,
-    solanaRpcHandler,
-    request,
-    body,
-  );
+  try {
+    const response = await executeWithBody(
+      solanaRpcConfig,
+      solanaRpcHandler,
+      request,
+      body,
+    );
 
-  const corsHeaders = getCorsHeaders("GET, OPTIONS");
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    response.headers.set(key, value);
+    const corsHeaders = getCorsHeaders("GET, OPTIONS");
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
+  } catch {
+    return new NextResponse("Internal Server Error", {
+      status: 500,
+      headers: getCorsHeaders("GET, OPTIONS"),
+    });
   }
-
-  return response;
 }
     const response = await executeWithBody(
       solanaRpcConfig,
