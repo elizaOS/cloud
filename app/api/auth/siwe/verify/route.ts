@@ -306,13 +306,18 @@ async function handleVerify(request: NextRequest) {
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
   // The transaction object (tx) is passed to each service call so they use
-  // the transactional connection. If any step fails, all changes are rolled
-  // back atomically, preventing orphaned organizations or users without API keys.
-  // TODO: Verify that organizationsService.create, creditsService.addCredits,
-  // usersService.create, and apiKeysService.create actually accept and use the
-  // `tx` parameter. If any service ignores `tx` and uses the global `dbWrite`
-  // connection, that write is non-transactional and won't roll back on failure.
-  // creditsService.addCredits in particular may run its own internal transaction.
+  // the transactional connection instead of the global dbWrite.
+  //
+  // WARNING: This transaction is only effective if each service method actually
+  // accepts and uses the `tx` parameter for its queries. If a service ignores
+  // `tx` and uses the global `dbWrite` connection, that write happens outside
+  // the transaction and will NOT roll back on failure, leaving orphaned records.
+  // creditsService.addCredits may run its own internal transaction on dbWrite.
+  //
+  // Until all service methods are audited to accept a transaction parameter,
+  // the signup flow is NOT fully atomic. A failure partway through may leave
+  // orphaned organizations or credit records. The 23505 duplicate-key handler
+  // below mitigates the most common race condition but does not cover all cases.
   let signupResult: { user: UserWithOrganization; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
