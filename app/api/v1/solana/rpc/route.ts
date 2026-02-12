@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return new NextResponse("Internal Server Error", {
       status: 500,
-      headers: getCorsHeaders("POST, OPTIONS"),
+      headers: corsHeaders,
     });
   }
 }

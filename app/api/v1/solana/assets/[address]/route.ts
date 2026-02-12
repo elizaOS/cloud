@@ -51,8 +51,9 @@ export async function GET(
 
   const corsHeaders = getCorsHeaders("GET, OPTIONS");
 
+  const corsHeaders = getCorsHeaders("GET, OPTIONS");
+  
   try {
-    try {
     const response = await executeWithBody(
       solanaRpcConfig,
       solanaRpcHandler,

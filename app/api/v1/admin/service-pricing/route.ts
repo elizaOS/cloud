@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
@@ -46,19 +47,27 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const pricing = await servicePricingRepository.listByService(serviceId);
+  try {
+    const pricing = await servicePricingRepository.listByService(serviceId);
 
-  return NextResponse.json({
-    service_id: serviceId,
-    pricing: pricing.map((p) => ({
-      id: p.id,
-      method: p.method,
-      cost: p.cost,
-      description: p.description,
-      is_active: p.is_active,
-      updated_at: p.updated_at,
-    })),
-  });
+    return NextResponse.json({
+      service_id: serviceId,
+      pricing: pricing.map((p) => ({
+        id: p.id,
+        method: p.method,
+        cost: p.cost,
+        description: p.description,
+        is_active: p.is_active,
+        updated_at: p.updated_at,
+      })),
+    });
+  } catch (error) {
+    logger.error("[Admin] Service pricing GET error", { error, serviceId });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }
 
 const UpsertSchema = z.object({

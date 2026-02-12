@@ -23,6 +23,12 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 - Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 - Fix for app/api/v1/admin/service-pricing/route.ts:69 - The diff is identical to fix_1 (only adds a closing brace) and does not address the catch-all error handler returning 401 for non-auth errors.
+- Fix for app/api/v1/admin/service-pricing/route.ts:146 - The fix removes error handling (the try-catch block) from the GET handler without addressing the comment's request for integration tests. The comment asked for test files, not removal of error handling.
+- Fix for app/api/v1/admin/service-pricing/route.ts:68 - The diff removes the error handling entirely instead of fixing it. The comment says the catch block incorrectly classifies non-auth errors as 401, so the fix should improve error classification (check error type, return 500 for database errors), not delete the catch block.
+- Fix for app/api/v1/admin/service-pricing/route.ts:146 - The diff only reformats indentation and removes error handling from GET. It doesn't add integration tests as the comment requested for auth, upsert behavior, and cache invalidation.
+- Fix for app/api/v1/admin/service-pricing/route.ts:68 - The diff only reformats GET indentation and removes its catch block. It doesn't fix the catch-all error handler that returns 401 for non-auth errors.
+- Fix for app/api/v1/admin/service-pricing/route.ts:146 - Addresses only GET error handling, not the three required test scenarios (auth, upsert behavior, cache invalidation) mentioned in comment
+- Fix for app/api/v1/admin/service-pricing/route.ts:146 - Added try-catch to GET handler but comment asks for integration tests (auth, PUT upsert, cache). Tests were not added.
 
 ### lib/services/proxy/engine.ts
 
@@ -74,10 +80,18 @@
 - Fix for app/api/v1/admin/moderation/route.ts:179 - Only adds error class imports but doesn't add the missing catch block for the unclosed try statement at line 161.
 - Fix for app/api/v1/admin/moderation/route.ts:141 - Only imports error classes but doesn't replace string matching logic with instanceof checks as required.
 - Fix for app/api/v1/admin/moderation/route.ts:331 - When restoring removed code, preserve all imports and ensure no duplicate function definitions or incomplete comment blocks remain.
+- Fix for app/api/v1/admin/moderation/route.ts:179 - The diff adds self-revoke checks and field validation to POST, but doesn't close the unclosed try block from line 161. The POST handler still lacks a matching catch.
+- Fix for app/api/v1/admin/moderation/route.ts:141 - The diff only adds validation logic to POST. It doesn't remove the broken catch block in GET that references undefined creditsService, cost, and config.
+- Fix for app/api/v1/admin/moderation/route.ts:279 - The diff adds validation but doesn't fix the ActionSchema role field to use z.enum() with valid values or update the default from "admin" to a valid enum value like "moderator".
+- Fix for app/api/v1/admin/moderation/route.ts:179 - POST handler still has unclosed try block (no catch). Diff only adds import and error handlers to GET, missing the structural fix for POST.
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Diff adds imports and error handlers to GET catch block, but comment says catch has broken code (undefined creditsService, cost, config). Broken code not removed.
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:154 - Before adding seed data to a migration, verify the complete list doesn't already exist elsewhere in the file to avoid duplicates.
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:185 - The migration diff removes duplicate rows from lines 128–139 but doesn't address the root cause identified in the comment: the fallback to HARDCODED_FALLBACK_METHODS is bypassed when any rows exist, excluding Tier 1 methods. Removing duplicates helps but doesn't restore the missing Tier 1 pricing data.
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql - The diff removes duplicated seed rows but doesn't address the low-severity complaint about code clarity. While removing duplication is good, the comment calls it a "copy-paste artifact that makes the migration confusing"—simply removing lines is the correct fix, so this one is actually YES. Reconsider: the diff does remove the duplicate 12 rows as requested.
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:185 - The diff removes duplicate Tier 1 seed rows but doesn't add the missing Tier 1 methods that getAllowedMethods() expects, so the fallback still won't populate correctly.
 
 ### lib/services/proxy/services/solana-rpc.ts
 
@@ -104,3 +118,8 @@
 
 - Fix for app/api/v1/solana/rpc/route.ts:42 - Comment identifies orphaned catch without matching try in Solana RPC POST, but diff only changes import type.
 - Fix for app/api/v1/solana/rpc/route.ts:43 - Comment warns orphaned catch at line 36 breaks Solana RPC endpoint, but diff only changes import type.
+- Fix for app/api/v1/solana/rpc/route.ts:42 - Changed corsHeaders argument but didn't remove the orphaned catch block (line 36 without matching try). Syntax error remains.
+
+### /route.ts
+
+- Fix for app/api/v1/solana/assets/[address]/route.ts - The diff removes code instead of addressing both issues mentioned: unreachable code AND the getCorsHeaders() call on line 53 missing the methods argument.

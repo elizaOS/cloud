@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import type { AdminAuthResult } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
@@ -133,6 +134,12 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     logger.error("[Admin] Moderation GET error", { error });
     return NextResponse.json(
       { error: "Internal server error" },
