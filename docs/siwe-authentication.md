@@ -8,7 +8,7 @@ Agents need to sign up, fund accounts, and access services without a browser. Pr
 
 ## Agent Lifecycle
 
-```
+```text
 1. GET  /api/auth/siwe/nonce          → { nonce, domain, uri, chainId, ... }
 2. Sign SIWE message locally with wallet private key
 3. POST /api/auth/siwe/verify         → { apiKey, address, isNewAccount, ... }
@@ -168,7 +168,7 @@ This is a pre-existing design decision in the schema, not introduced by SIWE.
 
 The crypto payment endpoints (`/api/crypto/payments/*`) accept API key authentication via the `X-API-Key` header. This enables the full agent lifecycle:
 
-```
+```text
 SIWE auth → get API key → create crypto payment → confirm payment → use services
 ```
 

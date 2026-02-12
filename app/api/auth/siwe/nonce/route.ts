@@ -45,11 +45,23 @@ async function handleGetNonce(request: NextRequest) {
   // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   const nonce = generateSiweNonce();
 
-  await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
+  const setSuccess = await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
+  
+  if (!setSuccess) {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Unable to generate nonce. Please try again later.",
+      },
+      { status: 503 },
+    );
+  }
 
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizaos.ai";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   const url = new URL(appUrl);
 
   return NextResponse.json({

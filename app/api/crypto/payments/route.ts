@@ -27,13 +27,6 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
-
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
@@ -126,13 +119,6 @@ async function handleCreatePayment(req: NextRequest) {
 async function handleListPayments(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
-
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
       user.organization_id,

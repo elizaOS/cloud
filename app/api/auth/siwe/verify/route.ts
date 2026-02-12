@@ -32,28 +32,8 @@ import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
 import { abuseDetectionService } from "@/lib/services/abuse-detection";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
+import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
 import type { UserWithOrganization } from "@/lib/types";
-
-const DEFAULT_INITIAL_CREDITS = 5.0;
-
-function getInitialCredits(): number {
-  const envValue = process.env.INITIAL_FREE_CREDITS;
-  if (envValue) {
-    const parsed = parseFloat(envValue);
-    if (!isNaN(parsed) && parsed >= 0) {
-      return parsed;
-    }
-  }
-  return DEFAULT_INITIAL_CREDITS;
-}
-
-function generateSlugFromWallet(walletAddress: string): string {
-  const shortAddress = walletAddress.substring(0, 8);
-  const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).slice(-4);
-  return `wallet-${sanitized}-${timestamp}${random}`;
-}
 
 function truncateAddress(address: string): string {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
@@ -84,7 +64,7 @@ async function resolveApiKeyForUser(
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "SIWE API Key",
+    name: "Default API Key",
     is_active: true,
   });
 
@@ -116,8 +96,10 @@ function buildSuccessResponse(
   });
 }
 
+type SiweVerifyBody = { message?: string; signature?: string };
+
 async function handleVerify(request: NextRequest) {
-  let body: { message?: unknown; signature?: unknown };
+  let body: SiweVerifyBody;
   try {
     body = await request.json();
   } catch {
@@ -166,12 +148,11 @@ async function handleVerify(request: NextRequest) {
   }
 
   // --- Nonce validation ---
-  // Check existence, then immediately delete. This is get-then-delete rather
-  // than atomic pop because our cache wrapper's del() returns void. The
-  // combination of single-use nonce + 5-minute TTL + signature binding makes
-  // the race window negligible.
-  const nonceExists = await cache.get(CacheKeys.siwe.nonce(parsed.nonce));
-  if (!nonceExists) {
+  // Atomic consume: delete returns the count of keys deleted (1 if existed, 0 if not).
+  // This prevents race conditions where two concurrent requests could both
+  // pass a get() check before either deletes the nonce.
+  const nonceConsumed = await cache.del(CacheKeys.siwe.nonce(parsed.nonce));
+  if (!nonceConsumed) {
     return NextResponse.json(
       {
         error: "INVALID_NONCE",
@@ -182,12 +163,12 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  await cache.del(CacheKeys.siwe.nonce(parsed.nonce));
-
   // --- Domain validation ---
   // Prevents phishing: if an attacker tricks a user into signing a message
   // for a different domain, it won't pass verification here.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizaos.ai";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {
