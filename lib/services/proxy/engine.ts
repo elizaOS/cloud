@@ -98,9 +98,9 @@ export function createHandler(
       if (config.cache && body && !Array.isArray(body)) {
         const cacheControl = request.headers.get("cache-control");
         const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
+        const cacheAge = maxAgeMatch ? parseInt(maxAgeMatch[1], 10) : 0;
 
-        if (clientMaxAge > 0) {
+        if (cacheAge > 0) {
           const method =
             body && typeof body === "object" && "method" in body
               ? String(body.method)
@@ -129,7 +129,7 @@ export function createHandler(
                     input_cost: String(cost),
                     output_cost: String(0),
                     markup: String(0),
-                    metadata: { cached: true },
+                    metadata: { cached: true, cacheAge },
                   });
                 } catch (error) {
                   logger.error("[Proxy Engine] Usage tracking failed", { error });

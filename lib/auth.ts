@@ -12,6 +12,7 @@ import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
+import { WalletRequiredError, AdminRequiredError } from "@/lib/auth-errors";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,
@@ -628,12 +629,12 @@ export async function requireAdmin(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   if (!user.wallet_address) {
-    throw new AuthenticationError("Wallet connection required for admin access");
+    throw new WalletRequiredError("Wallet connection required for admin access");
   }
 
   const isAdmin = await adminService.isAdmin(user.wallet_address);
   if (!isAdmin) {
-    throw new ForbiddenError("Admin access required");
+    throw new AdminRequiredError("Admin access required");
   }
 
   const role = await adminService.getAdminRole(user.wallet_address);
