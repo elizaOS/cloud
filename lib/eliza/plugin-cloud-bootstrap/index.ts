@@ -110,12 +110,22 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
     body.error = errorStr.length > 1000 ? errorStr.substring(0, 1000) + "...(truncated)" : errorStr;
   }
 
-  // PERF: Cap total payload size to prevent oversized writes from blocking
+  // PERF: Cap total payload size to prevent oversized writes from blocking.
+  // If over limit, strip optional fields and truncate error further.
   const bodyJson = JSON.stringify(body);
   if (bodyJson.length > MAX_LOG_BODY_SIZE) {
-    logger.warn(`[CloudBootstrap] Log payload too large (${bodyJson.length} bytes), truncating`);
-    body.error = body.error || "(payload truncated)";
+    const originalSize = bodyJson.length;
+    // Remove optional fields first
+    delete body.endTime;
+    delete body.duration;
+    // Aggressively truncate error to 200 chars
+    if (body.error) {
+      const errStr = String(body.error);
+      body.error = errStr.length > 200 ? errStr.substring(0, 200) + "...(truncated)" : errStr;
+    }
     body._truncated = true;
+    body._originalSize = originalSize;
+    logger.warn(`[CloudBootstrap] Log payload truncated: ${originalSize} → ${JSON.stringify(body).length} bytes`);
   }
 
   // PERF: Fire-and-forget -- don't await the log write, let it complete in the background.
