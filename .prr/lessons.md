@@ -52,6 +52,7 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:80 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:172 - No verification result returned, treating as failed
 - Fix for app/api/v1/admin/service-pricing/route.ts:86 - No verification result returned, treating as failed
+- Fix for app/api/v1/admin/service-pricing/route.ts:167 - No verification result returned, treating as failed
 
 ### lib/services/proxy/engine.ts
 
@@ -84,6 +85,7 @@
 - Fix for lib/services/proxy/engine.ts:43 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:236 - No verification result returned, treating as failed
 - Fix for lib/services/proxy/engine.ts:242 - No verification result returned, treating as failed
+- Fix for lib/services/proxy/engine.ts:249 - No verification result returned, treating as failed
 
 ### db/repositories/service-pricing.ts
 
@@ -177,6 +179,8 @@
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:236 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:221 - No verification result returned, treating as failed
 - Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:129 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:238 - No verification result returned, treating as failed
+- Fix for db/migrations/0033_add_service_billing_and_entity_settings.sql:207 - No verification result returned, treating as failed
 
 ### db/migrations/0034_improve_service_pricing_audit.sql
 
