@@ -306,6 +306,7 @@ export async function syncUserFromPrivy(
 
   // Create organization, add credits, and create user.
   // If any step after org creation fails, clean up the orphaned organization.
+  const initialCredits = getInitialCredits();
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
@@ -323,7 +324,6 @@ export async function syncUserFromPrivy(
 
     // Add initial free credits via creditsService for proper tracking.
     // Errors propagate; the outer catch cleans up the orphaned organization.
-    const initialCredits = getInitialCredits();
 
     if (initialCredits > 0) {
       await creditsService.addCredits({
