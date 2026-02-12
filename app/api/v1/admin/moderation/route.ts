@@ -289,14 +289,15 @@ export async function POST(request: NextRequest) {
             { status: 400 },
           );
         }
+        const validRole = role === "super_admin" || role === "moderator" || role === "viewer" ? role : "moderator";
         await adminService.addAdmin(
           targetWalletAddress,
-          role || "moderator",
+          validRole,
           user.id,
         );
         logger.info("[Admin] Admin added", {
           targetWalletAddress,
-          role: role || "moderator",
+          role: validRole,
           adminId: user.id,
         });
         return NextResponse.json({ success: true, action: "add_admin" });
