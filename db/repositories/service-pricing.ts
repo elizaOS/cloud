@@ -59,7 +59,7 @@ export class ServicePricingRepository {
     userId: string,
     reason?: string,
     description?: string,
-    metadata?: Record<string, string | number | boolean | null | undefined>,
+    metadata?: Record<string, unknown>,
     ipAddress?: string,
     userAgent?: string,
   ): Promise<ServicePricing> {
