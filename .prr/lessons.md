@@ -89,3 +89,4 @@
 
 - Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: duplicate imports, missing `generateSlugFromEmail` definition, missing `SyncOptions` type, missing `emailService` import, and orphaned JSDoc at line 27.
 - Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: missing `generateSlugFromEmail` definition, `SyncOptions` type, `emailService` import, duplicate imports of `generateSlugFromWallet` and `creditsService`, and orphaned JSDoc.
+- Fix for lib/privy-sync.ts:336 - Wrap the entire operation (organization creation through user creation) in a database transaction, not just add error handling for individual steps.
