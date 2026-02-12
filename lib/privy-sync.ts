@@ -21,26 +21,7 @@ import {
 } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
-
-const DEFAULT_INITIAL_CREDITS = 5.0;
-const getInitialCredits = (): number => {
-  const envValue = process.env.INITIAL_FREE_CREDITS;
-  if (envValue) {
-    const parsed = parseFloat(envValue);
-    if (!isNaN(parsed) && parsed >= 0) {
-      return parsed;
-    }
-  }
-  return DEFAULT_INITIAL_CREDITS;
-};
-
-export interface SyncOptions {
-  signupContext?: SignupContext;
-  skipAbuseCheck?: boolean;
-}
-
-/**
- * Generates a unique organization slug from an email address.
+import { generateSlugFromWallet, getInitialCredits, DEFAULT_INITIAL_CREDITS } from "@/lib/utils/signup-helpers";
  *
  * @param email - Email address.
  * @returns Unique slug string.

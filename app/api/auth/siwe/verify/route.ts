@@ -25,6 +25,7 @@ import { parseSiweMessage } from "viem/siwe";
 import { recoverMessageAddress, getAddress, type Hex } from "viem";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
+import { atomicConsume } from "@/lib/cache/consume";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -160,10 +161,10 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  // Atomic consume: delete returns the count of keys deleted (1 if existed, 0 if not).
+  // Atomic consume: returns true if the key existed and was deleted.
   // This prevents race conditions where two concurrent requests could both
   // pass a get() check before either deletes the nonce.
-  const nonceConsumed = await cache.del(CacheKeys.siwe.nonce(parsed.nonce));
+  const nonceConsumed = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
   if (!nonceConsumed) {
     return NextResponse.json(
       {

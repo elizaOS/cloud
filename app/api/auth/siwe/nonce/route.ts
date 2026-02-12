@@ -45,9 +45,9 @@ async function handleGetNonce(request: NextRequest) {
   // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   const nonce = generateSiweNonce();
 
-  const setSuccess = await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
-  
-  if (!setSuccess) {
+  try {
+    await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
+  } catch {
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",

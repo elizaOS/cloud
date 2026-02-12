@@ -465,3 +465,6 @@ export class CacheClient {
 }
 
 export const cache = new CacheClient();
+
+// Export redis client for atomic operations
+export { redis };
