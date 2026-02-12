@@ -308,11 +308,12 @@ async function handleVerify(request: NextRequest) {
   const displayName = truncateAddress(address);
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
-  // If any step fails (credits grant, user creation, API key creation, etc.),
-  // all changes are rolled back atomically, preventing orphaned organizations
-  // or users without API keys.
-  // Slug generation is also inside the transaction to avoid TOCTOU races.
-  let signupResult: { organization: Awaited<ReturnType<typeof organizationsService.create>>; plainKey: string };
+  // The transaction object (tx) is passed to each service call so they use
+  // the transactional connection. If any step fails, all changes are rolled
+  // back atomically, preventing orphaned organizations or users without API keys.
+  // NOTE: Each service must forward `tx` to its repository layer for this to
+  // be effective. If a service ignores `tx`, that write is non-transactional.
+  let signupResult: { user: UserWithOrganization; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
       let orgSlug = generateSlugFromWallet(address);
@@ -385,7 +386,13 @@ async function handleVerify(request: NextRequest) {
         tx,
       );
 
-      return { organization: org, plainKey };
+      // Return the user with organization attached so we don't need a separate fetch
+      const userWithOrg: UserWithOrganization = {
+        ...user,
+        organization: org,
+      } as UserWithOrganization;
+
+      return { user: userWithOrg, plainKey };
     });
   } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
@@ -428,15 +435,7 @@ async function handleVerify(request: NextRequest) {
     throw error;
   }
 
-  const newUser = await usersService.getByWalletAddressWithOrganization(
-    address.toLowerCase(),
-  );
-
-  if (!newUser || !newUser.organization_id) {
-    throw new Error("Failed to fetch newly created SIWE user");
-  }
-
-  return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
+  return buildSuccessResponse(signupResult.user, signupResult.plainKey, address, true);
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);

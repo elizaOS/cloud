@@ -5,7 +5,7 @@ import crypto from "crypto";
  * Default initial credits for new signups.
  * Can be overridden by INITIAL_FREE_CREDITS environment variable.
  */
-const DEFAULT_INITIAL_CREDITS = 10.0;
+const DEFAULT_INITIAL_CREDITS = 5.0;
 
 /**
  * Shared signup helpers used by both SIWE and Privy authentication flows.

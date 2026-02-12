@@ -313,7 +313,7 @@ export async function syncUserFromPrivy(
   try {
     const result = await db.transaction(async (tx) => {
       const org = await organizationsService.create({
-      name: `${name}'s Organization`,
+        name: `${name}'s Organization`,
         slug: orgSlug,
         credit_balance: "0.00",
       }, tx);
@@ -328,33 +328,30 @@ export async function syncUserFromPrivy(
       }
 
       // Add initial free credits via creditsService for proper tracking.
+      // No try-catch here: if credits fail, the transaction rolls back so we
+      // don't end up with an org/user that silently has no credits.
       if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
+        await creditsService.addCredits({
+          organizationId: org.id,
           amount: initialCredits,
           description: "Initial free credits - Welcome bonus",
           metadata: {
-              type: "initial_free_credits",
-              source: "signup",
-            },
-          }, tx);
-        } catch (creditsError) {
-          // Log error but don't fail signup - credits can be manually added later
-          console.error(`[PrivySync] Failed to add initial credits for org ${org.id}:`, creditsError);
-        }
+            type: "initial_free_credits",
+            source: "signup",
+          },
+        }, tx);
       }
 
       // Create user
       const user = await usersService.create({
-      privy_user_id: privyUserId,
-      email: email || null,
-      email_verified: !!email,
-      wallet_address: walletAddress || null,
-      wallet_chain_type: walletChainType || null,
-      wallet_verified: walletVerified,
-      name,
-      avatar: getRandomUserAvatar(),
+        privy_user_id: privyUserId,
+        email: email || null,
+        email_verified: !!email,
+        wallet_address: walletAddress || null,
+        wallet_chain_type: walletChainType || null,
+        wallet_verified: walletVerified,
+        name,
+        avatar: getRandomUserAvatar(),
         organization_id: org.id,
         role: "owner",
         is_active: true,
