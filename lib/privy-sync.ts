@@ -23,6 +23,7 @@ import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 import { emailService } from "@/lib/services/email";
 import type { User as PrivyUser } from "@privy-io/server-auth";
+import { db } from "@/lib/db";
 
 /**
  * Options for syncing a Privy user.
@@ -304,41 +305,43 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Create organization, add credits, and create user.
-  // If any step after org creation fails, clean up the orphaned organization.
+  // Create organization, add credits, and create user in a transaction.
+  // If any step fails, all changes are rolled back atomically.
   const initialCredits = getInitialCredits();
-  const organization = await organizationsService.create({
-    name: `${name}'s Organization`,
-    slug: orgSlug,
-    credit_balance: "0.00",
-  });
-
+  
+  let organization: Awaited<ReturnType<typeof organizationsService.create>>;
   try {
-    // Record signup metadata for future abuse detection
-    if (signupContext) {
-      await abuseDetectionService.recordSignupMetadata(
-        organization.id,
-        signupContext,
-      );
-    }
+    const result = await db.transaction(async (tx) => {
+      const org = await organizationsService.create({
+      name: `${name}'s Organization`,
+        slug: orgSlug,
+        credit_balance: "0.00",
+      }, tx);
+      
+      // Record signup metadata for future abuse detection
+      if (signupContext) {
+        await abuseDetectionService.recordSignupMetadata(
+          org.id,
+          signupContext,
+          tx,
+        );
+      }
 
-    // Add initial free credits via creditsService for proper tracking.
-    // Errors propagate; the outer catch cleans up the orphaned organization.
-
-    if (initialCredits > 0) {
-      await creditsService.addCredits({
-        organizationId: organization.id,
+      // Add initial free credits via creditsService for proper tracking.
+      if (initialCredits > 0) {
+        await creditsService.addCredits({
+          organizationId: org.id,
         amount: initialCredits,
         description: "Initial free credits - Welcome bonus",
         metadata: {
-          type: "initial_free_credits",
-          source: "signup",
-        },
-      });
-    }
+            type: "initial_free_credits",
+            source: "signup",
+          },
+        }, tx);
+      }
 
-    // Create user - handle race condition where another request created the user
-    await usersService.create({
+      // Create user
+      const user = await usersService.create({
       privy_user_id: privyUserId,
       email: email || null,
       email_verified: !!email,
@@ -347,10 +350,15 @@ export async function syncUserFromPrivy(
       wallet_verified: walletVerified,
       name,
       avatar: getRandomUserAvatar(),
-      organization_id: organization.id,
-      role: "owner",
-      is_active: true,
+        organization_id: org.id,
+        role: "owner",
+        is_active: true,
+      }, tx);
+      
+      return org;
     });
+    
+    organization = result;
   } catch (error) {
     // Check if this is a duplicate key error (race condition or duplicate email)
     // Drizzle/PostgreSQL errors can have code at top level or in cause property
@@ -365,16 +373,7 @@ export async function syncUserFromPrivy(
           error.cause.code === "23505"));
 
     if (!isDuplicateError) {
-      // Non-duplicate error (e.g., credits failure, metadata recording, etc.)
-      // Clean up the orphaned organization and rethrow
-      try {
-        await organizationsService.delete(organization.id);
-      } catch (cleanupError) {
-        console.error(
-          `[PrivySync] Failed to clean up org ${organization.id} after error:`,
-          cleanupError,
-        );
-      }
+      // Non-duplicate error - transaction already rolled back, just rethrow
       throw error;
     }
 
@@ -413,7 +412,7 @@ export async function syncUserFromPrivy(
               privy_user_id: privyUserId,
               updated_at: new Date(),
             });
-            await organizationsService.delete(organization.id);
+            // No need to delete org - transaction rolled back
             const linkedUser = await usersService.getByPrivyId(privyUserId);
             if (!linkedUser) {
               throw new Error(
@@ -427,16 +426,14 @@ export async function syncUserFromPrivy(
       }
 
       if (existingUser) {
-        // Clean up the orphaned organization we just created
-        await organizationsService.delete(organization.id);
+        // Transaction already rolled back, just return existing user
         return existingUser;
       }
 
-      // Couldn't find existing user even after retries - cleanup and rethrow
+      // Couldn't find existing user even after retries - rethrow (transaction rolled back)
       console.error(
-        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
+        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries`,
       );
-      await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
