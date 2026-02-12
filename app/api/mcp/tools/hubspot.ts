@@ -50,7 +50,10 @@ async function hubspotFetch(
   });
 
   if (!response.ok && response.status !== 204) {
-    const error = await response.json().catch(() => ({}));
+    const error = await response.json().catch(() => {
+      logger.warn("[HubSpot] Failed to parse error response", { status: response.status });
+      return { message: `HTTP ${response.status}` };
+    });
     throw new Error(error.message || `HubSpot API error: ${response.status}`);
   }
   return response;
@@ -339,6 +342,7 @@ export function registerHubSpotTools(server: McpServer): void {
             id: c.id,
             ...c.properties,
           })),
+          paging: data.paging,
           count: data.total || data.results?.length || 0,
         });
       } catch (error) {
@@ -485,6 +489,7 @@ export function registerHubSpotTools(server: McpServer): void {
             id: c.id,
             ...c.properties,
           })),
+          paging: data.paging,
           count: data.total || data.results?.length || 0,
         });
       } catch (error) {
@@ -661,6 +666,7 @@ export function registerHubSpotTools(server: McpServer): void {
             id: d.id,
             ...d.properties,
           })),
+          paging: data.paging,
           count: data.total || data.results?.length || 0,
         });
       } catch (error) {

@@ -123,10 +123,10 @@ async function getHubSpotMcpHandler() {
         "hubspot_list_contacts",
         "List contacts from HubSpot CRM",
         {
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
           after: z.string().optional().describe("Pagination cursor"),
         },
-        async ({ limit = 10, after }) => {
+        async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams({
@@ -241,9 +241,9 @@ async function getHubSpotMcpHandler() {
         "Search contacts",
         {
           query: z.string().describe("Search query"),
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
         },
-        async ({ query, limit = 10 }) => {
+        async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
             const res = await hubspotFetch(
@@ -268,6 +268,7 @@ async function getHubSpotMcpHandler() {
             return jsonResult({
               success: true,
               contacts: data.results || [],
+              paging: data.paging,
               count: data.total || 0,
             });
           } catch (e) {
@@ -281,10 +282,10 @@ async function getHubSpotMcpHandler() {
         "hubspot_list_companies",
         "List companies from HubSpot CRM",
         {
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
           after: z.string().optional().describe("Pagination cursor"),
         },
-        async ({ limit = 10, after }) => {
+        async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams({
@@ -349,9 +350,9 @@ async function getHubSpotMcpHandler() {
         "Search companies",
         {
           query: z.string().describe("Search query"),
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
         },
-        async ({ query, limit = 10 }) => {
+        async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
             const res = await hubspotFetch(
@@ -370,6 +371,7 @@ async function getHubSpotMcpHandler() {
             return jsonResult({
               success: true,
               companies: data.results || [],
+              paging: data.paging,
               count: data.total || 0,
             });
           } catch (e) {
@@ -383,10 +385,10 @@ async function getHubSpotMcpHandler() {
         "hubspot_list_deals",
         "List deals from HubSpot CRM",
         {
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
           after: z.string().optional().describe("Pagination cursor"),
         },
-        async ({ limit = 10, after }) => {
+        async ({ limit = 20, after }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams({
@@ -416,7 +418,7 @@ async function getHubSpotMcpHandler() {
         "Create a new deal",
         {
           dealname: z.string().describe("Deal name"),
-          amount: z.string().optional().describe("Deal amount"),
+          amount: z.number().optional().describe("Deal amount"),
           dealstage: z.string().optional().describe("Deal stage"),
           closedate: z
             .string()
@@ -452,9 +454,9 @@ async function getHubSpotMcpHandler() {
         "Search deals",
         {
           query: z.string().describe("Search query"),
-          limit: z.number().int().min(1).max(100).optional().default(10),
+          limit: z.number().int().min(1).max(100).optional().default(20),
         },
-        async ({ query, limit = 10 }) => {
+        async ({ query, limit = 20 }) => {
           try {
             const orgId = getOrgId();
             const res = await hubspotFetch(
@@ -473,6 +475,7 @@ async function getHubSpotMcpHandler() {
             return jsonResult({
               success: true,
               deals: data.results || [],
+              paging: data.paging,
               count: data.total || 0,
             });
           } catch (e) {
