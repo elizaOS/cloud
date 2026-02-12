@@ -67,7 +67,7 @@ async function resolveApiKeyForUser(
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "SIWE API Key",
+    name: "Default API Key",
     is_active: true,
   });
 
@@ -365,8 +365,8 @@ async function handleVerify(request: NextRequest) {
         {
           user_id: user.id,
           organization_id: org.id,
-          name: "SIWE API Key",
-          is_active: true,
+          name: "Default API Key",
+    is_active: true,
         },
         tx,
       );
