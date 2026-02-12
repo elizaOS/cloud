@@ -2,7 +2,7 @@
 import crypto from "crypto";
 
 /**
- * Default initial credits for new signups.
+ * Default initial credits for new signups (must match the original value from privy-sync.ts).
  * Can be overridden by INITIAL_FREE_CREDITS environment variable.
  */
 const DEFAULT_INITIAL_CREDITS = 5.0;
