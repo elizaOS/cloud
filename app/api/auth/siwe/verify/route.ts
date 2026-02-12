@@ -163,11 +163,11 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  // Atomic consume: returns true if the key existed and was deleted.
+  // Atomic consume: returns the number of keys deleted (1 if existed, 0 if not).
   // This prevents race conditions where two concurrent requests could both
   // pass a get() check before either deletes the nonce.
-  const nonceConsumed = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
-  if (!nonceConsumed) {
+  const deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
+  if (deleteCount === 0) {
     return NextResponse.json(
       {
         error: "INVALID_NONCE",
@@ -181,7 +181,10 @@ async function handleVerify(request: NextRequest) {
   // --- Domain validation ---
   // Prevents phishing: if an attacker tricks a user into signing a message
   // for a different domain, it won't pass verification here.
-  const appUrl = getAppUrl();
+  // Use explicit fallback chain: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {
@@ -297,13 +300,16 @@ async function handleVerify(request: NextRequest) {
   const displayName = truncateAddress(address);
 
   // Wrap org + credits + user + API key creation in a single DB transaction.
-  // If any step fails, all changes are rolled back atomically.
+  // If any step fails (credits grant, user creation, API key creation, etc.),
+  // all changes are rolled back atomically, preventing orphaned organizations
+  // or users without API keys.
   // Slug generation is also inside the transaction to avoid TOCTOU races.
   let signupResult: { organization: Awaited<ReturnType<typeof organizationsService.create>>; plainKey: string };
   try {
     signupResult = await db.transaction(async (tx) => {
       let orgSlug = generateSlugFromWallet(address);
       let slugAttempts = 0;
+      // Check slug uniqueness within the transaction to prevent race conditions
       while (await organizationsService.getBySlug(orgSlug, tx)) {
         slugAttempts++;
         if (slugAttempts > 10) {

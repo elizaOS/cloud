@@ -59,8 +59,9 @@ async function handleGetNonce(request: NextRequest) {
 
   try {
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
-    // Verify the nonce was actually persisted (cache.set returns void,
-    // so a silent no-op wouldn't throw but would leave the nonce unverifiable)
+    // Verify the nonce was actually persisted. Since cache.set returns Promise<void>
+    // rather than a success boolean, we must explicitly check with cache.get to ensure
+    // the nonce is retrievable before returning it to the client.
     const stored = await cache.get(CacheKeys.siwe.nonce(nonce));
     if (!stored) {
       throw new Error("Nonce not persisted after cache.set");
@@ -77,7 +78,10 @@ async function handleGetNonce(request: NextRequest) {
 
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing.
-  const appUrl = getAppUrl();
+  // Use explicit fallback chain: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   const url = new URL(appUrl);
 
   return NextResponse.json({
