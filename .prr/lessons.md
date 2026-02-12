@@ -32,6 +32,10 @@
 - Fix for lib/services/proxy/engine.ts:44 - The diff does not define ProxyRequestBody type or replace `unknown` types with it across the four locations mentioned
 - Fix for lib/services/proxy/engine.ts:254 - The diff shows only one organization_id check, but does not confirm removal of the two other duplicate checks mentioned
 - Fix for lib/services/proxy/engine.ts:44 - The diff removes organization_id validation instead of defining and threading `ProxyRequestBody` type through function signatures.
+- Fix for lib/services/proxy/engine.ts:96 - Comment requires handling missing organization_id (reserve vs anonymous), but diff only changes string formatting for cost fields.
+- Fix for lib/services/proxy/engine.ts - Comment requests switching to `import { createHash } from "node:crypto"`, but diff modifies cost field types instead.
+- Fix for lib/services/proxy/engine.ts:41 - Comment asks to replace `unknown` with concrete `ProxyRequestBody` type across four locations, but diff only changes cost formatting.
+- Fix for lib/services/proxy/engine.ts:185 - Comment flags inconsistent type (String(0) vs 0) for output_cost/markup between cache paths, but diff uses string "0" not numeric 0.
 
 ### db/repositories/service-pricing.ts
 
@@ -56,6 +60,20 @@
 - Fix for app/api/v1/admin/moderation/route.ts:353 - The diff adds role validation but doesn't remove the orphaned catch block at line 392 that exists outside any function scope
 - Fix for app/api/v1/admin/moderation/route.ts:25 - The diff adds role validation but doesn't fix requireAdminWithResponse to catch the actual error types thrown by requireAdmin
 - Fix for app/api/v1/admin/moderation/route.ts:141 - Wrap only authentication calls in try-catch, not the entire handler—separate concerns so database/operational errors aren't misclassified as 401s.
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Only adds a closing brace without fixing the underlying structural issues (orphaned catch, missing try blocks)
+- Fix for app/api/v1/admin/moderation/route.ts:179 - Identical to fix_6—only adds a closing brace without substantive structural fixes
+- Fix for app/api/v1/admin/moderation/route.ts:141 - The diff doesn't match the comment—no changes to error handling or instanceof checks are shown
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Comment requests typed error classes (WalletRequiredError, AdminRequiredError) instead of string matching, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:354 - Comment highlights orphaned catch outside function scope, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Comment describes broken catch block with unrelated billing code (creditsService, cost, config refs), but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:330 - Comment states super_admin checks for add_admin/revoke_admin were removed, causing privilege escalation, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:330 - Comment states super_admin checks were removed from add_admin/revoke_admin, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:279 - Comment warns default role "admin" is invalid for database enum (only super_admin/moderator/viewer), but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:331 - Comment states HEAD handler was removed breaking admin dashboard detection, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:25 - Comment warns requireAdminWithResponse catches wrong error types, but diff only removes a brace.
+- Fix for app/api/v1/admin/moderation/route.ts:179 - Only adds error class imports but doesn't add the missing catch block for the unclosed try statement at line 161.
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Only imports error classes but doesn't replace string matching logic with instanceof checks as required.
+- Fix for app/api/v1/admin/moderation/route.ts:331 - When restoring removed code, preserve all imports and ensure no duplicate function definitions or incomplete comment blocks remain.
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -79,3 +97,10 @@
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:135 - Identical to fix_3—adds validation without removing the three triplicated blocks at lines 123–128, 130–135, 137–142 mentioned in the comment. Creates more code duplication instead of resolving it.
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:26 - The diff shows only adding the validation block. The review comment asks to remove the unused `sanitizeCwdPath` function definition (lines 15–26). This fix doesn't delete the dead code function.
 - Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:26 - The diff shows lines 127-142 removed (validation blocks), not lines 15-26 where `sanitizeCwdPath` function is defined. The unused function still exists.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:161 - Diff adds validation block but comment describes silent failures—block doesn't prevent silent execution in default directory
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:142 - Diff adds a duplicate validation block instead of removing the three existing triplicates (lines 123–142)
+
+### app/api/v1/solana/rpc/route.ts
+
+- Fix for app/api/v1/solana/rpc/route.ts:42 - Comment identifies orphaned catch without matching try in Solana RPC POST, but diff only changes import type.
+- Fix for app/api/v1/solana/rpc/route.ts:43 - Comment warns orphaned catch at line 36 breaks Solana RPC endpoint, but diff only changes import type.

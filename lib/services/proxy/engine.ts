@@ -88,6 +88,13 @@ export function createHandler(
       const cost = await config.getCost(body, searchParams);
 
       // Reserve credits
+      if (!user.organization_id) {
+        return Response.json(
+          { error: "Organization required for billing" },
+          { status: 403 }
+        );
+      }
+
       const reservation = await creditsService.reserve({
         organizationId: user.organization_id,
         userId: user.id,

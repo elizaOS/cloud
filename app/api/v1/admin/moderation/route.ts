@@ -19,7 +19,6 @@ import type { AdminAuthResult } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { adminService } from "@/lib/services/admin";
 import { z } from "zod";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 
 export async function HEAD(request: NextRequest) {
   const authResult = await requireAdminWithResponse(

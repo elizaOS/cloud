@@ -46,10 +46,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  try {
-    const pricing = await servicePricingRepository.listByService(serviceId);
+  const pricing = await servicePricingRepository.listByService(serviceId);
 
-    return NextResponse.json({
+  return NextResponse.json({
       service_id: serviceId,
       pricing: pricing.map((p) => ({
         id: p.id,
