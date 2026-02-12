@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+}
 
 const UpsertSchema = z.object({
   service_id: z.string(),

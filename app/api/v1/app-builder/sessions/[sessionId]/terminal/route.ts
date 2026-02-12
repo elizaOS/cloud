@@ -14,21 +14,7 @@ import { logger } from "@/lib/utils/logger";
 
 
 
-/**
- * Sanitize and validate cwd path to prevent command injection.
- * Only allows alphanumeric, dash, underscore, dot, and forward slash.
- */
-function sanitizeCwdPath(path: string): string | null {
-  // Reject path traversal
-  if (path.includes("..")) {
-    return null;
-  }
-  // Only allow safe characters
-  if (!/^[a-zA-Z0-9_\-./]+$/.test(path)) {
-    return null;
-  }
-  return path;
-}
+
 
 // Security: Blocked commands that could be dangerous
 const BLOCKED_COMMANDS = [

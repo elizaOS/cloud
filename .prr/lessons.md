@@ -22,6 +22,7 @@
 - Fix for app/api/v1/admin/service-pricing/route.ts:227 - When a review requests tests for critical features, code refactoring alone doesn't satisfy it—create the test files first before submitting.
 - Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/admin/service-pricing/__tests__/route.test.ts), need to modify app/api/v1/admin/service-pricing/route.ts
 - Fix for app/api/v1/admin/service-pricing/route.ts:167 - tool modified wrong files (app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts), need to modify app/api/v1/admin/service-pricing/route.ts
+- Fix for app/api/v1/admin/service-pricing/route.ts:69 - The diff is identical to fix_1 (only adds a closing brace) and does not address the catch-all error handler returning 401 for non-auth errors.
 
 ### lib/services/proxy/engine.ts
 
@@ -50,6 +51,11 @@
 - Fix for app/api/v1/admin/moderation/route.ts:130 - Replace the incorrect `instanceof` checks for `WalletRequiredError` and `AdminRequiredError` with the correct ones for `AuthenticationError` and `ForbiddenError`—don't add duplicate handlers.
 - Fix for app/api/v1/admin/moderation/route.ts:201 - tool made no changes without explanation - trying different approach
 - Fix for app/api/v1/admin/moderation/route.ts:177 - tool made no changes without explanation - trying different approach
+- Fix for app/api/v1/admin/moderation/route.ts:141 - The change only adds role validation in one location but doesn't address the core issue—catch blocks that misclassify all errors as auth failures by masking non-auth errors
+- Fix for app/api/v1/admin/moderation/route.ts:142 - The diff adds role validation but doesn't remove the embedded diff/merge XML markers (</search>, </change>, etc.) that break parsing
+- Fix for app/api/v1/admin/moderation/route.ts:353 - The diff adds role validation but doesn't remove the orphaned catch block at line 392 that exists outside any function scope
+- Fix for app/api/v1/admin/moderation/route.ts:25 - The diff adds role validation but doesn't fix requireAdminWithResponse to catch the actual error types thrown by requireAdmin
+- Fix for app/api/v1/admin/moderation/route.ts:141 - Wrap only authentication calls in try-catch, not the entire handler—separate concerns so database/operational errors aren't misclassified as 401s.
 
 ### db/migrations/0033_add_service_billing_and_entity_settings.sql
 
@@ -69,5 +75,7 @@
 
 ### /terminal/route.ts
 
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:161 - The diff only adds type validation for cwd but does NOT implement validation/rejection of invalid cwd values that fail regex or path traversal checks. The silent-ignore behavior (executing in default directory without error) is not addressed.
-- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:161 - The diff shows only validation added, but doesn't show sanitizeCwdPath being called when cwd fails validation
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:135 - The diff shows only the validation block being added around line 150, but the review comment references duplicate checks at lines 85–90 and 92–97. The fix doesn't remove the duplicates—it adds yet another validation block, creating more dead code.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:135 - Identical to fix_3—adds validation without removing the three triplicated blocks at lines 123–128, 130–135, 137–142 mentioned in the comment. Creates more code duplication instead of resolving it.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:26 - The diff shows only adding the validation block. The review comment asks to remove the unused `sanitizeCwdPath` function definition (lines 15–26). This fix doesn't delete the dead code function.
+- Fix for app/api/v1/app-builder/sessions/[sessionId]/terminal/route.ts:26 - The diff shows lines 127-142 removed (validation blocks), not lines 15-26 where `sanitizeCwdPath` function is defined. The unused function still exists.
