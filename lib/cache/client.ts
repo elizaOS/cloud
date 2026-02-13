@@ -90,6 +90,25 @@ export class CacheClient {
    * @param key - Cache key.
    * @returns Cached value or null if not found or invalid.
    */
+  /**
+   * Check if the cache is available for operations.
+   * Returns false if Redis is disabled, disconnected, or circuit breaker is open.
+   */
+  isAvailable(): boolean {
+    if (!this.enabled || !this.redis) {
+      return false;
+    }
+    return !this.isCircuitOpen();
+  }
+
+  /**
+   * Get the underlying Redis client for operations that need direct access.
+   * Returns null if Redis is not available.
+   */
+  getRedisClient() {
+    return this.redis;
+  }
+
   async get<T>(key: string): Promise<T | null> {
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
