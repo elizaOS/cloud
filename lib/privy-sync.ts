@@ -404,7 +404,6 @@ export async function syncUserFromPrivy(
           error.cause.code === "23505"));
 
     if (!isDuplicateError) {
-      // Non-duplicate error - transaction already rolled back, just rethrow
       throw error;
     }
 
@@ -443,7 +442,6 @@ export async function syncUserFromPrivy(
               privy_user_id: privyUserId,
               updated_at: new Date(),
             });
-            // No need to delete org - transaction rolled back
             const linkedUser = await usersService.getByPrivyId(privyUserId);
             if (!linkedUser) {
               throw new Error(
@@ -457,7 +455,6 @@ export async function syncUserFromPrivy(
       }
 
       if (existingUser) {
-        // Transaction already rolled back, just return existing user
         return existingUser;
       }
 

@@ -400,7 +400,7 @@ async function handleVerify(request: NextRequest) {
   } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
-    // means the second insert fails. The transaction rolled back automatically.
+    // means the second insert fails. The org is cleaned up via compensating delete above.
     const isDuplicateError =
       error &&
       typeof error === "object" &&

@@ -1,11 +1,11 @@
 
 /**
- * Resolves the canonical application URL.
+ * Resolves the canonical app URL using the same strategy across all endpoints.
  *
- * Uses the same resolution strategy across the codebase:
+ * Priority:
  * 1. NEXT_PUBLIC_APP_URL (explicitly configured)
  * 2. VERCEL_URL (auto-set by Vercel deployments)
- * 3. localhost:3000 (local development)
+ * 3. localhost fallback (local development)
  */
 export function getAppUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {

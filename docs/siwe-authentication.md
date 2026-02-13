@@ -175,9 +175,6 @@ SIWE auth → get API key → create crypto payment → confirm payment → use 
 These routes were updated from `requireAuthWithOrg()` (Privy-only) to `requireAuthOrApiKeyWithOrg(req)` (Privy or API key) to support this flow.
 
 ## Files
-```
-
-## Files
 
 | File | Purpose |
 |------|---------|
