@@ -57,24 +57,7 @@ async function handleGetNonce(request: NextRequest) {
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,
   // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   const nonce = generateSiweNonce();
-  try {
-    await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
-    // Verify the nonce was actually persisted. cache.set() returns Promise<void>
-    // and becomes a silent no-op when cache is disabled/misconfigured, so we must
-    // read it back to confirm the write actually succeeded.
-    const stored = await cache.get(CacheKeys.siwe.nonce(nonce));
-    if (!stored) {
-      throw new Error("Nonce not persisted after cache.set");
-    }
-  } catch {
-    return NextResponse.json(
-      {
-        error: "SERVICE_UNAVAILABLE",
-        message: "Unable to generate nonce. Please try again later.",
-      },
-      { status: 503 },
-    );
-  }
+  await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
 
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing.

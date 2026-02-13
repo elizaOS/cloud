@@ -396,62 +396,60 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    if (isDuplicateError) {
-      // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
-      let existingUser: UserWithOrganization | undefined;
-      const maxRetries = 3;
+    // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
+    let existingUser: UserWithOrganization | undefined;
+    const maxRetries = 3;
 
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        if (attempt > 0) {
-          // Wait a bit for the other transaction to commit
-          await new Promise((resolve) =>
-            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
-          );
-        }
-
-        // Try to find by Privy ID first (most common race condition)
-        existingUser = await usersService.getByPrivyId(privyUserId);
-
-        if (existingUser) {
-          break;
-        }
-
-        // If not found by Privy ID, try by email (edge case: email constraint violated)
-        if (email) {
-          existingUser = await usersService.getByEmailWithOrganization(email);
-        }
-        if (existingUser) {
-          if (existingUser.privy_user_id !== privyUserId) {
-            // Same email, different Privy auth method (e.g. email login → Google OAuth)
-            // Link accounts by updating to the new Privy ID
-            console.info(
-              `Linking Privy account for ${email}: ${existingUser.privy_user_id} → ${privyUserId}`,
-            );
-            await usersService.update(existingUser.id, {
-              privy_user_id: privyUserId,
-              updated_at: new Date(),
-            });
-            const linkedUser = await usersService.getByPrivyId(privyUserId);
-            if (!linkedUser) {
-              throw new Error(
-                `Failed to fetch user after Privy account linking for ${email}`,
-              );
-            }
-            return linkedUser;
-          }
-          break;
-        }
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Wait a bit for the other transaction to commit
+        await new Promise((resolve) =>
+          setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
+        );
       }
+
+      // Try to find by Privy ID first (most common race condition)
+      existingUser = await usersService.getByPrivyId(privyUserId);
 
       if (existingUser) {
-        return existingUser;
+        break;
       }
 
-      // Couldn't find existing user even after retries - rethrow (transaction rolled back)
-      console.error(
-        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries`,
-      );
+      // If not found by Privy ID, try by email (edge case: email constraint violated)
+      if (email) {
+        existingUser = await usersService.getByEmailWithOrganization(email);
+      }
+      if (existingUser) {
+        if (existingUser.privy_user_id !== privyUserId) {
+          // Same email, different Privy auth method (e.g. email login → Google OAuth)
+          // Link accounts by updating to the new Privy ID
+          console.info(
+            `Linking Privy account for ${email}: ${existingUser.privy_user_id} → ${privyUserId}`,
+          );
+          await usersService.update(existingUser.id, {
+            privy_user_id: privyUserId,
+            updated_at: new Date(),
+          });
+          const linkedUser = await usersService.getByPrivyId(privyUserId);
+          if (!linkedUser) {
+            throw new Error(
+              `Failed to fetch user after Privy account linking for ${email}`,
+            );
+          }
+          return linkedUser;
+        }
+        break;
+      }
     }
+
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // Couldn't find existing user even after retries - rethrow (transaction rolled back)
+    console.error(
+      `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries`,
+    );
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
       `Failed to create user ${privyUserId}:`,
