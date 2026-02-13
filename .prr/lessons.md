@@ -67,6 +67,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:187 - "For silent failures, add availability checks at BOTH the write point (nonce endpoint) AND read point (verify endpoint), not just one."
 - Fix for app/api/auth/siwe/verify/route.ts:446 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, app/api/auth/siwe/verify/__tests__/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:446 - When a review requests "adding test coverage," create actual test files with executable test cases, not documentation describing what tests should exist.
+- Fix for app/api/auth/siwe/verify/route.ts:445 - When a comment lists specific test scenarios needed, the fix must implement those tests, not just reference a test file location.
 
 ### public/.well-known/llms-full.txt
 

@@ -1,19 +1,23 @@
 
 /**
- * Resolves the canonical app URL from environment variables.
+ * Resolves the canonical application URL.
  *
- * Priority:
- * 1. NEXT_PUBLIC_APP_URL (explicitly configured)
- * 2. VERCEL_URL (auto-set by Vercel deployments, prefixed with https://)
- * 3. http://localhost:3000 (local development fallback)
+ * Uses the same fallback chain as the rest of the codebase:
+ * 1. NEXT_PUBLIC_APP_URL (explicit configuration)
+ * 2. VERCEL_URL (auto-set by Vercel deployments)
+ * 3. localhost:3000 (local development)
  *
- * Used by SIWE nonce/verify endpoints for domain binding and anywhere
- * else that needs the canonical app origin.
+ * This ensures SIWE domain validation matches the actual deployed host
+ * even when NEXT_PUBLIC_APP_URL is not explicitly configured.
  */
 export function getAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "http://localhost:3000"
-  );
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "http://localhost:3000";
 }
