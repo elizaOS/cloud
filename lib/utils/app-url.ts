@@ -1,20 +1,20 @@
 
 /**
- * Shared base URL resolution.
+ * Resolves the canonical application URL using the same fallback chain
+ * across the entire codebase:
+ *   1. NEXT_PUBLIC_APP_URL (explicitly configured)
+ *   2. VERCEL_URL (auto-set by Vercel deployments)
+ *   3. localhost:3000 (local development)
  *
- * Precedence:
- * 1. NEXT_PUBLIC_APP_URL (explicitly configured canonical URL)
- * 2. VERCEL_URL (auto-set by Vercel deployments — needs https:// prefix)
- * 3. localhost:3000 (local development fallback)
- *
- * Used by SIWE nonce/verify for domain binding and anywhere else that needs
- * the canonical app URL.
+ * This ensures nonce issuance and SIWE verify use the same domain/uri
+ * regardless of the deployment environment.
  */
 export function getAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000")
-  );
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
 }
