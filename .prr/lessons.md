@@ -76,6 +76,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:440 - When a review requests test coverage for specific scenarios, the fix must include test files with cases for those scenarios, not just code changes.
 - Fix for app/api/auth/siwe/verify/route.ts:453 - When a review requests "automated tests covering X, Y, and Z," the fix must include actual test files exercising those scenarios, not just code changes enabling testing.
 - Fix for app/api/auth/siwe/verify/route.ts:180 - Fix both endpoints: add availability checks to nonce generation (line 47-48) before returning, not just to verification.
+- Fix for app/api/auth/siwe/verify/route.ts:453 - Remove the entire XML markup block (lines 429–506), not just whitespace—the comment specifies tool output with `<search>`, `</search>`, etc. tags.
 
 ### public/.well-known/llms-full.txt
 
@@ -110,3 +111,4 @@
 - Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: duplicate imports, missing `generateSlugFromEmail` definition, missing `SyncOptions` type, missing `emailService` import, and orphaned JSDoc at line 27.
 - Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: missing `generateSlugFromEmail` definition, `SyncOptions` type, `emailService` import, duplicate imports of `generateSlugFromWallet` and `creditsService`, and orphaned JSDoc.
 - Fix for lib/privy-sync.ts:336 - Wrap the entire operation (organization creation through user creation) in a database transaction, not just add error handling for individual steps.
+- Fix for lib/privy-sync.ts:378 - When a duplicate-key error is caught and handled gracefully without re-throwing, cleanup code in outer catch blocks won't execute—always clean up immediately in the inner catch, not in outer catch.
