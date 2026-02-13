@@ -19,7 +19,7 @@
  * IPs. Binding nonces to IP would break legitimate use without meaningful
  * security gain over HTTPS + single-use + TTL.
  *
- * Test coverage implemented in:
+ * Test coverage:
  * - app/api/auth/siwe/__tests__/nonce.test.ts (nonce issuance, TTL, cache availability)
  * - app/api/auth/siwe/__tests__/verify.test.ts (verify paths, failures, race conditions)
  */
@@ -41,7 +41,6 @@ import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-helpers";
 import { getAppUrl } from "@/lib/utils/app-url";
 import type { UserWithOrganization } from "@/lib/types";
-import { db } from "@/lib/db";
 
 function truncateAddress(address: string): string {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
@@ -302,87 +301,68 @@ async function handleVerify(request: NextRequest) {
 
   const displayName = truncateAddress(address);
 
-  // Wrap org + credits + user + API key creation in a single DB transaction.
-  // IMPORTANT: The tx object is passed to each service call, but service methods
-  // must explicitly use the tx connection for writes to participate in this
-  // transaction. If a service ignores the tx parameter and uses its own global
-  // connection, those writes will NOT be rolled back on failure, potentially
-  // leaving orphaned records. Verify each service's implementation accepts tx.
+  // Sequential org + credits + user + API key creation with compensating cleanup.
+  // Services use their own global dbWrite connection and do not accept a transaction
+  // parameter, so db.transaction() would be ineffective. Instead, if any step after
+  // org creation fails, we delete the org as a compensating action.
   //
   // The 23505 duplicate-key handler below mitigates race conditions where two
   // concurrent signups attempt to create the same wallet.
   let signupResult: { user: UserWithOrganization; plainKey: string };
   try {
-    signupResult = await db.transaction(async (tx) => {
-      let orgSlug = generateSlugFromWallet(address);
-      let slugAttempts = 0;
-      // Check slug uniqueness within the transaction to prevent race conditions
-      while (await organizationsService.getBySlug(orgSlug, tx)) {
-        slugAttempts++;
-        if (slugAttempts > 10) {
-          throw new Error("Failed to generate unique organization slug");
-        }
-        orgSlug = generateSlugFromWallet(address);
+    let orgSlug = generateSlugFromWallet(address);
+    let slugAttempts = 0;
+    while (await organizationsService.getBySlug(orgSlug)) {
+      slugAttempts++;
+      if (slugAttempts > 10) {
+        throw new Error("Failed to generate unique organization slug");
       }
+      orgSlug = generateSlugFromWallet(address);
+    }
 
-      const org = await organizationsService.create(
-        {
-          name: `${displayName}'s Organization`,
-          slug: orgSlug,
-          credit_balance: "0.00",
-        },
-        tx,
-      );
+    const org = await organizationsService.create({
+      name: `${displayName}'s Organization`,
+      slug: orgSlug,
+      credit_balance: "0.00",
+    });
 
-      await abuseDetectionService.recordSignupMetadata(
-        org.id,
-        {
-          ipAddress: ip,
-          userAgent,
-        },
-        tx,
-      );
+    try {
+      await abuseDetectionService.recordSignupMetadata(org.id, {
+        ipAddress: ip,
+        userAgent,
+      });
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits(
-          {
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "siwe_signup",
-            },
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "siwe_signup",
           },
-          tx,
-        );
+        });
       }
 
-      const user = await usersService.create(
-        {
-          wallet_address: address.toLowerCase(),
-          wallet_chain_type: "ethereum",
-          wallet_verified: true,
-          privy_user_id: null,
-          name: displayName,
-          avatar: getRandomUserAvatar(),
-          organization_id: org.id,
-          role: "owner",
-          is_active: true,
-        },
-        tx,
-      );
+      const user = await usersService.create({
+        wallet_address: address.toLowerCase(),
+        wallet_chain_type: "ethereum",
+        wallet_verified: true,
+        privy_user_id: null,
+        name: displayName,
+        avatar: getRandomUserAvatar(),
+        organization_id: org.id,
+        role: "owner",
+        is_active: true,
+      });
 
-      const { plainKey } = await apiKeysService.create(
-        {
-          user_id: user.id,
-          organization_id: org.id,
-          name: "Default API Key",
-          is_active: true,
-        },
-        tx,
-      );
+      const { plainKey } = await apiKeysService.create({
+        user_id: user.id,
+        organization_id: org.id,
+        name: "Default API Key",
+        is_active: true,
+      });
 
       // Return the user with organization attached so we don't need a separate fetch
       const userWithOrg: UserWithOrganization = {
@@ -390,8 +370,33 @@ async function handleVerify(request: NextRequest) {
         organization: org,
       } as UserWithOrganization;
 
-      return { user: userWithOrg, plainKey };
-    });
+      signupResult = { user: userWithOrg, plainKey };
+    } catch (innerError) {
+      // Compensating cleanup: delete the org we just created to avoid orphans.
+      // Check if this is a 23505 duplicate-key error first — if so, the user
+      // was created by a concurrent request and we should not delete the org.
+      const isDuplicate =
+        innerError &&
+        typeof innerError === "object" &&
+        (("code" in innerError && innerError.code === "23505") ||
+          ("cause" in innerError &&
+            innerError.cause &&
+            typeof innerError.cause === "object" &&
+            "code" in innerError.cause &&
+            innerError.cause.code === "23505"));
+
+      if (!isDuplicate) {
+        try {
+          await organizationsService.delete(org.id);
+        } catch (cleanupError) {
+          console.error(
+            `[SIWE] Failed to clean up orphaned org ${org.id}:`,
+            cleanupError,
+          );
+        }
+      }
+      throw innerError;
+    }
   } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)

@@ -23,7 +23,6 @@ import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 import { emailService } from "@/lib/services/email";
 import type { User as PrivyUser } from "@privy-io/server-auth";
-import { db } from "@/lib/db";
 
 /**
  * Options for syncing a Privy user.
@@ -305,36 +304,31 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Create organization, add credits, and create user in a transaction.
-  // IMPORTANT: The tx object is passed to each service call, but service methods
-  // must explicitly use the tx connection for writes to participate in this
-  // transaction. If a service ignores the tx parameter and uses its own global
-  // connection, those writes will NOT be rolled back on failure, potentially
-  // leaving orphaned records (e.g., org created but user creation fails).
-  // Verify each service's implementation accepts tx before relying on atomicity.
+  // Sequential org + credits + user creation with compensating cleanup.
+  // Services use their own global dbWrite connection and do not accept a
+  // transaction parameter, so db.transaction() would be ineffective. Instead,
+  // if any step after org creation fails, we delete the org to avoid orphans.
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
   try {
-    const result = await db.transaction(async (tx) => {
-      const org = await organizationsService.create({
-        name: `${name}'s Organization`,
-        slug: orgSlug,
-        credit_balance: "0.00",
-      }, tx);
-      
+    const org = await organizationsService.create({
+      name: `${name}'s Organization`,
+      slug: orgSlug,
+      credit_balance: "0.00",
+    });
+
+    try {
       // Record signup metadata for future abuse detection
       if (signupContext) {
         await abuseDetectionService.recordSignupMetadata(
           org.id,
           signupContext,
-          tx,
         );
       }
 
       // Add initial free credits via creditsService for proper tracking.
-      // No try-catch here: if credits fail, the transaction rolls back so we
-      // don't end up with an org/user that silently has no credits.
+      // If credits fail, we clean up the org to avoid orphans.
       if (initialCredits > 0) {
         await creditsService.addCredits({
           organizationId: org.id,
@@ -344,11 +338,11 @@ export async function syncUserFromPrivy(
             type: "initial_free_credits",
             source: "signup",
           },
-        }, tx);
+        });
       }
 
       // Create user
-      const user = await usersService.create({
+      await usersService.create({
         privy_user_id: privyUserId,
         email: email || null,
         email_verified: !!email,
@@ -360,12 +354,34 @@ export async function syncUserFromPrivy(
         organization_id: org.id,
         role: "owner",
         is_active: true,
-      }, tx);
-      
-      return org;
-    });
+      });
+    } catch (innerError) {
+      // Compensating cleanup: delete org to avoid orphans, unless this is a
+      // 23505 duplicate-key error (concurrent signup won the race).
+      const isDuplicate =
+        innerError &&
+        typeof innerError === "object" &&
+        (("code" in innerError && innerError.code === "23505") ||
+          ("cause" in innerError &&
+            innerError.cause &&
+            typeof innerError.cause === "object" &&
+            "code" in innerError.cause &&
+            innerError.cause.code === "23505"));
+
+      if (!isDuplicate) {
+        try {
+          await organizationsService.delete(org.id);
+        } catch (cleanupError) {
+          console.error(
+            `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
+            cleanupError,
+          );
+        }
+      }
+      throw innerError;
+    }
     
-    organization = result;
+    organization = org;
   } catch (error) {
     // Check if this is a duplicate key error (race condition or duplicate email)
     // Drizzle/PostgreSQL errors can have code at top level or in cause property
