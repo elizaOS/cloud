@@ -339,15 +339,24 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "siwe_signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          });
+        } catch (creditsError) {
+          // Log but continue — credits can be reconciled later.
+          // Failing here should not orphan the org or block user creation.
+          console.error(
+            `[SIWE] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
+            creditsError,
+          );
+        }
       }
 
       const user = await usersService.create({
