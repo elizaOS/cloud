@@ -23,7 +23,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { parseSiweMessage } from "viem/siwe";
 import { recoverMessageAddress, getAddress, type Hex } from "viem";
-import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { atomicConsume } from "@/lib/cache/consume";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
