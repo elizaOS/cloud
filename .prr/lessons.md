@@ -74,6 +74,8 @@
 - Fix for app/api/auth/siwe/verify/route.ts:444 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, lib/utils/app-url.ts, lib/utils/signup-helpers.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:444 - When a review requests test coverage for specific scenarios (nonce TTL, verify paths, failure modes), the fix must include actual test files with those test cases, not just code refactoring.
 - Fix for app/api/auth/siwe/verify/route.ts:440 - When a review requests test coverage for specific scenarios, the fix must include test files with cases for those scenarios, not just code changes.
+- Fix for app/api/auth/siwe/verify/route.ts:453 - When a review requests "automated tests covering X, Y, and Z," the fix must include actual test files exercising those scenarios, not just code changes enabling testing.
+- Fix for app/api/auth/siwe/verify/route.ts:180 - Fix both endpoints: add availability checks to nonce generation (line 47-48) before returning, not just to verification.
 
 ### public/.well-known/llms-full.txt
 

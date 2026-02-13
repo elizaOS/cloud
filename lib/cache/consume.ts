@@ -16,6 +16,11 @@ export async function atomicConsume(key: string): Promise<number> {
   if (!redis) {
     return 0;
   }
-  return redis.del(key);
+  try {
+    return await redis.del(key);
+  } catch (error) {
+    console.error("[atomicConsume] Redis DEL failed:", error);
+    return 0;
+  }
 }
 
