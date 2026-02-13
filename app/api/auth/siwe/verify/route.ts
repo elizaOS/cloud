@@ -188,10 +188,7 @@ async function handleVerify(request: NextRequest) {
   // getAppUrl() were used and it fell back to a hard-coded default that
   // differs from the actual deployed host, valid SIWE messages would be
   // rejected.
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
-    getAppUrl();
+  const appUrl = getAppUrl();
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {
