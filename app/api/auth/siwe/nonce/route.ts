@@ -42,8 +42,6 @@ async function handleGetNonce(request: NextRequest) {
     chainId = parsed;
   }
 
-  // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,
-  // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   // Check cache availability first. If Redis is down, fail fast rather than
   // returning a nonce that can't be validated in the verify endpoint.
   if (!cache.isAvailable()) {
@@ -56,12 +54,14 @@ async function handleGetNonce(request: NextRequest) {
     );
   }
 
+  // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,
+  // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   const nonce = generateSiweNonce();
   try {
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
-    // Verify the nonce was actually persisted. Since cache.set returns Promise<void>
-    // rather than a success boolean, we must explicitly check with cache.get to ensure
-    // the nonce is retrievable before returning it to the client.
+    // Verify the nonce was actually persisted. cache.set() returns Promise<void>
+    // and becomes a silent no-op when cache is disabled/misconfigured, so we must
+    // read it back to confirm the write actually succeeded.
     const stored = await cache.get(CacheKeys.siwe.nonce(nonce));
     if (!stored) {
       throw new Error("Nonce not persisted after cache.set");
