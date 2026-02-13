@@ -140,8 +140,8 @@ async function handleVerify(request: NextRequest) {
   const parsed = parseSiweMessage(message);
 
   // parseSiweMessage returns all fields as optional. We must verify the
-  // security-critical ones exist before proceeding.
-  if (!parsed.address || !parsed.nonce || !parsed.domain) {
+  // security-critical ones exist before proceeding (per EIP-4361).
+  if (!parsed.address || !parsed.nonce || !parsed.domain || !parsed.uri || !parsed.version || !parsed.chainId) {
     return NextResponse.json(
       {
         error: "INVALID_BODY",
@@ -196,6 +196,17 @@ async function handleVerify(request: NextRequest) {
         error: "INVALID_DOMAIN",
         message:
           "The SIWE message domain does not match this server. Use the domain returned by the nonce endpoint.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (parsed.notBefore && parsed.notBefore > new Date()) {
+    return NextResponse.json(
+      {
+        error: "MESSAGE_NOT_YET_VALID",
+        message:
+          "The SIWE message is not yet valid. Check the notBefore timestamp.",
       },
       { status: 400 },
     );
@@ -424,8 +435,8 @@ async function handleVerify(request: NextRequest) {
         if (raceUser) break;
       }
 
-      if (raceUser && raceUser.organization_id) {
-        if (!raceUser.is_active || !raceUser.organization?.is_active) {
+      if (raceUser && raceUser.organization_id && raceUser.organization) {
+        if (!raceUser.is_active || !raceUser.organization.is_active) {
           return NextResponse.json(
             {
               error: "ACCOUNT_INACTIVE",

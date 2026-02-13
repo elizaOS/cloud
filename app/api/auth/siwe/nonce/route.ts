@@ -59,6 +59,19 @@ async function handleGetNonce(request: NextRequest) {
   const nonce = generateSiweNonce();
   await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
 
+  // Verify the nonce was actually persisted. cache.set() is a no-op when Redis
+  // is unavailable, so a read-back confirms the write succeeded.
+  const verified = await cache.get(CacheKeys.siwe.nonce(nonce));
+  if (!verified) {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Unable to persist nonce. Please retry.",
+      },
+      { status: 503 },
+    );
+  }
+
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing. Uses the shared getAppUrl()
   // helper to stay consistent with the verify endpoint's host resolution.
