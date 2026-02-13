@@ -50,7 +50,7 @@ async function handleCreatePayment(req: NextRequest) {
     const { amount, currency, payCurrency, network } = validation.data;
 
     const result = await cryptoPaymentsService.createPayment({
-      organizationId: user.organization_id!,
+      organizationId: user.organization_id,
       userId: user.id,
       amount,
       currency,
@@ -64,7 +64,7 @@ async function handleCreatePayment(req: NextRequest) {
       currency,
       pay_currency: payCurrency,
       network: network || "AUTO",
-      organization_id: user.organization_id!,
+      organization_id: user.organization_id,
       track_id: result.trackId,
     });
 
@@ -73,7 +73,7 @@ async function handleCreatePayment(req: NextRequest) {
       payment_method: "crypto",
       amount,
       currency,
-      organization_id: user.organization_id!,
+      organization_id: user.organization_id,
       source_page: "settings",
       purchase_type: "custom_amount",
     });
@@ -121,7 +121,7 @@ async function handleListPayments(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      user.organization_id!,
+      user.organization_id,
     );
 
     return NextResponse.json({ payments });
