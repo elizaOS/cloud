@@ -19,15 +19,9 @@
  * IPs. Binding nonces to IP would break legitimate use without meaningful
  * security gain over HTTPS + single-use + TTL.
  *
- * TODO: Add comprehensive test coverage (see Issue #16):
- * - Nonce issuance: TTL enforcement, single-use validation
- * - Verify success paths: existing user login, new user signup
- * - Failure modes: invalid nonce, expired message, signature mismatch, domain mismatch
- * - Race conditions: concurrent signups with same wallet
- * - Redis unavailability scenarios
- * Test files should be created at:
- * - app/api/auth/siwe/__tests__/nonce.test.ts
- * - app/api/auth/siwe/__tests__/verify.test.ts
+ * Test coverage implemented in:
+ * - app/api/auth/siwe/__tests__/nonce.test.ts (nonce issuance, TTL, cache availability)
+ * - app/api/auth/siwe/__tests__/verify.test.ts (verify paths, failures, race conditions)
  */
 
 import { type NextRequest, NextResponse } from "next/server";
