@@ -69,6 +69,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:446 - When a review requests "adding test coverage," create actual test files with executable test cases, not documentation describing what tests should exist.
 - Fix for app/api/auth/siwe/verify/route.ts:445 - When a comment lists specific test scenarios needed, the fix must implement those tests, not just reference a test file location.
 - Fix for app/api/auth/siwe/verify/route.ts:445 - Don't export testing utilities—create actual test files exercising the specific scenarios (nonce TTL, new/existing users, invalid nonce/domain/signature).
+- Fix for app/api/auth/siwe/verify/route.ts:439 - When a review requests test coverage, create the actual test files with test cases—don't just add comments referencing where tests should exist.
 
 ### public/.well-known/llms-full.txt
 

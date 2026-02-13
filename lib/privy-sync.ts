@@ -328,17 +328,25 @@ export async function syncUserFromPrivy(
       }
 
       // Add initial free credits via creditsService for proper tracking.
-      // If credits fail, we clean up the org to avoid orphans.
+      // If credits fail, log the error but continue with user creation
+      // to avoid orphaning the org. Credits can be reconciled later.
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "signup",
+            },
+          });
+        } catch (creditsError) {
+          console.error(
+            `[PrivySync] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
+            creditsError,
+          );
+        }
       }
 
       // Create user
