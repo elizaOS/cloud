@@ -13,14 +13,17 @@ const DEFAULT_TIMEOUT_MS = 30000;
  * @param timeoutMs - Timeout in milliseconds
  * @returns AbortSignal that will abort after the specified timeout
  */
-function createTimeoutSignal(timeoutMs: number = DEFAULT_TIMEOUT_MS): AbortSignal {
+function createTimeoutSignal(
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): AbortSignal {
   return AbortSignal.timeout(timeoutMs);
 }
 
 export const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-export const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
+export const GOOGLE_USERINFO_URL =
+  "https://www.googleapis.com/oauth2/v2/userinfo";
 
 /**
  * Available Google OAuth scopes for the workflow builder
@@ -30,10 +33,20 @@ export const GOOGLE_SCOPES = {
   GMAIL_READONLY: "https://www.googleapis.com/auth/gmail.readonly",
   GMAIL_SEND: "https://www.googleapis.com/auth/gmail.send",
   GMAIL_MODIFY: "https://www.googleapis.com/auth/gmail.modify",
+  GMAIL_COMPOSE: "https://www.googleapis.com/auth/gmail.compose",
 
   // Calendar scopes
+  CALENDAR: "https://www.googleapis.com/auth/calendar",
   CALENDAR_READONLY: "https://www.googleapis.com/auth/calendar.readonly",
   CALENDAR_EVENTS: "https://www.googleapis.com/auth/calendar.events",
+  CALENDAR_EVENTS_READONLY:
+    "https://www.googleapis.com/auth/calendar.events.readonly",
+  CALENDAR_EVENTS_OWNED:
+    "https://www.googleapis.com/auth/calendar.events.owned",
+  CALENDAR_EVENTS_OWNED_READONLY:
+    "https://www.googleapis.com/auth/calendar.events.owned.readonly",
+  CALENDAR_CALENDARS_READONLY:
+    "https://www.googleapis.com/auth/calendar.calendars.readonly",
 
   // Contacts scopes
   CONTACTS_READONLY: "https://www.googleapis.com/auth/contacts.readonly",
@@ -53,8 +66,17 @@ export const DEFAULT_GOOGLE_SCOPES = [
   GOOGLE_SCOPES.USERINFO_PROFILE,
   GOOGLE_SCOPES.GMAIL_READONLY,
   GOOGLE_SCOPES.GMAIL_SEND,
+  GOOGLE_SCOPES.GMAIL_MODIFY,
+  GOOGLE_SCOPES.GMAIL_COMPOSE,
+  GOOGLE_SCOPES.CALENDAR,
+  GOOGLE_SCOPES.CALENDAR_READONLY,
   GOOGLE_SCOPES.CALENDAR_EVENTS,
+  GOOGLE_SCOPES.CALENDAR_EVENTS_READONLY,
+  GOOGLE_SCOPES.CALENDAR_EVENTS_OWNED,
+  GOOGLE_SCOPES.CALENDAR_EVENTS_OWNED_READONLY,
+  GOOGLE_SCOPES.CALENDAR_CALENDARS_READONLY,
   GOOGLE_SCOPES.CONTACTS_READONLY,
+  GOOGLE_SCOPES.CONTACTS,
 ];
 
 /**
