@@ -18,10 +18,6 @@
  * Why not IP-bind nonces: Agents run on serverless infra, VPNs, and shared
  * IPs. Binding nonces to IP would break legitimate use without meaningful
  * security gain over HTTPS + single-use + TTL.
- *
- * Test coverage:
- * - app/api/auth/siwe/__tests__/nonce.test.ts (nonce issuance, TTL, cache availability)
- * - app/api/auth/siwe/__tests__/verify.test.ts (verify paths, failures, race conditions)
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -385,15 +381,15 @@ async function handleVerify(request: NextRequest) {
             "code" in innerError.cause &&
             innerError.cause.code === "23505"));
 
-      if (!isDuplicate) {
-        try {
-          await organizationsService.delete(org.id);
-        } catch (cleanupError) {
-          console.error(
-            `[SIWE] Failed to clean up orphaned org ${org.id}:`,
-            cleanupError,
-          );
-        }
+      // Always clean up the org we created. On 23505 duplicate-key errors,
+      // the winning request created its own org, so ours is orphaned.
+      try {
+        await organizationsService.delete(org.id);
+      } catch (cleanupError) {
+        console.error(
+          `[SIWE] Failed to clean up orphaned org ${org.id}:`,
+          cleanupError,
+        );
       }
       throw innerError;
     }

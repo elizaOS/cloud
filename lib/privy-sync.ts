@@ -376,15 +376,15 @@ export async function syncUserFromPrivy(
             "code" in innerError.cause &&
             innerError.cause.code === "23505"));
 
-      if (!isDuplicate) {
-        try {
-          await organizationsService.delete(org.id);
-        } catch (cleanupError) {
-          console.error(
-            `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
-            cleanupError,
-          );
-        }
+      // Always clean up the org we created. On 23505 duplicate-key errors,
+      // the winning request created its own org, so ours is orphaned.
+      try {
+        await organizationsService.delete(org.id);
+      } catch (cleanupError) {
+        console.error(
+          `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
+          cleanupError,
+        );
       }
       throw innerError;
     }
