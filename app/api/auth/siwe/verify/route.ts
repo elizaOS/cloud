@@ -23,6 +23,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { parseSiweMessage } from "viem/siwe";
 import { recoverMessageAddress, getAddress, type Hex } from "viem";
+import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { atomicConsume } from "@/lib/cache/consume";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -383,8 +384,8 @@ async function handleVerify(request: NextRequest) {
       signupResult = { user: userWithOrg, plainKey };
     } catch (innerError) {
       // Compensating cleanup: delete the org we just created to avoid orphans.
-      // On 23505 duplicate-key errors, the winning request created its own org,
-      // so ours is orphaned either way.
+      // Any failure after org creation (duplicate-key, API key creation, etc.)
+      // means the org has no valid user attached and should be removed.
       try {
         await organizationsService.delete(org.id);
       } catch (cleanupError) {

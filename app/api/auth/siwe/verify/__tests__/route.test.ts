@@ -1,288 +1,365 @@
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/**
+ * Tests for SIWE verify endpoint.
+ *
+ * Covers:
+ * - Nonce issuance (TTL / single-use)
+ * - Verify success paths (existing user vs new user)
+ * - Key failure modes (invalid nonce, domain mismatch, bad signature, missing fields)
+ */
 
-// --- Mocks ---
-const mockCacheIsAvailable = vi.fn().mockReturnValue(true);
-vi.mock("@/lib/cache/client", () => ({
-  cache: {
-    isAvailable: mockCacheIsAvailable,
-  },
+import { NextRequest } from "next/server";
+
+// ---------------------------------------------------------------------------
+// Mocks – declared before imports so jest.mock hoisting works correctly
+// ---------------------------------------------------------------------------
+
+const mockAtomicConsume = jest.fn();
+const mockCacheIsAvailable = jest.fn().mockReturnValue(true);
+
+jest.mock("@/lib/cache/client", () => ({
+  cache: { isAvailable: () => mockCacheIsAvailable() },
+}));
+
+jest.mock("@/lib/cache/consume", () => ({
+  atomicConsume: (...args: unknown[]) => mockAtomicConsume(...args),
+}));
+
+jest.mock("@/lib/cache/keys", () => ({
   CacheKeys: {
     siwe: { nonce: (n: string) => `siwe:nonce:${n}` },
   },
 }));
 
-const mockAtomicConsume = vi.fn();
-vi.mock("@/lib/cache/consume", () => ({
-  atomicConsume: mockAtomicConsume,
+const mockGetAppUrl = jest.fn().mockReturnValue("https://app.example.com");
+jest.mock("@/lib/utils/app-url", () => ({
+  getAppUrl: () => mockGetAppUrl(),
 }));
 
-vi.mock("@/lib/middleware/rate-limit", () => ({
+// viem helpers – we control recoverMessageAddress & parseSiweMessage
+const mockRecoverMessageAddress = jest.fn();
+jest.mock("viem", () => ({
+  recoverMessageAddress: (...args: unknown[]) => mockRecoverMessageAddress(...args),
+  getAddress: (addr: string) => addr, // pass-through for tests
+}));
+
+const mockParseSiweMessage = jest.fn();
+jest.mock("viem/siwe", () => ({
+  parseSiweMessage: (msg: string) => mockParseSiweMessage(msg),
+}));
+
+// Service mocks
+const mockGetByWallet = jest.fn();
+const mockUserUpdate = jest.fn();
+const mockUserCreate = jest.fn();
+jest.mock("@/lib/services/users", () => ({
+  usersService: {
+    getByWalletAddressWithOrganization: (...args: unknown[]) => mockGetByWallet(...args),
+    update: (...args: unknown[]) => mockUserUpdate(...args),
+    create: (...args: unknown[]) => mockUserCreate(...args),
+  },
+}));
+
+const mockListByOrganization = jest.fn().mockResolvedValue([]);
+const mockApiKeyCreate = jest.fn();
+jest.mock("@/lib/services/api-keys", () => ({
+  apiKeysService: {
+    listByOrganization: (...args: unknown[]) => mockListByOrganization(...args),
+    create: (...args: unknown[]) => mockApiKeyCreate(...args),
+  },
+}));
+
+const mockOrgCreate = jest.fn();
+const mockOrgGetBySlug = jest.fn().mockResolvedValue(null);
+const mockOrgDelete = jest.fn();
+jest.mock("@/lib/services/organizations", () => ({
+  organizationsService: {
+    create: (...args: unknown[]) => mockOrgCreate(...args),
+    getBySlug: (...args: unknown[]) => mockOrgGetBySlug(...args),
+    delete: (...args: unknown[]) => mockOrgDelete(...args),
+  },
+}));
+
+const mockCheckSignupAbuse = jest.fn().mockResolvedValue({ allowed: true });
+const mockRecordSignupMetadata = jest.fn();
+jest.mock("@/lib/services/abuse-detection", () => ({
+  abuseDetectionService: {
+    checkSignupAbuse: (...args: unknown[]) => mockCheckSignupAbuse(...args),
+    recordSignupMetadata: (...args: unknown[]) => mockRecordSignupMetadata(...args),
+  },
+}));
+
+jest.mock("@/lib/services/credits", () => ({
+  creditsService: {
+    addCredits: jest.fn(),
+  },
+}));
+
+jest.mock("@/lib/utils/default-user-avatar", () => ({
+  getRandomUserAvatar: () => "https://avatar.test/1.png",
+}));
+
+jest.mock("@/lib/utils/signup-helpers", () => ({
+  generateSlugFromWallet: (addr: string) => `wallet-${addr.slice(0, 8)}`,
+  getInitialCredits: () => 0,
+}));
+
+jest.mock("@/lib/middleware/rate-limit", () => ({
   withRateLimit: (handler: Function) => handler,
   RateLimitPresets: { STRICT: {} },
 }));
 
-const mockGetByWallet = vi.fn();
-const mockUpdateUser = vi.fn();
-vi.mock("@/lib/services/users", () => ({
-  usersService: {
-    getByWalletAddressWithOrganization: (...args: any[]) => mockGetByWallet(...args),
-    update: (...args: any[]) => mockUpdateUser(...args),
-    create: vi.fn(),
-  },
-}));
+// ---------------------------------------------------------------------------
+// Import the handler under test
+// ---------------------------------------------------------------------------
 
-vi.mock("@/lib/services/api-keys", () => ({
-  apiKeysService: {
-    listByOrganization: vi.fn().mockResolvedValue([]),
-    create: vi.fn().mockResolvedValue({ plainKey: "test-key" }),
-  },
-}));
+import { _handleVerifyForTests as handleVerify } from "../route";
 
-vi.mock("@/lib/services/organizations", () => ({
-  organizationsService: {
-    create: vi.fn().mockResolvedValue({ id: "org-1", name: "Test Org" }),
-    getBySlug: vi.fn().mockResolvedValue(null),
-    delete: vi.fn(),
-  },
-}));
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-vi.mock("@/lib/services/credits", () => ({
-  creditsService: {
-    addCredits: vi.fn(),
-  },
-}));
+const VALID_ADDRESS = "0xAbCdEf0123456789AbCdEf0123456789AbCdEf01";
+const VALID_NONCE = "abc123nonce";
 
-vi.mock("@/lib/services/abuse-detection", () => ({
-  abuseDetectionService: {
-    checkSignupAbuse: vi.fn().mockResolvedValue({ allowed: true }),
-    recordSignupMetadata: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/utils/default-user-avatar", () => ({
-  getRandomUserAvatar: () => "avatar.png",
-}));
-
-vi.mock("@/lib/utils/signup-helpers", () => ({
-  generateSlugFromWallet: () => "wallet-slug",
-  getInitialCredits: () => 0,
-}));
-
-vi.mock("@/lib/utils/app-url", () => ({
-  getAppUrl: () => "https://example.com",
-}));
-
-// Mock viem functions
-const MOCK_ADDRESS = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
-vi.mock("viem/siwe", () => ({
-  parseSiweMessage: vi.fn().mockReturnValue({
-    address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-    nonce: "test-nonce-123",
-    domain: "example.com",
-  }),
-}));
-
-vi.mock("viem", () => ({
-  recoverMessageAddress: vi.fn().mockResolvedValue(
-    "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  ),
-  getAddress: (addr: string) => addr,
-}));
-
-import { POST } from "../../route";
-
-function makeRequest(body: Record<string, unknown> = {}) {
-  return new Request("https://example.com/api/auth/siwe/verify", {
+function makeRequest(body: Record<string, unknown>): NextRequest {
+  return new NextRequest("https://app.example.com/api/auth/siwe/verify", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-real-ip": "127.0.0.1",
-      "user-agent": "test-agent",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-const validBody = {
-  message: "example.com wants you to sign in...",
-  signature: "0xdeadbeef",
-};
-
-describe("SIWE verify endpoint", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCacheIsAvailable.mockReturnValue(true);
-    mockAtomicConsume.mockResolvedValue(1);
-    mockGetByWallet.mockResolvedValue(undefined);
+function setupValidParse() {
+  mockParseSiweMessage.mockReturnValue({
+    address: VALID_ADDRESS,
+    nonce: VALID_NONCE,
+    domain: "app.example.com",
   });
+}
 
-  // --- Failure modes ---
+function setupValidSignature() {
+  mockRecoverMessageAddress.mockResolvedValue(VALID_ADDRESS);
+}
 
-  it("returns 400 for missing message", async () => {
-    const res = await POST(makeRequest({ signature: "0xabc" }) as any);
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockCacheIsAvailable.mockReturnValue(true);
+  mockAtomicConsume.mockResolvedValue(1); // nonce exists by default
+  mockGetAppUrl.mockReturnValue("https://app.example.com");
+});
+
+describe("SIWE verify – input validation", () => {
+  it("rejects missing message field", async () => {
+    const res = await handleVerify(makeRequest({ signature: "0xabc" }));
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe("INVALID_BODY");
   });
 
-  it("returns 400 for missing signature", async () => {
-    const res = await POST(makeRequest({ message: "hello" }) as any);
+  it("rejects empty signature", async () => {
+    const res = await handleVerify(makeRequest({ message: "hello", signature: "" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects SIWE message missing required fields", async () => {
+    mockParseSiweMessage.mockReturnValue({ address: null, nonce: null, domain: null });
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe("INVALID_BODY");
   });
+});
 
-  it("returns 400 for empty body", async () => {
-    const res = await POST(makeRequest({}) as any);
-    expect(res.status).toBe(400);
-  });
-
+describe("SIWE verify – nonce validation", () => {
   it("returns 503 when cache is unavailable", async () => {
+    setupValidParse();
     mockCacheIsAvailable.mockReturnValue(false);
-
-    const res = await POST(makeRequest(validBody) as any);
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.error).toBe("SERVICE_UNAVAILABLE");
   });
 
-  it("returns 400 for expired/used nonce (atomicConsume returns 0)", async () => {
-    mockAtomicConsume.mockResolvedValue(0);
-
-    const res = await POST(makeRequest(validBody) as any);
+  it("rejects expired / already-used nonce (single-use enforcement)", async () => {
+    setupValidParse();
+    mockAtomicConsume.mockResolvedValue(0); // nonce already consumed
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe("INVALID_NONCE");
   });
 
-  it("nonce is single-use: atomicConsume is called exactly once", async () => {
-    mockAtomicConsume.mockResolvedValue(1);
+  it("atomically consumes nonce exactly once", async () => {
+    setupValidParse();
+    setupValidSignature();
     mockGetByWallet.mockResolvedValue({
-      id: "user-1",
+      id: "u1",
       is_active: true,
+      organization_id: "org1",
+      organization: { is_active: true, name: "Org" },
       wallet_verified: true,
-      organization_id: "org-1",
-      organization: { is_active: true, name: "Test" },
     });
+    mockListByOrganization.mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "sk_existing" },
+    ]);
 
-    await POST(makeRequest(validBody) as any);
+    await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(mockAtomicConsume).toHaveBeenCalledTimes(1);
+    expect(mockAtomicConsume).toHaveBeenCalledWith(`siwe:nonce:${VALID_NONCE}`);
+  });
+});
+
+describe("SIWE verify – domain validation", () => {
+  it("rejects domain mismatch", async () => {
+    mockParseSiweMessage.mockReturnValue({
+      address: VALID_ADDRESS,
+      nonce: VALID_NONCE,
+      domain: "evil.com",
+    });
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_DOMAIN");
+  });
+});
+
+describe("SIWE verify – signature validation", () => {
+  it("rejects when recoverMessageAddress throws", async () => {
+    setupValidParse();
+    mockRecoverMessageAddress.mockRejectedValue(new Error("bad sig"));
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SIGNATURE");
   });
 
-  // --- Existing user (sign-in) ---
+  it("rejects when recovered address does not match claimed address", async () => {
+    setupValidParse();
+    mockRecoverMessageAddress.mockResolvedValue("0xDifferentAddress000000000000000000000000");
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SIGNATURE");
+  });
+});
 
-  it("returns existing user without creating new org", async () => {
+describe("SIWE verify – existing user (sign-in)", () => {
+  it("returns existing user with isNewAccount=false", async () => {
+    setupValidParse();
+    setupValidSignature();
     const existingUser = {
-      id: "user-1",
-      name: "Test",
+      id: "u1",
+      name: "0xAbCd...Ef01",
       is_active: true,
+      organization_id: "org1",
+      organization: { is_active: true, name: "Org", credit_balance: "5.00" },
       wallet_verified: true,
-      organization_id: "org-1",
-      organization: { is_active: true, name: "Test Org", credit_balance: "10.00" },
+      privy_user_id: null,
     };
     mockGetByWallet.mockResolvedValue(existingUser);
-
-    const { apiKeysService } = await import("@/lib/services/api-keys");
-    (apiKeysService.listByOrganization as any).mockResolvedValue([
-      { user_id: "user-1", is_active: true, key: "existing-key-123" },
+    mockListByOrganization.mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "sk_existing_key" },
     ]);
 
-    const res = await POST(makeRequest(validBody) as any);
-    const json = await res.json();
-
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(200);
+    const json = await res.json();
     expect(json.isNewAccount).toBe(false);
-    expect(json.apiKey).toBe("existing-key-123");
+    expect(json.apiKey).toBe("sk_existing_key");
+    expect(json.user.id).toBe("u1");
   });
 
-  it("returns 403 for inactive existing user", async () => {
-    mockGetByWallet.mockResolvedValue({
-      id: "user-1",
-      is_active: false,
-      wallet_verified: true,
-      organization_id: "org-1",
-      organization: { is_active: true },
-    });
-
-    const res = await POST(makeRequest(validBody) as any);
-    expect(res.status).toBe(403);
-    const json = await res.json();
-    expect(json.error).toBe("ACCOUNT_INACTIVE");
-  });
-
-  it("returns 403 for inactive organization", async () => {
-    mockGetByWallet.mockResolvedValue({
-      id: "user-1",
+  it("marks wallet_verified if not already verified", async () => {
+    setupValidParse();
+    setupValidSignature();
+    const existingUser = {
+      id: "u1",
       is_active: true,
-      wallet_verified: true,
-      organization_id: "org-1",
-      organization: { is_active: false },
-    });
-
-    const res = await POST(makeRequest(validBody) as any);
-    expect(res.status).toBe(403);
-    const json = await res.json();
-    expect(json.error).toBe("ACCOUNT_INACTIVE");
-  });
-
-  it("marks wallet_verified on existing unverified user", async () => {
-    mockGetByWallet.mockResolvedValue({
-      id: "user-1",
-      is_active: true,
-      wallet_verified: false,
-      organization_id: "org-1",
+      organization_id: "org1",
       organization: { is_active: true, name: "Org" },
-    });
-
-    const { apiKeysService } = await import("@/lib/services/api-keys");
-    (apiKeysService.listByOrganization as any).mockResolvedValue([
-      { user_id: "user-1", is_active: true, key: "key" },
+      wallet_verified: false,
+      privy_user_id: "privy_123",
+    };
+    mockGetByWallet.mockResolvedValue(existingUser);
+    mockListByOrganization.mockResolvedValue([
+      { user_id: "u1", is_active: true, key: "sk_key" },
     ]);
 
-    await POST(makeRequest(validBody) as any);
-    expect(mockUpdateUser).toHaveBeenCalledWith("user-1", { wallet_verified: true });
+    await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
+    expect(mockUserUpdate).toHaveBeenCalledWith("u1", { wallet_verified: true });
   });
 
-  // --- New user (sign-up) ---
-
-  it("creates new user and returns isNewAccount=true", async () => {
-    mockGetByWallet.mockResolvedValue(undefined);
-
-    const { usersService } = await import("@/lib/services/users");
-    (usersService.create as any).mockResolvedValue({
-      id: "new-user",
-      name: "0xd8dA...6045",
-      wallet_address: MOCK_ADDRESS.toLowerCase(),
-      organization_id: "org-1",
-      is_active: true,
+  it("rejects inactive account", async () => {
+    setupValidParse();
+    setupValidSignature();
+    mockGetByWallet.mockResolvedValue({
+      id: "u1",
+      is_active: false,
+      organization_id: "org1",
+      organization: { is_active: true },
       wallet_verified: true,
     });
 
-    const { apiKeysService } = await import("@/lib/services/api-keys");
-    (apiKeysService.create as any).mockResolvedValue({ plainKey: "new-api-key" });
-    (apiKeysService.listByOrganization as any).mockResolvedValue([]);
-
-    const res = await POST(makeRequest(validBody) as any);
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
+    expect(res.status).toBe(403);
     const json = await res.json();
+    expect(json.error).toBe("ACCOUNT_INACTIVE");
+  });
+});
 
+describe("SIWE verify – new user (sign-up)", () => {
+  it("creates org, user, API key and returns isNewAccount=true", async () => {
+    setupValidParse();
+    setupValidSignature();
+    mockGetByWallet.mockResolvedValue(null); // no existing user
+
+    const org = { id: "org_new", name: "New Org", credit_balance: "0.00", is_active: true };
+    mockOrgCreate.mockResolvedValue(org);
+
+    const user = { id: "u_new", name: "0xAbCd...Ef01", organization_id: "org_new" };
+    mockUserCreate.mockResolvedValue(user);
+    mockApiKeyCreate.mockResolvedValue({ plainKey: "sk_brand_new" });
+
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(200);
+    const json = await res.json();
     expect(json.isNewAccount).toBe(true);
-    expect(json.apiKey).toBe("new-api-key");
+    expect(json.apiKey).toBe("sk_brand_new");
+    expect(mockOrgCreate).toHaveBeenCalledTimes(1);
+    expect(mockUserCreate).toHaveBeenCalledTimes(1);
   });
 
-  it("returns 403 when abuse detection blocks signup", async () => {
-    mockGetByWallet.mockResolvedValue(undefined);
+  it("rejects signup when abuse detection blocks it", async () => {
+    setupValidParse();
+    setupValidSignature();
+    mockGetByWallet.mockResolvedValue(null);
+    mockCheckSignupAbuse.mockResolvedValue({ allowed: false, reason: "Too many signups" });
 
-    const { abuseDetectionService } = await import("@/lib/services/abuse-detection");
-    (abuseDetectionService.checkSignupAbuse as any).mockResolvedValue({
-      allowed: false,
-      reason: "Too many signups",
-    });
-
-    const res = await POST(makeRequest(validBody) as any);
+    const res = await handleVerify(makeRequest({ message: "msg", signature: "0xabc" }));
     expect(res.status).toBe(403);
     const json = await res.json();
     expect(json.error).toBe("SIGNUP_BLOCKED");
+  });
+
+  it("cleans up org on user creation failure", async () => {
+    setupValidParse();
+    setupValidSignature();
+    mockGetByWallet.mockResolvedValue(null);
+    mockCheckSignupAbuse.mockResolvedValue({ allowed: true });
+
+    const org = { id: "org_orphan" };
+    mockOrgCreate.mockResolvedValue(org);
+    mockUserCreate.mockRejectedValue(new Error("DB error"));
+
+    await expect(
+      handleVerify(makeRequest({ message: "msg", signature: "0xabc" })),
+    ).rejects.toThrow("DB error");
+
+    expect(mockOrgDelete).toHaveBeenCalledWith("org_orphan");
   });
 });

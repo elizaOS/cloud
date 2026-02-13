@@ -7,4 +7,52 @@
 
 ## Global Lessons
 
+- fixer made no changes
+
 ## File-Specific Lessons
+
+### app/api/auth/siwe/verify/route.ts
+
+- Fix for app/api/auth/siwe/verify/route.ts:440 - When a review requests test coverage for specific scenarios, the fix must include test files with cases for those scenarios, not just code changes.
+- Fix for app/api/auth/siwe/verify/route.ts:453 - When a review requests "automated tests covering X, Y, and Z," the fix must include actual test files exercising those scenarios, not just code changes enabling testing.
+- Fix for app/api/auth/siwe/verify/route.ts:180 - Fix both endpoints: add availability checks to nonce generation (line 47-48) before returning, not just to verification.
+- Fix for app/api/auth/siwe/verify/route.ts:453 - Remove the entire XML markup block (lines 429–506), not just whitespace—the comment specifies tool output with `<search>`, `</search>`, etc. tags.
+- Fix for app/api/auth/siwe/verify/route.ts:125 - tool modified wrong files (lib/privy-sync.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:125 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, lib/privy-sync.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:452 - Remove the entire stale tool output block (lines 429–506), not just unrelated whitespace elsewhere in the file.
+- Fix for app/api/auth/siwe/verify/route.ts:180 - Always add availability checks at the source (nonce generation) before adding error handling at consumption points (verification).
+- Fix for app/api/auth/siwe/verify/route.ts:452 - tool modified wrong files (app/api/auth/siwe/__tests__/verify.test.ts, app/api/auth/siwe/nonce/route.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:452 - The review requests actual test coverage to be written and committed, not just infrastructure to enable testing. Exporting functions enables tests but doesn't satisfy the requirement to add them.
+
+### public/.well-known/llms-full.txt
+
+- Fix for public/.well-known/llms-full.txt:5661 - Only one occurrence of the apiKey prefix was updated (line 5659). The comment references "Also applies to: 5677-5681" indicating a second location that was not addressed in this diff.
+
+### public/llms-full.txt
+
+- Fix for public/llms-full.txt:5673 - The diff shown only updates the apiKey at line 5659. The comment requests standardization across "related samples and tests" but doesn't confirm whether line 5677-5681 or other occurrences were also updated.
+- Fix for public/llms-full.txt:5674 - Find and replace the `apiKey: "eliza_..."` value with `apiKey: "ek_test_..."` or `apiKey: "ek_live_..."` on line 5674, not unrelated fields.
+
+### lib/cache/consume.ts
+
+- Fix for lib/cache/consume.ts:21 - The function is still exported and unused. The comment requests removal of dead code, not refactoring its imports.
+
+### lib/utils/signup-helpers.ts
+
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
+- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication across multiple files, update ALL affected files to use the shared import—not just the documentation in the shared module.
+- Fix for lib/utils/signup-helpers.ts:28 - tool modified wrong files (lib/privy-sync.ts), need to modify lib/utils/signup-helpers.ts
+- Fix for lib/utils/signup-helpers.ts:28 - Documentation-only changes don't fix duplication issues—must actually remove duplicate code and update all call sites to import from the shared module.
+
+### app/api/auth/siwe/nonce/route.ts
+
+- Fix for app/api/auth/siwe/nonce/route.ts:69 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/nonce/route.ts
+- Fix for app/api/auth/siwe/nonce/route.ts:71 - Verify that CacheClient.set() returns a falsy value on silent failure, not just that it doesn't throw an exception.
+- Fix for app/api/auth/siwe/nonce/route.ts:78 - When adding validation for cache availability, must also update the error handler to return 503 status code, not just improve the error message.
+- Fix for app/api/auth/siwe/nonce/route.ts:77 - Remove the `!setSuccess` check on line 50 that's always true due to `Promise<void>` return, not just the downstream verification on line 66.
+
+### lib/privy-sync.ts
+
+- Fix for lib/privy-sync.ts:336 - Wrap the entire operation (organization creation through user creation) in a database transaction, not just add error handling for individual steps.
+- Fix for lib/privy-sync.ts:378 - When a duplicate-key error is caught and handled gracefully without re-throwing, cleanup code in outer catch blocks won't execute—always clean up immediately in the inner catch, not in outer catch.
