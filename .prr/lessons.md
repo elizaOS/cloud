@@ -7,100 +7,24 @@
 
 ## Global Lessons
 
-- fixer made no changes
+- When services use their own global DB connection and don't accept a transaction parameter, use compensating cleanup (delete on failure) instead of wrapping in db.transaction().
+- When fixing code duplication, update all call sites to import from the shared module.
+- Cache availability must be checked at both write (nonce) and read (verify) endpoints.
 
 ## File-Specific Lessons
 
 ### app/api/auth/siwe/verify/route.ts
 
-- Fix for app/api/auth/siwe/verify/route.ts:319 - No transaction wrapping or compensating cleanup added to signup flow
-- Fix for app/api/auth/siwe/verify/route.ts:406 - No transactional wrapping or error handling changes to signup flow
-- Fix for app/api/auth/siwe/verify/route.ts:183 - Cache availability check is only in nonce endpoint, not verify endpoint
-- Fix for app/api/auth/siwe/verify/route.ts:426 - Cache availability check was added, but comment asked for automated tests (unit/integration coverage for nonce TTL, verify paths, failure modes). Adding a runtime check doesn't fulfill the testing requirement.
-- Fix for app/api/auth/siwe/verify/route.ts:319 - Only cache availability check was added. Comment explicitly asks for DB transaction wrapping or compensating cleanup around org/user/API key creation to prevent orphaned records on failure.
-- Fix for app/api/auth/siwe/verify/route.ts:406 - Identical to fix_1 and fix_2—only cache check was added. Comment requires transactional creation (remove try-catch swallowing credit errors, surface failures, roll back all changes on any error).
-- Fix for app/api/auth/siwe/verify/route.ts:426 - Adds compensating cleanup but does not add the requested automated tests for nonce TTL, verify paths, and failure modes.
-- Fix for app/api/auth/siwe/verify/route.ts:319 - Use a database transaction wrapper around the entire signup flow (organization/user/API key creation) instead of manual compensating deletes that can themselves fail.
-- Fix for app/api/auth/siwe/verify/route.ts:426 - tool made no changes without explanation - trying different approach
-- Fix for app/api/auth/siwe/verify/route.ts:406 - "Wrap all three operations (org create → credits add → user create) in a single DB transaction, not separate try-catch blocks with cleanup."
-- Fix for app/api/auth/siwe/verify/route.ts:406 - Removes try-catch and lets errors propagate, but doesn't implement the requested DB transaction or compensating cleanup.
-- Fix for app/api/auth/siwe/verify/route.ts:406 - Partial implementation of the prompt. Error propagation was added (good), but the fix lacks the core requirement: making org+credits+user creation atomic via a DB transaction. The comment also references 23505 duplicate-wallet handling cleanup that isn't addressed.
-- Fix for app/api/auth/siwe/verify/route.ts:426 - When a review comment requests test coverage, the fix must include the test suite first—production code changes alone don't satisfy the requirement.
-- Fix for app/api/auth/siwe/verify/route.ts:426 - Transaction wraps org+credits+user creation, but no test coverage added. Comment explicitly requested "unit/integration coverage for nonce issuance, verify success paths, and key failure modes."
-- Fix for app/api/auth/siwe/verify/route.ts:442 - Diff shows no changes related to tests. Comment requests "unit/integration coverage for nonce issuance, verify success paths, key failure modes" but no test files were created or modified.
-- Fix for app/api/auth/siwe/verify/route.ts:121 - Diff only adds atomicConsume import but does not define SiweVerifyBody type or replace the `unknown` types. Comment requests defining explicit string type for message/signature but body variable still uses unknown.
-- Fix for app/api/auth/siwe/verify/route.ts:176 - Diff does not address the actual issue. Comment notes "cache.set() silently does nothing when Redis unavailable" causing nonce failures, but the fix shown only updates the nonce/route.ts error handling to use try/catch. The verify/route.ts endpoint still has no availability check for the consumed nonce.
-- Fix for app/api/auth/siwe/verify/route.ts:176 - When fixing a two-endpoint flow, address both the producer (nonce) and consumer (verify) endpoints—not just the consumer error handling.
-- Fix for app/api/auth/siwe/verify/route.ts:443 - The code change adds race condition logic but includes zero test files or test cases for nonce TTL, verification paths, or failure modes.
-- Fix for app/api/auth/siwe/verify/route.ts:122 - The diff does not change the request body type from `unknown` to an explicit type like `SiweVerifyBody` with `message?: string` and `signature?: string`.
-- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing cache unavailability issues, add error handling to both the write endpoint (nonce) and read endpoint (verify), not just one.
-- Fix for app/api/auth/siwe/verify/route.ts:443 - The diff adds race condition logic but provides no test coverage for nonce TTL, single-use validation, or signature verification paths as requested.
-- Fix for app/api/auth/siwe/verify/route.ts:502 - The code change does not add any test files or test coverage. Comment requests "unit/integration coverage for nonce issuance, verify success paths, and key failure modes."
-- Fix for app/api/auth/siwe/verify/route.ts:122 - The code change does not address the `unknown` type issue. The diff shows changes to transaction handling but not to the request body type annotation around line 119-138.
-- Fix for app/api/auth/siwe/verify/route.ts:177 - The code change does not address Redis unavailability or add fallback/availability checks. Comment requires detecting when Redis is unavailable and either failing fast or providing a fallback mechanism.
-- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint flow, add availability checks to BOTH endpoints, not just the consumer endpoint that was mentioned in the error path.
-- Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
-- Fix for app/api/auth/siwe/verify/route.ts:505 - When addressing "add tests" feedback, the fix must include actual test code/files, not just comments describing what tests should exist.
-- Fix for app/api/auth/siwe/verify/route.ts:177 - When fixing a two-endpoint issue, add availability checks to BOTH endpoints—the nonce generator and the verifier—not just one.
-- Fix for app/api/auth/siwe/verify/route.ts:505 - When a review requests "accompanying automated tests," create the actual test file with implementations, not just documentation comments referencing it.
-- Fix for app/api/auth/siwe/verify/route.ts:505 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
-- Fix for app/api/auth/siwe/verify/route.ts:178 - "Both endpoints must check cache availability - verify alone is insufficient since nonce endpoint returns 200 despite silent failure."
-- Fix for app/api/auth/siwe/verify/route.ts:506 - The diff is malformed and contains no test file additions. Comment explicitly requests unit/integration tests for nonce TTL, verify paths, and failure modes.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - The file already has the fix in place!
-- Fix for app/api/auth/siwe/verify/route.ts:487 - The diff only deletes code without adding any test files or test cases for nonce TTL, user flows, or signature validation.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff only deletes code without replacing `unknown` type with explicit `SiweVerifyBody` type definition or string types.
-- Fix for app/api/auth/siwe/verify/route.ts:487 - The diff removes code without adding any test files or test coverage for nonce TTL, single-use validation, or verify success/failure paths.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff removes code without replacing `unknown` types with explicit string types or a named `SiweVerifyBody` interface.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - When a comment specifies a type change (like replacing `unknown`), implement that type definition first before fixing any formatting or indentation issues.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - The diff contains syntax errors and does not introduce the `SiweVerifyBody` type or replace `unknown` with explicit string types as requested.
-- Fix for app/api/auth/siwe/verify/route.ts:123 - When fixing type annotations, identify and modify ALL type declarations - don't just fix whitespace. The `SiweVerifyBody` type must be added before the body variable assignment.
-- Fix for app/api/auth/siwe/verify/route.ts:428 - tool modified wrong files (app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
-- Fix for app/api/auth/siwe/verify/route.ts:428 - The code change only modifies a type annotation and does not add any tests. The review comment explicitly requests unit/integration tests for nonce TTL, verify success paths, and failure modes.
-- Fix for app/api/auth/siwe/verify/route.ts:178 - The diff only changes a type annotation and does not add Redis availability checks or fallback logic. The review requires detecting when Redis is unavailable and either failing fast or falling back to an alternative storage mechanism.
-- Fix for app/api/auth/siwe/verify/route.ts:428 - The diff shows only a type annotation change and does not remove the XML markup (lines 429–506) that the review identifies as accidentally committed tool output.
-- Fix for app/api/auth/siwe/verify/route.ts:428 - When a review requires "accompanying automated tests," documentation comments alone are insufficient—actual test files must be written and committed.
-- Fix for app/api/auth/siwe/verify/route.ts:376 - When converting service calls to use transactions, replace ALL service method calls within the transaction block, not just some—check for any remaining ones.
-- Fix for app/api/auth/siwe/verify/route.ts:429 - tool modified wrong files (app/api/auth/siwe/verify/__tests__/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
-- Fix for app/api/auth/siwe/verify/route.ts:428 - Documentation of test requirements must be accompanied by actual test implementations in dedicated test files, not just comments describing what to test.
-- Fix for app/api/auth/siwe/verify/route.ts:375 - When acknowledging a broken pattern in comments, you must simultaneously refactor the code to use the correct pattern—documenting a problem without fixing it makes it worse.
-- Fix for app/api/auth/siwe/verify/route.ts:428 - When a review comment explicitly lists test coverage requirements (nonce TTL, verify paths, failure modes), the fix must include test cases for all listed items, not just code changes.
-- Fix for app/api/auth/siwe/verify/route.ts:187 - "For silent failures, add availability checks at BOTH the write point (nonce endpoint) AND read point (verify endpoint), not just one."
-- Fix for app/api/auth/siwe/verify/route.ts:446 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, app/api/auth/siwe/verify/__tests__/route.test.ts), need to modify app/api/auth/siwe/verify/route.ts
-- Fix for app/api/auth/siwe/verify/route.ts:446 - When a review requests "adding test coverage," create actual test files with executable test cases, not documentation describing what tests should exist.
-- Fix for app/api/auth/siwe/verify/route.ts:445 - When a comment lists specific test scenarios needed, the fix must implement those tests, not just reference a test file location.
-- Fix for app/api/auth/siwe/verify/route.ts:445 - Don't export testing utilities—create actual test files exercising the specific scenarios (nonce TTL, new/existing users, invalid nonce/domain/signature).
-- Fix for app/api/auth/siwe/verify/route.ts:439 - When a review requests test coverage, create the actual test files with test cases—don't just add comments referencing where tests should exist.
-- Fix for app/api/auth/siwe/verify/route.ts:444 - Code review requests for "add automated tests" require actual test files/code, not TODO comments—implement the tests themselves, don't document them.
-
-### public/.well-known/llms-full.txt
-
-- Fix for public/.well-known/llms-full.txt:5661 - Only one occurrence of the apiKey prefix was updated (line 5659). The comment references "Also applies to: 5677-5681" indicating a second location that was not addressed in this diff.
-
-### public/llms-full.txt
-
-- Fix for public/llms-full.txt:5673 - The diff shown only updates the apiKey at line 5659. The comment requests standardization across "related samples and tests" but doesn't confirm whether line 5677-5681 or other occurrences were also updated.
-- Fix for public/llms-full.txt:5674 - Find and replace the `apiKey: "eliza_..."` value with `apiKey: "ek_test_..."` or `apiKey: "ek_live_..."` on line 5674, not unrelated fields.
-
-### lib/cache/consume.ts
-
-- Fix for lib/cache/consume.ts:21 - The function is still exported and unused. The comment requests removal of dead code, not refactoring its imports.
-
-### lib/utils/signup-helpers.ts
-
-- Fix for lib/utils/signup-helpers.ts:28 - When fixing duplication issues, update both the source module AND all files using the duplicates—comments alone don't remove the duplicate code.
-- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication, update all files with duplicate code to import from the shared module, not just the shared module itself.
-- Fix for lib/utils/signup-helpers.ts:28 - When fixing code duplication across multiple files, update ALL affected files to use the shared import—not just the documentation in the shared module.
-- Fix for lib/utils/signup-helpers.ts:28 - tool modified wrong files (lib/privy-sync.ts), need to modify lib/utils/signup-helpers.ts
-- Fix for lib/utils/signup-helpers.ts:28 - Documentation-only changes don't fix duplication issues—must actually remove duplicate code and update all call sites to import from the shared module.
+- Signup flow uses compensating cleanup (org deletion on failure) since services don't accept transaction parameters.
+- Both nonce and verify endpoints check cache.isAvailable() before proceeding.
+- SiweVerifyBody type replaces unknown for request body typing.
 
 ### app/api/auth/siwe/nonce/route.ts
 
-- Fix for app/api/auth/siwe/nonce/route.ts:69 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/nonce/route.ts
-- Fix for app/api/auth/siwe/nonce/route.ts:71 - Verify that CacheClient.set() returns a falsy value on silent failure, not just that it doesn't throw an exception.
-- Fix for app/api/auth/siwe/nonce/route.ts:78 - When adding validation for cache availability, must also update the error handler to return 503 status code, not just improve the error message.
+- Nonce write is verified with a read-back (cache.get) after cache.set to detect silent failures.
+- Cache availability is checked before nonce generation; returns 503 if unavailable.
 
 ### lib/privy-sync.ts
 
-- Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: duplicate imports, missing `generateSlugFromEmail` definition, missing `SyncOptions` type, missing `emailService` import, and orphaned JSDoc at line 27.
-- Fix for lib/privy-sync.ts - The diff only addresses error handling removal but ignores the core issues: missing `generateSlugFromEmail` definition, `SyncOptions` type, `emailService` import, duplicate imports of `generateSlugFromWallet` and `creditsService`, and orphaned JSDoc.
-- Fix for lib/privy-sync.ts:336 - Wrap the entire operation (organization creation through user creation) in a database transaction, not just add error handling for individual steps.
+- Uses shared helpers from lib/utils/signup-helpers.ts (generateSlugFromWallet, generateSlugFromEmail, getInitialCredits).
+- Credits failure is logged but doesn't block user creation to avoid orphaned orgs.
