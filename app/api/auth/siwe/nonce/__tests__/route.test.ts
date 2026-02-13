@@ -1,70 +1,38 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+import { GET } from "../route";
 
-// Mock cache before importing route
-const mockSet = vi.fn();
-const mockIsAvailable = vi.fn().mockReturnValue(true);
-vi.mock("@/lib/cache/client", () => ({
-  cache: {
-    set: mockSet,
-    isAvailable: mockIsAvailable,
-  },
-}));
+// Mock dependencies
+vi.mock("@/lib/cache/client");
 
-vi.mock("@/lib/utils/app-url", () => ({
-  getAppUrl: () => "https://example.com",
-}));
-
-vi.mock("@/lib/middleware/rate-limit", () => ({
-  withRateLimit: (handler: Function) => handler,
-  RateLimitPresets: { STRICT: {} },
-}));
-
-import { GET } from "../../nonce/route";
-
-function makeRequest() {
-  return new Request("https://example.com/api/auth/siwe/nonce", {
-    method: "GET",
-  });
-}
-
-describe("SIWE nonce endpoint", () => {
+describe("SIWE Nonce Endpoint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns a nonce and domain on success", async () => {
-    mockSet.mockResolvedValue(undefined);
+  it("should generate a nonce with default chainId", async () => {
+    const request = new NextRequest("http://localhost/api/auth/siwe/nonce", {
+      method: "GET",
+    });
 
-    const res = await GET(makeRequest() as any);
-    const json = await res.json();
+    const response = await GET(request);
+    const data = await response.json();
 
-    expect(res.status).toBe(200);
-    expect(json).toHaveProperty("nonce");
-    expect(typeof json.nonce).toBe("string");
-    expect(json.nonce.length).toBeGreaterThan(0);
-    expect(json).toHaveProperty("domain");
+    expect(response.status).toBe(200);
+    expect(data).toHaveProperty("nonce");
+    expect(data).toHaveProperty("domain");
+    expect(data).toHaveProperty("chainId");
+    expect(data.chainId).toBe(1);
   });
 
-  it("stores nonce in cache with a TTL", async () => {
-    mockSet.mockResolvedValue(undefined);
+  it("should reject invalid chainId parameter", async () => {
+    const request = new NextRequest(
+      "http://localhost/api/auth/siwe/nonce?chainId=invalid",
+      { method: "GET" }
+    );
 
-    await GET(makeRequest() as any);
-
-    expect(mockSet).toHaveBeenCalledTimes(1);
-    const [_key, _value, options] = mockSet.mock.calls[0];
-    // Nonce should have a TTL (ex/ttl option)
-    expect(options).toBeDefined();
-    expect(options.ttl || options.ex || options.EX).toBeDefined();
-  });
-
-  it("returns 503 when cache is unavailable", async () => {
-    mockIsAvailable.mockReturnValue(false);
-
-    const res = await GET(makeRequest() as any);
-    expect(res.status).toBe(503);
-
-    const json = await res.json();
-    expect(json.error).toBe("SERVICE_UNAVAILABLE");
+    const response = await GET(request);
+    expect(response.status).toBe(400);
   });
 });

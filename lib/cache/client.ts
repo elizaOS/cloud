@@ -462,9 +462,23 @@ export class CacheClient {
   ): void {
     // Metrics logging disabled to reduce console noise
   }
+
+  /**
+   * Check if cache is available (Redis is connected and circuit breaker is closed).
+   */
+  public isAvailable(): boolean {
+    this.initialize();
+    return !!(this.enabled && this.redis && !this.isCircuitOpen());
+  }
+
+  /**
+   * Get the underlying Redis client for atomic operations.
+   * Used by atomicConsume for DEL operations that need integer return values.
+   */
+  public getRedisClient() {
+    this.initialize();
+    return this.redis;
+  }
 }
 
 export const cache = new CacheClient();
-
-// Export redis client for atomic operations
-export { redis };

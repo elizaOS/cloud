@@ -1,7 +1,6 @@
-import { redis } from "@/lib/cache/client";
-// Uses the raw Redis client (not the CacheClient wrapper) because we need
-// the integer return value from DEL for atomic single-use consumption.
-// CacheClient.del() returns Promise<void> which discards this count.
+import { cache } from "@/lib/cache/client";
+// Uses the CacheClient's underlying Redis instance for atomic DEL operations.
+// We need the integer return value from DEL for single-use nonce consumption.
 
 /**
  * Atomically consume a cache key by issuing a single Redis DEL command.
@@ -13,6 +12,7 @@ import { redis } from "@/lib/cache/client";
  * would be vulnerable to TOCTOU races.
  */
 export async function atomicConsume(key: string): Promise<number> {
+  const redis = cache.getRedisClient();
   if (!redis) {
     return 0;
   }
