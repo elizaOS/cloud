@@ -24,6 +24,8 @@ export interface OAuthEndpoints {
   token: string;
   /** URL to fetch user profile info after authorization (optional) */
   userInfo?: string;
+  /** HTTP method for userInfo endpoint (default: GET). Some providers (e.g. Dropbox) require POST. */
+  userInfoMethod?: "GET" | "POST";
   /** URL to revoke tokens (optional - some providers don't support) */
   revoke?: string;
   /** GraphQL query for userInfo endpoint (required if userInfo is a GraphQL endpoint) */
@@ -182,6 +184,12 @@ export interface OAuthProviderConfig {
   };
 
   /**
+   * Whether to use PKCE (Proof Key for Code Exchange) per RFC 7636.
+   * Required by some providers (e.g., Salesforce, Airtable).
+   */
+  pkce?: boolean;
+
+  /**
    * Whether this provider uses the generic OAuth routes.
    * Set to true for new providers. Legacy providers have this as false/undefined.
    */
@@ -221,6 +229,46 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
     },
     authParams: {
       access_type: "offline",
+      prompt: "consent",
+    },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  microsoft: {
+    id: "microsoft",
+    name: "Microsoft",
+    description: "Outlook Mail, Calendar, and OneDrive",
+    type: "oauth2",
+    envVars: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
+    endpoints: {
+      // Using /consumers/ to support personal Microsoft accounts (@outlook.com, @hotmail.com, @live.com)
+      // Use /common/ for multi-tenant apps that support both personal and work/school accounts
+      // Use /organizations/ for work/school accounts only
+      authorization: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+      token: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+      userInfo: "https://graph.microsoft.com/v1.0/me",
+    },
+    defaultScopes: [
+      "openid",
+      "profile",
+      "email",
+      "offline_access",
+      "User.Read",
+      "Calendars.Read",
+      "Calendars.ReadWrite",
+      "Mail.Read",
+      "Mail.ReadWrite",
+      "Mail.Send",
+    ],
+    userInfoMapping: {
+      id: "id",
+      email: "mail",
+      displayName: "displayName",
+      username: "userPrincipalName",
+    },
+    authParams: {
+      response_mode: "query",
       prompt: "consent",
     },
     storage: "platform_credentials",
@@ -326,6 +374,205 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       displayName: "user",
       // Bot tokens don't return email from auth.test - email is optional for bot auth
     },
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  asana: {
+    id: "asana",
+    name: "Asana",
+    description: "Task management, projects, and team collaboration",
+    type: "oauth2",
+    envVars: ["ASANA_CLIENT_ID", "ASANA_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://app.asana.com/-/oauth_authorize",
+      token: "https://app.asana.com/-/oauth_token",
+      userInfo: "https://app.asana.com/api/1.0/users/me",
+      revoke: "https://app.asana.com/-/oauth_revoke",
+    },
+    defaultScopes: ["default"],
+    userInfoMapping: {
+      id: "data.gid",
+      email: "data.email",
+      displayName: "data.name",
+      avatarUrl: "data.photo.image_128x128",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  dropbox: {
+    id: "dropbox",
+    name: "Dropbox",
+    description: "File storage, sharing, and collaboration",
+    type: "oauth2",
+    envVars: ["DROPBOX_CLIENT_ID", "DROPBOX_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://www.dropbox.com/oauth2/authorize",
+      token: "https://api.dropboxapi.com/oauth2/token",
+      userInfo: "https://api.dropboxapi.com/2/users/get_current_account",
+      userInfoMethod: "POST",
+      revoke: "https://api.dropboxapi.com/2/auth/token/revoke",
+    },
+    defaultScopes: [
+      "account_info.read",
+      "files.metadata.read",
+      "files.metadata.write",
+      "files.content.read",
+      "files.content.write",
+      "sharing.read",
+      "sharing.write",
+    ],
+    userInfoMapping: {
+      id: "account_id",
+      email: "email",
+      displayName: "name.display_name",
+      avatarUrl: "profile_photo_url",
+    },
+    authParams: {
+      token_access_type: "offline",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  salesforce: {
+    id: "salesforce",
+    name: "Salesforce",
+    description: "CRM - accounts, contacts, opportunities, and leads",
+    type: "oauth2",
+    envVars: ["SALESFORCE_CLIENT_ID", "SALESFORCE_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://login.salesforce.com/services/oauth2/authorize",
+      token: "https://login.salesforce.com/services/oauth2/token",
+      userInfo: "https://login.salesforce.com/services/oauth2/userinfo",
+      revoke: "https://login.salesforce.com/services/oauth2/revoke",
+    },
+    defaultScopes: ["full", "api", "id", "refresh_token", "chatter_api"],
+    userInfoMapping: {
+      id: "user_id",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    authParams: {
+      prompt: "login consent",
+    },
+    pkce: true,
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  airtable: {
+    id: "airtable",
+    name: "Airtable",
+    description: "Databases, spreadsheets, and project tracking",
+    type: "oauth2",
+    envVars: ["AIRTABLE_CLIENT_ID", "AIRTABLE_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://airtable.com/oauth2/v1/authorize",
+      token: "https://airtable.com/oauth2/v1/token",
+      userInfo: "https://api.airtable.com/v0/meta/whoami",
+    },
+    defaultScopes: [
+      "data.records:read",
+      "data.records:write",
+      "data.recordComments:read",
+      "data.recordComments:write",
+      "schema.bases:read",
+      "schema.bases:write",
+      "user.email:read",
+      "webhook:manage",
+    ],
+    userInfoMapping: {
+      id: "id",
+      email: "email",
+    },
+    tokenHeaders: {
+      Authorization: "Basic ${base64(CLIENT_ID:CLIENT_SECRET)}",
+    },
+    tokenContentType: "form",
+    pkce: true,
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  zoom: {
+    id: "zoom",
+    name: "Zoom",
+    description: "Video meetings, webinars, and recordings",
+    type: "oauth2",
+    envVars: ["ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://zoom.us/oauth/authorize",
+      token: "https://zoom.us/oauth/token",
+      userInfo: "https://api.zoom.us/v2/users/me",
+      revoke: "https://zoom.us/oauth/revoke",
+    },
+    defaultScopes: [],
+    userInfoMapping: {
+      id: "id",
+      email: "email",
+      displayName: "display_name",
+      avatarUrl: "pic_url",
+    },
+    tokenHeaders: {
+      Authorization: "Basic ${base64(CLIENT_ID:CLIENT_SECRET)}",
+    },
+    tokenContentType: "form",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  jira: {
+    id: "jira",
+    name: "Jira",
+    description: "Issue tracking, project management, and agile boards",
+    type: "oauth2",
+    envVars: ["JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://auth.atlassian.com/authorize",
+      token: "https://auth.atlassian.com/oauth/token",
+      userInfo: "https://api.atlassian.com/me",
+    },
+    defaultScopes: ["read:jira-work", "read:jira-user", "write:jira-work", "read:me", "offline_access"],
+    userInfoMapping: {
+      id: "account_id",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+      username: "nickname",
+    },
+    authParams: {
+      audience: "api.atlassian.com",
+      prompt: "consent",
+    },
+    tokenContentType: "json",
+    storage: "platform_credentials",
+    useGenericRoutes: true,
+  },
+
+  linkedin: {
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "Professional networking, posts, and profiles",
+    type: "oauth2",
+    envVars: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+    endpoints: {
+      authorization: "https://www.linkedin.com/oauth/v2/authorization",
+      token: "https://www.linkedin.com/oauth/v2/accessToken",
+      userInfo: "https://api.linkedin.com/v2/userinfo",
+    },
+    defaultScopes: ["openid", "profile", "email", "w_member_social"],
+    userInfoMapping: {
+      id: "sub",
+      email: "email",
+      displayName: "name",
+      avatarUrl: "picture",
+    },
+    tokenContentType: "form",
     storage: "platform_credentials",
     useGenericRoutes: true,
   },

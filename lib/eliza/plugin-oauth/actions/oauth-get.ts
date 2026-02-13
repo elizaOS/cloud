@@ -27,6 +27,9 @@ export const oauthGetAction: ActionWithParams = {
     "CHECK_CONNECTION", "VERIFY_CONNECTION", "CONNECTION_STATUS", "IS_CONNECTED",
     "DONE", "FINISHED", "COMPLETED", "DID_IT_WORK", "CHECK_GOOGLE",
     "CHECK_LINEAR", "CHECK_SLACK", "CHECK_GITHUB", "CHECK_NOTION",
+    "CHECK_ASANA", "CHECK_DROPBOX", "CHECK_SALESFORCE", "CHECK_AIRTABLE", "CHECK_ZOOM",
+    "CHECK_JIRA", "VERIFY_JIRA", "CHECK_LINKEDIN", "VERIFY_LINKEDIN",
+    "CHECK_MICROSOFT", "CHECK_OUTLOOK",
   ],
   description:
     "Check status of an OAuth connection. Use when user says 'done' after connecting, or asks about connection status.",
@@ -34,7 +37,7 @@ export const oauthGetAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to check: google, linear, slack, github, notion. If not specified, checks all.",
+      description: "Platform to check: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft. If not specified, checks all.",
       required: false,
     },
   },

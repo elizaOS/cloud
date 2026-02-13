@@ -3,6 +3,7 @@
 import { TelegramConnection } from "../telegram-connection";
 import { DiscordGatewayConnection } from "../discord-gateway-connection";
 import { GoogleConnection } from "../google-connection";
+import { MicrosoftConnection } from "../microsoft-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
 import { WhatsAppConnection } from "../whatsapp-connection";
@@ -24,6 +25,7 @@ export function ConnectionsTab() {
 
         <div className="grid gap-4">
           <GoogleConnection />
+          <MicrosoftConnection />
           <TwilioConnection />
           <BlooioConnection />
           <WhatsAppConnection />
