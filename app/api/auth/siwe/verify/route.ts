@@ -330,15 +330,22 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "siwe_signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          });
+        } catch (creditsError) {
+          console.error(
+            `[SIWE] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
+            creditsError,
+          );
+        }
       }
 
       const user = await usersService.create({
@@ -369,20 +376,8 @@ async function handleVerify(request: NextRequest) {
       signupResult = { user: userWithOrg, plainKey };
     } catch (innerError) {
       // Compensating cleanup: delete the org we just created to avoid orphans.
-      // Check if this is a 23505 duplicate-key error first — if so, the user
-      // was created by a concurrent request and we should not delete the org.
-      const isDuplicate =
-        innerError &&
-        typeof innerError === "object" &&
-        (("code" in innerError && innerError.code === "23505") ||
-          ("cause" in innerError &&
-            innerError.cause &&
-            typeof innerError.cause === "object" &&
-            "code" in innerError.cause &&
-            innerError.cause.code === "23505"));
-
-      // Always clean up the org we created. On 23505 duplicate-key errors,
-      // the winning request created its own org, so ours is orphaned.
+      // On 23505 duplicate-key errors, the winning request created its own org,
+      // so ours is orphaned either way.
       try {
         await organizationsService.delete(org.id);
       } catch (cleanupError) {

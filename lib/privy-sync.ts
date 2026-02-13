@@ -364,20 +364,9 @@ export async function syncUserFromPrivy(
         is_active: true,
       });
     } catch (innerError) {
-      // Compensating cleanup: delete org to avoid orphans, unless this is a
-      // 23505 duplicate-key error (concurrent signup won the race).
-      const isDuplicate =
-        innerError &&
-        typeof innerError === "object" &&
-        (("code" in innerError && innerError.code === "23505") ||
-          ("cause" in innerError &&
-            innerError.cause &&
-            typeof innerError.cause === "object" &&
-            "code" in innerError.cause &&
-            innerError.cause.code === "23505"));
-
-      // Always clean up the org we created. On 23505 duplicate-key errors,
-      // the winning request created its own org, so ours is orphaned.
+      // Compensating cleanup: delete the org we just created to avoid orphans.
+      // On 23505 duplicate-key errors, the winning request created its own org,
+      // so ours is orphaned either way.
       try {
         await organizationsService.delete(org.id);
       } catch (cleanupError) {
