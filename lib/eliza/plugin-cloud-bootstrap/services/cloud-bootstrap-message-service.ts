@@ -602,11 +602,23 @@ export class CloudBootstrapMessageService implements IMessageService {
     let accumulatedState: State = state;
     let finishResponse: string | null = null;
 
+    // Save the original system prompt so we can restore it after the multi-step loop.
+    // The decision phase uses a functional system prompt (embedded in the template),
+    // but runtime.character.system is still passed to the LLM by the OpenAI plugin.
+    // If the agent has no system prompt configured, the empty string causes OpenAI to
+    // reject the request ("Each message must have content..."). Set a fallback.
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system =
+        "You are an AI task executor that helps complete user requests by selecting and executing actions.";
+    }
+
     const maxIterations =
       options?.maxMultiStepIterations ??
       parseInt(String(runtime.getSetting("MAX_MULTISTEP_ITERATIONS") ?? "6"));
     let iterationCount = 0;
 
+    try {
     // Wait for MCP service to finish initializing (registering tool actions)
     const mcpService = runtime.getService("mcp");
     if (mcpService && "waitForInitialization" in mcpService) {
@@ -1203,6 +1215,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       state: accumulatedState,
       mode: "simple",
     };
+    } finally {
+      // Restore the original system prompt so other handlers/phases
+      // that share this runtime aren't affected by our fallback override.
+      runtime.character.system = originalSystemPrompt;
+    }
   }
 
   private async runSingleShotCore(
@@ -1212,6 +1229,15 @@ export class CloudBootstrapMessageService implements IMessageService {
     callback?: HandlerCallback,
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
+    // Ensure runtime.character.system is non-empty so the OpenAI plugin
+    // doesn't send an empty system message (which OpenAI rejects).
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system =
+        "You are a helpful AI assistant that responds to user messages.";
+    }
+
+    try {
     const template =
       runtime.character.templates?.messageHandlerTemplate ||
       SINGLE_SHOT_TEMPLATE;
@@ -1286,6 +1312,9 @@ export class CloudBootstrapMessageService implements IMessageService {
       state,
       mode: actions.length ? "actions" : "simple",
     };
+    } finally {
+      runtime.character.system = originalSystemPrompt;
+    }
   }
 
   shouldRespond(
