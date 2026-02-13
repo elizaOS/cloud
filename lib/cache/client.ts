@@ -48,8 +48,18 @@ export class CacheClient {
         );
       } else {
         logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
-      }
-      return;
+    return this.failures >= this.circuitBreakerThreshold;
+  }
+
+  /**
+   * Check if the cache is available for use.
+   * Returns false if Redis is disabled, not connected, or circuit breaker is open.
+   */
+  public isAvailable(): boolean {
+    return this.enabled && !!this.redis && !this.isCircuitOpen();
+  }
+
+  async get<T>(key: string): Promise<T | null> {      return;
     }
 
     const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
@@ -108,6 +118,18 @@ export class CacheClient {
   getRedisClient() {
     return this.redis;
   }
+
+  /**
+   * Check if the cache is available for use.
+   * Returns false if Redis is disabled, disconnected, or circuit breaker is open.
+   */
+  isAvailable(): boolean {
+    if (!this.enabled || !this.redis) {
+      return false;
+    }
+    return !this.isCircuitOpen();
+  }
+}
 
   async get<T>(key: string): Promise<T | null> {
     this.initialize();
@@ -415,7 +437,7 @@ export class CacheClient {
   }
 
   private isCircuitOpen(): boolean {
-    if (this.failureCount < this.MAX_FAILURES) {
+      if (!this.circuitBreakerEnabled) return false;
       return false;
     }
 
