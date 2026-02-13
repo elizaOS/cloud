@@ -79,6 +79,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:453 - Remove the entire XML markup block (lines 429–506), not just whitespace—the comment specifies tool output with `<search>`, `</search>`, etc. tags.
 - Fix for app/api/auth/siwe/verify/route.ts:125 - tool modified wrong files (lib/privy-sync.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:125 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, lib/privy-sync.ts), need to modify app/api/auth/siwe/verify/route.ts
+- Fix for app/api/auth/siwe/verify/route.ts:452 - Remove the entire stale tool output block (lines 429–506), not just unrelated whitespace elsewhere in the file.
 
 ### public/.well-known/llms-full.txt
 
