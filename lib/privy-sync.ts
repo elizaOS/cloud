@@ -396,7 +396,7 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
+    // Duplicate key: race condition — try to find existing user with retries
     let existingUser: UserWithOrganization | undefined;
     const maxRetries = 3;
 
@@ -446,14 +446,9 @@ export async function syncUserFromPrivy(
       return existingUser;
     }
 
-    // Couldn't find existing user even after retries - rethrow (transaction rolled back)
+    // Couldn't find existing user even after retries - rethrow
     console.error(
       `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries`,
-    );
-    // Not a duplicate key error or couldn't find the existing user - rethrow
-    console.error(
-      `Failed to create user ${privyUserId}:`,
-      error instanceof Error ? error.message : error,
     );
     throw error;
   }

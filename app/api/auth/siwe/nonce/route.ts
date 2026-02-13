@@ -60,7 +60,8 @@ async function handleGetNonce(request: NextRequest) {
   await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
 
   // Derive domain and uri from the canonical app URL so the verify endpoint
-  // can enforce domain binding against phishing.
+  // can enforce domain binding against phishing. Uses the shared getAppUrl()
+  // helper to stay consistent with the verify endpoint's host resolution.
   const appUrl = getAppUrl();
   const url = new URL(appUrl);
 

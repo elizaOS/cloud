@@ -48,18 +48,8 @@ export class CacheClient {
         );
       } else {
         logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
-    return this.failures >= this.circuitBreakerThreshold;
-  }
-
-  /**
-   * Check if the cache is available for use.
-   * Returns false if Redis is disabled, not connected, or circuit breaker is open.
-   */
-  public isAvailable(): boolean {
-    return this.enabled && !!this.redis && !this.isCircuitOpen();
-  }
-
-  async get<T>(key: string): Promise<T | null> {      return;
+      }
+      return;
     }
 
     const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
@@ -100,37 +90,6 @@ export class CacheClient {
    * @param key - Cache key.
    * @returns Cached value or null if not found or invalid.
    */
-  /**
-   * Check if the cache is available for operations.
-   * Returns false if Redis is disabled, disconnected, or circuit breaker is open.
-   */
-  isAvailable(): boolean {
-    if (!this.enabled || !this.redis) {
-      return false;
-    }
-    return !this.isCircuitOpen();
-  }
-
-  /**
-   * Get the underlying Redis client for operations that need direct access.
-   * Returns null if Redis is not available.
-   */
-  getRedisClient() {
-    return this.redis;
-  }
-
-  /**
-   * Check if the cache is available for use.
-   * Returns false if Redis is disabled, disconnected, or circuit breaker is open.
-   */
-  isAvailable(): boolean {
-    if (!this.enabled || !this.redis) {
-      return false;
-    }
-    return !this.isCircuitOpen();
-  }
-}
-
   async get<T>(key: string): Promise<T | null> {
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
@@ -437,7 +396,7 @@ export class CacheClient {
   }
 
   private isCircuitOpen(): boolean {
-      if (!this.circuitBreakerEnabled) return false;
+    if (this.failureCount < this.MAX_FAILURES) {
       return false;
     }
 
