@@ -182,7 +182,16 @@ async function handleVerify(request: NextRequest) {
   // --- Domain validation ---
   // Prevents phishing: if an attacker tricks a user into signing a message
   // for a different domain, it won't pass verification here.
-  const appUrl = getAppUrl();
+  //
+  // We resolve the canonical URL using the same fallback chain as the rest of
+  // the codebase: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost.  If only
+  // getAppUrl() were used and it fell back to a hard-coded default that
+  // differs from the actual deployed host, valid SIWE messages would be
+  // rejected.
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+    getAppUrl();
   const expectedDomain = new URL(appUrl).hostname;
 
   if (parsed.domain !== expectedDomain) {

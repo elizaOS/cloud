@@ -101,6 +101,7 @@
 - Fix for app/api/auth/siwe/nonce/route.ts:69 - tool modified wrong files (app/api/auth/siwe/nonce/route.test.ts, app/api/auth/siwe/verify/route.test.ts), need to modify app/api/auth/siwe/nonce/route.ts
 - Fix for app/api/auth/siwe/nonce/route.ts:71 - Verify that CacheClient.set() returns a falsy value on silent failure, not just that it doesn't throw an exception.
 - Fix for app/api/auth/siwe/nonce/route.ts:78 - When adding validation for cache availability, must also update the error handler to return 503 status code, not just improve the error message.
+- Fix for app/api/auth/siwe/nonce/route.ts:77 - Remove the `!setSuccess` check on line 50 that's always true due to `Promise<void>` return, not just the downstream verification on line 66.
 
 ### lib/privy-sync.ts
 
