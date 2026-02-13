@@ -418,6 +418,15 @@ async function handleVerify(request: NextRequest) {
       }
 
       if (raceUser && raceUser.organization_id) {
+        if (!raceUser.is_active || !raceUser.organization?.is_active) {
+          return NextResponse.json(
+            {
+              error: "ACCOUNT_INACTIVE",
+              message: "This account or organization has been deactivated.",
+            },
+            { status: 403 },
+          );
+        }
         if (!raceUser.wallet_verified) {
           await usersService.update(raceUser.id, { wallet_verified: true });
         }

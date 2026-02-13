@@ -73,6 +73,7 @@
 - Fix for app/api/auth/siwe/verify/route.ts:444 - Code review requests for "add automated tests" require actual test files/code, not TODO comments—implement the tests themselves, don't document them.
 - Fix for app/api/auth/siwe/verify/route.ts:444 - tool modified wrong files (app/api/auth/siwe/__tests__/nonce.test.ts, app/api/auth/siwe/__tests__/verify.test.ts, lib/utils/app-url.ts, lib/utils/signup-helpers.ts), need to modify app/api/auth/siwe/verify/route.ts
 - Fix for app/api/auth/siwe/verify/route.ts:444 - When a review requests test coverage for specific scenarios (nonce TTL, verify paths, failure modes), the fix must include actual test files with those test cases, not just code refactoring.
+- Fix for app/api/auth/siwe/verify/route.ts:440 - When a review requests test coverage for specific scenarios, the fix must include test files with cases for those scenarios, not just code changes.
 
 ### public/.well-known/llms-full.txt
 
