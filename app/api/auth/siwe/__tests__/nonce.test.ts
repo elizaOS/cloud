@@ -1,23 +1,19 @@
 
-/**
- * Tests for SIWE nonce endpoint
- */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
-// Mock dependencies before importing the handler
-const mockCacheSet = vi.fn();
-const mockCacheGet = vi.fn();
-const mockCacheIsAvailable = vi.fn().mockReturnValue(true);
+const mockCacheSet = jest.fn();
+const mockCacheGet = jest.fn();
+const mockCacheIsAvailable = jest.fn().mockReturnValue(true);
 
-vi.mock("@/lib/cache/client", () => ({
+jest.mock("@/lib/cache/client", () => ({
   cache: {
-    set: (...args: unknown[]) => mockCacheSet(...args),
-    get: (...args: unknown[]) => mockCacheGet(...args),
-    isAvailable: () => mockCacheIsAvailable(),
+    set: mockCacheSet,
+    get: mockCacheGet,
+    isAvailable: mockCacheIsAvailable,
   },
 }));
 
-vi.mock("@/lib/cache/keys", () => ({
+jest.mock("@/lib/cache/keys", () => ({
   CacheKeys: {
     siwe: {
       nonce: (n: string) => `siwe:nonce:${n}`,
@@ -30,87 +26,120 @@ vi.mock("@/lib/cache/keys", () => ({
   },
 }));
 
-vi.mock("@/lib/middleware/rate-limit", () => ({
+jest.mock("viem/siwe", () => ({
+  generateSiweNonce: jest.fn().mockReturnValue("test-nonce-abc123"),
+}));
+
+jest.mock("@/lib/utils/app-url", () => ({
+  getAppUrl: () => "https://app.example.com",
+}));
+
+jest.mock("@/lib/middleware/rate-limit", () => ({
   withRateLimit: (handler: Function) => handler,
   RateLimitPresets: { STRICT: {} },
 }));
 
-vi.mock("@/lib/utils/app-url", () => ({
-  getAppUrl: () => "https://app.example.com",
-}));
+import { GET } from "../../nonce/route";
 
-vi.mock("viem/siwe", () => ({
-  generateSiweNonce: () => "testnonce123",
-}));
-
-// Dynamic import after mocks
-const { GET } = await import("../../nonce/route");
-
-function makeRequest(params?: Record<string, string>) {
+function makeRequest(params?: Record<string, string>): NextRequest {
   const url = new URL("https://app.example.com/api/auth/siwe/nonce");
   if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      url.searchParams.set(k, v);
-    }
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
-  return new Request(url.toString()) as any;
+  return new NextRequest(url);
 }
 
 describe("SIWE nonce endpoint", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     mockCacheIsAvailable.mockReturnValue(true);
-    mockCacheSet.mockResolvedValue(undefined);
     mockCacheGet.mockResolvedValue(true);
   });
 
-  it("returns a nonce with domain and uri", async () => {
-    const res = await GET(makeRequest());
-    const json = await res.json();
-    expect(res.status).toBe(200);
-    expect(json.nonce).toBe("testnonce123");
-    expect(json.domain).toBe("app.example.com");
-    expect(json.uri).toBe("https://app.example.com");
-    expect(json.version).toBe("1");
+  // --- Cache availability ---
+  describe("cache availability", () => {
+    it("returns 503 when cache is unavailable", async () => {
+      mockCacheIsAvailable.mockReturnValue(false);
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(503);
+      const json = await res.json();
+      expect(json.error).toBe("SERVICE_UNAVAILABLE");
+    });
+
+    it("returns 503 when cache.set fails silently (nonce not persisted)", async () => {
+      mockCacheGet.mockResolvedValue(null);
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(503);
+      const json = await res.json();
+      expect(json.error).toBe("SERVICE_UNAVAILABLE");
+    });
+
+    it("returns 503 when cache.set throws", async () => {
+      mockCacheSet.mockRejectedValue(new Error("Redis connection failed"));
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(503);
+    });
   });
 
-  it("stores nonce in cache with TTL", async () => {
-    await GET(makeRequest());
-    expect(mockCacheSet).toHaveBeenCalledWith(
-      "siwe:nonce:testnonce123",
-      true,
-      300,
-    );
+  // --- Nonce TTL ---
+  describe("nonce storage", () => {
+    it("stores nonce with correct TTL", async () => {
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(200);
+      expect(mockCacheSet).toHaveBeenCalledWith(
+        "siwe:nonce:test-nonce-abc123",
+        true,
+        300,
+      );
+    });
+
+    it("verifies nonce was persisted after set", async () => {
+      await GET(makeRequest());
+      expect(mockCacheGet).toHaveBeenCalledWith("siwe:nonce:test-nonce-abc123");
+    });
   });
 
-  it("returns 503 when cache is unavailable", async () => {
-    mockCacheIsAvailable.mockReturnValue(false);
-    const res = await GET(makeRequest());
-    expect(res.status).toBe(503);
-    const json = await res.json();
-    expect(json.error).toBe("SERVICE_UNAVAILABLE");
+  // --- Success response ---
+  describe("successful nonce issuance", () => {
+    it("returns nonce with domain, uri, chainId, version, and statement", async () => {
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json).toEqual({
+        nonce: "test-nonce-abc123",
+        domain: "app.example.com",
+        uri: "https://app.example.com",
+        chainId: 1,
+        version: "1",
+        statement: "Sign in to ElizaCloud",
+      });
+    });
+
+    it("uses custom chainId when provided", async () => {
+      const res = await GET(makeRequest({ chainId: "137" }));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.chainId).toBe(137);
+    });
   });
 
-  it("returns 503 when nonce fails to persist", async () => {
-    mockCacheGet.mockResolvedValue(null);
-    const res = await GET(makeRequest());
-    expect(res.status).toBe(503);
-  });
+  // --- chainId validation ---
+  describe("chainId validation", () => {
+    it("returns 400 for non-numeric chainId", async () => {
+      const res = await GET(makeRequest({ chainId: "abc" }));
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe("INVALID_BODY");
+    });
 
-  it("returns 400 for invalid chainId", async () => {
-    const res = await GET(makeRequest({ chainId: "abc" }));
-    expect(res.status).toBe(400);
-  });
+    it("returns 400 for negative chainId", async () => {
+      const res = await GET(makeRequest({ chainId: "-1" }));
+      expect(res.status).toBe(400);
+    });
 
-  it("defaults chainId to 1", async () => {
-    const res = await GET(makeRequest());
-    const json = await res.json();
-    expect(json.chainId).toBe(1);
-  });
-
-  it("accepts a custom chainId", async () => {
-    const res = await GET(makeRequest({ chainId: "137" }));
-    const json = await res.json();
-    expect(json.chainId).toBe(137);
+    it("returns 400 for zero chainId", async () => {
+      const res = await GET(makeRequest({ chainId: "0" }));
+      expect(res.status).toBe(400);
+    });
   });
 });
