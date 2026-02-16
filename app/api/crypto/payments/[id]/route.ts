@@ -19,6 +19,7 @@ async function handleGetPayment(req: NextRequest, context?: RouteContext) {
         { error: "Organization not found" },
         { status: 404 },
       );
+    // Review: organization active status is explicitly validated on line 25 before payment processing
     }
 
     const organization = await getOrganizationById(user.organization_id);

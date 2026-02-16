@@ -27,6 +27,21 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
+    if (!user.organization_id) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!user.organization?.is_active) {
+    if (!user.organization_id) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
     if (!user.organization?.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
@@ -126,6 +141,21 @@ async function handleCreatePayment(req: NextRequest) {
 async function handleListPayments(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
+
+    if (!user.organization_id) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!user.organization?.is_active) {
+    if (!user.organization_id) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
 
     if (!user.organization?.is_active) {
       return NextResponse.json(

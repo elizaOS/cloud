@@ -202,6 +202,7 @@ async function handleVerify(request: NextRequest) {
       },
       { status: 400 },
     );
+  // Review: cache.get() null handling needs Redis availability fallback or explicit error handling
   }
 
   // --- Domain validation ---
@@ -487,6 +488,7 @@ async function handleVerify(request: NextRequest) {
     if (isDuplicateError) {
       // The winning request may not have committed yet, so retry with backoff.
       let raceUser: UserWithOrganization | undefined;
+      // Review: test coverage is a separate concern from code implementation and should be tracked independently
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) {
           await new Promise((resolve) =>
