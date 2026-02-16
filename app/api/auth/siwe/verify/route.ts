@@ -178,7 +178,18 @@ async function handleVerify(request: NextRequest) {
   // Atomic consume: returns the number of keys deleted (1 if existed, 0 if not).
   // This prevents race conditions where two concurrent requests could both
   // pass a get() check before either deletes the nonce.
-  const deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
+  let deleteCount: number;
+  try {
+    deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
+  } catch {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Authentication service temporarily unavailable. Please try again later.",
+      },
+      { status: 503 },
+    );
+  }
   if (deleteCount === 0) {
     return NextResponse.json(
       {
@@ -358,22 +369,15 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "siwe_signup",
-            },
-          });
-        } catch (creditsError) {
-          console.error(
-            `[SIWE] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
-            creditsError,
-          );
-        }
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "siwe_signup",
+          },
+        });
       }
 
       const user = await usersService.create({
@@ -462,9 +466,7 @@ async function handleVerify(request: NextRequest) {
         return buildSuccessResponse(raceUser, apiKey, address, false);
       }
     }
-// Review: test coverage implementation tracked separately per development process requirements
-
-    throw error;
+throw error;
   }
 
   return buildSuccessResponse(signupResult.user, signupResult.plainKey, address, true);

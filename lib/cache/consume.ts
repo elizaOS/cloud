@@ -14,13 +14,12 @@ import { cache } from "@/lib/cache/client";
 export async function atomicConsume(key: string): Promise<number> {
   const redis = cache.getRedisClient();
   if (!redis) {
-    return 0;
+    throw new Error("Redis unavailable for nonce consumption");
   }
   try {
     return await redis.del(key);
   } catch (error) {
     console.error("[atomicConsume] Redis DEL failed:", error);
-    return 0;
+    throw new Error("Redis DEL failed during nonce consumption");
   }
 }
-// Review: atomicConsume function is implemented above; automated tool may have scanned incomplete snapshot
