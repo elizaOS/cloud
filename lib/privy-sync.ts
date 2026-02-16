@@ -421,7 +421,7 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // Duplicate key confirmed — clean up orphaned org if inner catch failed.
+    // Duplicate key confirmed — clean up orphaned org if inner catch failed
     const orphanedOrgId =
       error &&
       typeof error === "object" &&

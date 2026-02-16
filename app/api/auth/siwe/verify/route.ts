@@ -228,7 +228,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.notBefore && new Date(parsed.notBefore) > new Date()) {
+  if (parsed.notBefore && new Date(String(parsed.notBefore)) > new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_NOT_YET_VALID",
@@ -239,7 +239,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.expirationTime && new Date(parsed.expirationTime) < new Date()) {
+  if (parsed.expirationTime && new Date(String(parsed.expirationTime)) < new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_EXPIRED",
