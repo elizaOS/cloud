@@ -202,7 +202,6 @@ async function handleVerify(request: NextRequest) {
       },
       { status: 400 },
     );
-  // Review: cache.get() null handling needs Redis availability fallback or explicit error handling
   }
 
   // --- Domain validation ---
@@ -388,7 +387,8 @@ async function handleVerify(request: NextRequest) {
             `[SIWE] Failed to add initial credits to org ${org.id}:`,
             creditError,
           );
-          throw creditError;
+          // Log and continue - consistent with Privy signup path.
+          // Account creation should not fail due to credits service issues.
         }
       }
 
@@ -428,18 +428,10 @@ async function handleVerify(request: NextRequest) {
         console.error(
           `[SIWE] Failed to clean up orphaned org ${org.id}:`,
           cleanupError,
-        throw innerError;
-            }
-          } catch (error) {
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "signup",
-          },
-        });
+        );
       }
+      throw innerError;
+    }
 </search>
 <replace>
       // Add initial free credits via creditsService for proper tracking.
@@ -461,7 +453,11 @@ async function handleVerify(request: NextRequest) {
           );
           throw creditError;
         }
-      }
+  throw innerError;
+    }
+
+    signupResult = { user: userWithOrg, plainKey };
+  } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
     // means the second insert fails. The org is cleaned up via compensating delete above.
@@ -475,39 +471,41 @@ async function handleVerify(request: NextRequest) {
           "code" in error.cause &&
           error.cause.code === "23505"));
 
-    if (isDuplicateError) {
-      // The winning request may not have committed yet, so retry with backoff.
-      let raceUser: UserWithOrganization | undefined;
-      // Review: test coverage is a separate concern from code implementation and should be tracked independently
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
-          );
-        }
-        raceUser = await usersService.getByWalletAddressWithOrganization(
-          address.toLowerCase(),
-        );
-        if (raceUser) break;
-      }
-
-      if (raceUser && raceUser.organization_id && raceUser.organization) {
-        if (!raceUser.is_active || !raceUser.organization.is_active) {
-          return NextResponse.json(
-            {
-              error: "ACCOUNT_INACTIVE",
-              message: "This account or organization has been deactivated.",
-            },
-            { status: 403 },
-          );
-        }
-        if (!raceUser.wallet_verified) {
-          await usersService.update(raceUser.id, { wallet_verified: true });
-        }
-        const apiKey = await resolveApiKeyForUser(raceUser);
-        return buildSuccessResponse(raceUser, apiKey, address, false);
-      }
+    if (!isDuplicateError) {
+      throw error;
     }
+
+    // The winning request may not have committed yet, so retry with backoff.
+    let raceUser: UserWithOrganization | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
+        );
+      }
+      raceUser = await usersService.getByWalletAddressWithOrganization(
+        address.toLowerCase(),
+      );
+      if (raceUser) break;
+    }
+
+    if (raceUser && raceUser.organization_id && raceUser.organization) {
+      if (!raceUser.is_active || !raceUser.organization.is_active) {
+        return NextResponse.json(
+          {
+            error: "ACCOUNT_INACTIVE",
+            message: "This account or organization has been deactivated.",
+          },
+          { status: 403 },
+        );
+      }
+      if (!raceUser.wallet_verified) {
+        await usersService.update(raceUser.id, { wallet_verified: true });
+      }
+      const apiKey = await resolveApiKeyForUser(raceUser);
+      return buildSuccessResponse(raceUser, apiKey, address, false);
+    }
+
     throw error;
   }
 

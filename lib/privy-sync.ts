@@ -344,7 +344,7 @@ export async function syncUserFromPrivy(
             `[PrivySync] Failed to add initial credits to org ${org.id}:`,
             creditError,
           );
-          throw creditError;
+          // Log and continue - account creation should not fail due to credits service issues.
         }
       }
 
@@ -378,7 +378,6 @@ export async function syncUserFromPrivy(
       }
 
       // Attach cleanup status so outer catch can retry if needed
-      // Review: orphaned org cleanup is handled in outer catch block via __orphanedOrgId attachment mechanism
       if (
         innerError &&
         typeof innerError === "object" &&
@@ -387,7 +386,6 @@ export async function syncUserFromPrivy(
         (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
       }
       throw innerError;
-    // Review: orphaned org cleanup happens in outer catch block via __orphanedOrgId flag mechanism
     }
     
     organization = org;
@@ -408,7 +406,7 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // If the inner catch failed to clean up the orphaned org, retry here
+    // Duplicate key: race condition — clean up orphaned org if inner catch failed.
     const orphanedOrgId =
       error &&
       typeof error === "object" &&

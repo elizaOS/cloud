@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { getOrganizationById } from "@/lib/db/organizations";
 import {
   cryptoPaymentsService,
   CryptoPaymentError,
@@ -34,7 +35,8 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    if (!user.organization?.is_active) {
+    const organization = await getOrganizationById(user.organization_id);
+    if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
         { status: 403 },
@@ -141,7 +143,8 @@ async function handleListPayments(req: NextRequest) {
       );
     }
 
-    if (!user.organization?.is_active) {
+    const organization = await getOrganizationById(user.organization_id);
+    if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
         { status: 403 },
