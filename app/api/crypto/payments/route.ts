@@ -27,14 +27,6 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg(req);
 
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "No organization found for this user" },
-        { status: 403 },
-      );
-    // Review: requireAuthWithOrg ensures organization is active; nested organization object fetch validates status at API l...
-    }
-
     if (!user.organization?.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
@@ -46,7 +38,6 @@ async function handleCreatePayment(req: NextRequest) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
         { status: 503 },
-      // Review: isOxaPayConfigured check is separate guard for payment provider availability, not org validation
       );
     }
 
@@ -135,13 +126,6 @@ async function handleCreatePayment(req: NextRequest) {
 async function handleListPayments(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg(req);
-
-    if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "No organization found for this user" },
-        { status: 403 },
-      );
-    }
 
     if (!user.organization?.is_active) {
       return NextResponse.json(

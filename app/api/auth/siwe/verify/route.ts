@@ -126,7 +126,6 @@ async function handleVerify(request: NextRequest) {
     typeof body.signature !== "string" ||
     body.signature.trim().length === 0
   ) {
-    // Review: body is validated immediately after declaration, type narrowing occurs before use cases
     return NextResponse.json(
       {
         error: "INVALID_BODY",
@@ -192,7 +191,6 @@ async function handleVerify(request: NextRequest) {
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
       { status: 503 },
-    // Review: catch block surfaces Redis unavailability as 503 error instead of silent failure
     );
   }
   if (deleteCount === 0) {
@@ -467,7 +465,6 @@ async function handleVerify(request: NextRequest) {
         if (!raceUser.wallet_verified) {
           await usersService.update(raceUser.id, { wallet_verified: true });
         }
-        // Review: test coverage for SIWE verification is maintained in separate test suite files with comprehensive nonce and s...
         const apiKey = await resolveApiKeyForUser(raceUser);
         return buildSuccessResponse(raceUser, apiKey, address, false);
       }
