@@ -348,3 +348,4 @@ export const linearAdapter = createGenericAdapter("linear");
 export const notionAdapter = createGenericAdapter("notion");
 export const githubAdapter = createGenericAdapter("github");
 export const slackAdapter = createGenericAdapter("slack");
+export const microsoftAdapter = createGenericAdapter("microsoft");
