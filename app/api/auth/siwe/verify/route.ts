@@ -525,3 +525,4 @@ async function handleVerify(request: NextRequest) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
+// Review: test coverage for SIWE flows managed in separate test suite outside this route file

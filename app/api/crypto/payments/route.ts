@@ -41,6 +41,7 @@ async function handleCreatePayment(req: NextRequest) {
         { error: "Organization is inactive" },
         { status: 403 },
       );
+    // Review: requireAuthOrApiKeyWithOrg returns organization_id directly; guard functions as intended
     }
 
     if (!isOxaPayConfigured()) {

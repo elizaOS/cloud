@@ -311,12 +311,14 @@ export async function syncUserFromPrivy(
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
+  let createdOrgId: string | undefined;
   try {
     const org = await organizationsService.create({
       name: `${name}'s Organization`,
       slug: orgSlug,
       credit_balance: "0.00",
     });
+    createdOrgId = org.id;
 
     try {
       // Record signup metadata for future abuse detection
@@ -419,14 +421,17 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // Duplicate key confirmed — clean up orphaned org if inner catch failed
+    // Duplicate key confirmed — clean up orphaned org if inner catch failed to do so.
+    // Use createdOrgId tracked at creation time as the reliable source, falling back
+    // to the __orphanedOrgId flag attached by the inner catch.
     const orphanedOrgId =
-      error &&
-      typeof error === "object" &&
-      "__orphanedOrgId" in error &&
-      typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
-        ? ((error as Record<string, unknown>).__orphanedOrgId as string)
-        : undefined;
+      createdOrgId ||
+      (error &&
+        typeof error === "object" &&
+        "__orphanedOrgId" in error &&
+        typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
+          ? ((error as Record<string, unknown>).__orphanedOrgId as string)
+          : undefined);
 
     if (orphanedOrgId) {
       try {
