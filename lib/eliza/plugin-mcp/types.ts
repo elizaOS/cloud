@@ -1,5 +1,4 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import type { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import type { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Resource, ResourceTemplate, Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -32,7 +31,7 @@ export interface StdioMcpServerConfig {
 }
 
 export interface HttpMcpServerConfig {
-  type: "http" | "streamable-http" | "sse";
+  type: "streamable-http";
   url: string;
   timeout?: number;
   headers?: Record<string, string>;
@@ -80,7 +79,7 @@ export interface McpServer {
 export interface McpConnection {
   server: McpServer;
   client: Client;
-  transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport;
+  transport: StdioClientTransport | StreamableHTTPClientTransport;
 }
 
 // ─── Provider Data ───────────────────────────────────────────────────────────

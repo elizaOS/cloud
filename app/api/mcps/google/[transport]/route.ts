@@ -47,7 +47,46 @@ async function getGoogleMcpHandler() {
     return response;
   }
 
-  function extractBody(payload: any): string {
+  interface GmailHeader {
+    name: string;
+    value: string;
+  }
+
+  interface GmailPayloadPart {
+    mimeType?: string;
+    body?: { data?: string };
+    parts?: GmailPayloadPart[];
+    headers?: GmailHeader[];
+  }
+
+  interface GmailMessageDetail {
+    id: string;
+    snippet: string;
+    payload?: GmailPayloadPart;
+  }
+
+  interface CalendarEvent {
+    id: string;
+    summary: string;
+    start?: { dateTime?: string; date?: string };
+    end?: { dateTime?: string; date?: string };
+    location?: string;
+  }
+
+  interface GoogleContact {
+    person?: GoogleContactPerson;
+    names?: Array<{ displayName?: string }>;
+    emailAddresses?: Array<{ value?: string }>;
+    phoneNumbers?: Array<{ value?: string }>;
+  }
+
+  interface GoogleContactPerson {
+    names?: Array<{ displayName?: string }>;
+    emailAddresses?: Array<{ value?: string }>;
+    phoneNumbers?: Array<{ value?: string }>;
+  }
+
+  function extractBody(payload: GmailPayloadPart): string {
     if (payload?.body?.data) return Buffer.from(payload.body.data, "base64").toString("utf-8");
     if (payload?.parts && Array.isArray(payload.parts)) {
       // Prefer text/plain over text/html
@@ -137,7 +176,7 @@ async function getGoogleMcpHandler() {
             try { return await (await googleFetch(orgId, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`)).json(); }
             catch { return null; }
           }));
-          const formatted = details.filter(Boolean).map((d: any) => ({ id: d.id, snippet: d.snippet, headers: Object.fromEntries(d.payload?.headers?.map((h: any) => [h.name, h.value]) || []) }));
+          const formatted = details.filter(Boolean).map((d: GmailMessageDetail) => ({ id: d.id, snippet: d.snippet, headers: Object.fromEntries(d.payload?.headers?.map((h: GmailHeader) => [h.name, h.value]) || []) }));
           return jsonResult({ success: true, messages: formatted, count: formatted.length });
         } catch (e) { return errorResult(e instanceof Error ? e.message : "Failed"); }
       });
@@ -147,7 +186,7 @@ async function getGoogleMcpHandler() {
           const orgId = getOrgId();
           const res = await googleFetch(orgId, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`);
           const msg = await res.json();
-          return jsonResult({ success: true, id: msg.id, snippet: msg.snippet, headers: Object.fromEntries(msg.payload?.headers?.map((h: any) => [h.name, h.value]) || []), body: extractBody(msg.payload) });
+          return jsonResult({ success: true, id: msg.id, snippet: msg.snippet, headers: Object.fromEntries(msg.payload?.headers?.map((h: GmailHeader) => [h.name, h.value]) || []), body: extractBody(msg.payload) });
         } catch (e) { return errorResult(e instanceof Error ? e.message : "Failed"); }
       });
 
@@ -162,7 +201,7 @@ async function getGoogleMcpHandler() {
           if (timeMax) params.set("timeMax", timeMax);
           const res = await googleFetch(orgId, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`);
           const { items = [] } = await res.json();
-          const events = items.map((e: any) => ({ id: e.id, summary: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, location: e.location }));
+          const events = items.map((e: CalendarEvent) => ({ id: e.id, summary: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, location: e.location }));
           return jsonResult({ success: true, events, count: events.length });
         } catch (e) { return errorResult(e instanceof Error ? e.message : "Failed"); }
       });
@@ -195,19 +234,27 @@ async function getGoogleMcpHandler() {
           if (query) { url = "https://people.googleapis.com/v1/people:searchContacts"; params.set("query", query); params.set("readMask", "names,emailAddresses,phoneNumbers"); }
           const res = await googleFetch(orgId, `${url}?${params}`);
           const data = await res.json();
-          const contacts = (data.connections || data.results || []).map((p: any) => { const person = p.person || p; return { name: person.names?.[0]?.displayName, email: person.emailAddresses?.[0]?.value, phone: person.phoneNumbers?.[0]?.value }; });
+          const contacts = (data.connections || data.results || []).map((p: GoogleContact) => { const person = p.person || p; return { name: person.names?.[0]?.displayName, email: person.emailAddresses?.[0]?.value, phone: person.phoneNumbers?.[0]?.value }; });
           return jsonResult({ success: true, contacts, count: contacts.length });
         } catch (e) { return errorResult(e instanceof Error ? e.message : "Failed"); }
       });
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/google", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/google/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;
 }
 
-async function handleRequest(req: NextRequest): Promise<Response> {
+async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {
+  const { transport } = await params;
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
     const handler = await getGoogleMcpHandler();

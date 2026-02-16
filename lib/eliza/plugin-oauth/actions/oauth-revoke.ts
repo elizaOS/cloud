@@ -12,6 +12,7 @@ import {
   logger,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
   getSupportedPlatforms,
@@ -99,6 +100,8 @@ export const oauthRevokeAction: ActionWithParams = {
       organizationId,
       connectionId: activeConnection.id,
     });
+
+    await invalidateOAuthState(organizationId, platform, userResult.user.id, { skipVersionBump: true });
 
     const identifier = formatConnectionIdentifier(activeConnection);
     const text = identifier
