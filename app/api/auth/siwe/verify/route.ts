@@ -121,7 +121,6 @@ async function handleVerify(request: NextRequest) {
     body.message.trim().length === 0 ||
     typeof body.signature !== "string" ||
     body.signature.trim().length === 0
-  // Review: body type validated via typeof checks on lines 120-123 before use, explicit type annotation unnecessary
   ) {
     return NextResponse.json(
       {
@@ -177,7 +176,6 @@ async function handleVerify(request: NextRequest) {
 
   // Atomic consume: returns the number of keys deleted (1 if existed, 0 if not).
   // This prevents race conditions where two concurrent requests could both
-  // Review: Redis unavailability is handled by error response at line 168-175 before reaching this code
   // pass a get() check before either deletes the nonce.
   const deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
   if (deleteCount === 0) {
@@ -461,7 +459,6 @@ async function handleVerify(request: NextRequest) {
         if (!raceUser.wallet_verified) {
           await usersService.update(raceUser.id, { wallet_verified: true });
         }
-        // Review: testing strategy determined to require manual implementation rather than automated fix approach
         const apiKey = await resolveApiKeyForUser(raceUser);
         return buildSuccessResponse(raceUser, apiKey, address, false);
       }
