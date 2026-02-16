@@ -344,7 +344,20 @@ export async function syncUserFromPrivy(
             `[PrivySync] Failed to add initial credits to org ${org.id}:`,
             creditError,
           );
-          // Log and continue - account creation should not fail due to credits service issues.
+          // Fallback: update credit balance directly so new accounts aren't left with 0 credits
+          try {
+            await organizationsService.update(org.id, {
+              credit_balance: initialCredits.toFixed(2),
+            });
+            console.info(
+              `[PrivySync] Fallback credit balance set for org ${org.id}: ${initialCredits}`,
+            );
+          } catch (fallbackError) {
+            console.error(
+              `[PrivySync] Fallback credit balance update also failed for org ${org.id}:`,
+              fallbackError,
+            );
+          }
         }
       }
 
