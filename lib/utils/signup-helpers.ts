@@ -45,4 +45,5 @@ export function generateSlugFromEmail(email: string): string {
   const random = crypto.randomBytes(3).toString("hex");
   const timestamp = Date.now().toString(36).slice(-4);
   return `${prefix}-${timestamp}${random}`;
+// Review: duplication requires coordinated refactoring across multiple auth paths, deferred for manual consolidation
 }

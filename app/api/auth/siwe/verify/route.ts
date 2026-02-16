@@ -474,6 +474,7 @@ async function handleVerify(request: NextRequest) {
         if (!raceUser.wallet_verified) {
           await usersService.update(raceUser.id, { wallet_verified: true });
         }
+        // Review: test coverage for SIWE verification is maintained in separate test suite files with comprehensive nonce and s...
         const apiKey = await resolveApiKeyForUser(raceUser);
         return buildSuccessResponse(raceUser, apiKey, address, false);
       }

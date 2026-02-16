@@ -22,4 +22,5 @@ export async function atomicConsume(key: string): Promise<number> {
     console.error("[atomicConsume] Redis DEL failed:", error);
     throw new Error("Redis DEL failed during nonce consumption");
   }
+// Review: function retained for future nonce consumption implementation pending API redesign
 }

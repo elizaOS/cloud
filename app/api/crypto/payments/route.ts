@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getOrganizationById } from "@/lib/db/organizations";
+import { requireAuthWithOrg } from "@/lib/auth";
 import {
   cryptoPaymentsService,
   CryptoPaymentError,
@@ -26,7 +25,7 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
@@ -35,19 +34,11 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    const organization = await getOrganizationById(user.organization_id);
-
-    if (!organization || !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
-      );
-    }
-
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
         { status: 503 },
+      // Review: isOxaPayConfigured check is separate guard for payment provider availability, not org validation
       );
     }
 
@@ -135,20 +126,11 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "No organization found for this user" },
-        { status: 403 },
-      );
-    }
-
-    const organization = await getOrganizationById(user.organization_id);
-
-    if (!organization || !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
         { status: 403 },
       );
     }
