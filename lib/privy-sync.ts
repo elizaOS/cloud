@@ -328,8 +328,8 @@ export async function syncUserFromPrivy(
       }
 
       // Add initial free credits via creditsService for proper tracking.
-      // If credits fail, log and continue — user still gets an account,
-      // matching SIWE signup behavior for consistency.
+      // If credits fail, the error propagates and triggers compensating
+      // org cleanup via the inner catch block — fail-fast, no orphaned state.
       if (initialCredits > 0) {
         await creditsService.addCredits({
           organizationId: org.id,
