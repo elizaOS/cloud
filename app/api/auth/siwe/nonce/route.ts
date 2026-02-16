@@ -72,7 +72,18 @@ async function handleGetNonce(request: NextRequest) {
 
   // Verify the nonce was actually persisted. cache.set() returns void, so a
   // read-back confirms the write actually succeeded.
-  const verified = await cache.get(CacheKeys.siwe.nonce(nonce));
+  let verified: unknown;
+  try {
+    verified = await cache.get(CacheKeys.siwe.nonce(nonce));
+  } catch {
+    return NextResponse.json(
+      {
+        error: "SERVICE_UNAVAILABLE",
+        message: "Authentication service temporarily unavailable. Please try again later.",
+      },
+      { status: 503 },
+    );
+  }
   if (!verified) {
     return NextResponse.json(
       {

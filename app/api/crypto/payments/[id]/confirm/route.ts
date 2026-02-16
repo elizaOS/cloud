@@ -93,20 +93,21 @@ async function handleConfirmPayment(
   }
 
   try {
-    const { user, organization } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    if (organization && !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
-      );
-    }
     const { id } = await context.params;
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
         { status: 404 },
+      );
+    }
+
+    if (!user.organization?.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
+        { status: 403 },
       );
     }
 
