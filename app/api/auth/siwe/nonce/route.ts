@@ -29,8 +29,8 @@ async function handleGetNonce(request: NextRequest) {
   // message reflects the correct network context for wallet UIs.
   let chainId = 1;
   if (chainIdParam) {
-    const parsed = parseInt(chainIdParam, 10);
-    if (isNaN(parsed) || parsed <= 0) {
+    const parsed = Number(chainIdParam);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
       return NextResponse.json(
         {
           error: "INVALID_BODY",

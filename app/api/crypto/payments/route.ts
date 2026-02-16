@@ -25,7 +25,8 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    const { user, organization } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const organization = user.organization;
 
     if (organization && !organization.is_active) {
       return NextResponse.json(
@@ -132,7 +133,8 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    const { user, organization } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const organization = user.organization;
 
     if (organization && !organization.is_active) {
       return NextResponse.json(
