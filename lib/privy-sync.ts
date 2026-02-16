@@ -331,22 +331,15 @@ export async function syncUserFromPrivy(
       // If credits fail, log and continue — user still gets an account,
       // matching SIWE signup behavior for consistency.
       if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "signup",
-            },
-          });
-        } catch (creditsError) {
-          console.error(
-            `[PrivySync] Failed to add initial credits for org ${org.id}, continuing signup:`,
-            creditsError,
-          );
-        }
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "signup",
+          },
+        });
       }
 
       // Create user

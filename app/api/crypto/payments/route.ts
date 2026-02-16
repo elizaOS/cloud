@@ -25,11 +25,18 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    const { user } = await requireAuthWithOrg(req);
+    const user = await requireAuthWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "No organization found for this user" },
+        { status: 403 },
+      );
+    }
+
+    if (!user.organization?.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
         { status: 403 },
       );
     }
@@ -126,11 +133,18 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    const { user } = await requireAuthWithOrg(req);
+    const user = await requireAuthWithOrg(req);
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "No organization found for this user" },
+        { status: 403 },
+      );
+    }
+
+    if (!user.organization?.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
         { status: 403 },
       );
     }
