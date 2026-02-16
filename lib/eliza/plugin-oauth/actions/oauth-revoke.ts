@@ -30,6 +30,7 @@ export const oauthRevokeAction: ActionWithParams = {
     "DISCONNECT", "REMOVE_CONNECTION", "UNLINK", "REVOKE_ACCESS",
     "DELETE_CONNECTION", "DISCONNECT_GOOGLE", "REMOVE_GOOGLE",
     "DISCONNECT_LINEAR", "DISCONNECT_SLACK", "DISCONNECT_GITHUB", "DISCONNECT_NOTION",
+    "DISCONNECT_TWITTER", "DISCONNECT_X", "REMOVE_TWITTER", "UNLINK_TWITTER",
     "DISCONNECT_ASANA", "DISCONNECT_DROPBOX", "DISCONNECT_SALESFORCE", "DISCONNECT_AIRTABLE", "DISCONNECT_ZOOM",
     "DISCONNECT_JIRA", "REMOVE_JIRA", "UNLINK_JIRA",
     "DISCONNECT_LINKEDIN", "REMOVE_LINKEDIN", "UNLINK_LINKEDIN",
@@ -41,7 +42,7 @@ export const oauthRevokeAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to disconnect: google, linear, slack, github, notion, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+      description: "Platform to disconnect: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
       required: true,
     },
   },
@@ -63,8 +64,9 @@ export const oauthRevokeAction: ActionWithParams = {
     logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
 
     if (!platform) {
+      const supported = getSupportedPlatforms();
       return {
-        text: "Which platform do you want to disconnect? Currently available: Google",
+        text: `Which platform do you want to disconnect? Currently available: ${supported.map(capitalize).join(", ") || "none configured"}`,
         success: false,
         error: "MISSING_PLATFORM",
         data: { actionName },
@@ -122,6 +124,14 @@ export const oauthRevokeAction: ActionWithParams = {
     [
       { name: "{{name1}}", content: { text: "unlink my gmail" } },
       { name: "{{name2}}", content: { text: "Google has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "disconnect my twitter" } },
+      { name: "{{name2}}", content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "remove my x account" } },
+      { name: "{{name2}}", content: { text: "Twitter has been disconnected.", actions: ["OAUTH_REVOKE"] } },
     ],
   ] as ActionExample[][],
 };
