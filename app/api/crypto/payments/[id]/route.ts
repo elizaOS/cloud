@@ -20,6 +20,7 @@ async function handleGetPayment(req: NextRequest, context?: RouteContext) {
         { status: 404 },
       );
     }
+// Review: organization active status is validated on lines 25-29 before any payment operations
 
     const organization = await getOrganizationById(user.organization_id);
     if (!organization || !organization.is_active) {

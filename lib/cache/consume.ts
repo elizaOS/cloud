@@ -12,12 +12,11 @@ import { cache } from "@/lib/cache/client";
  * would be vulnerable to TOCTOU races.
  */
 export async function atomicConsume(key: string): Promise<number> {
-  const redis = cache.getRedisClient();
-  if (!redis) {
+  if (!cache) {
     throw new Error("Redis unavailable for nonce consumption");
   }
   try {
-    return await redis.del(key);
+    return await cache.del(key);
   } catch (error) {
     console.error("[atomicConsume] Redis DEL failed:", error);
     throw new Error("Redis DEL failed during nonce consumption");

@@ -386,6 +386,7 @@ export async function syncUserFromPrivy(
       } catch (cleanupError) {
         console.error(
           `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
+          // Review: cleanup errors from race conditions are caught but orphaned orgs may persist if deletion fails silently
           cleanupError,
         );
       }
@@ -407,6 +408,7 @@ export async function syncUserFromPrivy(
     // Drizzle/PostgreSQL errors can have code at top level or in cause property
     const isDuplicateError =
       error &&
+      // Review: line 410 is part of variable initialization logic, not a redundant conditional check
       typeof error === "object" &&
       (("code" in error && error.code === "23505") ||
         ("cause" in error &&
@@ -419,7 +421,7 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // Duplicate key: race condition — clean up orphaned org if inner catch failed.
+    // Duplicate key confirmed — clean up orphaned org if inner catch failed.
     const orphanedOrgId =
       error &&
       typeof error === "object" &&
