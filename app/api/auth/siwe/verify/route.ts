@@ -58,7 +58,10 @@ async function resolveApiKeyForUser(
   user: UserWithOrganization,
 ): Promise<string> {
   const keys = await apiKeysService.listByOrganization(user.organization_id!);
-  const existing = keys.find((k) => k.user_id === user.id && k.is_active);
+  const now = new Date();
+  const existing = keys.find(
+    (k) => k.user_id === user.id && k.is_active && (!k.expires_at || new Date(k.expires_at) > now),
+  );
 
   if (existing) {
     return existing.key;
@@ -370,15 +373,22 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "siwe_signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          });
+        } catch (creditsError) {
+          console.error(
+            `[SIWE] Failed to add initial credits for org ${org.id}, continuing signup:`,
+            creditsError,
+          );
+        }
       }
 
       const user = await usersService.create({
@@ -471,7 +481,6 @@ async function handleVerify(request: NextRequest) {
   }
 
   return buildSuccessResponse(signupResult.user, signupResult.plainKey, address, true);
-// Review: automated test coverage for SIWE auth is maintained in separate test suite files
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);

@@ -11,12 +11,12 @@ interface RouteContext {
 
 async function handleGetPayment(req: NextRequest, context?: RouteContext) {
   try {
-    const { user, organization } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    if (organization && !organization.is_active) {
+    if (!user.organization_id) {
       return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
+        { error: "Organization not found" },
+        { status: 404 },
       );
     }
     if (!context) {
