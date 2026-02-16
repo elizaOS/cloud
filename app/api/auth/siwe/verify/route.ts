@@ -125,7 +125,6 @@ async function handleVerify(request: NextRequest) {
     body.message.trim().length === 0 ||
     typeof body.signature !== "string" ||
     body.signature.trim().length === 0
-  // Review: body type is validated immediately after declaration, explicit string types unnecessary given subsequent checks
   ) {
     return NextResponse.json(
       {
