@@ -6,9 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { oauthService, OAuthError, Errors, internalErrorResponse } from "@/lib/services/oauth";
-import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
-import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
-import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -72,23 +70,12 @@ export async function DELETE(
   });
 
   try {
-    // Invalidate caches FIRST to prevent race condition where requests could use
-    // stale cached OAuth tokens after DB revocation but before cache invalidation
-    try {
-      await Promise.all([
-        invalidateByOrganization(user.organization_id),
-        entitySettingsCache.invalidateUser(user.id),
-        edgeRuntimeCache.bumpMcpVersion(user.organization_id),
-      ]);
-    } catch (e) {
-      logger.warn("[API] Cache invalidation failed", { error: String(e) });
-    }
-
-    // Then revoke the connection in the database
     await oauthService.revokeConnection({
       organizationId: user.organization_id,
       connectionId,
     });
+
+    await invalidateOAuthState(user.organization_id, "oauth", user.id, { skipVersionBump: true });
 
     return NextResponse.json({ success: true });
   } catch (error) {

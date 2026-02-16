@@ -50,6 +50,19 @@ export const actionsProvider: Provider = {
     const hasActions = actionsData.length > 0;
     const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;
 
+    // Get discoverable tool count from MCP service (Tier-2 tools not in the visible set)
+    let discoverableToolCount = 0;
+    try {
+      const mcpSvc = runtime.getService("mcp") as unknown as
+        | { getTier2Index?: () => { getToolCount: () => number } }
+        | undefined;
+      if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
+        const index = mcpSvc.getTier2Index();
+        const count = index?.getToolCount?.();
+        if (typeof count === "number") discoverableToolCount = count;
+      }
+    } catch { /* MCP service may not be available */ }
+
     return {
       data: { actionsData },
       values: {
@@ -57,6 +70,7 @@ export const actionsProvider: Provider = {
         actionExamples: hasActions ? addHeader("# Action Examples", composeActionExamples(actionsData, 10)) : "",
         actionsWithDescriptions: hasActions ? addHeader("# Available Actions", formatActionsWithoutParams(actionsData)) : "",
         actionsWithParams: hasActions ? addHeader("# Available Actions (with parameter schemas)", formatActionsWithParams(actionsData)) : "",
+        discoverableToolCount: discoverableToolCount > 0 ? String(discoverableToolCount) : "",
       },
       text: hasActions
         ? [actionNames, addHeader("# Available Actions", formatActionsWithoutParams(actionsData)), addHeader("# Action Examples", composeActionExamples(actionsData, 10))].join("\n\n")

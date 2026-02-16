@@ -54,7 +54,7 @@ export interface McpRegistryEntry {
   description: string;
   category: string;
   endpoint: string;
-  type: "http" | "sse" | "streamable-http";
+  type: "streamable-http" | "stdio";
   version: string;
   status: "live" | "coming_soon" | "maintenance";
   icon: string;
@@ -73,7 +73,7 @@ export interface McpRegistryEntry {
     servers: Record<
       string,
       {
-        type: "http" | "sse" | "streamable-http";
+        type: "streamable-http" | "stdio";
         url: string;
       }
     >;
@@ -201,7 +201,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP. Requires API key authentication.",
     category: "platform",
     endpoint: "/api/mcp",
-    type: "http",
+    type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon", // Requires auth that MCP plugin doesn't yet support
     icon: "puzzle",
@@ -224,7 +224,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "eliza-platform": {
-          type: "http",
+          type: "streamable-http",
           url: "${BASE_URL}/api/mcp",
         },
       },
@@ -236,7 +236,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Search the web and retrieve information from websites. Powered by multiple search providers for comprehensive results.",
     category: "search",
-    endpoint: "/api/mcps/search/sse",
+    endpoint: "/api/mcps/search/streamable-http",
     type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
@@ -254,7 +254,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
       servers: {
         "web-search": {
           type: "streamable-http",
-          url: "${BASE_URL}/api/mcps/search/sse",
+          url: "${BASE_URL}/api/mcps/search/streamable-http",
         },
       },
     },

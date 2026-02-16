@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const webhookUrl = blooioAutomationService.getWebhookUrl(
       user.organization_id,
     );
+
+    await invalidateOAuthState(user.organization_id, "blooio", user.id);
 
     logger.info("[Blooio Connect] Credentials stored", {
       organizationId: user.organization_id,

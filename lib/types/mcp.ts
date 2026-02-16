@@ -8,7 +8,7 @@
  * Configuration for a single MCP server.
  */
 export interface McpServerConfig {
-  type: "http" | "sse" | "streamable-http";
+  type: "streamable-http" | "stdio";
   url: string;
   timeout?: number;
 }
