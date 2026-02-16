@@ -137,7 +137,18 @@ async function handleVerify(request: NextRequest) {
     ? body.signature
     : `0x${body.signature}`;
 
-  const parsed = parseSiweMessage(message);
+  let parsed: ReturnType<typeof parseSiweMessage>;
+  try {
+    parsed = parseSiweMessage(message);
+  } catch {
+    return NextResponse.json(
+      {
+        error: "INVALID_BODY",
+        message: "Failed to parse SIWE message. Ensure it follows EIP-4361 format.",
+      },
+      { status: 400 },
+    );
+  }
 
   // parseSiweMessage returns all fields as optional. We must verify the
   // security-critical ones exist before proceeding (per EIP-4361).

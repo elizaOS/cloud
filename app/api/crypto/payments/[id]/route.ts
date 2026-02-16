@@ -11,7 +11,14 @@ interface RouteContext {
 
 async function handleGetPayment(req: NextRequest, context?: RouteContext) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, organization } = await requireAuthOrApiKeyWithOrg(req);
+
+    if (organization && !organization.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
+        { status: 403 },
+      );
+    }
     if (!context) {
       return NextResponse.json(
         { error: "Missing route params" },
