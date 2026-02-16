@@ -224,7 +224,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.notBefore && parsed.notBefore > new Date()) {
+  if (parsed.notBefore && new Date(parsed.notBefore) > new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_NOT_YET_VALID",
@@ -235,7 +235,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.expirationTime && parsed.expirationTime < new Date()) {
+  if (parsed.expirationTime && new Date(parsed.expirationTime) < new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_EXPIRED",
@@ -369,15 +369,22 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "siwe_signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          });
+        } catch (creditsError) {
+          console.error(
+            `[SIWE] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
+            creditsError,
+          );
+        }
       }
 
       const user = await usersService.create({
