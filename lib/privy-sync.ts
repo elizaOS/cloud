@@ -328,25 +328,18 @@ export async function syncUserFromPrivy(
       }
 
       // Add initial free credits via creditsService for proper tracking.
-      // If credits fail, log the error but continue with user creation
-      // to avoid orphaning the org. Credits can be reconciled later.
+      // If credits fail, the error propagates to the inner catch which
+      // performs compensating cleanup (org deletion) to avoid orphans.
       if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "signup",
-            },
-          });
-        } catch (creditsError) {
-          console.error(
-            `[PrivySync] Failed to add initial credits for org ${org.id}, continuing with user creation:`,
-            creditsError,
-          );
-        }
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "signup",
+          },
+        });
       }
 
       // Create user
@@ -366,14 +359,25 @@ export async function syncUserFromPrivy(
     } catch (innerError) {
       // Compensating cleanup: delete the org we just created to avoid orphans.
       // On 23505 duplicate-key errors, the winning request created its own org,
-      // so ours is orphaned either way.
+      // so ours is orphaned either way. We must always attempt deletion here.
+      let cleanupSucceeded = false;
       try {
         await organizationsService.delete(org.id);
+        cleanupSucceeded = true;
       } catch (cleanupError) {
         console.error(
           `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
           cleanupError,
         );
+      }
+
+      // Attach cleanup status so outer catch can retry if needed
+      if (
+        innerError &&
+        typeof innerError === "object" &&
+        !cleanupSucceeded
+      ) {
+        (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
       }
       throw innerError;
     }
@@ -394,6 +398,26 @@ export async function syncUserFromPrivy(
 
     if (!isDuplicateError) {
       throw error;
+    }
+
+    // If the inner catch failed to clean up the orphaned org, retry here
+    const orphanedOrgId =
+      error &&
+      typeof error === "object" &&
+      "__orphanedOrgId" in error &&
+      typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
+        ? ((error as Record<string, unknown>).__orphanedOrgId as string)
+        : undefined;
+
+    if (orphanedOrgId) {
+      try {
+        await organizationsService.delete(orphanedOrgId);
+      } catch (retryCleanupError) {
+        console.error(
+          `[PrivySync] Retry cleanup of orphaned org ${orphanedOrgId} also failed:`,
+          retryCleanupError,
+        );
+      }
     }
 
     // Duplicate key: race condition — try to find existing user with retries.

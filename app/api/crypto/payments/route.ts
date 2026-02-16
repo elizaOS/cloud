@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { getOrganizationById } from "@/lib/db/organizations";
 import {
   cryptoPaymentsService,
   CryptoPaymentError,
@@ -26,18 +27,19 @@ const createPaymentSchema = z.object({
 async function handleCreatePayment(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const organization = user.organization;
-
-    if (organization && !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
-      );
-    }
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "No organization found for this user" },
+        { status: 403 },
+      );
+    }
+
+    const organization = await getOrganizationById(user.organization_id);
+
+    if (!organization || !organization.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
         { status: 403 },
       );
     }
@@ -134,18 +136,19 @@ async function handleCreatePayment(req: NextRequest) {
 async function handleListPayments(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const organization = user.organization;
-
-    if (organization && !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
-      );
-    }
 
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "No organization found for this user" },
+        { status: 403 },
+      );
+    }
+
+    const organization = await getOrganizationById(user.organization_id);
+
+    if (!organization || !organization.is_active) {
+      return NextResponse.json(
+        { error: "Organization is inactive" },
         { status: 403 },
       );
     }
