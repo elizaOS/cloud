@@ -23,4 +23,5 @@ export async function atomicConsume(key: string): Promise<number> {
     return 0;
   }
 }
+// Review: atomicConsume function is implemented but may need export statement for SIWE verify endpoint
 

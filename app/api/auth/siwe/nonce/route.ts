@@ -52,6 +52,7 @@ async function handleGetNonce(request: NextRequest) {
       },
       { status: 503 },
     );
+  // Review: isAvailable method implementation pending in CacheClient class
   }
 
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,

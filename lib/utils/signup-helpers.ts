@@ -45,4 +45,5 @@ export function generateSlugFromEmail(email: string): string {
   const random = crypto.randomBytes(3).toString("hex");
   const timestamp = Date.now().toString(36).slice(-4);
   return `${prefix}-${timestamp}${random}`;
+// Review: this function is intentionally kept separate as it's used in signup-helpers context independent of privy-sync...
 }

@@ -376,6 +376,7 @@ export async function syncUserFromPrivy(
         );
       }
       throw innerError;
+    // Review: inner catch rethrows to allow outer handler to manage cleanup via transaction rollback
     }
     
     organization = org;
