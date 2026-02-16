@@ -428,19 +428,9 @@ async function handleVerify(request: NextRequest) {
         console.error(
           `[SIWE] Failed to clean up orphaned org ${org.id}:`,
           cleanupError,
-        );
-      }
-      throw innerError;
-    }
-  } catch (error) {
-</search>
-</change>
-
-<change path="lib/privy-sync.ts">
-<search>
-      // Add initial free credits via creditsService for proper tracking.
-      if (initialCredits > 0) {
-        await creditsService.addCredits({
+        throw innerError;
+            }
+          } catch (error) {
           organizationId: org.id,
           amount: initialCredits,
           description: "Initial free credits - Welcome bonus",
