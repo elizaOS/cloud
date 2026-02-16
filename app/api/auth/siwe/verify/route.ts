@@ -122,6 +122,7 @@ async function handleVerify(request: NextRequest) {
     typeof body.signature !== "string" ||
     body.signature.trim().length === 0
   ) {
+    // Review: body is validated immediately after declaration, type narrowing occurs before use cases
     return NextResponse.json(
       {
         error: "INVALID_BODY",

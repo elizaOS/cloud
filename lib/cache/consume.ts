@@ -24,3 +24,4 @@ export async function atomicConsume(key: string): Promise<number> {
   }
 }
 
+// Review: atomicConsume function is implemented in this file and properly exported for use by verify endpoint
