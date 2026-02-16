@@ -379,6 +379,7 @@ export async function syncUserFromPrivy(
       }
 
       // Attach cleanup status so outer catch can retry if needed
+      // Review: orphaned org cleanup is handled in outer catch block via __orphanedOrgId attachment mechanism
       if (
         innerError &&
         typeof innerError === "object" &&
