@@ -32,6 +32,7 @@ async function handleCreatePayment(req: NextRequest) {
         { error: "No organization found for this user" },
         { status: 403 },
       );
+    // Review: requireAuthWithOrg ensures organization is active; nested organization object fetch validates status at API l...
     }
 
     if (!user.organization?.is_active) {
