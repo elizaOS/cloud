@@ -227,7 +227,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.notBefore && new Date(String(parsed.notBefore)) > new Date()) {
+  if (parsed.notBefore && new Date(parsed.notBefore) > new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_NOT_YET_VALID",
@@ -238,7 +238,7 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.expirationTime && new Date(String(parsed.expirationTime)) < new Date()) {
+  if (parsed.expirationTime && new Date(parsed.expirationTime) < new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_EXPIRED",
@@ -372,15 +372,23 @@ async function handleVerify(request: NextRequest) {
 
       const initialCredits = getInitialCredits();
       if (initialCredits > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: initialCredits,
-          description: "Initial free credits - Welcome bonus",
-          metadata: {
-            type: "initial_free_credits",
-            source: "siwe_signup",
-          },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "siwe_signup",
+            },
+          });
+        } catch (creditError) {
+          console.error(
+            `[SIWE] Failed to add initial credits to org ${org.id}:`,
+            creditError,
+          );
+          throw creditError;
+        }
       }
 
       const user = await usersService.create({
@@ -411,7 +419,7 @@ async function handleVerify(request: NextRequest) {
       signupResult = { user: userWithOrg, plainKey };
     } catch (innerError) {
       // Compensating cleanup: delete the org we just created to avoid orphans.
-      // Any failure after org creation (duplicate-key, API key creation, etc.)
+      // Any failure after org creation (duplicate-key, credit failure, API key creation, etc.)
       // means the org has no valid user attached and should be removed.
       try {
         await organizationsService.delete(org.id);
@@ -424,6 +432,45 @@ async function handleVerify(request: NextRequest) {
       throw innerError;
     }
   } catch (error) {
+</search>
+</change>
+
+<change path="lib/privy-sync.ts">
+<search>
+      // Add initial free credits via creditsService for proper tracking.
+      if (initialCredits > 0) {
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "signup",
+          },
+        });
+      }
+</search>
+<replace>
+      // Add initial free credits via creditsService for proper tracking.
+      if (initialCredits > 0) {
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "signup",
+            },
+          });
+        } catch (creditError) {
+          console.error(
+            `[PrivySync] Failed to add initial credits to org ${org.id}:`,
+            creditError,
+          );
+          throw creditError;
+        }
+      }
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
     // means the second insert fails. The org is cleaned up via compensating delete above.

@@ -1,2 +1,1 @@
-- Ensure search blocks in fixes are copied exactly from the actual file content, not from review comment snippets.
-- When multiple issues exist in a file, fix them all in one pass to avoid partial corruption.
+
