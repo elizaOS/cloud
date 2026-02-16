@@ -1084,7 +1084,7 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     accumulatedState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS"],
+      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS", "APP_CONFIG"],
       true,
     );
     // Also set on state.data for consistency
