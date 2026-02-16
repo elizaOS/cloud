@@ -371,25 +371,16 @@ async function handleVerify(request: NextRequest) {
       });
 
       const initialCredits = getInitialCredits();
-      let creditsGranted = false;
       if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "siwe_signup",
-            },
-          });
-          creditsGranted = true;
-        } catch (creditsError) {
-          console.error(
-            `[SIWE] Failed to grant welcome credits for org ${org.id}:`,
-            creditsError,
-          );
-        }
+        await creditsService.addCredits({
+          organizationId: org.id,
+          amount: initialCredits,
+          description: "Initial free credits - Welcome bonus",
+          metadata: {
+            type: "initial_free_credits",
+            source: "siwe_signup",
+          },
+        });
       }
 
       const user = await usersService.create({
@@ -411,13 +402,10 @@ async function handleVerify(request: NextRequest) {
         is_active: true,
       });
 
-      // Re-fetch org if credits were granted, so the response reflects the updated balance.
-      const freshOrg = creditsGranted
-        ? (await organizationsService.getById(org.id)) ?? org
-        : org;
+      const freshOrg = await organizationsService.getById(org.id);
       const userWithOrg: UserWithOrganization = {
         ...user,
-        organization: freshOrg,
+        organization: freshOrg ?? org,
       } as UserWithOrganization;
 
       signupResult = { user: userWithOrg, plainKey };
