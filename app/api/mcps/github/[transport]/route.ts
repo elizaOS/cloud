@@ -1037,13 +1037,21 @@ async function getGitHubMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/github", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/github/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;
 }
 
-async function handleRequest(req: NextRequest): Promise<Response> {
+async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {
+  const { transport } = await params;
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 

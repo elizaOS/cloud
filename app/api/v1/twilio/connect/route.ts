@@ -10,6 +10,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { logger } from "@/lib/utils/logger";
 import { isE164PhoneNumber } from "@/lib/utils/twilio-api";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const webhookUrl = twilioAutomationService.getWebhookUrl(
       user.organization_id,
     );
+
+    await invalidateOAuthState(user.organization_id, "twilio", user.id);
 
     logger.info("[Twilio Connect] Credentials stored", {
       organizationId: user.organization_id,

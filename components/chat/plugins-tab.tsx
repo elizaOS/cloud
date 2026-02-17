@@ -41,7 +41,7 @@ interface McpRegistryEntry {
   category: string;
   endpoint: string;
   fullEndpoint: string;
-  type: "http" | "sse" | "streamable-http";
+  type: "streamable-http" | "stdio";
   version: string;
   status: "live" | "coming_soon" | "maintenance";
   icon: string;
