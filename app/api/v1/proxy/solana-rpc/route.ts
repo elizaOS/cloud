@@ -12,7 +12,7 @@
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { creditsService } from "@/lib/services/credits";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 

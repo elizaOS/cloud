@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Google MCP Tools - Gmail, Calendar, Contacts
  * Uses per-organization OAuth tokens via oauthService.

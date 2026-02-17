@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Generation MCP tools
  * Tools for text, image, video, embeddings, TTS, and prompts generation

@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Dropbox MCP Tools - Files, Folders, Sharing
  * Uses per-organization OAuth tokens via oauthService.

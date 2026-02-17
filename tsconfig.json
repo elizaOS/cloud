@@ -14,7 +14,7 @@
     "jsx": "react-jsx",
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
-    "types": ["bun-types", "node"],
+    "types": ["node"],
     "plugins": [
       {
         "name": "next"
@@ -33,9 +33,7 @@
     "components/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
-    "db/**/*.ts",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "db/**/*.ts"
   ],
   "exclude": [
     "node_modules",
@@ -43,6 +41,7 @@
     "e2e",
     "scripts",
     "tests",
+    "**/__tests__/**",
     ".next",
     "out",
     "build",

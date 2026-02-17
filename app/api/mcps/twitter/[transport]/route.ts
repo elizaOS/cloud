@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Twitter/X MCP Server - Tweets, Users, Engagement
  *

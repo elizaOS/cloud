@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Linear MCP Server - Issues, Projects, Teams
  *
