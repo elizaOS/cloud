@@ -18,11 +18,11 @@ const TWITTER_API_KEY = process.env.TWITTER_API_KEY || "";
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY || "";
 
 async function getTwitterClient(): Promise<TwitterApi> {
-  const { user } = getAuthContext();
-
   if (!TWITTER_API_KEY || !TWITTER_API_SECRET_KEY) {
     throw new Error("Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.");
   }
+
+  const { user } = getAuthContext();
 
   try {
     const result = await oauthService.getValidTokenByPlatform({
@@ -45,15 +45,16 @@ async function getTwitterClient(): Promise<TwitterApi> {
   }
 }
 
-let cachedMeId: string | null = null;
-let cachedMeIdExpiry = 0;
+const userIdCache = new Map<string, { id: string; expiry: number }>();
 
 async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
-  if (cachedMeId && Date.now() < cachedMeIdExpiry) return cachedMeId;
+  const { user } = getAuthContext();
+  const orgId = user.organization_id;
+  const cached = userIdCache.get(orgId);
+  if (cached && Date.now() < cached.expiry) return cached.id;
   const me = await client.v2.me();
-  cachedMeId = me.data.id;
-  cachedMeIdExpiry = Date.now() + 5 * 60 * 1000;
-  return cachedMeId;
+  userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + 5 * 60 * 1000 });
+  return me.data.id;
 }
 
 function errMsg(error: unknown, fallback: string): string {
@@ -174,8 +175,8 @@ export function registerTwitterTools(server: McpServer): void {
       description: "Post a new tweet on Twitter/X. Supports text tweets and replies.",
       inputSchema: {
         text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
-        replyToTweetId: z.string().optional().describe("Tweet ID to reply to (makes this a reply)"),
-        quoteTweetId: z.string().optional().describe("Tweet ID to quote (makes this a quote tweet)"),
+        replyToTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to reply to (makes this a reply)"),
+        quoteTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to quote (makes this a quote tweet)"),
       },
     },
     async ({ text, replyToTweetId, quoteTweetId }) => {
@@ -211,7 +212,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Delete a tweet by its ID. Only works for tweets by the authenticated user.",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to delete"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to delete"),
       },
     },
     async ({ tweetId }) => {
@@ -231,7 +232,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get a specific tweet by its ID with full details",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to retrieve"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retrieve"),
       },
     },
     async ({ tweetId }) => {
@@ -304,7 +305,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get recent tweets posted by a specific user",
       inputSchema: {
-        userId: z.string().describe("The Twitter user ID"),
+        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID"),
         maxResults: z.number().min(5).max(100).optional().describe("Number of tweets to return (5-100, default 10)"),
       },
     },
@@ -340,7 +341,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Like a tweet on behalf of the authenticated user",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to like"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to like"),
       },
     },
     async ({ tweetId }) => {
@@ -361,7 +362,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Remove a like from a tweet",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to unlike"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unlike"),
       },
     },
     async ({ tweetId }) => {
@@ -382,7 +383,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Retweet a tweet on behalf of the authenticated user",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to retweet"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retweet"),
       },
     },
     async ({ tweetId }) => {
@@ -403,7 +404,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Remove a retweet from a tweet",
       inputSchema: {
-        tweetId: z.string().describe("The ID of the tweet to unretweet"),
+        tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unretweet"),
       },
     },
     async ({ tweetId }) => {
@@ -424,7 +425,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get a list of users who follow the specified user",
       inputSchema: {
-        userId: z.string().describe("The Twitter user ID to get followers for"),
+        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
         maxResults: z.number().min(1).max(100).optional().describe("Number of followers to return (1-100, default 20)"),
       },
     },
@@ -461,7 +462,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get a list of users that the specified user is following",
       inputSchema: {
-        userId: z.string().describe("The Twitter user ID to get following list for"),
+        userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get following list for"),
         maxResults: z.number().min(1).max(100).optional().describe("Number of users to return (1-100, default 20)"),
       },
     },
@@ -498,7 +499,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Follow a user on Twitter/X",
       inputSchema: {
-        targetUserId: z.string().describe("The user ID of the account to follow"),
+        targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to follow"),
       },
     },
     async ({ targetUserId }) => {
@@ -519,7 +520,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Unfollow a user on Twitter/X",
       inputSchema: {
-        targetUserId: z.string().describe("The user ID of the account to unfollow"),
+        targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to unfollow"),
       },
     },
     async ({ targetUserId }) => {

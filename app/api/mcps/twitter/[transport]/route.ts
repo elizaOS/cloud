@@ -41,11 +41,11 @@ async function getTwitterMcpHandler() {
   const { TwitterApi } = await import("twitter-api-v2");
 
   async function getTwitterClient(organizationId: string) {
-    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "twitter" });
-
     if (!TWITTER_API_KEY || !TWITTER_API_SECRET_KEY) {
       throw new Error("Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.");
     }
+
+    const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "twitter" });
 
     return new TwitterApi({
       appKey: TWITTER_API_KEY,
@@ -81,15 +81,14 @@ async function getTwitterMcpHandler() {
     return parts.join(" — ");
   }
 
-  let cachedMeId: string | null = null;
-  let cachedMeIdExpiry = 0;
+  const userIdCache = new Map<string, { id: string; expiry: number }>();
 
-  async function getAuthenticatedUserId(client: InstanceType<typeof TwitterApi>): Promise<string> {
-    if (cachedMeId && Date.now() < cachedMeIdExpiry) return cachedMeId;
+  async function getAuthenticatedUserId(client: InstanceType<typeof TwitterApi>, orgId: string): Promise<string> {
+    const cached = userIdCache.get(orgId);
+    if (cached && Date.now() < cached.expiry) return cached.id;
     const me = await client.v2.me();
-    cachedMeId = me.data.id;
-    cachedMeIdExpiry = Date.now() + 5 * 60 * 1000;
-    return cachedMeId;
+    userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + 5 * 60 * 1000 });
+    return me.data.id;
   }
 
   mcpHandler = createMcpHandler(
@@ -171,8 +170,8 @@ async function getTwitterMcpHandler() {
         "Post a new tweet on Twitter/X. Supports text tweets and replies.",
         {
           text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
-          replyToTweetId: z.string().optional().describe("Tweet ID to reply to (makes this a reply)"),
-          quoteTweetId: z.string().optional().describe("Tweet ID to quote (makes this a quote tweet)"),
+          replyToTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to reply to (makes this a reply)"),
+          quoteTweetId: z.string().regex(/^\d+$/).optional().describe("Tweet ID to quote (makes this a quote tweet)"),
         },
         async ({ text, replyToTweetId, quoteTweetId }) => {
           try {
@@ -205,7 +204,7 @@ async function getTwitterMcpHandler() {
         "twitter_delete_tweet",
         "Delete a tweet by its ID. Only works for tweets by the authenticated user.",
         {
-          tweetId: z.string().describe("The ID of the tweet to delete"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to delete"),
         },
         async ({ tweetId }) => {
           try {
@@ -224,7 +223,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_tweet",
         "Get a specific tweet by its ID with full details",
         {
-          tweetId: z.string().describe("The ID of the tweet to retrieve"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retrieve"),
         },
         async ({ tweetId }) => {
           try {
@@ -295,7 +294,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_user_tweets",
         "Get recent tweets posted by a specific user",
         {
-          userId: z.string().describe("The Twitter user ID"),
+          userId: z.string().regex(/^\d+$/).describe("The Twitter user ID"),
           maxResults: z.number().min(5).max(100).optional().describe("Number of tweets to return (5-100, default 10)"),
         },
         async ({ userId, maxResults = 10 }) => {
@@ -330,13 +329,13 @@ async function getTwitterMcpHandler() {
         "twitter_like_tweet",
         "Like a tweet on behalf of the authenticated user",
         {
-          tweetId: z.string().describe("The ID of the tweet to like"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to like"),
         },
         async ({ tweetId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.like(userId, tweetId);
             return jsonResult({ success: true, liked: result.data.liked, tweetId });
           } catch (e) {
@@ -350,13 +349,13 @@ async function getTwitterMcpHandler() {
         "twitter_unlike_tweet",
         "Remove a like from a tweet",
         {
-          tweetId: z.string().describe("The ID of the tweet to unlike"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unlike"),
         },
         async ({ tweetId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unlike(userId, tweetId);
             return jsonResult({ success: true, liked: result.data.liked, tweetId });
           } catch (e) {
@@ -370,13 +369,13 @@ async function getTwitterMcpHandler() {
         "twitter_retweet",
         "Retweet a tweet on behalf of the authenticated user",
         {
-          tweetId: z.string().describe("The ID of the tweet to retweet"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retweet"),
         },
         async ({ tweetId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.retweet(userId, tweetId);
             return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
           } catch (e) {
@@ -390,13 +389,13 @@ async function getTwitterMcpHandler() {
         "twitter_unretweet",
         "Remove a retweet from a tweet",
         {
-          tweetId: z.string().describe("The ID of the tweet to unretweet"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unretweet"),
         },
         async ({ tweetId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unretweet(userId, tweetId);
             return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
           } catch (e) {
@@ -410,7 +409,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_followers",
         "Get a list of users who follow the specified user",
         {
-          userId: z.string().describe("The Twitter user ID to get followers for"),
+          userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
           maxResults: z.number().min(1).max(100).optional().describe("Number of followers to return (1-100, default 20)"),
         },
         async ({ userId, maxResults = 20 }) => {
@@ -446,7 +445,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_following",
         "Get a list of users that the specified user is following",
         {
-          userId: z.string().describe("The Twitter user ID to get following list for"),
+          userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get following list for"),
           maxResults: z.number().min(1).max(100).optional().describe("Number of users to return (1-100, default 20)"),
         },
         async ({ userId, maxResults = 20 }) => {
@@ -482,13 +481,13 @@ async function getTwitterMcpHandler() {
         "twitter_follow_user",
         "Follow a user on Twitter/X",
         {
-          targetUserId: z.string().describe("The user ID of the account to follow"),
+          targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to follow"),
         },
         async ({ targetUserId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.follow(userId, targetUserId);
             return jsonResult({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId });
           } catch (e) {
@@ -502,13 +501,13 @@ async function getTwitterMcpHandler() {
         "twitter_unfollow_user",
         "Unfollow a user on Twitter/X",
         {
-          targetUserId: z.string().describe("The user ID of the account to unfollow"),
+          targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to unfollow"),
         },
         async ({ targetUserId }) => {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const userId = await getAuthenticatedUserId(client);
+            const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unfollow(userId, targetUserId);
             return jsonResult({ success: true, following: result.data.following, targetUserId });
           } catch (e) {
