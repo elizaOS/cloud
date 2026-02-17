@@ -13,6 +13,7 @@ import { DecryptionError } from "@/lib/services/secrets/encryption";
 import { logger } from "@/lib/utils/logger";
 import { getProvider } from "../provider-registry";
 import { refreshOAuth2Token } from "../providers";
+import { incrementOAuthVersion } from "../cache-version";
 import type { ConnectionAdapter } from "./index";
 import type { OAuthConnection, TokenResult } from "../types";
 import { Errors } from "../errors";
@@ -232,6 +233,9 @@ export function createGenericAdapter(platform: string): ConnectionAdapter {
           accessToken = refreshResult.accessToken;
           expiresAt = newExpiresAt;
           wasRefreshed = true;
+
+          // Increment version so all instances pick up the new token
+          await incrementOAuthVersion(organizationId, platform);
 
           logger.info(`[GenericAdapter] Token refreshed for ${platform}`, {
             connectionId,

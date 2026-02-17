@@ -1,0 +1,35 @@
+/**
+ * Shared OAuth state invalidation helper.
+ *
+ * Runs the full 4-step invalidation chain that must execute after
+ * any OAuth credential write or delete so that cached runtimes,
+ * entity settings, and edge runtime caches stay consistent.
+ */
+
+import { incrementOAuthVersion } from "./cache-version";
+import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
+import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
+import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
+import { logger } from "@/lib/utils/logger";
+
+export async function invalidateOAuthState(
+  orgId: string,
+  platform: string,
+  userId?: string,
+  opts?: { skipVersionBump?: boolean },
+): Promise<void> {
+  try {
+    await Promise.all([
+      opts?.skipVersionBump ? Promise.resolve() : incrementOAuthVersion(orgId, platform),
+      invalidateByOrganization(orgId),
+      userId ? entitySettingsCache.invalidateUser(userId) : Promise.resolve(),
+      edgeRuntimeCache.bumpMcpVersion(orgId),
+    ]);
+  } catch (e) {
+    logger.warn("[OAuth] Invalidation chain partially failed", {
+      orgId,
+      platform,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}

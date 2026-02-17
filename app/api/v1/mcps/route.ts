@@ -45,7 +45,7 @@ const createMcpSchema = z.object({
   containerId: z.string().uuid().optional(),
   externalEndpoint: z.string().url().optional(),
   endpointPath: z.string().max(100).optional(),
-  transportType: z.enum(["http", "sse", "streamable-http"]).optional(),
+  transportType: z.enum(["streamable-http", "stdio"]).optional(),
   tools: z
     .array(
       z.object({
