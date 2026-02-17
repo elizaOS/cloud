@@ -14,7 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
@@ -62,14 +62,13 @@ async function sendTelegramMessage(
   return true;
 }
 
-async function handleMessage(message: Message): Promise<boolean> {
-  if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
-  if (message.chat.type !== "private") return true; // Not applicable, mark as processed
+async function handleMessage(message: Message): Promise<void> {
+  if (!("text" in message) || !message.text) return;
+  if (message.chat.type !== "private") return;
 
-  // Defensive check - message.from should exist in private chats but validate anyway
   if (!message.from) {
     logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
-    return true; // Not applicable, mark as processed
+    return;
   }
 
   const telegramUserId = String(message.from.id);
@@ -77,7 +76,7 @@ async function handleMessage(message: Message): Promise<boolean> {
 
   if (text.startsWith("/")) {
     await handleCommand(message);
-    return true; // Command handled, mark as processed
+    return;
   }
 
   // Look up user - they must have completed OAuth first
@@ -87,7 +86,7 @@ async function handleMessage(message: Message): Promise<boolean> {
       message.chat.id,
       `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
-    return true; // Mark as processed - don't retry
+    return;
   }
   const { organization } = userWithOrg;
 
@@ -131,8 +130,11 @@ async function handleMessage(message: Message): Promise<boolean> {
   });
 
   if (!lock) {
-    logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", { roomId });
-    return true; // Return 200 to Telegram - the message IS being processed by the lock holder
+    logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", {
+      roomId,
+      lockServiceEnabled: distributedLocks.isEnabled(),
+    });
+    return;
   }
 
   try {
@@ -169,13 +171,11 @@ async function handleMessage(message: Message): Promise<boolean> {
     if (responseText) {
       await sendTelegramMessage(message.chat.id, responseText, message.message_id);
     }
-    return true;
   } catch (error) {
     logger.error("[ElizaApp TelegramWebhook] Agent failed", {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
-    return true; // Processing attempted, mark as processed to avoid infinite retry
   } finally {
     await lock.release();
   }
@@ -266,15 +266,14 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
   const update: Update = await request.json();
   const idempotencyKey = `telegram:eliza-app:${update.update_id}`;
 
-  if (await isAlreadyProcessed(idempotencyKey)) {
+  const claimed = await tryClaimForProcessing(idempotencyKey, "telegram-eliza-app");
+  if (!claimed) {
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
   if ("message" in update && update.message) {
     await handleMessage(update.message);
   }
-
-  await markAsProcessed(idempotencyKey, "telegram-eliza-app");
 
   return NextResponse.json({ ok: true });
 }
