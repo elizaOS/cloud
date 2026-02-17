@@ -17,6 +17,9 @@ import { jsonResponse, errorResponse } from "../lib/responses";
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY || "";
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY || "";
 
+const USER_ID_CACHE_TTL_MS = 5 * 60 * 1000;
+const USER_ID_CACHE_MAX_SIZE = 100;
+
 async function getTwitterClient(): Promise<TwitterApi> {
   if (!TWITTER_API_KEY || !TWITTER_API_SECRET_KEY) {
     throw new Error("Twitter API credentials not configured at platform level. Set TWITTER_API_KEY and TWITTER_API_SECRET_KEY.");
@@ -47,13 +50,25 @@ async function getTwitterClient(): Promise<TwitterApi> {
 
 const userIdCache = new Map<string, { id: string; expiry: number }>();
 
+function pruneExpiredCacheEntries(): void {
+  const now = Date.now();
+  for (const [key, value] of userIdCache) {
+    if (now >= value.expiry) userIdCache.delete(key);
+  }
+}
+
 async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
   const { user } = getAuthContext();
   const orgId = user.organization_id;
   const cached = userIdCache.get(orgId);
   if (cached && Date.now() < cached.expiry) return cached.id;
   const me = await client.v2.me();
-  userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + 5 * 60 * 1000 });
+  if (userIdCache.size >= USER_ID_CACHE_MAX_SIZE) pruneExpiredCacheEntries();
+  if (userIdCache.size >= USER_ID_CACHE_MAX_SIZE) {
+    const oldestKey = userIdCache.keys().next().value;
+    if (oldestKey) userIdCache.delete(oldestKey);
+  }
+  userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + USER_ID_CACHE_TTL_MS });
   return me.data.id;
 }
 

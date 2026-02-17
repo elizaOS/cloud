@@ -21,6 +21,11 @@ export const maxDuration = 60;
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY || "";
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY || "";
 
+const USER_ID_CACHE_TTL_MS = 5 * 60 * 1000;
+const USER_ID_CACHE_MAX_SIZE = 100;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 100;
+
 interface McpHandlerResponse {
   status: number;
   headers?: Headers;
@@ -83,11 +88,23 @@ async function getTwitterMcpHandler() {
 
   const userIdCache = new Map<string, { id: string; expiry: number }>();
 
+  function pruneExpiredCacheEntries(): void {
+    const now = Date.now();
+    for (const [key, value] of userIdCache) {
+      if (now >= value.expiry) userIdCache.delete(key);
+    }
+  }
+
   async function getAuthenticatedUserId(client: InstanceType<typeof TwitterApi>, orgId: string): Promise<string> {
     const cached = userIdCache.get(orgId);
     if (cached && Date.now() < cached.expiry) return cached.id;
     const me = await client.v2.me();
-    userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + 5 * 60 * 1000 });
+    if (userIdCache.size >= USER_ID_CACHE_MAX_SIZE) pruneExpiredCacheEntries();
+    if (userIdCache.size >= USER_ID_CACHE_MAX_SIZE) {
+      const oldestKey = userIdCache.keys().next().value;
+      if (oldestKey) userIdCache.delete(oldestKey);
+    }
+    userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + USER_ID_CACHE_TTL_MS });
     return me.data.id;
   }
 
@@ -539,7 +556,7 @@ async function handleRequest(
     const authResult = await requireAuthOrApiKeyWithOrg(req);
 
     const rateLimitKey = `mcp:ratelimit:twitter:${authResult.user.organization_id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
+    const rateLimit = await checkRateLimitRedis(rateLimitKey, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS);
     if (!rateLimit.allowed) {
       return new Response(JSON.stringify({ error: "rate_limit_exceeded" }), { status: 429, headers: { "Content-Type": "application/json" } });
     }
