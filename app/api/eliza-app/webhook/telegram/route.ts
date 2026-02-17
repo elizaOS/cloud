@@ -131,8 +131,8 @@ async function handleMessage(message: Message): Promise<boolean> {
   });
 
   if (!lock) {
-    logger.error("[ElizaApp TelegramWebhook] Failed to acquire room lock", { roomId });
-    return false; // Don't mark as processed - allow retry
+    logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", { roomId });
+    return true; // Return 200 to Telegram - the message IS being processed by the lock holder
   }
 
   try {
@@ -270,23 +270,11 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
-  let processed = true;
   if ("message" in update && update.message) {
-    processed = await handleMessage(update.message);
+    await handleMessage(update.message);
   }
 
-  // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
-  if (processed) {
-    await markAsProcessed(idempotencyKey, "telegram-eliza-app");
-  }
-
-  // Return 503 on lock failure to trigger webhook retry from Telegram
-  if (!processed) {
-    return NextResponse.json(
-      { ok: false, error: "Service temporarily unavailable" },
-      { status: 503 }
-    );
-  }
+  await markAsProcessed(idempotencyKey, "telegram-eliza-app");
 
   return NextResponse.json({ ok: true });
 }
