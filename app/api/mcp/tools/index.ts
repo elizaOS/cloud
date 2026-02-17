@@ -26,3 +26,4 @@ export { registerAirtableTools } from "./airtable";
 export { registerZoomTools } from "./zoom";
 export { registerJiraTools } from "./jira";
 export { registerLinkedInTools } from "./linkedin";
+export { registerTwitterTools } from "./twitter";

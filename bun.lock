@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "eliza-cloud-v2",
@@ -22,7 +21,7 @@
         "@elizaos/plugin-knowledge": "^1.6.1",
         "@elizaos/plugin-mcp": "1.8.2",
         "@elizaos/plugin-memory": "1.1.2",
-        "@elizaos/plugin-n8n-workflow": "1.1.0",
+        "@elizaos/plugin-n8n-workflow": "1.2.1",
         "@elizaos/plugin-sql": "1.7.1",
         "@elizaos/plugin-web-search": "^1.0.1",
         "@fal-ai/client": "^1.8.3",
@@ -431,7 +430,7 @@
 
     "@elizaos/plugin-memory": ["@elizaos/plugin-memory@1.1.2", "", { "dependencies": { "@elizaos/core": "latest", "drizzle-orm": "^0.45.0" } }, "sha512-osqOrr5Xzw6uP3QdxR4dLAybuvBIhMM0kaGV3fwl9wlZNo/hAXnFBdFjR3bXsD65UesILdnHsxyh0w8Ri2aYKA=="],
 
-    "@elizaos/plugin-n8n-workflow": ["@elizaos/plugin-n8n-workflow@1.1.0", "", { "dependencies": { "drizzle-orm": "^0.45.1" }, "peerDependencies": { "@elizaos/core": "1.7.2" } }, "sha512-q5IItyYOQaAhkVKf1c1YexUPMv3FAMMCe5xWUeWIgItAcZLt9TLx9qvY69lURNvf6yT1mVbib7hua6oKUqzgYg=="],
+    "@elizaos/plugin-n8n-workflow": ["@elizaos/plugin-n8n-workflow@1.2.1", "", { "dependencies": { "drizzle-orm": "^0.45.1" }, "peerDependencies": { "@elizaos/core": "1.7.2" } }, "sha512-K7sxXwQ06sMexjYOGOyMxuBl8mYTf9/sKtSJr/fmepda2zMZuQiDZ0HJ6sAQ8suGPQtWNDH46mR3Ln0m2I16ng=="],
 
     "@elizaos/plugin-ollama": ["@elizaos/plugin-ollama@1.2.4", "", { "dependencies": { "@ai-sdk/ui-utils": "^1.2.8", "@elizaos/core": "^1.0.0", "ai": "^4.3.9", "js-tiktoken": "^1.0.18", "ollama-ai-provider": "^1.2.0", "tsup": "8.4.0" } }, "sha512-UYarYfp8ebA4O+/BQtXWwcpLB5J+t4ThW0xdOcvfze5ZNOU51WMprG5EV8SafbhC/qj2sVFba85IdM+t5C5FEw=="],
 
