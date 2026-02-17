@@ -69,6 +69,29 @@ async function getTwitterMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
 
+  function errMsg(error: unknown, fallback: string): string {
+    if (!(error instanceof Error)) return fallback;
+    const err = error as Error & { code?: number; data?: { detail?: string; title?: string; status?: number }; rateLimit?: { remaining?: number; reset?: number } };
+    const parts: string[] = [err.message];
+    if (err.data?.detail) parts.push(err.data.detail);
+    if (err.code) parts.push(`code: ${err.code}`);
+    if (err.rateLimit?.remaining === 0 && err.rateLimit?.reset) {
+      parts.push(`rate limit resets at ${new Date(err.rateLimit.reset * 1000).toISOString()}`);
+    }
+    return parts.join(" — ");
+  }
+
+  let cachedMeId: string | null = null;
+  let cachedMeIdExpiry = 0;
+
+  async function getAuthenticatedUserId(client: InstanceType<typeof TwitterApi>): Promise<string> {
+    if (cachedMeId && Date.now() < cachedMeIdExpiry) return cachedMeId;
+    const me = await client.v2.me();
+    cachedMeId = me.data.id;
+    cachedMeIdExpiry = Date.now() + 5 * 60 * 1000;
+    return cachedMeId;
+  }
+
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
@@ -80,7 +103,7 @@ async function getTwitterMcpHandler() {
           if (!active) return jsonResult({ connected: false });
           return jsonResult({ connected: true, username: active.displayName, scopes: active.scopes });
         } catch (e) {
-          return errorResult(e instanceof Error ? e.message : "Failed");
+          return errorResult(errMsg(e, "Failed"));
         }
       });
 
@@ -105,7 +128,7 @@ async function getTwitterMcpHandler() {
             verified: me.data.verified,
           });
         } catch (e) {
-          return errorResult(e instanceof Error ? e.message : "Failed to get profile");
+          return errorResult(errMsg(e, "Failed to get profile"));
         }
       });
 
@@ -137,7 +160,7 @@ async function getTwitterMcpHandler() {
               verified: user.data.verified,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get user");
+            return errorResult(errMsg(e, "Failed to get user"));
           }
         },
       );
@@ -147,7 +170,7 @@ async function getTwitterMcpHandler() {
         "twitter_create_tweet",
         "Post a new tweet on Twitter/X. Supports text tweets and replies.",
         {
-          text: z.string().max(280).describe("The tweet text content (max 280 characters)"),
+          text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
           replyToTweetId: z.string().optional().describe("Tweet ID to reply to (makes this a reply)"),
           quoteTweetId: z.string().optional().describe("Tweet ID to quote (makes this a quote tweet)"),
         },
@@ -172,7 +195,7 @@ async function getTwitterMcpHandler() {
               text: tweet.data.text,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to create tweet");
+            return errorResult(errMsg(e, "Failed to create tweet"));
           }
         },
       );
@@ -191,7 +214,7 @@ async function getTwitterMcpHandler() {
             const result = await client.v2.deleteTweet(tweetId);
             return jsonResult({ success: true, deleted: result.data.deleted, tweetId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to delete tweet");
+            return errorResult(errMsg(e, "Failed to delete tweet"));
           }
         },
       );
@@ -224,7 +247,7 @@ async function getTwitterMcpHandler() {
               includes: tweet.includes,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get tweet");
+            return errorResult(errMsg(e, "Failed to get tweet"));
           }
         },
       );
@@ -262,7 +285,7 @@ async function getTwitterMcpHandler() {
               includes: results.data?.includes,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to search tweets");
+            return errorResult(errMsg(e, "Failed to search tweets"));
           }
         },
       );
@@ -297,7 +320,7 @@ async function getTwitterMcpHandler() {
               })),
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get user tweets");
+            return errorResult(errMsg(e, "Failed to get user tweets"));
           }
         },
       );
@@ -313,11 +336,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.like(me.data.id, tweetId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.like(userId, tweetId);
             return jsonResult({ success: true, liked: result.data.liked, tweetId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to like tweet");
+            return errorResult(errMsg(e, "Failed to like tweet"));
           }
         },
       );
@@ -333,11 +356,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.unlike(me.data.id, tweetId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.unlike(userId, tweetId);
             return jsonResult({ success: true, liked: result.data.liked, tweetId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to unlike tweet");
+            return errorResult(errMsg(e, "Failed to unlike tweet"));
           }
         },
       );
@@ -353,11 +376,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.retweet(me.data.id, tweetId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.retweet(userId, tweetId);
             return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to retweet");
+            return errorResult(errMsg(e, "Failed to retweet"));
           }
         },
       );
@@ -373,11 +396,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.unretweet(me.data.id, tweetId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.unretweet(userId, tweetId);
             return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to unretweet");
+            return errorResult(errMsg(e, "Failed to unretweet"));
           }
         },
       );
@@ -413,7 +436,7 @@ async function getTwitterMcpHandler() {
               })),
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get followers");
+            return errorResult(errMsg(e, "Failed to get followers"));
           }
         },
       );
@@ -449,7 +472,7 @@ async function getTwitterMcpHandler() {
               })),
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get following");
+            return errorResult(errMsg(e, "Failed to get following"));
           }
         },
       );
@@ -465,11 +488,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.follow(me.data.id, targetUserId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.follow(userId, targetUserId);
             return jsonResult({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to follow user");
+            return errorResult(errMsg(e, "Failed to follow user"));
           }
         },
       );
@@ -485,11 +508,11 @@ async function getTwitterMcpHandler() {
           try {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
-            const me = await client.v2.me();
-            const result = await client.v2.unfollow(me.data.id, targetUserId);
+            const userId = await getAuthenticatedUserId(client);
+            const result = await client.v2.unfollow(userId, targetUserId);
             return jsonResult({ success: true, following: result.data.following, targetUserId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to unfollow user");
+            return errorResult(errMsg(e, "Failed to unfollow user"));
           }
         },
       );

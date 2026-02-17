@@ -45,8 +45,27 @@ async function getTwitterClient(): Promise<TwitterApi> {
   }
 }
 
+let cachedMeId: string | null = null;
+let cachedMeIdExpiry = 0;
+
+async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
+  if (cachedMeId && Date.now() < cachedMeIdExpiry) return cachedMeId;
+  const me = await client.v2.me();
+  cachedMeId = me.data.id;
+  cachedMeIdExpiry = Date.now() + 5 * 60 * 1000;
+  return cachedMeId;
+}
+
 function errMsg(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  if (!(error instanceof Error)) return fallback;
+  const err = error as Error & { code?: number; data?: { detail?: string; title?: string; status?: number }; rateLimit?: { remaining?: number; reset?: number } };
+  const parts: string[] = [err.message];
+  if (err.data?.detail) parts.push(err.data.detail);
+  if (err.code) parts.push(`code: ${err.code}`);
+  if (err.rateLimit?.remaining === 0 && err.rateLimit?.reset) {
+    parts.push(`rate limit resets at ${new Date(err.rateLimit.reset * 1000).toISOString()}`);
+  }
+  return parts.join(" — ");
 }
 
 export function registerTwitterTools(server: McpServer): void {
@@ -154,7 +173,7 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Post a new tweet on Twitter/X. Supports text tweets and replies.",
       inputSchema: {
-        text: z.string().max(280).describe("The tweet text content (max 280 characters)"),
+        text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
         replyToTweetId: z.string().optional().describe("Tweet ID to reply to (makes this a reply)"),
         quoteTweetId: z.string().optional().describe("Tweet ID to quote (makes this a quote tweet)"),
       },
@@ -327,8 +346,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ tweetId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.like(me.data.id, tweetId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.like(userId, tweetId);
         return jsonResponse({ success: true, liked: result.data.liked, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to like tweet"));
@@ -348,8 +367,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ tweetId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.unlike(me.data.id, tweetId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.unlike(userId, tweetId);
         return jsonResponse({ success: true, liked: result.data.liked, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unlike tweet"));
@@ -369,8 +388,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ tweetId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.retweet(me.data.id, tweetId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.retweet(userId, tweetId);
         return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to retweet"));
@@ -390,8 +409,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ tweetId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.unretweet(me.data.id, tweetId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.unretweet(userId, tweetId);
         return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unretweet"));
@@ -485,8 +504,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ targetUserId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.follow(me.data.id, targetUserId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.follow(userId, targetUserId);
         return jsonResponse({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to follow user"));
@@ -506,8 +525,8 @@ export function registerTwitterTools(server: McpServer): void {
     async ({ targetUserId }) => {
       try {
         const client = await getTwitterClient();
-        const me = await client.v2.me();
-        const result = await client.v2.unfollow(me.data.id, targetUserId);
+        const userId = await getAuthenticatedUserId(client);
+        const result = await client.v2.unfollow(userId, targetUserId);
         return jsonResponse({ success: true, following: result.data.following, targetUserId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unfollow user"));
