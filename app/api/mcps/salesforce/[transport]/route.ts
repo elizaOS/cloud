@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Salesforce MCP Server - Accounts, Contacts, Opportunities, Leads, SOQL/SOSL
  *
