@@ -12,3 +12,4 @@ export { oauthListAction } from "./actions/oauth-list";
 export { oauthGetAction } from "./actions/oauth-get";
 export { oauthRevokeAction } from "./actions/oauth-revoke";
 export { userAuthStatusProvider } from "./providers/user-auth-status";
+export { integrationContextProvider } from "./providers/integration-context";

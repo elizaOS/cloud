@@ -28,6 +28,10 @@ const DEFAULT_REDIRECT = "/dashboard/settings?tab=connections";
 const STATE_TTL = 600; // 10 minutes
 
 class OAuthService {
+  // In-flight deduplication for listConnections to prevent duplicate queries
+  // when multiple providers call listConnections concurrently
+  private inflightConnections = new Map<string, Promise<OAuthConnection[]>>();
+
   /** List all available OAuth providers with configuration status */
   listProviders(): OAuthProviderInfo[] {
     return Object.values(OAUTH_PROVIDERS).map((provider) => ({
@@ -88,8 +92,24 @@ class OAuthService {
     return { authUrl: result.url, state: result.oauthToken };
   }
 
-  /** List all OAuth connections for an organization */
+  /** List all OAuth connections for an organization (with in-flight deduplication) */
   async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
+    const { organizationId, platform } = params;
+    const key = `${organizationId}:${platform || "*"}`;
+
+    // Return in-flight promise if one exists for same params
+    const inflight = this.inflightConnections.get(key);
+    if (inflight) return inflight;
+
+    const promise = this._listConnectionsImpl(params).finally(() => {
+      this.inflightConnections.delete(key);
+    });
+    this.inflightConnections.set(key, promise);
+    return promise;
+  }
+
+  /** Internal implementation of listConnections */
+  private async _listConnectionsImpl(params: ListConnectionsParams): Promise<OAuthConnection[]> {
     const { organizationId, platform } = params;
     const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
     const results = await Promise.allSettled(adapters.map((a) => a!.listConnections(organizationId)));

@@ -13,7 +13,7 @@
  */
 
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
 import {
@@ -25,6 +25,7 @@ import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
+import { enrichConnection } from "@/lib/services/oauth/enrichment";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -212,6 +213,19 @@ async function handleCallback(
     } catch (e) {
       logger.warn(`[OAuth ${platform}] Cache invalidation failed`, { error: String(e) });
     }
+
+    // Trigger enrichment after response is sent (via Next.js after())
+    // This fetches identity context (profile, teams, workspace) for the agent
+    after(() =>
+      enrichConnection(result.organizationId, platformLower, result.connectionId).catch(
+        (err) =>
+          logger.error(`[OAuth ${platform}] Enrichment failed`, {
+            error: String(err),
+            organizationId: result.organizationId,
+            connectionId: result.connectionId,
+          })
+      )
+    );
 
     logger.info(`[OAuth ${platform}] Callback successful`, {
       organizationId: result.organizationId,

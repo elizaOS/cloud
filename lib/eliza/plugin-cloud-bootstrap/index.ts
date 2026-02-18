@@ -23,6 +23,7 @@ import {
   oauthGetAction,
   oauthRevokeAction,
   userAuthStatusProvider,
+  integrationContextProvider,
 } from "../plugin-oauth";
 // Re-export for external use
 export { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message-service";
@@ -114,6 +115,7 @@ export const cloudBootstrapPlugin: Plugin = {
     characterProvider,
     recentMessagesProvider,
     userAuthStatusProvider,
+    integrationContextProvider,
   ],
   events,
   services: [MessageServiceInstaller],

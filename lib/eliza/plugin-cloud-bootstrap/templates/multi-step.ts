@@ -29,6 +29,15 @@ Determine the next action to execute to fulfill the user's request.
 
 ---
 
+{{#if integrationContext}}
+# Connected Integrations Context (USE THIS!)
+The user has connected integrations with profile data. **Use their name and personalize your responses!**
+
+{{integrationContext}}
+
+---
+{{/if}}
+
 # Execution Status
 **Actions Completed**: {{totalActionsExecuted}}
 {{#if stepsWarning}}

@@ -376,7 +376,8 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       revoke: "https://slack.com/api/auth.revoke",
     },
     // Bot scopes only - these must also be added in Slack app's OAuth & Permissions
-    defaultScopes: ["chat:write", "channels:read", "users:read"],
+    // team:read is required for enrichment (fetching workspace name)
+    defaultScopes: ["chat:write", "channels:read", "users:read", "team:read"],
     userInfoMapping: {
       id: "user_id",
       displayName: "user",

@@ -13,6 +13,7 @@ import {
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
+import { clearEnrichmentData } from "@/lib/services/oauth/enrichment";
 import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
 import {
   getSupportedPlatforms,
@@ -104,6 +105,9 @@ export const oauthRevokeAction: ActionWithParams = {
     });
 
     await invalidateOAuthState(organizationId, platform, userResult.user.id, { skipVersionBump: true });
+
+    // Clear enrichment data for this connection (primary cleanup mechanism)
+    await clearEnrichmentData(organizationId, platform, activeConnection.id);
 
     const identifier = formatConnectionIdentifier(activeConnection);
     const text = identifier

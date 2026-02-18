@@ -34,6 +34,7 @@ import {
   refreshStateAfterAction,
   getActionResultsFromCache,
 } from "../utils/state";
+import { integrationContextProvider } from "../../plugin-oauth/providers/integration-context";
 import {
   type MultiStepActionResult,
   type StrategyMode,
@@ -644,6 +645,20 @@ export class CloudBootstrapMessageService implements IMessageService {
     );
     accumulatedState.data.actionResults = traceActionResult;
 
+    // Directly call integration context provider (ElizaOS composeState doesn't invoke custom providers)
+    try {
+      const integrationResult = await integrationContextProvider.get(runtime, message, accumulatedState);
+      if (integrationResult.values) {
+        accumulatedState.values = { ...accumulatedState.values, ...integrationResult.values };
+      }
+      if (integrationResult.data) {
+        accumulatedState.data = { ...accumulatedState.data, ...integrationResult.data };
+      }
+      logger.info(`[MultiStep] Integration context loaded: hasContext=${!!integrationResult.values?.integrationContext}`);
+    } catch (err) {
+      logger.warn(`[MultiStep] Integration context provider failed: ${err}`);
+    }
+
     const streamThinking = async (
       phase: string,
       content: string,
@@ -1084,7 +1099,7 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     accumulatedState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS"],
+      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS", "INTEGRATION_CONTEXT"],
       true,
     );
     // Also set on state.data for consistency
