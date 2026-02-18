@@ -31,27 +31,47 @@ const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
 const { phoneNumber: BLOOIO_PHONE } = elizaAppConfig.blooio;
 
+async function callTelegramApi(payload: Record<string, unknown>): Promise<Response> {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function sendTelegramMessage(
   chatId: number,
   text: string,
   replyToMessageId?: number,
 ): Promise<boolean> {
-  const response = await fetch(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        reply_to_message_id: replyToMessageId,
-        parse_mode: "Markdown",
-      }),
-    },
-  );
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    reply_to_message_id: replyToMessageId,
+    parse_mode: "Markdown",
+  };
+
+  let response = await callTelegramApi(payload);
 
   if (!response.ok) {
     const error = await response.text();
+
+    // Telegram's legacy Markdown chokes on URLs with underscores, parens, etc.
+    // Retry without parse_mode — URLs are still auto-linked in plain text.
+    if (error.includes("can't parse entities")) {
+      logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", { chatId });
+      delete payload.parse_mode;
+      response = await callTelegramApi(payload);
+
+      if (response.ok) return true;
+      const retryError = await response.text();
+      logger.error("[ElizaApp TelegramWebhook] Failed to send message (plain text fallback)", {
+        chatId,
+        error: retryError,
+      });
+      return false;
+    }
+
     logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
       chatId,
       error,
