@@ -603,8 +603,8 @@ export function AdminMetricsClient() {
                             `${name} ${(percent * 100).toFixed(0)}%`
                           }
                         >
-                          {platformPieData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} />
+                          {platformPieData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
                         <Legend />
