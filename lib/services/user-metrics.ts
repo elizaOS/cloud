@@ -449,6 +449,8 @@ class UserMetricsService {
       if (platform === null) {
         // NULL platform = aggregate row. Manual upsert because
         // ON CONFLICT doesn't match NULLs in standard unique indexes.
+        // TODO: wrap in a transaction or use COALESCE(platform, '') in the
+        // unique index to avoid a race between the read and write.
         const existing = await dbRead
           .select()
           .from(dailyMetrics)
@@ -505,65 +507,76 @@ class UserMetricsService {
       { field: "d30_retained" as const, daysAgo: 30 },
     ];
 
-    for (const { field, daysAgo } of windows) {
-      const cohortDate = new Date(dayStart.getTime() - daysAgo * 86_400_000);
-      const cohortEnd = new Date(cohortDate.getTime() + 86_400_000);
+    // Each window targets a different cohort_date row, so they're independent.
+    await Promise.all(
+      windows.map(({ field, daysAgo }) =>
+        this._computeRetentionWindow(field, daysAgo, dayStart),
+      ),
+    );
+  }
 
-      // Get users who signed up on cohort_date
-      const cohortUsers = await dbRead
-        .select({ id: users.id })
-        .from(users)
-        .where(
-          and(
-            eq(users.is_anonymous, false),
-            gte(users.created_at, cohortDate),
-            lt(users.created_at, cohortEnd),
-          ),
-        );
+  private async _computeRetentionWindow(
+    field: "d1_retained" | "d7_retained" | "d30_retained",
+    daysAgo: number,
+    dayStart: Date,
+  ): Promise<void> {
+    const cohortDate = new Date(dayStart.getTime() - daysAgo * 86_400_000);
+    const cohortEnd = new Date(cohortDate.getTime() + 86_400_000);
 
-      const cohortSize = cohortUsers.length;
-      if (cohortSize === 0) continue;
-
-      // TODO: for large cohorts (thousands of users), replace inArray with a
-      // JOIN against a VALUES list or temp table to avoid huge IN (...) clauses.
-      const cohortUserIds = cohortUsers.map((r) => r.id);
-
-      // Check how many of those users had activity on dayStart
-      const retainedCount = await this._countRetainedUsers(
-        cohortUserIds,
-        dayStart,
-        new Date(dayStart.getTime() + 86_400_000),
+    const cohortUsers = await dbRead
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.is_anonymous, false),
+          gte(users.created_at, cohortDate),
+          lt(users.created_at, cohortEnd),
+        ),
       );
 
-      // Upsert: first check if cohort row exists
-      const existing = await dbRead
-        .select()
-        .from(retentionCohorts)
-        .where(
-          and(
-            eq(retentionCohorts.cohort_date, cohortDate),
-            isNull(retentionCohorts.platform),
-          ),
-        )
-        .limit(1);
+    const cohortSize = cohortUsers.length;
+    if (cohortSize === 0) return;
 
-      if (existing.length > 0) {
-        await dbWrite
-          .update(retentionCohorts)
-          .set({
-            [field]: retainedCount,
-            cohort_size: cohortSize,
-            updated_at: new Date(),
-          })
-          .where(eq(retentionCohorts.id, existing[0].id));
-      } else {
-        await dbWrite.insert(retentionCohorts).values({
-          cohort_date: cohortDate,
-          platform: null,
-          cohort_size: cohortSize,
+    // TODO: for large cohorts (thousands of users), replace inArray with a
+    // JOIN against a VALUES list or temp table to avoid huge IN (...) clauses.
+    const cohortUserIds = cohortUsers.map((r) => r.id);
+
+    const retainedCount = await this._countRetainedUsers(
+      cohortUserIds,
+      dayStart,
+      new Date(dayStart.getTime() + 86_400_000),
+    );
+
+    // TODO: wrap in a transaction or use INSERT ... ON CONFLICT with
+    // COALESCE(platform, '') to avoid a race between the read and write
+    // when multiple processes run concurrently.
+    const existing = await dbRead
+      .select()
+      .from(retentionCohorts)
+      .where(
+        and(
+          eq(retentionCohorts.cohort_date, cohortDate),
+          isNull(retentionCohorts.platform),
+        ),
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      await dbWrite
+        .update(retentionCohorts)
+        .set({
           [field]: retainedCount,
-        });
-      }
+          cohort_size: cohortSize,
+          updated_at: new Date(),
+        })
+        .where(eq(retentionCohorts.id, existing[0].id));
+    } else {
+      await dbWrite.insert(retentionCohorts).values({
+        cohort_date: cohortDate,
+        platform: null,
+        cohort_size: cohortSize,
+        [field]: retainedCount,
+      });
     }
   }
 
