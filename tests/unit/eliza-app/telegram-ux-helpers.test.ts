@@ -6,6 +6,8 @@ import {
   createMultiRowKeyboard,
   escapeMarkdownV2,
   splitMessage,
+  isSimpleMessage,
+  createTypingRefresh,
 } from "@/lib/utils/telegram-helpers";
 
 describe("extractAuthUrls", () => {
@@ -684,5 +686,151 @@ describe("AUTH_URL_PATTERNS — false positive prevention", () => {
     const result = extractAuthUrls(text);
     expect(result).toHaveLength(1);
     expect(result[0].label).toBe("Connect Notion");
+  });
+});
+
+describe("isSimpleMessage", () => {
+  describe("classified as simple (no ack needed)", () => {
+    test("single word greeting", () => {
+      expect(isSimpleMessage("hey")).toBe(true);
+    });
+
+    test("two word greeting", () => {
+      expect(isSimpleMessage("hi there")).toBe(true);
+    });
+
+    test("three word phrase without action keywords", () => {
+      expect(isSimpleMessage("thanks a lot")).toBe(true);
+    });
+
+    test("empty string", () => {
+      expect(isSimpleMessage("")).toBe(true);
+    });
+
+    test("single word 'yes'", () => {
+      expect(isSimpleMessage("yes")).toBe(true);
+    });
+
+    test("single word 'done'", () => {
+      expect(isSimpleMessage("done")).toBe(true);
+    });
+
+    test("short phrase 'sounds good'", () => {
+      expect(isSimpleMessage("sounds good")).toBe(true);
+    });
+  });
+
+  describe("classified as complex (ack needed)", () => {
+    test("short message with 'create' keyword", () => {
+      expect(isSimpleMessage("create automation")).toBe(false);
+    });
+
+    test("short message with 'connect' keyword", () => {
+      expect(isSimpleMessage("connect google")).toBe(false);
+    });
+
+    test("short message with 'send' keyword", () => {
+      expect(isSimpleMessage("send emails")).toBe(false);
+    });
+
+    test("short message with 'check' keyword", () => {
+      expect(isSimpleMessage("check status")).toBe(false);
+    });
+
+    test("short message with 'read' keyword", () => {
+      expect(isSimpleMessage("read emails")).toBe(false);
+    });
+
+    test("short message with 'build' keyword", () => {
+      expect(isSimpleMessage("build workflow")).toBe(false);
+    });
+
+    test("short message with 'draft' keyword", () => {
+      expect(isSimpleMessage("draft email")).toBe(false);
+    });
+
+    test("short message with 'set up' keyword", () => {
+      expect(isSimpleMessage("set up gmail")).toBe(false);
+    });
+
+    test("short message with 'automate' keyword", () => {
+      expect(isSimpleMessage("automate this")).toBe(false);
+    });
+
+    test("long message without action keywords (>3 words)", () => {
+      expect(isSimpleMessage("what is the weather today")).toBe(false);
+    });
+
+    test("full automation request", () => {
+      expect(isSimpleMessage("create an automation that reads my email and sends to me on telegram")).toBe(false);
+    });
+  });
+
+  describe("edge cases", () => {
+    test("action keyword is case-insensitive", () => {
+      expect(isSimpleMessage("CREATE")).toBe(false);
+      expect(isSimpleMessage("Connect")).toBe(false);
+      expect(isSimpleMessage("SEND")).toBe(false);
+    });
+
+    test("exactly 3 words without keywords is simple", () => {
+      expect(isSimpleMessage("one two three")).toBe(true);
+    });
+
+    test("exactly 4 words without keywords is complex", () => {
+      expect(isSimpleMessage("one two three four")).toBe(false);
+    });
+
+    test("whitespace-only is simple", () => {
+      expect(isSimpleMessage("   ")).toBe(true);
+    });
+
+    test("'creation' does NOT match 'create' (creat-i-on vs creat-e)", () => {
+      expect(isSimpleMessage("creation")).toBe(true);
+    });
+
+    test("multiple spaces between words are normalized", () => {
+      expect(isSimpleMessage("hey   there")).toBe(true);
+    });
+  });
+});
+
+// NOTE: createTypingRefresh makes fetch calls to a hardcoded Telegram API URL.
+// We cannot intercept those calls in unit tests without mocking fetch (which
+// would violate the "never mock the code under test" principle). The tests
+// below verify the function's contract (return shape, stop behavior, error
+// callback) but NOT that Telegram actually receives typing indicators.
+// Full verification requires an E2E test with a real bot token.
+describe("createTypingRefresh", () => {
+  test("returns an object with a stop function", () => {
+    const typing = createTypingRefresh(12345, "fake-token", 60000);
+    expect(typing).toHaveProperty("stop");
+    expect(typeof typing.stop).toBe("function");
+    typing.stop();
+  });
+
+  test("does not throw when called with empty bot token", () => {
+    const typing = createTypingRefresh(12345, "", 60000);
+    expect(typing).toHaveProperty("stop");
+    typing.stop();
+  });
+
+  test("does not throw when called with negative chat ID", () => {
+    const typing = createTypingRefresh(-100123456, "fake-token", 60000);
+    expect(typing).toHaveProperty("stop");
+    typing.stop();
+  });
+
+  test("stop() can be called multiple times without error", () => {
+    const typing = createTypingRefresh(12345, "fake-token", 60000);
+    typing.stop();
+    typing.stop();
+    typing.stop();
+  });
+
+  test("accepts onError callback without crashing", async () => {
+    const typing = createTypingRefresh(12345, "fake-token", 50, () => {});
+    await new Promise((r) => setTimeout(r, 120));
+    typing.stop();
   });
 });

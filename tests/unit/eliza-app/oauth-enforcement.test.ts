@@ -41,7 +41,7 @@ function extractMessagesFromWebhook(): {
   );
 
   const telegramMatch = telegramWebhook.match(
-    /👋 \*Welcome to Eliza!\*/
+    /I'm Eliza — I build automations for you/
   );
 
   const statusMatch = telegramWebhook.match(
@@ -50,7 +50,7 @@ function extractMessagesFromWebhook(): {
 
   return {
     telegramRejection: telegramMatch
-      ? "👋 *Welcome to Eliza!*\n\nI'm your personal AI assistant. To get started, connect your Telegram account — it only takes a few seconds."
+      ? "Hey there! I'm Eliza — I build automations for you right here in this chat.\n\nTo get started, I need to link your account. Takes 30 seconds:"
       : "",
     statusNotConnected: statusMatch
       ? "*Account Status*\n\n❌ Not connected yet"
@@ -221,7 +221,7 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection.toLowerCase()).toContain("telegram");
+    expect(messages.telegramRejection.toLowerCase()).toContain("eliza");
   });
 
   test("Status not connected message exists in webhook", () => {
@@ -229,8 +229,8 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
     expect(messages.statusNotConnected.toLowerCase()).toContain("not connected");
   });
 
-  test("Telegram rejection message is welcoming (contains emoji)", () => {
-    expect(messages.telegramRejection).toContain("👋");
+  test("Telegram rejection message prompts account linking", () => {
+    expect(messages.telegramRejection.toLowerCase()).toContain("link your account");
   });
 
   test("Get Started URL is passed as button in webhook code", () => {
