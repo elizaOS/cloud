@@ -5,7 +5,6 @@
  * - CRON_SECRET authentication (timing-safe comparison)
  * - Successful computation flow
  * - Error handling
- * - Both GET and POST methods
  */
 
 import { describe, test, expect, beforeEach, mock, afterEach } from "bun:test";
@@ -34,20 +33,17 @@ mock.module("@/lib/utils/logger", () => ({
 
 // ─── Import after mocks ──────────────────────────────────────────────────────
 
-import { GET, POST } from "@/app/api/cron/compute-metrics/route";
+import { GET } from "@/app/api/cron/compute-metrics/route";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeRequest(
-  method: "GET" | "POST",
-  secret?: string,
-): NextRequest {
+function makeRequest(secret?: string): NextRequest {
   const headers = new Headers();
   if (secret) {
     headers.set("authorization", `Bearer ${secret}`);
   }
   return new NextRequest("http://localhost:3000/api/cron/compute-metrics", {
-    method,
+    method: "GET",
     headers,
   });
 }
@@ -71,7 +67,7 @@ describe("Compute Metrics Cron", () => {
 
   describe("authentication", () => {
     test("rejects request with no authorization header", async () => {
-      const req = makeRequest("GET");
+      const req = makeRequest();
       const res = await GET(req);
       expect(res.status).toBe(401);
       const body = await res.json();
@@ -79,26 +75,26 @@ describe("Compute Metrics Cron", () => {
     });
 
     test("rejects request with wrong secret", async () => {
-      const req = makeRequest("GET", "wrong-secret");
+      const req = makeRequest("wrong-secret");
       const res = await GET(req);
       expect(res.status).toBe(401);
     });
 
     test("rejects request when CRON_SECRET is not set", async () => {
       delete process.env.CRON_SECRET;
-      const req = makeRequest("GET", "any-secret");
+      const req = makeRequest("any-secret");
       const res = await GET(req);
       expect(res.status).toBe(401);
     });
 
     test("rejects request with different-length secret", async () => {
-      const req = makeRequest("GET", "short");
+      const req = makeRequest("short");
       const res = await GET(req);
       expect(res.status).toBe(401);
     });
 
     test("accepts request with valid secret", async () => {
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       const res = await GET(req);
       expect(res.status).toBe(200);
     });
@@ -106,26 +102,25 @@ describe("Compute Metrics Cron", () => {
 
   describe("computation", () => {
     test("calls computeDailyMetrics with yesterday's date", async () => {
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       await GET(req);
 
       expect(mockComputeDailyMetrics).toHaveBeenCalledTimes(1);
       const calledWith = mockComputeDailyMetrics.mock.calls[0][0] as Date;
-      const now = new Date();
       const yesterday = new Date();
       yesterday.setUTCDate(yesterday.getUTCDate() - 1);
       expect(calledWith.getUTCDate()).toBe(yesterday.getUTCDate());
     });
 
     test("calls computeRetentionCohorts with yesterday's date", async () => {
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       await GET(req);
 
       expect(mockComputeRetentionCohorts).toHaveBeenCalledTimes(1);
     });
 
     test("returns success response with date and duration", async () => {
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       const res = await GET(req);
       const body = await res.json();
 
@@ -141,7 +136,7 @@ describe("Compute Metrics Cron", () => {
         new Error("DB connection failed"),
       );
 
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       const res = await GET(req);
       expect(res.status).toBe(500);
       const body = await res.json();
@@ -152,7 +147,7 @@ describe("Compute Metrics Cron", () => {
     test("returns generic error for non-Error exceptions", async () => {
       mockComputeDailyMetrics.mockRejectedValue("unknown error");
 
-      const req = makeRequest("GET", VALID_SECRET);
+      const req = makeRequest(VALID_SECRET);
       const res = await GET(req);
       expect(res.status).toBe(500);
       const body = await res.json();
@@ -160,17 +155,4 @@ describe("Compute Metrics Cron", () => {
     });
   });
 
-  describe("HTTP methods", () => {
-    test("GET handler works", async () => {
-      const req = makeRequest("GET", VALID_SECRET);
-      const res = await GET(req);
-      expect(res.status).toBe(200);
-    });
-
-    test("POST handler works", async () => {
-      const req = makeRequest("POST", VALID_SECRET);
-      const res = await POST(req);
-      expect(res.status).toBe(200);
-    });
-  });
 });
