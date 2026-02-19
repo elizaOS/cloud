@@ -12,6 +12,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { userMetricsService } from "@/lib/services/user-metrics";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
@@ -56,6 +58,8 @@ async function handleComputeMetrics(
       userMetricsService.computeDailyMetrics(yesterday),
       userMetricsService.computeRetentionCohorts(yesterday),
     ]);
+
+    await cache.delPattern(CacheKeys.userMetrics.pattern());
 
     const duration = Date.now() - startTime;
     logger.info("[Compute Metrics] Completed", { duration });
