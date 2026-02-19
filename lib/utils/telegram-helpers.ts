@@ -119,7 +119,7 @@ export function parseCommand(text: string): {
   };
 }
 
-const URL_REGEX = /https?:\/\/[^\s)>\]]+[^\s)>\].,;:!?"']/g;
+const URL_REGEX = /https?:\/\/[^\s)>\]]+[^\s)>\].,;:!?"']/;
 
 const AUTH_URL_PATTERNS: [string, (url: string) => boolean][] = [
   ["Connect Google",      (u) => u.includes("accounts.google") || (u.includes("/auth/") && u.includes("google"))],
@@ -140,7 +140,7 @@ function isAuthUrl(url: string): boolean {
 }
 
 export function extractAuthUrls(text: string): { label: string; url: string }[] {
-  const matches = text.match(URL_REGEX);
+  const matches = text.match(new RegExp(URL_REGEX, "g"));
   if (!matches) return [];
 
   return matches.reduce<{ label: string; url: string }[]>((buttons, url) => {
@@ -153,7 +153,7 @@ export function extractAuthUrls(text: string): { label: string; url: string }[] 
 
 export function stripAuthUrlsFromText(text: string): string {
   return text
-    .replace(URL_REGEX, (url) => isAuthUrl(url) ? "" : url)
+    .replace(new RegExp(URL_REGEX, "g"), (url) => isAuthUrl(url) ? "" : url)
     .replace(/Connect[\w\s/]+:\s*/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

@@ -193,7 +193,7 @@ async function handleMessage(message: Message): Promise<boolean> {
         })
       : null;
 
-    await sendTypingIndicator(message.chat.id);
+    if (BOT_TOKEN) await sendTypingIndicator(message.chat.id);
 
     const userContext = await userContextService.buildContext({
       user: { ...userWithOrg, organization } as never,
@@ -278,12 +278,27 @@ async function handleMessage(message: Message): Promise<boolean> {
           error: sendError instanceof Error ? sendError.message : String(sendError),
         });
       }
+      // Intentional: mark as processed even on agent failure to prevent infinite Telegram retries.
+      // Transient failures (lock contention) return false above to allow retry.
       return true;
     } finally {
       if (runtime.character) {
         runtime.character.system = originalSystemPrompt;
       }
     }
+  } catch (setupError) {
+    logger.error("[ElizaApp TelegramWebhook] Setup failed", {
+      error: setupError instanceof Error ? setupError.message : String(setupError),
+      chatId: message.chat.id,
+    });
+    try {
+      await sendTelegramMessage(
+        message.chat.id,
+        "Something went wrong on our end. Please try again in a moment.",
+        message.message_id,
+      );
+    } catch { /* best-effort delivery */ }
+    return false;
   } finally {
     typing?.stop();
     await lock.release();

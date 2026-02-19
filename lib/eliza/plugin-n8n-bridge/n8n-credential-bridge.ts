@@ -33,6 +33,7 @@ import {
   getClientSecret,
 } from "@/lib/services/oauth/provider-registry";
 import { lookupUser, isUserLookupError } from "@/lib/eliza/plugin-oauth/utils";
+import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { apiKeysService } from "@/lib/services/api-keys";
 
 import { mapCredTypeToCloudPlatform } from "./oauth-cred-map";
@@ -307,7 +308,7 @@ export class N8nCredentialBridge extends Service {
       }
     }
 
-    const appBotToken = process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN;
+    const appBotToken = elizaAppConfig.telegram.botToken;
     if (appBotToken) {
       logger.info("[N8nCredentialBridge] Telegram credential resolved from app bot token (fallback)");
       return {
