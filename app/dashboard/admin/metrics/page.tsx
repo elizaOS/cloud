@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
 import { AdminMetricsWrapper } from "@/components/admin/admin-metrics-wrapper";
@@ -14,14 +15,14 @@ export default async function AdminMetricsPage() {
   const user = await requireAuthWithOrg();
 
   if (!user.wallet_address) {
-    throw new Error("Wallet connection required for admin access");
+    redirect("/dashboard");
   }
 
   const { isAdmin, role } = await adminService.getAdminStatus(
     user.wallet_address,
   );
   if (!isAdmin || role !== "super_admin") {
-    throw new Error("Only super admins can access engagement metrics");
+    redirect("/dashboard");
   }
 
   return <AdminMetricsWrapper />;
