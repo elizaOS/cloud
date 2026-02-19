@@ -221,7 +221,7 @@ async function handleMessage(message: Message): Promise<boolean> {
       `- The user's Telegram chat ID for automations is: ${message.chat.id}`,
       "- Keep responses concise — Telegram is a mobile-first chat interface.",
       "- Use short paragraphs. Avoid walls of text.",
-      `- The user's name is ${message.from.first_name || "there"}.`,
+      `- The user's name is ${(message.from.first_name || "there").replace(/\p{Cc}/gu, "").slice(0, 64)}.`,
     ].join("\n");
 
     // Save original prompt so we can restore it in finally (may be undefined if .system was unset)
@@ -303,7 +303,9 @@ async function handleMessage(message: Message): Promise<boolean> {
         message.message_id,
       );
     } catch { /* best-effort delivery */ }
-    return false;
+    // Return true to mark as processed — we already sent an error message to the user.
+    // Returning false would trigger a Telegram retry, causing duplicate messages.
+    return true;
   } finally {
     typing?.stop();
     await lock.release();
