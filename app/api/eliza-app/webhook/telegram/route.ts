@@ -22,6 +22,7 @@ import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { extractAuthUrls, stripAuthUrlsFromText, splitMessage, TELEGRAM_RATE_LIMITS } from "@/lib/utils/telegram-helpers";
 import type { Update, Message } from "telegraf/types";
 
 export const dynamic = "force-dynamic";
@@ -29,70 +30,121 @@ export const maxDuration = 120;
 
 const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
-const { phoneNumber: BLOOIO_PHONE } = elizaAppConfig.blooio;
+
+async function callTelegramApi(payload: Record<string, unknown>): Promise<Response> {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function sendTypingIndicator(chatId: number): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action: "typing" }),
+    });
+  } catch (error) {
+    logger.debug("[ElizaApp TelegramWebhook] Typing indicator failed", {
+      chatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function sendWithMarkdownFallback(payload: Record<string, unknown>): Promise<boolean> {
+  const response = await callTelegramApi(payload);
+  if (response.ok) return true;
+
+  const firstError = await response.text();
+  if (firstError.includes("can't parse entities")) {
+    logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", {
+      chatId: payload.chat_id,
+    });
+    const { parse_mode: _, ...plain } = payload;
+    const retryResponse = await callTelegramApi(plain);
+    if (retryResponse.ok) return true;
+
+    const retryError = await retryResponse.text();
+    logger.error("[ElizaApp TelegramWebhook] Failed to send message (plain-text retry also failed)", {
+      chatId: payload.chat_id,
+      error: retryError,
+    });
+    return false;
+  }
+
+  logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
+    chatId: payload.chat_id,
+    error: firstError,
+  });
+  return false;
+}
 
 async function sendTelegramMessage(
   chatId: number,
   text: string,
   replyToMessageId?: number,
 ): Promise<boolean> {
-  const response = await fetch(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        reply_to_message_id: replyToMessageId,
-        parse_mode: "Markdown",
-      }),
-    },
-  );
+  const chunks = splitMessage(text, TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH);
+  if (chunks.length === 0) return true;
 
-  if (!response.ok) {
-    const error = await response.text();
-    logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
-      chatId,
-      error,
+  for (let i = 0; i < chunks.length; i++) {
+    const ok = await sendWithMarkdownFallback({
+      chat_id: chatId,
+      text: chunks[i],
+      reply_to_message_id: i === 0 ? replyToMessageId : undefined,
+      parse_mode: "Markdown",
     });
-    return false;
+    if (!ok) return false;
   }
-
   return true;
 }
 
-async function handleMessage(message: Message): Promise<boolean> {
-  if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
-  if (message.chat.type !== "private") return true; // Not applicable, mark as processed
+async function sendTelegramMessageWithButtons(
+  chatId: number,
+  text: string,
+  buttons: Array<{ label: string; url: string }>,
+  replyToMessageId?: number,
+): Promise<boolean> {
+  return sendWithMarkdownFallback({
+    chat_id: chatId,
+    text,
+    reply_to_message_id: replyToMessageId,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: buttons.map((b) => [{ text: b.label, url: b.url }]),
+    },
+  });
+}
 
-  // Defensive check - message.from should exist in private chats but validate anyway
-  if (!message.from) {
-    logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
-    return true; // Not applicable, mark as processed
-  }
+async function handleMessage(message: Message): Promise<boolean> {
+  if (!("text" in message) || !message.text) return true;
+  if (message.chat.type !== "private") return true;
+  if (!message.from) return true;
 
   const telegramUserId = String(message.from.id);
   const text = message.text.trim();
 
   if (text.startsWith("/")) {
-    await handleCommand(message);
-    return true; // Command handled, mark as processed
+    await handleCommand(message as Message & { text: string });
+    return true;
   }
 
-  // Look up user - they must have completed OAuth first
   const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
   if (!userWithOrg?.organization) {
-    await sendTelegramMessage(
+    await sendTelegramMessageWithButtons(
       message.chat.id,
-      `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
+      `👋 *Welcome to Eliza!*\n\nI'm your personal AI assistant. To get started, connect your Telegram account — it only takes a few seconds.`,
+      [{ label: "Get Started", url: `${elizaAppConfig.appUrl}/get-started` }],
     );
-    return true; // Mark as processed - don't retry
+    return true;
   }
   const { organization } = userWithOrg;
 
   const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
-  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
+  const entityId = userWithOrg.id;
 
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {
@@ -136,6 +188,8 @@ async function handleMessage(message: Message): Promise<boolean> {
   }
 
   try {
+    await sendTypingIndicator(message.chat.id);
+
     const userContext = await userContextService.buildContext({
       user: { ...userWithOrg, organization } as never,
       isAnonymous: false,
@@ -166,8 +220,27 @@ async function handleMessage(message: Message): Promise<boolean> {
         ? responseContent
         : responseContent?.text || "";
 
-    if (responseText) {
-      await sendTelegramMessage(message.chat.id, responseText, message.message_id);
+    if (!responseText) {
+      logger.warn("[ElizaApp TelegramWebhook] Agent returned empty response", { roomId });
+      await sendTelegramMessage(
+        message.chat.id,
+        "I processed your message but didn't have a response. Could you try rephrasing?",
+        message.message_id,
+      );
+    } else {
+      const authButtons = extractAuthUrls(responseText);
+      if (authButtons.length > 0) {
+        const cleanedText = stripAuthUrlsFromText(responseText) ||
+          "Tap the button below to connect your account:";
+        await sendTelegramMessageWithButtons(
+          message.chat.id,
+          `${cleanedText}\n\nOnce you've authorized, come back and say *done* so I can verify.`,
+          authButtons,
+          message.message_id,
+        );
+      } else {
+        await sendTelegramMessage(message.chat.id, responseText, message.message_id);
+      }
     }
     return true;
   } catch (error) {
@@ -175,31 +248,82 @@ async function handleMessage(message: Message): Promise<boolean> {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
+    await sendTelegramMessage(
+      message.chat.id,
+      "Something went wrong on my end. Please try again in a moment.",
+      message.message_id,
+    );
     return true; // Processing attempted, mark as processed to avoid infinite retry
   } finally {
     await lock.release();
   }
 }
 
-async function handleCommand(message: Message): Promise<void> {
-  if (!("text" in message)) return;
+async function sendCommandResponse(
+  chatId: number,
+  command: string,
+  send: () => Promise<boolean>,
+): Promise<void> {
+  const ok = await send();
+  if (!ok) {
+    logger.warn("[ElizaApp TelegramWebhook] Command response failed to deliver", { chatId, command });
+  }
+}
 
-  // Trim to handle leading whitespace (matching handleMessage's detection logic)
-  const command = message.text!.trim().split(" ")[0].toLowerCase();
+async function handleCommand(message: Message & { text: string }): Promise<void> {
+  const command = message.text.trim().split(" ")[0].toLowerCase();
   const chatId = message.chat.id;
 
   switch (command) {
-    case "/start":
-      await sendTelegramMessage(
-        chatId,
-        `👋 *Welcome to Eliza!*\n\nI'm your AI assistant. Just send me a message and I'll help you with whatever you need.\n\nYou can also connect via iMessage by texting: \`${BLOOIO_PHONE}\``,
-      );
+    case "/start": {
+      const telegramUserId = String(message.from?.id);
+      const user = await elizaAppUserService.getByTelegramId(telegramUserId);
+
+      if (user?.organization) {
+        await sendCommandResponse(chatId, command, () =>
+          sendTelegramMessage(
+            chatId,
+            "👋 *Welcome back!*\n\n" +
+            "I'm Eliza — your personal AI assistant. Here's what I can help you with:\n\n" +
+            '🔗 *Connect accounts* — "connect google" or "connect twitter"\n' +
+            "📧 *Manage email* — read, draft, and send emails\n" +
+            "📅 *Calendar* — check and create events\n" +
+            "📝 *Tasks* — manage Linear, Asana, or Jira tasks\n" +
+            "💬 *Chat* — ask me anything\n\n" +
+            "Just type what you need — no special commands required.",
+          ),
+        );
+      } else {
+        await sendCommandResponse(chatId, command, () =>
+          sendTelegramMessageWithButtons(
+            chatId,
+            "👋 *Welcome to Eliza!*\n\n" +
+            "I'm your personal AI assistant. I can manage your email, calendar, tasks, and much more — all through this chat.\n\n" +
+            "To get started, connect your Telegram account:",
+            [{ label: "Get Started", url: `${elizaAppConfig.appUrl}/get-started` }],
+          ),
+        );
+      }
       break;
+    }
 
     case "/help":
-      await sendTelegramMessage(
-        chatId,
-        `*Available Commands*\n\n/start - Start the bot\n/help - Show this help message\n/status - Check your account status\n\nJust send me a message to chat!`,
+      await sendCommandResponse(chatId, command, () =>
+        sendTelegramMessage(
+          chatId,
+          "*What I Can Do*\n\n" +
+          '🔗 *Connect services* — say "connect google", "connect twitter", etc.\n' +
+          '📧 *Email* — "read my emails", "draft an email to..."\n' +
+          '📅 *Calendar* — "what\'s on my calendar today?"\n' +
+          '📝 *Tasks* — "create a task in Linear", "my open issues"\n' +
+          '🔍 *Search* — "search the web for..."\n' +
+          '🖼 *Images* — "generate an image of..."\n\n' +
+          "*Commands*\n" +
+          "/start — Welcome message\n" +
+          "/help — This help guide\n" +
+          "/status — Account & connection status\n\n" +
+          "Or just type naturally — I'll figure out the rest.",
+        ),
       );
       break;
 
@@ -209,23 +333,30 @@ async function handleCommand(message: Message): Promise<void> {
 
       if (user) {
         const creditBalance = user.organization?.credit_balance || "0.00";
-        await sendTelegramMessage(
-          chatId,
-          `*Account Status*\n\n✅ Connected\n💰 Credits: $${creditBalance}\n🆔 User ID: \`${user.id.substring(0, 8)}...\``,
+        await sendCommandResponse(chatId, command, () =>
+          sendTelegramMessage(
+            chatId,
+            `*Account Status*\n\n✅ Connected\n💰 Credits: $${creditBalance}\n🆔 User ID: \`${user.id.substring(0, 8)}...\``,
+          ),
         );
       } else {
-        await sendTelegramMessage(
-          chatId,
-          `*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: ${elizaAppConfig.appUrl}/get-started`,
+        await sendCommandResponse(chatId, command, () =>
+          sendTelegramMessageWithButtons(
+            chatId,
+            "*Account Status*\n\n❌ Not connected yet",
+            [{ label: "Connect Now", url: `${elizaAppConfig.appUrl}/get-started` }],
+          ),
         );
       }
       break;
     }
 
     default:
-      await sendTelegramMessage(
-        chatId,
-        `I don't recognize that command. Type /help to see available commands, or just send me a message!`,
+      await sendCommandResponse(chatId, command, () =>
+        sendTelegramMessage(
+          chatId,
+          `I don't recognize that command. Type /help to see what I can do, or just send me a message!`,
+        ),
       );
   }
 }
@@ -263,7 +394,15 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
     }
   }
 
-  const update: Update = await request.json();
+  let update: Update;
+  try {
+    update = await request.json();
+  } catch (error) {
+    logger.error("[ElizaApp TelegramWebhook] Failed to parse request body", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
   const idempotencyKey = `telegram:eliza-app:${update.update_id}`;
 
   if (await isAlreadyProcessed(idempotencyKey)) {

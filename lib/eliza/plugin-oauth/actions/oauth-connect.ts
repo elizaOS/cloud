@@ -38,7 +38,7 @@ export const oauthConnectAction: ActionWithParams = {
     "LINK_MICROSOFT", "LINK_OUTLOOK",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+    "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
   parameters: {
     platform: {
@@ -131,7 +131,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const text = `Connect ${platformName}: ${result.authUrl}\n\nWhen you've finished authorizing, say "done" and I'll verify the connection.`;
+    const text = `Here's your ${platformName} authorization link:\n\n${result.authUrl}\n\nTap the link above to authorize. When you're done, come back here and say "done" — I'll confirm the connection right away.`;
 
     if (callback) await callback({ text, actions: [actionName] });
 

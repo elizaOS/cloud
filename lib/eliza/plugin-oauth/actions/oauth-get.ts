@@ -74,14 +74,14 @@ export const oauthGetAction: ActionWithParams = {
         const active = connections.find((c) => c.status === "active");
         const identifier = active ? formatConnectionIdentifier(active) : "";
         const text = identifier
-          ? `${platformName} connected! Logged in as ${identifier}.`
-          : `${platformName} connected!`;
+          ? `${platformName} is connected! Logged in as ${identifier}.\n\nYou're all set — I can now help you with ${platformName} tasks. What would you like to do?`
+          : `${platformName} is connected!\n\nYou're all set — what would you like to do with it?`;
 
         if (callback) await callback({ text, actions: [actionName] });
         return { text, success: true, data: { actionName, connected: true } };
       }
 
-      const text = `${platformName} is not connected yet. Complete the authorization in your browser, then try again.`;
+      const text = `${platformName} isn't connected yet. Say "connect ${platform}" and I'll generate a fresh link for you.`;
       if (callback) await callback({ text, actions: [actionName] });
       return { text, success: true, data: { actionName, connected: false } };
     }
@@ -91,7 +91,7 @@ export const oauthGetAction: ActionWithParams = {
     const active = connections.filter((c) => c.status === "active");
 
     if (active.length === 0) {
-      const text = "You don't have any connected accounts. Say 'connect google' to get started.";
+      const text = "You don't have any connected accounts yet. Try saying \"connect google\" or \"connect twitter\" to get started — it only takes a few seconds.";
       if (callback) await callback({ text, actions: [actionName] });
       return { text, success: true, data: { actionName, connections: [] } };
     }

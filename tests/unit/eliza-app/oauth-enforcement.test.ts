@@ -40,22 +40,20 @@ function extractMessagesFromWebhook(): {
     "utf-8"
   );
 
-  // Extract Telegram rejection message (OAuth enforcement - unregistered users)
   const telegramMatch = telegramWebhook.match(
-    /"👋 Welcome! To chat with Eliza, please connect your Telegram first:\\n\\nhttps:\/\/eliza\.app\/get-started"/
+    /👋 \*Welcome to Eliza!\*/
   );
 
-  // Extract status not connected message
   const statusMatch = telegramWebhook.match(
-    /Connect your Telegram at: https:\/\/eliza\.app\/get-started/
+    /Not connected yet/
   );
 
   return {
     telegramRejection: telegramMatch
-      ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
+      ? "👋 *Welcome to Eliza!*\n\nI'm your personal AI assistant. To get started, connect your Telegram account — it only takes a few seconds."
       : "",
     statusNotConnected: statusMatch
-      ? "Connect your Telegram at: https://eliza.app/get-started"
+      ? "*Account Status*\n\n❌ Not connected yet"
       : "",
   };
 }
@@ -223,17 +221,25 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection).toContain("https://eliza.app/get-started");
     expect(messages.telegramRejection.toLowerCase()).toContain("telegram");
   });
 
   test("Status not connected message exists in webhook", () => {
     expect(messages.statusNotConnected).not.toBe("");
-    expect(messages.statusNotConnected).toContain("https://eliza.app/get-started");
+    expect(messages.statusNotConnected.toLowerCase()).toContain("not connected");
   });
 
   test("Telegram rejection message is welcoming (contains emoji)", () => {
     expect(messages.telegramRejection).toContain("👋");
+  });
+
+  test("Get Started URL is passed as button in webhook code", () => {
+    const webhookCode = readFileSync(
+      join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
+      "utf-8",
+    );
+    expect(webhookCode).toContain("get-started");
+    expect(webhookCode).toContain("sendTelegramMessageWithButtons");
   });
 });
 
