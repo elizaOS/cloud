@@ -746,7 +746,7 @@ class UserMetricsService {
   ): Promise<number> {
     if (userIds.length === 0) return 0;
 
-    const [webRows, elizaRows] = await Promise.all([
+    const [webRows, elizaRows, phoneRows] = await Promise.all([
       dbRead
         .selectDistinct({ userId: conversations.user_id })
         .from(conversationMessages)
@@ -777,11 +777,29 @@ class UserMetricsService {
             inArray(participantTable.entityId, userIds),
           ),
         ),
+
+      dbRead
+        .selectDistinct({ userId: users.id })
+        .from(phoneMessageLog)
+        .innerJoin(
+          agentPhoneNumbers,
+          eq(phoneMessageLog.phone_number_id, agentPhoneNumbers.id),
+        )
+        .innerJoin(users, eq(users.phone_number, phoneMessageLog.from_number))
+        .where(
+          and(
+            eq(phoneMessageLog.direction, "inbound"),
+            gte(phoneMessageLog.created_at, dayStart),
+            lt(phoneMessageLog.created_at, dayEnd),
+            inArray(users.id, userIds),
+          ),
+        ),
     ]);
 
     const retainedSet = new Set<string>();
     for (const r of webRows) retainedSet.add(r.userId);
     for (const r of elizaRows) retainedSet.add(r.userId);
+    for (const r of phoneRows) retainedSet.add(r.userId);
 
     return retainedSet.size;
   }
