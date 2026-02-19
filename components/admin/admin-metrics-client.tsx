@@ -29,7 +29,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { format } from "date-fns";
 import {
   ChartContainer,
   ChartTooltip,
@@ -119,6 +118,18 @@ const TIME_RANGES = [
   { value: "90d", label: "90 days" },
 ];
 
+const MONTH_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Format a date string using UTC components to avoid off-by-one day labels. */
+function formatDateUTC(dateStr: string, withYear = false): string {
+  const d = new Date(dateStr);
+  const base = `${MONTH_ABBR[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  return withYear ? `${base}, ${d.getUTCFullYear()}` : base;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -172,8 +183,8 @@ export function AdminMetricsClient() {
     return overview.dailyTrend
       .filter((d) => d.platform === null)
       .map((d) => ({
-        date: format(new Date(d.date), "MMM d"),
-        fullDate: format(new Date(d.date), "MMM d, yyyy"),
+        date: formatDateUTC(d.date),
+        fullDate: formatDateUTC(d.date, true),
         dau: d.dau,
         messages: d.total_messages,
         signups: d.new_signups,
@@ -198,7 +209,7 @@ export function AdminMetricsClient() {
       .filter((c) => c.platform === null && c.cohort_size > 0)
       .slice(-30)
       .map((c) => ({
-        date: format(new Date(c.cohort_date), "MMM d"),
+        date: formatDateUTC(c.cohort_date),
         cohortSize: c.cohort_size,
         d1:
           c.d1_retained != null
