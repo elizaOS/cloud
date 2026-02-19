@@ -523,26 +523,28 @@ class UserMetricsService {
     const cohortDate = new Date(dayStart.getTime() - daysAgo * 86_400_000);
     const cohortEnd = new Date(cohortDate.getTime() + 86_400_000);
 
-    const cohortUsers = await dbRead
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        and(
-          eq(users.is_anonymous, false),
-          gte(users.created_at, cohortDate),
-          lt(users.created_at, cohortEnd),
-        ),
-      );
+    const cohortConditions = and(
+      eq(users.is_anonymous, false),
+      gte(users.created_at, cohortDate),
+      lt(users.created_at, cohortEnd),
+    );
 
-    const cohortSize = cohortUsers.length;
+    const [sizeRow] = await dbRead
+      .select({ cnt: count() })
+      .from(users)
+      .where(cohortConditions);
+    const cohortSize = Number(sizeRow?.cnt ?? 0);
     if (cohortSize === 0) return;
 
-    // TODO: for large cohorts (thousands of users), replace inArray with a
-    // JOIN against a VALUES list or temp table to avoid huge IN (...) clauses.
-    const cohortUserIds = cohortUsers.map((r) => r.id);
+    // Use a subquery so cohort user IDs stay in the database and avoid
+    // hitting PostgreSQL's ~65k bound parameter limit for large cohorts.
+    const cohortUserIdSq = dbRead
+      .select({ id: users.id })
+      .from(users)
+      .where(cohortConditions);
 
     const retainedCount = await this._countRetainedUsers(
-      cohortUserIds,
+      cohortUserIdSq,
       dayStart,
       new Date(dayStart.getTime() + 86_400_000),
     );
@@ -737,15 +739,15 @@ class UserMetricsService {
   }
 
   /**
-   * Count how many of the given user IDs had activity on a given day.
+   * Count how many users from the cohort subquery had activity on a given day.
+   * Accepts a Drizzle subquery (SELECT id FROM users WHERE ...) so that
+   * cohort IDs remain in the database and avoid the ~65k parameter limit.
    */
   private async _countRetainedUsers(
-    userIds: string[],
+    cohortUserIdSq: ReturnType<typeof dbRead.select>,
     dayStart: Date,
     dayEnd: Date,
   ): Promise<number> {
-    if (userIds.length === 0) return 0;
-
     const [webRows, elizaRows, phoneRows] = await Promise.all([
       dbRead
         .selectDistinct({ userId: conversations.user_id })
@@ -759,7 +761,7 @@ class UserMetricsService {
             eq(conversationMessages.role, "user"),
             gte(conversationMessages.created_at, dayStart),
             lt(conversationMessages.created_at, dayEnd),
-            inArray(conversations.user_id, userIds),
+            inArray(conversations.user_id, cohortUserIdSq),
           ),
         ),
 
@@ -774,7 +776,7 @@ class UserMetricsService {
             gte(memoryTable.createdAt, dayStart),
             lt(memoryTable.createdAt, dayEnd),
             ne(participantTable.entityId, roomTable.agentId),
-            inArray(participantTable.entityId, userIds),
+            inArray(participantTable.entityId, cohortUserIdSq),
           ),
         ),
 
@@ -791,7 +793,7 @@ class UserMetricsService {
             eq(phoneMessageLog.direction, "inbound"),
             gte(phoneMessageLog.created_at, dayStart),
             lt(phoneMessageLog.created_at, dayEnd),
-            inArray(users.id, userIds),
+            inArray(users.id, cohortUserIdSq),
           ),
         ),
     ]);
