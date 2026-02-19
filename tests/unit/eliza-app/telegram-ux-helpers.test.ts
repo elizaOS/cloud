@@ -804,21 +804,30 @@ describe("isSimpleMessage", () => {
 describe("createTypingRefresh", () => {
   test("returns an object with a stop function", () => {
     const typing = createTypingRefresh(12345, "fake-token", 60000);
-    expect(typing).toHaveProperty("stop");
-    expect(typeof typing.stop).toBe("function");
-    typing.stop();
+    try {
+      expect(typing).toHaveProperty("stop");
+      expect(typeof typing.stop).toBe("function");
+    } finally {
+      typing.stop();
+    }
   });
 
   test("does not throw when called with empty bot token", () => {
     const typing = createTypingRefresh(12345, "", 60000);
-    expect(typing).toHaveProperty("stop");
-    typing.stop();
+    try {
+      expect(typing).toHaveProperty("stop");
+    } finally {
+      typing.stop();
+    }
   });
 
   test("does not throw when called with negative chat ID", () => {
     const typing = createTypingRefresh(-100123456, "fake-token", 60000);
-    expect(typing).toHaveProperty("stop");
-    typing.stop();
+    try {
+      expect(typing).toHaveProperty("stop");
+    } finally {
+      typing.stop();
+    }
   });
 
   test("stop() can be called multiple times without error", () => {
@@ -830,7 +839,10 @@ describe("createTypingRefresh", () => {
 
   test("accepts onError callback without crashing", () => {
     const typing = createTypingRefresh(12345, "fake-token", 60000, () => {});
-    expect(typing).toHaveProperty("stop");
-    typing.stop();
+    try {
+      expect(typing).toHaveProperty("stop");
+    } finally {
+      typing.stop();
+    }
   });
 });

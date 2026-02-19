@@ -111,19 +111,19 @@ export const oauthGetAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "done" } },
-      { name: "{{name2}}", content: { text: "Google connected! Logged in as user@gmail.com.", actions: ["OAUTH_GET"] } },
+      { name: "{{name2}}", content: { text: "Google is connected! Logged in as user@gmail.com.\n\nYou're all set — I can now help you with Google tasks. What would you like to do?", actions: ["OAUTH_GET"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "is my google connected?" } },
-      { name: "{{name2}}", content: { text: "Google connected! Logged in as user@gmail.com.", actions: ["OAUTH_GET"] } },
+      { name: "{{name2}}", content: { text: "Google is connected! Logged in as user@gmail.com.\n\nYou're all set — I can now help you with Google tasks. What would you like to do?", actions: ["OAUTH_GET"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "is my twitter connected?" } },
-      { name: "{{name2}}", content: { text: "Twitter connected! Logged in as @username.", actions: ["OAUTH_GET"] } },
+      { name: "{{name2}}", content: { text: "Twitter is connected! Logged in as @username.\n\nYou're all set — I can now help you with Twitter tasks. What would you like to do?", actions: ["OAUTH_GET"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "check my x connection" } },
-      { name: "{{name2}}", content: { text: "Twitter connected! Logged in as @username.", actions: ["OAUTH_GET"] } },
+      { name: "{{name2}}", content: { text: "Twitter is connected! Logged in as @username.\n\nYou're all set — I can now help you with Twitter tasks. What would you like to do?", actions: ["OAUTH_GET"] } },
     ],
   ] as ActionExample[][],
 };
