@@ -374,17 +374,17 @@ class UserMetricsService {
       this.getRetentionCohorts(rangeStart, now),
     ]);
 
-    // Compute avg messages per user from the most recent daily_metrics row
+    // Weighted average: totalMessages / totalDAU avoids the averaging-averages
+    // problem where low-DAU days get the same weight as high-DAU days.
     const recentAll = dailyTrend.filter(
       (d) => d.platform === null && d.dau > 0,
     );
-    const avgMessagesPerUser =
-      recentAll.length > 0
-        ? recentAll.reduce(
-            (s, d) => s + parseFloat(d.messages_per_user ?? "0"),
-            0,
-          ) / recentAll.length
-        : 0;
+    const totalMessages = recentAll.reduce(
+      (s, d) => s + d.total_messages,
+      0,
+    );
+    const totalDau = recentAll.reduce((s, d) => s + d.dau, 0);
+    const avgMessagesPerUser = totalDau > 0 ? totalMessages / totalDau : 0;
 
     return {
       dau: dauResult.total,
