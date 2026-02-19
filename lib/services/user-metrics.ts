@@ -247,10 +247,12 @@ class UserMetricsService {
       .where(eq(users.is_anonymous, false));
     const total_users = Number(totalRow?.cnt ?? 0);
 
-    const byServiceRows = await dbRead
-      .select({
+    // Single query: get distinct (user_id, platform) pairs, then derive both
+    // per-service counts and total connected users in application code.
+    const credRows = await dbRead
+      .selectDistinct({
+        userId: platformCredentials.user_id,
         platform: platformCredentials.platform,
-        cnt: countDistinct(platformCredentials.user_id),
       })
       .from(platformCredentials)
       .where(
@@ -258,24 +260,15 @@ class UserMetricsService {
           eq(platformCredentials.status, "active"),
           sql`${platformCredentials.user_id} IS NOT NULL`,
         ),
-      )
-      .groupBy(platformCredentials.platform);
+      );
 
     const byService: Record<string, number> = {};
-    for (const row of byServiceRows) {
-      byService[row.platform] = Number(row.cnt);
+    const connectedUserIds = new Set<string>();
+    for (const row of credRows) {
+      byService[row.platform] = (byService[row.platform] ?? 0) + 1;
+      connectedUserIds.add(row.userId!);
     }
-
-    const [connectedRow] = await dbRead
-      .select({ cnt: countDistinct(platformCredentials.user_id) })
-      .from(platformCredentials)
-      .where(
-        and(
-          eq(platformCredentials.status, "active"),
-          sql`${platformCredentials.user_id} IS NOT NULL`,
-        ),
-      );
-    const connected_users = Number(connectedRow?.cnt ?? 0);
+    const connected_users = connectedUserIds.size;
 
     return {
       total_users,
