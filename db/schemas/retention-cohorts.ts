@@ -7,6 +7,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { MetricsPlatform } from "./daily-metrics";
 
 /**
  * Cohort-based retention metrics.
@@ -20,7 +21,7 @@ export const retentionCohorts = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     cohort_date: timestamp("cohort_date").notNull(),
-    platform: text("platform"),
+    platform: text("platform").$type<MetricsPlatform | null>(),
     cohort_size: integer("cohort_size").notNull(),
     d1_retained: integer("d1_retained"),
     d7_retained: integer("d7_retained"),
