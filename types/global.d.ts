@@ -24,6 +24,8 @@ interface Window {
  * @elizaos/plugin-sql/node - Database adapter factory
  * Type definitions are missing from the published package
  */
+declare module "bs58";
+
 declare module "@elizaos/plugin-sql/node" {
   import type { IDatabaseAdapter, UUID } from "@elizaos/core";
 

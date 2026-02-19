@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Zoom MCP Tools - Meetings, Users
  * Uses per-organization OAuth tokens via oauthService.

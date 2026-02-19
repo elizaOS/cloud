@@ -52,7 +52,7 @@ const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   jira: { url: "/api/mcps/jira/streamable-http", type: "streamable-http" },
   linkedin: { url: "/api/mcps/linkedin/streamable-http", type: "streamable-http" },
   microsoft: { url: "/api/mcps/microsoft/streamable-http", type: "streamable-http" },
-  // twitter: { url: "/api/mcps/twitter/streamable-http", type: "streamable-http" },
+  twitter: { url: "/api/mcps/twitter/streamable-http", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {

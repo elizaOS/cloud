@@ -108,7 +108,7 @@ export class MilaidySandboxService {
       const db = await this.provisionNeon(rec);
       if (!db.success) {
         await this.markError(rec, `Database provisioning failed: ${db.error}`);
-        return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: db.error };
+        return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: db.error ?? "Unknown database error" };
       }
       dbUri = db.connectionUri!;
     }
@@ -117,7 +117,7 @@ export class MilaidySandboxService {
     const sb = await this.createSandbox(rec, dbUri);
     if (!sb.success) {
       await this.markError(rec, `Sandbox creation failed: ${sb.error}`);
-      return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: sb.error };
+      return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: sb.error ?? "Unknown sandbox error" };
     }
 
     // 3. Health check
@@ -326,7 +326,7 @@ export class MilaidySandboxService {
     const creds = this.getSandboxCreds();
     const opts: Record<string, unknown> = {};
     if (creds.hasAccessToken) { opts.teamId = creds.teamId; opts.projectId = creds.projectId; opts.token = creds.token; }
-    const sb = await Sandbox.get(sandboxId, opts) as { shutdown?: () => Promise<void>; close?: () => Promise<void> };
+    const sb = await Sandbox.get({ sandboxId, ...opts }) as { shutdown?: () => Promise<void>; close?: () => Promise<void> };
     if (typeof sb.shutdown === "function") await sb.shutdown();
     else if (typeof sb.close === "function") await sb.close();
   }
