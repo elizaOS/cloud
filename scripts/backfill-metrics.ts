@@ -33,8 +33,10 @@ async function main() {
     const label = date.toISOString().split("T")[0];
 
     try {
-      await userMetricsService.computeDailyMetrics(date);
-      await userMetricsService.computeRetentionCohorts(date);
+      await Promise.all([
+        userMetricsService.computeDailyMetrics(date),
+        userMetricsService.computeRetentionCohorts(date),
+      ]);
       console.log(`  [OK] ${label}`);
     } catch (error) {
       failures++;
