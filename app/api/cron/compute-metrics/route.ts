@@ -33,10 +33,15 @@ function verifyCronSecret(request: NextRequest): boolean {
   const providedBuffer = Buffer.from(providedSecret, "utf8");
   const secretBuffer = Buffer.from(cronSecret, "utf8");
 
-  return (
-    providedBuffer.length === secretBuffer.length &&
-    timingSafeEqual(providedBuffer, secretBuffer)
-  );
+  // Pad both to the same length so the comparison doesn't leak the
+  // secret's length via an early-return timing side-channel.
+  const maxLen = Math.max(providedBuffer.length, secretBuffer.length);
+  const a = Buffer.alloc(maxLen);
+  const b = Buffer.alloc(maxLen);
+  providedBuffer.copy(a);
+  secretBuffer.copy(b);
+
+  return timingSafeEqual(a, b);
 }
 
 async function handleComputeMetrics(
