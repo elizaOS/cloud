@@ -140,6 +140,7 @@ export function useAdmin(): UseAdminResult {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refetchCounter, setRefetchCounter] = useState(0);
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
 
@@ -192,10 +193,11 @@ export function useAdmin(): UseAdminResult {
     return () => {
       abortController.abort();
     };
-  }, [authenticated, walletAddress]);
+  }, [authenticated, walletAddress, refetchCounter]);
 
   const refetch = () => {
     adminCache = null;
+    setRefetchCounter((c) => c + 1);
   };
 
   return { isAdmin, adminRole, isLoading, refetch };
