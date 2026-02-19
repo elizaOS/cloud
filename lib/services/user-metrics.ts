@@ -678,10 +678,11 @@ class UserMetricsService {
             ? sql`${roomTable.source} = 'discord'`
             : sql`${roomTable.source} IN ('telegram', 'discord')`;
 
-      const [r] = await dbRead
+      // Separate queries for users and messages to avoid the cross-product
+      // between participants and memories (N participants × M memories = N×M rows).
+      const [userRow] = await dbRead
         .select({
           users: countDistinct(participantTable.entityId),
-          msgs: count(),
         })
         .from(roomTable)
         .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
@@ -695,8 +696,24 @@ class UserMetricsService {
           ),
         );
 
-      dau += Number(r?.users ?? 0);
-      totalMessages += Number(r?.msgs ?? 0);
+      // Count only user messages (exclude agent replies) via entityId filter.
+      const [msgRow] = await dbRead
+        .select({
+          msgs: countDistinct(memoryTable.id),
+        })
+        .from(memoryTable)
+        .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
+        .where(
+          and(
+            sourceCondition,
+            gte(memoryTable.createdAt, dayStart),
+            lt(memoryTable.createdAt, dayEnd),
+            ne(memoryTable.entityId, roomTable.agentId),
+          ),
+        );
+
+      dau += Number(userRow?.users ?? 0);
+      totalMessages += Number(msgRow?.msgs ?? 0);
     }
 
     return { dau, totalMessages };
