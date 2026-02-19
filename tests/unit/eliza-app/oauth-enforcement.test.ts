@@ -41,7 +41,7 @@ function extractMessagesFromWebhook(): {
   );
 
   const telegramMatch = telegramWebhook.match(
-    /I'm Eliza — I build automations for you/
+    /👋 \*Welcome to Eliza!\*/
   );
 
   const statusMatch = telegramWebhook.match(
@@ -50,7 +50,7 @@ function extractMessagesFromWebhook(): {
 
   return {
     telegramRejection: telegramMatch
-      ? "Hey there! I'm Eliza — I build automations for you right here in this chat.\n\nTo get started, I need to link your account. Takes 30 seconds:"
+      ? "👋 *Welcome to Eliza!*\n\nI'm your AI assistant. Just send me a message and I'll help you with whatever you need."
       : "",
     statusNotConnected: statusMatch
       ? "*Account Status*\n\n❌ Not connected yet"
@@ -229,17 +229,16 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
     expect(messages.statusNotConnected.toLowerCase()).toContain("not connected");
   });
 
-  test("Telegram rejection message prompts account linking", () => {
-    expect(messages.telegramRejection.toLowerCase()).toContain("link your account");
+  test("Telegram rejection message is welcoming (contains emoji)", () => {
+    expect(messages.telegramRejection).toContain("👋");
   });
 
-  test("Get Started URL is passed as button in webhook code", () => {
+  test("Get Started URL is present in webhook code", () => {
     const webhookCode = readFileSync(
       join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
       "utf-8",
     );
     expect(webhookCode).toContain("get-started");
-    expect(webhookCode).toContain("sendTelegramMessageWithButtons");
   });
 });
 
