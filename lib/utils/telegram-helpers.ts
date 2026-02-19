@@ -123,7 +123,7 @@ const URL_REGEX = /https?:\/\/[^\s)>\]]+[^\s)>\].,;:!?"']/;
 
 const AUTH_URL_PATTERNS: [string, (url: string) => boolean][] = [
   ["Connect Google",      (u) => u.includes("accounts.google") || (u.includes("/auth/") && u.includes("google"))],
-  ["Connect Twitter / X", (u) => u.includes("api.twitter") || u.includes("twitter.com/i/oauth") || u.includes("//x.com/") || u.includes("//x.com")],
+  ["Connect Twitter / X", (u) => u.includes("api.twitter") || u.includes("twitter.com/i/oauth") || u.includes("//x.com")],
   ["Connect GitHub",      (u) => u.includes("github.com") && u.includes("authorize")],
   ["Connect Slack",       (u) => u.includes("slack.com") && u.includes("oauth")],
   ["Connect Linear",      (u) => u.includes("linear.app") && u.includes("oauth")],

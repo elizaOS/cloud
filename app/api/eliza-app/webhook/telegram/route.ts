@@ -224,6 +224,7 @@ async function handleMessage(message: Message): Promise<boolean> {
       `- The user's name is ${message.from.first_name || "there"}.`,
     ].join("\n");
 
+    // Save original prompt so we can restore it in finally (may be undefined if .system was unset)
     const originalSystemPrompt = runtime.character?.system;
     if (runtime.character) {
       runtime.character.system = (runtime.character.system || "") + telegramChannelContext;

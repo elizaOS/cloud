@@ -297,15 +297,18 @@ export class N8nCredentialBridge extends Service {
     userId: string,
   ): Promise<CredentialProviderResult> {
     const userResult = await lookupUser(userId, "N8N_CREDENTIAL_BRIDGE");
-    if (!isUserLookupError(userResult)) {
-      const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
-      if (orgBotToken) {
-        logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
-        return {
-          status: "credential_data",
-          data: { accessToken: orgBotToken },
-        };
-      }
+    if (isUserLookupError(userResult)) {
+      logger.warn("[N8nCredentialBridge] User lookup failed, cannot resolve Telegram credential", { userId });
+      return null;
+    }
+
+    const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
+    if (orgBotToken) {
+      logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
+      return {
+        status: "credential_data",
+        data: { accessToken: orgBotToken },
+      };
     }
 
     const appBotToken = elizaAppConfig.telegram.botToken;
