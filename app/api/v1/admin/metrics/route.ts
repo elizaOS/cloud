@@ -63,8 +63,12 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
         );
 
       case "active": {
-        const range =
-          timeRange === "7d" ? "7d" : timeRange === "30d" ? "30d" : "day";
+        const activeRangeMap: Record<string, "day" | "7d" | "30d"> = {
+          "7d": "7d",
+          "30d": "30d",
+          "90d": "30d",
+        };
+        const range = activeRangeMap[timeRange] ?? "day";
         return NextResponse.json(
           await userMetricsService.getActiveUsers(range),
         );
