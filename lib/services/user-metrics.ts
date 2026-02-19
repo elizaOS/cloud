@@ -720,45 +720,44 @@ class UserMetricsService {
   ): Promise<number> {
     if (userIds.length === 0) return 0;
 
-    // Web chat activity
-    const [webRow] = await dbRead
-      .select({ cnt: countDistinct(conversations.user_id) })
-      .from(conversationMessages)
-      .innerJoin(
-        conversations,
-        eq(conversationMessages.conversation_id, conversations.id),
-      )
-      .where(
-        and(
-          eq(conversationMessages.role, "user"),
-          gte(conversationMessages.created_at, dayStart),
-          lt(conversationMessages.created_at, dayEnd),
-          inArray(conversations.user_id, userIds),
+    const [webRows, elizaRows] = await Promise.all([
+      dbRead
+        .selectDistinct({ userId: conversations.user_id })
+        .from(conversationMessages)
+        .innerJoin(
+          conversations,
+          eq(conversationMessages.conversation_id, conversations.id),
+        )
+        .where(
+          and(
+            eq(conversationMessages.role, "user"),
+            gte(conversationMessages.created_at, dayStart),
+            lt(conversationMessages.created_at, dayEnd),
+            inArray(conversations.user_id, userIds),
+          ),
         ),
-      );
 
-    // Eliza room activity (telegram/discord)
-    const [elizaRow] = await dbRead
-      .select({ cnt: countDistinct(participantTable.entityId) })
-      .from(roomTable)
-      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
-      .where(
-        and(
-          sql`${roomTable.source} IN ('telegram', 'discord')`,
-          gte(memoryTable.createdAt, dayStart),
-          lt(memoryTable.createdAt, dayEnd),
-          ne(participantTable.entityId, roomTable.agentId),
-          inArray(participantTable.entityId, userIds),
+      dbRead
+        .selectDistinct({ userId: participantTable.entityId })
+        .from(roomTable)
+        .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
+        .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+        .where(
+          and(
+            sql`${roomTable.source} IN ('telegram', 'discord')`,
+            gte(memoryTable.createdAt, dayStart),
+            lt(memoryTable.createdAt, dayEnd),
+            ne(participantTable.entityId, roomTable.agentId),
+            inArray(participantTable.entityId, userIds),
+          ),
         ),
-      );
+    ]);
 
-    // Union of active users — sum is an upper bound since users
-    // rarely overlap across platforms within a single day.
-    const webRetained = Number(webRow?.cnt ?? 0);
-    const elizaRetained = Number(elizaRow?.cnt ?? 0);
+    const retainedSet = new Set<string>();
+    for (const r of webRows) retainedSet.add(r.userId);
+    for (const r of elizaRows) retainedSet.add(r.userId);
 
-    return Math.min(webRetained + elizaRetained, userIds.length);
+    return retainedSet.size;
   }
 }
 
