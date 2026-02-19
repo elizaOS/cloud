@@ -206,6 +206,22 @@ async function handleMessage(message: Message): Promise<boolean> {
     });
 
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    const telegramChannelContext = [
+      "\n# Channel Context",
+      "The user is chatting with you on **Telegram**. Keep these rules in mind:",
+      "- The user is ALREADY on Telegram — never suggest them to \"connect Telegram\" or install Telegram.",
+      "- \"Connect [platform]\" means OAuth-linking an external service (Google, Twitter, Slack, etc.), NOT the messaging channel they're on.",
+      "- Telegram IS a supported integration for n8n workflows. You CAN create automations that send messages to the user on Telegram.",
+      `- The user's Telegram chat ID for automations is: ${message.chat.id}`,
+      "- Keep responses concise — Telegram is a mobile-first chat interface.",
+      "- Use short paragraphs. Avoid walls of text.",
+      `- The user's name is ${message.from?.first_name || "there"}.`,
+    ].join("\n");
+    if (runtime.character) {
+      runtime.character.system = (runtime.character.system || "") + telegramChannelContext;
+    }
+
     const messageHandler = createMessageHandler(runtime, userContext);
 
     const result = await messageHandler.process({

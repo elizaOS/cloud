@@ -37,8 +37,11 @@ import { apiKeysService } from "@/lib/services/api-keys";
 
 import { mapCredTypeToCloudPlatform } from "./oauth-cred-map";
 import { API_KEY_CRED_TYPES } from "./apikey-cred-map";
+import { telegramAutomationService } from "@/lib/services/telegram-automation";
 
 const SERVICE_TYPE = "n8n_credential_provider";
+
+const TELEGRAM_CRED_TYPES = new Set(["telegramApi"]);
 
 /**
  * Result type matching plugin-n8n-workflow's CredentialProviderResult.
@@ -80,6 +83,9 @@ export class N8nCredentialBridge extends Service {
     if (credType in API_KEY_CRED_TYPES)
       return this.resolveApiKeyCredential(credType, userId);
 
+    if (TELEGRAM_CRED_TYPES.has(credType))
+      return this.resolveTelegramCredential(userId);
+
     return null;
   }
 
@@ -100,7 +106,8 @@ export class N8nCredentialBridge extends Service {
     for (const credType of credTypes) {
       if (
         mapCredTypeToCloudPlatform(credType) !== null ||
-        credType in API_KEY_CRED_TYPES
+        credType in API_KEY_CRED_TYPES ||
+        TELEGRAM_CRED_TYPES.has(credType)
       ) {
         supported.push(credType);
       } else {
@@ -276,6 +283,44 @@ export class N8nCredentialBridge extends Service {
       status: "credential_data",
       data: mapping.buildData(apiKey, baseUrl),
     };
+  }
+
+  // ── Telegram bot token strategy ──────────────────────────────────────
+
+  /**
+   * Resolve Telegram bot token credential.
+   * Uses the Eliza App bot token (env var) or the org's stored bot token.
+   * n8n's telegramApi credential expects { accessToken: botToken }.
+   */
+  private async resolveTelegramCredential(
+    userId: string,
+  ): Promise<CredentialProviderResult> {
+    const appBotToken = process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN;
+    if (appBotToken) {
+      logger.info("[N8nCredentialBridge] Telegram credential resolved from app bot token");
+      return {
+        status: "credential_data",
+        data: { accessToken: appBotToken },
+      };
+    }
+
+    const userResult = await lookupUser(userId, "N8N_CREDENTIAL_BRIDGE");
+    if (isUserLookupError(userResult)) {
+      logger.warn("[N8nCredentialBridge] User lookup failed for Telegram credential", { userId });
+      return null;
+    }
+
+    const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
+    if (orgBotToken) {
+      logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
+      return {
+        status: "credential_data",
+        data: { accessToken: orgBotToken },
+      };
+    }
+
+    logger.warn("[N8nCredentialBridge] No Telegram bot token available", { userId });
+    return null;
   }
 
   /**
