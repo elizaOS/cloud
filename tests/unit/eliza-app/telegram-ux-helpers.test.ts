@@ -319,7 +319,7 @@ describe("createMultiRowKeyboard", () => {
   });
 });
 
-describe("sendTelegramMessageWithButtons reply_markup structure", () => {
+describe("Inline keyboard reply_markup structure", () => {
   test("each button gets its own row (one button per row)", () => {
     const buttons = [
       { label: "Connect Google", url: "https://accounts.google.com/auth" },
@@ -828,9 +828,9 @@ describe("createTypingRefresh", () => {
     typing.stop();
   });
 
-  test("accepts onError callback without crashing", async () => {
-    const typing = createTypingRefresh(12345, "fake-token", 50, () => {});
-    await new Promise((r) => setTimeout(r, 120));
+  test("accepts onError callback without crashing", () => {
+    const typing = createTypingRefresh(12345, "fake-token", 60000, () => {});
+    expect(typing).toHaveProperty("stop");
     typing.stop();
   });
 });

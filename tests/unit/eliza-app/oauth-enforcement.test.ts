@@ -41,7 +41,7 @@ function extractMessagesFromWebhook(): {
   );
 
   const telegramMatch = telegramWebhook.match(
-    /👋 \*Welcome to Eliza!\*/
+    /👋 Welcome! To chat with Eliza, please connect your Telegram first/
   );
 
   const statusMatch = telegramWebhook.match(
@@ -50,7 +50,7 @@ function extractMessagesFromWebhook(): {
 
   return {
     telegramRejection: telegramMatch
-      ? "👋 *Welcome to Eliza!*\n\nI'm your AI assistant. Just send me a message and I'll help you with whatever you need."
+      ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
       : "",
     statusNotConnected: statusMatch
       ? "*Account Status*\n\n❌ Not connected yet"
@@ -221,7 +221,11 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection.toLowerCase()).toContain("eliza");
+    expect(messages.telegramRejection.toLowerCase()).toContain("connect your telegram");
+  });
+
+  test("Telegram rejection message includes get-started URL", () => {
+    expect(messages.telegramRejection).toContain("get-started");
   });
 
   test("Status not connected message exists in webhook", () => {
@@ -233,12 +237,13 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
     expect(messages.telegramRejection).toContain("👋");
   });
 
-  test("Get Started URL is present in webhook code", () => {
+  test("Get Started URL is present in rejection path of webhook code", () => {
     const webhookCode = readFileSync(
       join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
       "utf-8",
     );
     expect(webhookCode).toContain("get-started");
+    expect(webhookCode).toContain("connect your Telegram first");
   });
 });
 

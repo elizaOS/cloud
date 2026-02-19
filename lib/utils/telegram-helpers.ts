@@ -119,11 +119,11 @@ export function parseCommand(text: string): {
   };
 }
 
-const URL_REGEX = /https?:\/\/[^\s)>\]]+/g;
+const URL_REGEX = /https?:\/\/[^\s)>\]]+[^\s)>\].,;:!?"']/g;
 
 const AUTH_URL_PATTERNS: [string, (url: string) => boolean][] = [
   ["Connect Google",      (u) => u.includes("accounts.google") || (u.includes("/auth/") && u.includes("google"))],
-  ["Connect Twitter / X", (u) => u.includes("api.twitter") || u.includes("twitter.com/i/oauth") || u.includes("x.com")],
+  ["Connect Twitter / X", (u) => u.includes("api.twitter") || u.includes("twitter.com/i/oauth") || u.includes("//x.com/") || u.includes("//x.com")],
   ["Connect GitHub",      (u) => u.includes("github.com") && u.includes("authorize")],
   ["Connect Slack",       (u) => u.includes("slack.com") && u.includes("oauth")],
   ["Connect Linear",      (u) => u.includes("linear.app") && u.includes("oauth")],
@@ -131,7 +131,7 @@ const AUTH_URL_PATTERNS: [string, (url: string) => boolean][] = [
   ["Connect Discord",     (u) => u.includes("discord.com") && u.includes("oauth")],
   ["Connect LinkedIn",    (u) => u.includes("linkedin.com") && u.includes("oauth")],
   ["Connect Microsoft",   (u) => u.includes("login.microsoftonline") || (u.includes("microsoft") && u.includes("oauth"))],
-  ["Authorize",           (u) => u.includes("oauth") || u.includes("/auth/")],
+  ["Authorize",           (u) => u.includes("/oauth") || (u.includes("/auth/") && /[?&](client_id|code|state|redirect_uri)=/.test(u))],
 ];
 
 function isAuthUrl(url: string): boolean {
@@ -154,12 +154,12 @@ export function extractAuthUrls(text: string): { label: string; url: string }[] 
 export function stripAuthUrlsFromText(text: string): string {
   return text
     .replace(URL_REGEX, (url) => isAuthUrl(url) ? "" : url)
-    .replace(/Connect \w+:\s*/gi, "")
+    .replace(/Connect[\w\s/]+:\s*/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-const ACTION_KEYWORDS = /create|automate|connect|set up|build|send|check|read|draft/i;
+const ACTION_KEYWORDS = /\b(create|automate|connect|set up|build|send|check|read|draft)\b/i;
 
 export function isSimpleMessage(text: string): boolean {
   return text.split(/\s+/).length <= 3 && !ACTION_KEYWORDS.test(text);

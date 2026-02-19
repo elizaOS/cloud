@@ -32,7 +32,7 @@ const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
 const { phoneNumber: BLOOIO_PHONE } = elizaAppConfig.blooio;
 
-async function callTelegramApi(payload: Record<string, unknown>): Promise<Response> {
+async function callSendMessage(payload: Record<string, unknown>): Promise<Response> {
   return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -56,31 +56,39 @@ async function sendTypingIndicator(chatId: number): Promise<void> {
 }
 
 async function sendWithMarkdownFallback(payload: Record<string, unknown>): Promise<boolean> {
-  const response = await callTelegramApi(payload);
-  if (response.ok) return true;
+  try {
+    const response = await callSendMessage(payload);
+    if (response.ok) return true;
 
-  const firstError = await response.text();
-  if (firstError.includes("can't parse entities")) {
-    logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", {
+    const firstError = await response.text();
+    if (firstError.includes("can't parse entities")) {
+      logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", {
+        chatId: payload.chat_id,
+      });
+      const { parse_mode: _, ...plain } = payload;
+      const retryResponse = await callSendMessage(plain);
+      if (retryResponse.ok) return true;
+
+      const retryError = await retryResponse.text();
+      logger.error("[ElizaApp TelegramWebhook] Failed to send message (plain-text retry also failed)", {
+        chatId: payload.chat_id,
+        error: retryError,
+      });
+      return false;
+    }
+
+    logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
       chatId: payload.chat_id,
+      error: firstError,
     });
-    const { parse_mode: _, ...plain } = payload;
-    const retryResponse = await callTelegramApi(plain);
-    if (retryResponse.ok) return true;
-
-    const retryError = await retryResponse.text();
-    logger.error("[ElizaApp TelegramWebhook] Failed to send message (plain-text retry also failed)", {
+    return false;
+  } catch (error) {
+    logger.error("[ElizaApp TelegramWebhook] Network error sending message", {
       chatId: payload.chat_id,
-      error: retryError,
+      error: error instanceof Error ? error.message : String(error),
     });
     return false;
   }
-
-  logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
-    chatId: payload.chat_id,
-    error: firstError,
-  });
-  return false;
 }
 
 const URL_PATTERN = /https?:\/\/\S{60,}/;
@@ -174,16 +182,17 @@ async function handleMessage(message: Message): Promise<boolean> {
     return false; // Don't mark as processed - allow retry
   }
 
-  const typing = BOT_TOKEN
-    ? createTypingRefresh(message.chat.id, BOT_TOKEN, 4000, (error) => {
-        logger.debug("[ElizaApp TelegramWebhook] Typing refresh failed", {
-          chatId: message.chat.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      })
-    : null;
-
+  let typing: { stop: () => void } | null = null;
   try {
+    typing = BOT_TOKEN
+      ? createTypingRefresh(message.chat.id, BOT_TOKEN, 4000, (error) => {
+          logger.debug("[ElizaApp TelegramWebhook] Typing refresh failed", {
+            chatId: message.chat.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        })
+      : null;
+
     await sendTypingIndicator(message.chat.id);
 
     const userContext = await userContextService.buildContext({
@@ -214,55 +223,67 @@ async function handleMessage(message: Message): Promise<boolean> {
       "- Use short paragraphs. Avoid walls of text.",
       `- The user's name is ${message.from.first_name || "there"}.`,
     ].join("\n");
+
+    const originalSystemPrompt = runtime.character?.system;
     if (runtime.character) {
       runtime.character.system = (runtime.character.system || "") + telegramChannelContext;
     } else {
       logger.warn("[ElizaApp TelegramWebhook] runtime.character is null — channel context not injected", { roomId });
     }
 
-    const messageHandler = createMessageHandler(runtime, userContext);
-
-    const result = await messageHandler.process({
-      roomId,
-      text,
-      agentModeConfig: { mode: AgentMode.ASSISTANT },
-    });
-
-    const responseContent = result.message.content;
-    const responseText =
-      typeof responseContent === "string"
-        ? responseContent
-        : responseContent?.text || "";
-
-    if (!responseText) {
-      logger.warn("[ElizaApp TelegramWebhook] Agent returned empty response", { roomId });
-      await sendTelegramMessage(
-        message.chat.id,
-        "I processed your message but didn't have a response. Could you try rephrasing?",
-        message.message_id,
-      );
-    } else {
-      await sendTelegramMessage(message.chat.id, responseText, message.message_id);
-    }
-    return true;
-  } catch (error) {
-    logger.error("[ElizaApp TelegramWebhook] Agent failed", {
-      error: error instanceof Error ? error.message : String(error),
-      roomId,
-    });
     try {
-      await sendTelegramMessage(
-        message.chat.id,
-        "I couldn't process that — my connection timed out. Try sending your message again. If it keeps happening, type /start to reset.",
-        message.message_id,
-      );
-    } catch (sendError) {
-      logger.error("[ElizaApp TelegramWebhook] Failed to send error message to user", {
-        chatId: message.chat.id,
-        error: sendError instanceof Error ? sendError.message : String(sendError),
+      const messageHandler = createMessageHandler(runtime, userContext);
+
+      const result = await messageHandler.process({
+        roomId,
+        text,
+        agentModeConfig: { mode: AgentMode.ASSISTANT },
       });
+
+      const responseContent = result.message.content;
+      const responseText =
+        typeof responseContent === "string"
+          ? responseContent
+          : responseContent?.text || "";
+
+      if (!responseText) {
+        logger.warn("[ElizaApp TelegramWebhook] Agent returned empty response", { roomId });
+        await sendTelegramMessage(
+          message.chat.id,
+          "I processed your message but didn't have a response. Could you try rephrasing?",
+          message.message_id,
+        );
+      } else {
+        const sent = await sendTelegramMessage(message.chat.id, responseText, message.message_id);
+        if (!sent) {
+          logger.error("[ElizaApp TelegramWebhook] Failed to deliver response to user", { roomId, chatId: message.chat.id });
+          return false;
+        }
+      }
+      return true;
+    } catch (error) {
+      logger.error("[ElizaApp TelegramWebhook] Agent failed", {
+        error: error instanceof Error ? error.message : String(error),
+        roomId,
+      });
+      try {
+        await sendTelegramMessage(
+          message.chat.id,
+          "I couldn't process that — my connection timed out. Try sending your message again. If it keeps happening, type /start to reset.",
+          message.message_id,
+        );
+      } catch (sendError) {
+        logger.error("[ElizaApp TelegramWebhook] Failed to send error message to user", {
+          chatId: message.chat.id,
+          error: sendError instanceof Error ? sendError.message : String(sendError),
+        });
+      }
+      return true;
+    } finally {
+      if (runtime.character) {
+        runtime.character.system = originalSystemPrompt;
+      }
     }
-    return true;
   } finally {
     typing?.stop();
     await lock.release();
@@ -305,7 +326,8 @@ async function handleCommand(message: Message & { text: string }): Promise<void>
         break;
 
       case "/status": {
-        const telegramUserId = String(message.from?.id);
+        if (!message.from) break;
+        const telegramUserId = String(message.from.id);
         const user = await elizaAppUserService.getByTelegramId(telegramUserId);
 
         if (user) {

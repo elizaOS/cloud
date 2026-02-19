@@ -295,27 +295,24 @@ export class N8nCredentialBridge extends Service {
   private async resolveTelegramCredential(
     userId: string,
   ): Promise<CredentialProviderResult> {
+    const userResult = await lookupUser(userId, "N8N_CREDENTIAL_BRIDGE");
+    if (!isUserLookupError(userResult)) {
+      const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
+      if (orgBotToken) {
+        logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
+        return {
+          status: "credential_data",
+          data: { accessToken: orgBotToken },
+        };
+      }
+    }
+
     const appBotToken = process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN;
     if (appBotToken) {
-      logger.info("[N8nCredentialBridge] Telegram credential resolved from app bot token");
+      logger.info("[N8nCredentialBridge] Telegram credential resolved from app bot token (fallback)");
       return {
         status: "credential_data",
         data: { accessToken: appBotToken },
-      };
-    }
-
-    const userResult = await lookupUser(userId, "N8N_CREDENTIAL_BRIDGE");
-    if (isUserLookupError(userResult)) {
-      logger.warn("[N8nCredentialBridge] User lookup failed for Telegram credential", { userId });
-      return null;
-    }
-
-    const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
-    if (orgBotToken) {
-      logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
-      return {
-        status: "credential_data",
-        data: { accessToken: orgBotToken },
       };
     }
 

@@ -141,19 +141,19 @@ export const oauthConnectAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "connect my google account" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "connect my twitter account" } },
-      { name: "{{name2}}", content: { text: "Connect Twitter: https://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link my x account" } },
-      { name: "{{name2}}", content: { text: "Connect Twitter: https://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
   ] as ActionExample[][],
 };
