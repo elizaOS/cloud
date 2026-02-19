@@ -23,6 +23,7 @@ const DAYS = parseInt(process.argv[2] || "90", 10);
 async function main() {
   console.log(`Backfilling engagement metrics for the past ${DAYS} days...`);
   const startTime = Date.now();
+  let failures = 0;
 
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -36,6 +37,7 @@ async function main() {
       await userMetricsService.computeRetentionCohorts(date);
       console.log(`  [OK] ${label}`);
     } catch (error) {
+      failures++;
       console.error(
         `  [FAIL] ${label}:`,
         error instanceof Error ? error.message : error,
@@ -44,8 +46,8 @@ async function main() {
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`Done in ${elapsed}s`);
-  process.exit(0);
+  console.log(`Done in ${elapsed}s (${failures} failures)`);
+  process.exit(failures > 0 ? 1 : 0);
 }
 
 main().catch((err) => {
