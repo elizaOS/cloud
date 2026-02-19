@@ -249,11 +249,15 @@ async function handleMessage(message: Message): Promise<boolean> {
 
       if (!responseText) {
         logger.warn("[ElizaApp TelegramWebhook] Agent returned empty response", { roomId });
-        await sendTelegramMessage(
+        const sent = await sendTelegramMessage(
           message.chat.id,
           "I processed your message but didn't have a response. Could you try rephrasing?",
           message.message_id,
         );
+        if (!sent) {
+          logger.error("[ElizaApp TelegramWebhook] Failed to deliver fallback message", { roomId, chatId: message.chat.id });
+          return false;
+        }
       } else {
         const sent = await sendTelegramMessage(message.chat.id, responseText, message.message_id);
         if (!sent) {
