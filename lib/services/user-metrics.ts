@@ -485,6 +485,10 @@ class UserMetricsService {
   /**
    * Compute and upsert retention cohort data for a given date.
    * Updates D1 for yesterday's cohort, D7 for the cohort from 7 days ago, etc.
+   *
+   * Currently only writes the NULL-platform (aggregate) row. Per-platform
+   * retention cohorts are supported by the schema but not yet computed.
+   * TODO: add per-platform retention when the dashboard needs it.
    */
   async computeRetentionCohorts(date: Date): Promise<void> {
     const dayStart = new Date(
@@ -520,6 +524,8 @@ class UserMetricsService {
       const cohortSize = cohortUsers.length;
       if (cohortSize === 0) continue;
 
+      // TODO: for large cohorts (thousands of users), replace inArray with a
+      // JOIN against a VALUES list or temp table to avoid huge IN (...) clauses.
       const cohortUserIds = cohortUsers.map((r) => r.id);
 
       // Check how many of those users had activity on dayStart
@@ -567,12 +573,24 @@ class UserMetricsService {
 
   private _rangeSince(range: "day" | "7d" | "30d"): Date {
     const now = new Date();
-    const ms = { day: 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000 };
-    return new Date(now.getTime() - ms[range]);
+    const todayMidnight = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const daysBack = { day: 0, "7d": 6, "30d": 29 };
+    return new Date(todayMidnight.getTime() - daysBack[range] * 86_400_000);
   }
 
   /**
    * Count distinct active users and total messages for a (day, platform) pair.
+   *
+   * When platform is null (aggregate), the total is a sum of per-source counts.
+   * Cross-platform overlap is minimal because each source uses a different
+   * identifier space (user_id for web, from_number for phone, entityId for
+   * Eliza rooms). If web user_ids and Eliza entityIds ever share the same
+   * UUID namespace, the aggregate DAU will overcount.
+   *
+   * TODO: deduplicate the aggregate case with a UNION-based approach when
+   * cross-platform identity linking is available.
    */
   private async _countDayActivity(
     dayStart: Date,
@@ -688,6 +706,8 @@ class UserMetricsService {
     } else if (platform === "discord") {
       conditions.push(sql`${users.discord_id} IS NOT NULL`);
     } else if (platform === "sms" || platform === "imessage") {
+      // Both SMS and iMessage resolve to the same phone_number column;
+      // the schema has no way to distinguish them at signup time.
       conditions.push(sql`${users.phone_number} IS NOT NULL`);
     } else if (platform === "web") {
       conditions.push(isNull(users.telegram_id));
