@@ -21,13 +21,16 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 // Default anvil wallet for devnet admin access
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
+type AdminRole = "super_admin" | "moderator" | "viewer";
+
 // Module-level cache and in-flight tracking for deduplication
 let adminCache: {
   isAdmin: boolean;
+  role: AdminRole | null;
   timestamp: number;
   walletAddress: string;
 } | null = null;
-let inFlightRequest: Promise<boolean> | null = null;
+let inFlightRequest: Promise<{ isAdmin: boolean; role: AdminRole | null }> | null = null;
 
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -41,6 +44,8 @@ function isDevnet(): boolean {
 interface UseAdminResult {
   /** Whether the current user has admin privileges. */
   isAdmin: boolean;
+  /** The admin role (super_admin, moderator, viewer) or null. */
+  adminRole: AdminRole | null;
   /** Whether the admin check is in progress. */
   isLoading: boolean;
   /** Force a recheck of admin status. */
@@ -54,13 +59,13 @@ interface UseAdminResult {
 async function fetchAdminStatus(
   walletAddress: string,
   signal: AbortSignal,
-): Promise<boolean> {
+): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
   // In devnet, anvil wallet is always admin
   if (
     isDevnet() &&
     walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
   ) {
-    return true;
+    return { isAdmin: true, role: "super_admin" };
   }
 
   // Check if we have a valid cached result for this wallet
@@ -70,7 +75,7 @@ async function fetchAdminStatus(
     adminCache.walletAddress === walletAddress &&
     now - adminCache.timestamp < CACHE_TTL
   ) {
-    return adminCache.isAdmin;
+    return { isAdmin: adminCache.isAdmin, role: adminCache.role };
   }
 
   // If there's already an in-flight request, join it
@@ -88,31 +93,35 @@ async function fetchAdminStatus(
 
       // Handle non-200 responses gracefully - treat as not admin
       if (!res.ok) {
-        // Cache the negative result to prevent repeated requests
         adminCache = {
           isAdmin: false,
+          role: null,
           timestamp: Date.now(),
           walletAddress,
         };
-        return false;
+        return { isAdmin: false, role: null } as const;
       }
 
       const isAdmin = res?.headers.get("X-Is-Admin") === "true";
+      const roleHeader = res?.headers.get("X-Admin-Role");
+      const role =
+        roleHeader && ["super_admin", "moderator", "viewer"].includes(roleHeader)
+          ? (roleHeader as AdminRole)
+          : null;
 
-      // Cache the result
       adminCache = {
         isAdmin,
+        role,
         timestamp: Date.now(),
         walletAddress,
       };
 
-      return isAdmin;
+      return { isAdmin, role };
     } catch (err) {
-      // On abort or error, don't cache
       if (err instanceof Error && err.name === "AbortError") {
         throw err;
       }
-      return false;
+      return { isAdmin: false, role: null } as const;
     } finally {
       inFlightRequest = null;
     }
@@ -129,6 +138,7 @@ export function useAdmin(): UseAdminResult {
   const { authenticated } = usePrivy();
   const { wallets } = useWallets();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
@@ -147,10 +157,10 @@ export function useAdmin(): UseAdminResult {
     const currentFetch = ++fetchCountRef.current;
 
     const checkAdmin = async () => {
-      // Early exit if not authenticated or no wallet
       if (!authenticated || !walletAddress) {
         if (mountedRef.current) {
           setIsAdmin(false);
+          setAdminRole(null);
           setIsLoading(false);
         }
         return;
@@ -158,19 +168,20 @@ export function useAdmin(): UseAdminResult {
 
       try {
         setIsLoading(true);
-        const adminStatus = await fetchAdminStatus(
+        const status = await fetchAdminStatus(
           walletAddress,
           abortController.signal,
         );
 
-        // Only update if this is still the latest fetch and component is mounted
         if (mountedRef.current && currentFetch === fetchCountRef.current) {
-          setIsAdmin(adminStatus);
+          setIsAdmin(status.isAdmin);
+          setAdminRole(status.role);
           setIsLoading(false);
         }
       } catch (err) {
         if (mountedRef.current && currentFetch === fetchCountRef.current) {
           setIsAdmin(false);
+          setAdminRole(null);
           setIsLoading(false);
         }
       }
@@ -184,13 +195,10 @@ export function useAdmin(): UseAdminResult {
   }, [authenticated, walletAddress]);
 
   const refetch = () => {
-    // Invalidate cache and trigger re-fetch
     adminCache = null;
-    // Re-run effect by updating a ref won't work, so we clear cache
-    // The next render cycle will pick up the change
   };
 
-  return { isAdmin, isLoading, refetch };
+  return { isAdmin, adminRole, isLoading, refetch };
 }
 
 /**

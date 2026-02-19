@@ -32,7 +32,7 @@ export function SidebarNavigationSection({
   isCollapsed = false,
 }: SidebarNavigationSectionProps) {
   // Use the centralized admin hook with request deduplication
-  const { isAdmin } = useAdmin();
+  const { isAdmin, adminRole } = useAdmin();
 
   // Generate a storage key based on section title
   const storageKey = section.title
@@ -56,17 +56,18 @@ export function SidebarNavigationSection({
 
   const filteredItems = useMemo(() => {
     return section.items.filter((item: SidebarItem) => {
-      // Check feature flag
       if (item.featureFlag && !isFeatureEnabled(item.featureFlag)) {
         return false;
       }
-      // Check admin-only items
       if (item.adminOnly && !isAdmin) {
+        return false;
+      }
+      if (item.superAdminOnly && adminRole !== "super_admin") {
         return false;
       }
       return true;
     });
-  }, [section.items, isAdmin]);
+  }, [section.items, isAdmin, adminRole]);
 
   // Hide admin-only sections from non-admins
   if (section.adminOnly && !isAdmin) {
@@ -79,8 +80,7 @@ export function SidebarNavigationSection({
 
   // Check if this section is "coming soon" (disabled)
   const isComingSoon =
-    section.title?.toLowerCase() === "monetization" ||
-    section.title?.toLowerCase() === "admin";
+    section.title?.toLowerCase() === "monetization";
 
   // Hide coming soon sections when collapsed
   if (isCollapsed && isComingSoon) {
