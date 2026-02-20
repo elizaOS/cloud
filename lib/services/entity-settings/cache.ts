@@ -9,6 +9,7 @@
  * This is the same pattern used by Privy and Character caches.
  */
 import { cache } from "@/lib/cache/client";
+import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { logger } from "@/lib/utils/logger";
 import type { EntitySettingValue, EntitySettingSource } from "./types";
 
@@ -44,69 +45,12 @@ interface CachedSettings {
 // Redis round-trip (~5-30ms) for repeated lookups within the same process.
 // On a warm path this turns a 665ms phase into ~0ms.
 // ---------------------------------------------------------------------------
-interface InMemorySettingsEntry {
+interface SettingsCacheValue {
   settings: Map<string, EntitySettingValue>;
   sources: Record<string, EntitySettingSource>;
-  expiresAt: number;
 }
 
-const IN_MEMORY_SETTINGS_CACHE = new Map<string, InMemorySettingsEntry>();
-const IN_MEMORY_SETTINGS_TTL_MS = 60_000; // 60 seconds
-const IN_MEMORY_SETTINGS_MAX_SIZE = 200;
-
-function getFromInMemorySettingsCache(
-  cacheKey: string,
-): { settings: Map<string, EntitySettingValue>; sources: Record<string, EntitySettingSource> } | null {
-  const entry = IN_MEMORY_SETTINGS_CACHE.get(cacheKey);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    IN_MEMORY_SETTINGS_CACHE.delete(cacheKey);
-    return null;
-  }
-  return { settings: entry.settings, sources: entry.sources };
-}
-
-function setInMemorySettingsCache(
-  cacheKey: string,
-  settings: Map<string, EntitySettingValue>,
-  sources: Record<string, EntitySettingSource>,
-): void {
-  if (IN_MEMORY_SETTINGS_CACHE.size >= IN_MEMORY_SETTINGS_MAX_SIZE) {
-    // First pass: evict expired entries
-    const now = Date.now();
-    for (const [key, value] of IN_MEMORY_SETTINGS_CACHE) {
-      if (now > value.expiresAt) {
-        IN_MEMORY_SETTINGS_CACHE.delete(key);
-      }
-    }
-    // Second pass: if still over capacity, evict oldest entries (by insertion order)
-    if (IN_MEMORY_SETTINGS_CACHE.size >= IN_MEMORY_SETTINGS_MAX_SIZE) {
-      const keys = Array.from(IN_MEMORY_SETTINGS_CACHE.keys());
-      const toRemove = keys.length - Math.floor(IN_MEMORY_SETTINGS_MAX_SIZE * 0.75);
-      for (let i = 0; i < toRemove; i++) {
-        IN_MEMORY_SETTINGS_CACHE.delete(keys[i]);
-      }
-    }
-  }
-  IN_MEMORY_SETTINGS_CACHE.set(cacheKey, {
-    settings,
-    sources,
-    expiresAt: Date.now() + IN_MEMORY_SETTINGS_TTL_MS,
-  });
-}
-
-function invalidateInMemorySettingsCache(cacheKey: string): void {
-  IN_MEMORY_SETTINGS_CACHE.delete(cacheKey);
-}
-
-function invalidateInMemorySettingsCacheForUser(userId: string): void {
-  const prefix = `${CACHE_PREFIX}:${userId}:`;
-  for (const key of IN_MEMORY_SETTINGS_CACHE.keys()) {
-    if (key.startsWith(prefix)) {
-      IN_MEMORY_SETTINGS_CACHE.delete(key);
-    }
-  }
-}
+const inMemorySettingsCache = new InMemoryLRUCache<SettingsCacheValue>(200, 60_000);
 
 /**
  * Build cache key for entity settings
@@ -160,10 +104,10 @@ export class EntitySettingsCache {
     const key = buildCacheKey(userId, agentId);
 
     // PERF: Check in-memory cache first (eliminates Redis round-trip)
-    const inMemory = getFromInMemorySettingsCache(key);
+    const inMemory = inMemorySettingsCache.get(key);
     if (inMemory) {
       logger.debug(`[EntitySettingsCache] In-memory cache HIT: ${key}`);
-      return inMemory;
+      return { settings: new Map(inMemory.settings), sources: { ...inMemory.sources } };
     }
 
     // Fall back to Redis
@@ -174,15 +118,14 @@ export class EntitySettingsCache {
 
     logger.debug(`[EntitySettingsCache] Redis cache HIT: ${key}`);
 
-    const result = {
-      settings: new Map(Object.entries(cached.settings)),
-      sources: cached.sources,
-    };
+    const settings = new Map(Object.entries(cached.settings));
+    const sources = cached.sources;
 
     // Populate in-memory cache from Redis hit
-    setInMemorySettingsCache(key, result.settings, result.sources);
+    inMemorySettingsCache.set(key, { settings, sources });
 
-    return result;
+    // Return a defensive copy so caller mutations can't corrupt the cache
+    return { settings: new Map(settings), sources: { ...sources } };
   }
 
   /**
@@ -204,7 +147,7 @@ export class EntitySettingsCache {
     const key = buildCacheKey(userId, agentId);
 
     // PERF: Populate in-memory cache immediately
-    setInMemorySettingsCache(key, settings, sources);
+    inMemorySettingsCache.set(key, { settings, sources });
 
     const cached: CachedSettings = {
       settings: Object.fromEntries(settings),
@@ -231,7 +174,7 @@ export class EntitySettingsCache {
     const key = buildCacheKey(userId, agentId);
 
     // PERF: Clear in-memory cache first
-    invalidateInMemorySettingsCache(key);
+    inMemorySettingsCache.delete(key);
 
     await cache.del(key);
 
@@ -248,7 +191,7 @@ export class EntitySettingsCache {
    */
   async invalidateUser(userId: string): Promise<void> {
     // PERF: Clear in-memory cache first
-    invalidateInMemorySettingsCacheForUser(userId);
+    inMemorySettingsCache.deleteByPrefix(`${CACHE_PREFIX}:${userId}:`);
 
     const pattern = buildUserPattern(userId);
     await cache.delPattern(pattern);

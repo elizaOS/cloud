@@ -19,6 +19,7 @@ import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
 import { cache } from "@/lib/cache/client";
+import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
   generateUsernameFromName,
@@ -36,9 +37,7 @@ const CHARACTER_CACHE_TTL = CacheTTL.agent.characterData; // 1 hour
  * Characters rarely change during active sessions. This eliminates the Redis
  * round-trip (~5ms) for repeated lookups within the same serverless instance.
  */
-const IN_MEMORY_CHAR_CACHE = new Map<string, { character: UserCharacter; expiresAt: number }>();
-const IN_MEMORY_CHAR_TTL_MS = 60_000; // 60 seconds
-const IN_MEMORY_CHAR_MAX_SIZE = 100;
+const inMemoryCharCache = new InMemoryLRUCache<UserCharacter>(100, 60_000);
 
 /**
  * Service for character CRUD operations.
@@ -50,10 +49,10 @@ export class CharactersService {
    */
   async getById(id: string): Promise<UserCharacter | undefined> {
     // PERF: Check in-memory cache first (eliminates Redis round-trip)
-    const inMemoryEntry = IN_MEMORY_CHAR_CACHE.get(id);
-    if (inMemoryEntry && Date.now() < inMemoryEntry.expiresAt) {
+    const inMemoryHit = inMemoryCharCache.get(id);
+    if (inMemoryHit) {
       logger.debug(`[Characters] ⚡ In-memory cache HIT: ${id}`);
-      return inMemoryEntry.character;
+      return structuredClone(inMemoryHit);
     }
 
     const cacheKey = characterCacheKey(id);
@@ -62,9 +61,8 @@ export class CharactersService {
     const cached = await cache.get<UserCharacter>(cacheKey);
     if (cached) {
       logger.debug(`[Characters] ⚡ Redis cache HIT: ${id}`);
-      // Populate in-memory cache from Redis hit
-      this._setInMemoryCache(id, cached);
-      return cached;
+      inMemoryCharCache.set(id, cached);
+      return structuredClone(cached);
     }
 
     // Fetch from database
@@ -73,33 +71,12 @@ export class CharactersService {
     // Cache for future requests (Redis: 1 hour, in-memory: 60s)
     if (character) {
       await cache.set(cacheKey, character, CHARACTER_CACHE_TTL);
-      this._setInMemoryCache(id, character);
+      inMemoryCharCache.set(id, character);
       logger.debug(`[Characters] Cache MISS, cached: ${id}`);
+      return structuredClone(character);
     }
 
     return character;
-  }
-
-  /** PERF: Set in-memory cache with expired-first eviction */
-  private _setInMemoryCache(id: string, character: UserCharacter): void {
-    if (IN_MEMORY_CHAR_CACHE.size >= IN_MEMORY_CHAR_MAX_SIZE) {
-      // First pass: evict expired entries
-      const now = Date.now();
-      for (const [key, value] of IN_MEMORY_CHAR_CACHE) {
-        if (now > value.expiresAt) {
-          IN_MEMORY_CHAR_CACHE.delete(key);
-        }
-      }
-      // Second pass: if still over capacity, evict oldest entries (by insertion order)
-      if (IN_MEMORY_CHAR_CACHE.size >= IN_MEMORY_CHAR_MAX_SIZE) {
-        const keys = Array.from(IN_MEMORY_CHAR_CACHE.keys());
-        const toRemove = keys.length - Math.floor(IN_MEMORY_CHAR_MAX_SIZE * 0.75);
-        for (let i = 0; i < toRemove; i++) {
-          IN_MEMORY_CHAR_CACHE.delete(keys[i]);
-        }
-      }
-    }
-    IN_MEMORY_CHAR_CACHE.set(id, { character, expiresAt: Date.now() + IN_MEMORY_CHAR_TTL_MS });
   }
 
   /**
@@ -107,8 +84,7 @@ export class CharactersService {
    * CRITICAL: This now also invalidates the in-memory runtime cache
    */
   async invalidateCache(id: string): Promise<void> {
-    // PERF: Also invalidate in-memory cache
-    IN_MEMORY_CHAR_CACHE.delete(id);
+    inMemoryCharCache.delete(id);
     // Import dynamically to avoid circular dependency
     const { invalidateCharacterCache } =
       await import("@/lib/cache/character-cache");

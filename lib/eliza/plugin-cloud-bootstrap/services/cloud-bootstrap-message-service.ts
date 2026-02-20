@@ -641,8 +641,9 @@ export class CloudBootstrapMessageService implements IMessageService {
       logger.debug("[MultiStep] MCP service ready");
     }
 
-    // PERF: Fetch stable providers ONCE upfront, then only refresh ACTION_STATE per iteration.
-    // RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS do not change during a single message processing cycle.
+    // PERF: Fetch providers once upfront. ACTIONS and USER_AUTH_STATUS are truly stable
+    // for the request lifetime. RECENT_MESSAGES is cached here to give the decision LLM
+    // a consistent view during the loop; the summary step re-fetches it fresh.
     accumulatedState = await runtime.composeState(
       message,
       [
@@ -658,13 +659,9 @@ export class CloudBootstrapMessageService implements IMessageService {
     );
     accumulatedState.data.actionResults = traceActionResult;
 
-    // Cache stable provider values from the initial composeState call.
-    // These providers fetch data that doesn't change during message processing:
-    // - RECENT_MESSAGES: messages in the room (we haven't added new ones to the query yet)
-    // - ACTIONS: available actions (static for the runtime)
-    // - USER_AUTH_STATUS: OAuth connections (static for the request)
-    // We snapshot the values object entries for these providers so composePromptFromState
-    // can resolve template variables (e.g., {{recentMessages}}, {{actionNames}}) correctly.
+    // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
+    // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
+    // sees a consistent baseline; the summary step fetches fresh RECENT_MESSAGES.
     const cachedStableValues: Record<string, unknown> = {};
     const stableProviderKeys = [
       "recentMessages", "actions", "actionNames", "actionExamples",
@@ -718,17 +715,11 @@ export class CloudBootstrapMessageService implements IMessageService {
           },
         };
 
-        // PERF: Only refresh ACTION_STATE per iteration (it changes after actions execute).
-        // Reuse cached RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS from the initial fetch.
+        // Only refresh ACTION_STATE + CHARACTER per iteration. ACTIONS, USER_AUTH_STATUS,
+        // and RECENT_MESSAGES are stable for the request lifetime and reused from cache.
         const actionOnlyState = await runtime.composeState(
           messageWithResults,
-          [
-            "ACTION_STATE",
-            "ACTIONS",
-            "CHARACTER",
-            "USER_AUTH_STATUS",
-            // NOTE: "MCP" provider removed - MCP tools are now native actions
-          ],
+          ["ACTION_STATE", "CHARACTER"],
           true,
         );
         // Merge: start with fresh ACTION_STATE, overlay cached stable provider values
@@ -1129,18 +1120,19 @@ export class CloudBootstrapMessageService implements IMessageService {
       },
     };
 
-    // PERF: Only refresh ACTION_STATE and CHARACTER for the summary.
-    // Reuse cached RECENT_MESSAGES and USER_AUTH_STATUS from the initial fetch.
+    // Fetch all providers fresh for the summary. RECENT_MESSAGES will include
+    // messages created by action execution, which the summary LLM needs to see.
     const summaryFreshState = await runtime.composeState(
       summaryMessageWithResults,
       ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS"],
       true,
     );
-    // Merge: start with fresh ACTION_STATE + CHARACTER, overlay cached stable values
+    // Summary merge: fresh values take precedence over cached. RECENT_MESSAGES
+    // changed after actions executed, so the stale cached copy must NOT win.
     accumulatedState = {
       ...summaryFreshState,
-      values: { ...summaryFreshState.values, ...cachedStableValues },
-      data: { ...summaryFreshState.data, ...cachedStableData },
+      values: { ...cachedStableValues, ...summaryFreshState.values },
+      data: { ...cachedStableData, ...summaryFreshState.data },
     };
     // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
