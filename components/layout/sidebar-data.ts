@@ -16,6 +16,7 @@ import {
   Wallet,
   Coins,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -30,6 +31,7 @@ export interface SidebarItem {
   freeAllowed?: boolean;
   featureFlag?: FeatureFlag;
   adminOnly?: boolean; // Only show for admin users
+  superAdminOnly?: boolean; // Only show for super_admin role
   comingSoon?: boolean; // Show as disabled with "soon" tag
 }
 
@@ -183,6 +185,15 @@ export const sidebarSections: SidebarSection[] = [
         icon: Coins,
         freeAllowed: false,
         adminOnly: true,
+      },
+      {
+        id: "admin-metrics",
+        label: "Metrics",
+        href: "/dashboard/admin/metrics",
+        icon: BarChart3,
+        freeAllowed: false,
+        adminOnly: true,
+        superAdminOnly: true,
       },
     ],
   },
