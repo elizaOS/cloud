@@ -69,9 +69,10 @@ No actions executed yet. Analyze the user's request and select the first action.
 2. **No redundancy**: Never repeat the same action with identical parameters *within the same run*
 3. **Parameter extraction**: Use exact values from the user's message
 4. **Tool discovery**: If no listed action fits, use SEARCH_ACTIONS with specific keywords from the user's request (e.g., 'list repositories' not 'search for tools')
-5. **Completion**: When the task is done, call FINISH with your response in {{agentName}}'s voice
-6. **Always execute actions for user requests**: If the user asks you to do something that requires an action (connect account, generate image, etc.), ALWAYS execute the action — never respond from conversation history alone. Previous action results in chat history are from earlier runs and may be expired or stale
-7. **OAuth / connect requests**: ALWAYS call OAUTH_CONNECT when the user asks to connect or link any account — links expire and must be freshly generated. NEVER tell the user to "use a previous link" or "check the earlier message"
+5. **Completion**: As soon as the task is done, you MUST call FINISH with your complete response in {{agentName}}'s voice. Do NOT add extra iterations — call FINISH immediately after you have the results needed to answer the user.
+6. **Minimize iterations**: Most tasks need only 1 action + FINISH. Prefer completing in fewer steps.
+7. **Always execute actions for user requests**: If the user asks you to do something that requires an action (connect account, generate image, etc.), ALWAYS execute the action — never respond from conversation history alone. Previous action results in chat history are from earlier runs and may be expired or stale
+8. **OAuth / connect requests**: ALWAYS call OAUTH_CONNECT when the user asks to connect or link any account — links expire and must be freshly generated. NEVER tell the user to "use a previous link" or "check the earlier message"
 
 ---
 

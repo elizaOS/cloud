@@ -34,6 +34,7 @@ import {
   refreshStateAfterAction,
   getActionResultsFromCache,
 } from "../utils/state";
+import { invalidateActionValidationCache } from "../providers/actions";
 import {
   type MultiStepActionResult,
   type StrategyMode,
@@ -48,8 +49,8 @@ import {
 const latestResponseIds = new Map<string, Map<string, string>>();
 
 const RETRY_CONFIG = {
-  baseDelayMs: 1000,
-  maxDelayMs: 10000,
+  baseDelayMs: 200,
+  maxDelayMs: 1000,
   backoffMultiplier: 2,
 } as const;
 
@@ -619,15 +620,9 @@ export class CloudBootstrapMessageService implements IMessageService {
     let iterationCount = 0;
 
     try {
-    // Wait for MCP service to finish initializing (registering tool actions)
-    const mcpService = runtime.getService("mcp");
-    if (mcpService && "waitForInitialization" in mcpService) {
-      logger.debug("[MultiStep] Waiting for MCP service initialization...");
-      await (
-        mcpService as { waitForInitialization: () => Promise<void> }
-      ).waitForInitialization();
-      logger.debug("[MultiStep] MCP service ready");
-    }
+    // ASSUMPTION: MCP service init already completed during runtime creation
+    // (RuntimeFactory.waitForMcpServiceIfNeeded). If RuntimeFactory changes to
+    // skip that call, MCP tools will be missing on the first message.
 
     accumulatedState = await runtime.composeState(
       message,
@@ -726,7 +721,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         logger.info("==============================================");
 
         const maxParseRetries = parseInt(
-          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "5"),
+          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
         );
         let stepResultRaw = "";
         let parsedStep: ParsedMultiStepDecision | null = null;
@@ -972,6 +967,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             const newlyRegistered = data?.newlyRegistered as string[] | undefined;
             if (newlyRegistered?.length) {
               newlyRegistered.forEach(name => discoveredActions.add(name));
+              invalidateActionValidationCache(message.id as string);
               logger.info(
                 `[MultiStep] Discovered actions: ${newlyRegistered.join(", ")}`,
               );
@@ -1110,7 +1106,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     logger.info("==============================================");
 
     const maxSummaryRetries = parseInt(
-      String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "5"),
+      String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "2"),
     );
     let finalOutput = "";
     let summary: Record<string, unknown> | null = null;

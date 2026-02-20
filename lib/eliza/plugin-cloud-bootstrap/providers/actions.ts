@@ -28,40 +28,63 @@ function formatActionsWithParams(actions: Action[]): string {
   }).join("\n\n---\n\n");
 }
 
+/**
+ * Per-message cache for action validation results.
+ * Avoids re-validating 50-100+ actions on every composeState() call
+ * within the same message processing cycle (called 5-9 times).
+ */
+const validationCache = new Map<string, { actions: Action[]; discoverableToolCount: number }>();
+
+/** Invalidate cached validation for a message (e.g., after SEARCH_ACTIONS registers new tools). */
+export function invalidateActionValidationCache(messageId: string): void {
+  validationCache.delete(messageId);
+}
+
 export const actionsProvider: Provider = {
   name: "ACTIONS",
   description: "Available actions with parameter schemas",
   position: -1,
 
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    // Get actions that validate for this message
-    const actionsData = (await Promise.all(
-      runtime.actions.map(async (action: Action) => {
-        try {
-          return (await action.validate(runtime, message, state)) ? action : null;
-        } catch (e) {
-          const errorMessage = e instanceof Error ? e.message : String(e);
-          logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
-          return null;
-        }
-      })
-    )).filter((a): a is Action => a !== null);
+    const cacheKey = message.id ? String(message.id) : null;
+    let cached = cacheKey ? validationCache.get(cacheKey) : undefined;
 
+    if (!cached) {
+      const actionsData = (await Promise.all(
+        runtime.actions.map(async (action: Action) => {
+          try {
+            return (await action.validate(runtime, message, state)) ? action : null;
+          } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
+            return null;
+          }
+        })
+      )).filter((a): a is Action => a !== null);
+
+      let discoverableToolCount = 0;
+      try {
+        const mcpSvc = runtime.getService("mcp") as unknown as
+          | { getTier2Index?: () => { getToolCount: () => number } }
+          | undefined;
+        if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
+          const index = mcpSvc.getTier2Index();
+          const count = index?.getToolCount?.();
+          if (typeof count === "number") discoverableToolCount = count;
+        }
+      } catch { /* MCP service may not be available */ }
+
+      cached = { actions: actionsData, discoverableToolCount };
+      if (cacheKey) {
+        validationCache.set(cacheKey, cached);
+        setTimeout(() => validationCache.delete(cacheKey), 120_000);
+      }
+    }
+
+    const actionsData = cached.actions;
+    const discoverableToolCount = cached.discoverableToolCount;
     const hasActions = actionsData.length > 0;
     const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;
-
-    // Get discoverable tool count from MCP service (Tier-2 tools not in the visible set)
-    let discoverableToolCount = 0;
-    try {
-      const mcpSvc = runtime.getService("mcp") as unknown as
-        | { getTier2Index?: () => { getToolCount: () => number } }
-        | undefined;
-      if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
-        const index = mcpSvc.getTier2Index();
-        const count = index?.getToolCount?.();
-        if (typeof count === "number") discoverableToolCount = count;
-      }
-    } catch { /* MCP service may not be available */ }
 
     return {
       data: { actionsData },

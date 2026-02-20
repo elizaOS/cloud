@@ -6,7 +6,7 @@ import type { Resource, ResourceTemplate, Tool } from "@modelcontextprotocol/sdk
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 export const MCP_SERVICE_NAME = "mcp";
-export const DEFAULT_MCP_TIMEOUT_SECONDS = 60000;
+export const DEFAULT_MCP_TIMEOUT_SECONDS = 15000;
 export const DEFAULT_MAX_RETRIES = 2;
 export const MAX_RECONNECT_ATTEMPTS = 5;
 export const BACKOFF_MULTIPLIER = 2;
