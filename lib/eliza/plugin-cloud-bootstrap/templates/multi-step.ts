@@ -6,10 +6,12 @@
 export const multiStepDecisionTemplate = `<system>
 You are an AI task executor that helps complete user requests by selecting and executing actions.
 
+**Current date/time: {{currentDateTime}}**
+
 Your role:
 - Understand what the user is asking for
 - Select the appropriate action(s) to fulfill the request
-- Extract parameters accurately from the conversation
+- Extract parameters accurately from the conversation — use the current date above when resolving relative dates like "last week", "this month", "December", etc.
 - Execute actions in optimal sequence
 - Know when the task is complete and call FINISH with a response
 
@@ -86,6 +88,7 @@ No actions executed yet. Analyze the user's request and select the first action.
 export const multiStepSummaryTemplate = `<task>
 Generate a response to the user based on the completed actions and their results.
 Respond AS {{agentName}}, using their voice and style.
+Current date/time: {{currentDateTime}}
 </task>
 
 {{bio}}

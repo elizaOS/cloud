@@ -699,6 +699,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         const remainingSteps = maxIterations - iterationCount;
         const stateWithIterationContext = {
           ...accumulatedState,
+          currentDateTime: new Date().toISOString(),
           iterationCount,
           maxIterations,
           traceActionResult,
@@ -1093,6 +1094,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
     accumulatedState.values.hasActionResults = traceActionResult.length > 0;
     accumulatedState.values.discoveredActions = discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
+    accumulatedState.values.currentDateTime = new Date().toISOString();
 
     const summaryPrompt = composePromptFromState({
       state: accumulatedState,

@@ -44,11 +44,16 @@ async function sendTelegramMessage(
   text: string,
   replyToMessageId?: number,
 ): Promise<boolean> {
+  // Telegram's legacy Markdown treats _ as italic, silently mangling URLs that
+  // contain query params like client_id, redirect_uri, response_type, etc.
+  // Skip parse_mode when the text contains URLs with underscores to preserve them.
+  const hasUrlWithUnderscores = /https?:\/\/\S*_\S*/i.test(text);
+
   const payload: Record<string, unknown> = {
     chat_id: chatId,
     text,
     reply_to_message_id: replyToMessageId,
-    parse_mode: "Markdown",
+    ...(!hasUrlWithUnderscores && { parse_mode: "Markdown" }),
   };
 
   let response = await callTelegramApi(payload);
@@ -56,9 +61,8 @@ async function sendTelegramMessage(
   if (!response.ok) {
     const error = await response.text();
 
-    // Telegram's legacy Markdown chokes on URLs with underscores, parens, etc.
-    // Retry without parse_mode — URLs are still auto-linked in plain text.
-    if (error.includes("can't parse entities")) {
+    // Fallback: if Markdown parsing fails for any other reason, retry as plain text.
+    if (payload.parse_mode && error.includes("can't parse entities")) {
       logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", { chatId });
       delete payload.parse_mode;
       response = await callTelegramApi(payload);
