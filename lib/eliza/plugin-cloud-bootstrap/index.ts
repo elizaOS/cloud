@@ -63,7 +63,9 @@ const MAX_LOGGED_RUN_IDS = 500; // Prevent unbounded growth
 
 function cleanupLoggedRunIds(): void {
   if (loggedRunIds.size > MAX_LOGGED_RUN_IDS) {
-    // Remove oldest entries (first half)
+    // Remove oldest entries by Map insertion order (creation-time, not completion-time).
+    // This is fine because run IDs are inserted on first encounter and we only need
+    // approximate recency — evicting the first half is simple and O(n/2).
     const keys = Array.from(loggedRunIds.keys());
     const toRemove = keys.slice(0, Math.floor(keys.length / 2));
     for (const key of toRemove) {
