@@ -171,6 +171,12 @@ class UserMetricsService {
    * Count new user signups in a date range.
    */
   async getNewSignups(startDate: Date, endDate: Date): Promise<SignupsResult> {
+    const startKey = startDate.toISOString().split("T")[0];
+    const endKey = endDate.toISOString().split("T")[0];
+    const cacheKey = CacheKeys.userMetrics.signups(startKey, endKey);
+    const cached = await cache.get<SignupsResult>(cacheKey);
+    if (cached) return cached;
+
     const rows = await dbRead
       .select({
         day: sql<string>`DATE_TRUNC('day', ${users.created_at})`,
@@ -193,7 +199,9 @@ class UserMetricsService {
     }));
     const total = byDay.reduce((s, d) => s + d.count, 0);
 
-    return { total, byDay };
+    const result = { total, byDay };
+    await cache.set(cacheKey, result, CacheTTL.userMetrics.signups);
+    return result;
   }
 
   /**

@@ -171,6 +171,8 @@ export const CacheKeys = {
     retention: (start: string, end: string) =>
       `user-metrics:retention:${start}:${end}:v1`,
     activeUsers: (range: string) => `user-metrics:active:${range}:v1`,
+    signups: (start: string, end: string) =>
+      `user-metrics:signups:${start}:${end}:v1`,
     pattern: () => `user-metrics:*`,
   },
 } as const;
@@ -288,6 +290,7 @@ export const CacheTTL = {
     daily: 3600, // 1 hour - pre-computed data changes once per day
     retention: 3600, // 1 hour - pre-computed data changes once per day
     activeUsers: 300, // 5 minutes - live query
+    signups: 300, // 5 minutes - live query
   },
 } as const;
 
