@@ -422,6 +422,23 @@ export async function POST(
     //
     // Previously sequential: entity-settings (665ms) → create-runtime (485ms) = ~1,150ms
     // Now parallel: max(entity-settings, create-runtime) ≈ ~665ms → saves ~485ms
+    //
+    // INVARIANT: createRuntimeForUser must NOT call getSetting() or read from
+    // entitySettingsMap during construction. Known-safe paths:
+    //   - runtimeFactory.createRuntimeForUser → builds AgentRuntime, registers
+    //     plugins, sets up providers/actions. None read entity-level settings.
+    //   - Plugin init() hooks run during message processing (after settings are
+    //     populated), not during runtime construction here.
+    // If a plugin or runtime change adds getSetting() during construction,
+    // this parallelization must be reverted to sequential.
+    // INVARIANT: createRuntimeForUser must NOT call getSetting() or read from
+    // entitySettingsMap during construction. Known-safe paths:
+    //   - runtimeFactory.createRuntimeForUser builds AgentRuntime, registers
+    //     plugins, sets up providers/actions. None read entity-level settings.
+    //   - Plugin init() hooks run during message processing (after settings are
+    //     populated), not during runtime construction here.
+    // If a plugin or runtime change adds getSetting() during construction,
+    // this parallelization must be reverted to sequential.
     const agentIdForSettings = characterId || DEFAULT_AGENT_ID_STRING;
 
     // Create request context with a mutable entitySettings Map.
@@ -841,6 +858,10 @@ async function checkUserCredits(organizationId: string): Promise<number> {
     return Number.parseFloat(String(org.credit_balance));
   } catch (error) {
     logger.error("[Stream] Failed to check credits:", error);
+    return 0;
+  }
+}
+eck credits:", error);
     return 0;
   }
 }
