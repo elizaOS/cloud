@@ -119,52 +119,6 @@ export function parseCommand(text: string): {
   };
 }
 
-const URL_REGEX = /https?:\/\/[^\s)>\]]+[^\s)>\].,;:!?"']/;
-
-const AUTH_URL_PATTERNS: [string, (url: string) => boolean][] = [
-  ["Connect Google",      (u) => u.includes("accounts.google") || (u.includes("/auth/") && u.includes("google"))],
-  ["Connect Twitter / X", (u) => u.includes("api.twitter") || u.includes("twitter.com/i/oauth") || u.includes("//x.com")],
-  ["Connect GitHub",      (u) => u.includes("github.com") && u.includes("authorize")],
-  ["Connect Slack",       (u) => u.includes("slack.com") && u.includes("oauth")],
-  ["Connect Linear",      (u) => u.includes("linear.app") && u.includes("oauth")],
-  ["Connect Notion",      (u) => (u.includes("notion.so") || u.includes("notion.com")) && u.includes("oauth")],
-  ["Connect Discord",     (u) => u.includes("discord.com") && u.includes("oauth")],
-  ["Connect LinkedIn",    (u) => u.includes("linkedin.com") && u.includes("oauth")],
-  ["Connect Microsoft",   (u) => u.includes("login.microsoftonline") || (u.includes("microsoft") && u.includes("oauth"))],
-  ["Authorize",           (u) => u.includes("/oauth") || (u.includes("/auth/") && /[?&](client_id|code|state|redirect_uri)=/.test(u))],
-];
-
-function isAuthUrl(url: string): boolean {
-  const lower = url.toLowerCase();
-  return AUTH_URL_PATTERNS.some(([, test]) => test(lower));
-}
-
-export function extractAuthUrls(text: string): { label: string; url: string }[] {
-  const matches = text.match(new RegExp(URL_REGEX, "g"));
-  if (!matches) return [];
-
-  return matches.reduce<{ label: string; url: string }[]>((buttons, url) => {
-    const lower = url.toLowerCase();
-    const match = AUTH_URL_PATTERNS.find(([, test]) => test(lower));
-    if (match) buttons.push({ label: match[0], url });
-    return buttons;
-  }, []);
-}
-
-export function stripAuthUrlsFromText(text: string): string {
-  return text
-    .replace(new RegExp(URL_REGEX, "g"), (url) => isAuthUrl(url) ? "" : url)
-    .replace(/Connect[\w\s/]+:\s*/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-const ACTION_KEYWORDS = /\b(create|automate|connect|set up|build|send|check|read|draft)\b/i;
-
-export function isSimpleMessage(text: string): boolean {
-  return text.split(/\s+/).length <= 3 && !ACTION_KEYWORDS.test(text);
-}
-
 export function createTypingRefresh(
   chatId: number,
   botToken: string,
