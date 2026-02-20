@@ -18,3 +18,4 @@ export {
   type FindOrCreateResult,
 } from "./user-service";
 export { elizaAppConfig } from "./config";
+export { connectionEnforcementService } from "./connection-enforcement";

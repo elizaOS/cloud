@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppUserService, connectionEnforcementService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
@@ -109,6 +109,19 @@ async function handleMessage(message: Message): Promise<void> {
     return;
   }
   const { organization } = userWithOrg;
+
+  // Check for required data integration connection (Google, Microsoft, or X)
+  const hasConnection = await connectionEnforcementService.hasRequiredConnection(organization.id);
+  if (!hasConnection) {
+    const nudgeText = await connectionEnforcementService.generateNudgeResponse({
+      userMessage: text,
+      platform: "telegram",
+      organizationId: organization.id,
+      userId: userWithOrg.id,
+    });
+    await sendTelegramMessage(message.chat.id, nudgeText, message.message_id);
+    return true;
+  }
 
   const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
   const entityId = userWithOrg.id; // Use userId as entityId for unified memory
@@ -227,11 +240,15 @@ async function handleCommand(message: Message): Promise<void> {
       const telegramUserId = String(message.from?.id);
       const user = await elizaAppUserService.getByTelegramId(telegramUserId);
 
-      if (user) {
-        const creditBalance = user.organization?.credit_balance || "0.00";
+      if (user && user.organization) {
+        const creditBalance = user.organization.credit_balance || "0.00";
+        const hasConn = await connectionEnforcementService.hasRequiredConnection(user.organization.id);
+        const connStatus = hasConn
+          ? "✅ Data integration connected"
+          : "⚠️ No data integration — connect Google, Microsoft, or X to get started";
         await sendTelegramMessage(
           chatId,
-          `*Account Status*\n\n✅ Connected\n💰 Credits: $${creditBalance}\n🆔 User ID: \`${user.id.substring(0, 8)}...\``,
+          `*Account Status*\n\n✅ Telegram connected\n${connStatus}\n💰 Credits: $${creditBalance}\n🆔 User ID: \`${user.id.substring(0, 8)}...\``,
         );
       } else {
         await sendTelegramMessage(

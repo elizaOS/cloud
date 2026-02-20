@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { withInternalAuth } from "@/lib/auth/internal-api";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppUserService, connectionEnforcementService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
@@ -250,6 +250,19 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     return NextResponse.json({ ok: true });
   }
   const { organization } = userWithOrg;
+
+  // Check for required data integration connection (Google, Microsoft, or X)
+  const hasConnection = await connectionEnforcementService.hasRequiredConnection(organization.id);
+  if (!hasConnection) {
+    const nudgeText = await connectionEnforcementService.generateNudgeResponse({
+      userMessage: data.content,
+      platform: "discord",
+      organizationId: organization.id,
+      userId: userWithOrg.id,
+    });
+    await sendDiscordMessage(data.channel_id, nudgeText, data.id);
+    return NextResponse.json({ ok: true });
+  }
 
   // Generate room ID (deterministic)
   const roomId = generateElizaAppRoomId("discord", DEFAULT_AGENT_ID, discordUserId);

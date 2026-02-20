@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppUserService, connectionEnforcementService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
@@ -156,6 +156,19 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
       isNewUser: isNew,
       phoneNumber: `***${phoneNumber.slice(-4)}`,
     });
+  }
+
+  // Check for required data integration connection (Google, Microsoft, or X)
+  const hasConnection = await connectionEnforcementService.hasRequiredConnection(organization.id);
+  if (!hasConnection) {
+    const nudgeText = await connectionEnforcementService.generateNudgeResponse({
+      userMessage: text || "",
+      platform: "imessage",
+      organizationId: organization.id,
+      userId: userWithOrg.id,
+    });
+    await sendBlooioMessage(senderIdentifier, nudgeText);
+    return true;
   }
 
   const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, senderIdentifier);
