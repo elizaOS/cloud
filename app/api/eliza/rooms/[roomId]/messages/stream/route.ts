@@ -698,7 +698,10 @@ export async function POST(
         perfTrace.mark("send-response");
         const traceResult = perfTrace.end();
 
-        // Send completion event (include perf trace only when tracing is enabled)
+        // WARNING: When ENABLE_PERF_TRACE is on, phase names (e.g. "auth",
+        // "parallel-checks") are sent to the client, revealing infrastructure
+        // topology. ENABLE_PERF_TRACE is for dev/staging only — never enable
+        // in production. If production tracing is needed, emit to server logs only.
         const donePayload: Record<string, unknown> = { timestamp: Date.now() };
         if (traceResult.traceId) {
           donePayload.perfTrace = {
