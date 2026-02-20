@@ -94,18 +94,17 @@ export function createPerfTrace(
   const phases: PerfPhase[] = [];
   let currentPhaseStart = startTime;
   let currentPhaseName: string | null = null;
-  let ended = false;
+  let cachedResult: PerfTraceResult | null = null;
 
   const minDuration = options?.minDurationMs ?? 0;
   const logLevel = options?.logLevel ?? "info";
 
   return {
     mark(phase: string): void {
-      if (ended) return;
+      if (cachedResult) return;
 
       const now = Date.now();
 
-      // End previous phase
       if (currentPhaseName !== null) {
         phases.push({
           name: currentPhaseName,
@@ -114,20 +113,15 @@ export function createPerfTrace(
         });
       }
 
-      // Start new phase
       currentPhaseName = phase;
       currentPhaseStart = now;
     },
 
     end(): PerfTraceResult {
-      if (ended) {
-        return { traceId, totalMs: Date.now() - startTime, phases };
-      }
-      ended = true;
+      if (cachedResult) return cachedResult;
 
       const now = Date.now();
 
-      // End the last phase
       if (currentPhaseName !== null) {
         phases.push({
           name: currentPhaseName,
@@ -137,9 +131,8 @@ export function createPerfTrace(
       }
 
       const totalMs = now - startTime;
-      const result: PerfTraceResult = { traceId, totalMs, phases };
+      cachedResult = { traceId, totalMs, phases };
 
-      // Log if above minimum duration threshold
       if (totalMs >= minDuration) {
         const phasesSummary = phases
           .map((p) => `${p.name}=${p.durationMs}ms`)
@@ -155,7 +148,7 @@ export function createPerfTrace(
         }
       }
 
-      return result;
+      return cachedResult;
     },
 
     elapsed(): number {
