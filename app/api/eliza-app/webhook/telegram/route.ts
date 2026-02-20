@@ -47,7 +47,7 @@ async function sendTelegramMessage(
   // Telegram's legacy Markdown treats _ as italic, silently mangling URLs that
   // contain query params like client_id, redirect_uri, response_type, etc.
   // Skip parse_mode when the text contains URLs with underscores to preserve them.
-  const hasUrlWithUnderscores = /https?:\/\/\S*_\S*/i.test(text);
+  const hasUrlWithUnderscores = /https?:\/\/\S*_\S*/.test(text);
 
   const payload: Record<string, unknown> = {
     chat_id: chatId,

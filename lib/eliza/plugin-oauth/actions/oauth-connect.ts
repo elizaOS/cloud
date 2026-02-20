@@ -131,7 +131,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const text = `[Click here to connect ${platformName}](${result.authUrl})\n\nWhen you've finished authorizing, say "done" and I'll verify the connection.`;
+    const text = `Connect ${platformName} here:\n${result.authUrl}\n\nWhen you've finished authorizing, say "done" and I'll verify the connection.`;
 
     if (callback) await callback({ text, actions: [actionName] });
 
@@ -141,19 +141,19 @@ export const oauthConnectAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "connect my google account" } },
-      { name: "{{name2}}", content: { text: "[Click here to connect Google](https://accounts.google.com/...)", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Connect Google here:\nhttps://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
-      { name: "{{name2}}", content: { text: "[Click here to connect Google](https://accounts.google.com/...)", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Connect Google here:\nhttps://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "connect my twitter account" } },
-      { name: "{{name2}}", content: { text: "[Click here to connect Twitter](https://api.twitter.com/oauth/...)", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Connect Twitter here:\nhttps://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link my x account" } },
-      { name: "{{name2}}", content: { text: "[Click here to connect Twitter](https://api.twitter.com/oauth/...)", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Connect Twitter here:\nhttps://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
     ],
   ] as ActionExample[][],
 };

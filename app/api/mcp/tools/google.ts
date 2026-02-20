@@ -5,6 +5,15 @@ import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
+import {
+  googleFetchWithToken,
+  errMsg,
+  sanitizeHeaderValue,
+  extractBody,
+  mapGmailMessage,
+  mapCalendarEvent,
+  mapContact,
+} from "@/lib/utils/google-mcp-shared";
 
 async function getGoogleToken(): Promise<string> {
   const { user } = getAuthContext();
@@ -23,140 +32,9 @@ async function getGoogleToken(): Promise<string> {
   }
 }
 
-const GOOGLE_API_TIMEOUT_MS = 30_000;
-
 async function googleFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = await getGoogleToken();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GOOGLE_API_TIMEOUT_MS);
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...options,
-      headers: { Authorization: `Bearer ${token}`, ...options.headers },
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error(`Google API request timed out after ${GOOGLE_API_TIMEOUT_MS / 1000}s`);
-    }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!response.ok && response.status !== 204) {
-    let errorDetail: string;
-    try {
-      const errorBody = await response.json();
-      const apiMsg = errorBody.error?.message || errorBody.error_description;
-      const apiCode = errorBody.error?.code || errorBody.error?.status;
-      const parts: string[] = [];
-      if (apiMsg) parts.push(apiMsg);
-      if (apiCode && apiCode !== response.status) parts.push(`code: ${apiCode}`);
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
-        logger.warn("[GoogleMCP] Rate limit hit", { url, retryAfter });
-        if (retryAfter) parts.push(`retry after ${retryAfter}s`);
-      }
-      errorDetail = parts.length > 0 ? parts.join(" — ") : `Google API error: ${response.status}`;
-    } catch {
-      errorDetail = `Google API error: ${response.status} ${response.statusText}`;
-    }
-    throw new Error(errorDetail);
-  }
-  return response;
-}
-
-function errMsg(error: unknown, fallback: string): string {
-  if (!(error instanceof Error)) return fallback;
-  return error.message;
-}
-
-/** Sanitize email header values to prevent CRLF injection attacks. */
-function sanitizeHeaderValue(value: string): string {
-  return value.replace(/[\r\n]/g, "");
-}
-
-/** Recursively extract text body from Gmail payload (handles nested multipart). */
-function extractBody(payload: Record<string, unknown>): string {
-  if (payload?.body?.data) {
-    return Buffer.from(payload.body.data, "base64").toString("utf-8");
-  }
-
-  if (payload?.parts && Array.isArray(payload.parts)) {
-    for (const mimeType of ["text/plain", "text/html"]) {
-      for (const part of payload.parts) {
-        if (part.mimeType === mimeType && part.body?.data) {
-          return Buffer.from(part.body.data, "base64").toString("utf-8");
-        }
-        if (part.mimeType?.startsWith("multipart/")) {
-          const nested = extractBody(part);
-          if (nested) return nested;
-        }
-      }
-    }
-    for (const part of payload.parts) {
-      const nested = extractBody(part);
-      if (nested) return nested;
-    }
-  }
-  return "";
-}
-
-// ── Shared mappers ───────────────────────────────────────────────────────────
-
-function mapGmailMessage(d: Record<string, unknown>): Record<string, unknown> {
-  const payload = d.payload as Record<string, unknown> | undefined;
-  const headers = (payload?.headers as Array<{ name: string; value: string }>) || [];
-  return {
-    id: d.id,
-    threadId: d.threadId,
-    snippet: d.snippet,
-    labelIds: d.labelIds,
-    headers: Object.fromEntries(headers.map((h) => [h.name, h.value])),
-    internalDate: d.internalDate
-      ? new Date(Number.parseInt(d.internalDate as string, 10)).toISOString()
-      : undefined,
-  };
-}
-
-function mapCalendarEvent(e: Record<string, unknown>): Record<string, unknown> {
-  const start = e.start as Record<string, unknown> | undefined;
-  const end = e.end as Record<string, unknown> | undefined;
-  const attendees = e.attendees as Array<Record<string, unknown>> | undefined;
-  return {
-    id: e.id,
-    summary: e.summary,
-    description: e.description,
-    start: start?.dateTime || start?.date,
-    end: end?.dateTime || end?.date,
-    location: e.location,
-    status: e.status,
-    htmlLink: e.htmlLink,
-    attendees: attendees?.map((a) => ({
-      email: a.email,
-      displayName: a.displayName,
-      responseStatus: a.responseStatus,
-    })),
-    organizer: e.organizer,
-  };
-}
-
-function mapContact(person: Record<string, unknown>): Record<string, unknown> {
-  const p = (person.person || person) as Record<string, unknown>;
-  const names = p.names as Array<Record<string, unknown>> | undefined;
-  const emails = p.emailAddresses as Array<Record<string, unknown>> | undefined;
-  const phones = p.phoneNumbers as Array<Record<string, unknown>> | undefined;
-  const orgs = p.organizations as Array<Record<string, unknown>> | undefined;
-  return {
-    resourceName: p.resourceName,
-    name: names?.[0]?.displayName,
-    email: emails?.[0]?.value,
-    phone: phones?.[0]?.value,
-    organization: orgs?.[0]?.name,
-  };
+  return googleFetchWithToken(token, url, options);
 }
 
 export function registerGoogleTools(server: McpServer): void {
@@ -234,7 +112,7 @@ export function registerGoogleTools(server: McpServer): void {
         );
 
         const result = await response.json();
-        logger.warn("[GoogleMCP] Email sent", { messageId: result.id, to });
+        logger.info("[GoogleMCP] Email sent", { messageId: result.id, to });
 
         return jsonResponse({
           success: true,
@@ -479,7 +357,7 @@ export function registerGoogleTools(server: McpServer): void {
         );
 
         const result = await response.json();
-        logger.warn("[GoogleMCP] Event created", { eventId: result.id, summary });
+        logger.info("[GoogleMCP] Event created", { eventId: result.id, summary });
 
         return jsonResponse({
           success: true,
@@ -531,7 +409,7 @@ export function registerGoogleTools(server: McpServer): void {
         });
 
         const result = await response.json();
-        logger.warn("[GoogleMCP] Event updated", { eventId: result.id });
+        logger.info("[GoogleMCP] Event updated", { eventId: result.id });
 
         return jsonResponse({
           success: true,
@@ -562,7 +440,7 @@ export function registerGoogleTools(server: McpServer): void {
           { method: "DELETE" },
         );
 
-        logger.warn("[GoogleMCP] Event deleted", { eventId, calendarId });
+        logger.info("[GoogleMCP] Event deleted", { eventId, calendarId });
         return jsonResponse({ success: true, deleted: true, eventId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete event"));

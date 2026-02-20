@@ -11,6 +11,17 @@ import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { authContextStorage } from "@/app/api/mcp/lib/context";
+import {
+  googleFetchWithToken,
+  errMsg,
+  sanitizeHeaderValue,
+  extractBody,
+  mapGmailMessage,
+  mapCalendarEvent,
+  mapContact,
+  applyTimeZone,
+  getCalendarTimeZone,
+} from "@/lib/utils/google-mcp-shared";
 
 export const maxDuration = 60;
 
@@ -25,8 +36,6 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
 }
 
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
-const GOOGLE_API_TIMEOUT_MS = 30_000;
 
 async function getGoogleMcpHandler() {
   if (mcpHandler) return mcpHandler;
@@ -55,126 +64,7 @@ async function getGoogleMcpHandler() {
 
   async function googleFetch(orgId: string, url: string, options: RequestInit = {}): Promise<Response> {
     const token = await getGoogleToken(orgId);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GOOGLE_API_TIMEOUT_MS);
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        ...options,
-        headers: { Authorization: `Bearer ${token}`, ...options.headers },
-        signal: controller.signal,
-      });
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof DOMException && err.name === "AbortError") {
-        throw new Error(`Google API request timed out after ${GOOGLE_API_TIMEOUT_MS / 1000}s`);
-      }
-      throw err;
-    }
-    clearTimeout(timeoutId);
-
-    if (!response.ok && response.status !== 204) {
-      let errorDetail: string;
-      try {
-        const errorBody = await response.json();
-        const apiMsg = errorBody.error?.message || errorBody.error_description;
-        const apiCode = errorBody.error?.code || errorBody.error?.status;
-        const parts: string[] = [];
-        if (apiMsg) parts.push(apiMsg);
-        if (apiCode && apiCode !== response.status) parts.push(`code: ${apiCode}`);
-        if (response.status === 429) {
-          const retryAfter = response.headers.get("Retry-After");
-          logger.warn("[GoogleMCP] Rate limit hit", { url, retryAfter });
-          if (retryAfter) parts.push(`retry after ${retryAfter}s`);
-        }
-        errorDetail = parts.length > 0 ? parts.join(" — ") : `Google API error: ${response.status}`;
-      } catch {
-        errorDetail = `Google API error: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorDetail);
-    }
-    return response;
-  }
-
-  function sanitizeHeaderValue(value: string): string {
-    return value.replace(/[\r\n]/g, "");
-  }
-
-  function extractBody(payload: Record<string, unknown>): string {
-    if (payload?.body?.data) {
-      return Buffer.from(payload.body.data, "base64").toString("utf-8");
-    }
-    if (payload?.parts && Array.isArray(payload.parts)) {
-      for (const mimeType of ["text/plain", "text/html"]) {
-        for (const part of payload.parts) {
-          if (part.mimeType === mimeType && part.body?.data) {
-            return Buffer.from(part.body.data, "base64").toString("utf-8");
-          }
-          if (part.mimeType?.startsWith("multipart/")) {
-            const nested = extractBody(part);
-            if (nested) return nested;
-          }
-        }
-      }
-      for (const part of payload.parts) {
-        const nested = extractBody(part);
-        if (nested) return nested;
-      }
-    }
-    return "";
-  }
-
-  function mapGmailMessage(d: Record<string, unknown>): Record<string, unknown> {
-    const payload = d.payload as Record<string, unknown> | undefined;
-    const headers = (payload?.headers as Array<{ name: string; value: string }>) || [];
-    return {
-      id: d.id,
-      threadId: d.threadId,
-      snippet: d.snippet,
-      labelIds: d.labelIds,
-      headers: Object.fromEntries(headers.map((h) => [h.name, h.value])),
-      internalDate: d.internalDate
-        ? new Date(Number.parseInt(d.internalDate as string, 10)).toISOString()
-        : undefined,
-    };
-  }
-
-  function mapCalendarEvent(e: Record<string, unknown>): Record<string, unknown> {
-    const start = e.start as Record<string, unknown> | undefined;
-    const end = e.end as Record<string, unknown> | undefined;
-    const attendees = e.attendees as Array<Record<string, unknown>> | undefined;
-    return {
-      id: e.id,
-      summary: e.summary,
-      description: e.description,
-      start: start?.dateTime || start?.date,
-      end: end?.dateTime || end?.date,
-      location: e.location,
-      status: e.status,
-      htmlLink: e.htmlLink,
-      attendees: attendees?.map((a) => ({
-        email: a.email,
-        displayName: a.displayName,
-        responseStatus: a.responseStatus,
-      })),
-      organizer: e.organizer,
-    };
-  }
-
-  function mapContact(person: Record<string, unknown>): Record<string, unknown> {
-    const p = (person.person || person) as Record<string, unknown>;
-    const names = p.names as Array<Record<string, unknown>> | undefined;
-    const emails = p.emailAddresses as Array<Record<string, unknown>> | undefined;
-    const phones = p.phoneNumbers as Array<Record<string, unknown>> | undefined;
-    const orgs = p.organizations as Array<Record<string, unknown>> | undefined;
-    return {
-      resourceName: p.resourceName,
-      name: names?.[0]?.displayName,
-      email: emails?.[0]?.value,
-      phone: phones?.[0]?.value,
-      organization: orgs?.[0]?.name,
-    };
+    return googleFetchWithToken(token, url, options);
   }
 
   function jsonResult(data: object) {
@@ -185,24 +75,8 @@ async function getGoogleMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
 
-  function errMsg(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback;
-  }
-
-  async function getCalendarTimeZone(orgId: string): Promise<string | null> {
-    try {
-      const res = await googleFetch(orgId, "https://www.googleapis.com/calendar/v3/calendars/primary");
-      const data = await res.json();
-      return (data.timeZone as string) || null;
-    } catch {
-      return null;
-    }
-  }
-
-  function applyTimeZone(dateTime: string, timeZone: string | undefined): { dateTime: string; timeZone?: string } {
-    if (!timeZone) return { dateTime };
-    const stripped = dateTime.endsWith("Z") ? dateTime.slice(0, -1) : dateTime;
-    return { dateTime: stripped, timeZone };
+  async function fetchCalendarTimeZone(orgId: string): Promise<string | null> {
+    return getCalendarTimeZone((url) => googleFetch(orgId, url), orgId);
   }
 
   mcpHandler = createMcpHandler(
@@ -226,7 +100,7 @@ async function getGoogleMcpHandler() {
             return jsonResult({ connected: false });
           }
 
-          const calendarTimeZone = await getCalendarTimeZone(orgId);
+          const calendarTimeZone = await fetchCalendarTimeZone(orgId);
 
           return jsonResult({
             connected: true,
@@ -275,7 +149,7 @@ async function getGoogleMcpHandler() {
               body: JSON.stringify({ raw }),
             });
             const result = await res.json();
-            logger.warn("[GoogleMCP] Email sent", { messageId: result.id, to });
+            logger.info("[GoogleMCP] Email sent", { messageId: result.id, to });
             return jsonResult({ success: true, messageId: result.id, threadId: result.threadId });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to send email"));
@@ -447,7 +321,7 @@ async function getGoogleMcpHandler() {
             if (query) params.set("q", query);
             if (pageToken) params.set("pageToken", pageToken);
 
-            const tz = timeZone || (await getCalendarTimeZone(orgId));
+            const tz = timeZone || (await fetchCalendarTimeZone(orgId));
             if (tz) params.set("timeZone", tz);
 
             const res = await googleFetch(
@@ -488,7 +362,7 @@ async function getGoogleMcpHandler() {
         async ({ summary, start, end, timeZone, description, location, attendees, calendarId = "primary", sendUpdates = "all" }) => {
           try {
             const orgId = getOrgId();
-            const tz = timeZone || (await getCalendarTimeZone(orgId)) || undefined;
+            const tz = timeZone || (await fetchCalendarTimeZone(orgId)) || undefined;
 
             const event: Record<string, unknown> = {
               summary,
@@ -505,7 +379,7 @@ async function getGoogleMcpHandler() {
               { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event) },
             );
             const result = await res.json();
-            logger.warn("[GoogleMCP] Event created", { eventId: result.id, summary, timeZone: tz });
+            logger.info("[GoogleMCP] Event created", { eventId: result.id, summary, timeZone: tz });
             return jsonResult({ success: true, eventId: result.id, htmlLink: result.htmlLink, status: result.status });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to create event"));
@@ -537,7 +411,7 @@ async function getGoogleMcpHandler() {
             const existingRes = await googleFetch(orgId, baseUrl);
             const existing = await existingRes.json();
 
-            const tz = timeZone || (await getCalendarTimeZone(orgId)) || undefined;
+            const tz = timeZone || (await fetchCalendarTimeZone(orgId)) || undefined;
 
             const updated = {
               ...existing,
@@ -554,7 +428,7 @@ async function getGoogleMcpHandler() {
               body: JSON.stringify(updated),
             });
             const result = await res.json();
-            logger.warn("[GoogleMCP] Event updated", { eventId: result.id, timeZone: tz });
+            logger.info("[GoogleMCP] Event updated", { eventId: result.id, timeZone: tz });
             return jsonResult({ success: true, eventId: result.id, htmlLink: result.htmlLink, updated: result.updated });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to update event"));
@@ -580,7 +454,7 @@ async function getGoogleMcpHandler() {
               `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=${sendUpdates}`,
               { method: "DELETE" },
             );
-            logger.warn("[GoogleMCP] Event deleted", { eventId, calendarId });
+            logger.info("[GoogleMCP] Event deleted", { eventId, calendarId });
             return jsonResult({ success: true, deleted: true, eventId });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to delete event"));
