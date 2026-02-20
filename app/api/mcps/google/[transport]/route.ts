@@ -363,7 +363,8 @@ async function getGoogleMcpHandler() {
         async ({ summary, start, end, timeZone, description, location, attendees, calendarId = "primary", sendUpdates = "all" }) => {
           try {
             const orgId = getOrgId();
-            const tz = timeZone || (await fetchCalendarTimeZone(orgId)) || undefined;
+            const hasUtcSuffix = start.endsWith("Z") || end.endsWith("Z");
+            const tz = timeZone || (!hasUtcSuffix ? (await fetchCalendarTimeZone(orgId)) ?? undefined : undefined);
 
             const event: Record<string, unknown> = {
               summary,
@@ -412,7 +413,8 @@ async function getGoogleMcpHandler() {
             const existingRes = await googleFetch(orgId, baseUrl);
             const existing = await existingRes.json();
 
-            const tz = timeZone || (await fetchCalendarTimeZone(orgId)) || undefined;
+            const hasUtcSuffix = start?.endsWith("Z") || end?.endsWith("Z");
+            const tz = timeZone || (!hasUtcSuffix ? (await fetchCalendarTimeZone(orgId)) ?? undefined : undefined);
 
             const updated = {
               ...existing,
