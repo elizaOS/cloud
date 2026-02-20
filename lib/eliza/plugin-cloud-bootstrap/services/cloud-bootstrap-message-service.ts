@@ -760,10 +760,11 @@ export class CloudBootstrapMessageService implements IMessageService {
         logger.info(`[LLM:multiStepDecision] User Prompt:\n${prompt}`);
         logger.info("==============================================");
 
-        // PERF: Reduced from 5 to 2 retries. Each retry adds 1-4s with exponential backoff.
-        // Fall back to raw text cleaning sooner rather than waiting 15+ seconds.
+        // PERF: Reduced from 5 to 3 retries. Each retry adds 1-4s with exponential backoff.
+        // 3 balances latency (~6-12s max) vs. reliability for complex multi-step queries
+        // where LLMs occasionally produce malformed JSON. Override via MULTISTEP_PARSE_RETRIES.
         const maxParseRetries = parseInt(
-          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
+          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "3"),
         );
         let stepResultRaw = "";
         let parsedStep: ParsedMultiStepDecision | null = null;
