@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * LinkedIn MCP Tools - Posts, Profile
  * Uses per-organization OAuth tokens via oauthService.

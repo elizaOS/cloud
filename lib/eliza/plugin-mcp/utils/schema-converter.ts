@@ -36,7 +36,12 @@ function mapJsonSchemaType(jsonType: string | string[] | undefined): ActionParam
 }
 
 function buildDescription(name: string, prop: JsonSchemaProperty): string {
-  const parts: string[] = [prop.description || `Parameter: ${name}`];
+  // Start with the MCP server's description if available.
+  // Avoid redundant "Parameter: X" — the parameter name is already shown by the formatter.
+  const parts: string[] = [];
+  if (prop.description) {
+    parts.push(prop.description);
+  }
 
   if (prop.enum?.length) parts.push(`Allowed: ${prop.enum.map(v => JSON.stringify(v)).join(", ")}`);
   if (prop.format) parts.push(`Format: ${prop.format}`);
@@ -51,10 +56,11 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
   if (prop.type === "array" && prop.items) parts.push(`Array of ${prop.items.type || "any"}`);
   if (prop.type === "object" && prop.properties) {
     const keys = Object.keys(prop.properties);
-    parts.push(`Object with: ${keys.join(", ")}`);
+    parts.push(`Object with keys: ${keys.join(", ")}`);
   }
 
-  return parts.join(". ");
+  // If no description and no constraints, provide a minimal type-based hint
+  return parts.length > 0 ? parts.join(". ") : `(${mapJsonSchemaType(prop.type)})`;
 }
 
 export function convertJsonSchemaToActionParams(schema?: Tool["inputSchema"]): Record<string, ActionParameter> | undefined {

@@ -7,8 +7,8 @@ import { AnthropicMcpCompatibility } from './providers/anthropic';
 import { GoogleMcpCompatibility } from './providers/google';
 
 export function detectModelProvider(runtime: IAgentRuntime): ModelInfo {
-  const providerString = String(runtime?.modelProvider || '').toLowerCase();
-  const modelString = String(runtime?.model || '').toLowerCase();
+  const providerString = String((runtime as IAgentRuntime & { modelProvider?: string })?.modelProvider || '').toLowerCase();
+  const modelString = String((runtime as IAgentRuntime & { model?: string })?.model || '').toLowerCase();
 
   let provider: ModelProvider = 'unknown';
   let supportsStructuredOutputs = false;

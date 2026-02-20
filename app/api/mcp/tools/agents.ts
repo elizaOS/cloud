@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Agent MCP tools
  * Tools for managing and interacting with ElizaOS agents

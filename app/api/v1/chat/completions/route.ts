@@ -112,17 +112,55 @@ function addCorsHeaders(response: Response): Response {
 // Message Conversion
 // ============================================================================
 
+/**
+ * Infer image media type from URL
+ */
+function inferImageMediaType(url: string): string {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes(".png") || lowerUrl.includes("image/png"))
+    return "image/png";
+  if (lowerUrl.includes(".gif") || lowerUrl.includes("image/gif"))
+    return "image/gif";
+  if (lowerUrl.includes(".webp") || lowerUrl.includes("image/webp"))
+    return "image/webp";
+  if (lowerUrl.includes(".svg") || lowerUrl.includes("image/svg"))
+    return "image/svg+xml";
+  // Default to JPEG for .jpg, .jpeg, or unknown
+  return "image/jpeg";
+}
+
 function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
   return messages.map((msg) => {
-    const content =
-      typeof msg.content === "string"
-        ? msg.content
-        : msg.content.map((part) => part.text || "").join("");
+    // Handle simple string content
+    if (typeof msg.content === "string") {
+      return {
+        id: crypto.randomUUID(),
+        role: msg.role as "system" | "user" | "assistant",
+        parts: [{ type: "text" as const, text: msg.content }],
+      };
+    }
+
+    // Handle multipart content (text + images)
+    const parts = msg.content
+      .map((part) => {
+        if (part.image_url) {
+          return {
+            type: "file" as const,
+            url: part.image_url.url,
+            mediaType: inferImageMediaType(part.image_url.url),
+          };
+        }
+        if (part.text) {
+          return { type: "text" as const, text: part.text };
+        }
+        return null;
+      })
+      .filter((part): part is NonNullable<typeof part> => part !== null);
 
     return {
       id: crypto.randomUUID(),
       role: msg.role as "system" | "user" | "assistant",
-      parts: [{ type: "text" as const, text: content }],
+      parts,
     };
   });
 }
@@ -658,4 +696,4 @@ async function handleNonStreamingRequest(
   );
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);

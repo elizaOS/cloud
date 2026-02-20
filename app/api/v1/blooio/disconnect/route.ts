@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -21,6 +22,8 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
       user.organization_id,
       user.id,
     );
+
+    await invalidateOAuthState(user.organization_id, "blooio", user.id);
 
     logger.info("[Blooio Disconnect] Credentials removed", {
       organizationId: user.organization_id,

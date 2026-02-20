@@ -14,7 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
+import { tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
@@ -32,27 +32,47 @@ const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
 const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
 const { phoneNumber: BLOOIO_PHONE } = elizaAppConfig.blooio;
 
+async function callTelegramApi(payload: Record<string, unknown>): Promise<Response> {
+  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function sendTelegramMessage(
   chatId: number,
   text: string,
   replyToMessageId?: number,
 ): Promise<boolean> {
-  const response = await fetch(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        reply_to_message_id: replyToMessageId,
-        parse_mode: "Markdown",
-      }),
-    },
-  );
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    reply_to_message_id: replyToMessageId,
+    parse_mode: "Markdown",
+  };
+
+  let response = await callTelegramApi(payload);
 
   if (!response.ok) {
     const error = await response.text();
+
+    // Telegram's legacy Markdown chokes on URLs with underscores, parens, etc.
+    // Retry without parse_mode — URLs are still auto-linked in plain text.
+    if (error.includes("can't parse entities")) {
+      logger.warn("[ElizaApp TelegramWebhook] Markdown parse failed, retrying as plain text", { chatId });
+      delete payload.parse_mode;
+      response = await callTelegramApi(payload);
+
+      if (response.ok) return true;
+      const retryError = await response.text();
+      logger.error("[ElizaApp TelegramWebhook] Failed to send message (plain text fallback)", {
+        chatId,
+        error: retryError,
+      });
+      return false;
+    }
+
     logger.error("[ElizaApp TelegramWebhook] Failed to send message", {
       chatId,
       error,
@@ -109,10 +129,9 @@ async function handleMessage(message: Message): Promise<boolean> {
   if (!("text" in message) || !message.text) return true; // Not applicable, mark as processed
   if (message.chat.type !== "private") return true; // Not applicable, mark as processed
 
-  // Defensive check - message.from should exist in private chats but validate anyway
   if (!message.from) {
     logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
-    return true; // Not applicable, mark as processed
+    return;
   }
 
   const telegramUserId = String(message.from.id);
@@ -120,7 +139,7 @@ async function handleMessage(message: Message): Promise<boolean> {
 
   if (text.startsWith("/")) {
     await handleCommand(message);
-    return true; // Command handled, mark as processed
+    return;
   }
 
   // PERF: Granular timing for the webhook pipeline
@@ -139,7 +158,7 @@ async function handleMessage(message: Message): Promise<boolean> {
       message.chat.id,
       `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
     );
-    return true; // Mark as processed - don't retry
+    return;
   }
   const { organization } = userWithOrg;
 
@@ -186,7 +205,10 @@ async function handleMessage(message: Message): Promise<boolean> {
 
   if (!lock) {
     stopTyping();
-    logger.error("[ElizaApp TelegramWebhook] Failed to acquire room lock", { roomId });
+    logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", {
+      roomId,
+      lockServiceEnabled: distributedLocks.isEnabled(),
+    });
     return false; // Don't mark as processed - allow retry
   }
 
@@ -239,7 +261,6 @@ async function handleMessage(message: Message): Promise<boolean> {
       error: error instanceof Error ? error.message : String(error),
       roomId,
     });
-    return true; // Processing attempted, mark as processed to avoid infinite retry
   } finally {
     await lock.release();
   }
@@ -330,26 +351,13 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
   const update: Update = await request.json();
   const idempotencyKey = `telegram:eliza-app:${update.update_id}`;
 
-  if (await isAlreadyProcessed(idempotencyKey)) {
+  const claimed = await tryClaimForProcessing(idempotencyKey, "telegram-eliza-app");
+  if (!claimed) {
     return NextResponse.json({ ok: true, status: "already_processed" });
   }
 
-  let processed = true;
   if ("message" in update && update.message) {
-    processed = await handleMessage(update.message);
-  }
-
-  // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
-  if (processed) {
-    await markAsProcessed(idempotencyKey, "telegram-eliza-app");
-  }
-
-  // Return 503 on lock failure to trigger webhook retry from Telegram
-  if (!processed) {
-    return NextResponse.json(
-      { ok: false, error: "Service temporarily unavailable" },
-      { status: 503 }
-    );
+    await handleMessage(update.message);
   }
 
   return NextResponse.json({ ok: true });
