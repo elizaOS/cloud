@@ -861,7 +861,3 @@ async function checkUserCredits(organizationId: string): Promise<number> {
     return 0;
   }
 }
-eck credits:", error);
-    return 0;
-  }
-}
