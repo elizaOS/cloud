@@ -131,6 +131,13 @@ async function logRunEvent(payload: RunEventPayload): Promise<void> {
 
   // PERF: Fire-and-forget -- don't await the log write, let it complete in the background.
   // This prevents synchronous log writes from blocking the response pipeline.
+  //
+  // CAVEAT (Vercel serverless): The process may be frozen immediately after the HTTP
+  // response is flushed, so this promise is not guaranteed to resolve. Run audit events
+  // may be silently dropped under tight serverless constraints. Ideally we'd use Vercel's
+  // waitUntil() to defer this work, but it requires the route-handler request context
+  // which is not available inside a plugin event handler. If run audit completeness
+  // becomes critical, the route layer should collect and flush these via waitUntil().
   payload.runtime.log({
     entityId: payload.entityId,
     roomId: payload.roomId,
