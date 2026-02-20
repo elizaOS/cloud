@@ -131,20 +131,20 @@ class UserMetricsService {
   ): Promise<ActiveUsersResult> {
     const since = this._rangeSince(timeRange);
 
-    // Single query grouped by room source across all Eliza-backed channels.
+    // Count distinct message *senders* (memoryTable.entityId) rather than
+    // all room participants, so users who didn't send messages aren't counted.
     const rows = await dbRead
       .select({
         source: roomTable.source,
-        cnt: countDistinct(participantTable.entityId),
+        cnt: countDistinct(memoryTable.entityId),
       })
-      .from(roomTable)
-      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+      .from(memoryTable)
+      .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
       .where(
         and(
           inArray(roomTable.source, ALL_SOURCES),
           gte(memoryTable.createdAt, since),
-          ne(participantTable.entityId, roomTable.agentId),
+          ne(memoryTable.entityId, roomTable.agentId),
         ),
       )
       .groupBy(roomTable.source);
@@ -572,21 +572,19 @@ class UserMetricsService {
 
     const sourceCondition = inArray(roomTable.source, sources);
 
-    // Separate queries for users and messages to avoid the cross-product
-    // between participants and memories (N participants x M memories = NxM rows).
+    // Count distinct message senders (not all participants) for accurate DAU.
     const [userRow] = await dbRead
       .select({
-        users: countDistinct(participantTable.entityId),
+        users: countDistinct(memoryTable.entityId),
       })
-      .from(roomTable)
-      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+      .from(memoryTable)
+      .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
       .where(
         and(
           sourceCondition,
           gte(memoryTable.createdAt, dayStart),
           lt(memoryTable.createdAt, dayEnd),
-          ne(participantTable.entityId, roomTable.agentId),
+          ne(memoryTable.entityId, roomTable.agentId),
         ),
       );
 
