@@ -650,31 +650,28 @@ class UserMetricsService {
    * Accepts a Drizzle subquery (SELECT id FROM users WHERE ...) so that
    * cohort IDs remain in the database and avoid the ~65k parameter limit.
    *
-   * Uses Eliza participant entityIds across all sources to detect activity.
+   * Uses a DB-level COUNT aggregate to avoid fetching rows into memory.
    */
   private async _countRetainedUsers(
-    cohortUserIdSq: any,
+    cohortUserIdSq: Parameters<typeof inArray>[1],
     dayStart: Date,
     dayEnd: Date,
   ): Promise<number> {
-    const sourceCondition = inArray(roomTable.source, ALL_SOURCES);
-
-    const rows = await dbRead
-      .selectDistinct({ userId: participantTable.entityId })
-      .from(roomTable)
-      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+    const [row] = await dbRead
+      .select({ cnt: countDistinct(memoryTable.entityId) })
+      .from(memoryTable)
+      .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
       .where(
         and(
-          sourceCondition,
+          inArray(roomTable.source, ALL_SOURCES),
           gte(memoryTable.createdAt, dayStart),
           lt(memoryTable.createdAt, dayEnd),
-          ne(participantTable.entityId, roomTable.agentId),
-          inArray(participantTable.entityId, cohortUserIdSq),
+          ne(memoryTable.entityId, roomTable.agentId),
+          inArray(memoryTable.entityId, cohortUserIdSq),
         ),
       );
 
-    return rows.length;
+    return Number(row?.cnt ?? 0);
   }
 }
 
