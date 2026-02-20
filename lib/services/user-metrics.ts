@@ -1,10 +1,16 @@
 /**
  * User Metrics Service
  *
- * Aggregates engagement data from multiple message sources:
- * - conversation_messages (web chat)
- * - phone_message_log (SMS / iMessage)
- * - Eliza rooms + memories (Telegram / Discord)
+ * Aggregates engagement data from Eliza rooms + memories which serve as
+ * the unified message backbone for all channels (web, telegram, discord,
+ * iMessage/blooio, sms, elizaos).
+ *
+ * Room `source` values map to MetricsPlatform as follows:
+ *   'web'       → web
+ *   'telegram'  → telegram
+ *   'discord'   → discord
+ *   'blooio'    → imessage
+ *   'elizaos'   → included in aggregate only
  *
  * Provides pre-computed daily metrics via cron and live queries for the
  * admin engagement dashboard.
@@ -21,14 +27,6 @@ import {
   type RetentionCohort,
 } from "@/db/schemas/retention-cohorts";
 import { users } from "@/db/schemas/users";
-import {
-  conversations,
-  conversationMessages,
-} from "@/db/schemas/conversations";
-import {
-  agentPhoneNumbers,
-  phoneMessageLog,
-} from "@/db/schemas/agent-phone-numbers";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import {
   roomTable,
@@ -50,6 +48,19 @@ import {
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL, CacheStaleTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+
+/**
+ * Maps a MetricsPlatform to Eliza room source values.
+ * When platform is null (aggregate), all known sources are included.
+ */
+const PLATFORM_TO_SOURCES: Record<MetricsPlatform, string[]> = {
+  web: ["web"],
+  telegram: ["telegram"],
+  discord: ["discord"],
+  imessage: ["blooio"],
+  sms: [],
+};
+const ALL_SOURCES = ["web", "telegram", "discord", "blooio", "elizaos"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -120,56 +131,8 @@ class UserMetricsService {
   ): Promise<ActiveUsersResult> {
     const since = this._rangeSince(timeRange);
 
-    // Web chat: distinct user_id from conversation_messages
-    const webRows = await dbRead
-      .select({
-        cnt: countDistinct(conversations.user_id),
-      })
-      .from(conversationMessages)
-      .innerJoin(
-        conversations,
-        eq(conversationMessages.conversation_id, conversations.id),
-      )
-      .where(
-        and(
-          eq(conversationMessages.role, "user"),
-          gte(conversationMessages.created_at, since),
-        ),
-      );
-    const webDau = Number(webRows[0]?.cnt ?? 0);
-
-    // SMS / iMessage: distinct from_number grouped by provider
-    const phoneRows = await dbRead
-      .select({
-        provider: agentPhoneNumbers.provider,
-        cnt: countDistinct(phoneMessageLog.from_number),
-      })
-      .from(phoneMessageLog)
-      .innerJoin(
-        agentPhoneNumbers,
-        eq(phoneMessageLog.phone_number_id, agentPhoneNumbers.id),
-      )
-      .where(
-        and(
-          eq(phoneMessageLog.direction, "inbound"),
-          gte(phoneMessageLog.created_at, since),
-        ),
-      )
-      .groupBy(agentPhoneNumbers.provider);
-
-    let smsDau = 0;
-    let imessageDau = 0;
-    for (const row of phoneRows) {
-      const n = Number(row.cnt);
-      if (row.provider === "blooio") {
-        imessageDau += n;
-      } else {
-        smsDau += n;
-      }
-    }
-
-    // Telegram / Discord: distinct entity_id from Eliza rooms with messages
-    const elizaRows = await dbRead
+    // Single query grouped by room source across all Eliza-backed channels.
+    const rows = await dbRead
       .select({
         source: roomTable.source,
         cnt: countDistinct(participantTable.entityId),
@@ -179,33 +142,29 @@ class UserMetricsService {
       .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
       .where(
         and(
-          sql`${roomTable.source} IN ('telegram', 'discord')`,
+          inArray(roomTable.source, ALL_SOURCES),
           gte(memoryTable.createdAt, since),
           ne(participantTable.entityId, roomTable.agentId),
         ),
       )
       .groupBy(roomTable.source);
 
-    let telegramDau = 0;
-    let discordDau = 0;
-    for (const row of elizaRows) {
-      const n = Number(row.cnt);
-      if (row.source === "telegram") telegramDau = n;
-      if (row.source === "discord") discordDau = n;
+    const bySrc: Record<string, number> = {};
+    for (const row of rows) {
+      bySrc[row.source as string] = Number(row.cnt);
     }
 
     const byPlatform: Record<string, number> = {
-      web: webDau,
-      telegram: telegramDau,
-      discord: discordDau,
-      imessage: imessageDau,
-      sms: smsDau,
+      web: bySrc["web"] ?? 0,
+      telegram: bySrc["telegram"] ?? 0,
+      discord: bySrc["discord"] ?? 0,
+      imessage: bySrc["blooio"] ?? 0,
+      sms: 0,
     };
 
-    return {
-      total: webDau + telegramDau + discordDau + imessageDau + smsDau,
-      byPlatform,
-    };
+    const total = Object.values(byPlatform).reduce((s, n) => s + n, 0);
+
+    return { total, byPlatform };
   }
 
   /**
@@ -534,24 +493,21 @@ class UserMetricsService {
       .from(users)
       .where(cohortConditions);
     const cohortSize = Number(sizeRow?.cnt ?? 0);
-    if (cohortSize === 0) return;
 
-    // Use a subquery so cohort user IDs stay in the database and avoid
-    // hitting PostgreSQL's ~65k bound parameter limit for large cohorts.
-    const cohortUserIdSq = dbRead
-      .select({ id: users.id })
-      .from(users)
-      .where(cohortConditions);
+    let retainedCount = 0;
+    if (cohortSize > 0) {
+      const cohortUserIdSq = dbRead
+        .select({ id: users.id })
+        .from(users)
+        .where(cohortConditions);
 
-    const retainedCount = await this._countRetainedUsers(
-      cohortUserIdSq,
-      dayStart,
-      new Date(dayStart.getTime() + 86_400_000),
-    );
+      retainedCount = await this._countRetainedUsers(
+        cohortUserIdSq,
+        dayStart,
+        new Date(dayStart.getTime() + 86_400_000),
+      );
+    }
 
-    // TODO: wrap in a transaction or use INSERT ... ON CONFLICT with
-    // COALESCE(platform, '') to avoid a race between the read and write
-    // when multiple processes run concurrently.
     const existing = await dbRead
       .select()
       .from(retentionCohorts)
@@ -572,7 +528,7 @@ class UserMetricsService {
           updated_at: new Date(),
         })
         .where(eq(retentionCohorts.id, existing[0].id));
-    } else {
+    } else if (cohortSize > 0) {
       await dbWrite.insert(retentionCohorts).values({
         cohort_date: cohortDate,
         platform: null,
@@ -598,125 +554,61 @@ class UserMetricsService {
   /**
    * Count distinct active users and total messages for a (day, platform) pair.
    *
-   * When platform is null (aggregate), the total is a sum of per-source counts.
-   * Cross-platform overlap is minimal because each source uses a different
-   * identifier space (user_id for web, from_number for phone, entityId for
-   * Eliza rooms). If web user_ids and Eliza entityIds ever share the same
-   * UUID namespace, the aggregate DAU will overcount.
-   *
-   * TODO: deduplicate the aggregate case with a UNION-based approach when
-   * cross-platform identity linking is available.
+   * All channels store messages as Eliza memories with room.source indicating
+   * the channel. The PLATFORM_TO_SOURCES map converts MetricsPlatform to the
+   * corresponding Eliza source values.
    */
   private async _countDayActivity(
     dayStart: Date,
     dayEnd: Date,
     platform: MetricsPlatform | null,
   ): Promise<{ dau: number; totalMessages: number }> {
-    let dau = 0;
-    let totalMessages = 0;
+    const sources =
+      platform === null ? ALL_SOURCES : PLATFORM_TO_SOURCES[platform];
 
-    const include = (p: MetricsPlatform) => platform === null || platform === p;
-
-    if (include("web")) {
-      const [r] = await dbRead
-        .select({
-          users: countDistinct(conversations.user_id),
-          msgs: count(),
-        })
-        .from(conversationMessages)
-        .innerJoin(
-          conversations,
-          eq(conversationMessages.conversation_id, conversations.id),
-        )
-        .where(
-          and(
-            eq(conversationMessages.role, "user"),
-            gte(conversationMessages.created_at, dayStart),
-            lt(conversationMessages.created_at, dayEnd),
-          ),
-        );
-      dau += Number(r?.users ?? 0);
-      totalMessages += Number(r?.msgs ?? 0);
+    if (sources.length === 0) {
+      return { dau: 0, totalMessages: 0 };
     }
 
-    if (include("sms") || include("imessage")) {
-      const providerCondition =
-        platform === "imessage"
-          ? eq(agentPhoneNumbers.provider, "blooio")
-          : platform === "sms"
-            ? ne(agentPhoneNumbers.provider, "blooio")
-            : undefined;
+    const sourceCondition = inArray(roomTable.source, sources);
 
-      const conditions = [
-        eq(phoneMessageLog.direction, "inbound"),
-        gte(phoneMessageLog.created_at, dayStart),
-        lt(phoneMessageLog.created_at, dayEnd),
-      ];
-      if (providerCondition) conditions.push(providerCondition);
+    // Separate queries for users and messages to avoid the cross-product
+    // between participants and memories (N participants x M memories = NxM rows).
+    const [userRow] = await dbRead
+      .select({
+        users: countDistinct(participantTable.entityId),
+      })
+      .from(roomTable)
+      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
+      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+      .where(
+        and(
+          sourceCondition,
+          gte(memoryTable.createdAt, dayStart),
+          lt(memoryTable.createdAt, dayEnd),
+          ne(participantTable.entityId, roomTable.agentId),
+        ),
+      );
 
-      const [r] = await dbRead
-        .select({
-          users: countDistinct(phoneMessageLog.from_number),
-          msgs: count(),
-        })
-        .from(phoneMessageLog)
-        .innerJoin(
-          agentPhoneNumbers,
-          eq(phoneMessageLog.phone_number_id, agentPhoneNumbers.id),
-        )
-        .where(and(...conditions));
+    const [msgRow] = await dbRead
+      .select({
+        msgs: countDistinct(memoryTable.id),
+      })
+      .from(memoryTable)
+      .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
+      .where(
+        and(
+          sourceCondition,
+          gte(memoryTable.createdAt, dayStart),
+          lt(memoryTable.createdAt, dayEnd),
+          ne(memoryTable.entityId, roomTable.agentId),
+        ),
+      );
 
-      dau += Number(r?.users ?? 0);
-      totalMessages += Number(r?.msgs ?? 0);
-    }
-
-    if (include("telegram") || include("discord")) {
-      const sourceCondition =
-        platform === "telegram"
-          ? sql`${roomTable.source} = 'telegram'`
-          : platform === "discord"
-            ? sql`${roomTable.source} = 'discord'`
-            : sql`${roomTable.source} IN ('telegram', 'discord')`;
-
-      // Separate queries for users and messages to avoid the cross-product
-      // between participants and memories (N participants × M memories = N×M rows).
-      const [userRow] = await dbRead
-        .select({
-          users: countDistinct(participantTable.entityId),
-        })
-        .from(roomTable)
-        .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-        .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
-        .where(
-          and(
-            sourceCondition,
-            gte(memoryTable.createdAt, dayStart),
-            lt(memoryTable.createdAt, dayEnd),
-            ne(participantTable.entityId, roomTable.agentId),
-          ),
-        );
-
-      // Count only user messages (exclude agent replies) via entityId filter.
-      const [msgRow] = await dbRead
-        .select({
-          msgs: countDistinct(memoryTable.id),
-        })
-        .from(memoryTable)
-        .innerJoin(roomTable, eq(memoryTable.roomId, roomTable.id))
-        .where(
-          and(
-            sourceCondition,
-            gte(memoryTable.createdAt, dayStart),
-            lt(memoryTable.createdAt, dayEnd),
-            ne(memoryTable.entityId, roomTable.agentId),
-          ),
-        );
-
-      dau += Number(userRow?.users ?? 0);
-      totalMessages += Number(msgRow?.msgs ?? 0);
-    }
-
-    return { dau, totalMessages };
+    return {
+      dau: Number(userRow?.users ?? 0),
+      totalMessages: Number(msgRow?.msgs ?? 0),
+    };
   }
 
   /**
@@ -759,68 +651,32 @@ class UserMetricsService {
    * Count how many users from the cohort subquery had activity on a given day.
    * Accepts a Drizzle subquery (SELECT id FROM users WHERE ...) so that
    * cohort IDs remain in the database and avoid the ~65k parameter limit.
+   *
+   * Uses Eliza participant entityIds across all sources to detect activity.
    */
   private async _countRetainedUsers(
-    cohortUserIdSq: ReturnType<typeof dbRead.select>,
+    cohortUserIdSq: any,
     dayStart: Date,
     dayEnd: Date,
   ): Promise<number> {
-    const [webRows, elizaRows, phoneRows] = await Promise.all([
-      dbRead
-        .selectDistinct({ userId: conversations.user_id })
-        .from(conversationMessages)
-        .innerJoin(
-          conversations,
-          eq(conversationMessages.conversation_id, conversations.id),
-        )
-        .where(
-          and(
-            eq(conversationMessages.role, "user"),
-            gte(conversationMessages.created_at, dayStart),
-            lt(conversationMessages.created_at, dayEnd),
-            inArray(conversations.user_id, cohortUserIdSq),
-          ),
+    const sourceCondition = inArray(roomTable.source, ALL_SOURCES);
+
+    const rows = await dbRead
+      .selectDistinct({ userId: participantTable.entityId })
+      .from(roomTable)
+      .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
+      .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
+      .where(
+        and(
+          sourceCondition,
+          gte(memoryTable.createdAt, dayStart),
+          lt(memoryTable.createdAt, dayEnd),
+          ne(participantTable.entityId, roomTable.agentId),
+          inArray(participantTable.entityId, cohortUserIdSq),
         ),
+      );
 
-      dbRead
-        .selectDistinct({ userId: participantTable.entityId })
-        .from(roomTable)
-        .innerJoin(participantTable, eq(participantTable.roomId, roomTable.id))
-        .innerJoin(memoryTable, eq(memoryTable.roomId, roomTable.id))
-        .where(
-          and(
-            sql`${roomTable.source} IN ('telegram', 'discord')`,
-            gte(memoryTable.createdAt, dayStart),
-            lt(memoryTable.createdAt, dayEnd),
-            ne(participantTable.entityId, roomTable.agentId),
-            inArray(participantTable.entityId, cohortUserIdSq),
-          ),
-        ),
-
-      dbRead
-        .selectDistinct({ userId: users.id })
-        .from(phoneMessageLog)
-        .innerJoin(
-          agentPhoneNumbers,
-          eq(phoneMessageLog.phone_number_id, agentPhoneNumbers.id),
-        )
-        .innerJoin(users, eq(users.phone_number, phoneMessageLog.from_number))
-        .where(
-          and(
-            eq(phoneMessageLog.direction, "inbound"),
-            gte(phoneMessageLog.created_at, dayStart),
-            lt(phoneMessageLog.created_at, dayEnd),
-            inArray(users.id, cohortUserIdSq),
-          ),
-        ),
-    ]);
-
-    const retainedSet = new Set<string>();
-    for (const r of webRows) retainedSet.add(r.userId);
-    for (const r of elizaRows) retainedSet.add(r.userId);
-    for (const r of phoneRows) retainedSet.add(r.userId);
-
-    return retainedSet.size;
+    return rows.length;
   }
 }
 
