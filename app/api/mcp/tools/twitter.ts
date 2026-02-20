@@ -406,7 +406,7 @@ export function registerTwitterTools(server: McpServer): void {
   server.registerTool(
     "twitter_get_my_tweets",
     {
-      description: "Get the authenticated user's own tweets. No user ID needed. Supports date range filtering (e.g. 'last week', 'January'), excluding retweets/replies, and pagination for fetching all results.",
+      description: "Get the authenticated user's own tweets. No user ID needed. Supports date range filtering via ISO 8601 timestamps (convert natural language like 'last week' or 'January' to ISO dates), excluding retweets/replies, and pagination for fetching all results.",
       inputSchema: {
         maxResults: z.number().min(5).max(100).optional().describe("Number of tweets per page (5-100, default 10)"),
         startTime: z.string().optional().describe("Only tweets after this date (ISO 8601, e.g. 2026-02-01T00:00:00Z)"),
