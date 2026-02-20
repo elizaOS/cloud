@@ -722,4 +722,4 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

@@ -335,6 +335,12 @@ export const RateLimitPresets = {
     maxRequests: isDevelopment ? 10000 : 10, // Dev: virtually unlimited, Prod: 10/min
   },
 
+  // Relaxed limits for high-frequency AI endpoints (chat completions, responses)
+  RELAXED: {
+    windowMs: 60000, // 1 minute
+    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+  },
+
   // Very strict for critical operations (deployments, payments)
   CRITICAL: {
     windowMs: 300000, // 5 minutes
