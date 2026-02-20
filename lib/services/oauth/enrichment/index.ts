@@ -22,3 +22,4 @@ export type { GitHubEnrichmentData } from "./integrations/github";
 export type { SlackEnrichmentData } from "./integrations/slack";
 export type { NotionEnrichmentData } from "./integrations/notion";
 export type { MicrosoftEnrichmentData } from "./integrations/microsoft";
+export type { TwitterEnrichmentData } from "./integrations/twitter";

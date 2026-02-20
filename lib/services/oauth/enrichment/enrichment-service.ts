@@ -24,6 +24,7 @@ import { enrichGitHub, type GitHubEnrichmentData } from "./integrations/github";
 import { enrichSlack, type SlackEnrichmentData } from "./integrations/slack";
 import { enrichNotion, type NotionEnrichmentData } from "./integrations/notion";
 import { enrichMicrosoft, type MicrosoftEnrichmentData } from "./integrations/microsoft";
+import { enrichTwitter, type TwitterEnrichmentData } from "./integrations/twitter";
 
 // Platform-specific enrichment data types
 export type EnrichmentData =
@@ -33,10 +34,11 @@ export type EnrichmentData =
   | SlackEnrichmentData
   | NotionEnrichmentData
   | MicrosoftEnrichmentData
+  | TwitterEnrichmentData
   | { _enrichmentFailed: true; _error: string };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Enricher = (token: string) => Promise<any>;
+type Enricher = (token: string, tokenSecret?: string) => Promise<any>;
 
 const enrichers: Record<string, Enricher> = {
   google: enrichGoogle,
@@ -45,7 +47,11 @@ const enrichers: Record<string, Enricher> = {
   slack: enrichSlack,
   notion: enrichNotion,
   microsoft: enrichMicrosoft,
+  twitter: enrichTwitter,
 };
+
+// Platforms that use OAuth 1.0a and require accessTokenSecret
+const OAUTH1A_PLATFORMS = new Set(["twitter"]);
 
 // Cooldown tracking to prevent retry storms
 const ENRICHMENT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
@@ -140,7 +146,12 @@ export async function enrichConnection(
     });
 
     // Call platform-specific enricher
-    data = await enricher(tokenResult.accessToken);
+    // OAuth 1.0a platforms (like Twitter) need accessTokenSecret
+    if (OAUTH1A_PLATFORMS.has(platformLower)) {
+      data = await enricher(tokenResult.accessToken, tokenResult.accessTokenSecret);
+    } else {
+      data = await enricher(tokenResult.accessToken);
+    }
 
     logger.info("[enrichConnection] Enrichment successful", {
       orgId,

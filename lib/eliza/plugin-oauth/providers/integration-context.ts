@@ -11,6 +11,7 @@
  * - Slack: workspace name, real name, admin status
  * - Notion: workspace name, top pages
  * - Microsoft: name, email, job title, department, company, office location
+ * - Twitter: username, bio, followers, pinned tweet, recent tweets (voice samples)
  */
 
 console.log("[INTEGRATION_CONTEXT] Module loaded");
@@ -102,6 +103,26 @@ function formatPlatformContext(platform: string, data: Record<string, unknown>):
       if (data.department) lines.push(`- Department: ${data.department}`);
       if (data.company) lines.push(`- Company: ${data.company}`);
       if (data.officeLocation) lines.push(`- Office: ${data.officeLocation}`);
+      break;
+    }
+
+    case "twitter": {
+      if (data.username) lines.push(`- Username: @${data.username}`);
+      if (data.name) lines.push(`- Name: ${data.name}`);
+      if (data.bio) lines.push(`- Bio: "${data.bio}"`);
+      if (data.location) lines.push(`- Location: ${data.location}`);
+      if (data.followersCount) lines.push(`- Followers: ${(data.followersCount as number).toLocaleString()}`);
+      if (data.followingCount) lines.push(`- Following: ${(data.followingCount as number).toLocaleString()}`);
+      if (data.pinnedTweet) lines.push(`- Pinned Tweet: "${data.pinnedTweet}"`);
+      const tweets = data.recentTweets as Array<{ text: string }> | undefined;
+      if (tweets?.length) {
+        lines.push(`- Recent Voice Samples:`);
+        for (const tweet of tweets.slice(0, 3)) {
+          // Truncate long tweets for context brevity
+          const text = tweet.text.length > 100 ? tweet.text.slice(0, 100) + "..." : tweet.text;
+          lines.push(`  • "${text}"`);
+        }
+      }
       break;
     }
 

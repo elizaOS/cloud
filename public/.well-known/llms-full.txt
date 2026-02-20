@@ -9362,30 +9362,20 @@ elizaOS Cloud applies rate limits to ensure fair usage and platform stability.
 Rate limits are applied per API key and vary by:
 
 - **Endpoint type**: Different limits for different APIs
-- **Plan tier**: Higher limits for paid plans
-- **Time window**: Requests per minute or hour
+- **Time window**: Requests per minute or per 5 minutes
 
 ## Default Limits
 
-### Free Tier
+Rate limits are applied per API key. All users share the same default limits — credits and billing control cost.
 
-| Endpoint         | Rate Limit |
-| ---------------- | ---------- |
-| Chat Completions | 60/min     |
-| Embeddings       | 100/min    |
-| Image Generation | 20/min     |
-| Video Generation | 5/min      |
-| Knowledge Query  | 60/min     |
-
-### Pro Tier
-
-| Endpoint         | Rate Limit |
-| ---------------- | ---------- |
-| Chat Completions | 300/min    |
-| Embeddings       | 500/min    |
-| Image Generation | 100/min    |
-| Video Generation | 20/min     |
-| Knowledge Query  | 300/min    |
+| Endpoint         | Rate Limit | Preset   |
+| ---------------- | ---------- | -------- |
+| Chat Completions | 200/min    | RELAXED  |
+| Responses        | 200/min    | RELAXED  |
+| Embeddings       | 60/min     | STANDARD |
+| Image Generation | 60/min     | STANDARD |
+| Video Generation | 5/5min     | CRITICAL |
+| Knowledge Query  | 60/min     | STANDARD |
 
 ### Enterprise
 
@@ -9396,18 +9386,18 @@ Custom rate limits based on your needs. Contact sales.
 Every response includes rate limit information:
 
 ```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1705312860
-X-RateLimit-Reset-After: 42
+X-RateLimit-Limit: 200
+X-RateLimit-Remaining: 185
+X-RateLimit-Reset: 2026-01-15T12:01:00.000Z
+X-RateLimit-Policy: redis
 ```
 
-| Header                    | Description                      |
-| ------------------------- | -------------------------------- |
-| `X-RateLimit-Limit`       | Max requests in window           |
-| `X-RateLimit-Remaining`   | Requests remaining               |
-| `X-RateLimit-Reset`       | Unix timestamp when limit resets |
-| `X-RateLimit-Reset-After` | Seconds until reset              |
+| Header                  | Description                         |
+| ----------------------- | ----------------------------------- |
+| `X-RateLimit-Limit`     | Max requests in window              |
+| `X-RateLimit-Remaining` | Requests remaining                  |
+| `X-RateLimit-Reset`     | ISO timestamp when window resets    |
+| `X-RateLimit-Policy`    | Backend: `redis` or `in-memory`     |
 
 ## Handling Rate Limits
 
@@ -9512,29 +9502,11 @@ class RequestQueue {
 
 ## Increasing Limits
 
-### Upgrade Plan
-
-Higher tiers include increased rate limits. View plans at [Billing](/dashboard/billing).
-
-### Request Increase
-
-For specific use cases, contact support to request a limit increase:
-
-- Describe your use case
-- Provide expected request volume
-- Explain why default limits are insufficient
+For specific use cases, contact support to request a custom limit increase.
 
 ## Burst Limits
 
-Some endpoints have additional burst limits:
-
-| Endpoint         | Burst Limit |
-| ---------------- | ----------- |
-| Chat Completions | 10/sec      |
-| Embeddings       | 20/sec      |
-| Image Generation | 3/sec       |
-
-Burst limits prevent sudden traffic spikes even within the per-minute limits.
+The BURST preset (10 req/sec) is available for real-time features. Standard AI endpoints use per-minute windows only.
 
 ## Monitoring Usage
 
@@ -9549,8 +9521,8 @@ curl -X GET "https://elizacloud.ai/api/quotas/usage" \
 {
   "period": "current_minute",
   "usage": {
-    "chat": { "used": 45, "limit": 60 },
-    "embeddings": { "used": 80, "limit": 100 }
+    "chat": { "used": 45, "limit": 200 },
+    "embeddings": { "used": 12, "limit": 60 }
   }
 }
 ```
