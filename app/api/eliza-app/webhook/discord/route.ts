@@ -400,6 +400,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
         { status: 500 }
       );
     } finally {
+      stopTyping();
       await lock.release();
     }
   } finally {

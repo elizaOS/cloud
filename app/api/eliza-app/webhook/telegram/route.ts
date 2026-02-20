@@ -248,6 +248,7 @@ async function handleMessage(message: Message): Promise<boolean> {
       });
       return false;
     } finally {
+      stopTyping();
       await lock.release();
     }
   } finally {
