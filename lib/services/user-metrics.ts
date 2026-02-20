@@ -376,8 +376,7 @@ class UserMetricsService {
       date: dayStart.toISOString(),
     });
 
-    const platforms: Array<MetricsPlatform | null> = [
-      null,
+    const perPlatform: Array<MetricsPlatform> = [
       "web",
       "telegram",
       "discord",
@@ -385,61 +384,76 @@ class UserMetricsService {
       "sms",
     ];
 
-    for (const platform of platforms) {
-      const { dau, totalMessages } = await this._countDayActivity(
-        dayStart,
-        dayEnd,
-        platform,
-      );
-      const newSignups = await this._countNewSignups(
-        dayStart,
-        dayEnd,
-        platform,
-      );
-      const messagesPerUser = dau > 0 ? totalMessages / dau : 0;
+    // Compute per-platform rows in parallel (independent queries).
+    await Promise.all(
+      perPlatform.map(async (platform) => {
+        const { dau, totalMessages } = await this._countDayActivity(
+          dayStart,
+          dayEnd,
+          platform,
+        );
+        const newSignups = await this._countNewSignups(
+          dayStart,
+          dayEnd,
+          platform,
+        );
+        const messagesPerUser = dau > 0 ? totalMessages / dau : 0;
 
-      const values = {
-        dau,
-        new_signups: newSignups,
-        total_messages: totalMessages,
-        messages_per_user: messagesPerUser.toFixed(2),
-      };
-
-      if (platform === null) {
-        // NULL platform = aggregate row. Manual upsert because
-        // ON CONFLICT doesn't match NULLs in standard unique indexes.
-        // TODO: wrap in a transaction or use COALESCE(platform, '') in the
-        // unique index to avoid a race between the read and write.
-        const existing = await dbRead
-          .select()
-          .from(dailyMetrics)
-          .where(
-            and(
-              eq(dailyMetrics.date, dayStart),
-              isNull(dailyMetrics.platform),
-            ),
-          )
-          .limit(1);
-
-        if (existing.length > 0) {
-          await dbWrite
-            .update(dailyMetrics)
-            .set(values)
-            .where(eq(dailyMetrics.id, existing[0].id));
-        } else {
-          await dbWrite
-            .insert(dailyMetrics)
-            .values({ date: dayStart, platform: null, ...values });
-        }
-      } else {
         await dbWrite
           .insert(dailyMetrics)
-          .values({ date: dayStart, platform, ...values })
+          .values({
+            date: dayStart,
+            platform,
+            dau,
+            new_signups: newSignups,
+            total_messages: totalMessages,
+            messages_per_user: messagesPerUser.toFixed(2),
+          })
           .onConflictDoUpdate({
             target: [dailyMetrics.date, dailyMetrics.platform],
-            set: values,
+            set: {
+              dau,
+              new_signups: newSignups,
+              total_messages: totalMessages,
+              messages_per_user: messagesPerUser.toFixed(2),
+            },
           });
-      }
+      }),
+    );
+
+    // Compute aggregate (NULL platform) row last to avoid race with the
+    // read-then-write pattern if parallelized.
+    const { dau, totalMessages } = await this._countDayActivity(
+      dayStart,
+      dayEnd,
+      null,
+    );
+    const newSignups = await this._countNewSignups(dayStart, dayEnd, null);
+    const messagesPerUser = dau > 0 ? totalMessages / dau : 0;
+    const values = {
+      dau,
+      new_signups: newSignups,
+      total_messages: totalMessages,
+      messages_per_user: messagesPerUser.toFixed(2),
+    };
+
+    const existing = await dbRead
+      .select()
+      .from(dailyMetrics)
+      .where(
+        and(eq(dailyMetrics.date, dayStart), isNull(dailyMetrics.platform)),
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      await dbWrite
+        .update(dailyMetrics)
+        .set(values)
+        .where(eq(dailyMetrics.id, existing[0].id));
+    } else {
+      await dbWrite
+        .insert(dailyMetrics)
+        .values({ date: dayStart, platform: null, ...values });
     }
   }
 
