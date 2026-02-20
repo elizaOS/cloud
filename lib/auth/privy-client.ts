@@ -19,6 +19,7 @@
 import { PrivyClient, type AuthTokenClaims } from "@privy-io/server-auth";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { createHash } from "crypto";
 import { logger } from "@/lib/utils/logger";
 
@@ -74,47 +75,11 @@ function hashToken(token: string): string {
 }
 
 /**
- * PERF: In-memory cache for Privy token verification (30s TTL).
+ * PERF: In-memory LRU cache for Privy token verification (30s TTL, max 200).
  * Eliminates Redis round-trip for repeated requests from the same user
  * within the same serverless function instance. This saves ~5-30ms per request.
  */
-const IN_MEMORY_PRIVY_CACHE = new Map<string, { claims: AuthTokenClaims; expiresAt: number }>();
-const IN_MEMORY_PRIVY_TTL_MS = 30_000; // 30 seconds
-const IN_MEMORY_PRIVY_MAX_SIZE = 200;
-
-function getFromInMemoryPrivyCache(tokenHash: string): AuthTokenClaims | null {
-  const entry = IN_MEMORY_PRIVY_CACHE.get(tokenHash);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    IN_MEMORY_PRIVY_CACHE.delete(tokenHash);
-    return null;
-  }
-  return entry.claims;
-}
-
-function setInMemoryPrivyCache(tokenHash: string, claims: AuthTokenClaims): void {
-  if (IN_MEMORY_PRIVY_CACHE.size >= IN_MEMORY_PRIVY_MAX_SIZE) {
-    // First pass: evict expired entries
-    const now = Date.now();
-    for (const [key, value] of IN_MEMORY_PRIVY_CACHE) {
-      if (now > value.expiresAt) {
-        IN_MEMORY_PRIVY_CACHE.delete(key);
-      }
-    }
-    // Second pass: if still over capacity, evict oldest entries (by insertion order)
-    if (IN_MEMORY_PRIVY_CACHE.size >= IN_MEMORY_PRIVY_MAX_SIZE) {
-      const keys = Array.from(IN_MEMORY_PRIVY_CACHE.keys());
-      const toRemove = keys.length - Math.floor(IN_MEMORY_PRIVY_MAX_SIZE * 0.75);
-      for (let i = 0; i < toRemove; i++) {
-        IN_MEMORY_PRIVY_CACHE.delete(keys[i]);
-      }
-    }
-  }
-  IN_MEMORY_PRIVY_CACHE.set(tokenHash, {
-    claims,
-    expiresAt: Date.now() + IN_MEMORY_PRIVY_TTL_MS,
-  });
-}
+const IN_MEMORY_PRIVY_CACHE = new InMemoryLRUCache<AuthTokenClaims>(200, 30_000);
 
 /**
  * Verify a Privy auth token with caching
@@ -137,7 +102,7 @@ export async function verifyAuthTokenCached(
 
   try {
     // 0. PERF: Check in-memory cache first (eliminates Redis round-trip)
-    const inMemoryCached = getFromInMemoryPrivyCache(tokenHash);
+    const inMemoryCached = IN_MEMORY_PRIVY_CACHE.get(tokenHash);
     if (inMemoryCached) {
       const now = Math.floor(Date.now() / 1000);
       if (inMemoryCached.expiration > now) {
@@ -172,7 +137,7 @@ export async function verifyAuthTokenCached(
         } as AuthTokenClaims;
 
         // PERF: Populate in-memory cache from Redis hit to avoid Redis round-trip next time
-        setInMemoryPrivyCache(tokenHash, redisCachedClaims);
+        IN_MEMORY_PRIVY_CACHE.set(tokenHash, redisCachedClaims);
 
         return redisCachedClaims;
       } else {
@@ -227,7 +192,7 @@ export async function verifyAuthTokenCached(
     }
 
     // PERF: Also cache in-memory for subsequent requests in the same instance
-    setInMemoryPrivyCache(tokenHash, claims);
+    IN_MEMORY_PRIVY_CACHE.set(tokenHash, claims);
 
     return claims;
   } catch (error) {
@@ -257,7 +222,6 @@ export async function verifyAuthTokenCached(
 export async function invalidatePrivyTokenCache(token: string): Promise<void> {
   const tokenHash = hashToken(token);
 
-  // PERF: Also invalidate in-memory cache
   IN_MEMORY_PRIVY_CACHE.delete(tokenHash);
 
   await Promise.all([
