@@ -146,14 +146,14 @@ export function registerGoogleTools(server: McpServer): void {
           if (Number.isNaN(d.getTime())) {
             return errorResponse(`Invalid 'after' date: "${after}". Use ISO 8601 format, e.g. 2026-02-13T00:00:00Z`);
           }
-          effectiveQuery += ` after:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+          effectiveQuery += ` after:${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
         }
         if (before) {
           const d = new Date(before);
           if (Number.isNaN(d.getTime())) {
             return errorResponse(`Invalid 'before' date: "${before}". Use ISO 8601 format, e.g. 2026-02-20T00:00:00Z`);
           }
-          effectiveQuery += ` before:${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+          effectiveQuery += ` before:${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
         }
         effectiveQuery = effectiveQuery.trim();
 
@@ -162,7 +162,8 @@ export function registerGoogleTools(server: McpServer): void {
         if (pageToken) params.set("pageToken", pageToken);
         if (labelIds) {
           for (const id of labelIds.split(",")) {
-            params.append("labelIds", id.trim());
+            const trimmed = id.trim();
+            if (trimmed) params.append("labelIds", trimmed);
           }
         }
 
