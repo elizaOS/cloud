@@ -125,6 +125,17 @@ function detectProviderFromMessage(message: string): RequiredPlatform | null {
 }
 
 
+const CLAIM_CONNECTED_PATTERNS = [
+  "connected", "i connected", "done", "i did it", "finished",
+  "completed", "linked", "authorized", "signed in", "logged in",
+  "all set", "it's done", "its done", "did it", "went through",
+];
+
+function isClaimingConnected(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+  return CLAIM_CONNECTED_PATTERNS.some((p) => lower.includes(p));
+}
+
 function buildSystemPrompt(platform: MessagingPlatform): string {
   const char = loadElizaCharacter();
   const bioSample = getRandomSample(char.bio, 4).join(" ");
@@ -137,19 +148,29 @@ About you: ${bioSample}
 Your personality: ${adjSample}
 Your writing style: ${styleSample}
 
-CONTEXT: A user is messaging you on ${platform}. They've signed up but haven't connected a data integration yet. You need them to connect Google, Microsoft, or X (Twitter) so you can help them with their emails, calendar, contacts, and social feeds. This is non-negotiable — you cannot help without it.
+CONTEXT: A user is messaging you on ${platform}. They've signed up but have NOT connected a data integration yet. You are ONLY shown this prompt when no connection exists — this is a verified fact, confirmed by the system right now. You need them to connect Google, Microsoft, or X (Twitter) so you can help them with their emails, calendar, contacts, and social feeds.
+
+CRITICAL FACT: No data integration is connected. This is checked every single message. If the user claims they already connected, they are wrong — the connection either failed or didn't go through. Gently tell them you don't see it on your end and suggest they try the link again. NEVER pretend a connection succeeded — if you are responding with this prompt, it hasn't.
 
 RESPONSE RULES based on what the user says:
 
-1. If the user says something casual or unrelated (greeting, random question, small talk): respond naturally to what they said, then mention that you need them to connect an account before you can really help. ask which they'd prefer — google, microsoft, or x.
+1. If the user says something casual or unrelated (greeting, random question, small talk): respond naturally to what they said, then briefly mention you need them to connect an account before you can really help. ask which they'd prefer — google, microsoft, or x.
 
 2. If the user asks WHY they need to connect, or what it's for: explain genuinely — you need access to their emails, calendar, contacts, or social feeds so you can actually be useful instead of generic. then ask which one they'd prefer.
 
-3. If the user REFUSES or pushes back ("none", "no", "skip", "can we proceed without", "i don't want to"): acknowledge their hesitation warmly — don't be pushy or robotic. but be honest that you genuinely can't do much without it. you're not being difficult, it's just how this works. gently circle back to asking which one they'd choose if they were going to pick one.
+3. If the user REFUSES or pushes back ("none", "no", "skip", "can we proceed without", "i don't want to"): acknowledge their hesitation warmly — don't be pushy or robotic. but be honest that you genuinely can't do much without it. gently circle back to asking which one they'd choose if they were going to pick one.
 
-4. If the user HAS mentioned a specific provider (like "google", "gmail", "outlook", "microsoft", "x", "twitter"): acknowledge their choice. a link will be appended after your message automatically.
+4. If the user HAS mentioned a specific provider (like "google", "gmail", "outlook", "microsoft", "x", "twitter") and seems to be choosing it: briefly acknowledge their choice — just 1 short sentence. do NOT ask them to choose again. do NOT list the other options. a link will be appended after your message automatically.
 
-STYLE: keep it short — 2-3 sentences max. never use exclamation points. use lowercase naturally. respond directly to what they actually said — don't repeat the same generic message. do NOT include any URLs or links — those are appended separately.`;
+5. If the user says they already connected or asks if it worked: tell them you don't see a connection on your end yet. suggest they try the link again. if they mention which provider, a fresh link will be appended.
+
+STRICT STYLE RULES:
+- keep it short — 2-3 sentences max. never use exclamation points. use lowercase naturally.
+- respond directly to what they actually said — don't repeat the same generic message.
+- do NOT include any URLs or links — those are appended separately.
+- NEVER say things like "help you with connecting your accounts" or "help you connect". you are here to help THEM — the connection is just a prerequisite.
+- when the user has already chosen a provider, do NOT ask "which would you prefer" or list other options. just acknowledge briefly and stop.
+- NEVER pretend a connection succeeded. if you are responding, it means no connection exists yet.`;
 }
 
 function formatLinks(
@@ -272,6 +293,7 @@ class ConnectionEnforcementService {
   async generateNudgeResponse(params: NudgeParams): Promise<string> {
     const { userMessage, platform, organizationId, userId } = params;
 
+    const userClaimsConnected = isClaimingConnected(userMessage);
     const detectedProvider = detectProviderFromMessage(userMessage);
 
     // User specified a provider — generate the OAuth link for that one
@@ -294,6 +316,20 @@ class ConnectionEnforcementService {
       return `${llmResult}\n\n${formattedLinks}`;
     }
 
+    // User claims connected but no provider mentioned — generate all links so they can retry
+    if (userClaimsConnected) {
+      const [llmResult, links] = await Promise.all([
+        this.generateLLMResponse(userMessage, platform),
+        generateOAuthLinks(organizationId, userId, platform),
+      ]);
+
+      if (links.length > 0) {
+        const formattedLinks = formatLinks(links, platform);
+        return `${llmResult}\n\n${formattedLinks}`;
+      }
+      return llmResult;
+    }
+
     // No specific provider mentioned — just ask them to choose, no links
     return this.generateLLMResponse(userMessage, platform);
   }
@@ -308,7 +344,6 @@ class ConnectionEnforcementService {
         model: gateway.languageModel("openai/gpt-4o-mini"),
         system: systemPrompt,
         prompt: userMessage || "hey",
-        maxTokens: 200,
       });
       return result.text;
     } catch (error) {

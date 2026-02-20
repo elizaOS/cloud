@@ -37,6 +37,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/dashboard/agents",
   "/settings",
   "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
+  "/api/eliza-app/auth/connection-success", // Post-connection page for Eliza App platform users
 ];
 
 interface RouteParams {
