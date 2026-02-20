@@ -86,7 +86,7 @@ async function handleGetMetrics(request: NextRequest): Promise<NextResponse> {
 
       default:
         return NextResponse.json(
-          { error: `Unknown view: ${view}` },
+          { error: "Unknown view parameter" },
           { status: 400 },
         );
     }
