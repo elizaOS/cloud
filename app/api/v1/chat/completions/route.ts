@@ -696,4 +696,4 @@ async function handleNonStreamingRequest(
   );
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);

@@ -239,6 +239,13 @@
       "when": 1770700000000,
       "tag": "0033_create_context_enrichment",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1771424653235,
+      "tag": "0034_add_engagement_metrics_tables",
+      "breakpoints": true
     }
   ]
 }

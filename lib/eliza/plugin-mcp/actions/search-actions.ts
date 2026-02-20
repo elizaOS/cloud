@@ -41,11 +41,23 @@ export const searchActionsAction: ActionWithParams = {
     },
     platform: {
       type: "string",
-      description: "Filter results to a single connected platform. Omit to search all.",
+      description:
+        "Filter results to a single connected platform. Omit to search all.",
       required: false,
       enum: [
-        "google", "github", "linear", "notion", "jira", "asana",
-        "airtable", "salesforce", "dropbox", "microsoft", "zoom", "linkedin",
+        "google",
+        "github",
+        "linear",
+        "notion",
+        "jira",
+        "asana",
+        "airtable",
+        "salesforce",
+        "dropbox",
+        "microsoft",
+        "zoom",
+        "linkedin",
+        "twitter",
       ],
     },
     limit: {
@@ -56,7 +68,8 @@ export const searchActionsAction: ActionWithParams = {
     },
     offset: {
       type: "number",
-      description: "Skip first N results for pagination when initial search didn't find what you need.",
+      description:
+        "Skip first N results for pagination when initial search didn't find what you need.",
       required: false,
       default: 0,
     },
@@ -69,7 +82,7 @@ export const searchActionsAction: ActionWithParams = {
     message: Memory,
     state?: State,
     _options?: Record<string, unknown>,
-    _callback?: HandlerCallback
+    _callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
     if (!svc) {
@@ -102,7 +115,13 @@ export const searchActionsAction: ActionWithParams = {
         text: platform
           ? `No actions found matching "${query}" for platform "${platform}".`
           : `No actions found matching "${query}".`,
-        data: { query, platform, offset, resultCount: 0, totalAvailable: tier2Index.getToolCount() },
+        data: {
+          query,
+          platform,
+          offset,
+          resultCount: 0,
+          totalAvailable: tier2Index.getToolCount(),
+        },
       };
     }
 
@@ -123,7 +142,11 @@ export const searchActionsAction: ActionWithParams = {
         alreadyRegistered.push(entry.actionName);
         continue;
       }
-      const action = createMcpToolAction(entry.serverName, entry.tool, existingNames);
+      const action = createMcpToolAction(
+        entry.serverName,
+        entry.tool,
+        existingNames,
+      );
       runtime.registerAction(action);
       existingNames.add(action.name);
       newlyRegistered.push(action.name);
@@ -165,7 +188,10 @@ export const searchActionsAction: ActionWithParams = {
 
   examples: [
     [
-      { name: "{{user}}", content: { text: "Search for email-related actions" } },
+      {
+        name: "{{user}}",
+        content: { text: "Search for email-related actions" },
+      },
       {
         name: "{{assistant}}",
         content: {
@@ -175,7 +201,10 @@ export const searchActionsAction: ActionWithParams = {
       },
     ],
     [
-      { name: "{{user}}", content: { text: "Find actions for creating Linear issues" } },
+      {
+        name: "{{user}}",
+        content: { text: "Find actions for creating Linear issues" },
+      },
       {
         name: "{{assistant}}",
         content: {
@@ -214,7 +243,7 @@ export const listConnectionsAction: Action = {
     message: Memory,
     state?: State,
     _options?: Record<string, unknown>,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const orgId = runtime.getSetting("ORGANIZATION_ID") as string | undefined;
     if (!orgId) {
@@ -245,7 +274,10 @@ export const listConnectionsAction: Action = {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      logger.error({ error: msg }, "[LIST_CONNECTIONS] Failed to fetch connections");
+      logger.error(
+        { error: msg },
+        "[LIST_CONNECTIONS] Failed to fetch connections",
+      );
       if (msg.includes("Cannot find module")) {
         return { success: false, error: "OAuth service not available" };
       }

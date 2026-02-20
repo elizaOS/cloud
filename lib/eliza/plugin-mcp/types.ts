@@ -55,8 +55,8 @@ export interface PingConfig {
 
 export interface ConnectionState {
   status: "connecting" | "connected" | "disconnected" | "failed";
-  pingInterval?: NodeJS.Timer;
-  reconnectTimeout?: NodeJS.Timer;
+  pingInterval?: ReturnType<typeof setInterval>;
+  reconnectTimeout?: ReturnType<typeof setTimeout>;
   reconnectAttempts: number;
   lastConnected?: Date;
   lastError?: Error;

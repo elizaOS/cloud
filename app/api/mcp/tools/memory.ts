@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Memory MCP tools
  * Tools for saving, retrieving, deleting, and analyzing memories

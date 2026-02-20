@@ -178,7 +178,7 @@ export class EntitiesRepository {
       return existing;
     }
 
-    const [entity] = await dbWrite
+    const result = await dbWrite
       .insert(entityTable)
       .values({
         id: input.id,
@@ -188,6 +188,7 @@ export class EntitiesRepository {
         createdAt: new Date(),
       })
       .returning();
+    const [entity] = result as typeof entityTable.$inferSelect[];
 
     return entity as Entity;
   }

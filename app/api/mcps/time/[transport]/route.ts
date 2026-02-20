@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 

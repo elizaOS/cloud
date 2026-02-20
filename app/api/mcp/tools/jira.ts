@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Jira MCP Tools - Issues, Projects, Comments, Transitions
  * Uses per-organization OAuth tokens via oauthService.

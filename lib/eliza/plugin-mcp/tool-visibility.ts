@@ -88,6 +88,13 @@ const CRUCIAL_TOOLS: Record<string, string[]> = {
     "linkedin_create_post",
     "linkedin_delete_post",
   ],
+  twitter: [
+    "twitter_status",
+    "twitter_get_me",
+    "twitter_get_user_tweets",
+    "twitter_create_tweet",
+    "twitter_search_tweets",
+  ],
   microsoft: [
     "microsoft_status",
     "outlook_list",
