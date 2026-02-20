@@ -204,6 +204,7 @@ export async function POST(
       logger.warn("[Stream] User blocked due to moderation violations", {
         userId: userContext.userId,
       });
+      perfTrace.end();
       return new Response(
         JSON.stringify({
           error:
@@ -220,6 +221,7 @@ export async function POST(
           ? `You've reached your free message limit (${anonymousLimitResult.limit} messages). Sign up to continue!`
           : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
 
+      perfTrace.end();
       return new Response(
         JSON.stringify({
           error: errorMessage,
@@ -247,6 +249,7 @@ export async function POST(
           required: MINIMUM_MESSAGE_COST,
         });
 
+        perfTrace.end();
         return new Response(
           JSON.stringify({
             error: "Insufficient credits",
