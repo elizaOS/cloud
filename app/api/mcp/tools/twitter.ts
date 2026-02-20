@@ -440,7 +440,7 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.like(userId, tweetId);
-        logger.warn("[TwitterMCP] Tweet liked", { tweetId });
+        logger.info("[TwitterMCP] Tweet liked", { tweetId });
         return jsonResponse({ success: true, liked: result.data.liked, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to like tweet"));
@@ -462,7 +462,7 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unlike(userId, tweetId);
-        logger.warn("[TwitterMCP] Tweet unliked", { tweetId });
+        logger.info("[TwitterMCP] Tweet unliked", { tweetId });
         return jsonResponse({ success: true, liked: result.data.liked, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unlike tweet"));
@@ -484,7 +484,7 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.retweet(userId, tweetId);
-        logger.warn("[TwitterMCP] Retweeted", { tweetId });
+        logger.info("[TwitterMCP] Retweeted", { tweetId });
         return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to retweet"));
@@ -506,7 +506,7 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unretweet(userId, tweetId);
-        logger.warn("[TwitterMCP] Unretweeted", { tweetId });
+        logger.info("[TwitterMCP] Unretweeted", { tweetId });
         return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unretweet"));

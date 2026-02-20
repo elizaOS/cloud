@@ -180,14 +180,13 @@ describe("Twitter MCP Tools", () => {
       expect(typeof mod.registerTwitterTools).toBe("function");
     });
 
-    test("registers all 23 tools", async () => {
+    test("registers all expected tools", async () => {
       const { registerTwitterTools } = await import("@/app/api/mcp/tools/twitter");
       const names: string[] = [];
       // biome-ignore lint/suspicious/noExplicitAny: mock server shape
       registerTwitterTools({ registerTool: (n: string) => { names.push(n); } } as any);
 
-      expect(names.length).toBe(23);
-      for (const t of [
+      const expectedTools = [
         "twitter_status", "twitter_get_me", "twitter_get_user",
         "twitter_create_tweet", "twitter_delete_tweet", "twitter_get_tweet",
         "twitter_search_tweets", "twitter_get_user_tweets", "twitter_get_my_tweets",
@@ -195,7 +194,9 @@ describe("Twitter MCP Tools", () => {
         "twitter_get_followers", "twitter_get_following", "twitter_follow_user", "twitter_unfollow_user",
         "twitter_get_mentions", "twitter_get_liked_tweets", "twitter_get_bookmarks",
         "twitter_create_thread", "twitter_resolve_tweet_url", "twitter_check_relationship",
-      ]) {
+      ];
+      expect(names.length).toBe(expectedTools.length);
+      for (const t of expectedTools) {
         expect(names).toContain(t);
       }
     });
