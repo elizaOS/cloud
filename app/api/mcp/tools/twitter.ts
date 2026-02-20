@@ -106,6 +106,7 @@ function extractTweetIdFromUrl(url: string): string | null {
 // ── Shared field selections ──────────────────────────────────────────────────
 const TIMELINE_TWEET_FIELDS = ["created_at", "public_metrics", "entities", "referenced_tweets"];
 const SEARCH_TWEET_FIELDS = ["created_at", "public_metrics", "author_id", "entities"];
+const MENTION_TWEET_FIELDS = [...SEARCH_TWEET_FIELDS, "referenced_tweets"];
 const DETAIL_TWEET_FIELDS = ["created_at", "public_metrics", "author_id", "conversation_id", "in_reply_to_user_id", "referenced_tweets", "entities"];
 const USER_PROFILE_FIELDS = ["description", "public_metrics", "profile_image_url", "created_at", "location", "url", "verified"];
 const USER_SUMMARY_FIELDS = ["description", "public_metrics", "profile_image_url", "verified"];
@@ -125,17 +126,27 @@ function mapTweetSummary(t: Record<string, unknown>): Record<string, unknown> {
 
 function mapUserProfile(data: Record<string, unknown>): Record<string, unknown> {
   return {
-    id: data.id, username: data.username, name: data.name,
-    description: data.description, profileImageUrl: data.profile_image_url,
-    publicMetrics: data.public_metrics, createdAt: data.created_at,
-    location: data.location, url: data.url, verified: data.verified,
+    id: data.id,
+    username: data.username,
+    name: data.name,
+    description: data.description,
+    profileImageUrl: data.profile_image_url,
+    publicMetrics: data.public_metrics,
+    createdAt: data.created_at,
+    location: data.location,
+    url: data.url,
+    verified: data.verified,
   };
 }
 
 function mapUserSummary(u: Record<string, unknown>): Record<string, unknown> {
   return {
-    id: u.id, username: u.username, name: u.name,
-    description: u.description, publicMetrics: u.public_metrics, verified: u.verified,
+    id: u.id,
+    username: u.username,
+    name: u.name,
+    description: u.description,
+    publicMetrics: u.public_metrics,
+    verified: u.verified,
   };
 }
 
@@ -180,10 +191,15 @@ async function fetchTweetDetails(client: TwitterApi, tweetId: string) {
     "user.fields": ["username", "name", "profile_image_url"],
   });
   return {
-    id: tweet.data.id, text: tweet.data.text, authorId: tweet.data.author_id,
-    createdAt: tweet.data.created_at, publicMetrics: tweet.data.public_metrics,
-    conversationId: tweet.data.conversation_id, referencedTweets: tweet.data.referenced_tweets,
-    entities: tweet.data.entities, includes: tweet.includes,
+    id: tweet.data.id,
+    text: tweet.data.text,
+    authorId: tweet.data.author_id,
+    createdAt: tweet.data.created_at,
+    publicMetrics: tweet.data.public_metrics,
+    conversationId: tweet.data.conversation_id,
+    referencedTweets: tweet.data.referenced_tweets,
+    entities: tweet.data.entities,
+    includes: tweet.includes,
   };
 }
 
@@ -592,8 +608,12 @@ export function registerTwitterTools(server: McpServer): void {
           return errorResponse("Provide either targetUserId or username");
         }
         const client = await getTwitterClient();
-        const resolvedId = targetUserId || await resolveUserIdFromUsername(client, username as string);
-        const userId = await getAuthenticatedUserId(client);
+        // biome-ignore lint/style/noNonNullAssertion: guarded by !targetUserId && !username check above
+        const resolvedUsername = username!;
+        const [resolvedId, userId] = await Promise.all([
+          targetUserId ? Promise.resolve(targetUserId) : resolveUserIdFromUsername(client, resolvedUsername),
+          getAuthenticatedUserId(client),
+        ]);
         const result = await client.v2.follow(userId, resolvedId);
         logger.warn("[TwitterMCP] Followed user", { targetUserId: resolvedId });
         return jsonResponse({ success: true, following: result.data.following, pendingFollow: result.data.pending_follow, targetUserId: resolvedId });
@@ -619,8 +639,12 @@ export function registerTwitterTools(server: McpServer): void {
           return errorResponse("Provide either targetUserId or username");
         }
         const client = await getTwitterClient();
-        const resolvedId = targetUserId || await resolveUserIdFromUsername(client, username as string);
-        const userId = await getAuthenticatedUserId(client);
+        // biome-ignore lint/style/noNonNullAssertion: guarded by !targetUserId && !username check above
+        const resolvedUsername = username!;
+        const [resolvedId, userId] = await Promise.all([
+          targetUserId ? Promise.resolve(targetUserId) : resolveUserIdFromUsername(client, resolvedUsername),
+          getAuthenticatedUserId(client),
+        ]);
         const result = await client.v2.unfollow(userId, resolvedId);
         logger.warn("[TwitterMCP] Unfollowed user", { targetUserId: resolvedId });
         return jsonResponse({ success: true, following: result.data.following, targetUserId: resolvedId });
@@ -649,7 +673,7 @@ export function registerTwitterTools(server: McpServer): void {
 
         const opts: Record<string, unknown> = {
           max_results: maxResults,
-          "tweet.fields": [...SEARCH_TWEET_FIELDS, "referenced_tweets"],
+          "tweet.fields": MENTION_TWEET_FIELDS,
           expansions: ["author_id"],
           "user.fields": ["username", "name", "profile_image_url"],
         };
@@ -753,13 +777,14 @@ export function registerTwitterTools(server: McpServer): void {
         const posted: { id: string; text: string }[] = [];
         let lastTweetId: string | undefined;
 
-        for (const text of tweets) {
+        for (let i = 0; i < tweets.length; i++) {
           try {
+            if (i > 0) await new Promise((r) => setTimeout(r, 500));
             const params: Record<string, unknown> = {};
             if (lastTweetId) {
               params.reply = { in_reply_to_tweet_id: lastTweetId };
             }
-            const tweet = await client.v2.tweet(text, params);
+            const tweet = await client.v2.tweet(tweets[i], params);
             posted.push({ id: tweet.data.id, text: tweet.data.text });
             lastTweetId = tweet.data.id;
           } catch (error) {
@@ -792,14 +817,17 @@ export function registerTwitterTools(server: McpServer): void {
     {
       description: "Get full tweet details from a Twitter/X URL (e.g. https://x.com/user/status/123). Use when user pastes a tweet link and wants to interact with it.",
       inputSchema: {
-        url: z.string().describe("The tweet URL from twitter.com or x.com"),
+        url: z.string().min(1).describe("The tweet URL from twitter.com or x.com"),
       },
     },
     async ({ url }) => {
       try {
         const tweetId = extractTweetIdFromUrl(url);
         if (!tweetId) {
-          return errorResponse("Could not extract tweet ID from URL. Expected format: https://x.com/user/status/123456");
+          const hint = /t\.co\//i.test(url)
+            ? "Shortened t.co links are not supported — paste the full x.com or twitter.com URL."
+            : "Expected format: https://x.com/user/status/123456";
+          return errorResponse(`Could not extract tweet ID from URL. ${hint}`);
         }
 
         const client = await getTwitterClient();
@@ -827,6 +855,8 @@ export function registerTwitterTools(server: McpServer): void {
         const cleanSource = sourceUsername.replace(/^@/, "");
         const cleanTarget = targetUsername.replace(/^@/, "");
 
+        // v1.1 friendships/show — no single-call v2 equivalent exists.
+        // If Twitter kills this endpoint, replace with two v2.followers() lookups.
         const relationship = await client.v1.friendship({
           source_screen_name: cleanSource,
           target_screen_name: cleanTarget,

@@ -400,11 +400,13 @@ describe("Twitter MCP Tools", () => {
   // ── twitter_create_tweet ──────────────────────────────────────────────────
 
   describe("twitter_create_tweet", () => {
-    test("creates simple tweet", async () => {
+    test("creates simple tweet and passes correct text to API", async () => {
       const p = parse(await callTool("twitter_create_tweet", { text: "hello" }));
       expect(p.success).toBe(true);
       expect(p.tweetId).toBeDefined();
       expect(p.text).toBe("hello");
+      expect(mockV2.tweet.mock.calls[0][0]).toBe("hello");
+      expect(mockV2.tweet.mock.calls[0][1]).toEqual({});
     });
 
     test("creates reply", async () => {
@@ -530,9 +532,12 @@ describe("Twitter MCP Tools", () => {
       expect(parse(r).error).toContain("Could not extract tweet ID");
     });
 
-    test("rejects empty URL", async () => {
-      const r = await callTool("twitter_resolve_tweet_url", { url: "" });
+    test("rejects t.co shortened URLs with specific hint", async () => {
+      const r = await callTool("twitter_resolve_tweet_url", {
+        url: "https://t.co/abc123",
+      });
       expect(r.isError).toBe(true);
+      expect(parse(r).error).toContain("t.co links are not supported");
     });
   });
 
@@ -808,6 +813,16 @@ describe("Twitter MCP Tools", () => {
         throw new Error("No active connection");
       });
       const r = await callTool("twitter_get_my_tweets");
+      expect(r.isError).toBe(true);
+      expect(parse(r).error).toContain("not connected");
+    });
+
+    test("missing accessTokenSecret returns reconnect error", async () => {
+      mockOAuth.getValidTokenByPlatform.mockImplementation(async () => ({
+        accessToken: "tok",
+        accessTokenSecret: null,
+      }));
+      const r = await callTool("twitter_get_me");
       expect(r.isError).toBe(true);
       expect(parse(r).error).toContain("not connected");
     });
