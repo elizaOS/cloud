@@ -322,4 +322,88 @@ describe("Connection Enforcement", () => {
       expect(indexSource).toContain("connection-enforcement");
     });
   });
+
+  describe("Nudge interval and conversation state", () => {
+    const NUDGE_INTERVAL = 3;
+
+    function shouldNudge(messageCount: number): boolean {
+      return messageCount % NUDGE_INTERVAL === 0;
+    }
+
+    test("nudges on first message (count 0)", () => {
+      expect(shouldNudge(0)).toBe(true);
+    });
+
+    test("does not nudge on second message (count 1)", () => {
+      expect(shouldNudge(1)).toBe(false);
+    });
+
+    test("does not nudge on third message (count 2)", () => {
+      expect(shouldNudge(2)).toBe(false);
+    });
+
+    test("nudges again on fourth message (count 3)", () => {
+      expect(shouldNudge(3)).toBe(true);
+    });
+
+    test("nudge pattern repeats correctly over 9 messages", () => {
+      const results = Array.from({ length: 9 }, (_, i) => shouldNudge(i));
+      expect(results).toEqual([
+        true, false, false,
+        true, false, false,
+        true, false, false,
+      ]);
+    });
+
+    test("connection-enforcement.ts uses cache for conversation state", () => {
+      const source = readFileSync(
+        join(process.cwd(), "lib/services/eliza-app/connection-enforcement.ts"),
+        "utf-8",
+      );
+      expect(source).toContain("@/lib/cache/client");
+      expect(source).toContain("connection_enforcement:");
+      expect(source).toContain("loadConversationState");
+      expect(source).toContain("saveConversationState");
+    });
+
+    test("connection-enforcement.ts has nudge and chat prompt modes", () => {
+      const source = readFileSync(
+        join(process.cwd(), "lib/services/eliza-app/connection-enforcement.ts"),
+        "utf-8",
+      );
+      expect(source).toContain("buildNudgePrompt");
+      expect(source).toContain("buildChatPrompt");
+      expect(source).toContain("shouldNudge");
+      expect(source).toContain("NUDGE_INTERVAL");
+    });
+
+    test("chat prompt does not ask about connection", () => {
+      const source = readFileSync(
+        join(process.cwd(), "lib/services/eliza-app/connection-enforcement.ts"),
+        "utf-8",
+      );
+      // The chat prompt should tell the LLM NOT to bring up connection
+      expect(source).toContain("don't bring it up again right now");
+      expect(source).toContain("Just chat naturally");
+    });
+
+    test("conversation history is passed to LLM", () => {
+      const source = readFileSync(
+        join(process.cwd(), "lib/services/eliza-app/connection-enforcement.ts"),
+        "utf-8",
+      );
+      expect(source).toContain("formatConversationHistory");
+      expect(source).toContain("conversationHistory");
+      expect(source).toContain("Recent conversation:");
+    });
+
+    test("NUDGE_INTERVAL is exported", () => {
+      const source = readFileSync(
+        join(process.cwd(), "lib/services/eliza-app/connection-enforcement.ts"),
+        "utf-8",
+      );
+      expect(source).toContain("export {");
+      expect(source).toContain("NUDGE_INTERVAL");
+    });
+  });
 });

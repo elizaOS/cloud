@@ -11,6 +11,7 @@
 import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { oauthService } from "@/lib/services/oauth";
+import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -136,11 +137,77 @@ function isClaimingConnected(message: string): boolean {
   return CLAIM_CONNECTED_PATTERNS.some((p) => lower.includes(p));
 }
 
-function buildSystemPrompt(platform: MessagingPlatform): string {
+const NUDGE_INTERVAL = 3; // Nudge every Nth message (1st, 4th, 7th...)
+const CONVERSATION_TTL = 3600; // 1 hour TTL for conversation state
+const MAX_HISTORY_MESSAGES = 10; // Keep last N messages for context
+
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface ConversationState {
+  messageCount: number;
+  messages: ConversationMessage[];
+}
+
+function getConversationKey(organizationId: string): string {
+  return `connection_enforcement:${organizationId}`;
+}
+
+async function loadConversationState(organizationId: string): Promise<ConversationState> {
+  try {
+    const state = await cache.get<ConversationState>(getConversationKey(organizationId));
+    return state || { messageCount: 0, messages: [] };
+  } catch {
+    return { messageCount: 0, messages: [] };
+  }
+}
+
+async function saveConversationState(organizationId: string, state: ConversationState): Promise<void> {
+  try {
+    // Trim to last N messages
+    if (state.messages.length > MAX_HISTORY_MESSAGES) {
+      state.messages = state.messages.slice(-MAX_HISTORY_MESSAGES);
+    }
+    await cache.set(getConversationKey(organizationId), state, CONVERSATION_TTL);
+  } catch (error) {
+    logger.warn("[ConnectionEnforcement] Failed to save conversation state", {
+      organizationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function formatConversationHistory(messages: ConversationMessage[]): string {
+  if (messages.length === 0) return "";
+  const history = messages
+    .map((m) => `${m.role === "user" ? "User" : "Eliza"}: ${m.content}`)
+    .join("\n");
+  return `\n\nRecent conversation:\n${history}\n`;
+}
+
+function shouldNudge(messageCount: number): boolean {
+  return messageCount % NUDGE_INTERVAL === 0;
+}
+
+function buildNudgePrompt(
+  platform: MessagingPlatform,
+  conversationHistory: string,
+  isFirstInteraction: boolean,
+): string {
   const char = loadElizaCharacter();
   const bioSample = getRandomSample(char.bio, 4).join(" ");
   const adjSample = getRandomSample(char.adjectives, 4).join(", ");
   const styleSample = getRandomSample([...char.style.all, ...char.style.chat], 5).join("; ");
+
+  const firstInteractionContext = isFirstInteraction
+    ? `\n\nIMPORTANT: This is the user's VERY FIRST message after registering their ${platform} account. They have never been told about data integrations yet. If they say things like "just connected", "signed up", "created my account" — they are talking about their ${platform} registration, NOT a data integration. Welcome them and introduce the idea of connecting a data source for the first time.`
+    : "";
+
+  const claimConnectedRule = isFirstInteraction
+    ? `5. If the user says they "connected" or "signed up": they mean their ${platform} account, NOT a data integration. welcome them and naturally introduce the idea of connecting a data source.`
+    : "5. If the user says they already connected a data integration or asks if it worked: tell them you don't see a connection on your end yet. suggest they try the link again. if they mention which provider, a fresh link will be appended.";
 
   return `${char.system}
 
@@ -148,9 +215,7 @@ About you: ${bioSample}
 Your personality: ${adjSample}
 Your writing style: ${styleSample}
 
-CONTEXT: A user is messaging you on ${platform}. They've signed up but have NOT connected a data integration yet. You are ONLY shown this prompt when no connection exists — this is a verified fact, confirmed by the system right now. You need them to connect Google, Microsoft, or X (Twitter) so you can help them with their emails, calendar, contacts, and social feeds.
-
-CRITICAL FACT: No data integration is connected. This is checked every single message. If the user claims they already connected, they are wrong — the connection either failed or didn't go through. Gently tell them you don't see it on your end and suggest they try the link again. NEVER pretend a connection succeeded — if you are responding with this prompt, it hasn't.
+CONTEXT: A user is messaging you on ${platform}. They've signed up but have NOT connected a data integration yet (Google, Microsoft, or X/Twitter). You need them to connect one so you can help them with their emails, calendar, contacts, and social feeds.${firstInteractionContext}
 
 RESPONSE RULES based on what the user says:
 
@@ -162,7 +227,7 @@ RESPONSE RULES based on what the user says:
 
 4. If the user HAS mentioned a specific provider (like "google", "gmail", "outlook", "microsoft", "x", "twitter") and seems to be choosing it: briefly acknowledge their choice — just 1 short sentence. do NOT ask them to choose again. do NOT list the other options. a link will be appended after your message automatically.
 
-5. If the user says they already connected or asks if it worked: tell them you don't see a connection on your end yet. suggest they try the link again. if they mention which provider, a fresh link will be appended.
+${claimConnectedRule}
 
 STRICT STYLE RULES:
 - keep it short — 2-3 sentences max. never use exclamation points. use lowercase naturally.
@@ -170,19 +235,39 @@ STRICT STYLE RULES:
 - do NOT include any URLs or links — those are appended separately.
 - NEVER say things like "help you with connecting your accounts" or "help you connect". you are here to help THEM — the connection is just a prerequisite.
 - when the user has already chosen a provider, do NOT ask "which would you prefer" or list other options. just acknowledge briefly and stop.
-- NEVER pretend a connection succeeded. if you are responding, it means no connection exists yet.`;
+- NEVER pretend a connection succeeded. if you are responding, it means no connection exists yet.${conversationHistory}`;
+}
+
+function buildChatPrompt(platform: MessagingPlatform, conversationHistory: string): string {
+  const char = loadElizaCharacter();
+  const bioSample = getRandomSample(char.bio, 4).join(" ");
+  const adjSample = getRandomSample(char.adjectives, 4).join(", ");
+  const styleSample = getRandomSample([...char.style.all, ...char.style.chat], 5).join("; ");
+
+  return `${char.system}
+
+About you: ${bioSample}
+Your personality: ${adjSample}
+Your writing style: ${styleSample}
+
+CONTEXT: A user is messaging you on ${platform}. They haven't connected a data integration yet, but you've already asked them about it recently — don't bring it up again right now. Just chat naturally as yourself. Be present, be helpful in the ways you can, be you.
+
+CRITICAL FACT: No data integration is connected, but do NOT mention this unless the user specifically asks about it. Just have a normal conversation.
+
+STYLE: keep it short — 2-3 sentences max. never use exclamation points. use lowercase naturally. respond directly to what they said.${conversationHistory}`;
 }
 
 function formatLinks(
   links: { platform: RequiredPlatform; url: string }[],
   messagingPlatform: MessagingPlatform,
 ): string {
-  if (messagingPlatform === "imessage") {
+  if (messagingPlatform === "telegram") {
+    // Telegram supports inline markdown links
     return links
-      .map((l) => `${PLATFORM_DISPLAY_NAMES[l.platform]}: ${l.url}`)
+      .map((l) => `[Connect ${PLATFORM_DISPLAY_NAMES[l.platform]}](${l.url})`)
       .join("\n");
   }
-  // Discord and Telegram both support Markdown-style links
+  // Discord auto-embeds URLs; iMessage and web use raw URLs
   return links
     .map((l) => `${PLATFORM_DISPLAY_NAMES[l.platform]}: ${l.url}`)
     .join("\n");
@@ -287,19 +372,26 @@ class ConnectionEnforcementService {
   }
 
   /**
-   * Generate an in-character nudge response with OAuth links.
-   * Called when a registered user messages without any required connections.
+   * Generate an in-character response — nudge every NUDGE_INTERVAL messages,
+   * chat naturally in between. Always nudge when user mentions a provider or claims connected.
    */
   async generateNudgeResponse(params: NudgeParams): Promise<string> {
     const { userMessage, platform, organizationId, userId } = params;
 
-    const userClaimsConnected = isClaimingConnected(userMessage);
+    const state = await loadConversationState(organizationId);
+    const conversationHistory = formatConversationHistory(state.messages);
     const detectedProvider = detectProviderFromMessage(userMessage);
+    const isFirstInteraction = state.messageCount === 0;
 
-    // User specified a provider — generate the OAuth link for that one
-    if (detectedProvider) {
+    // Always nudge when user picks a provider (after the first intro)
+    const forceNudge = !!detectedProvider && !isFirstInteraction;
+    const isNudgeTurn = forceNudge || shouldNudge(state.messageCount);
+
+    let response: string;
+
+    if (isNudgeTurn && detectedProvider && !isFirstInteraction) {
       const [llmResult, links] = await Promise.all([
-        this.generateLLMResponse(userMessage, platform),
+        this.generateLLMResponse(userMessage, platform, "nudge", conversationHistory, isFirstInteraction),
         generateOAuthLinks(organizationId, userId, platform, detectedProvider),
       ]);
 
@@ -309,37 +401,38 @@ class ConnectionEnforcementService {
           platform,
           provider: detectedProvider,
         });
-        return `${llmResult}\n\nplease visit your settings to connect ${PLATFORM_DISPLAY_NAMES[detectedProvider]}.`;
-      }
-
-      const formattedLinks = formatLinks(links, platform);
-      return `${llmResult}\n\n${formattedLinks}`;
-    }
-
-    // User claims connected but no provider mentioned — generate all links so they can retry
-    if (userClaimsConnected) {
-      const [llmResult, links] = await Promise.all([
-        this.generateLLMResponse(userMessage, platform),
-        generateOAuthLinks(organizationId, userId, platform),
-      ]);
-
-      if (links.length > 0) {
+        response = `${llmResult}\n\nplease visit your settings to connect ${PLATFORM_DISPLAY_NAMES[detectedProvider]}.`;
+      } else {
         const formattedLinks = formatLinks(links, platform);
-        return `${llmResult}\n\n${formattedLinks}`;
+        response = `${llmResult}\n\n${formattedLinks}`;
       }
-      return llmResult;
+    } else if (isNudgeTurn) {
+      response = await this.generateLLMResponse(userMessage, platform, "nudge", conversationHistory, isFirstInteraction);
+    } else {
+      response = await this.generateLLMResponse(userMessage, platform, "chat", conversationHistory, false);
     }
 
-    // No specific provider mentioned — just ask them to choose, no links
-    return this.generateLLMResponse(userMessage, platform);
+    // Persist conversation state
+    state.messages.push({ role: "user", content: userMessage });
+    state.messages.push({ role: "assistant", content: response });
+    state.messageCount += 1;
+    await saveConversationState(organizationId, state);
+
+    return response;
   }
 
   private async generateLLMResponse(
     userMessage: string,
     platform: MessagingPlatform,
+    mode: "nudge" | "chat",
+    conversationHistory: string,
+    isFirstInteraction: boolean,
   ): Promise<string> {
     try {
-      const systemPrompt = buildSystemPrompt(platform);
+      const systemPrompt =
+        mode === "nudge"
+          ? buildNudgePrompt(platform, conversationHistory, isFirstInteraction)
+          : buildChatPrompt(platform, conversationHistory);
       const result = await generateText({
         model: gateway.languageModel("openai/gpt-4o-mini"),
         system: systemPrompt,
@@ -359,6 +452,7 @@ export const connectionEnforcementService = new ConnectionEnforcementService();
 
 export {
   REQUIRED_PLATFORMS,
+  NUDGE_INTERVAL,
   type RequiredPlatform,
   type MessagingPlatform,
   type NudgeParams,
