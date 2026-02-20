@@ -662,6 +662,13 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
     // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
     // sees a consistent baseline; the summary step fetches fresh RECENT_MESSAGES.
+    //
+    // TRADE-OFF: Actions that write to memory (notes, lookups, etc.) during iteration N
+    // will NOT be visible in recentMessages for the decision at iteration N+1. This is
+    // acceptable because (a) the decision prompt focuses on action selection, not memory
+    // recall, and (b) refreshing recentMessages per iteration would add ~200-400ms each.
+    // If a future action requires cross-iteration memory visibility, fetch fresh
+    // recentMessages inside that specific iteration instead of using the cached snapshot.
     const cachedStableValues: Record<string, unknown> = {};
     const stableProviderKeys = [
       "recentMessages", "actions", "actionNames", "actionExamples",
