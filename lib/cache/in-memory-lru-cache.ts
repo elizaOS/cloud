@@ -28,6 +28,10 @@ export class InMemoryLRUCache<V> {
       this.cache.delete(key);
       return null;
     }
+    // True LRU: move to end of Map iteration order so recently-accessed
+    // entries are evicted last. Map preserves insertion order.
+    this.cache.delete(key);
+    this.cache.set(key, entry);
     return entry.value;
   }
 
@@ -42,6 +46,7 @@ export class InMemoryLRUCache<V> {
     this.cache.delete(key);
   }
 
+  /** O(n) scan over all keys — acceptable for low-frequency invalidation calls. */
   deleteByPrefix(prefix: string): void {
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
