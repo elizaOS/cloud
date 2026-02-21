@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 
 export const dynamic = "force-dynamic";
 // Sandbox provisioning can take up to 60s (Neon DB + Vercel Sandbox + health check)
 export const maxDuration = 120;
 
 /**
- * POST /api/v1/milaidy/agents/[agentId]/provision
- * Provision (or re-provision) the sandbox for a Milaidy cloud agent.
+ * POST /api/v1/milady/agents/[agentId]/provision
+ * Provision (or re-provision) the sandbox for a Milady cloud agent.
  *
  * Idempotent: if the sandbox is already running, returns the existing connection info.
  * If the sandbox was stopped or disconnected, re-provisions from the latest backup.
@@ -21,12 +21,12 @@ export async function POST(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  logger.info("[milaidy-api] Provision requested", {
+  logger.info("[milady-api] Provision requested", {
     agentId,
     orgId: user.organization_id,
   });
 
-  const result = await milaidySandboxService.provision(agentId, user.organization_id);
+  const result = await miladySandboxService.provision(agentId, user.organization_id);
 
   if (!result.success) {
     const status = result.error === "Agent not found" ? 404

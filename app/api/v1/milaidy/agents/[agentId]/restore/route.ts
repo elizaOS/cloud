@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ const restoreSchema = z.object({
 });
 
 /**
- * POST /api/v1/milaidy/agents/[agentId]/restore
+ * POST /api/v1/milady/agents/[agentId]/restore
  * Restore a sandbox from a specific backup (or the latest backup).
  *
  * If the sandbox is running, pushes state directly.
@@ -33,7 +33,7 @@ export async function POST(
     );
   }
 
-  const result = await milaidySandboxService.restore(
+  const result = await miladySandboxService.restore(
     agentId,
     user.organization_id,
     parsed.data.backupId,

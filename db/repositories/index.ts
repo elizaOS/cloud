@@ -118,6 +118,6 @@ export * from "./discord-guilds";
 export * from "./discord-channels";
 export * from "./discord-connections";
 // ============================================
-// Milaidy Cloud Sandboxes
+// Milady Cloud Sandboxes
 // ============================================
-export * from "./milaidy-sandboxes";
+export * from "./milady-sandboxes";

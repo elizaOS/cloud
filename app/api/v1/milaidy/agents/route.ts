@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -13,12 +13,12 @@ const createAgentSchema = z.object({
 });
 
 /**
- * GET /api/v1/milaidy/agents
- * List all Milaidy cloud agents for the authenticated user's organization.
+ * GET /api/v1/milady/agents
+ * List all Milady cloud agents for the authenticated user's organization.
  */
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const agents = await milaidySandboxService.listAgents(user.organization_id);
+  const agents = await miladySandboxService.listAgents(user.organization_id);
 
   return NextResponse.json({
     success: true,
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/v1/milaidy/agents
- * Create a new Milaidy cloud agent.
+ * POST /api/v1/milady/agents
+ * Create a new Milady cloud agent.
  */
 export async function POST(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const agent = await milaidySandboxService.createAgent({
+  const agent = await miladySandboxService.createAgent({
     organizationId: user.organization_id,
     userId: user.id,
     agentName: parsed.data.agentName,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     environmentVars: parsed.data.environmentVars,
   });
 
-  logger.info("[milaidy-api] Agent created", {
+  logger.info("[milady-api] Agent created", {
     agentId: agent.id,
     orgId: user.organization_id,
   });

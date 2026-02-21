@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/v1/milaidy/agents/[agentId]/snapshot
+ * POST /api/v1/milady/agents/[agentId]/snapshot
  * Trigger a manual state backup of the running sandbox.
  */
 export async function POST(
@@ -15,7 +15,7 @@ export async function POST(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const result = await milaidySandboxService.snapshot(
+  const result = await miladySandboxService.snapshot(
     agentId,
     user.organization_id,
     "manual",

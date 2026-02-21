@@ -1,109 +1,109 @@
 import { dbRead, dbWrite } from "@/db/helpers";
 import {
-  milaidySandboxes, milaidySandboxBackups,
-  type MilaidySandbox, type NewMilaidySandbox,
-  type MilaidySandboxBackup, type NewMilaidySandboxBackup,
-  type MilaidySandboxStatus, type MilaidyBackupSnapshotType,
-} from "@/db/schemas/milaidy-sandboxes";
+  miladySandboxes, miladySandboxBackups,
+  type MiladySandbox, type NewMiladySandbox,
+  type MiladySandboxBackup, type NewMiladySandboxBackup,
+  type MiladySandboxStatus, type MiladyBackupSnapshotType,
+} from "@/db/schemas/milady-sandboxes";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
 export type {
-  MilaidySandbox, NewMilaidySandbox,
-  MilaidySandboxBackup, NewMilaidySandboxBackup,
-  MilaidySandboxStatus, MilaidyBackupSnapshotType,
+  MiladySandbox, NewMiladySandbox,
+  MiladySandboxBackup, NewMiladySandboxBackup,
+  MiladySandboxStatus, MiladyBackupSnapshotType,
 };
 
-export class MilaidySandboxesRepository {
+export class MiladySandboxesRepository {
   // Reads
 
-  async findById(id: string): Promise<MilaidySandbox | undefined> {
-    const [r] = await dbRead.select().from(milaidySandboxes).where(eq(milaidySandboxes.id, id)).limit(1);
+  async findById(id: string): Promise<MiladySandbox | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxes).where(eq(miladySandboxes.id, id)).limit(1);
     return r;
   }
 
-  async findByIdAndOrg(id: string, orgId: string): Promise<MilaidySandbox | undefined> {
-    const [r] = await dbRead.select().from(milaidySandboxes)
-      .where(and(eq(milaidySandboxes.id, id), eq(milaidySandboxes.organization_id, orgId))).limit(1);
+  async findByIdAndOrg(id: string, orgId: string): Promise<MiladySandbox | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxes)
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId))).limit(1);
     return r;
   }
 
-  async listByOrganization(orgId: string): Promise<MilaidySandbox[]> {
-    return dbRead.select().from(milaidySandboxes)
-      .where(eq(milaidySandboxes.organization_id, orgId)).orderBy(desc(milaidySandboxes.created_at));
+  async listByOrganization(orgId: string): Promise<MiladySandbox[]> {
+    return dbRead.select().from(miladySandboxes)
+      .where(eq(miladySandboxes.organization_id, orgId)).orderBy(desc(miladySandboxes.created_at));
   }
 
-  async findRunningSandbox(id: string, orgId: string): Promise<MilaidySandbox | undefined> {
-    const [r] = await dbRead.select().from(milaidySandboxes)
-      .where(and(eq(milaidySandboxes.id, id), eq(milaidySandboxes.organization_id, orgId), eq(milaidySandboxes.status, "running")))
+  async findRunningSandbox(id: string, orgId: string): Promise<MiladySandbox | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxes)
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId), eq(miladySandboxes.status, "running")))
       .limit(1);
     return r;
   }
 
   // Writes
 
-  async create(data: NewMilaidySandbox): Promise<MilaidySandbox> {
-    const [r] = await dbWrite.insert(milaidySandboxes).values(data).returning();
-    if (!r) throw new Error("Failed to create Milaidy sandbox record");
+  async create(data: NewMiladySandbox): Promise<MiladySandbox> {
+    const [r] = await dbWrite.insert(miladySandboxes).values(data).returning();
+    if (!r) throw new Error("Failed to create Milady sandbox record");
     return r;
   }
 
-  async update(id: string, data: Partial<NewMilaidySandbox>): Promise<MilaidySandbox | undefined> {
-    const [r] = await dbWrite.update(milaidySandboxes).set({ ...data, updated_at: new Date() })
-      .where(eq(milaidySandboxes.id, id)).returning();
+  async update(id: string, data: Partial<NewMiladySandbox>): Promise<MiladySandbox | undefined> {
+    const [r] = await dbWrite.update(miladySandboxes).set({ ...data, updated_at: new Date() })
+      .where(eq(miladySandboxes.id, id)).returning();
     return r;
   }
 
   /** Atomically set provisioning — only from pending/stopped/disconnected/error. */
-  async trySetProvisioning(id: string): Promise<MilaidySandbox | undefined> {
-    const [r] = await dbWrite.update(milaidySandboxes)
+  async trySetProvisioning(id: string): Promise<MiladySandbox | undefined> {
+    const [r] = await dbWrite.update(miladySandboxes)
       .set({ status: "provisioning", updated_at: new Date(), error_message: null })
-      .where(and(eq(milaidySandboxes.id, id), sql`${milaidySandboxes.status} IN ('pending', 'stopped', 'disconnected', 'error')`))
+      .where(and(eq(miladySandboxes.id, id), sql`${miladySandboxes.status} IN ('pending', 'stopped', 'disconnected', 'error')`))
       .returning();
     return r;
   }
 
   async delete(id: string, orgId: string): Promise<boolean> {
-    const r = await dbWrite.delete(milaidySandboxes)
-      .where(and(eq(milaidySandboxes.id, id), eq(milaidySandboxes.organization_id, orgId)))
-      .returning({ id: milaidySandboxes.id });
+    const r = await dbWrite.delete(miladySandboxes)
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
+      .returning({ id: miladySandboxes.id });
     return r.length > 0;
   }
 
   // Backups
 
-  async createBackup(data: NewMilaidySandboxBackup): Promise<MilaidySandboxBackup> {
-    const [r] = await dbWrite.insert(milaidySandboxBackups).values(data).returning();
+  async createBackup(data: NewMiladySandboxBackup): Promise<MiladySandboxBackup> {
+    const [r] = await dbWrite.insert(miladySandboxBackups).values(data).returning();
     if (!r) throw new Error("Failed to create backup");
     return r;
   }
 
-  async listBackups(sandboxRecordId: string, limit = 10): Promise<MilaidySandboxBackup[]> {
-    return dbRead.select().from(milaidySandboxBackups)
-      .where(eq(milaidySandboxBackups.sandbox_record_id, sandboxRecordId))
-      .orderBy(desc(milaidySandboxBackups.created_at)).limit(limit);
+  async listBackups(sandboxRecordId: string, limit = 10): Promise<MiladySandboxBackup[]> {
+    return dbRead.select().from(miladySandboxBackups)
+      .where(eq(miladySandboxBackups.sandbox_record_id, sandboxRecordId))
+      .orderBy(desc(miladySandboxBackups.created_at)).limit(limit);
   }
 
-  async getLatestBackup(sandboxRecordId: string): Promise<MilaidySandboxBackup | undefined> {
-    const [r] = await dbRead.select().from(milaidySandboxBackups)
-      .where(eq(milaidySandboxBackups.sandbox_record_id, sandboxRecordId))
-      .orderBy(desc(milaidySandboxBackups.created_at)).limit(1);
+  async getLatestBackup(sandboxRecordId: string): Promise<MiladySandboxBackup | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxBackups)
+      .where(eq(miladySandboxBackups.sandbox_record_id, sandboxRecordId))
+      .orderBy(desc(miladySandboxBackups.created_at)).limit(1);
     return r;
   }
 
-  async getBackupById(backupId: string): Promise<MilaidySandboxBackup | undefined> {
-    const [r] = await dbRead.select().from(milaidySandboxBackups).where(eq(milaidySandboxBackups.id, backupId)).limit(1);
+  async getBackupById(backupId: string): Promise<MiladySandboxBackup | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxBackups).where(eq(miladySandboxBackups.id, backupId)).limit(1);
     return r;
   }
 
   async pruneBackups(sandboxRecordId: string, keep: number): Promise<number> {
-    const all = await dbRead.select({ id: milaidySandboxBackups.id }).from(milaidySandboxBackups)
-      .where(eq(milaidySandboxBackups.sandbox_record_id, sandboxRecordId))
-      .orderBy(desc(milaidySandboxBackups.created_at));
+    const all = await dbRead.select({ id: miladySandboxBackups.id }).from(miladySandboxBackups)
+      .where(eq(miladySandboxBackups.sandbox_record_id, sandboxRecordId))
+      .orderBy(desc(miladySandboxBackups.created_at));
     if (all.length <= keep) return 0;
     const ids = all.slice(keep).map((b) => b.id);
-    const r = await dbWrite.delete(milaidySandboxBackups).where(inArray(milaidySandboxBackups.id, ids)).returning({ id: milaidySandboxBackups.id });
+    const r = await dbWrite.delete(miladySandboxBackups).where(inArray(miladySandboxBackups.id, ids)).returning({ id: miladySandboxBackups.id });
     return r.length;
   }
 }
 
-export const milaidySandboxesRepository = new MilaidySandboxesRepository();
+export const miladySandboxesRepository = new MiladySandboxesRepository();

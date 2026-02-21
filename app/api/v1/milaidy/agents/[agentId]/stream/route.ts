@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
-import type { BridgeRequest } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest } from "@/lib/services/milady-sandbox";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ const streamRequestSchema = z.object({
 });
 
 /**
- * POST /api/v1/milaidy/agents/[agentId]/stream
+ * POST /api/v1/milady/agents/[agentId]/stream
  * Forward a message to the sandbox and stream the response as SSE events.
  *
  * Events:
@@ -47,7 +47,7 @@ export async function POST(
   const rpcRequest = parsed.data as BridgeRequest;
 
   // Get the raw SSE stream from the sandbox
-  const upstreamResponse = await milaidySandboxService.bridgeStream(
+  const upstreamResponse = await miladySandboxService.bridgeStream(
     agentId,
     user.organization_id,
     rpcRequest,
