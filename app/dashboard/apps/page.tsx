@@ -1,12 +1,13 @@
-import { Suspense } from "react";
+// import { Suspense } from "react";
 import type { Metadata } from "next";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { appsService } from "@/lib/services/apps";
-import { AppsTable } from "@/components/apps/apps-table";
-import { AppsSkeleton } from "@/components/apps/apps-skeleton";
-import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
-import { AppsPageWrapper } from "./apps-page-wrapper";
-import { AppsEmptyState } from "./apps-empty-state";
+import { redirect } from "next/navigation";
+// import { requireAuthWithOrg } from "@/lib/auth";
+// import { appsService } from "@/lib/services/apps";
+// import { AppsTable } from "@/components/apps/apps-table";
+// import { AppsSkeleton } from "@/components/apps/apps-skeleton";
+// import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
+// import { AppsPageWrapper } from "./apps-page-wrapper";
+// import { AppsEmptyState } from "./apps-empty-state";
 
 export const metadata: Metadata = {
   title: "Apps",
@@ -17,10 +18,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Apps page displaying all apps for the authenticated user's organization.
- * Shows statistics (total apps, active apps, total users, total requests) and a table of apps.
+ * Apps page - currently disabled, redirects to dashboard.
  */
 export default async function AppsPage() {
+  redirect("/dashboard");
+
+  /* Apps page disabled - original page body commented out below:
   const user = await requireAuthWithOrg();
   const apps = await appsService.listByOrganization(user.organization_id);
 
@@ -99,3 +102,4 @@ function StatCard({
     </div>
   );
 }
+  */
