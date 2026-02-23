@@ -115,7 +115,13 @@ const SESSION_CREATE_LIMIT = {
   maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
 };
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withRateLimit(async (_request: NextRequest) => {
+  return NextResponse.json(
+    { success: false, error: "App creation is temporarily disabled" },
+    { status: 403 },
+  );
+
+  /* App creation disabled - original handler body commented out below:
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -173,4 +179,5 @@ export const POST = withRateLimit(async (request: NextRequest) => {
       { status: 500 },
     );
   }
+  */
 }, SESSION_CREATE_LIMIT);
