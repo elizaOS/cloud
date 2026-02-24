@@ -318,6 +318,7 @@ export async function syncUserFromPrivy(
       slug: orgSlug,
       credit_balance: "0.00",
     });
+    // Review: createdOrgId is unused; intent was replaced by __orphanedOrgId for cleanup tracking.
     createdOrgId = org.id;
 
     try {
