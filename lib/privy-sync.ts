@@ -356,9 +356,12 @@ export async function syncUserFromPrivy(
             );
           } catch (fallbackError) {
             console.error(
-              `[PrivySync] Fallback credit balance update also failed for org ${org.id}:`,
+              `[PrivySync] CRITICAL: Both credit service and fallback balance update failed for org ${org.id}. New account has 0 credits.`,
               fallbackError,
             );
+            // Review: Welcome credits lost — both addCredits and direct balance update failed.
+            // The account is created but has zero credits instead of the welcome bonus.
+            // This requires manual credit adjustment or retry via admin interface.
           }
         }
       }
@@ -436,11 +439,17 @@ export async function syncUserFromPrivy(
     if (orphanedOrgId) {
       try {
         await organizationsService.delete(orphanedOrgId);
+        console.info(
+          `[PrivySync] Successfully cleaned up orphaned org ${orphanedOrgId} on retry`,
+        );
       } catch (retryCleanupError) {
         console.error(
-          `[PrivySync] Retry cleanup of orphaned org ${orphanedOrgId} also failed:`,
+          `[PrivySync] CRITICAL: Retry cleanup of orphaned org ${orphanedOrgId} also failed. Manual cleanup required.`,
           retryCleanupError,
         );
+        // Review: Orphan org cleanup failed twice (inner catch + outer retry).
+        // The duplicate user path below will proceed, but the orphaned org record
+        // persists in the database and should be cleaned up manually or via scheduled job.
       }
     }
 

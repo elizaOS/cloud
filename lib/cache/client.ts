@@ -465,6 +465,7 @@ export class CacheClient {
 
   /**
    * Check if cache is available (Redis is connected and circuit breaker is closed).
+   * Called by SIWE endpoints before nonce operations to fail fast when Redis is down.
    */
   public isAvailable(): boolean {
     this.initialize();
