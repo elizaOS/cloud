@@ -29,7 +29,7 @@ export class VercelGatewayProvider implements AIProvider {
   name = "vercel-gateway";
   private baseUrl = "https://ai-gateway.vercel.sh/v1";
   private apiKey: string;
-  private timeout = 2 * 60000; // 2 Minutes
+  private timeout = 2 * 60000; // 2 minutes
 
   constructor(apiKey: string) {
     if (!apiKey) {
