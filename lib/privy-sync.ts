@@ -403,6 +403,7 @@ export async function syncUserFromPrivy(
       ) {
         (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
       }
+      // Review: cleanup of orphaned organizations is managed in the duplicate handling logic elsewhere in the code.
       throw innerError;
     }
     
