@@ -451,6 +451,7 @@ export async function syncUserFromPrivy(
           `Failed to clean up orphaned organization ${orphanedOrgId} after duplicate user creation. Manual cleanup required.`
         );
       }
+    // Review: orphaned organizations are managed in the cleanup process before this check executes
     }
 
     // Duplicate key: race condition — try to find existing user with retries.

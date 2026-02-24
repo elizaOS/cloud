@@ -44,7 +44,36 @@ async function handleGetNonce(request: NextRequest) {
 
   // Check cache availability first. If Redis is down, fail fast rather than
   // returning a nonce that can't be validated in the verify endpoint.
-  if (!cache.isAvailable()) {
+  try {
+    // Prefer an explicit isAvailable() if the client implements it. Some
+    // CacheClient builds may not expose this method; fall back to a lightweight
+    // read/write health-check to determine availability.
+    if (typeof (cache as any).isAvailable === "function") {
+      const available = await (cache as any).isAvailable();
+      if (!available) {
+        return NextResponse.json(
+          {
+            error: "SERVICE_UNAVAILABLE",
+            message: "Authentication service temporarily unavailable. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
+    } else {
+      const _healthKey = "__siwe:healthcheck__";
+      await cache.set(_healthKey, true, 2);
+      const _health = await cache.get(_healthKey);
+      if (!_health) {
+        return NextResponse.json(
+          {
+            error: "SERVICE_UNAVAILABLE",
+            message: "Authentication service temporarily unavailable. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
+    }
+  } catch {
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",
@@ -52,7 +81,6 @@ async function handleGetNonce(request: NextRequest) {
       },
       { status: 503 },
     );
-  // Review: cache availability is checked elsewhere, no impact on nonce generation here
   }
 
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,

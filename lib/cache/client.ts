@@ -5,6 +5,8 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+export let redis: Redis | null = null;
+
 /**
  * Cached value wrapper with metadata for stale-while-revalidate.
  */
@@ -49,6 +51,7 @@ export class CacheClient {
       } else {
         logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
       }
+      redis = null;
       return;
     }
 
@@ -58,6 +61,7 @@ export class CacheClient {
 
     if (redisUrl) {
       this.redis = Redis.fromEnv();
+      redis = this.redis;
       logger.info(
         "[Cache] ✓ Cache client initialized with native Redis protocol",
       );
@@ -66,22 +70,24 @@ export class CacheClient {
         url: restUrl,
         token: restToken,
       });
+      redis = this.redis;
       logger.info(
         "[Cache] ✓ Cache client initialized with REST API (consider using native protocol)",
       );
     } else {
-      if (process.env.NODE_ENV === "production") {
-        logger.error(
-          "🚨 [Cache] CRITICAL: Missing Redis credentials in production! " +
-            "Caching disabled - this will cause severe performance issues. " +
-            "Set REDIS_URL or KV_URL for native protocol, or KV_REST_API_URL + KV_REST_API_TOKEN.",
-        );
-      } else {
-        logger.warn("[Cache] Missing Redis credentials, caching disabled.");
+        if (process.env.NODE_ENV === "production") {
+          logger.error(
+            "🚨 [Cache] CRITICAL: Missing Redis credentials in production! " +
+              "Caching disabled - this will cause severe performance issues. " +
+              "Set REDIS_URL or KV_URL for native protocol, or KV_REST_API_URL + KV_REST_API_TOKEN.",
+          );
+        } else {
+          logger.warn("[Cache] Missing Redis credentials, caching disabled.");
+        }
+        this.enabled = false;
+        redis = null;
+        return;
       }
-      this.enabled = false;
-      return;
-    }
   }
 
   /**

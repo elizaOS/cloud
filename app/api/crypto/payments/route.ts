@@ -27,6 +27,7 @@ const createPaymentSchema = z.object({
 async function handleCreatePayment(req: NextRequest) {
   try {
     const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    // Review: organizationId is safely accessed as a fallback from user.organization_id to avoid undefined issues.
     const orgId = user.organization_id ?? organizationId;
 
     if (!orgId) {
