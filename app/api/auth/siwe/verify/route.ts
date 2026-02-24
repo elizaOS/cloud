@@ -404,6 +404,7 @@ async function handleVerify(request: NextRequest) {
         }
       }
 
+      let userCreated = false;
       const user = await usersService.create({
         wallet_address: address.toLowerCase(),
         wallet_chain_type: "ethereum",
@@ -415,6 +416,7 @@ async function handleVerify(request: NextRequest) {
         role: "owner",
         is_active: true,
       });
+      userCreated = true;
 
       const { plainKey } = await apiKeysService.create({
         user_id: user.id,
@@ -431,16 +433,18 @@ async function handleVerify(request: NextRequest) {
 
       signupResult = { user: userWithOrg, plainKey };
     } catch (innerError) {
-      // Compensating cleanup: delete the org we just created to avoid orphans.
-      // Any failure after org creation (duplicate-key, credit failure, API key creation, etc.)
-      // means the org has no valid user attached and should be removed.
-      try {
-        await organizationsService.delete(org.id);
-      } catch (cleanupError) {
-        console.error(
-          `[SIWE] Failed to clean up orphaned org ${org.id}:`,
-          cleanupError,
-        );
+      // Compensating cleanup: only delete the org if user creation failed.
+      // If user was created successfully, the org has a valid owner and should not be deleted.
+      // Failures after user creation (API key, org refresh) don't orphan the org.
+      if (!userCreated) {
+        try {
+          await organizationsService.delete(org.id);
+        } catch (cleanupError) {
+          console.error(
+            `[SIWE] Failed to clean up orphaned org ${org.id}:`,
+            cleanupError,
+          );
+        }
       }
       throw innerError;
     }
@@ -500,7 +504,6 @@ async function handleVerify(request: NextRequest) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
-    signupResult = { user: userWithOrg, plainKey };
 </search>
 <replace>
       // Add initial free credits via creditsService for proper tracking.
