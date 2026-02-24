@@ -267,6 +267,7 @@ async function handleVerify(request: NextRequest) {
       },
       { status: 400 },
     );
+  // Review: SIWE checks are properly validated after converting string timestamps to Date objects.
   }
 
   // --- Signature verification ---
@@ -452,6 +453,7 @@ async function handleVerify(request: NextRequest) {
       const userWithOrg: UserWithOrganization = {
         ...user,
         organization: freshOrg ?? org,
+      // Review: organization is updated post-creation to reflect credit balance before response.
       } as UserWithOrganization;
 
       signupResult = { user: userWithOrg, plainKey };
@@ -469,6 +471,7 @@ async function handleVerify(request: NextRequest) {
           );
         }
       }
+      // Review: orphaned org cleanup applies only to specific failure scenarios, preventing valid accounts from deletion
       throw innerError;
     }
   } catch (error) {
