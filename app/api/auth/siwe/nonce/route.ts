@@ -13,18 +13,18 @@
  * Rate limited with STRICT preset because this is an unauthenticated endpoint
  * that creates server-side state (Redis entries).
  */
-
+ 
 import { type NextRequest, NextResponse } from "next/server";
 import { generateSiweNonce } from "viem/siwe";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL, CacheKeys } from "@/lib/cache/keys";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getAppUrl } from "@/lib/utils/app-url";
-
+ 
 async function handleGetNonce(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const chainIdParam = searchParams.get("chainId");
-
+ 
   // Default to Ethereum mainnet (1). Agents pass their chain so the SIWE
   // message reflects the correct network context for wallet UIs.
   let chainId = 1;
@@ -41,7 +41,7 @@ async function handleGetNonce(request: NextRequest) {
     }
     chainId = parsed;
   }
-
+ 
   // Check cache availability first. If Redis is down, fail fast rather than
   // returning a nonce that can't be validated in the verify endpoint.
   try {
@@ -82,11 +82,11 @@ async function handleGetNonce(request: NextRequest) {
       { status: 503 },
     );
   }
-
+ 
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,
   // which is required by the SIWE spec. Don't use crypto.randomBytes here.
   const nonce = generateSiweNonce();
-
+ 
   try {
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
   } catch {
@@ -98,7 +98,7 @@ async function handleGetNonce(request: NextRequest) {
       { status: 503 },
     );
   }
-
+ 
   // Verify the nonce was actually persisted. cache.set() returns void, so a
   // read-back confirms the write actually succeeded.
   let verified: unknown;
@@ -122,13 +122,13 @@ async function handleGetNonce(request: NextRequest) {
       { status: 503 },
     );
   }
-
+ 
   // Derive domain and uri from the canonical app URL so the verify endpoint
   // can enforce domain binding against phishing. Uses the shared getAppUrl()
   // helper to stay consistent with the verify endpoint's host resolution.
   const appUrl = getAppUrl();
   const url = new URL(appUrl);
-
+ 
   return NextResponse.json({
     nonce,
     domain: url.hostname,
@@ -138,5 +138,5 @@ async function handleGetNonce(request: NextRequest) {
     statement: "Sign in to ElizaCloud",
   });
 }
-
+ 
 export const GET = withRateLimit(handleGetNonce, RateLimitPresets.STRICT);
