@@ -5,6 +5,7 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+// Review: `redis` is unused but allows flexibility for future enhancements or testing without breaking changes.
 export let redis: Redis | null = null;
 
 /**
