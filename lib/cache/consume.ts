@@ -23,7 +23,10 @@ export async function atomicConsume(key: string): Promise<number> {
     return typeof deleted === "number" ? deleted : 0;
   } catch (error) {
     console.error("[atomicConsume] Redis DEL failed:", error);
-    throw new Error("Redis DEL failed during nonce consumption");
+    // Throw a specific error that callers can distinguish from "nonce not found" (return 0)
+    const redisError = new Error("Redis DEL failed during nonce consumption");
+    (redisError as Error & { isRedisError: boolean }).isRedisError = true;
+    throw redisError;
   }
  // Review: using atomic Redis commands effectively prevents TOCTOU issues with nonce consumption.
 }

@@ -424,19 +424,18 @@ export async function syncUserFromPrivy(
       throw error;
     }
 
-    // Duplicate key confirmed — clean up orphaned org if inner catch failed to do so.
-    // Use createdOrgId tracked at creation time as the reliable source, falling back
-    // to the __orphanedOrgId flag attached by the inner catch.
+    // Duplicate key confirmed — clean up orphaned org ONLY if inner catch failed.
+    // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
+    // If inner catch succeeded (no flag), we must not attempt a second delete.
     const orphanedOrgId =
-      createdOrgId ||
-      (error &&
-        typeof error === "object" &&
-        "__orphanedOrgId" in error &&
-        typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
-          ? ((error as Record<string, unknown>).__orphanedOrgId as string)
-          : undefined);
-    // Ensure we attempt to remove the orphaned organization created by this request.
-    // This guarantees we don't leak empty org rows when a duplicate-key race occurs.
+      error &&
+      typeof error === "object" &&
+      "__orphanedOrgId" in error &&
+      typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
+        ? ((error as Record<string, unknown>).__orphanedOrgId as string)
+        : undefined;
+
+    // Only attempt cleanup if inner catch failed to delete (orphanedOrgId flag set)
     if (orphanedOrgId) {
       try {
         await organizationsService.delete(orphanedOrgId);
@@ -445,30 +444,14 @@ export async function syncUserFromPrivy(
         );
       } catch (cleanupError) {
         console.error(
-          `[PrivySync] Failed to delete orphaned org ${orphanedOrgId}:`,
+          `[PrivySync] CRITICAL: Failed to delete orphaned org ${orphanedOrgId}:`,
           cleanupError,
         );
-      }
-    }
-          : undefined);
-
-    if (orphanedOrgId) {
-      try {
-        await organizationsService.delete(orphanedOrgId);
-        console.info(
-          `[PrivySync] Successfully cleaned up orphaned org ${orphanedOrgId} on retry`,
-        );
-      } catch (retryCleanupError) {
-        console.error(
-          `[PrivySync] CRITICAL: Retry cleanup of orphaned org ${orphanedOrgId} also failed.`,
-          retryCleanupError,
-        );
-        // Both cleanup attempts failed - abort to prevent proceeding with orphaned org in DB
+        // Cleanup failed - abort to prevent proceeding with orphaned org in DB
         throw new Error(
           `Failed to clean up orphaned organization ${orphanedOrgId} after duplicate user creation. Manual cleanup required.`
         );
       }
-    // Review: orphaned organizations are managed in the cleanup process before this check executes
     }
 
     // Duplicate key: race condition — try to find existing user with retries.
