@@ -362,6 +362,7 @@ export async function syncUserFromPrivy(
             // Both credit paths failed - throw to prevent account creation with 0 credits
             throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
+        // Review: credit balancing failure results in throwing an error to prevent zero credit account creation
         }
       }
 
