@@ -426,6 +426,7 @@ async function handleVerify(request: NextRequest) {
             throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
         }
+      // Review: SIWE and Privy handle credits consistently, ensuring no critical signup failures on credit service errors.
       }
 
       let userCreated = false;

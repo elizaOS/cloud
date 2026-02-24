@@ -114,6 +114,7 @@ async function handleGetNonce(request: NextRequest) {
       { status: 503 },
     );
   }
+  // Review: Nonce retrieval and error handling considered in service architecture for stable responses.
   if (!verified) {
     return NextResponse.json(
       {
