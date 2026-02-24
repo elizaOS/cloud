@@ -13,8 +13,8 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 
 describe("TwilioAutomationService", () => {
-  const testOrgId = "test-org-123";
-  const testUserId = "test-user-456";
+  const testOrgId = "00000000-0000-0000-0000-000000000123";
+  const testUserId = "00000000-0000-0000-0000-000000000456";
   const testAccountSid = "ACtest12345678901234567890123456";
   const testAuthToken = "test_auth_token_12345678901234567";
 
@@ -25,13 +25,19 @@ describe("TwilioAutomationService", () => {
 
   describe("validateCredentials", () => {
     it("returns invalid when accountSid is empty", async () => {
-      const result = await twilioAutomationService.validateCredentials("", testAuthToken);
+      const result = await twilioAutomationService.validateCredentials(
+        "",
+        testAuthToken,
+      );
       expect(result.valid).toBe(false);
       expect(result.error).toContain("required");
     });
 
     it("returns invalid when authToken is empty", async () => {
-      const result = await twilioAutomationService.validateCredentials(testAccountSid, "");
+      const result = await twilioAutomationService.validateCredentials(
+        testAccountSid,
+        "",
+      );
       expect(result.valid).toBe(false);
       expect(result.error).toContain("required");
     });
@@ -151,7 +157,8 @@ describe("TwilioAutomationService", () => {
 
   describe("getConnectionStatus", () => {
     it("returns unconfigured status when no credentials", async () => {
-      const status = await twilioAutomationService.getConnectionStatus(testOrgId);
+      const status =
+        await twilioAutomationService.getConnectionStatus(testOrgId);
 
       expect(status).toHaveProperty("connected");
       expect(status).toHaveProperty("configured");
@@ -160,8 +167,10 @@ describe("TwilioAutomationService", () => {
     });
 
     it("caches status for performance", async () => {
-      const status1 = await twilioAutomationService.getConnectionStatus(testOrgId);
-      const status2 = await twilioAutomationService.getConnectionStatus(testOrgId);
+      const status1 =
+        await twilioAutomationService.getConnectionStatus(testOrgId);
+      const status2 =
+        await twilioAutomationService.getConnectionStatus(testOrgId);
 
       // Results should be identical (from cache)
       expect(status1.connected).toBe(status2.connected);
@@ -169,20 +178,28 @@ describe("TwilioAutomationService", () => {
     });
 
     it("respects skipCache option", async () => {
-      const status1 = await twilioAutomationService.getConnectionStatus(testOrgId);
-      const status2 = await twilioAutomationService.getConnectionStatus(testOrgId, {
-        skipCache: true,
-      });
+      const status1 =
+        await twilioAutomationService.getConnectionStatus(testOrgId);
+      const status2 = await twilioAutomationService.getConnectionStatus(
+        testOrgId,
+        {
+          skipCache: true,
+        },
+      );
 
       expect(status2).toHaveProperty("connected");
     });
 
     it("includes phoneNumber when available", async () => {
-      const status = await twilioAutomationService.getConnectionStatus(testOrgId);
+      const status =
+        await twilioAutomationService.getConnectionStatus(testOrgId);
 
       // phoneNumber is optional
       if (status.connected) {
-        expect(typeof status.phoneNumber === "string" || status.phoneNumber === undefined).toBe(true);
+        expect(
+          typeof status.phoneNumber === "string" ||
+            status.phoneNumber === undefined,
+        ).toBe(true);
       }
     });
   });
@@ -190,35 +207,47 @@ describe("TwilioAutomationService", () => {
   describe("Credential Retrieval Methods", () => {
     describe("getAccountSid", () => {
       it("returns null when no credential stored", async () => {
-        const sid = await twilioAutomationService.getAccountSid("non-existent-org");
+        const sid = await twilioAutomationService.getAccountSid(
+          "00000000-0000-0000-0000-888888888888",
+        );
         expect(sid === null || typeof sid === "string").toBe(true);
       });
     });
 
     describe("getAuthToken", () => {
       it("returns null when no credential stored", async () => {
-        const token = await twilioAutomationService.getAuthToken("non-existent-org");
+        const token = await twilioAutomationService.getAuthToken(
+          "00000000-0000-0000-0000-888888888887",
+        );
         expect(token === null || typeof token === "string").toBe(true);
       });
     });
 
     describe("getPhoneNumber", () => {
       it("returns null when no phone number stored", async () => {
-        const phone = await twilioAutomationService.getPhoneNumber("non-existent-org");
+        const phone = await twilioAutomationService.getPhoneNumber(
+          "00000000-0000-0000-0000-888888888886",
+        );
         expect(phone === null || typeof phone === "string").toBe(true);
       });
     });
   });
 
   describe("Error Handling", () => {
-    it("handles empty organization ID", async () => {
-      const status = await twilioAutomationService.getConnectionStatus("");
+    it("handles non-existent organization ID", async () => {
+      const status = await twilioAutomationService.getConnectionStatus(
+        "00000000-0000-0000-0000-777777777777",
+      );
       expect(status).toHaveProperty("connected");
+      expect(status.configured).toBe(false);
     });
 
-    it("handles special characters in organization ID", async () => {
-      const status = await twilioAutomationService.getConnectionStatus("org-!@#$%");
+    it("handles different organization ID formats", async () => {
+      const status = await twilioAutomationService.getConnectionStatus(
+        "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      );
       expect(status).toHaveProperty("connected");
+      expect(status.configured).toBe(false);
     });
   });
 
@@ -318,7 +347,7 @@ describe("TwilioAutomationService", () => {
 });
 
 describe("TwilioAutomationService Cache Behavior", () => {
-  const cacheTestOrgId = "cache-test-org";
+  const cacheTestOrgId = "00000000-0000-0000-0000-000000003333";
 
   beforeEach(() => {
     twilioAutomationService.invalidateStatusCache(cacheTestOrgId);
@@ -326,22 +355,28 @@ describe("TwilioAutomationService Cache Behavior", () => {
 
   it("cache TTL is reasonable (5 minutes)", async () => {
     // This test verifies cache behavior without waiting for actual TTL
-    const status1 = await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
+    const status1 =
+      await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
 
     // Immediately after, should return cached result
-    const status2 = await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
+    const status2 =
+      await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
 
     expect(status1.connected).toBe(status2.connected);
     expect(status1.configured).toBe(status2.configured);
   });
 
   it("skipCache forces fresh fetch", async () => {
-    const status1 = await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
+    const status1 =
+      await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
 
     // With skipCache, should make fresh call
-    const status2 = await twilioAutomationService.getConnectionStatus(cacheTestOrgId, {
-      skipCache: true,
-    });
+    const status2 = await twilioAutomationService.getConnectionStatus(
+      cacheTestOrgId,
+      {
+        skipCache: true,
+      },
+    );
 
     // Both should be valid responses
     expect(status1).toHaveProperty("connected");
@@ -356,14 +391,15 @@ describe("TwilioAutomationService Cache Behavior", () => {
     twilioAutomationService.invalidateStatusCache(cacheTestOrgId);
 
     // Should not throw
-    const status = await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
+    const status =
+      await twilioAutomationService.getConnectionStatus(cacheTestOrgId);
     expect(status).toHaveProperty("connected");
   });
 });
 
 describe("TwilioAutomationService Edge Cases", () => {
   it("handles concurrent status checks for same org", async () => {
-    const orgId = "concurrent-test-org";
+    const orgId = "00000000-0000-0000-0000-000000004444";
     twilioAutomationService.invalidateStatusCache(orgId);
 
     // Make multiple concurrent requests
@@ -381,14 +417,20 @@ describe("TwilioAutomationService Edge Cases", () => {
   });
 
   it("handles concurrent status checks for different orgs", async () => {
-    const orgIds = ["org-1", "org-2", "org-3", "org-4", "org-5"];
+    const orgIds = [
+      "00000000-0000-0000-0000-000000005001",
+      "00000000-0000-0000-0000-000000005002",
+      "00000000-0000-0000-0000-000000005003",
+      "00000000-0000-0000-0000-000000005004",
+      "00000000-0000-0000-0000-000000005005",
+    ];
 
     for (const orgId of orgIds) {
       twilioAutomationService.invalidateStatusCache(orgId);
     }
 
     const promises = orgIds.map((orgId) =>
-      twilioAutomationService.getConnectionStatus(orgId)
+      twilioAutomationService.getConnectionStatus(orgId),
     );
 
     const results = await Promise.all(promises);
@@ -402,10 +444,13 @@ describe("TwilioAutomationService Edge Cases", () => {
     const promises = Array(5)
       .fill(null)
       .map((_, i) =>
-        twilioAutomationService.sendMessage("test-org", {
-          to: `+1555000000${i}`,
-          body: `Concurrent message ${i}`,
-        })
+        twilioAutomationService.sendMessage(
+          "00000000-0000-0000-0000-000000006666",
+          {
+            to: `+1555000000${i}`,
+            body: `Concurrent message ${i}`,
+          },
+        ),
       );
 
     const results = await Promise.all(promises);

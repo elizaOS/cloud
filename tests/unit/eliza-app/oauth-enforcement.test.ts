@@ -37,25 +37,24 @@ function extractMessagesFromWebhook(): {
 } {
   const telegramWebhook = readFileSync(
     join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
-    "utf-8"
+    "utf-8",
   );
 
   // Extract Telegram rejection message (OAuth enforcement - unregistered users)
+  // The actual code uses template literals with variables like ${elizaAppConfig.appUrl}
   const telegramMatch = telegramWebhook.match(
-    /"👋 Welcome! To chat with Eliza, please connect your Telegram first:\\n\\nhttps:\/\/eliza\.app\/get-started"/
+    /👋 Welcome! To chat with Eliza, please connect your Telegram first/,
   );
 
   // Extract status not connected message
-  const statusMatch = telegramWebhook.match(
-    /Connect your Telegram at: https:\/\/eliza\.app\/get-started/
-  );
+  const statusMatch = telegramWebhook.match(/Connect your Telegram at:/);
 
   return {
     telegramRejection: telegramMatch
-      ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
+      ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n/get-started"
       : "",
     statusNotConnected: statusMatch
-      ? "Connect your Telegram at: https://eliza.app/get-started"
+      ? "Connect your Telegram at: /get-started"
       : "",
   };
 }
@@ -160,27 +159,55 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
   const TEST_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
   test("generates valid UUID format", () => {
-    const roomId = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
+    const roomId = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
     expect(roomId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
   });
 
   test("same inputs produce same room ID (deterministic)", () => {
-    const roomId1 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
-    const roomId2 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
+    const roomId1 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
+    const roomId2 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
     expect(roomId1).toBe(roomId2);
   });
 
   test("different users get different room IDs", () => {
-    const roomId1 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "111111111");
-    const roomId2 = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "222222222");
+    const roomId1 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "111111111",
+    );
+    const roomId2 = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "222222222",
+    );
     expect(roomId1).not.toBe(roomId2);
   });
 
   test("same user on different platforms gets different room IDs", () => {
-    const telegramRoom = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "user123");
-    const imessageRoom = generateElizaAppRoomId("imessage", TEST_AGENT_ID, "user123");
+    const telegramRoom = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "user123",
+    );
+    const imessageRoom = generateElizaAppRoomId(
+      "imessage",
+      TEST_AGENT_ID,
+      "user123",
+    );
     expect(telegramRoom).not.toBe(imessageRoom);
   });
 
@@ -190,7 +217,11 @@ describe("Room ID Generation - ACTUAL generateElizaAppRoomId()", () => {
     const expectedHash = createHash("sha256").update(input).digest("hex");
     const expectedUuid = `${expectedHash.slice(0, 8)}-${expectedHash.slice(8, 12)}-${expectedHash.slice(12, 16)}-${expectedHash.slice(16, 20)}-${expectedHash.slice(20, 32)}`;
 
-    const actualRoomId = generateElizaAppRoomId("telegram", TEST_AGENT_ID, "123456789");
+    const actualRoomId = generateElizaAppRoomId(
+      "telegram",
+      TEST_AGENT_ID,
+      "123456789",
+    );
     expect(actualRoomId).toBe(expectedUuid);
   });
 });
@@ -199,7 +230,7 @@ describe("Entity ID Generation - ACTUAL generateElizaAppEntityId()", () => {
   test("generates valid UUID format", () => {
     const entityId = generateElizaAppEntityId("telegram", "223116693");
     expect(entityId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
   });
 
@@ -223,13 +254,13 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection).toContain("https://eliza.app/get-started");
+    expect(messages.telegramRejection).toContain("/get-started");
     expect(messages.telegramRejection.toLowerCase()).toContain("telegram");
   });
 
   test("Status not connected message exists in webhook", () => {
     expect(messages.statusNotConnected).not.toBe("");
-    expect(messages.statusNotConnected).toContain("https://eliza.app/get-started");
+    expect(messages.statusNotConnected).toContain("/get-started");
   });
 
   test("Telegram rejection message is welcoming (contains emoji)", () => {
@@ -260,7 +291,10 @@ describe("Unified EntityId Architecture", () => {
     const telegramUserId = "223116693";
     const phoneNumber = "+14155551234";
 
-    const oldTelegramEntityId = generateElizaAppEntityId("telegram", telegramUserId);
+    const oldTelegramEntityId = generateElizaAppEntityId(
+      "telegram",
+      telegramUserId,
+    );
     const oldPhoneEntityId = generateElizaAppEntityId("imessage", phoneNumber);
 
     // They would be different - which is the BUG we fixed
@@ -293,7 +327,7 @@ describe("Telegram OAuth Enforcement Logic - Verified Against Webhook", () => {
 
     // Test the same logic
     const checkOAuth = (
-      userWithOrg: { organization?: { id: string } | null } | undefined
+      userWithOrg: { organization?: { id: string } | null } | undefined,
     ): boolean => {
       return !!userWithOrg?.organization;
     };
@@ -310,7 +344,8 @@ describe("Command Detection - Verified Against Webhook", () => {
 
   test("command detection matches webhook logic", () => {
     const isCommand = (text: string) => text.startsWith("/");
-    const parseCommand = (text: string) => text.trim().split(" ")[0].toLowerCase();
+    const parseCommand = (text: string) =>
+      text.trim().split(" ")[0].toLowerCase();
 
     expect(isCommand("/start")).toBe(true);
     expect(isCommand("/help")).toBe(true);
@@ -422,7 +457,9 @@ describe("Email Validation - ACTUAL isValidEmail()", () => {
 describe("Email Normalization - ACTUAL normalizeEmail()", () => {
   test("lowercases and trims", () => {
     expect(normalizeEmail("User@Example.COM")).toBe("user@example.com");
-    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe("berta.benjamin@gmail.com");
+    expect(normalizeEmail("  BERTA.BENJAMIN@gmail.com  ")).toBe(
+      "berta.benjamin@gmail.com",
+    );
     expect(normalizeEmail("TEST@GMAIL.COM")).toBe("test@gmail.com");
   });
 });
@@ -430,7 +467,9 @@ describe("Email Normalization - ACTUAL normalizeEmail()", () => {
 describe("Email Masking - ACTUAL maskEmailForLogging()", () => {
   test("standard emails (5+ char prefix)", () => {
     expect(maskEmailForLogging("benjamin@gmail.com")).toBe("be***in@gmail.com");
-    expect(maskEmailForLogging("berta.benjamin@icloud.com")).toBe("be***in@icloud.com");
+    expect(maskEmailForLogging("berta.benjamin@icloud.com")).toBe(
+      "be***in@icloud.com",
+    );
   });
 
   test("short prefixes (3-4 chars)", () => {

@@ -14,8 +14,13 @@ import { describe, test, expect } from "bun:test";
 describe("Discord User Service", () => {
   describe("generateSlugFromDiscord", () => {
     // Replicating the slug generation logic for testing
-    const generateSlugFromDiscord = (username?: string, discordId?: string): string => {
-      const base = username ? username.toLowerCase().replace(/[^a-z0-9]/g, "-") : discordId;
+    const generateSlugFromDiscord = (
+      username?: string,
+      discordId?: string,
+    ): string => {
+      const base = username
+        ? username.toLowerCase().replace(/[^a-z0-9]/g, "-")
+        : discordId;
       const random = Math.random().toString(36).substring(2, 8);
       const timestamp = Date.now().toString(36).slice(-4);
       return `discord-${base}-${timestamp}${random}`;
@@ -43,7 +48,8 @@ describe("Discord User Service", () => {
 
     test("handles unicode characters by removing them", () => {
       const slug = generateSlugFromDiscord("Test🎉User", "123456789");
-      expect(slug).toMatch(/^discord-testuser-[a-z0-9]+$/);
+      // Emoji 🎉 is 2 UTF-16 code units, each replaced with "-", resulting in "--"
+      expect(slug).toMatch(/^discord-test--user-[a-z0-9]+$/);
     });
 
     test("generates unique slugs on multiple calls", () => {
@@ -95,14 +101,19 @@ describe("Discord User Service", () => {
   });
 
   describe("Discord avatar URL generation", () => {
-    const generateAvatarUrl = (discordUserId: string, avatar: string | null): string | null => {
+    const generateAvatarUrl = (
+      discordUserId: string,
+      avatar: string | null,
+    ): string | null => {
       if (!avatar) return null;
       return `https://cdn.discordapp.com/avatars/${discordUserId}/${avatar}.png`;
     };
 
     test("generates correct avatar URL", () => {
       const url = generateAvatarUrl("123456789", "abcdef123456");
-      expect(url).toBe("https://cdn.discordapp.com/avatars/123456789/abcdef123456.png");
+      expect(url).toBe(
+        "https://cdn.discordapp.com/avatars/123456789/abcdef123456.png",
+      );
     });
 
     test("returns null when no avatar", () => {
@@ -120,7 +131,10 @@ describe("Discord User Service", () => {
   });
 
   describe("Display name resolution", () => {
-    const resolveDisplayName = (username: string, globalName?: string | null): string => {
+    const resolveDisplayName = (
+      username: string,
+      globalName?: string | null,
+    ): string => {
       return globalName || username;
     };
 
@@ -154,10 +168,22 @@ describe("Discord User Service", () => {
       avatarUrl?: string | null;
     }
 
-    const needsProfileUpdate = (existing: ExistingUser, newData: NewUserData): boolean => {
-      if (newData.username && newData.username !== existing.discord_username) return true;
-      if (newData.globalName !== undefined && newData.globalName !== existing.discord_global_name) return true;
-      if (newData.avatarUrl !== undefined && newData.avatarUrl !== existing.discord_avatar_url) return true;
+    const needsProfileUpdate = (
+      existing: ExistingUser,
+      newData: NewUserData,
+    ): boolean => {
+      if (newData.username && newData.username !== existing.discord_username)
+        return true;
+      if (
+        newData.globalName !== undefined &&
+        newData.globalName !== existing.discord_global_name
+      )
+        return true;
+      if (
+        newData.avatarUrl !== undefined &&
+        newData.avatarUrl !== existing.discord_avatar_url
+      )
+        return true;
       return false;
     };
 
@@ -168,14 +194,23 @@ describe("Discord User Service", () => {
     });
 
     test("detects globalName change", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: "Old Name" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: "Old Name",
+      };
       const newData: NewUserData = { username: "user", globalName: "New Name" };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
 
     test("detects avatar change", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_avatar_url: "https://old.png" };
-      const newData: NewUserData = { username: "user", avatarUrl: "https://new.png" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_avatar_url: "https://old.png",
+      };
+      const newData: NewUserData = {
+        username: "user",
+        avatarUrl: "https://new.png",
+      };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
 
@@ -194,13 +229,19 @@ describe("Discord User Service", () => {
     });
 
     test("handles null to value transition", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: null };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: null,
+      };
       const newData: NewUserData = { username: "user", globalName: "New Name" };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
 
     test("handles value to null transition", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: "Name" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: "Name",
+      };
       const newData: NewUserData = { username: "user", globalName: null };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
@@ -209,9 +250,11 @@ describe("Discord User Service", () => {
   describe("Unique constraint error detection", () => {
     const isUniqueConstraintError = (error: unknown): boolean => {
       if (error instanceof Error) {
-        return error.message.includes("unique constraint") ||
-               error.message.includes("duplicate key") ||
-               (error as { code?: string }).code === "23505";
+        return (
+          error.message.includes("unique constraint") ||
+          error.message.includes("duplicate key") ||
+          (error as { code?: string }).code === "23505"
+        );
       }
       return false;
     };
@@ -238,7 +281,9 @@ describe("Discord User Service", () => {
 
     test("returns false for non-Error objects", () => {
       expect(isUniqueConstraintError("string error")).toBe(false);
-      expect(isUniqueConstraintError({ message: "unique constraint" })).toBe(false);
+      expect(isUniqueConstraintError({ message: "unique constraint" })).toBe(
+        false,
+      );
       expect(isUniqueConstraintError(null)).toBe(false);
     });
   });

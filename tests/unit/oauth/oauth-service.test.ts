@@ -15,7 +15,9 @@ describe("OAuth Service Logic", () => {
   describe("listProviders transformation", () => {
     it("should transform provider config to info format", () => {
       // Simulate the transformation logic
-      const transformProvider = (provider: (typeof OAUTH_PROVIDERS)[string]): OAuthProviderInfo => ({
+      const transformProvider = (
+        provider: (typeof OAUTH_PROVIDERS)[string],
+      ): OAuthProviderInfo => ({
         id: provider.id,
         name: provider.name,
         description: provider.description,
@@ -35,12 +37,14 @@ describe("OAuth Service Logic", () => {
 
     it("should include all expected providers", () => {
       const providerCount = Object.keys(OAUTH_PROVIDERS).length;
-      expect(providerCount).toBe(4); // google, twitter, twilio, blooio
+      expect(providerCount).toBe(16); // google, microsoft, linear, notion, github, slack, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, twitter, twilio, blooio
     });
   });
 
   describe("getMostRecentActive logic", () => {
-    function getMostRecentActive(connections: OAuthConnection[]): OAuthConnection | null {
+    function getMostRecentActive(
+      connections: OAuthConnection[],
+    ): OAuthConnection | null {
       const active = connections.filter((c) => c.status === "active");
       if (active.length === 0) return null;
       return active.reduce((most, conn) => {
@@ -106,7 +110,9 @@ describe("OAuth Service Logic", () => {
   });
 
   describe("sortConnectionsByRecency logic", () => {
-    function sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
+    function sortConnectionsByRecency(
+      connections: OAuthConnection[],
+    ): OAuthConnection[] {
       return connections.sort((a, b) => {
         const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
         const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
@@ -123,9 +129,13 @@ describe("OAuth Service Logic", () => {
       const oneHourAgo = new Date(now.getTime() - 3600000);
       const twoHoursAgo = new Date(now.getTime() - 7200000);
 
-      const conn1 = createMockConnection("active", "1", { lastUsedAt: oneHourAgo });
+      const conn1 = createMockConnection("active", "1", {
+        lastUsedAt: oneHourAgo,
+      });
       const conn2 = createMockConnection("active", "2", { lastUsedAt: now });
-      const conn3 = createMockConnection("active", "3", { lastUsedAt: twoHoursAgo });
+      const conn3 = createMockConnection("active", "3", {
+        lastUsedAt: twoHoursAgo,
+      });
 
       const sorted = sortConnectionsByRecency([conn1, conn2, conn3]);
       expect(sorted[0].id).toBe("2"); // Most recent
@@ -137,7 +147,9 @@ describe("OAuth Service Logic", () => {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 3600000);
 
-      const conn1 = createMockConnection("active", "1", { linkedAt: oneHourAgo });
+      const conn1 = createMockConnection("active", "1", {
+        linkedAt: oneHourAgo,
+      });
       const conn2 = createMockConnection("active", "2", { linkedAt: now });
 
       const sorted = sortConnectionsByRecency([conn1, conn2]);
@@ -183,15 +195,22 @@ describe("OAuth Service Logic", () => {
     it("should generate auth URL for OAuth platforms", () => {
       // Test that OAuth platforms have proper configuration
       const oauthPlatforms = [
-        { id: "google", type: "oauth2" },
-        { id: "twitter", type: "oauth1a" },
+        { id: "google", type: "oauth2", usesGeneric: true },
+        { id: "twitter", type: "oauth1a", usesGeneric: false },
       ];
 
-      for (const { id, type } of oauthPlatforms) {
+      for (const { id, type, usesGeneric } of oauthPlatforms) {
         const provider = OAUTH_PROVIDERS[id];
         expect(provider.type).toBe(type);
-        expect(provider.routes.callback).toBeDefined();
-        expect(provider.routes.callback.length).toBeGreaterThan(0);
+
+        if (usesGeneric) {
+          // Generic route providers don't have routes.callback
+          expect(provider.useGenericRoutes).toBe(true);
+        } else {
+          // Legacy providers have routes.callback
+          expect(provider.routes?.callback).toBeDefined();
+          expect(provider.routes!.callback.length).toBeGreaterThan(0);
+        }
       }
     });
   });
@@ -282,7 +301,9 @@ describe("OAuth Service Logic", () => {
 
       const activePlatforms = [
         ...new Set(
-          connections.filter((c) => c.status === "active").map((c) => c.platform),
+          connections
+            .filter((c) => c.status === "active")
+            .map((c) => c.platform),
         ),
       ];
 

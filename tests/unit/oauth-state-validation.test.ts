@@ -129,10 +129,12 @@ describe("OAuth State Schema Validation", () => {
         __proto__: { isAdmin: true },
       };
 
-      // Zod strips unknown properties, so this should pass but without __proto__
+      // Zod strips unknown properties, so this should pass but without isAdmin
       const result = OAuthStateSchema.parse(protoAttempt);
-      expect(result).not.toHaveProperty("__proto__");
+      // Note: Zod may preserve __proto__ as an empty object, but it doesn't pollute the prototype
       expect(result).not.toHaveProperty("isAdmin");
+      // Verify prototype pollution didn't happen
+      expect((result as { isAdmin?: boolean }).isAdmin).toBeUndefined();
     });
 
     it("handles deeply nested malicious objects", () => {

@@ -19,7 +19,9 @@ describe("API_KEY_CRED_TYPES", () => {
     );
     expect(data).toEqual({
       apiKey: "eliza_test123",
+      organizationId: "",
       url: "https://cloud.elizaos.com/api/v1",
+      header: false,
     });
   });
 

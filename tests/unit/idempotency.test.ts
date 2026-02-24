@@ -82,14 +82,16 @@ describe("Idempotency Utility", () => {
       const key = `${testPrefix}:source-test-${Date.now()}`;
 
       // This should not throw
-      await expect(markAsProcessed(key, "twilio")).resolves.not.toThrow();
+      await markAsProcessed(key, "twilio");
+      expect(await isAlreadyProcessed(key)).toBe(true);
     });
 
     it("uses default source when not provided", async () => {
       const key = `${testPrefix}:default-source-${Date.now()}`;
 
       // Should not throw
-      await expect(markAsProcessed(key)).resolves.not.toThrow();
+      await markAsProcessed(key);
+      expect(await isAlreadyProcessed(key)).toBe(true);
     });
 
     it("handles duplicate marking gracefully", async () => {
@@ -97,7 +99,7 @@ describe("Idempotency Utility", () => {
 
       // Mark twice - should not throw
       await markAsProcessed(key, "test");
-      await expect(markAsProcessed(key, "test")).resolves.not.toThrow();
+      await markAsProcessed(key, "test");
 
       // Should still be processed
       expect(await isAlreadyProcessed(key)).toBe(true);
@@ -143,7 +145,9 @@ describe("Idempotency Utility", () => {
 
   describe("clearProcessedMessages", () => {
     it("clears all messages without error", async () => {
-      await expect(clearProcessedMessages()).resolves.not.toThrow();
+      await clearProcessedMessages();
+      // If we got here, it didn't throw
+      expect(true).toBe(true);
     });
   });
 });
@@ -177,7 +181,7 @@ describe("tryClaimForProcessing", () => {
       tryClaimForProcessing(key, "test"),
       tryClaimForProcessing(key, "test"),
     ]);
-    const successCount = results.filter(r => r === true).length;
+    const successCount = results.filter((r) => r === true).length;
     expect(successCount).toBe(1);
   });
 
@@ -189,7 +193,8 @@ describe("tryClaimForProcessing", () => {
 
   it("uses default source when not provided", async () => {
     const key = `${claimPrefix}:default-source-${Date.now()}`;
-    await expect(tryClaimForProcessing(key)).resolves.not.toThrow();
+    const claimed = await tryClaimForProcessing(key);
+    expect(typeof claimed).toBe("boolean");
   });
 });
 
@@ -232,7 +237,9 @@ describe("releaseProcessingClaim", () => {
 
   it("does not throw when releasing a non-existent key", async () => {
     const key = `${releasePrefix}:nonexistent-${Date.now()}`;
-    await expect(releaseProcessingClaim(key)).resolves.not.toThrow();
+    await releaseProcessingClaim(key);
+    // If we got here, it didn't throw
+    expect(true).toBe(true);
   });
 });
 
@@ -272,7 +279,8 @@ describe("Idempotency Security Tests", () => {
     it("handles very long keys", async () => {
       const longKey = `${securityPrefix}:${"x".repeat(500)}`;
       expect(await isAlreadyProcessed(longKey)).toBe(false);
-      await expect(markAsProcessed(longKey, "test")).resolves.not.toThrow();
+      await markAsProcessed(longKey, "test");
+      expect(await isAlreadyProcessed(longKey)).toBe(true);
     });
 
     it("handles keys with special webhook-related characters", async () => {

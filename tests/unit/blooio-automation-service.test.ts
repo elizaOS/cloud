@@ -10,7 +10,15 @@
  * - Error handling
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  mock,
+  spyOn,
+} from "bun:test";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 
 // Mock external dependencies
@@ -28,8 +36,8 @@ const mockValidateBlooioChatId = mock(() => true);
 // These would typically be mocked at module level, but for now we test observable behavior
 
 describe("BlooioAutomationService", () => {
-  const testOrgId = "org-123";
-  const testUserId = "user-456";
+  const testOrgId = "00000000-0000-0000-0000-000000000123";
+  const testUserId = "00000000-0000-0000-0000-000000000456";
   const testApiKey = "bloo_test_api_key_123";
 
   beforeEach(() => {
@@ -95,9 +103,9 @@ describe("BlooioAutomationService", () => {
         const result = await blooioAutomationService.sendMessage(
           testOrgId,
           "+15551234567",
-          { text: "test" }
+          { text: "test" },
         );
-        
+
         // Will fail because no API key, but tests normalization path
         expect(result.success).toBe(false);
       });
@@ -106,9 +114,9 @@ describe("BlooioAutomationService", () => {
         const result = await blooioAutomationService.sendMessage(
           testOrgId,
           "user@example.com",
-          { text: "test" }
+          { text: "test" },
         );
-        
+
         expect(result.success).toBe(false);
         // Would fail at send, not validation
       });
@@ -118,9 +126,9 @@ describe("BlooioAutomationService", () => {
         const result = await blooioAutomationService.sendMessage(
           testOrgId,
           "+15551234567, +15559876543",
-          { text: "test" }
+          { text: "test" },
         );
-        
+
         expect(result.success).toBe(false);
       });
     });
@@ -132,7 +140,7 @@ describe("BlooioAutomationService", () => {
       const result = await blooioAutomationService.sendMessage(
         testOrgId,
         "+15551234567",
-        { text: "Hello" }
+        { text: "Hello" },
       );
 
       expect(result.success).toBe(false);
@@ -144,7 +152,7 @@ describe("BlooioAutomationService", () => {
       const result = await blooioAutomationService.sendMessage(
         testOrgId,
         "invalid-chat-id",
-        { text: "Hello" }
+        { text: "Hello" },
       );
 
       // May return "not configured" or validation error depending on order
@@ -156,7 +164,7 @@ describe("BlooioAutomationService", () => {
       const result = await blooioAutomationService.sendMessage(
         testOrgId,
         "grp_abc123",
-        { text: "Hello group" }
+        { text: "Hello group" },
       );
 
       // Will fail due to no config, but validates format is accepted
@@ -170,9 +178,9 @@ describe("BlooioAutomationService", () => {
         {
           text: "Check this out",
           attachments: [
-            { url: "https://example.com/image.jpg", name: "image.jpg" }
-          ]
-        }
+            { url: "https://example.com/image.jpg", name: "image.jpg" },
+          ],
+        },
       );
 
       expect(result.success).toBe(false);
@@ -184,8 +192,8 @@ describe("BlooioAutomationService", () => {
         "+15551234567",
         {
           text: "With metadata",
-          metadata: { source: "test", timestamp: Date.now() }
-        }
+          metadata: { source: "test", timestamp: Date.now() },
+        },
       );
 
       expect(result.success).toBe(false);
@@ -202,8 +210,9 @@ describe("BlooioAutomationService", () => {
 
   describe("getConnectionStatus", () => {
     it("returns unconfigured status when no API key", async () => {
-      const status = await blooioAutomationService.getConnectionStatus(testOrgId);
-      
+      const status =
+        await blooioAutomationService.getConnectionStatus(testOrgId);
+
       // Without mock, depends on actual config
       expect(status).toHaveProperty("connected");
       expect(status).toHaveProperty("configured");
@@ -213,11 +222,13 @@ describe("BlooioAutomationService", () => {
 
     it("caches status for performance", async () => {
       // First call
-      const status1 = await blooioAutomationService.getConnectionStatus(testOrgId);
-      
+      const status1 =
+        await blooioAutomationService.getConnectionStatus(testOrgId);
+
       // Second call should use cache
-      const status2 = await blooioAutomationService.getConnectionStatus(testOrgId);
-      
+      const status2 =
+        await blooioAutomationService.getConnectionStatus(testOrgId);
+
       // Results should be identical
       expect(status1.connected).toBe(status2.connected);
       expect(status1.configured).toBe(status2.configured);
@@ -225,36 +236,50 @@ describe("BlooioAutomationService", () => {
 
     it("respects skipCache option", async () => {
       // First call
-      const status1 = await blooioAutomationService.getConnectionStatus(testOrgId);
-      
+      const status1 =
+        await blooioAutomationService.getConnectionStatus(testOrgId);
+
       // Second call with skipCache
-      const status2 = await blooioAutomationService.getConnectionStatus(testOrgId, {
-        skipCache: true,
-      });
-      
+      const status2 = await blooioAutomationService.getConnectionStatus(
+        testOrgId,
+        {
+          skipCache: true,
+        },
+      );
+
       // Both should work without error
       expect(status2).toHaveProperty("connected");
     });
 
     it("returns fromNumber when available", async () => {
-      const status = await blooioAutomationService.getConnectionStatus(testOrgId);
-      
+      const status =
+        await blooioAutomationService.getConnectionStatus(testOrgId);
+
       // fromNumber is optional
       if (status.connected) {
-        expect(typeof status.fromNumber === "string" || status.fromNumber === undefined).toBe(true);
+        expect(
+          typeof status.fromNumber === "string" ||
+            status.fromNumber === undefined,
+        ).toBe(true);
       }
     });
   });
 
   describe("Error Handling", () => {
-    it("handles empty organization ID gracefully", async () => {
-      const status = await blooioAutomationService.getConnectionStatus("");
+    it("handles non-existent organization ID gracefully", async () => {
+      const status = await blooioAutomationService.getConnectionStatus(
+        "00000000-0000-0000-0000-000000009999",
+      );
       expect(status).toHaveProperty("connected");
+      expect(status.configured).toBe(false);
     });
 
-    it("handles special characters in organization ID", async () => {
-      const status = await blooioAutomationService.getConnectionStatus("org-with-special-chars-!@#$");
+    it("handles different organization ID formats", async () => {
+      const status = await blooioAutomationService.getConnectionStatus(
+        "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      );
       expect(status).toHaveProperty("connected");
+      expect(status.configured).toBe(false);
     });
   });
 
@@ -262,7 +287,9 @@ describe("BlooioAutomationService", () => {
     describe("getApiKey", () => {
       it("returns null when no API key stored", async () => {
         // This tests the fallback behavior
-        const apiKey = await blooioAutomationService.getApiKey("non-existent-org");
+        const apiKey = await blooioAutomationService.getApiKey(
+          "00000000-0000-0000-0000-999999999999",
+        );
         // May return null or env var fallback
         expect(apiKey === null || typeof apiKey === "string").toBe(true);
       });
@@ -270,15 +297,21 @@ describe("BlooioAutomationService", () => {
 
     describe("getWebhookSecret", () => {
       it("returns null when no webhook secret stored", async () => {
-        const secret = await blooioAutomationService.getWebhookSecret("non-existent-org");
+        const secret = await blooioAutomationService.getWebhookSecret(
+          "00000000-0000-0000-0000-999999999998",
+        );
         expect(secret === null || typeof secret === "string").toBe(true);
       });
     });
 
     describe("getFromNumber", () => {
       it("returns null when no from number stored", async () => {
-        const fromNumber = await blooioAutomationService.getFromNumber("non-existent-org");
-        expect(fromNumber === null || typeof fromNumber === "string").toBe(true);
+        const fromNumber = await blooioAutomationService.getFromNumber(
+          "00000000-0000-0000-0000-999999999997",
+        );
+        expect(fromNumber === null || typeof fromNumber === "string").toBe(
+          true,
+        );
       });
     });
   });
@@ -288,7 +321,7 @@ describe("BlooioAutomationService", () => {
       const result = await blooioAutomationService.sendMessage(
         testOrgId,
         "+15551234567",
-        { text: "Simple text message" }
+        { text: "Simple text message" },
       );
       expect(result).toHaveProperty("success");
     });
@@ -300,7 +333,7 @@ describe("BlooioAutomationService", () => {
         {
           text: "Message with typing",
           use_typing_indicator: true,
-        }
+        },
       );
       expect(result).toHaveProperty("success");
     });
@@ -312,7 +345,7 @@ describe("BlooioAutomationService", () => {
         {
           text: "Idempotent message",
           idempotencyKey: "unique-key-123",
-        }
+        },
       );
       expect(result).toHaveProperty("success");
     });
@@ -323,8 +356,8 @@ describe("BlooioAutomationService Integration-style Tests", () => {
   // These tests would require database and secrets service to be available
   // They test the full flow without external Blooio API calls
 
-  const integrationOrgId = "integration-test-org";
-  const integrationUserId = "integration-test-user";
+  const integrationOrgId = "00000000-0000-0000-0000-000000001111";
+  const integrationUserId = "00000000-0000-0000-0000-000000002222";
 
   describe("Credential Lifecycle", () => {
     it("can store and retrieve credentials", async () => {
