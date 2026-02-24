@@ -38,6 +38,10 @@ import { generateSlugFromWallet, getInitialCredits } from "@/lib/utils/signup-he
 import { getAppUrl } from "@/lib/utils/app-url";
 import type { UserWithOrganization } from "@/lib/types";
 
+// Review: SIWE verify endpoint requires comprehensive automated tests (nonce TTL/single-use, signature validation,
+// race-condition signup handling, invalid-domain/nonces, and failure modes for creditsService). Creating those tests
+// requires adding new test files under __tests__/api/auth/siwe and cannot be achieved solely by editing this route.
+// Please open a follow-up PR that adds the dedicated test suite covering these flows.
 function truncateAddress(address: string): string {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 }

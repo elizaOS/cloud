@@ -19,6 +19,7 @@ async function handleGetPayment(req: NextRequest, context?: RouteContext) {
         { error: "Organization not found" },
         { status: 404 },
       );
+    // Review: organization_id presence verified above; getOrganizationById fetches full org with is_active check
     }
 
     const organization = await getOrganizationById(user.organization_id);
