@@ -1,115 +1,76 @@
-
 /**
- * Unit tests for SIWE nonce endpoint
+ * SIWE Nonce Endpoint Tests
  * 
- * Covers:
- * - Nonce generation and TTL
- * - Cache availability checks
- * - ChainId parameter validation
+ * Tests for the nonce endpoint covering:
+ * - Nonce generation
+ * - TTL enforcement
+ * - Redis availability checks
+ * - Parameter validation
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-vi.mock('@/lib/cache/client', () => ({
-  cache: {
-    isAvailable: vi.fn(() => true),
-    set: vi.fn(),
-  },
-}));
-
-vi.mock('@/lib/cache/keys', () => ({
-  CacheKeys: {
-    siwe: {
-      nonce: (n: string) => `siwe:nonce:${n}`,
-    },
-  },
-  CacheTTL: {
-    siwe: {
-      nonce: 300, // 5 minutes
-    },
-  },
-}));
-
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
+import { GET } from '@/app/api/auth/siwe/nonce/route';
 import { cache } from '@/lib/cache/client';
-import { CacheTTL } from '@/lib/cache/keys';
+
+vi.mock('@/lib/cache/client');
 
 describe('SIWE Nonce Endpoint', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_APP_URL = 'https://elizacloud.ai';
   });
 
-  afterEach(() => {
-    delete process.env.NEXT_PUBLIC_APP_URL;
+  it('returns nonce when Redis is available', async () => {
+    const mockRequest = new NextRequest('http://localhost:3000/api/auth/siwe/nonce');
+
+    vi.mocked(cache.isAvailable).mockReturnValue(true);
+    vi.mocked(cache.set).mockResolvedValue(undefined);
+    vi.mocked(cache.get).mockResolvedValue(true);
+
+    const response = await GET(mockRequest);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.nonce).toBeDefined();
+    expect(data.domain).toBeDefined();
+    expect(data.chainId).toBe(1);
   });
 
-  describe('Nonce TTL', () => {
-    it('should use 5-minute TTL for nonce storage', () => {
-      expect(CacheTTL.siwe.nonce).toBe(300);
-    });
+  it('rejects requests when Redis is unavailable', async () => {
+    const mockRequest = new NextRequest('http://localhost:3000/api/auth/siwe/nonce');
 
-    it('should store nonce in cache with correct TTL', async () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      vi.mocked(cache.set).mockResolvedValue(undefined);
-      
-      await cache.set('siwe:nonce:testnonce', true, 300);
-      
-      expect(cache.set).toHaveBeenCalledWith('siwe:nonce:testnonce', true, 300);
-    });
+    vi.mocked(cache.isAvailable).mockReturnValue(false);
+
+    const response = await GET(mockRequest);
+    const data = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(data.error).toBe('SERVICE_UNAVAILABLE');
   });
 
-  describe('Cache availability', () => {
-    it('should return 503 when cache is unavailable', () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(false);
-      
-      expect(cache.isAvailable()).toBe(false);
-    });
+  it('validates chainId parameter', async () => {
+    const mockRequest = new NextRequest('http://localhost:3000/api/auth/siwe/nonce?chainId=invalid');
 
-    it('should proceed when cache is available', () => {
-      vi.mocked(cache.isAvailable).mockReturnValue(true);
-      
-      expect(cache.isAvailable()).toBe(true);
-    });
+    const response = await GET(mockRequest);
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('INVALID_BODY');
   });
 
-  describe('ChainId validation', () => {
-    it('should default to chainId 1 (Ethereum mainnet)', () => {
-      const defaultChainId = 1;
-      expect(defaultChainId).toBe(1);
-    });
+  it('persists nonce to Redis with correct TTL', async () => {
+    const mockRequest = new NextRequest('http://localhost:3000/api/auth/siwe/nonce');
 
-    it('should reject non-positive chainId', () => {
-      const invalidChainIds = [0, -1, -100];
-      
-      invalidChainIds.forEach((chainId) => {
-        expect(chainId <= 0).toBe(true);
-      });
-    });
+    vi.mocked(cache.isAvailable).mockReturnValue(true);
+    vi.mocked(cache.set).mockResolvedValue(undefined);
+    vi.mocked(cache.get).mockResolvedValue(true);
 
-    it('should accept valid positive chainId', () => {
-      const validChainIds = [1, 137, 8453, 42161];
-      
-      validChainIds.forEach((chainId) => {
-        expect(chainId > 0).toBe(true);
-      });
-    });
-  });
+    await GET(mockRequest);
 
-  describe('Response format', () => {
-    it('should include all required SIWE parameters', () => {
-      const expectedFields = ['nonce', 'domain', 'uri', 'chainId', 'version', 'statement'];
-      const response = {
-        nonce: 'abc123',
-        domain: 'elizacloud.ai',
-        uri: 'https://elizacloud.ai',
-        chainId: 1,
-        version: '1',
-        statement: 'Sign in to ElizaCloud',
-      };
-      
-      expectedFields.forEach((field) => {
-        expect(response).toHaveProperty(field);
-      });
-    });
+    expect(cache.set).toHaveBeenCalledWith(
+      expect.stringContaining('siwe:nonce:'),
+      true,
+      expect.any(Number)
+    );
   });
 });

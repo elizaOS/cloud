@@ -410,9 +410,11 @@ async function handleVerify(request: NextRequest) {
             );
           } catch (fallbackError) {
             console.error(
-              `[SIWE] Fallback credit balance update also failed for org ${org.id}:`,
+              `[SIWE] CRITICAL: Both credit service and fallback balance update failed for org ${org.id}.`,
               fallbackError,
             );
+            // Both credit paths failed - throw to prevent account creation with 0 credits
+            throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
         }
       }
