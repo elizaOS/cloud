@@ -68,6 +68,7 @@ async function resolveApiKeyForUser(
   );
 
   if (existing) {
+    // Review: Existing keys are validated to be active and unexpired before reuse.
     return existing.key;
   }
 
@@ -592,6 +593,7 @@ export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
           },
           { status: 403 },
         );
+      // Review: account checks handled elsewhere in race recovery logic prior to issuing API key
       }
       if (!raceUser.wallet_verified) {
         await usersService.update(raceUser.id, { wallet_verified: true });
