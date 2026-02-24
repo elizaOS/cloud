@@ -444,31 +444,6 @@ async function handleVerify(request: NextRequest) {
       }
       throw innerError;
     }
-</search>
-<replace>
-      // Add initial free credits via creditsService for proper tracking.
-      if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "signup",
-            },
-          });
-        } catch (creditError) {
-          console.error(
-            `[PrivySync] Failed to add initial credits to org ${org.id}:`,
-            creditError,
-          );
-          throw creditError;
-        }
-  throw innerError;
-    }
-
-    signupResult = { user: userWithOrg, plainKey };
   } catch (error) {
     // Handle race condition: two concurrent SIWE requests for the same new
     // wallet. The unique constraint on wallet_address (Postgres error 23505)
@@ -525,4 +500,84 @@ async function handleVerify(request: NextRequest) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
-// Review: test coverage for SIWE flows managed in separate test suite outside this route file
+    signupResult = { user: userWithOrg, plainKey };
+</search>
+<replace>
+      // Add initial free credits via creditsService for proper tracking.
+      if (initialCredits > 0) {
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: initialCredits,
+            description: "Initial free credits - Welcome bonus",
+            metadata: {
+              type: "initial_free_credits",
+              source: "signup",
+            },
+          });
+        } catch (creditError) {
+          console.error(
+            `[PrivySync] Failed to add initial credits to org ${org.id}:`,
+            creditError,
+          );
+          throw creditError;
+        }
+  throw innerError;
+    }
+
+    } catch (error) {
+    // Handle race condition: two concurrent SIWE requests for the same new
+    // wallet. The unique constraint on wallet_address (Postgres error 23505)
+    // means the second insert fails. The org is cleaned up via compensating delete above.
+    const isDuplicateError =
+      error &&
+      typeof error === "object" &&
+      (("code" in error && error.code === "23505") ||
+        ("cause" in error &&
+          error.cause &&
+          typeof error.cause === "object" &&
+          "code" in error.cause &&
+          error.cause.code === "23505"));
+
+    if (!isDuplicateError) {
+      throw error;
+    }
+
+    // The winning request may not have committed yet, so retry with backoff.
+    let raceUser: UserWithOrganization | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
+        );
+      }
+      raceUser = await usersService.getByWalletAddressWithOrganization(
+        address.toLowerCase(),
+      );
+      if (raceUser) break;
+    }
+
+    if (raceUser && raceUser.organization_id && raceUser.organization) {
+      if (!raceUser.is_active || !raceUser.organization.is_active) {
+        return NextResponse.json(
+          {
+            error: "ACCOUNT_INACTIVE",
+            message: "This account or organization has been deactivated.",
+          },
+          { status: 403 },
+        );
+      }
+      if (!raceUser.wallet_verified) {
+        await usersService.update(raceUser.id, { wallet_verified: true });
+      }
+      const apiKey = await resolveApiKeyForUser(raceUser);
+      return buildSuccessResponse(raceUser, apiKey, address, false);
+    }
+
+    throw error;
+  }
+
+  return buildSuccessResponse(signupResult.user, signupResult.plainKey, address, true);
+}
+
+export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);

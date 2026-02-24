@@ -26,16 +26,17 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id ?? organizationId;
 
-    if (!user.organization_id) {
+    if (!orgId) {
       return NextResponse.json(
         { error: "Organization not found" },
         { status: 404 },
       );
     }
 
-    const organization = await getOrganizationById(user.organization_id);
+    const organization = await getOrganizationById(orgId);
     if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
@@ -67,7 +68,7 @@ async function handleCreatePayment(req: NextRequest) {
     const { amount, currency, payCurrency, network } = validation.data;
 
     const result = await cryptoPaymentsService.createPayment({
-      organizationId: user.organization_id,
+      organizationId: orgId,
       userId: user.id,
       amount,
       currency,
@@ -81,7 +82,7 @@ async function handleCreatePayment(req: NextRequest) {
       currency,
       pay_currency: payCurrency,
       network: network || "AUTO",
-      organization_id: user.organization_id,
+      organization_id: orgId,
       track_id: result.trackId,
     });
 
@@ -90,7 +91,7 @@ async function handleCreatePayment(req: NextRequest) {
       payment_method: "crypto",
       amount,
       currency,
-      organization_id: user.organization_id,
+      organization_id: orgId,
       source_page: "settings",
       purchase_type: "custom_amount",
     });
