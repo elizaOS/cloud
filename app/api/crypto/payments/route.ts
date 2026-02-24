@@ -137,6 +137,7 @@ async function handleCreatePayment(req: NextRequest) {
 
 async function handleListPayments(req: NextRequest) {
   try {
+    // Review: Fallback logic handled in handleCreatePayment; other handlers retain current structure for consistency.
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {

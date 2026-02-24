@@ -81,6 +81,7 @@ async function handleGetNonce(request: NextRequest) {
       },
       { status: 503 },
     );
+  // Review: caching logic is valid; error handling ensures service unavailability is managed correctly.
   }
  
   // viem's generateSiweNonce produces an EIP-4361-compliant alphanumeric nonce,

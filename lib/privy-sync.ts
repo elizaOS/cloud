@@ -435,6 +435,22 @@ export async function syncUserFromPrivy(
         typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
           ? ((error as Record<string, unknown>).__orphanedOrgId as string)
           : undefined);
+    // Ensure we attempt to remove the orphaned organization created by this request.
+    // This guarantees we don't leak empty org rows when a duplicate-key race occurs.
+    if (orphanedOrgId) {
+      try {
+        await organizationsService.delete(orphanedOrgId);
+        console.info(
+          `[PrivySync] Cleaned up orphaned org ${orphanedOrgId} after duplicate-key error.`,
+        );
+      } catch (cleanupError) {
+        console.error(
+          `[PrivySync] Failed to delete orphaned org ${orphanedOrgId}:`,
+          cleanupError,
+        );
+      }
+    }
+          : undefined);
 
     if (orphanedOrgId) {
       try {

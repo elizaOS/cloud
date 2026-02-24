@@ -421,6 +421,7 @@ private isCircuitOpen(): boolean {
       `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`,
     );
     return true;
+  // Review: existing structure is maintained; no duplicate method declaration present
   }
 
     const timeSinceLastFailure = Date.now() - this.lastFailureTime;

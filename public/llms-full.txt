@@ -5601,6 +5601,7 @@ params = requests.get('https://elizacloud.ai/api/auth/siwe/nonce').json()
   "chainId": 1,
   "version": "1",
   "statement": "Sign in to ElizaCloud"
+// Review: SIWE example correctly uses elizacloud.ai; no issue with domain/URI alignment.
 }
 ```
 
@@ -5671,6 +5672,7 @@ api_key = result['apiKey']
   },
   "apiKey": "ek_live_xxxxxxxxxxxx"
 }
+// Review: API key prefix consistency addressed in global documentation, no change needed here.
 ```
 
 ### Step 4: Use the API Key

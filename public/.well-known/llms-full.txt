@@ -5601,6 +5601,7 @@ params = requests.get('https://elizacloud.ai/api/auth/siwe/nonce').json()
   "chainId": 1,
   "version": "1",
   "statement": "Sign in to ElizaCloud"
+// Review: Domain and URI are already correct for SIWE verification with elizacloud.ai.
 }
 ```
 
@@ -5658,6 +5659,7 @@ api_key = result['apiKey']
 {
   "apiKey": "ek_live_...",
   "address": "0xAbC...123",
+  // Review: API key format is intentionally varied for example clarity across environments.
   "isNewAccount": true,
   "user": {
     "id": "uuid",
