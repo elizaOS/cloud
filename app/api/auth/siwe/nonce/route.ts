@@ -129,7 +129,18 @@ async function handleGetNonce(request: NextRequest) {
   // can enforce domain binding against phishing. Uses the shared getAppUrl()
   // helper to stay consistent with the verify endpoint's host resolution.
   const appUrl = getAppUrl();
-  const url = new URL(appUrl);
+  let url: URL;
+  try {
+    url = new URL(appUrl);
+  } catch {
+    return NextResponse.json(
+      {
+        error: "CONFIGURATION_ERROR",
+        message: "Server URL misconfigured. Contact support.",
+      },
+      { status: 500 },
+    );
+  }
  
   return NextResponse.json({
     nonce,

@@ -403,33 +403,12 @@ export class CacheClient {
 
   private isCircuitOpen(): boolean {
     if (this.failureCount < this.MAX_FAILURES) {
-private isCircuitOpen(): boolean {
-    // Circuit breaker: only open when we've reached the max failures and the
-    // timeout since the last failure has not yet elapsed.
-    if (this.failureCount < this.MAX_FAILURES) {
       return false;
     }
-​
+
     const timeSinceLastFailure = Date.now() - (this.lastFailureTime || 0);
     if (timeSinceLastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
-      // Timeout has passed, reset failures and consider the circuit closed.
       this.resetFailures();
-      return false;
-    }
-​
-    logger.warn(
-      `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`,
-    );
-    return true;
-  // Review: existing structure is maintained; no duplicate method declaration present
-  }
-
-    const timeSinceLastFailure = Date.now() - this.lastFailureTime;
-    if (timeSinceLastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
-      logger.info(
-        "[Cache] Circuit breaker timeout expired, attempting to reconnect",
-      );
-      this.failureCount = 0;
       return false;
     }
 

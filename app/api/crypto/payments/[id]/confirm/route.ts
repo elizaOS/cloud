@@ -94,9 +94,9 @@ async function handleConfirmPayment(
   }
 
   try {
-      const { user, organization: orgFromAuth } = await requireAuthOrApiKeyWithOrg(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     
-      const { id } = await context.params;
+    const { id } = await context.params;
 
     if (!user.organization_id) {
       return NextResponse.json(
@@ -105,9 +105,7 @@ async function handleConfirmPayment(
       );
     }
     
-    // Use organization from auth when available (e.g. API key flows), otherwise fetch it.
-    const organization =
-      orgFromAuth ?? (await getOrganizationById(user.organization_id));
+    const organization = await getOrganizationById(user.organization_id);
     if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
