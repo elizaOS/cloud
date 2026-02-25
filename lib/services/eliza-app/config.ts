@@ -5,6 +5,8 @@
  * All required env vars must be set in production.
  */
 
+import { getPromptPreset, type PromptPreset } from "@/lib/eliza/prompt-presets";
+
 const isProduction = process.env.NODE_ENV === "production";
 
 function requireEnv(name: string, fallback?: string): string {
@@ -30,6 +32,9 @@ export const elizaAppConfig = {
     smallModel: "anthropic/claude-sonnet-4.5",
     largeModel: "anthropic/claude-sonnet-4.5",
   },
+
+  // Prompt preset for eliza-app channels (engaging, conversation-continuing behavior)
+  promptPreset: getPromptPreset("eliza-app") as PromptPreset,
 
   // Telegram configuration
   telegram: {

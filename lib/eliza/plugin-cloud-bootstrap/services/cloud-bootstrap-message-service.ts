@@ -29,20 +29,20 @@ import {
   multiStepDecisionTemplate,
   multiStepSummaryTemplate,
   shouldRespondTemplate,
-  MULTISTEP_DECISION_SYSTEM,
 } from "../templates/multi-step";
 import {
   refreshStateAfterAction,
   getActionResultsFromCache,
 } from "../utils/state";
-import type {
-  MultiStepActionResult,
-  StrategyMode,
-  StrategyResult,
-  CloudMessageOptions,
-  ParsedMultiStepDecision,
-  StreamChunkCallback,
-  ReasoningChunkCallback,
+import {
+  type MultiStepActionResult,
+  type StrategyMode,
+  type StrategyResult,
+  type CloudMessageOptions,
+  type ParsedMultiStepDecision,
+  type StreamChunkCallback,
+  type ReasoningChunkCallback,
+  TRANSPARENT_META_ACTIONS,
 } from "../types";
 
 const latestResponseIds = new Map<string, Map<string, string>>();
@@ -596,15 +596,29 @@ export class CloudBootstrapMessageService implements IMessageService {
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
     const traceActionResult: MultiStepActionResult[] = [];
+    const discoveredActions = new Set<string>();
+    let totalActionsExecuted = 0;
+    let lastActionKey = "";
     let accumulatedState: State = state;
+    let finishResponse: string | null = null;
+
+    // Save the original system prompt so we can restore it after the multi-step loop.
+    // The decision phase uses a functional system prompt (embedded in the template),
+    // but runtime.character.system is still passed to the LLM by the OpenAI plugin.
+    // If the agent has no system prompt configured, the empty string causes OpenAI to
+    // reject the request ("Each message must have content..."). Set a fallback.
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system =
+        "You are an AI task executor that helps complete user requests by selecting and executing actions.";
+    }
 
     const maxIterations =
       options?.maxMultiStepIterations ??
       parseInt(String(runtime.getSetting("MAX_MULTISTEP_ITERATIONS") ?? "6"));
     let iterationCount = 0;
 
-    const originalSystemPrompt = runtime.character.system;
-
+    try {
     // Wait for MCP service to finish initializing (registering tool actions)
     const mcpService = runtime.getService("mcp");
     if (mcpService && "waitForInitialization" in mcpService) {
@@ -621,6 +635,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         "RECENT_MESSAGES",
         "ACTION_STATE",
         "ACTIONS",
+        "CHARACTER",
         "USER_AUTH_STATUS",
         // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
         // via McpService.registerToolsAsActions() and appear in ACTIONS provider
@@ -642,13 +657,10 @@ export class CloudBootstrapMessageService implements IMessageService {
       }
     };
 
-    runtime.character.system = MULTISTEP_DECISION_SYSTEM;
-
-    try {
-      while (iterationCount < maxIterations) {
-        iterationCount++;
-        logger.debug(
-          `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
+    while (iterationCount < maxIterations) {
+      iterationCount++;
+      logger.debug(
+        `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
         );
 
         await streamThinking(
@@ -675,6 +687,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             "RECENT_MESSAGES",
             "ACTION_STATE",
             "ACTIONS",
+            "CHARACTER",
             "USER_AUTH_STATUS",
             // NOTE: "MCP" provider removed - MCP tools are now native actions
           ],
@@ -683,11 +696,16 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Also set on state.data for consistency
         accumulatedState.data.actionResults = traceActionResult;
 
+        const remainingSteps = maxIterations - iterationCount;
         const stateWithIterationContext = {
           ...accumulatedState,
           iterationCount,
           maxIterations,
           traceActionResult,
+          totalActionsExecuted,
+          discoveredActions: discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "",
+          stepsWarning: remainingSteps <= 2,
+          remainingSteps,
         };
 
         const prompt = composePromptFromState({
@@ -781,10 +799,32 @@ export class CloudBootstrapMessageService implements IMessageService {
 
         const { thought, action, isFinish, parameters } = parsedStep;
 
+        // Dedup guard: detect identical consecutive calls
+        // Sort keys for deterministic comparison (key order varies across LLM outputs)
+        const canonicalParams = (() => {
+          if (!parameters || typeof parameters !== "object") return JSON.stringify(parameters || {});
+          const obj = parameters as Record<string, unknown>;
+          const sorted: Record<string, unknown> = {};
+          for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
+          return JSON.stringify(sorted);
+        })();
+        const dedupKey = action ? `${action}::${canonicalParams}` : "";
+        if (action && dedupKey === lastActionKey) {
+          logger.warn(`[MultiStep] Duplicate action detected: ${action} with same params. Forcing completion.`);
+          traceActionResult.push({
+            data: { actionName: action },
+            success: false,
+            error: `Duplicate call detected — ${action} was already executed with these parameters. Try a different action or set isFinish=true.`,
+          });
+          break;
+        }
+        lastActionKey = dedupKey;
+
         if (!action) {
+          // Deprecated fallback: isFinish without an action
           if (isFinish === "true" || isFinish === true) {
             logger.info(
-              `[MultiStep] Task complete at iteration ${iterationCount}`,
+              `[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`,
             );
             await streamThinking("response", "\n--- Completing task ---\n");
             break;
@@ -792,6 +832,24 @@ export class CloudBootstrapMessageService implements IMessageService {
           logger.warn(
             `[MultiStep] No action at iteration ${iterationCount}, forcing completion`,
           );
+          break;
+        }
+
+        // Handle FINISH action — extract response param, skip normal action execution
+        if (action === "FINISH") {
+          let actionParams: Record<string, unknown> = {};
+          if (parameters) {
+            if (typeof parameters === "string") {
+              try { actionParams = JSON.parse(parameters); } catch { /* ignore */ }
+            } else if (typeof parameters === "object") {
+              actionParams = parameters;
+            }
+          }
+          finishResponse = (actionParams.response as string) || "";
+          logger.info(
+            `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
+          );
+          await streamThinking("response", "\n--- FINISH ---\n");
           break;
         }
 
@@ -856,6 +914,7 @@ export class CloudBootstrapMessageService implements IMessageService {
             text?: string;
             success?: boolean;
             values?: Record<string, unknown>;
+            data?: Record<string, unknown>;
           } | null = null;
 
           await runtime.processActions(
@@ -896,7 +955,28 @@ export class CloudBootstrapMessageService implements IMessageService {
             values: result?.values as Record<string, unknown> | undefined,
             error: success ? undefined : (result?.text as string | undefined),
           };
-          traceActionResult.push(actionResult);
+
+          // Transparent meta-actions (e.g., SEARCH_ACTIONS) don't appear in
+          // # Previous Action Results on success — their side-effects (registering
+          // new actions) are sufficient. Failures are still recorded so the LLM
+          // can retry with different parameters.
+          const isTransparent = TRANSPARENT_META_ACTIONS.has(action) && actionResult.success;
+          if (!isTransparent) {
+            traceActionResult.push(actionResult);
+          }
+          totalActionsExecuted++;
+
+          // Track newly discovered actions from SEARCH_ACTIONS for explicit visibility
+          if (action === "SEARCH_ACTIONS" && actionResult.success && result) {
+            const data = (result as Record<string, unknown>).data as Record<string, unknown> | undefined;
+            const newlyRegistered = data?.newlyRegistered as string[] | undefined;
+            if (newlyRegistered?.length) {
+              newlyRegistered.forEach(name => discoveredActions.add(name));
+              logger.info(
+                `[MultiStep] Discovered actions: ${newlyRegistered.join(", ")}`,
+              );
+            }
+          }
 
           await streamThinking(
             "actions",
@@ -937,23 +1017,56 @@ export class CloudBootstrapMessageService implements IMessageService {
           );
         }
 
+        // Deprecated fallback: isFinish flag without FINISH action
         if (isFinish === "true" || isFinish === true) {
           logger.info(
-            `[MultiStep] Task complete at iteration ${iterationCount}`,
+            `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
           );
           break;
         }
       }
 
-      if (iterationCount >= maxIterations) {
-        logger.warn(
-          `[MultiStep] Reached maximum iterations (${maxIterations})`,
-        );
-      }
-    } finally {
-      runtime.character.system = originalSystemPrompt;
+    if (iterationCount >= maxIterations) {
+      logger.warn(
+        `[MultiStep] Reached maximum iterations (${maxIterations})`,
+      );
     }
 
+    // If FINISH was called, use its response directly — skip summary LLM call
+    if (finishResponse !== null) {
+      logger.info("[MultiStep] Using FINISH response, skipping summary LLM call");
+
+      const responseContent: Content = {
+        actions: ["FINISH"],
+        text: finishResponse,
+        thought: "FINISH action called by decision LLM.",
+        simple: true,
+      };
+
+      if (options?.onStreamChunk) {
+        await options.onStreamChunk(finishResponse, message.id as UUID);
+      }
+
+      const responseMessages: Memory[] = [
+        {
+          id: asUUID(v4()),
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
+          content: responseContent,
+          roomId: message.roomId,
+          createdAt: Date.now(),
+        },
+      ];
+
+      return {
+        responseContent,
+        responseMessages,
+        state: accumulatedState,
+        mode: "simple",
+      };
+    }
+
+    // Fallback: summary LLM call (FINISH wasn't called — hit max iterations or isFinish fallback)
     await streamThinking("response", "\n--- Generating final response ---\n");
 
     // Inject actionResults into message metadata BEFORE composeState
@@ -971,11 +1084,15 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     accumulatedState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "CHARACTER", "USER_AUTH_STATUS"],
+      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS", "APP_CONFIG"],
       true,
     );
     // Also set on state.data for consistency
     accumulatedState.data.actionResults = traceActionResult;
+    accumulatedState.totalActionsExecuted = totalActionsExecuted;
+    accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
+    accumulatedState.values.hasActionResults = traceActionResult.length > 0;
+    accumulatedState.values.discoveredActions = discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
 
     const summaryPrompt = composePromptFromState({
       state: accumulatedState,
@@ -1098,6 +1215,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       state: accumulatedState,
       mode: "simple",
     };
+    } finally {
+      // Restore the original system prompt so other handlers/phases
+      // that share this runtime aren't affected by our fallback override.
+      runtime.character.system = originalSystemPrompt;
+    }
   }
 
   private async runSingleShotCore(
@@ -1107,6 +1229,15 @@ export class CloudBootstrapMessageService implements IMessageService {
     callback?: HandlerCallback,
     options?: CloudMessageOptions,
   ): Promise<StrategyResult> {
+    // Ensure runtime.character.system is non-empty so the OpenAI plugin
+    // doesn't send an empty system message (which OpenAI rejects).
+    const originalSystemPrompt = runtime.character.system;
+    if (!runtime.character.system) {
+      runtime.character.system =
+        "You are a helpful AI assistant that responds to user messages.";
+    }
+
+    try {
     const template =
       runtime.character.templates?.messageHandlerTemplate ||
       SINGLE_SHOT_TEMPLATE;
@@ -1181,6 +1312,9 @@ export class CloudBootstrapMessageService implements IMessageService {
       state,
       mode: actions.length ? "actions" : "simple",
     };
+    } finally {
+      runtime.character.system = originalSystemPrompt;
+    }
   }
 
   shouldRespond(

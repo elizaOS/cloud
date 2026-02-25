@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { OAUTH_PROVIDERS, getProvider, isProviderConfigured } from "./provider-registry";
 import { getAllAdapters, getAdapter } from "./connection-adapters";
 import { tokenCache } from "./token-cache";
+import { getOAuthVersion, incrementOAuthVersion } from "./cache-version";
 import { Errors } from "./errors";
 import { initiateOAuth2 } from "./providers";
 import type {
@@ -118,27 +119,35 @@ class OAuthService {
     const adapter = await this.findAdapterForConnection(connectionId);
     if (!adapter) throw Errors.connectionNotFound(connectionId);
 
+    // Revoke FIRST, then bump version — prevents race where concurrent
+    // getValidToken caches a still-active token under the new version key.
     await adapter.revoke(organizationId, connectionId);
-    await tokenCache.invalidate(organizationId, connectionId);
+
+    const version = await incrementOAuthVersion(organizationId, adapter.platform);
+    await tokenCache.invalidate(organizationId, connectionId, version);
 
     logger.info("[OAuthService] Connection revoked", { organizationId, connectionId, platform: adapter.platform });
   }
 
-  /** Get a valid access token for a connection (uses cache) */
-  async getValidToken(params: GetTokenParams): Promise<TokenResult> {
-    const { organizationId, connectionId } = params;
+  /** Get a valid access token for a connection (uses cache with version counter) */
+  async getValidToken(params: GetTokenParams & { platform?: string }): Promise<TokenResult> {
+    const { organizationId, connectionId, platform } = params;
 
-    const cached = await tokenCache.get(organizationId, connectionId);
-    if (cached) {
-      logger.debug("[OAuthService] Token from cache", { connectionId });
-      return cached;
-    }
-
+    // Look up adapter to determine platform if not provided
     const adapter = await this.findAdapterForConnection(connectionId);
     if (!adapter) throw Errors.connectionNotFound(connectionId);
 
+    const effectivePlatform = platform || adapter.platform;
+    const version = await getOAuthVersion(organizationId, effectivePlatform);
+
+    const cached = await tokenCache.get(organizationId, connectionId, version);
+    if (cached) {
+      logger.debug("[OAuthService] Token from cache", { connectionId, version });
+      return cached;
+    }
+
     const token = await adapter.getToken(organizationId, connectionId);
-    await tokenCache.set(organizationId, connectionId, token);
+    await tokenCache.set(organizationId, connectionId, version, token);
 
     return token;
   }
@@ -162,7 +171,7 @@ class OAuthService {
     const activeConnection = this.getMostRecentActive(connections);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
-    const token = await this.getValidToken({ organizationId, connectionId: activeConnection.id });
+    const token = await this.getValidToken({ organizationId, connectionId: activeConnection.id, platform });
     return { token, connectionId: activeConnection.id };
   }
 

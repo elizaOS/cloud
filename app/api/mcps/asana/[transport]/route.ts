@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Asana MCP Server - Tasks, Projects, Workspaces, Comments
  *
@@ -393,7 +394,7 @@ async function getAsanaMcpHandler() {
       );
     },
     { capabilities: { tools: {} } },
-    { basePath: "/api/mcps/asana", maxDuration: 60 },
+    { streamableHttpEndpoint: "/api/mcps/asana/streamable-http", disableSse: true, maxDuration: 60 },
   );
 
   return mcpHandler;
@@ -429,6 +430,20 @@ async function handleRequest(req: NextRequest): Promise<Response> {
   }
 }
 
-export const GET = handleRequest;
-export const POST = handleRequest;
-export const DELETE = handleRequest;
+async function withTransportValidation(
+  req: NextRequest,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
+  const { transport } = await params;
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      { status: 405, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  return handleRequest(req);
+}
+
+export const GET = withTransportValidation;
+export const POST = withTransportValidation;
+export const DELETE = withTransportValidation;

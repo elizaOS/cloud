@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     user.organization_id,
     user.id,
   );
+
+  await invalidateOAuthState(user.organization_id, "twitter", user.id);
 
   return NextResponse.json({ success: true });
 }

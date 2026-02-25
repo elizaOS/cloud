@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Credit-related MCP tools
  * Tools for checking balance, usage, transactions, and billing

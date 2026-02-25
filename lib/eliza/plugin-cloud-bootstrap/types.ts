@@ -21,6 +21,8 @@ export interface ActionParameter {
   type: "string" | "number" | "boolean" | "object" | "array";
   description: string;
   required?: boolean;
+  enum?: string[] | number[];
+  default?: unknown;
 }
 
 export type ActionWithParams = Action & {
@@ -44,6 +46,10 @@ export type ReasoningChunkCallback = (
   phase: "planning" | "actions" | "response" | "thinking",
   messageId?: UUID
 ) => Promise<void>;
+
+/** Actions whose successful results should NOT appear in # Previous Action Results.
+ *  Their side-effects (e.g., registering new actions) are sufficient context. */
+export const TRANSPARENT_META_ACTIONS = new Set(["SEARCH_ACTIONS"]);
 
 export interface CloudMessageOptions {
   useMultiStep?: boolean;
