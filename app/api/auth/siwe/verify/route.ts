@@ -516,7 +516,6 @@ async function handleVerify(request: NextRequest) {
       return buildSuccessResponse(raceUser, apiKey, address, false);
     }
 
-    // Review: Error handling and cleanup for duplicates already managed within the service logic
     throw error;
   }
 
