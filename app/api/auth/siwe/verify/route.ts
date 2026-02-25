@@ -417,6 +417,7 @@ async function handleVerify(request: NextRequest) {
             // Both credit paths failed - throw to prevent account creation with 0 credits
             throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
+        // Review: signup behavior is consistent with Privy despite credit service errors handling.
         }
       }
 
