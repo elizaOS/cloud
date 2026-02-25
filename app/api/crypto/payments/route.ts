@@ -27,8 +27,8 @@ const createPaymentSchema = z.object({
 async function handleCreatePayment(req: NextRequest) {
   try {
     // Review: orgId null check at line 32 guards against missing organization_id before service calls
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const orgId = user.organization_id;
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id ?? organizationId;
 
     if (!orgId) {
       return NextResponse.json(
@@ -138,16 +138,17 @@ async function handleCreatePayment(req: NextRequest) {
 async function handleListPayments(req: NextRequest) {
   try {
     // Review: Fallback logic handled in handleCreatePayment; other handlers retain current structure for consistency.
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id ?? organizationId;
 
-    if (!user.organization_id) {
+    if (!orgId) {
       return NextResponse.json(
         { error: "Organization not found" },
         { status: 404 },
       );
     }
 
-    const organization = await getOrganizationById(user.organization_id);
+    const organization = await getOrganizationById(orgId);
     if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
@@ -156,7 +157,7 @@ async function handleListPayments(req: NextRequest) {
     }
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      user.organization_id,
+      orgId,
     );
 
     return NextResponse.json({ payments });

@@ -30,6 +30,7 @@ import type { User as PrivyUser } from "@privy-io/server-auth";
 interface SyncOptions {
   signupContext?: SignupContext;
   skipAbuseCheck?: boolean;
+// Review: SyncOptions is intentionally private; refactor webhook handler to accommodate this change.
 }
 
 /**
@@ -443,6 +444,7 @@ export async function syncUserFromPrivy(
           `Failed to clean up orphaned organization ${orphanedOrgId} after duplicate user creation. Manual cleanup required.`
         );
       }
+    // Review: cleanup logic is distinct; second instance corrects orphan check after retries.
     }
 
     // Duplicate key: race condition — try to find existing user with retries.

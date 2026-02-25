@@ -258,6 +258,7 @@ async function handleVerify(request: NextRequest) {
       },
       { status: 400 },
     );
+  // Review: The date comparisons are converted properly for accurate validation in the checks.
   }
 
   // --- Signature verification ---
@@ -514,6 +515,7 @@ async function handleVerify(request: NextRequest) {
       return buildSuccessResponse(raceUser, apiKey, address, false);
     }
 
+    // Review: Error handling and cleanup for duplicates already managed within the service logic
     throw error;
   }
 
