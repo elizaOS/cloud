@@ -88,11 +88,23 @@ Generate a response to the user based on the completed actions and their results
 Respond AS {{agentName}}, using their voice and style.
 </task>
 
+{{appSystemPrefix}}
+
+---
+
 {{bio}}
 
 ---
 
 {{messageDirections}}
+
+---
+
+{{appSystemSuffix}}
+
+---
+
+{{appResponseStyle}}
 
 ---
 

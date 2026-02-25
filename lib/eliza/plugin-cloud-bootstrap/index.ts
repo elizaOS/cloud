@@ -15,7 +15,7 @@ import { CloudBootstrapMessageService } from "./services/cloud-bootstrap-message
 import { actionStateProvider, actionsProvider } from "./providers";
 import { generateImageAction } from "./actions";
 import { finishAction } from "./actions/finish";
-import { recentMessagesProvider } from "../shared/providers";
+import { recentMessagesProvider, appConfigProvider } from "../shared/providers";
 import { characterProvider } from "./providers/character";
 import {
   oauthConnectAction,
@@ -184,6 +184,7 @@ export const cloudBootstrapPlugin: Plugin = {
     characterProvider,
     recentMessagesProvider,
     userAuthStatusProvider,
+    appConfigProvider,
   ],
   events,
   services: [MessageServiceInstaller],

@@ -1132,7 +1132,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // messages created by action execution, which the summary LLM needs to see.
     const summaryFreshState = await runtime.composeState(
       summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS"],
+      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS", "APP_CONFIG"],
       true,
     );
     // Summary merge: fresh values take precedence over cached. RECENT_MESSAGES
