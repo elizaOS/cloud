@@ -16,7 +16,7 @@ import {
   Settings,
   Trash2,
   Copy,
-  Sparkles,
+  // Sparkles,
   Loader2,
   ExternalLink,
 } from "lucide-react";
@@ -132,7 +132,7 @@ export function AppsTable({ apps }: AppsTableProps) {
                   <MoreHorizontal className="h-4 w-4 text-white/60" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem
+                  {/* <DropdownMenuItem
                     asChild
                     className="cursor-pointer text-[#FF5800] bg-[#FF5800]/10 hover:bg-[#FF5800]/20 focus:bg-[#FF5800]/20 focus:text-[#FF5800]"
                   >
@@ -141,7 +141,7 @@ export function AppsTable({ apps }: AppsTableProps) {
                       Continue Building
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator /> */}
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link href={`/dashboard/apps/${app.id}`}>
                       <Settings className="h-4 w-4 mr-2" />
