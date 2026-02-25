@@ -431,14 +431,6 @@ export async function POST(
     //     populated), not during runtime construction here.
     // If a plugin or runtime change adds getSetting() during construction,
     // this parallelization must be reverted to sequential.
-    // INVARIANT: createRuntimeForUser must NOT call getSetting() or read from
-    // entitySettingsMap during construction. Known-safe paths:
-    //   - runtimeFactory.createRuntimeForUser builds AgentRuntime, registers
-    //     plugins, sets up providers/actions. None read entity-level settings.
-    //   - Plugin init() hooks run during message processing (after settings are
-    //     populated), not during runtime construction here.
-    // If a plugin or runtime change adds getSetting() during construction,
-    // this parallelization must be reverted to sequential.
     const agentIdForSettings = characterId || DEFAULT_AGENT_ID_STRING;
 
     // Create request context with a mutable entitySettings Map.

@@ -456,9 +456,9 @@ export class CloudBootstrapMessageService implements IMessageService {
 
     perfTrace.mark("compose-state");
     // PERF: Compose initial state with minimal providers.
-    // The full provider set (RECENT_MESSAGES, ACTIONS, USER_AUTH_STATUS) will be fetched
-    // once inside runMultiStepCore/runSingleShotCore and cached for the entire request.
-    // Avoid fetching RECENT_MESSAGES and ACTIONS twice by only getting ENTITIES and CHARACTER here.
+    // runMultiStepCore fetches the full provider set (RECENT_MESSAGES, ACTIONS, etc.)
+    // at the start of its decision loop. runSingleShotCore fetches them before prompt
+    // composition. This avoids double-fetching in the multi-step path.
     let state = await runtime.composeState(
       message,
       ["ENTITIES", "CHARACTER"],
@@ -1294,6 +1294,12 @@ export class CloudBootstrapMessageService implements IMessageService {
     }
 
     try {
+    state = await runtime.composeState(
+      message,
+      ["RECENT_MESSAGES", "ACTIONS", "CHARACTER"],
+      true,
+    );
+
     const template =
       runtime.character.templates?.messageHandlerTemplate ||
       SINGLE_SHOT_TEMPLATE;
