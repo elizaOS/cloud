@@ -311,15 +311,12 @@ export async function syncUserFromPrivy(
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
-  let createdOrgId: string | undefined;
   try {
     const org = await organizationsService.create({
       name: `${name}'s Organization`,
       slug: orgSlug,
       credit_balance: "0.00",
     });
-    // Review: createdOrgId is unused; intent was replaced by __orphanedOrgId for cleanup tracking.
-    createdOrgId = org.id;
 
     try {
       // Record signup metadata for future abuse detection
@@ -383,28 +380,19 @@ export async function syncUserFromPrivy(
       });
     } catch (innerError) {
       // Compensating cleanup: delete the org we just created to avoid orphans.
-      // On 23505 duplicate-key errors, the winning request created its own org,
-      // so ours is orphaned either way. We must always attempt deletion here.
-      let cleanupSucceeded = false;
+      // Always attempt deletion here - if it fails, flag for outer catch retry.
       try {
         await organizationsService.delete(org.id);
-        cleanupSucceeded = true;
       } catch (cleanupError) {
         console.error(
           `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
           cleanupError,
         );
+        // Mark this org for retry in outer catch
+        if (innerError && typeof innerError === "object") {
+          (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
+        }
       }
-
-      // Attach cleanup status so outer catch can retry if needed
-      if (
-        innerError &&
-        typeof innerError === "object" &&
-        !cleanupSucceeded
-      ) {
-        (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
-      }
-      // Review: cleanup of orphaned organizations is managed in the duplicate handling logic elsewhere in the code.
       throw innerError;
     }
     
