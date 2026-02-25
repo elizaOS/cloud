@@ -18,10 +18,12 @@ import {
   parseWhatsAppWebhookPayload,
   extractWhatsAppMessages,
   markWhatsAppMessageAsRead,
+  startWhatsAppTypingIndicator,
   isValidWhatsAppId,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
 import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -229,7 +231,9 @@ async function handleIncomingMessage(
     return;
   }
 
-  // Get org credentials for mark-as-read
+  const perfTrace = createPerfTrace("whatsapp-org-webhook");
+
+  perfTrace.mark("get-credentials");
   const [accessToken, phoneNumberId, businessPhone] = await Promise.all([
     whatsappAutomationService.getAccessToken(orgId),
     whatsappAutomationService.getPhoneNumberId(orgId),
@@ -260,90 +264,98 @@ async function handleIncomingMessage(
     markRead();
   }
 
-  logger.info("[WhatsAppWebhook] Processing incoming message", {
-    orgId,
-    from: `***${msg.from.slice(-4)}`,
-    hasText: !!text,
-    profileName: msg.profileName,
-  });
+  const stopTyping = accessToken && phoneNumberId
+    ? startWhatsAppTypingIndicator(accessToken, phoneNumberId, msg.messageId)
+    : () => {};
 
-  // Use the business phone as the "to" address (our number)
-  const recipient = businessPhone || msg.phoneNumberId;
-
-  // Route to agent via message router (following Blooio webhook pattern)
-  const { messageRouterService } = await import(
-    "@/lib/services/message-router"
-  );
-
-  const messageContext = {
-    from: msg.from,
-    to: recipient,
-    body: text,
-    provider: "whatsapp" as const,
-    providerMessageId: msg.messageId,
-    messageType: "whatsapp" as const,
-    metadata: {
+  try {
+    logger.info("[WhatsAppWebhook] Processing incoming message", {
+      orgId,
+      from: `***${msg.from.slice(-4)}`,
+      hasText: !!text,
       profileName: msg.profileName,
-      timestamp: msg.timestamp,
-      phoneNumberId: msg.phoneNumberId,
-    },
-  };
+    });
 
-  const routeResult =
-    await messageRouterService.routeIncomingMessage(messageContext);
+    const recipient = businessPhone || msg.phoneNumberId;
 
-  if (
-    !routeResult.success ||
-    !routeResult.agentId ||
-    !routeResult.organizationId
-  ) {
-    logger.info(
-      "[WhatsAppWebhook] Message received (agent routing not configured)",
-      {
-        orgId,
-        from: `***${msg.from.slice(-4)}`,
-        text: text.substring(0, 50),
-      },
+    perfTrace.mark("route-message");
+    const { messageRouterService } = await import(
+      "@/lib/services/message-router"
     );
-    return;
-  }
 
-  // Process the message with the agent
-  const agentResponse = await messageRouterService.processWithAgent(
-    routeResult.agentId,
-    routeResult.organizationId,
-    {
+    const messageContext = {
       from: msg.from,
       to: recipient,
       body: text,
-      provider: "whatsapp",
+      provider: "whatsapp" as const,
       providerMessageId: msg.messageId,
-      messageType: "whatsapp",
-    },
-  );
+      messageType: "whatsapp" as const,
+      metadata: {
+        profileName: msg.profileName,
+        timestamp: msg.timestamp,
+        phoneNumberId: msg.phoneNumberId,
+      },
+    };
 
-  if (agentResponse) {
-    // Send the response back via WhatsApp (uses per-org credentials via message router)
-    const sent = await messageRouterService.sendMessage({
-      to: msg.from,
-      from: recipient,
-      body: agentResponse.text,
-      provider: "whatsapp",
-      mediaUrls: agentResponse.mediaUrls,
-      organizationId: routeResult.organizationId,
-    });
+    const routeResult =
+      await messageRouterService.routeIncomingMessage(messageContext);
 
-    if (sent) {
-      logger.info("[WhatsAppWebhook] Agent response sent", {
-        orgId,
-        to: `***${msg.from.slice(-4)}`,
-      });
-    } else {
-      logger.error("[WhatsAppWebhook] Failed to send agent response", {
-        orgId,
-        to: `***${msg.from.slice(-4)}`,
-      });
+    if (
+      !routeResult.success ||
+      !routeResult.agentId ||
+      !routeResult.organizationId
+    ) {
+      logger.info(
+        "[WhatsAppWebhook] Message received (agent routing not configured)",
+        {
+          orgId,
+          from: `***${msg.from.slice(-4)}`,
+          text: text.substring(0, 50),
+        },
+      );
+      return;
     }
+
+    perfTrace.mark("process-with-agent");
+    const agentResponse = await messageRouterService.processWithAgent(
+      routeResult.agentId,
+      routeResult.organizationId,
+      {
+        from: msg.from,
+        to: recipient,
+        body: text,
+        provider: "whatsapp",
+        providerMessageId: msg.messageId,
+        messageType: "whatsapp",
+      },
+    );
+
+    if (agentResponse) {
+      perfTrace.mark("send-response");
+      const sent = await messageRouterService.sendMessage({
+        to: msg.from,
+        from: recipient,
+        body: agentResponse.text,
+        provider: "whatsapp",
+        mediaUrls: agentResponse.mediaUrls,
+        organizationId: routeResult.organizationId,
+      });
+
+      if (sent) {
+        logger.info("[WhatsAppWebhook] Agent response sent", {
+          orgId,
+          to: `***${msg.from.slice(-4)}`,
+        });
+      } else {
+        logger.error("[WhatsAppWebhook] Failed to send agent response", {
+          orgId,
+          to: `***${msg.from.slice(-4)}`,
+        });
+      }
+    }
+  } finally {
+    stopTyping();
+    perfTrace.end();
   }
 }
 

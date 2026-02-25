@@ -7,6 +7,7 @@
 
 import crypto from "crypto";
 import { z } from "zod";
+import { logger } from "./logger";
 
 export const WHATSAPP_API_BASE = "https://graph.facebook.com/v21.0";
 
@@ -281,6 +282,66 @@ export async function markWhatsAppMessageAsRead(
     const errorText = await response.text();
     throw new Error(`WhatsApp mark-read error (${response.status}): ${errorText}`);
   }
+}
+
+// ============================================================================
+// Typing Indicators
+// ============================================================================
+
+/**
+ * Send a typing indicator via WhatsApp Cloud API.
+ *
+ * Piggybacks on the mark-as-read endpoint with a `typing_indicator` field.
+ * The indicator auto-dismisses after 25 seconds or when a response is sent.
+ * Non-critical; failures are logged at debug level but never throw.
+ */
+export async function sendWhatsAppTypingIndicator(
+  accessToken: string,
+  phoneNumberId: string,
+  messageId: string,
+): Promise<void> {
+  if (!accessToken || !phoneNumberId) return;
+
+  const url = `${WHATSAPP_API_BASE}/${phoneNumberId}/messages`;
+
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: messageId,
+        typing_indicator: { type: "text" },
+      }),
+    });
+  } catch (error) {
+    logger.debug("[WhatsApp] Failed to send typing indicator", {
+      phoneNumberId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Start a periodic typing indicator that auto-refreshes every 20 seconds.
+ * Returns a cleanup function to stop the interval.
+ * WhatsApp clears typing after 25s, so we refresh at 20s to maintain continuity.
+ */
+export function startWhatsAppTypingIndicator(
+  accessToken: string,
+  phoneNumberId: string,
+  messageId: string,
+): () => void {
+  sendWhatsAppTypingIndicator(accessToken, phoneNumberId, messageId);
+  const interval = setInterval(
+    () => sendWhatsAppTypingIndicator(accessToken, phoneNumberId, messageId),
+    20_000,
+  );
+  return () => clearInterval(interval);
 }
 
 // ============================================================================

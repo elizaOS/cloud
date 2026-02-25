@@ -27,6 +27,7 @@ import {
   extractWhatsAppMessages,
   sendWhatsAppMessage,
   markWhatsAppMessageAsRead,
+  startWhatsAppTypingIndicator,
   isValidWhatsAppId,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
@@ -36,6 +37,7 @@ import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Extended for ASSISTANT mode multi-step execution
@@ -107,121 +109,128 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
   };
   markRead();
 
-  // Auto-provision user by WhatsApp ID (phone number digits)
-  // This also auto-derives phone_number and links cross-platform
-  logger.info("[ElizaApp WhatsAppWebhook] Auto-provisioning user", {
-    whatsappId: `***${msg.from.slice(-4)}`,
-    profileName: msg.profileName,
-  });
+  const perfTrace = createPerfTrace("whatsapp-webhook");
+  const stopTyping = startWhatsAppTypingIndicator(WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID, msg.messageId);
 
-  const { user: userWithOrg, organization, isNew } =
-    await elizaAppUserService.findOrCreateByWhatsAppId(msg.from, msg.profileName);
-
-  logger.info("[ElizaApp WhatsAppWebhook] User provisioned", {
-    userId: userWithOrg.id,
-    organizationId: organization.id,
-    isNewUser: isNew,
-    whatsappId: `***${msg.from.slice(-4)}`,
-  });
-
-  const roomId = generateElizaAppRoomId("whatsapp", DEFAULT_AGENT_ID, msg.from);
-  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
-
-  const existingRoom = await roomsService.getRoomSummary(roomId);
-  if (!existingRoom) {
-    await roomsService.createRoom({
-      id: roomId,
-      agentId: DEFAULT_AGENT_ID,
-      entityId,
-      source: "whatsapp",
-      type: "DM",
-      name: `WhatsApp: ${msg.profileName || msg.from}`,
-      metadata: {
-        channel: "whatsapp",
-        whatsappId: msg.from,
-        userId: entityId,
-        organizationId: organization.id,
-      },
-    });
-  }
-  // Always ensure participant exists (handles partial failures on retry)
   try {
-    await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
-  } catch (error) {
-    // Ignore "already exists" errors, re-throw others
-    const errMsg = error instanceof Error ? error.message : String(error);
-    if (!errMsg.includes("already") && !errMsg.includes("duplicate") && !errMsg.includes("exists")) {
-      throw error;
+    perfTrace.mark("user-provisioning");
+    logger.info("[ElizaApp WhatsAppWebhook] Auto-provisioning user", {
+      whatsappId: `***${msg.from.slice(-4)}`,
+      profileName: msg.profileName,
+    });
+
+    const { user: userWithOrg, organization, isNew } =
+      await elizaAppUserService.findOrCreateByWhatsAppId(msg.from, msg.profileName);
+
+    logger.info("[ElizaApp WhatsAppWebhook] User provisioned", {
+      userId: userWithOrg.id,
+      organizationId: organization.id,
+      isNewUser: isNew,
+      whatsappId: `***${msg.from.slice(-4)}`,
+    });
+
+    const roomId = generateElizaAppRoomId("whatsapp", DEFAULT_AGENT_ID, msg.from);
+    const entityId = userWithOrg.id;
+
+    perfTrace.mark("room-setup");
+    const existingRoom = await roomsService.getRoomSummary(roomId);
+    if (!existingRoom) {
+      await roomsService.createRoom({
+        id: roomId,
+        agentId: DEFAULT_AGENT_ID,
+        entityId,
+        source: "whatsapp",
+        type: "DM",
+        name: `WhatsApp: ${msg.profileName || msg.from}`,
+        metadata: {
+          channel: "whatsapp",
+          whatsappId: msg.from,
+          userId: entityId,
+          organizationId: organization.id,
+        },
+      });
     }
-  }
-
-  // Acquire distributed lock to prevent concurrent message processing
-  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
-  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
-    maxRetries: 10,
-    initialDelayMs: 100,
-    maxDelayMs: 2000,
-  });
-
-  if (!lock) {
-    logger.error("[ElizaApp WhatsAppWebhook] Failed to acquire room lock", { roomId });
-    return false; // Don't mark as processed - allow retry
-  }
-
-  try {
-    // Build a properly typed UserWithOrganization (FindOrCreateResult returns
-    // User + Organization separately; buildContext expects the composite type)
-    const user: UserWithOrganization = { ...userWithOrg, organization };
-
-    const userContext = await userContextService.buildContext({
-      user,
-      isAnonymous: false,
-      agentMode: AgentMode.ASSISTANT,
-    });
-    userContext.characterId = DEFAULT_AGENT_ID;
-    userContext.webSearchEnabled = true;
-    userContext.modelPreferences = elizaAppConfig.modelPreferences;
-
-    logger.info("[ElizaApp WhatsAppWebhook] Processing message", {
-      userId: entityId,
-      roomId,
-      mode: "assistant",
-    });
-
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    const messageHandler = createMessageHandler(runtime, userContext);
-
-    const result = await messageHandler.process({
-      roomId,
-      text,
-      agentModeConfig: { mode: AgentMode.ASSISTANT },
-    });
-
-    const responseContent = result.message.content;
-    const responseText =
-      typeof responseContent === "string"
-        ? responseContent
-        : responseContent?.text || "";
-
-    if (responseText) {
-      const sent = await sendWhatsAppResponse(msg.from, responseText);
-      if (!sent) {
-        logger.warn("[ElizaApp WhatsAppWebhook] Send failed, allowing webhook retry", {
-          to: msg.from,
-          roomId,
-        });
-        return false; // Don't mark as processed, allow webhook retry
+    try {
+      await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (!errMsg.includes("already") && !errMsg.includes("duplicate") && !errMsg.includes("exists")) {
+        throw error;
       }
     }
-    return true;
-  } catch (error) {
-    logger.error("[ElizaApp WhatsAppWebhook] Agent failed", {
-      error: error instanceof Error ? error.message : String(error),
-      roomId,
+
+    perfTrace.mark("acquire-lock");
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
     });
-    return true; // Processing attempted, mark as processed to avoid infinite retry
+
+    if (!lock) {
+      logger.error("[ElizaApp WhatsAppWebhook] Failed to acquire room lock", { roomId });
+      return false;
+    }
+
+    try {
+      const user: UserWithOrganization = { ...userWithOrg, organization };
+
+      const userContext = await userContextService.buildContext({
+        user,
+        isAnonymous: false,
+        agentMode: AgentMode.ASSISTANT,
+      });
+      userContext.characterId = DEFAULT_AGENT_ID;
+      userContext.webSearchEnabled = true;
+      userContext.modelPreferences = elizaAppConfig.modelPreferences;
+
+      logger.info("[ElizaApp WhatsAppWebhook] Processing message", {
+        userId: entityId,
+        roomId,
+        mode: "assistant",
+      });
+
+      perfTrace.mark("create-runtime");
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      const messageHandler = createMessageHandler(runtime, userContext);
+
+      perfTrace.mark("message-processing");
+      const result = await messageHandler.process({
+        roomId,
+        text,
+        agentModeConfig: { mode: AgentMode.ASSISTANT },
+      });
+
+      const responseContent = result.message.content;
+      const responseText =
+        typeof responseContent === "string"
+          ? responseContent
+          : responseContent?.text || "";
+
+      perfTrace.mark("send-response");
+      if (responseText) {
+        const sent = await sendWhatsAppResponse(msg.from, responseText);
+        if (!sent) {
+          logger.warn("[ElizaApp WhatsAppWebhook] Send failed, allowing webhook retry", {
+            to: msg.from,
+            roomId,
+          });
+          return false;
+        }
+      }
+      return true;
+    } catch (error) {
+      logger.error("[ElizaApp WhatsAppWebhook] Agent failed", {
+        error: error instanceof Error ? error.message : String(error),
+        roomId,
+      });
+      return true;
+    } finally {
+      stopTyping();
+      await lock.release();
+    }
   } finally {
-    await lock.release();
+    stopTyping();
+    perfTrace.end();
   }
 }
 
