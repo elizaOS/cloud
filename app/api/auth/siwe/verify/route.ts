@@ -174,6 +174,7 @@ async function handleVerify(request: NextRequest) {
   // --- Nonce validation ---
   // First check if cache is available. If Redis is down, nonces can't be validated.
   if (!cache.isAvailable()) {
+    // Review: checks cache availability to prevent nonce validation failures when Redis is down
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",
@@ -197,6 +198,7 @@ async function handleVerify(request: NextRequest) {
         error: "SERVICE_UNAVAILABLE",
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
+      // Review: returning 503 clarifies service issue, aiding client-side handling of authentication errors.
       { status: 503 },
     );
   }
@@ -395,6 +397,7 @@ async function handleVerify(request: NextRequest) {
               source: "siwe_signup",
             },
           });
+        // Review: fallback ensures new accounts get credits even if initial allocation fails
         } catch (creditError) {
           console.error(
             `[SIWE] Failed to add initial credits to org ${org.id}:`,
