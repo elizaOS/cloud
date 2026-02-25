@@ -186,18 +186,6 @@ async function handleVerify(request: NextRequest) {
   // Atomic consume: returns the number of keys deleted (1 if existed, 0 if not).
   // This prevents race conditions where two concurrent requests could both
   // pass a get() check before either deletes the nonce.
-  // Review: Double-check cache availability before attempting nonce consumption
-  // to ensure Redis operations can succeed before proceeding with auth flow.
-  if (!cache.isAvailable()) {
-    return NextResponse.json(
-      {
-        error: "SERVICE_UNAVAILABLE",
-        // Review: Cache availability is checked separately to ensure robust error handling in the auth flow.
-        message: "Authentication service temporarily unavailable. Please try again later.",
-      },
-      { status: 503 },
-    );
-  }
   
   let deleteCount: number;
   try {
