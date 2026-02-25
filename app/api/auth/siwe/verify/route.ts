@@ -235,7 +235,9 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.notBefore && new Date(String(parsed.notBefore)) > new Date()) {
+  // Convert timestamp strings to Date objects for proper chronological comparison
+  const notBeforeDate = parsed.notBefore ? new Date(parsed.notBefore) : null;
+  if (notBeforeDate && !isNaN(notBeforeDate.getTime()) && notBeforeDate > new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_NOT_YET_VALID",
@@ -246,7 +248,8 @@ async function handleVerify(request: NextRequest) {
     );
   }
 
-  if (parsed.expirationTime && new Date(String(parsed.expirationTime)) < new Date()) {
+  const expirationDate = parsed.expirationTime ? new Date(parsed.expirationTime) : null;
+  if (expirationDate && !isNaN(expirationDate.getTime()) && expirationDate < new Date()) {
     return NextResponse.json(
       {
         error: "MESSAGE_EXPIRED",
@@ -255,7 +258,6 @@ async function handleVerify(request: NextRequest) {
       },
       { status: 400 },
     );
-  // Review: SIWE checks are properly validated after converting string timestamps to Date objects.
   }
 
   // --- Signature verification ---
@@ -373,6 +375,7 @@ async function handleVerify(request: NextRequest) {
       credit_balance: "0.00",
     });
 
+    let userCreated = false;
     try {
       await abuseDetectionService.recordSignupMetadata(org.id, {
         ipAddress: ip,
@@ -383,7 +386,6 @@ async function handleVerify(request: NextRequest) {
       if (initialCredits > 0) {
         try {
           await creditsService.addCredits({
-            // Review: Race condition handling and retry logic are implemented correctly in this section.
             organizationId: org.id,
             amount: initialCredits,
             description: "Initial free credits - Welcome bonus",
@@ -415,10 +417,8 @@ async function handleVerify(request: NextRequest) {
             throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
         }
-      // Review: SIWE and Privy handle credits consistently, ensuring no critical signup failures on credit service errors.
       }
 
-      let userCreated = false;
       const user = await usersService.create({
         wallet_address: address.toLowerCase(),
         wallet_chain_type: "ethereum",
