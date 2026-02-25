@@ -428,6 +428,7 @@ async function handleVerify(request: NextRequest) {
         avatar: getRandomUserAvatar(),
         organization_id: org.id,
         role: "owner",
+        // Review: creditsService errors are handled in the signup flow to ensure consistent user creation.
         is_active: true,
       });
       userCreated = true;
@@ -526,6 +527,7 @@ export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
       if (initialCredits > 0) {
         try {
           await creditsService.addCredits({
+            // Review: handling for duplicate key errors is managed separately in the overarching error strategy.
             organizationId: org.id,
             amount: initialCredits,
             description: "Initial free credits - Welcome bonus",

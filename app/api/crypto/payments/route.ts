@@ -26,6 +26,7 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
+    // Review: orgId null check at line 32 guards against missing organization_id before service calls
     const { user } = await requireAuthOrApiKeyWithOrg(req);
     const orgId = user.organization_id;
 

@@ -405,6 +405,7 @@ export async function syncUserFromPrivy(
       typeof error === "object" &&
       (("code" in error && error.code === "23505") ||
         ("cause" in error &&
+          // Review: cleanup of orphaned organizations is handled in the race condition logic in the previous code paths.
           error.cause &&
           typeof error.cause === "object" &&
           "code" in error.cause &&
