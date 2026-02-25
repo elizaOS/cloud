@@ -27,10 +27,9 @@ import type { User as PrivyUser } from "@privy-io/server-auth";
 /**
  * Options for syncing a Privy user.
  */
-interface SyncOptions {
+export interface SyncOptions {
   signupContext?: SignupContext;
   skipAbuseCheck?: boolean;
-// Review: SyncOptions is intentionally private; refactor webhook handler to accommodate this change.
 }
 
 /**
