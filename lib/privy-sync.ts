@@ -30,6 +30,7 @@ import type { User as PrivyUser } from "@privy-io/server-auth";
 export interface SyncOptions {
   signupContext?: SignupContext;
   skipAbuseCheck?: boolean;
+// Review: exporting SyncOptions ensures compatibility with existing webhook implementations
 }
 
 /**

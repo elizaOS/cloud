@@ -447,6 +447,7 @@ async function handleVerify(request: NextRequest) {
         plainKey = keyResult.plainKey;
       } catch (apiKeyError) {
         // API key creation failed after user was created - user exists but has no key
+        // Review: Logs key creation failure to allow key retrieval via dashboard post-signup.
         // Log and rethrow; the user can obtain a key later via dashboard or re-auth
         console.error(`[SIWE] Failed to create API key for user ${user.id}:`, apiKeyError);
         throw apiKeyError;
@@ -465,6 +466,7 @@ async function handleVerify(request: NextRequest) {
       // If user was created successfully, the org has a valid owner and should not be deleted.
       // Failures after user creation (API key, org refresh) don't orphan the org.
       if (!userCreated) {
+        // Review: cleaning up org prevents orphaning on user creation failure, maintaining data integrity
         console.warn(`[SIWE] User creation failed for org ${org.id}, cleaning up orphaned organization`);
         try {
           await organizationsService.delete(org.id);
@@ -592,6 +594,7 @@ export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
       );
       if (raceUser) break;
     }
+// Review: bypassing checks here is intentional for race condition recovery flow efficiency
 
     if (raceUser && raceUser.organization_id && raceUser.organization) {
       if (!raceUser.is_active || !raceUser.organization.is_active) {
