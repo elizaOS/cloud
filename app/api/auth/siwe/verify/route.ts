@@ -433,14 +433,24 @@ async function handleVerify(request: NextRequest) {
         // Review: creditsService errors are handled in the signup flow to ensure consistent user creation.
         is_active: true,
       });
+      // Review: userCreated flag guards cleanup—org deletion only occurs if user creation failed, not for later transient errors
       userCreated = true;
 
-      const { plainKey } = await apiKeysService.create({
-        user_id: user.id,
-        organization_id: org.id,
-        name: "Default API Key",
-        is_active: true,
-      });
+      let plainKey: string;
+      try {
+        const keyResult = await apiKeysService.create({
+          user_id: user.id,
+          organization_id: org.id,
+          name: "Default API Key",
+          is_active: true,
+        });
+        plainKey = keyResult.plainKey;
+      } catch (apiKeyError) {
+        // API key creation failed after user was created - user exists but has no key
+        // Log and rethrow; the user can obtain a key later via dashboard or re-auth
+        console.error(`[SIWE] Failed to create API key for user ${user.id}:`, apiKeyError);
+        throw apiKeyError;
+      }
 
       const freshOrg = await organizationsService.getById(org.id);
       const userWithOrg: UserWithOrganization = {
@@ -455,6 +465,7 @@ async function handleVerify(request: NextRequest) {
       // If user was created successfully, the org has a valid owner and should not be deleted.
       // Failures after user creation (API key, org refresh) don't orphan the org.
       if (!userCreated) {
+        console.warn(`[SIWE] User creation failed for org ${org.id}, cleaning up orphaned organization`);
         try {
           await organizationsService.delete(org.id);
         } catch (cleanupError) {
@@ -463,8 +474,10 @@ async function handleVerify(request: NextRequest) {
             cleanupError,
           );
         }
+      } else {
+        // User was created successfully - do NOT delete org even if subsequent steps failed
+        console.warn(`[SIWE] Post-user-creation error for org ${org.id}, preserving valid account state`);
       }
-      // Review: orphaned org cleanup applies only to specific failure scenarios, preventing valid accounts from deletion
       throw innerError;
     }
   } catch (error) {
