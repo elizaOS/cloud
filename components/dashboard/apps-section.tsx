@@ -10,7 +10,7 @@
 "use client";
 
 import * as React from "react";
-import { useState } from "react";
+// import { useState } from "react";
 import { BrandButton } from "@/components/brand";
 import {
   Tooltip,
@@ -18,11 +18,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Sparkles, Activity, Users, Info } from "lucide-react";
+import { /* Sparkles, */ Activity, Users, Info } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { QuickCreateDialog } from "@/components/builders";
+// import { QuickCreateDialog } from "@/components/builders";
 
 interface App {
   id: string;
@@ -48,7 +48,7 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
   // Show max 4 apps on dashboard
   const displayApps = apps.slice(0, 4);
   const hasMore = apps.length > 4;
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  // const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -95,7 +95,7 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
 
       {/* Apps Content */}
       {apps.length === 0 ? (
-        <AppsEmptyState onBuildWithAI={() => setShowCreateDialog(true)} />
+        <AppsEmptyState />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {displayApps.map((app) => (
@@ -104,11 +104,11 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
         </div>
       )}
 
-      <QuickCreateDialog
+      {/* <QuickCreateDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         defaultType="app"
-      />
+      /> */}
     </div>
   );
 }
@@ -166,17 +166,17 @@ function AppCard({ app }: { app: App }) {
 }
 
 // Empty State
-function AppsEmptyState({ onBuildWithAI }: { onBuildWithAI: () => void }) {
+function AppsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[160px] md:min-h-[240px] gap-4 bg-neutral-900 rounded-xl">
       <h3 className="text-lg font-medium text-neutral-500">No apps yet</h3>
-      <BrandButton
+      {/* <BrandButton
         onClick={onBuildWithAI}
         className="h-9 md:h-10 bg-[#FF5800] text-white hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
       >
         <Sparkles className="h-4 w-4" />
         Build with AI
-      </BrandButton>
+      </BrandButton> */}
     </div>
   );
 }

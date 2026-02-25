@@ -12,10 +12,10 @@ import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
-import {
-  AppsSection,
-  AppsSectionSkeleton,
-} from "@/components/dashboard/apps-section";
+// import {
+//   AppsSection,
+//   AppsSectionSkeleton,
+// } from "@/components/dashboard/apps-section";
 import { SurveyBanner } from "@/components/dashboard/survey-banner";
 
 export const metadata: Metadata = generatePageMetadata({
@@ -51,11 +51,11 @@ export default async function DashboardPage() {
       <main className="mx-auto w-full max-w-[1400px]">
         <SurveyBanner className="mb-6" />
         <div className="space-y-8">
-          <section>
+          {/* <section>
             <Suspense fallback={<AppsSectionSkeleton />}>
               <AppsSection apps={data.apps ?? []} />
             </Suspense>
-          </section>
+          </section> */}
 
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
