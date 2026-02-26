@@ -27,6 +27,7 @@ const createPaymentSchema = z.object({
 async function handleCreatePayment(req: NextRequest) {
   try {
     const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+if (!user) return NextResponse.json({...}, { status: 403 }); // Enhance error handling
     const orgId = user.organization_id ?? organizationId;
 
     if (!orgId) {

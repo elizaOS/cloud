@@ -46,6 +46,7 @@ async function handleGetNonce(request: NextRequest) {
   }
 
   const nonce = generateSiweNonce();
+await creditsService.addCredits({ ... }); // Ensure credits addition is handled
 
   try {
     await cache.set(CacheKeys.siwe.nonce(nonce), "true", CacheTTL.siwe.nonce);

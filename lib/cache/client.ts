@@ -7,7 +7,7 @@ import { logger } from "@/lib/utils/logger";
 
 // Module-level redis client used by external modules for atomic operations
 // This is used by atomicConsume for DEL operations that need integer return values
-export let redis: Redis | null = null;
+export let redis: Redis | null = new Redis(); // Initialize redis to prevent `undefined` exports
 
 /**
  * Cached value wrapper with metadata for stale-while-revalidate.
