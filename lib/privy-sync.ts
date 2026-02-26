@@ -391,11 +391,8 @@ export async function syncUserFromPrivy(
           "code" in error.cause &&
           error.cause.code === "23505"));
 
-    const orphanedOrgId = 
-      error &&
-      typeof error === "object" 
-        ? (error as SyncError).__orphanedOrgId
-        : undefined;
+    // Use existing orphanId if set, otherwise undefined
+    const orphanedOrgId = (error as SyncError).__orphanedOrgId;
 
     if (orphanedOrgId) {
       try {
