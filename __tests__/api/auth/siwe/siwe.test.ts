@@ -82,6 +82,10 @@ vi.mock('viem', () => ({
 import { cache } from '@/lib/cache/client';
 import { atomicConsume } from '@/lib/cache/consume';
 import { usersService } from '@/lib/services/users';
+import { NextRequest } from 'next/server';
+import { GET as getNonce } from '@/app/api/auth/siwe/nonce/route';
+import { POST as verifyEndpoint } from '@/app/api/auth/siwe/verify/route';
+import { createMocks } from 'node-mocks-http';
 
 describe('SIWE Nonce Endpoint', () => {
   beforeEach(() => {
@@ -284,9 +288,19 @@ describe('SIWE Verify Endpoint', () => {
 
   describe('race condition handling', () => {
     it('should handle duplicate wallet constraint (23505 error)', async () => {
-      const duplicateError = { code: '23505' };
-      
-      expect(duplicateError.code).toBe('23505');
+      // Simulate race: first create throws constraint violation, then fetch succeeds
+      vi.mocked(usersService.create).mockRejectedValueOnce({ code: '23505' });
+      vi.mocked(usersService.getByWalletAddressWithOrganization)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'user-1', organization_id: 'org-1', is_active: true } as any);
+
+      const req = new NextRequest(new Request(verifyUrl, {
+        method: 'POST',
+        body: JSON.stringify({ message: 'siwe-message', signature: '0xsig' })
+      }));
+      const response = await verifyEndpoint(req);
+      expect(response.status).toBe(200);
+    });
     });
 
     it('should retry fetching user after race condition', async () => {
