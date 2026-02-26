@@ -38,19 +38,20 @@ describe("SIWE Nonce Endpoint", () => {
     it("should return 503 when cache is unavailable", async () => {
       mockCache.isAvailable.mockReturnValue(false);
 
-      // Simulate the check that happens in the nonce endpoint
-      const isAvailable = mockCache.isAvailable();
-      expect(isAvailable).toBe(false);
-      // The endpoint should return 503 SERVICE_UNAVAILABLE
+      const response = await fetch('/api/auth/siwe/nonce');
+      expect(response.status).toBe(503);
+      const error = await response.json();
+      expect(error.error).toBe("SERVICE_UNAVAILABLE");
     });
 
     it("should return 503 when cache.set fails", async () => {
       mockCache.isAvailable.mockReturnValue(true);
       mockCache.set.mockRejectedValue(new Error("Redis connection failed"));
 
-      await expect(mockCache.set("test-key", true, 300)).rejects.toThrow(
-        "Redis connection failed"
-      );
+      const response = await fetch('/api/auth/siwe/nonce');
+      expect(response.status).toBe(503);
+      const error = await response.json();
+      expect(error.message).toBe("Unable to persist nonce");
     });
 
     it("should return 503 when nonce verification read-back fails", async () => {
@@ -58,9 +59,10 @@ describe("SIWE Nonce Endpoint", () => {
       mockCache.set.mockResolvedValue(undefined);
       mockCache.get.mockResolvedValue(null); // Nonce not persisted
 
-      const verified = await mockCache.get("siwe:nonce:test");
-      expect(verified).toBeNull();
-      // The endpoint should return 503 with "Unable to persist nonce"
+      const response = await fetch('/api/auth/siwe/nonce');
+      expect(response.status).toBe(503);
+      const error = await response.json();
+      expect(error.message).toBe("Unable to persist nonce");
     });
 
     it("should return nonce with domain info when cache is available", async () => {
@@ -68,11 +70,17 @@ describe("SIWE Nonce Endpoint", () => {
       mockCache.set.mockResolvedValue(undefined);
       mockCache.get.mockResolvedValue(true); // Nonce persisted successfully
 
-      const isAvailable = mockCache.isAvailable();
-      expect(isAvailable).toBe(true);
-
-      const verified = await mockCache.get("siwe:nonce:test");
-      expect(verified).toBe(true);
+      const response = await fetch('/api/auth/siwe/nonce');
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        nonce: expect.any(String),
+        domain: "app.example.com",
+        uri: "https://app.example.com",
+        chainId: 1,
+        version: "1",
+        statement: "Sign in to ElizaCloud"
+      });
     });
 
     it("should validate chainId parameter", async () => {
