@@ -37,7 +37,14 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    // Organization activity is already validated by requireAuthOrApiKeyWithOrg
+    // Added explicit organization activity check for consistency as highlighted in review comment
+const organization = await getOrganizationById(orgId);
+if (!organization || !organization.is_active) {
+    return NextResponse.json(
+        { error: "Organization is inactive" },
+        { status: 403 },
+    );
+}
     
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
