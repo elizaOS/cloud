@@ -25,24 +25,25 @@ describe("SIWE Auth Endpoints Functionality", () => {
     expect(found).toBeTruthy();
 
     // Verify the nonce with a valid request
-    const { req: verifyReq } = createMocks<NextRequest>({
+    const verifyUrl = 'http://localhost:3000/api/auth/siwe/verify';
+    const verifyReq = new NextRequest(new Request(verifyUrl, {
       method: 'POST',
-      body: {
+      body: JSON.stringify({
         message: `service.localhost wants you to sign in with your Ethereum account:\n${body.nonce}`,
         signature: '0xvalidsignature'
-      }
-    });
+      })
+    }));
     const verifyResponse = await postVerify(verifyReq);
     expect(verifyResponse.status).toBe(200);
     
     // Try to reuse the same nonce
-    const { req: reuseReq } = createMocks<NextRequest>({
+    const reuseReq = new NextRequest(new Request(verifyUrl, {
       method: 'POST',
-      body: {
+      body: JSON.stringify({
         message: `service.localhost wants you to sign in with your Ethereum account:\n${body.nonce}`,
         signature: '0xvalidsignature'
-      }
-    });
+      })
+    }));
     const reuseResponse = await postVerify(reuseReq);
     expect(reuseResponse.status).toBe(400);
     const reuseBody = await reuseResponse.json();
@@ -50,13 +51,13 @@ describe("SIWE Auth Endpoints Functionality", () => {
   });
 
   it("should reject invalid nonce during verify", async () => {
-    const { req, res } = createMocks<NextRequest>({
-      method: "POST",
-      body: {
+    const invalidReq = new NextRequest(new Request(verifyUrl, {
+      method: "POST", 
+      body: JSON.stringify({
         message: "msg with nonce: INVALIDNONCE",
-        signature: "0xbadfakesig",
-      },
-    });
+        signature: "0xbadfakesig"
+      })
+    }));
     // Try to verify with an invalid nonce
     // @ts-ignore
     const response: Response = await postVerify(req);
