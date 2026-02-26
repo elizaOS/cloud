@@ -3,9 +3,10 @@ import { getUserCreateParams, getOrganizationDetails } from "@/lib/utils/user-he
 import { transaction } from "@/lib/database";
 import { organizationsService } from "@/lib/services/organizations";
 import { withRateLimit, RateLimitPresets } from "@/lib/rate-limiter";
-import { validateSIWEMessage, checkNonce } from "@/lib/utils/siwe-helpers"; // Assuming these helpers are implemented
+import { validateSIWEMessage, checkNonce } from "@/lib/utils/siwe-helpers";
+import { NextRequest } from "next/server";
 
-async function handleVerify(request) {
+async function handleVerify(request: NextRequest) {
     const { message, signature } = await request.json();
     let userCreated = false;
     let org = null;
@@ -33,9 +34,9 @@ async function handleVerify(request) {
 
         console.log(`Granting initial credits for organization ${(org ? org.id : 'N/A')}`);
 
-        return buildSuccessResponse(newUser, userCreateParams.plainKey, org.address, true);
+        return buildSuccessResponse(newUser, userCreateParams.plainKey, org.address);
     } catch (error) {
-        if (userCreated && org) {
+        if (!userCreated && org) {
             try {
                 await organizationsService.delete(org.id);
             } catch (cleanupError) {
@@ -47,3 +48,4 @@ async function handleVerify(request) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
+
