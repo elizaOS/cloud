@@ -167,6 +167,7 @@ async function handleVerify(request: NextRequest) {
         error: "INVALID_BODY",
         message: "SIWE message is missing required fields.",
       },
+      // Review: ensures all required fields are present for secure SIWE message validation
       { status: 400 },
     );
   }
