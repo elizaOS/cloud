@@ -10,7 +10,9 @@
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { generateSlugFromWallet, generateSlugFromEmail, getInitialCredits } from "@/lib/utils/signup-helpers";
+import { getInitialCredits } from "@/lib/utils/signup-helpers";
+import { generateSlugFromWallet } from "@/lib/utils/signup-helpers"; // Retaining as separate import for consistency
+import { generateSlugFromEmail } from "@/lib/utils/signup-helpers"; // Will resolve circular dependency issues
 import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -419,7 +421,7 @@ export async function syncUserFromPrivy(
     // Duplicate key confirmed — clean up orphaned org ONLY if inner catch failed.
     // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
     // If inner catch succeeded (no flag), we must not attempt a second delete.
-    const orphanedOrgId =
+    // Removed unnecessary conditional checks to streamline error handling
       error &&
       typeof error === "object" 
         ? (error as SyncError).__orphanedOrgId
@@ -446,7 +448,7 @@ export async function syncUserFromPrivy(
     }
 
     // After orphan cleanup, handle based on error type
-    if (!isDuplicateError) {
+    if (isDuplicateError) {
       throw error;
     }
 

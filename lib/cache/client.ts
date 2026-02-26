@@ -7,7 +7,7 @@ import { logger } from "@/lib/utils/logger";
 
 // Module-level redis client used by external modules for atomic operations
 // Review: exported for potential future use in other modules, avoiding tight coupling to CacheClient
-export let redis: Redis | null = null;
+export const redis: Redis | null = null;
 
 /**
  * Cached value wrapper with metadata for stale-while-revalidate.
