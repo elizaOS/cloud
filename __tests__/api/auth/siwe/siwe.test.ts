@@ -121,24 +121,56 @@ describe('SIWE Nonce Endpoint', () => {
 
   describe('nonce single-use validation', () => {
     it('should consume nonce atomically on verify', async () => {
-      vi.mocked(atomicConsume).mockResolvedValue(1);
+      // First get a valid nonce
+      const nonceUrl = 'http://localhost:3000/api/auth/siwe/nonce';
+      const nonceReq = new NextRequest(new Request(nonceUrl, { method: 'GET' }));
+      const nonceRes = await getNonce(nonceReq);
+      expect(nonceRes.status).toBe(200);
+      const { nonce } = await nonceRes.json();
       
-      const consumed = await atomicConsume('siwe:nonce:test-nonce');
-      expect(consumed).toBe(1);
+      // Then verify with that nonce
+      const verifyUrl = 'http://localhost:3000/api/auth/siwe/verify';
+      const verifyReq = new NextRequest(new Request(verifyUrl, {
+        method: 'POST',
+        body: JSON.stringify({
+          message: `localhost wants you to sign in with your Ethereum account:\n${nonce}`,
+          signature: '0xvalid'
+        })
+      }));
+      const verifyRes = await verifyEndpoint(verifyReq);
+      expect(verifyRes.status).toBe(200);
+      const verifyBody = await verifyRes.json();
+      expect(verifyBody.apiKey).toBeDefined();
     });
 
     it('should reject already-used nonce', async () => {
-      vi.mocked(atomicConsume).mockResolvedValue(0);
-      
-      const consumed = await atomicConsume('siwe:nonce:test-nonce');
-      expect(consumed).toBe(0);
+      const url = 'http://localhost:3000/api/auth/siwe/verify'; 
+      const req = new NextRequest(new Request(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          message: 'localhost wants you to sign in with your Ethereum account:\nalready-used-nonce',
+          signature: '0xvalid'
+        })
+      }));
+      const response = await verifyEndpoint(req);
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe('INVALID_NONCE');
     });
 
     it('should reject expired nonce', async () => {
-      vi.mocked(atomicConsume).mockResolvedValue(false);
-      
-      const consumed = await atomicConsume('siwe:nonce:expired-nonce');
-      expect(consumed).toBe(false);
+      const url = 'http://localhost:3000/api/auth/siwe/verify';
+      const req = new NextRequest(new Request(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          message: 'localhost wants you to sign in with your Ethereum account:\nexpired-nonce',
+          signature: '0xvalid'
+        })
+      }));
+      const response = await verifyEndpoint(req);
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe('INVALID_NONCE');
     });
   });
 });
