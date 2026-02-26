@@ -318,7 +318,7 @@ export async function syncUserFromPrivy(
       slug: orgSlug,
       credit_balance: "0.00",
     });
-// Review: createdOrgId is unused after switching to __orphanedOrgId for cleanup tracking
+// Use inner catch's __orphanedOrgId for cleanup tracking
 
     try {
       // Record signup metadata for future abuse detection

@@ -15,8 +15,8 @@ Agents need to sign up, fund accounts, and access services without a browser. Pr
 4. Use apiKey with X-API-Key header on all subsequent requests
 5. POST /api/crypto/payments          → Fund account (API key auth)
 6. Use any API endpoint (agents, containers, etc.)
-```
-
+```text
+1. GET  /api/auth/siwe/nonce          → { nonce, domain, uri, chainId, ... }
 Step 3 handles both sign-up and sign-in transparently. The response includes `isNewAccount` so callers can branch if needed.
 
 ## Endpoints
@@ -40,8 +40,8 @@ Returns a one-time nonce and all parameters needed to construct a valid SIWE mes
   "version": "1",
   "statement": "Sign in to ElizaCloud"
 }
-```
-
+```text
+SIWE auth → get API key → create crypto payment → confirm payment → use services
 ### `POST /api/auth/siwe/verify`
 
 Verifies a signed SIWE message. Creates a new account if the wallet is unknown, or signs in if it exists.

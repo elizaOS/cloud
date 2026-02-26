@@ -36,13 +36,7 @@ async function handleCreatePayment(req: NextRequest) {
       );
     }
 
-    const organization = await getOrganizationById(orgId);
-    if (!organization || !organization.is_active) {
-      return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 }, 
-      );
-    }
+    // Organization activity is already validated by requireAuthOrApiKeyWithOrg
     
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
