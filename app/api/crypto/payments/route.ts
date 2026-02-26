@@ -102,7 +102,17 @@ if (!user) return NextResponse.json({...}, { status: 403 }); // Enhance error ha
       creditsToAdd: result.creditsToAdd,
     });
   } catch (error) {
-    logger.error("[Crypto Payments API] Create payment error:", error);
+  logger.error("[Crypto Payments API] Create payment error:", error);
+
+  if (error instanceof Error && error.message.startsWith("Forbidden:")) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof Error && error.message.startsWith("Unauthorized:")) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
+
+  if (error instanceof CryptoPaymentError) {
+    ...
 
     if (error instanceof CryptoPaymentError) {
       const statusMap: Record<string, { status: number; message: string }> = {
@@ -158,7 +168,14 @@ async function handleListPayments(req: NextRequest) {
 
     return NextResponse.json({ payments });
   } catch (error) {
-    logger.error("[Crypto Payments API] List payments error:", error);
+  logger.error("[Crypto Payments API] List payments error:", error);
+
+  if (error instanceof Error && error.message.startsWith("Forbidden:")) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof Error && error.message.startsWith("Unauthorized:")) {
+    return NextResponse.json({ error: error.message }, { status: 401 });
+  }
 
     if (error instanceof CryptoPaymentError) {
       if (error.code === "INVALID_UUID") {
