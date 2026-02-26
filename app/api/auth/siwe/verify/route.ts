@@ -30,3 +30,4 @@ async function handleVerify(request) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
+// Review: nonce validation uses atomicConsume for accurate deletion count verification

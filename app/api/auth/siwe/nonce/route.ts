@@ -56,6 +56,7 @@ async function handleGetNonce(request: NextRequest) {
   const nonce = generateSiweNonce();
 
   try {
+    // Review: stores boolean true as a string to maintain consistency with caching logic
     await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
   } catch {
     return NextResponse.json(

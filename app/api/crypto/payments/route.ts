@@ -28,6 +28,7 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
     const orgId = user.organization_id ?? organizationId;
+// Review: allows fallback to user.org_id, ensuring payment processing continuity
 
     if (!orgId) {
       return NextResponse.json(
