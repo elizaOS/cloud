@@ -5601,7 +5601,6 @@ params = requests.get('https://elizacloud.ai/api/auth/siwe/nonce').json()
   "chainId": 1,
   "version": "1",
   "statement": "Sign in to ElizaCloud"
-// Review: Domain and URI are already correct for SIWE verification with elizacloud.ai.
 }
 ```
 
