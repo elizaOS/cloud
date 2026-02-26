@@ -40,10 +40,10 @@ async function handleCreatePayment(req: NextRequest) {
     if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
-        { status: 403 },
+        { status: 403 }, 
       );
     }
-
+    
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },

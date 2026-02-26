@@ -5657,7 +5657,6 @@ api_key = result['apiKey']
 
 ```json
 {
-  "apiKey": "ek_live_...",
   "address": "0xAbC...123",
   "isNewAccount": true,
   "user": {
