@@ -112,6 +112,7 @@ function buildSuccessResponse(
 type SiweVerifyBody = { message?: string; signature?: string };
 
 async function handleVerify(request: NextRequest) {
+  // Added atomic nonce consumption to ensure race conditions are handled.
   let body: SiweVerifyBody;
   try {
     body = await request.json();
@@ -191,9 +192,10 @@ async function handleVerify(request: NextRequest) {
   
   let deleteCount: number;
   try {
-    deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
-  } catch (error) {
-    console.error("[SIWE Verify] Failed to consume nonce from cache:", error);
+  deleteCount = await atomicConsume(CacheKeys.siwe.nonce(parsed.nonce));
+} catch (error) {
+  console.error("[SIWE Verify] Failed to consume nonce from cache:", error);
+  // If consumption fails, return service unavailable.
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",
