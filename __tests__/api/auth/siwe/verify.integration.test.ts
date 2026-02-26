@@ -58,15 +58,75 @@ jest.mock('@/lib/services/abuse-detection', () => ({
   },
 }));
 
-describe('SIWE Verify Endpoint', () => {
+describe('SIWE Verify Endpoint Integration', () => {
+  const app = require('supertest')(process.env.APP_URL || 'http://localhost:3000');
+
   describe('Nonce validation', () => {
-    it('should reject expired or already-used nonces', async () => {
-      const { atomicConsume } = await import('@/lib/cache/consume');
-      (atomicConsume as jest.Mock).mockResolvedValueOnce(0);
+    it('should reject invalid nonce', async () => {
+      const response = await app
+        .post('/api/auth/siwe/verify')
+        .send({
+          message: `localhost wants you to sign in with your Ethereum account:\ninvalid-nonce`,
+          signature: '0xvalid'
+        });
       
-      // Test would make request and verify INVALID_NONCE response
-      expect(atomicConsume).toBeDefined();
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('INVALID_NONCE');
     });
+
+    it('should handle existing user sign-in success', async () => {
+      // First get a valid nonce
+      const nonceRes = await app.get('/api/auth/siwe/nonce');
+      expect(nonceRes.status).toBe(200);
+      const { nonce } = nonceRes.body;
+
+      // Then verify with valid signature
+      const verifyRes = await app
+        .post('/api/auth/siwe/verify')
+        .send({
+          message: `localhost wants you to sign in with your Ethereum account:\n${nonce}`,
+          signature: '0xvalid'
+        });
+      
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.apiKey).toBeDefined();
+      expect(verifyRes.body.user).toBeDefined();
+      expect(verifyRes.body.user.id).toBeDefined();
+      expect(verifyRes.body.user.organization_id).toBeDefined();
+    });
+
+    it('should handle duplicate-signup race recovery', async () => {
+      // First get a nonce
+      const nonceRes = await app.get('/api/auth/siwe/nonce');
+      const { nonce } = nonceRes.body;
+
+      // Trigger duplicate creation attempts
+      const [res1, res2] = await Promise.all([
+        app.post('/api/auth/siwe/verify').send({
+          message: `localhost wants you to sign in with your Ethereum account:\n${nonce}`,
+          signature: '0xvalid'
+        }),
+        app.post('/api/auth/siwe/verify').send({
+          message: `localhost wants you to sign in with your Ethereum account:\n${nonce}`,
+          signature: '0xvalid'
+        })
+      ]);
+
+      // One should succeed, one should recover gracefully
+      expect([res1.status, res2.status]).toContain(200);
+      expect(res1.body.user?.id || res2.body.user?.id).toBeDefined();
+    });
+</search>
+</change>
+
+2. For siwe.test.ts - Replacing createMocks with NextRequest:
+
+<change path="__tests__/api/auth/siwe/siwe.test.ts">
+
+<replace>
+      const url = 'http://localhost:3000/api/auth/siwe/nonce';
+      const req = new NextRequest(new Request(url, { method: 'GET' }));
+      const response = await getNonce(req);
 
     it('should consume nonce atomically to prevent race conditions', async () => {
       const { atomicConsume } = await import('@/lib/cache/consume');
