@@ -26,25 +26,22 @@ const createPaymentSchema = z.object({
 
 async function handleCreatePayment(req: NextRequest) {
   try {
-    // Review: orgId null check at line 32 guards against missing organization_id before service calls
-    const { user, organizationId, organization } = await requireAuthOrApiKeyWithOrg(req);
-    const orgId = user.organization_id || organizationId;
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id ?? organizationId;
 
-if (!organization || !organization.is_active) {
-    return NextResponse.json(
-        { error: "Organization is inactive" },
-        { status: 403 },
-    );
-}
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
 
-    
-
-    // Redundant check removed as requireAuthOrApiKeyWithOrg already validates organization existence and active status.
+    const organization = await getOrganizationById(orgId);
+    if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
         { status: 403 },
       );
-    // Review: requireAuthOrApiKeyWithOrg returns organization_id directly; guard functions as intended
     }
 
     if (!isOxaPayConfigured()) {
@@ -138,9 +135,15 @@ if (!organization || !organization.is_active) {
 
 async function handleListPayments(req: NextRequest) {
   try {
-    // Review: Fallback logic handled in handleCreatePayment; other handlers retain current structure for consistency.
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const orgId = user.organization_id;
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id ?? organizationId;
+
+    if (!orgId) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
 
     const organization = await getOrganizationById(orgId);
     if (!organization || !organization.is_active) {
