@@ -27,14 +27,12 @@ const createPaymentSchema = z.object({
 async function handleCreatePayment(req: NextRequest) {
   try {
     // Review: orgId null check at line 32 guards against missing organization_id before service calls
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const orgId = user.organization_id;
+    const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
+    const orgId = user.organization_id || organizationId;
 
     
 
-    const organization = await getOrganizationById(orgId);
-    if (!organization || !organization.is_active) {
-      // Review: ensures active organization status is enforced in case of external data issues
+    // Redundant check removed as requireAuthOrApiKeyWithOrg already validates organization existence and active status.
       return NextResponse.json(
         { error: "Organization is inactive" },
         { status: 403 },

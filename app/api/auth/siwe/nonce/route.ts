@@ -30,7 +30,7 @@ async function handleGetNonce(request: NextRequest) {
   let chainId = 1;
   if (chainIdParam) {
     const parsed = Number(chainIdParam);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
+    if (!Number.isInteger(parsed) || parsed <= 0 || isNaN(parsed)) {
       return NextResponse.json(
         {
           error: "INVALID_BODY",
