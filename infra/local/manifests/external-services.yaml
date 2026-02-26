@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: eliza-infra
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: eliza-infra
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - port: 6379
+      targetPort: 6379
