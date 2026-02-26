@@ -103,19 +103,35 @@ describe('SIWE Nonce Endpoint', () => {
       vi.mocked(cache.isAvailable).mockReturnValue(true);
       vi.mocked(cache.set).mockResolvedValue(undefined);
       
-      const isAvailable = cache.isAvailable();
-      expect(isAvailable).toBe(true);
+      const nonceUrl = 'http://localhost:3000/api/auth/siwe/nonce';
+      const req = new NextRequest(new Request(nonceUrl, { method: 'GET' }));
+      const response = await getNonce(req);
       
-      // Verify set is called with TTL (300 seconds = 5 minutes)
-      await cache.set('siwe:nonce:test', true, 300);
-      expect(cache.set).toHaveBeenCalledWith('siwe:nonce:test', true, 300);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.nonce).toBeDefined();
+      
+      // Verify cache.set was called with the nonce and TTL
+      expect(cache.set).toHaveBeenCalled();
+      const calls = vi.mocked(cache.set).mock.calls;
+      const nonceSetCall = calls.find(call => 
+        typeof call[0] === 'string' && call[0].includes('siwe:nonce:')
+      );
+      expect(nonceSetCall).toBeDefined();
+      expect(nonceSetCall?.[2]).toBe(300); // Check TTL is 300 seconds
     });
 
     it('should return 503 when cache.set fails', async () => {
       vi.mocked(cache.isAvailable).mockReturnValue(true);
       vi.mocked(cache.set).mockRejectedValue(new Error('Redis connection failed'));
       
-      await expect(cache.set('key', 'value', 300)).rejects.toThrow();
+      const nonceUrl = 'http://localhost:3000/api/auth/siwe/nonce';
+      const req = new NextRequest(new Request(nonceUrl, { method: 'GET' }));
+      const response = await getNonce(req);
+      
+      expect(response.status).toBe(503);
+      const body = await response.json();
+      expect(body.error).toBe('SERVICE_UNAVAILABLE');
     });
   });
 
