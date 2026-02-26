@@ -10,9 +10,7 @@
 import { usersService } from "@/lib/services/users";
 import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { getInitialCredits } from "@/lib/utils/signup-helpers";
-import { generateSlugFromWallet } from "@/lib/utils/signup-helpers"; // Retaining as separate import for consistency
-import { generateSlugFromEmail } from "@/lib/utils/signup-helpers"; // Will resolve circular dependency issues
+import { getInitialCredits, generateSlugFromWallet, generateSlugFromEmail } from "@/lib/utils/signup-helpers";
 import { invitesService } from "@/lib/services/invites";
 import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -32,8 +30,14 @@ import type { User as PrivyUser } from "@privy-io/server-auth";
 export interface SyncOptions {
   signupContext?: SignupContext;
   skipAbuseCheck?: boolean;
-// Review: exporting SyncOptions ensures compatibility with existing webhook implementations
 }
+
+/**
+ * Error type with orphaned organization tracking.
+ */
+type SyncError = Error & {
+  __orphanedOrgId?: string;
+};
 
 /**
  * Type for Privy user data that handles both SDK User and webhook payloads.
@@ -416,12 +420,11 @@ export async function syncUserFromPrivy(
           error.cause.code === "23505"));
 
     // Check for orphaned org cleanup regardless of error type.
-    // The __orphanedOrgId flag is set by inner catch when cleanup failed there.// Review: Orphaned org cleanup occurs only if inner catch fails, preventing redundant deletes.
-
-    // Duplicate key confirmed — clean up orphaned org ONLY if inner catch failed.
     // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
     // If inner catch succeeded (no flag), we must not attempt a second delete.
-    // Removed unnecessary conditional checks to streamline error handling
+    
+    // Extract orphaned org ID if inner catch flagged one for cleanup
+    const orphanedOrgId = 
       error &&
       typeof error === "object" 
         ? (error as SyncError).__orphanedOrgId
@@ -448,7 +451,7 @@ export async function syncUserFromPrivy(
     }
 
     // After orphan cleanup, handle based on error type
-    if (isDuplicateError) {
+    if (!isDuplicateError) {
       throw error;
     }
 
