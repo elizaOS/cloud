@@ -34,6 +34,7 @@ async function handleCreatePayment(req: NextRequest) {
 
     const organization = await getOrganizationById(orgId);
     if (!organization || !organization.is_active) {
+      // Review: ensures active organization status is enforced in case of external data issues
       return NextResponse.json(
         { error: "Organization is inactive" },
         { status: 403 },

@@ -416,6 +416,7 @@ export async function syncUserFromPrivy(
     if (!isDuplicateError) {
       throw error;
     }
+// Review: Orphaned org cleanup occurs only if inner catch fails, preventing redundant deletes.
 
     // Duplicate key confirmed — clean up orphaned org ONLY if inner catch failed.
     // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
