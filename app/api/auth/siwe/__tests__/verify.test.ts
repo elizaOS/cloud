@@ -1,3 +1,4 @@
+// Review: mocks dependencies up front to ensure isolated and reliable tests for auth functionalities
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
