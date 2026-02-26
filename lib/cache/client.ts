@@ -95,12 +95,29 @@ export class CacheClient {
   }
 
   /**
-   * Gets a value from cache.
+   * Atomically consumes a nonce from the cache.
+   * Deletes the nonce after checking its existence to prevent replay attacks.
    *
-   * @param key - Cache key.
-   * @returns Cached value or null if not found or invalid.
+   * @param key - Cache key for the nonce.
+   * @returns Boolean indicating whether the nonce existed.
    */
-  async get<T>(key: string): Promise<T | null> {
+  async getAndDeleteNonce(key: string): Promise<boolean> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return false;
+
+    // Use a transaction to get and delete the key atomically
+    const script = `
+      local nonce = redis.call('GET', KEYS[1])
+      if nonce then
+        redis.call('DEL', KEYS[1])
+        return 1
+      else
+        return 0
+      end`;
+    
+    const result = await this.redis.eval(script, 1, key);
+    return result === 1;
+  }
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
 

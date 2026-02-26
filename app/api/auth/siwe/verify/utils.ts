@@ -1,4 +1,12 @@
-async function verifyUserAndCreateOrg(address, nonce) {
+import { usersService } from "@/lib/services/users";
+import { organizationsService } from "@/lib/services/organizations";
+import { validateNonce } from "@/lib/utils/siwe-helpers";
+import { User, Organization } from "@/lib/types"; // Import User and Organization types
+
+export async function verifyUserAndCreateOrg(
+  address: string,
+  nonce: string
+): Promise<{ user: User; organization: Organization }> {
     const validNonce = await validateNonce(address, nonce); // Assume this function verifies the nonce
     if (!validNonce) {
         throw new Error('INVALID_NONCE');
