@@ -28,28 +28,26 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
     const orgId = user.organization_id ?? organizationId;
-// Review: allows fallback to user.org_id, ensuring payment processing continuity
 
     if (!orgId) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
-    // Added explicit organization activity check for consistency as highlighted in review comment
-const organization = await getOrganizationById(orgId);
-if (!organization || !organization.is_active) {
-    return NextResponse.json(
+    const organization = await getOrganizationById(orgId);
+    if (!organization || !organization.is_active) {
+      return NextResponse.json(
         { error: "Organization is inactive" },
-        { status: 403 },
-    );
-}
-    
+        { status: 403 }
+      );
+    }
+
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -62,7 +60,7 @@ if (!organization || !organization.is_active) {
           error: "Validation failed",
           details: validation.error.flatten().fieldErrors,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -77,7 +75,6 @@ if (!organization || !organization.is_active) {
       network,
     });
 
-    // Track crypto payment initiated in PostHog
     trackServerEvent(user.id, "crypto_payment_initiated", {
       amount,
       currency,
@@ -87,7 +84,6 @@ if (!organization || !organization.is_active) {
       track_id: result.trackId,
     });
 
-    // Also track unified checkout_initiated
     trackServerEvent(user.id, "checkout_initiated", {
       payment_method: "crypto",
       amount,
@@ -124,13 +120,13 @@ if (!organization || !organization.is_active) {
       };
       return NextResponse.json(
         { error: response.message },
-        { status: response.status },
+        { status: response.status }
       );
     }
 
     return NextResponse.json(
       { error: "Failed to process payment request" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -143,7 +139,7 @@ async function handleListPayments(req: NextRequest) {
     if (!orgId) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -151,12 +147,12 @@ async function handleListPayments(req: NextRequest) {
     if (!organization || !organization.is_active) {
       return NextResponse.json(
         { error: "Organization is inactive" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      orgId,
+      orgId
     );
 
     return NextResponse.json({ payments });
@@ -167,14 +163,14 @@ async function handleListPayments(req: NextRequest) {
       if (error.code === "INVALID_UUID") {
         return NextResponse.json(
           { error: "Invalid request format" },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to retrieve payments" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
