@@ -6,8 +6,8 @@ import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
 // Module-level redis client used by external modules for atomic operations
-// Review: exported for potential future use in other modules, avoiding tight coupling to CacheClient
-export const redis: Redis | null = null;
+// This is used by atomicConsume for DEL operations that need integer return values
+export let redis: Redis | null = null;
 
 /**
  * Cached value wrapper with metadata for stale-while-revalidate.
@@ -38,24 +38,26 @@ export class CacheClient {
   private readonly REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds
 
   private initialize(): void {
-    if (this.initialized) return;
-    this.initialized = true;
+     if (this.initialized) return;
+     this.initialized = true;
 
-    this.enabled = process.env.CACHE_ENABLED !== "false";
+     this.enabled = process.env.CACHE_ENABLED !== "false";
 
-    if (!this.enabled) {
-      if (process.env.NODE_ENV === "production") {
-        logger.error(
-          "🚨 [Cache] CRITICAL: Caching disabled in production! " +
-            "This will cause severe performance degradation. " +
-            "Set CACHE_ENABLED=true and configure Redis credentials.",
-        );
-      } else {
-        logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
-      }
-      redis = null;
-      return;
-    }
+     if (!this.enabled) {
+       if (process.env.NODE_ENV === "production") {
+         logger.error(
+           "🚨 [Cache] CRITICAL: Caching disabled in production! " +
+             "This will cause severe performance degradation. " +
+             "Set CACHE_ENABLED=true and configure Redis credentials.",
+         );
+       } else {
+         logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
+       }
+       // Set both module-level and instance redis to null
+       redis = null;
+       this.redis = null;
+       return;
+     }
 
     const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
     const restUrl = process.env.KV_REST_API_URL;
