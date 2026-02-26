@@ -40,6 +40,8 @@ on:
     branches: [main, dev]
     paths:
       - "services/gateway-discord/**"
+      - "infra/terraform/**"
+      - "infra/charts/gateway-discord/**"
       - "lib/services/gateway-discord/**"
       - "lib/auth/jwks.ts"
       - "lib/auth/jwt-internal.ts"
@@ -54,6 +56,8 @@ on:
     branches: [main, dev]
     paths:
       - "services/gateway-discord/**"
+      - "infra/terraform/**"
+      - "infra/charts/gateway-discord/**"
       - "lib/services/gateway-discord/**"
       - "lib/auth/jwks.ts"
       - "lib/auth/jwt-internal.ts"
@@ -90,7 +94,7 @@ env:
   TF_VERSION: "1.7.0"
   IMAGE_REPO: ghcr.io/elizaos/eliza-cloud-v2/gateway-discord
   REGISTRY: ghcr.io
-  TF_WORKING_DIR: services/gateway-discord/terraform
+  TF_WORKING_DIR: infra/terraform
 
 jobs:
   # =============================================================================
@@ -119,10 +123,10 @@ jobs:
           base: ${{ github.event.before }}
           filters: |
             terraform:
-              - 'services/gateway-discord/terraform/**'
+              - 'infra/terraform/**'
             app:
               - 'services/gateway-discord/src/**'
-              - 'services/gateway-discord/chart/**'
+              - 'infra/charts/gateway-discord/**'
               - 'services/gateway-discord/Dockerfile'
               - 'services/gateway-discord/package.json'
               - 'services/gateway-discord/tsconfig.json'
@@ -190,7 +194,7 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: services/gateway-discord/terraform
+        working-directory: infra/terraform
     outputs:
       cluster_name: ${{ steps.outputs.outputs.cluster_name }}
       cluster_endpoint: ${{ steps.outputs.outputs.cluster_endpoint }}
@@ -206,7 +210,7 @@ jobs:
       # Run tfsec BEFORE AWS auth - it's static analysis and doesn't need credentials
       - name: Security Scan with tfsec
         id: tfsec
-        working-directory: services/gateway-discord/terraform
+        working-directory: infra/terraform
         run: |
           # Install tfsec
           curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
@@ -221,7 +225,7 @@ jobs:
         if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: services/gateway-discord/terraform/tfsec-results.sarif
+          sarif_file: infra/terraform/tfsec-results.sarif
         continue-on-error: true
 
       - name: Terraform Format Check
@@ -544,10 +548,10 @@ jobs:
           fi
 
           # Note: Namespace is created by Terraform (k8s-resources module)
-          helm upgrade --install gateway-discord ./services/gateway-discord/chart \
+          helm upgrade --install gateway-discord ./infra/charts/gateway-discord \
             --namespace gateway-discord \
-            -f ./services/gateway-discord/chart/values.yaml \
-            -f ./services/gateway-discord/chart/${{ needs.detect-changes.outputs.values_file }} \
+            -f ./infra/charts/gateway-discord/values.yaml \
+            -f ./infra/charts/gateway-discord/${{ needs.detect-changes.outputs.values_file }} \
             --set image.repository=${{ env.IMAGE_REPO }} \
             $DIGEST_ARG \
             --wait \
