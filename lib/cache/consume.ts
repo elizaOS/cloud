@@ -20,7 +20,7 @@ export async function atomicConsume(key: string): Promise<number> {
     // Use the raw Redis client's del() which returns the number of keys deleted.
     // CacheClient.del() returns void, which would break the integer check callers need.
     const deleted = await redis.del(key);
-    return typeof deleted === "number" ? deleted : 0;
+    return deleted;
   } catch (error) {
     console.error("[atomicConsume] Redis DEL failed:", error);
     // Throw a specific error that callers can distinguish from "nonce not found" (return 0)
@@ -28,7 +28,7 @@ export async function atomicConsume(key: string): Promise<number> {
     (redisError as Error & { isRedisError: boolean }).isRedisError = true;
     throw redisError;
   }
- // Review: using atomic Redis commands effectively prevents TOCTOU issues with nonce consumption.
+ 
 }
 
 export default atomicConsume;
