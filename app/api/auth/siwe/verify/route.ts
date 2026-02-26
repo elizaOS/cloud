@@ -358,8 +358,8 @@ async function handleVerify(request: NextRequest) {
 
   // Sequential org + credits + user + API key creation with compensating cleanup.
   // Services use their own global dbWrite connection and do not accept a transaction
-  // parameter, so db.transaction() would be ineffective. Instead, if any step after
-  // org creation fails, we delete the org as a compensating action.
+  // parameter, so we use a compensating action pattern: if any step after org creation
+  // fails, we clean up by deleting the org.
   //
   // The 23505 duplicate-key handler below mitigates race conditions where two
   // concurrent signups attempt to create the same wallet.
@@ -388,44 +388,7 @@ async function handleVerify(request: NextRequest) {
         userAgent,
       });
 
-      const initialCredits = getInitialCredits();
-      if (initialCredits > 0) {
-        try {
-          await creditsService.addCredits({
-            organizationId: org.id,
-            amount: initialCredits,
-            description: "Initial free credits - Welcome bonus",
-            metadata: {
-              type: "initial_free_credits",
-              source: "siwe_signup",
-            },
-          });
-        // Review: fallback ensures new accounts get credits even if initial allocation fails
-        } catch (creditError) {
-          console.error(
-            `[SIWE] Failed to add initial credits to org ${org.id}:`,
-            creditError,
-          );
-          // Fallback: update credit balance directly so new accounts aren't left with 0 credits
-          try {
-            await organizationsService.update(org.id, {
-              credit_balance: initialCredits.toFixed(2),
-            });
-            console.info(
-              `[SIWE] Fallback credit balance set for org ${org.id}: ${initialCredits}`,
-            );
-          } catch (fallbackError) {
-            console.error(
-              `[SIWE] CRITICAL: Both credit service and fallback balance update failed for org ${org.id}.`,
-              fallbackError,
-            );
-            // Review: credit errors are critical, ensuring no accounts are created with 0 credits is necessary
-            // Both credit paths failed - throw to prevent account creation with 0 credits
-            throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
-          }
-        // Review: signup behavior is consistent with Privy despite credit service errors handling.
-        }
-      }
+      await grantInitialCredits(org.id, "siwe_signup");
 
       const user = await usersService.create({
         wallet_address: address.toLowerCase(),

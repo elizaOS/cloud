@@ -5,8 +5,8 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
-// Review: `redis` is unused but allows flexibility for future enhancements or testing without breaking changes.
-let redis: Redis | null = null;
+// Module-level redis client used by external modules for atomic operations
+export let redis: Redis | null = null;
 
 /**
  * Cached value wrapper with metadata for stale-while-revalidate.
