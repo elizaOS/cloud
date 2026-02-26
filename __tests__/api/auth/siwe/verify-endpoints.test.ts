@@ -13,8 +13,8 @@ describe("SIWE Auth Endpoints Functionality", () => {
 
   it("should create a nonce and validate TTL/single-use", async () => {
     // Simulate a nonce issuance request
-    const { req, res } = createMocks<NextRequest>({ method: "GET" });
-    // @ts-ignore
+    const url = 'http://localhost:3000/api/auth/siwe/nonce';
+    const req = new NextRequest(new Request(url, { method: 'GET' }));
     const response: Response = await getNonce(req);
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -24,10 +24,29 @@ describe("SIWE Auth Endpoints Functionality", () => {
     const found = await cache.get(CacheKeys.siwe.nonce(body.nonce));
     expect(found).toBeTruthy();
 
-    // Simulate verification (consume the nonce)
-    await cache.del(CacheKeys.siwe.nonce(body.nonce));
-    const after = await cache.get(CacheKeys.siwe.nonce(body.nonce));
-    expect(after).toBeNull();
+    // Verify the nonce with a valid request
+    const { req: verifyReq } = createMocks<NextRequest>({
+      method: 'POST',
+      body: {
+        message: `service.localhost wants you to sign in with your Ethereum account:\n${body.nonce}`,
+        signature: '0xvalidsignature'
+      }
+    });
+    const verifyResponse = await postVerify(verifyReq);
+    expect(verifyResponse.status).toBe(200);
+    
+    // Try to reuse the same nonce
+    const { req: reuseReq } = createMocks<NextRequest>({
+      method: 'POST',
+      body: {
+        message: `service.localhost wants you to sign in with your Ethereum account:\n${body.nonce}`,
+        signature: '0xvalidsignature'
+      }
+    });
+    const reuseResponse = await postVerify(reuseReq);
+    expect(reuseResponse.status).toBe(400);
+    const reuseBody = await reuseResponse.json();
+    expect(reuseBody.error).toBe('INVALID_NONCE');
   });
 
   it("should reject invalid nonce during verify", async () => {
