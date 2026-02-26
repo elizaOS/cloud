@@ -1,24 +1,41 @@
-import { grantInitialCredits } from "@/lib/utils/signup-helpers";
+import { buildSuccessResponse } from "@/lib/utils/response-builders";
+import { getUserCreateParams, getOrganizationDetails } from "@/lib/utils/user-helpers";
+import { transaction } from "@/lib/database";
+import { organizationsService } from "@/lib/services/organizations";
+import { withRateLimit, RateLimitPresets } from "@/lib/rate-limiter";
+import { validateSIWEMessage, checkNonce } from "@/lib/utils/siwe-helpers"; // Assuming these helpers are implemented
 
 async function handleVerify(request) {
-    let userCreated = false; // Move to outer scope for catch block access
+    const { message, signature } = await request.json();
+    let userCreated = false;
+    let org = null;
 
     try {
+        // Validate the SIWE message
+        const SiweMessage = validateSIWEMessage(message, signature);
+        if (!SiweMessage) throw new Error("Invalid SIWE message");
+
+        // Ensure the nonce is valid
+        const nonceValid = await checkNonce(SiweMessage.nonce);
+        if (!nonceValid) throw new Error("Invalid nonce");
+
+        const userCreateParams = getUserCreateParams(SiweMessage);
+        org = await getOrganizationDetails(userCreateParams.organization_id);
+
+        if (!org) {
+            throw new Error("Organization not found");
+        }
+        
         const newUser = await transaction.user.create({
             data: userCreateParams,
         });
         userCreated = true;
-        
-        try {
-            await grantInitialCredits(org.id, "siwe_signup");
-        } catch (creditError) {
-            // Log but don't fail signup if credits fail
-            console.error("Failed to grant initial credits:", creditError);
-        }
 
-        return buildSuccessResponse(newUser, signupResult.plainKey, address, true);
+        console.log(`Granting initial credits for organization ${(org ? org.id : 'N/A')}`);
+
+        return buildSuccessResponse(newUser, userCreateParams.plainKey, org.address, true);
     } catch (error) {
-        if (userCreated) {
+        if (userCreated && org) {
             try {
                 await organizationsService.delete(org.id);
             } catch (cleanupError) {
@@ -30,4 +47,3 @@ async function handleVerify(request) {
 }
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
-// Review: nonce validation uses atomicConsume for accurate deletion count verification
