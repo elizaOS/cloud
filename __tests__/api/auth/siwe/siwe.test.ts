@@ -19,7 +19,7 @@ vi.mock('@/lib/cache/client', () => ({
 }));
 
 vi.mock('@/lib/cache/consume', () => ({
-  atomicConsume: vi.fn(() => Promise.resolve(true)),
+  atomicConsume: vi.fn(() => Promise.resolve(1)),
 }));
 
 vi.mock('@/lib/services/users', () => ({
@@ -92,9 +92,11 @@ describe('SIWE Nonce Endpoint', () => {
     it('should return 503 when cache is unavailable', async () => {
       vi.mocked(cache.isAvailable).mockReturnValue(false);
       
-      // Simulating the check in nonce/route.ts
-      const isAvailable = cache.isAvailable();
-      expect(isAvailable).toBe(false);
+      const { req, res } = createMocks<NextRequest>({ method: 'GET' });
+      const response = await getNonce(req);
+      expect(response.status).toBe(503);
+      const body = await response.json();
+      expect(body.error).toBe('SERVICE_UNAVAILABLE');
     });
 
     it('should generate and store nonce with TTL', async () => {
@@ -119,17 +121,17 @@ describe('SIWE Nonce Endpoint', () => {
 
   describe('nonce single-use validation', () => {
     it('should consume nonce atomically on verify', async () => {
-      vi.mocked(atomicConsume).mockResolvedValue(true);
+      vi.mocked(atomicConsume).mockResolvedValue(1);
       
       const consumed = await atomicConsume('siwe:nonce:test-nonce');
-      expect(consumed).toBe(true);
+      expect(consumed).toBe(1);
     });
 
     it('should reject already-used nonce', async () => {
-      vi.mocked(atomicConsume).mockResolvedValue(false);
+      vi.mocked(atomicConsume).mockResolvedValue(0);
       
       const consumed = await atomicConsume('siwe:nonce:test-nonce');
-      expect(consumed).toBe(false);
+      expect(consumed).toBe(0);
     });
 
     it('should reject expired nonce', async () => {
