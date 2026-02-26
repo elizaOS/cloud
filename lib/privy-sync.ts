@@ -392,7 +392,7 @@ export async function syncUserFromPrivy(
         );
         // Mark this org for retry in outer catch
         if (innerError && typeof innerError === "object") {
-          (innerError as Record<string, unknown>).__orphanedOrgId = org.id;
+          (innerError as SyncError).__orphanedOrgId = org.id;
         }
       }
       throw innerError;
@@ -413,20 +413,16 @@ export async function syncUserFromPrivy(
           "code" in error.cause &&
           error.cause.code === "23505"));
 
-    if (!isDuplicateError) {
-      throw error;
-    }
-// Review: Orphaned org cleanup occurs only if inner catch fails, preventing redundant deletes.
+    // Check for orphaned org cleanup regardless of error type.
+    // The __orphanedOrgId flag is set by inner catch when cleanup failed there.// Review: Orphaned org cleanup occurs only if inner catch fails, preventing redundant deletes.
 
     // Duplicate key confirmed — clean up orphaned org ONLY if inner catch failed.
     // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
     // If inner catch succeeded (no flag), we must not attempt a second delete.
     const orphanedOrgId =
       error &&
-      typeof error === "object" &&
-      "__orphanedOrgId" in error &&
-      typeof (error as Record<string, unknown>).__orphanedOrgId === "string"
-        ? ((error as Record<string, unknown>).__orphanedOrgId as string)
+      typeof error === "object" 
+        ? (error as SyncError).__orphanedOrgId
         : undefined;
 
     // Only attempt cleanup if inner catch failed to delete (orphanedOrgId flag set)
@@ -447,6 +443,11 @@ export async function syncUserFromPrivy(
         );
       }
     // Review: cleanup logic is distinct; second instance corrects orphan check after retries.
+    }
+
+    // After orphan cleanup, handle based on error type
+    if (!isDuplicateError) {
+      throw error;
     }
 
     // Duplicate key: race condition — try to find existing user with retries.
