@@ -5,16 +5,10 @@ import { CacheTTL, CacheKeys } from "@/lib/cache/keys";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getAppUrl } from "@/lib/utils/app-url";
 
-declare module '@/lib/cache/client' {
-  interface CacheClient {
-    isAvailable(): boolean | Promise<boolean>;
-  }
-}
-
 async function handleGetNonce(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const chainIdParam = searchParams.get("chainId");
- 
+
   let chainId = 1;
   if (chainIdParam) {
     const parsed = Number(chainIdParam);
@@ -24,24 +18,22 @@ async function handleGetNonce(request: NextRequest) {
           error: "INVALID_BODY",
           message: "chainId must be a positive integer.",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
     chainId = parsed;
   }
 
   try {
-    if (typeof cache.isAvailable === "function") {
-      const available = await cache.isAvailable();
-      if (!available) {
-        return NextResponse.json(
-          {
-            error: "SERVICE_UNAVAILABLE",
-            message: "Authentication service temporarily unavailable. Please try again later.", 
-          },
-          { status: 503 },
-        );
-      }
+    const available = await cache.isAvailable();
+    if (!available) {
+      return NextResponse.json(
+        {
+          error: "SERVICE_UNAVAILABLE",
+          message: "Authentication service temporarily unavailable. Please try again later.", 
+        },
+        { status: 503 }
+      );
     }
   } catch {
     return NextResponse.json(
@@ -49,26 +41,24 @@ async function handleGetNonce(request: NextRequest) {
         error: "SERVICE_UNAVAILABLE", 
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
-      { status: 503 },
+      { status: 503 }
     );
   }
 
   const nonce = generateSiweNonce();
 
   try {
-    // Review: stores boolean true as a string to maintain consistency with caching logic
-    await cache.set(CacheKeys.siwe.nonce(nonce), true.toString(), CacheTTL.siwe.nonce); // Ensuring boolean is stored consistently
+    await cache.set(CacheKeys.siwe.nonce(nonce), "true", CacheTTL.siwe.nonce);
   } catch {
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
-      { status: 503 },  
+      { status: 503 }
     );
   }
 
-  // Verify the nonce was persisted
   let verified: unknown;
   try {
     verified = await cache.get(CacheKeys.siwe.nonce(nonce));
@@ -78,7 +68,7 @@ async function handleGetNonce(request: NextRequest) {
         error: "SERVICE_UNAVAILABLE",
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
-      { status: 503 },
+      { status: 503 }
     );
   }
   
@@ -88,7 +78,7 @@ async function handleGetNonce(request: NextRequest) {
         error: "SERVICE_UNAVAILABLE",
         message: "Unable to persist nonce. Please retry.", 
       },
-      { status: 503 },
+      { status: 503 }
     );
   }
 
@@ -102,7 +92,7 @@ async function handleGetNonce(request: NextRequest) {
         error: "CONFIGURATION_ERROR",
         message: "Server URL misconfigured. Contact support.",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 

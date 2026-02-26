@@ -160,7 +160,6 @@ export async function syncUserFromPrivy(
   let user = await usersService.getByPrivyId(privyUserId);
 
   if (user) {
-    // Update user if needed
     const shouldUpdate =
       user.name !== name ||
       user.email !== email ||
@@ -179,14 +178,12 @@ export async function syncUserFromPrivy(
         updated_at: new Date(),
       });
 
-      // Refresh user with organization
       user = (await usersService.getByPrivyId(privyUserId))!;
     }
 
     return user;
   }
 
-  // Check for pending invite first (before creating new organization)
   if (email) {
     const pendingInvite = await invitesService.findPendingInviteByEmail(email);
 
@@ -218,7 +215,6 @@ export async function syncUserFromPrivy(
         );
       }
 
-      // Log to Discord (fire-and-forget)
       discordService
         .logUserSignup({
           userId: userWithOrg.id,
@@ -239,7 +235,6 @@ export async function syncUserFromPrivy(
     }
   }
 
-  // Check if email is already taken by a different Privy account (account linking)
   if (email) {
     const existingByEmail =
       await usersService.getByEmailWithOrganization(email);
@@ -261,8 +256,6 @@ export async function syncUserFromPrivy(
     }
   }
 
-  // Create new user and organization
-  // Check for abuse before creating new account
   if (!skipAbuseCheck && signupContext) {
     const abuseCheck = await abuseDetectionService.checkSignupAbuse({
       email,
@@ -278,26 +271,22 @@ export async function syncUserFromPrivy(
     }
   }
 
-  // Generate organization slug - require at least email, wallet, or name
   let orgSlug: string;
   if (email) {
     orgSlug = generateSlugFromEmail(email);
   } else if (walletAddress) {
     orgSlug = generateSlugFromWallet(walletAddress);
   } else if (name) {
-    // Use name from OAuth username (GitHub, Discord, etc.)
     const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
     const random = Math.random().toString(36).substring(2, 8);
     const timestamp = Date.now().toString(36).slice(-4);
     orgSlug = `${sanitized}-${timestamp}${random}`;
   } else {
-    // Should never reach here - name always has a fallback
     throw new Error(
       `Cannot generate organization slug for user ${privyUserId}`,
     );
   }
 
-  // Ensure slug is unique
   let attempts = 0;
   while (await organizationsService.getBySlug(orgSlug)) {
     attempts++;
@@ -311,10 +300,6 @@ export async function syncUserFromPrivy(
       : generateSlugFromWallet(walletAddress!);
   }
 
-  // Sequential org + credits + user creation with compensating cleanup.
-  // Services use their own global dbWrite connection and do not accept a
-  // transaction parameter, so db.transaction() would be ineffective. Instead,
-  // if any step after org creation fails, we delete the org to avoid orphans.
   const initialCredits = getInitialCredits();
   
   let organization: Awaited<ReturnType<typeof organizationsService.create>>;
@@ -324,10 +309,8 @@ export async function syncUserFromPrivy(
       slug: orgSlug,
       credit_balance: "0.00",
     });
-// Use inner catch's __orphanedOrgId for cleanup tracking
 
     try {
-      // Record signup metadata for future abuse detection
       if (signupContext) {
         await abuseDetectionService.recordSignupMetadata(
           org.id,
@@ -335,7 +318,6 @@ export async function syncUserFromPrivy(
         );
       }
 
-      // Add initial free credits via creditsService for proper tracking.
       if (initialCredits > 0) {
         try {
           await creditsService.addCredits({
@@ -352,7 +334,6 @@ export async function syncUserFromPrivy(
             `[PrivySync] Failed to add initial credits to org ${org.id}:`,
             creditError,
           );
-          // Fallback: update credit balance directly so new accounts aren't left with 0 credits
           try {
             await organizationsService.update(org.id, {
               credit_balance: initialCredits.toFixed(2),
@@ -365,14 +346,11 @@ export async function syncUserFromPrivy(
               `[PrivySync] CRITICAL: Both credit service and fallback balance update failed for org ${org.id}.`,
               fallbackError,
             );
-            // Both credit paths failed - throw to prevent account creation with 0 credits
             throw new Error(`Failed to grant welcome credits for organization ${org.id}`);
           }
-        // Review: credit balancing failure results in throwing an error to prevent zero credit account creation
         }
       }
 
-      // Create user
       await usersService.create({
         privy_user_id: privyUserId,
         email: email || null,
@@ -387,8 +365,6 @@ export async function syncUserFromPrivy(
         is_active: true,
       });
     } catch (innerError) {
-      // Compensating cleanup: delete the org we just created to avoid orphans.
-      // Always attempt deletion here - if it fails, flag for outer catch retry.
       try {
         await organizationsService.delete(org.id);
       } catch (cleanupError) {
@@ -396,7 +372,6 @@ export async function syncUserFromPrivy(
           `[PrivySync] Failed to clean up orphaned org ${org.id}:`,
           cleanupError,
         );
-        // Mark this org for retry in outer catch
         if (innerError && typeof innerError === "object") {
           (innerError as SyncError).__orphanedOrgId = org.id;
         }
@@ -406,31 +381,22 @@ export async function syncUserFromPrivy(
     
     organization = org;
   } catch (error) {
-    // Check if this is a duplicate key error (race condition or duplicate email)
-    // Drizzle/PostgreSQL errors can have code at top level or in cause property
     const isDuplicateError =
       error &&
       typeof error === "object" &&
       (("code" in error && error.code === "23505") ||
         ("cause" in error &&
-          // Review: cleanup of orphaned organizations is handled in the race condition logic in the previous code paths.
           error.cause &&
           typeof error.cause === "object" &&
           "code" in error.cause &&
           error.cause.code === "23505"));
 
-    // Check for orphaned org cleanup regardless of error type.
-    // The __orphanedOrgId flag is set by inner catch when cleanup failed there.
-    // If inner catch succeeded (no flag), we must not attempt a second delete.
-    
-    // Extract orphaned org ID if inner catch flagged one for cleanup
     const orphanedOrgId = 
       error &&
       typeof error === "object" 
         ? (error as SyncError).__orphanedOrgId
         : undefined;
 
-    // Only attempt cleanup if inner catch failed to delete (orphanedOrgId flag set)
     if (orphanedOrgId) {
       try {
         await organizationsService.delete(orphanedOrgId);
@@ -442,46 +408,37 @@ export async function syncUserFromPrivy(
           `[PrivySync] CRITICAL: Failed to delete orphaned org ${orphanedOrgId}:`,
           cleanupError,
         );
-        // Cleanup failed - abort to prevent proceeding with orphaned org in DB
         throw new Error(
           `Failed to clean up orphaned organization ${orphanedOrgId} after duplicate user creation. Manual cleanup required.`
         );
       }
-    // Review: cleanup logic is distinct; second instance corrects orphan check after retries.
     }
 
-    // After orphan cleanup, handle based on error type
     if (!isDuplicateError) {
       throw error;
     }
 
-    // Duplicate key: race condition — try to find existing user with retries.
     let existingUser: UserWithOrganization | undefined;
     const maxRetries = 3;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
-        // Wait a bit for the other transaction to commit
         await new Promise((resolve) =>
           setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
         );
       }
 
-      // Try to find by Privy ID first (most common race condition)
       existingUser = await usersService.getByPrivyId(privyUserId);
 
       if (existingUser) {
         break;
       }
 
-      // If not found by Privy ID, try by email (edge case: email constraint violated)
       if (email) {
         existingUser = await usersService.getByEmailWithOrganization(email);
       }
       if (existingUser) {
         if (existingUser.privy_user_id !== privyUserId) {
-          // Same email, different Privy auth method (e.g. email login → Google OAuth)
-          // Link accounts by updating to the new Privy ID
           console.info(
             `Linking Privy account for ${email}: ${existingUser.privy_user_id} → ${privyUserId}`,
           );
@@ -505,21 +462,18 @@ export async function syncUserFromPrivy(
       return existingUser;
     }
 
-    // Couldn't find existing user even after retries - rethrow
     console.error(
       `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries`,
     );
     throw error;
   }
 
-  // Return user with organization
   const userWithOrg = await usersService.getByPrivyId(privyUserId);
 
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }
 
-  // Send welcome email asynchronously (fire-and-forget)
   const recipientEmail = email || userWithOrg.organization?.billing_email;
   if (recipientEmail) {
     queueWelcomeEmail({
@@ -537,7 +491,6 @@ export async function syncUserFromPrivy(
     });
   }
 
-  // Log to Discord (fire-and-forget)
   discordService.logUserSignup({
     userId: userWithOrg.id,
     privyUserId: userWithOrg.privy_user_id!,
@@ -550,7 +503,6 @@ export async function syncUserFromPrivy(
     isNewOrganization: true,
   });
 
-  // Auto-generate default API key for new user (fire-and-forget)
   void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
 
   return userWithOrg;
@@ -567,7 +519,6 @@ async function ensureUserHasApiKey(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  // Validate inputs
   if (!userId || userId.trim() === "") {
     console.warn("[PrivySync] Invalid userId, skipping API key creation");
     return;
@@ -581,7 +532,6 @@ async function ensureUserHasApiKey(
   }
 
   try {
-    // Check if user already has an API key
     const existingKeys =
       await apiKeysService.listByOrganization(organizationId);
     const userHasKey = existingKeys.some((key) => key.user_id === userId);
@@ -590,7 +540,6 @@ async function ensureUserHasApiKey(
       return;
     }
 
-    // Create default API key
     await apiKeysService.create({
       user_id: userId,
       organization_id: organizationId,

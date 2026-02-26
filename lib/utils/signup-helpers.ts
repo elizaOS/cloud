@@ -8,7 +8,7 @@
 
 import crypto from "crypto";
 
-const DEFAULT_INITIAL_CREDITS = 10.0;
+const DEFAULT_INITIAL_CREDITS = 5.0;
 
 /**
  * Returns the number of initial free credits for new signups.
