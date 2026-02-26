@@ -30,7 +30,7 @@ async function handleGetNonce(request: NextRequest) {
       return NextResponse.json(
         {
           error: "SERVICE_UNAVAILABLE",
-          message: "Authentication service temporarily unavailable. Please try again later.", 
+          message: "Authentication service temporarily unavailable. Please try again later.",
         },
         { status: 503 }
       );
@@ -38,7 +38,7 @@ async function handleGetNonce(request: NextRequest) {
   } catch {
     return NextResponse.json(
       {
-        error: "SERVICE_UNAVAILABLE", 
+        error: "SERVICE_UNAVAILABLE",
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
       { status: 503 }
@@ -59,9 +59,9 @@ async function handleGetNonce(request: NextRequest) {
     );
   }
 
-  let verified: unknown;
+  let verified: boolean;
   try {
-    verified = await cache.get(CacheKeys.siwe.nonce(nonce));
+    verified = await cache.getAndDeleteNonce(CacheKeys.siwe.nonce(nonce));
   } catch {
     return NextResponse.json(
       {
@@ -76,7 +76,7 @@ async function handleGetNonce(request: NextRequest) {
     return NextResponse.json(
       {
         error: "SERVICE_UNAVAILABLE",
-        message: "Unable to persist nonce. Please retry.", 
+        message: "Unable to persist nonce. Please retry.",
       },
       { status: 503 }
     );
