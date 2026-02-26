@@ -54,7 +54,7 @@ describe("SIWE Auth Endpoints Functionality", () => {
     const invalidReq = new NextRequest(new Request(verifyUrl, {
       method: "POST", 
       body: JSON.stringify({
-        message: "msg with nonce: INVALIDNONCE",
+        message: `service.localhost wants you to sign in with your Ethereum account:\nINVALIDNONCE`, // Updated to valid SIWE message format
         signature: "0xbadfakesig"
       })
     }));
