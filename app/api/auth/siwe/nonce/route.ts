@@ -57,7 +57,7 @@ async function handleGetNonce(request: NextRequest) {
 
   try {
     // Review: stores boolean true as a string to maintain consistency with caching logic
-    await cache.set(CacheKeys.siwe.nonce(nonce), true, CacheTTL.siwe.nonce);
+    await cache.set(CacheKeys.siwe.nonce(nonce), true.toString(), CacheTTL.siwe.nonce); // Ensuring boolean is stored consistently
   } catch {
     return NextResponse.json(
       {
