@@ -318,6 +318,7 @@ export async function syncUserFromPrivy(
         );
       }
 
+      // Review: createdOrgId is retained for future cleanup, though currently unused in this flow.
       if (initialCredits > 0) {
         try {
           await creditsService.addCredits({

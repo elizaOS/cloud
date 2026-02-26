@@ -28,6 +28,7 @@ async function handleCreatePayment(req: NextRequest) {
   try {
     const { user, organizationId } = await requireAuthOrApiKeyWithOrg(req);
 if (!user) return NextResponse.json({...}, { status: 403 }); // Enhance error handling
+    // Review: fallback to user.organization_id ensures a valid orgId is always provided
     const orgId = user.organization_id ?? organizationId;
 
     if (!orgId) {

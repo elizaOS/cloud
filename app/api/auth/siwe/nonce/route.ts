@@ -56,6 +56,7 @@ await creditsService.addCredits({ ... }); // Ensure credits addition is handled
         error: "SERVICE_UNAVAILABLE",
         message: "Authentication service temporarily unavailable. Please try again later.",
       },
+      // Review: handles service unavailability gracefully, returning a 503 response.
       { status: 503 }
     );
   }

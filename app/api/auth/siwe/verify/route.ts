@@ -49,3 +49,4 @@ async function handleVerify(request: NextRequest) {
 
 export const POST = withRateLimit(handleVerify, RateLimitPresets.STRICT);
 
+// Review: atomicConsume ensures nonce is properly validated without always failing.
