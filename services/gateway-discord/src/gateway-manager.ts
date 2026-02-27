@@ -12,6 +12,11 @@ import {
   VoiceMessageHandler,
   hasVoiceAttachments,
 } from "./voice-message-handler";
+import {
+  resolveAgentServer,
+  refreshKedaActivity,
+  forwardToServer,
+} from "./server-router";
 
 // ============================================
 // Helpers
@@ -41,15 +46,23 @@ function sanitizeError(error: unknown): string {
  * Parse an integer from environment variable with validation.
  * Throws if the value is not a valid integer or below minimum to fail fast on misconfiguration.
  */
-function parseIntEnv(name: string, defaultValue: number, minValue: number = 1): number {
+function parseIntEnv(
+  name: string,
+  defaultValue: number,
+  minValue: number = 1,
+): number {
   const value = process.env[name];
   if (value === undefined) return defaultValue;
   const parsed = parseInt(value, 10);
   if (Number.isNaN(parsed)) {
-    throw new Error(`Invalid ${name} environment variable: "${value}" is not a valid integer`);
+    throw new Error(
+      `Invalid ${name} environment variable: "${value}" is not a valid integer`,
+    );
   }
   if (parsed < minValue) {
-    throw new Error(`Invalid ${name} environment variable: ${parsed} is below minimum value of ${minValue}`);
+    throw new Error(
+      `Invalid ${name} environment variable: ${parsed} is below minimum value of ${minValue}`,
+    );
   }
   return parsed;
 }
@@ -117,7 +130,10 @@ const FAILOVER_LOCK_TTL_SECONDS = 30;
  *
  * The threshold should be at least 2x heartbeat interval to avoid false positives.
  */
-const FAILOVER_CHECK_INTERVAL_MS = parseIntEnv("FAILOVER_CHECK_INTERVAL_MS", 30_000);
+const FAILOVER_CHECK_INTERVAL_MS = parseIntEnv(
+  "FAILOVER_CHECK_INTERVAL_MS",
+  30_000,
+);
 const DEAD_POD_THRESHOLD_MS = parseIntEnv("DEAD_POD_THRESHOLD_MS", 45_000);
 
 /** Maximum bots per pod - prevents resource exhaustion */
@@ -185,6 +201,7 @@ interface BotConnection {
   connectionId: string;
   organizationId: string;
   applicationId: string;
+  characterId: string | null;
   /** Discord.js client instance. Undefined for placeholder connections reserving capacity. */
   client?: Client;
   status: "connecting" | "connected" | "disconnected" | "error";
@@ -288,10 +305,7 @@ export class GatewayManager {
         url: config.redisUrl,
         token: config.redisToken,
       });
-    } else if (
-      process.env.KV_REST_API_URL &&
-      process.env.KV_REST_API_TOKEN
-    ) {
+    } else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
       // Fall back to environment variables if explicit config not provided
       this.redis = Redis.fromEnv();
     } else if (config.redisUrl) {
@@ -671,6 +685,7 @@ export class GatewayManager {
           applicationId: string;
           botToken: string;
           intents: number;
+          characterId: string | null;
         }>;
       };
 
@@ -683,11 +698,14 @@ export class GatewayManager {
         // Check capacity and reserve slot atomically to prevent TOCTOU race
         // Without this, concurrent operations could both pass the check before either adds to the map
         if (this.connections.size >= MAX_BOTS_PER_POD) {
-          logger.warn("MAX_BOTS_PER_POD limit reached, skipping remaining assignments", {
-            currentBots: this.connections.size,
-            maxBots: MAX_BOTS_PER_POD,
-            skippedConnectionId: assignment.connectionId,
-          });
+          logger.warn(
+            "MAX_BOTS_PER_POD limit reached, skipping remaining assignments",
+            {
+              currentBots: this.connections.size,
+              maxBots: MAX_BOTS_PER_POD,
+              skippedConnectionId: assignment.connectionId,
+            },
+          );
           break;
         }
 
@@ -697,6 +715,7 @@ export class GatewayManager {
           connectionId: assignment.connectionId,
           organizationId: assignment.organizationId,
           applicationId: assignment.applicationId,
+          characterId: assignment.characterId ?? null,
           client: undefined,
           status: "connecting",
           guildCount: 0,
@@ -773,6 +792,7 @@ export class GatewayManager {
       connectionId: assignment.connectionId,
       organizationId: assignment.organizationId,
       applicationId: assignment.applicationId,
+      characterId: assignment.characterId ?? null,
       client,
       status: "connecting",
       guildCount: 0,
@@ -801,7 +821,10 @@ export class GatewayManager {
           });
         }
       };
-      conn.listeners.set(eventName, wrappedHandler as (...args: unknown[]) => void);
+      conn.listeners.set(
+        eventName,
+        wrappedHandler as (...args: unknown[]) => void,
+      );
       return wrappedHandler;
     };
 
@@ -1161,12 +1184,13 @@ export class GatewayManager {
       hasVoiceAttachments(message.attachments, message.flags)
     ) {
       try {
-        const voiceAttachments = await this.voiceHandler.processVoiceAttachments(
-          message.attachments,
-          connectionId,
-          message.id,
-          message.flags,
-        );
+        const voiceAttachments =
+          await this.voiceHandler.processVoiceAttachments(
+            message.attachments,
+            connectionId,
+            message.id,
+            message.flags,
+          );
 
         if (voiceAttachments.length > 0) {
           eventData.voice_attachments = voiceAttachments;
@@ -1194,7 +1218,62 @@ export class GatewayManager {
       }
     }
 
-    await this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", eventData);
+    if (!this.redis) {
+      logger.warn("No Redis connection, cannot route message", {
+        connectionId,
+      });
+      return;
+    }
+
+    if (!conn.characterId) {
+      logger.warn("Connection has no characterId, cannot route message", {
+        connectionId,
+      });
+      return;
+    }
+
+    const route = await resolveAgentServer(this.redis, conn.characterId);
+    if (!route) {
+      logger.warn("No server found for agent", {
+        connectionId,
+        agentId: conn.characterId,
+      });
+      return;
+    }
+
+    try {
+      await refreshKedaActivity(this.redis, route.serverName);
+      await message.channel.sendTyping();
+
+      const userId = `discord-user-${message.author.id}`;
+      const response = await forwardToServer(
+        route.serverUrl,
+        conn.characterId,
+        userId,
+        message.content,
+      );
+
+      if (response) {
+        await message.reply(response);
+      }
+
+      conn.eventsRouted++;
+      conn.consecutiveFailures = 0;
+      logger.info("Message routed to server", {
+        connectionId,
+        serverName: route.serverName,
+        agentId: conn.characterId,
+      });
+    } catch (error) {
+      conn.eventsFailed++;
+      conn.consecutiveFailures++;
+      logger.error("Failed to route message to server", {
+        connectionId,
+        agentId: conn.characterId,
+        serverName: route.serverName,
+        error: sanitizeError(error),
+      });
+    }
   }
 
   private async forwardEvent(
@@ -1436,11 +1515,10 @@ export class GatewayManager {
     // Acquire distributed lock to prevent multiple pods from claiming simultaneously
     // Uses SETNX semantics - only one pod can acquire the lock
     const lockKey = `discord:failover:lock:${deadPodId}`;
-    const lockAcquired = await this.redis.set(
-      lockKey,
-      this.config.podName,
-      { ex: FAILOVER_LOCK_TTL_SECONDS, nx: true },
-    );
+    const lockAcquired = await this.redis.set(lockKey, this.config.podName, {
+      ex: FAILOVER_LOCK_TTL_SECONDS,
+      nx: true,
+    });
 
     if (!lockAcquired) {
       logger.debug("Failover lock already held by another pod", {
@@ -1518,18 +1596,24 @@ export class GatewayManager {
     // Require explicit opt-in via ELIZA_APP_DISCORD_BOT_ENABLED
     const enabled = process.env.ELIZA_APP_DISCORD_BOT_ENABLED === "true";
     if (!enabled) {
-      logger.debug("Eliza App Discord bot disabled (ELIZA_APP_DISCORD_BOT_ENABLED not set)");
+      logger.debug(
+        "Eliza App Discord bot disabled (ELIZA_APP_DISCORD_BOT_ENABLED not set)",
+      );
       return;
     }
 
     const botToken = process.env.ELIZA_APP_DISCORD_BOT_TOKEN;
     if (!botToken) {
-      logger.error("Eliza App Discord bot enabled but ELIZA_APP_DISCORD_BOT_TOKEN not set");
+      logger.error(
+        "Eliza App Discord bot enabled but ELIZA_APP_DISCORD_BOT_TOKEN not set",
+      );
       return;
     }
 
     if (!this.redis) {
-      logger.warn("Eliza App bot leader election requires Redis - bot disabled");
+      logger.warn(
+        "Eliza App bot leader election requires Redis - bot disabled",
+      );
       return;
     }
 
@@ -1567,9 +1651,12 @@ export class GatewayManager {
         );
         if (!renewed) {
           // Lock was lost (expired or deleted)
-          logger.warn("Lost Eliza App bot leadership, attempting to reacquire", {
-            podName: this.config.podName,
-          });
+          logger.warn(
+            "Lost Eliza App bot leadership, attempting to reacquire",
+            {
+              podName: this.config.podName,
+            },
+          );
           this.isElizaAppLeader = false;
           await this.disconnectElizaAppBot();
         } else {

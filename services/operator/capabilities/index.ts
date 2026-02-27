@@ -2,6 +2,7 @@ import { Capability, a, Log, K8s } from "pepr";
 import { Server } from "./crd/generated/server-v1alpha1";
 import { reconciler, finalizer } from "./reconciler";
 import { applyResources } from "./controller/generators";
+import { validator } from "./crd/validator";
 import "./crd/register";
 
 export const ServerController = new Capability({
@@ -11,6 +12,12 @@ export const ServerController = new Capability({
 });
 
 const { When } = ServerController;
+
+// Validate Server CRs before admission
+When(Server)
+  .IsCreatedOrUpdated()
+  .InNamespace("eliza-agents")
+  .Validate(validator);
 
 // Main reconciliation loop: watch Server CRs
 When(Server)
