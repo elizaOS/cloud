@@ -40,7 +40,7 @@ async function handleGET(request: NextRequest) {
       {
         success: true,
         bonus,
-        message: `Added $${bonus} in bonus credits`,
+        message: `Added $${Number(bonus).toFixed(2)} in bonus credits`,
       },
       { headers: NO_CACHE_HEADERS },
     );
@@ -67,4 +67,4 @@ async function handleGET(request: NextRequest) {
   }
 }
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export const GET = withRateLimit(handleGET, RateLimitPresets.CRITICAL);
