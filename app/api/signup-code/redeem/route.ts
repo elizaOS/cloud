@@ -63,7 +63,8 @@ async function handleGET(request: NextRequest) {
     // Handle authentication errors
     if (
       error instanceof Error && 
-      ['Unauthorized', 'No active session', 'User is inactive', 'User has no organization'].includes(error.message)
+      (error.message.startsWith("Unauthorized:") || 
+       error.message.startsWith("Forbidden:"))
     ) {
       return NextResponse.json(
         { error: "Authentication required" },
