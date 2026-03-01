@@ -23,8 +23,9 @@ const NO_CACHE_HEADERS = {
  * See docs/signup-codes.md for design WHYs.
  */
 async function handleGET(request: NextRequest) {
+  let user;
   try {
-    const user = await requireAuthWithOrg();
+    user = await requireAuthWithOrg();
     const organizationId = user.organization_id!;
 
     const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
@@ -58,7 +59,19 @@ async function handleGET(request: NextRequest) {
         );
       }
     }
-    logger.error("[SignupCode Redeem] Error", { organizationId, error });
+    
+    // Handle authentication errors
+    if (
+      error instanceof Error && 
+      ['Unauthorized', 'No active session', 'User is inactive', 'User has no organization'].includes(error.message)
+    ) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401, headers: NO_CACHE_HEADERS },
+      );
+    }
+    
+    logger.error("[SignupCode Redeem] Error", { error });
     return NextResponse.json(
       { error: "Failed to redeem code" },
       { status: 500, headers: NO_CACHE_HEADERS },
