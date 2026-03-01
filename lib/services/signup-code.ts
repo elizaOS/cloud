@@ -25,12 +25,16 @@ function loadCodes(): Map<string, number> {
   if (!existsSync(CONFIG_PATH)) {
     return new Map();
   }
-  const raw = readFileSync(CONFIG_PATH, "utf-8");
   let data: SignupCodesConfig;
   try {
+    const raw = readFileSync(CONFIG_PATH, "utf-8");
     data = JSON.parse(raw) as SignupCodesConfig;
-  } catch {
-    logger.warn("[SignupCode] Invalid config/signup-codes.json, using no codes");
+  } catch (err) {
+    const message =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    logger.warn(
+      `[SignupCode] Failed to load config/signup-codes.json (${message}), using no codes`
+    );
     return new Map();
   }
   const codes = data.codes;
@@ -123,7 +127,7 @@ export async function redeemSignupCode(
       description: "Signup code bonus",
       metadata: {
         type: "signup_code_bonus",
-        code: code.trim().toLowerCase(),
+        code: redactCode(code),
       },
     });
   } catch (error) {
