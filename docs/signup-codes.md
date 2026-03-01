@@ -8,6 +8,10 @@ One-time bonus credits for new or existing organizations, driven by config and u
 - **One per org**: Each organization may redeem at most one signup code ever. This keeps abuse low and makes “welcome bonus” semantics clear.
 - **Two entry points**: Web users sign up via Privy then redeem via GET; Eliza App users can pass a code at Discord (or other) signup so new accounts get base + bonus in one step.
 
+## Rate Limit
+
+**Rate limit**: Redeem endpoint uses CRITICAL preset (e.g. 5 requests per 5 minutes in prod).
+
 ## Design decisions (WHYs)
 
 | Decision | Why |
