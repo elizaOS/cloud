@@ -59,6 +59,8 @@ const discordAuthSchema = z.object({
     .regex(/^[0-9a-f]{64}$/, "Invalid state parameter format"),
   // Optional phone number for cross-platform linking
   phone_number: optionalPhoneSchema,
+  // Optional signup code for bonus credits (new users only)
+  signup_code: z.string().optional().transform((s) => s?.trim() || undefined),
 });
 
 /**
@@ -117,7 +119,7 @@ async function handleDiscordAuth(
     );
   }
 
-  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber } =
+  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber, signup_code: signupCode } =
     parseResult.data;
 
   logger.info("[ElizaApp DiscordAuth] Processing OAuth2 callback", {
@@ -214,7 +216,8 @@ async function handleDiscordAuth(
           globalName: discordUser.global_name,
           avatarUrl,
         },
-        phoneNumber, // Pass phone for cross-platform linking (step 2 in findOrCreate)
+        phoneNumber,
+        signupCode,
       );
     } catch (error) {
       if (error instanceof Error) {

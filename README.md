@@ -228,8 +228,10 @@ eliza-cloud-v2/
 │   ├── rate-limiter.ts      # Rate limiting
 │   ├── utils.ts             # General utilities
 │   └── types.ts             # Shared TypeScript types
+├── config/                  # Static config (e.g. signup-codes.json)
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
+│   ├── signup-codes.md     # Signup code bonus credits (WHYs, API, roadmap)
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
@@ -1944,6 +1946,7 @@ Container deployments are billed **daily**:
 
 ### Authentication & Billing
 
+- [Signup codes](docs/signup-codes.md) — One-time bonus credits per org (config, API, design WHYs)
 - [Privy Authentication](https://docs.privy.io/guide/react/wallets/usage/overview)
 - [Privy Webhooks](https://docs.privy.io/guide/server/webhooks)
 - [Stripe API Documentation](https://stripe.com/docs/api)

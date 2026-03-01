@@ -11,6 +11,23 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
+## February 2026
+
+### Feb 28, 2026
+
+<div className="status-badge status-new">New</div>
+
+**Signup codes (bonus credits)**
+
+- One-time bonus credits per organization via configurable signup codes
+- **Why**: Marketing and ads need shareable links (e.g. `?code=launch50`) that grant extra credits; config file allows adding codes without env or DB changes
+- Config in `config/signup-codes.json`; redeem via `GET /api/signup-code/redeem?code=...` (session required)
+- Eliza App Discord signup accepts optional `signup_code` in body for new users
+- One redemption per org enforced by DB unique index; no-cache on redeem to avoid prefetch/cache triggering redemption
+- See [Signup codes](docs/signup-codes.md) for design WHYs, API, and roadmap
+
+---
+
 ## January 2026
 
 ### Jan 8, 2026

@@ -13,6 +13,7 @@
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { creditsService } from "@/lib/services/credits";
+import { getBonusForCode } from "@/lib/services/signup-code";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -89,8 +90,9 @@ async function createUserWithOrganization(params: {
   userData: Omit<NewUser, "organization_id">;
   organizationName: string;
   slugGenerator: () => string;
+  signupCode?: string;
 }): Promise<FindOrCreateResult> {
-  const { userData, organizationName, slugGenerator } = params;
+  const { userData, organizationName, slugGenerator, signupCode } = params;
   const slug = await ensureUniqueSlug(slugGenerator);
 
   const organization = await organizationsRepository.create({
@@ -105,6 +107,16 @@ async function createUserWithOrganization(params: {
       amount: ELIZA_APP_INITIAL_CREDITS,
       description: "Eliza App - Welcome bonus",
       metadata: { type: "initial_free_credits", source: "eliza-app-signup" },
+    });
+  }
+
+  const bonusCredits = signupCode ? getBonusForCode(signupCode) : undefined;
+  if (bonusCredits !== undefined && bonusCredits > 0) {
+    await creditsService.addCredits({
+      organizationId: organization.id,
+      amount: bonusCredits,
+      description: "Signup code bonus",
+      metadata: { type: "signup_code_bonus", code: signupCode.trim().toLowerCase() },
     });
   }
 
@@ -461,6 +473,7 @@ class ElizaAppUserService {
       avatarUrl?: string | null;
     },
     phoneNumber?: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     // Validate required fields
     if (!discordId?.trim()) {
@@ -614,6 +627,7 @@ class ElizaAppUserService {
         },
         organizationName,
         slugGenerator: () => generateSlugFromDiscord(discordData.username, discordId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first
