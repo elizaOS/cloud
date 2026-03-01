@@ -79,20 +79,8 @@ export async function hasUsedSignupCode(organizationId: string): Promise<boolean
   return creditTransactionsRepository.hasSignupCodeBonus(organizationId);
 }
 
-/** PostgreSQL unique violation (23505); WHY catch: DB partial index prevents 2nd insert, we return "already used" not 500. */
-function isUniqueConstraintError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const code = (error as { code?: string }).code;
-    const cause = (error as { cause?: unknown }).cause;
-    return (
-      error.message.includes("unique constraint") ||
-      error.message.includes("duplicate key") ||
-      code === "23505" ||
-      (cause !== undefined && isUniqueConstraintError(cause))
-    );
-  }
-  return false;
-}
+// Import shared utility to avoid duplication
+import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 
 /** WHY redact: code is a shared secret; logs need audit trail without leaking full value. */
 function redactCode(code: string): string {

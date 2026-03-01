@@ -23,18 +23,17 @@ const NO_CACHE_HEADERS = {
  * See docs/signup-codes.md for design WHYs.
  */
 async function handleGET(request: NextRequest) {
-  const user = await requireAuthWithOrg();
-  const organizationId = user.organization_id!;
-
-  const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
-  if (!code) {
-    return NextResponse.json(
-      { error: "code is required (query param)" },
-      { status: 400, headers: NO_CACHE_HEADERS },
-    );
-  }
-
   try {
+    const user = await requireAuthWithOrg();
+    const organizationId = user.organization_id!;
+
+    const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
+    if (!code) {
+      return NextResponse.json(
+        { error: "code is required (query param)" },
+        { status: 400, headers: NO_CACHE_HEADERS },
+      );
+    }
     const bonus = await redeemSignupCode(organizationId, code);
     return NextResponse.json(
       {
