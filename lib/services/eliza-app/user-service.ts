@@ -13,7 +13,7 @@
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { creditsService } from "@/lib/services/credits";
-import { getBonusForCode } from "@/lib/services/signup-code";
+import { redeemSignupCode } from "@/lib/services/signup-code";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -110,14 +110,17 @@ async function createUserWithOrganization(params: {
     });
   }
 
-  const bonusCredits = signupCode ? getBonusForCode(signupCode) : undefined;
-  if (bonusCredits !== undefined && bonusCredits > 0) {
-    await creditsService.addCredits({
-      organizationId: organization.id,
-      amount: bonusCredits,
-      description: "Signup code bonus",
-      metadata: { type: "signup_code_bonus", code: signupCode.trim().toLowerCase() },
-    });
+  // Apply signup code bonus if provided (uses redeemSignupCode for consistent validation/logging)
+  if (signupCode) {
+    try {
+      await redeemSignupCode(organization.id, signupCode);
+    } catch (error) {
+      // For new orgs, "already used" shouldn't happen, but log if it does
+      logger.warn("[ElizaAppUserService] Signup code redemption failed for new org", {
+        organizationId: organization.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   const user = await usersRepository.create({
