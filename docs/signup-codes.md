@@ -20,6 +20,37 @@ One-time bonus credits for new or existing organizations, driven by config and u
 | **Redacted code in logs** | Code is a shared secret; logs show e.g. `la***` for audit without leaking full value. |
 | **Session-only redeem (no API key)** | Redeem is a user action from the app; API keys are for programmatic use and shouldn’t redeem on behalf of an org. |
 
+## Reseller / partner guide (how to use it)
+
+**Who this is for**: Partners, resellers, or marketing teams who get a signup code and need to share it with end users.
+
+1. **Get your code**  
+   The platform operator adds a code for you in `config/signup-codes.json` (e.g. `partner50` → $50 bonus). They give you the **code string** and the **redeem URL** (see below). You don’t manage config yourself.
+
+2. **Share the redeem link**  
+   Give your audience a single link. Format:
+   ```text
+   https://<your-app-domain>/api/signup-code/redeem?code=<your-code>
+   ```
+   Example: `https://app.example.com/api/signup-code/redeem?code=partner50`  
+   Use this in ads, emails, landing pages, or QR codes. One link is enough; no separate “enter code” step if they open it while logged in.
+
+3. **What the end user must do**  
+   - Have an account and be **logged in** (session cookie).  
+   - Open the link (same browser/session).  
+   - If they’re not logged in, they’ll get 401; they should sign up or log in, then open the link again.  
+   - Each **organization** can redeem only **one** signup code ever. If they already used any code, they’ll get 409.
+
+4. **What they get**  
+   One-time bonus credits (USD) added to their organization’s balance. Amount is defined by the code in config (e.g. $50). Response is JSON (`success`, `bonus`, `message`); you can point users to the dashboard to see their balance.
+
+5. **Eliza App (Discord, etc.)**  
+   If your users sign up via the Eliza App (e.g. Discord), the client can send the same code as `signup_code` in the signup request so **new** users get base credits plus the bonus in one step. Existing users still use the redeem link above.
+
+**Summary for resellers**: You get a code and the redeem URL. Share the URL; users must be logged in and open it once. One redemption per org; no forms or extra steps.
+
+---
+
 ## Configuration
 
 - **File**: `config/signup-codes.json`
