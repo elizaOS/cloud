@@ -14,7 +14,7 @@ import { creditsService } from "@/lib/services/credits";
 import { creditTransactionsRepository } from "@/db/repositories/credit-transactions";
 import { logger } from "@/lib/utils/logger";
 
-const CONFIG_PATH = join(process.cwd(), "config", "signup-codes.json");
+const CONFIG_PATH = "config/signup-codes.json"; // Update to a relative path for tracing
 
 interface SignupCodesConfig {
   codes?: Record<string, number>;

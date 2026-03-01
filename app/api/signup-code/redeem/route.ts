@@ -25,7 +25,17 @@ const NO_CACHE_HEADERS = {
 async function handleGET(request: NextRequest) {
   let user;
   try {
-    user = await requireAuthWithOrg();
+    try {
+        user = await requireAuthWithOrg();
+    } catch (error) {
+        if (error instanceof Error && (error.message.startsWith("Unauthorized:") || error.message.startsWith("Forbidden:"))) {
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401, headers: NO_CACHE_HEADERS },
+            );
+        }
+        throw error; // rethrow if it's not an auth error
+    }
     const organizationId = user.organization_id!;
 
     const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
