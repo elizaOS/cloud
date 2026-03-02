@@ -18,21 +18,12 @@ import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
+import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
 
 const ELIZA_APP_INITIAL_CREDITS = 5.0;
-
-function isUniqueConstraintError(error: unknown): boolean {
-  if (error instanceof Error) {
-    // PostgreSQL unique violation error code
-    return error.message.includes("unique constraint") ||
-           error.message.includes("duplicate key") ||
-           (error as { code?: string }).code === "23505";
-  }
-  return false;
-}
 
 export interface FindOrCreateResult {
   user: User;
