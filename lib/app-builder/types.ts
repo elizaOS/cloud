@@ -174,24 +174,7 @@ export const APP_BUILDER_MODELS: AppBuilderModel[] = [
     description: "Best balance of speed and intelligence",
     provider: "Anthropic",
   },
-  {
-    id: "openai/gpt-5.3-codex",
-    name: "GPT-5.3 Codex",
-    description: "Most capable agentic coding model",
-    provider: "OpenAI",
-  },
-  {
-    id: "openai/gpt-5.2-codex",
-    name: "GPT-5.2 Codex",
-    description: "Intelligent coding model for long-horizon tasks",
-    provider: "OpenAI",
-  },
-  {
-    id: "openai/gpt-5.2",
-    name: "GPT-5.2",
-    description: "Best for coding and agentic tasks",
-    provider: "OpenAI",
-  },
+  
   {
     id: "xai/grok-code-fast-1",
     name: "Grok Code Fast",
