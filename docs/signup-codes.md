@@ -92,7 +92,7 @@ All responses include no-cache headers so the GET isn’t cached or prefetched.
 
 ## Security and limits
 
-- **Rate limit**: Redeem endpoint uses STANDARD preset (e.g. 60/min in prod).
+- **Rate limit**: Redeem endpoint uses CRITICAL preset (e.g. 5 requests per 5 minutes in prod).
 - **One per org**: Enforced by application check plus DB partial unique index on `credit_transactions(organization_id)` where `metadata->>'type' = 'signup_code_bonus'`.
 - **Codes**: Stored in config only; not in env. Redacted in logs.
 
