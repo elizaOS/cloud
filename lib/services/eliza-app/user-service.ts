@@ -110,7 +110,14 @@ async function createUserWithOrganization(params: {
     });
   }
 
-  // Apply signup code bonus if provided (uses redeemSignupCode for consistent validation/logging)
+  const user = await usersRepository.create({
+    ...userData,
+    organization_id: organization.id,
+    role: "owner",
+    is_active: true,
+  });
+
+  // Apply signup code bonus AFTER user creation succeeds (prevents orphaned credits)
   if (signupCode) {
     try {
       await redeemSignupCode(organization.id, signupCode);
@@ -122,13 +129,6 @@ async function createUserWithOrganization(params: {
       });
     }
   }
-
-  const user = await usersRepository.create({
-    ...userData,
-    organization_id: organization.id,
-    role: "owner",
-    is_active: true,
-  });
 
   await apiKeysService.create({
     user_id: user.id,
