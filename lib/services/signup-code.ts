@@ -15,7 +15,14 @@ import { creditTransactionsRepository } from "@/db/repositories/credit-transacti
 import { logger } from "@/lib/utils/logger";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 
+// Use relative path from project root for consistency and deployment safety
 const CONFIG_PATH = join(process.cwd(), "config/signup-codes.json");
+
+// Error messages as constants for consistency
+export const ERRORS = {
+  INVALID_CODE: "Invalid signup code",
+  ALREADY_USED: "Your account has already used a signup code",
+};
 
 interface SignupCodesConfig {
   codes?: Record<string, number>;
@@ -98,12 +105,12 @@ export async function redeemSignupCode(
 ): Promise<number> {
   const bonus = getBonusForCode(code);
   if (bonus === undefined) {
-    throw new Error("Invalid signup code");
+    throw new Error(ERRORS.INVALID_CODE);
   }
 
   const used = await hasUsedSignupCode(organizationId);
   if (used) {
-    throw new Error("Your account has already used a signup code");
+    throw new Error(ERRORS.ALREADY_USED);
   }
 
   try {
@@ -118,7 +125,7 @@ export async function redeemSignupCode(
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
-      throw new Error("Your account has already used a signup code");
+      throw new Error(ERRORS.ALREADY_USED);
     }
     throw error;
   }
