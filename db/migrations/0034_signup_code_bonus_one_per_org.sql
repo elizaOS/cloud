@@ -6,4 +6,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS credit_transactions_signup_code_bonus_org_idx
   ON credit_transactions (organization_id)
   WHERE type = 'credit' AND (metadata->>'type' = 'signup_code_bonus');
 
-INSERT INTO __drizzle_migrations (version, name) VALUES ('0034', 'signup_code_bonus_one_per_org');
+-- Register migration in drizzle migrations table
+INSERT INTO __drizzle_migrations (hash, created_at)
+VALUES ('0034_signup_code_bonus_one_per_org', NOW());
