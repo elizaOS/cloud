@@ -23,19 +23,8 @@ const NO_CACHE_HEADERS = {
  * See docs/signup-codes.md for design WHYs.
  */
 async function handleGET(request: NextRequest) {
-  let user;
   try {
-    try {
-        user = await requireAuthWithOrg();
-    } catch (error) {
-        if (error instanceof Error && (error.message.startsWith("Unauthorized:") || error.message.startsWith("Forbidden:"))) {
-            return NextResponse.json(
-                { error: "Authentication required" },
-                { status: 401, headers: NO_CACHE_HEADERS },
-            );
-        }
-        throw error; // rethrow if it's not an auth error
-    }
+    const user = await requireAuthWithOrg();
     const organizationId = user.organization_id!;
 
     const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
@@ -68,18 +57,19 @@ async function handleGET(request: NextRequest) {
           { status: 409, headers: NO_CACHE_HEADERS },
         );
       }
-    }
-    
-    // Handle authentication errors
-    if (
-      error instanceof Error && 
-      (error.message.startsWith("Unauthorized:") || 
-       error.message.startsWith("Forbidden:"))
-    ) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401, headers: NO_CACHE_HEADERS },
-      );
+      // Handle authentication errors from requireAuthWithOrg
+      // requireAuthWithOrg throws "Unauthorized" or "No organization found" 
+      if (
+        error.message === "Unauthorized" ||
+        error.message === "No organization found" ||
+        error.message.includes("Unauthorized") ||
+        error.message.includes("authentication")
+      ) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 401, headers: NO_CACHE_HEADERS },
+        );
+      }
     }
     
     logger.error("[SignupCode Redeem] Error", { error });
