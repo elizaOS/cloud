@@ -33,22 +33,18 @@ export async function reconciler(instance: Server) {
   Log.info(`Reconciling Server ${name} (gen ${generation})`);
 
   try {
-    // Apply K8s resources (Deployment, Service, ScaledObject)
     await applyResources(instance);
     Log.info(`Server ${name}: K8s resources applied`);
 
-    // Update Redis state
     const url = `http://${name}.${ns}.svc:3000`;
     await setServerState(name, "pending", url);
 
-    // Set agent→server mappings
     const agents = instance.spec.agents ?? [];
     const currentAgentIds = agents.map((a) => a.agentId);
     for (const agent of agents) {
       await setAgentServer(agent.agentId, name);
     }
 
-    // Remove stale agent mappings (agents removed from spec)
     const previousAgentIds = getPreviousAgentIds(instance);
     const removedAgents = previousAgentIds.filter(
       (id) => !currentAgentIds.includes(id),
@@ -58,7 +54,6 @@ export async function reconciler(instance: Server) {
       Log.info(`Server ${name}: removed agent mapping ${agentId}`);
     }
 
-    // Update CR status
     await updateStatus(instance, {
       phase: "Pending",
       readyAgents: 0,
@@ -109,5 +104,20 @@ async function updateStatus(instance: Server, status: Server["status"]) {
     });
   } catch (err) {
     Log.error(err, `Failed to update status for ${instance.metadata?.name}`);
+  }
+}
+
+export async function patchServerStatus(
+  name: string,
+  ns: string,
+  status: Server["status"],
+) {
+  try {
+    await K8s(Server).PatchStatus({
+      metadata: { name, namespace: ns },
+      status,
+    });
+  } catch (err) {
+    Log.error(err, `Failed to patch status for ${name}`);
   }
 }

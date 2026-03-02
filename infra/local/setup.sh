@@ -107,17 +107,25 @@ pass "metrics-server installed"
 
 # 13. Create K8s Secret for agent-server env
 info "Creating eliza-agent-secrets Secret..."
-kubectl apply -f - <<'YAML'
-apiVersion: v1
-kind: Secret
-metadata:
-  name: eliza-agent-secrets
-  namespace: eliza-agents
-stringData:
-  DATABASE_URL: "postgresql://eliza_dev:local_dev_password@postgres.eliza-infra.svc:5432/eliza_dev"
-  REDIS_URL: "redis://redis.eliza-infra.svc:6379"
-YAML
-pass "Secret eliza-agent-secrets created"
+ENV_FILE="$SCRIPT_DIR/.env.agents"
+if [ ! -f "$ENV_FILE" ]; then
+  info "  No .env.agents found, creating with defaults..."
+  cat > "$ENV_FILE" <<'DEFAULTS'
+DATABASE_URL=postgresql://eliza_dev:local_dev_password@postgres.eliza-infra.svc:5432/eliza_dev
+REDIS_URL=redis://redis.eliza-infra.svc:6379
+ENABLE_DATA_ISOLATION=true
+ELIZA_SERVER_ID=agent-server-local
+# Uncomment and set to enable LLM via ElizaCloud proxy:
+# ELIZAOS_CLOUD_API_KEY=ek_xxx
+# ELIZAOS_CLOUD_BASE_URL=https://www.elizacloud.ai/api/v1
+DEFAULTS
+  info "  Edit $ENV_FILE to add your API keys, then re-run setup."
+fi
+kubectl create secret generic eliza-agent-secrets \
+  --namespace eliza-agents \
+  --from-env-file="$ENV_FILE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+pass "Secret eliza-agent-secrets created from .env.agents"
 
 # 14. Build & deploy operator
 info "Building operator..."
@@ -164,7 +172,6 @@ info "=== Verification ==="
 
 # Check namespaces
 kubectl get ns eliza-agents > /dev/null 2>&1 && pass "Namespace eliza-agents" || fail "Namespace eliza-agents missing"
-kubectl get ns eliza-system > /dev/null 2>&1 && pass "Namespace eliza-system" || fail "Namespace eliza-system missing"
 kubectl get ns eliza-infra > /dev/null 2>&1 && pass "Namespace eliza-infra" || fail "Namespace eliza-infra missing"
 
 # Check KEDA pods

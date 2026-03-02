@@ -59,7 +59,7 @@ spec:
               STATUS=$(kubectl run cs-redis-status-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
                 redis-cli -h redis GET "server:srv-gen:status" 2>/dev/null)
-              echo "$STATUS" | grep -q "pending" || { echo "FAIL: server status=$STATUS, expected pending"; exit 1; }
+              echo "$STATUS" | grep -qE "(pending|scaleddown)" || { echo "FAIL: server status=$STATUS, expected pending or scaleddown"; exit 1; }
 
               URL=$(kubectl run cs-redis-url-$RANDOM --rm -i --restart=Never -n eliza-infra \
                 --image=redis:7-alpine --quiet -- \
@@ -68,13 +68,8 @@ spec:
 
     - name: Assert CR status
       try:
-        - assert:
+        - script:
             timeout: 15s
-            resource:
-              apiVersion: eliza.ai/v1alpha1
-              kind: Server
-              metadata:
-                name: srv-gen
-                namespace: eliza-agents
-              status:
-                phase: Pending
+            content: |
+              PHASE=$(kubectl get server srv-gen -n eliza-agents -o jsonpath='{.status.phase}')
+              echo "$PHASE" | grep -qE "^(Pending|ScaledDown)$" || { echo "FAIL: phase=$PHASE, expected Pending or ScaledDown"; exit 1; }

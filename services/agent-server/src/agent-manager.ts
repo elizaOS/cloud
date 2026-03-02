@@ -9,7 +9,6 @@ import {
   type UUID,
 } from "@elizaos/core";
 import sqlPlugin from "@elizaos/plugin-sql";
-import { elizaClassicPlugin } from "@elizaos/plugin-eliza-classic";
 import { v4 as uuidv4 } from "uuid";
 import { getRedis } from "./redis";
 
@@ -24,7 +23,6 @@ export class AgentManager {
   private agents = new Map<string, AgentEntry>();
   private _draining = false;
   private inFlight = 0;
-  private migrationsRan = false;
 
   async initialize() {
     await getRedis().set(`server:${process.env.SERVER_NAME}:status`, "running");
@@ -74,7 +72,7 @@ export class AgentManager {
       },
     });
 
-    // Priority: elizacloud (unified proxy) > openai > eliza-classic (pattern matching)
+    // Priority: elizacloud (unified proxy) > openai
     const plugins: Plugin[] = [sqlPlugin as Plugin];
     if (process.env.ELIZAOS_CLOUD_API_KEY) {
       const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");
@@ -82,41 +80,10 @@ export class AgentManager {
     } else if (process.env.OPENAI_API_KEY) {
       const { openaiPlugin } = await import("@elizaos/plugin-openai");
       plugins.push(openaiPlugin);
-    } else {
-      plugins.push(elizaClassicPlugin as Plugin);
     }
 
     const runtime = new AgentRuntime({ character, plugins });
-    if (this.migrationsRan) {
-      await runtime.initialize({ skipMigrations: true });
-    } else {
-      try {
-        await runtime.initialize();
-        this.migrationsRan = true;
-      } catch (err: any) {
-        // DB may already be migrated from a previous run — retry without migrations
-        if (err.message?.includes("migration")) {
-          console.log(
-            "Migrations failed (DB likely already migrated), retrying with skipMigrations...",
-          );
-          const retry = new AgentRuntime({ character, plugins });
-          await retry.initialize({ skipMigrations: true });
-          this.migrationsRan = true;
-          this.agents.set(agentId, {
-            agentId,
-            characterRef,
-            runtime: retry,
-            state: "running",
-          });
-          await getRedis().set(
-            `agent:${agentId}:server`,
-            process.env.SERVER_NAME!,
-          );
-          return;
-        }
-        throw err;
-      }
-    }
+    await runtime.initialize({ skipMigrations: true });
 
     this.agents.set(agentId, {
       agentId,

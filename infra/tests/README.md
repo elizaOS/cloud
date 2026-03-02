@@ -55,7 +55,7 @@ The **Agent Server** (Elysia HTTP) runs inside the Deployment and exposes:
 | `spec.secretRef` | 01 (envFrom), 05 (patch secretRef) |
 | `spec.resources` | 01 (container resources), 05 (patch resources) |
 | `spec.agents` | 02 (create/stop/delete), 03 (multi-agent) |
-| `status.phase` | 01, 04 (Pending after reconcile) |
+| `status.phase` | 01, 04 (Pending after reconcile), 02 (Running after pod ready) |
 | `status.observedGeneration` | 05 (advances after patches) |
 
 ### Coverage per HTTP endpoint
@@ -123,6 +123,7 @@ Full CRUD agent lifecycle via HTTP. Wakes pod via KEDA.
 | Assertion | Method |
 |---|---|
 | KEDA wake via LPUSH scales pod 0→1 | Redis LPUSH + wait pod Ready |
+| CR phase transitions to Running after pod ready | K8s jsonpath on Server CR |
 | `GET /health` → `{alive:true}` | curl |
 | `GET /ready` → `{ready:true}` | curl |
 | `GET /status` → contains `serverName` | curl |
@@ -223,7 +224,7 @@ All 5 suites run in parallel. Cleanup is automatic via Chainsaw (resources creat
 ## Not tested (out of scope)
 
 - `POST /drain` endpoint (graceful shutdown) — requires SIGTERM simulation
-- `status.phase` transitions beyond Pending (Running, ScaledDown, Draining) — requires pod lifecycle
+- `status.phase` transitions to ScaledDown/Draining — requires KEDA cooldown or SIGTERM simulation
 - Agent-server Redis writes (`agent:{id}:server` mappings from reconciler) — tested indirectly via capacity
 - KEDA scale-down (cooldownPeriod=900s timeout makes it impractical in e2e)
 - Resource defaults (512Mi/250m) — tests use explicit resource values from CR

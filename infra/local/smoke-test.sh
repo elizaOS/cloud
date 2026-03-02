@@ -109,6 +109,12 @@ else
   exit 1
 fi
 
+# --- CR phase transition ---
+info "Checking Server CR phase..."
+sleep 3  # Allow watcher to propagate
+CR_PHASE=$(kubectl get server "$SERVER_NAME" -n "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+[ "$CR_PHASE" = "Running" ] && pass "Server CR phase is Running" || fail "Server CR phase — expected Running, got: $CR_PHASE"
+
 # ============================================================================
 # 4. Port-forward
 # ============================================================================

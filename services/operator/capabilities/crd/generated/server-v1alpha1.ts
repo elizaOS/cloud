@@ -16,6 +16,8 @@ export interface ServerSpec {
     requests?: { memory?: string; cpu?: string };
     limits?: { memory?: string; cpu?: string };
   };
+  cooldownPeriod?: number;
+  pollingInterval?: number;
   agents?: AgentRef[];
 }
 
@@ -23,11 +25,11 @@ export type ServerPhase = "Pending" | "Running" | "ScaledDown" | "Draining";
 
 export interface ServerStatus {
   phase: ServerPhase;
-  readyAgents: number;
-  totalAgents: number;
-  replicas: number;
-  podNames: string[];
-  lastActivity: string;
+  readyAgents?: number;
+  totalAgents?: number;
+  replicas?: number;
+  podNames?: string[];
+  lastActivity?: string;
   observedGeneration?: number;
 }
 

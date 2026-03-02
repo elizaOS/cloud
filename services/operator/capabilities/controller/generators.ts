@@ -65,6 +65,7 @@ export function generateDeployment(server: Server) {
             {
               name: "agent-server",
               image: server.spec.image,
+              imagePullPolicy: "Always",
               ports: [{ containerPort: 3000, name: "http" }],
               envFrom: [
                 {
@@ -157,8 +158,8 @@ export function generateScaledObject(server: Server) {
       scaleTargetRef: { name },
       minReplicaCount: 0,
       maxReplicaCount: server.spec.maxReplicas ?? 3,
-      cooldownPeriod: 900,
-      pollingInterval: 30,
+      cooldownPeriod: server.spec.cooldownPeriod ?? 900,
+      pollingInterval: server.spec.pollingInterval ?? 30,
       triggers: [
         {
           type: "redis",

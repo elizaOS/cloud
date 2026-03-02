@@ -6,9 +6,4 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: eliza-system
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: eliza-infra

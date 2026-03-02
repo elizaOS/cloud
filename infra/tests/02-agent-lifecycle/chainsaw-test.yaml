@@ -44,6 +44,15 @@ spec:
               kubectl logs -n eliza-agents -l "eliza.ai/server=srv-life" --tail=20 2>/dev/null || true
               exit 1
 
+    - name: Assert CR phase Running
+      try:
+        - script:
+            timeout: 15s
+            content: |
+              sleep 3
+              PHASE=$(kubectl get server srv-life -n eliza-agents -o jsonpath='{.status.phase}')
+              [ "$PHASE" = "Running" ] || { echo "FAIL: phase=$PHASE, expected Running"; exit 1; }
+
     - name: HTTP lifecycle tests
       try:
         - script:

@@ -1,7 +1,8 @@
 import { Capability, a, Log, K8s } from "pepr";
-import { Server } from "./crd/generated/server-v1alpha1";
-import { reconciler, finalizer } from "./reconciler";
+import { Server, type ServerPhase } from "./crd/generated/server-v1alpha1";
+import { reconciler, finalizer, patchServerStatus } from "./reconciler";
 import { applyResources } from "./controller/generators";
+import { setServerState } from "./redis";
 import { validator } from "./crd/validator";
 import "./crd/register";
 
@@ -13,13 +14,11 @@ export const ServerController = new Capability({
 
 const { When } = ServerController;
 
-// Validate Server CRs before admission
 When(Server)
   .IsCreatedOrUpdated()
   .InNamespace("eliza-agents")
   .Validate(validator);
 
-// Main reconciliation loop: watch Server CRs
 When(Server)
   .IsCreatedOrUpdated()
   .InNamespace("eliza-agents")
@@ -28,6 +27,42 @@ When(Server)
   })
   .Finalize(async (instance) => {
     await finalizer(instance);
+    if (instance.metadata?.name) lastPhase.delete(instance.metadata.name);
+  });
+
+const lastPhase = new Map<string, string>();
+
+When(a.Deployment)
+  .IsUpdated()
+  .InNamespace("eliza-agents")
+  .WithLabel("eliza.ai/managed-by", "server-operator")
+  .Watch(async (deploy) => {
+    const serverName = deploy.metadata?.labels?.["eliza.ai/server"];
+    if (!serverName) return;
+
+    const replicas = deploy.status?.replicas ?? 0;
+    const ready = deploy.status?.readyReplicas ?? 0;
+    const ns = deploy.metadata?.namespace ?? "eliza-agents";
+
+    let phase: ServerPhase;
+    if (replicas === 0) phase = "ScaledDown";
+    else if (ready > 0) phase = "Running";
+    else phase = "Pending";
+
+    if (lastPhase.get(serverName) === phase) return;
+    lastPhase.set(serverName, phase);
+
+    Log.info(
+      `Server ${serverName}: phase → ${phase} (replicas=${replicas}, ready=${ready})`,
+    );
+
+    const url = `http://${serverName}.${ns}.svc:3000`;
+    await setServerState(serverName, phase.toLowerCase(), url);
+    await patchServerStatus(serverName, ns, {
+      phase,
+      replicas: ready,
+      lastActivity: new Date().toISOString(),
+    });
   });
 
 // Self-healing: re-deploy Deployments if deleted externally

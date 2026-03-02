@@ -71,6 +71,20 @@ export const ServerCRD = {
                       },
                     },
                   },
+                  cooldownPeriod: {
+                    type: "integer",
+                    minimum: 0,
+                    default: 900,
+                    description:
+                      "KEDA cooldown in seconds before scale-to-zero (default 900)",
+                  },
+                  pollingInterval: {
+                    type: "integer",
+                    minimum: 5,
+                    default: 30,
+                    description:
+                      "KEDA polling interval in seconds (default 30)",
+                  },
                   agents: {
                     type: "array",
                     items: {
