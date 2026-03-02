@@ -1,0 +1,23 @@
+# CodeRabbit Configuration
+# See: https://docs.coderabbit.ai/guides/configure-coderabbit
+
+reviews:
+  auto_review:
+    enabled: true
+    auto_pause_after_reviewed_commits: 5
+  review_status: false
+
+# Path filters - exclude generated files and dependencies
+path_filters:
+  - "!**/node_modules/**"
+  - "!**/dist/**"
+  - "!**/.next/**"
+  - "!**/coverage/**"
+  - "!**/*.min.js"
+  - "!**/*.lock"
+  - "!**/package-lock.json"
+  - "!**/pnpm-lock.yaml"
+  - "!**/.prr/**"
+
+# Language settings
+language: en-US
