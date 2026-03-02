@@ -24,7 +24,18 @@ const NO_CACHE_HEADERS = {
  */
 async function handleGET(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    // Move requireAuthWithOrg inside try/catch to properly handle auth errors
+    let user;
+    try {
+      user = await requireAuthWithOrg();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return NextResponse.json(
+        { error: message },
+        { status: 401, headers: NO_CACHE_HEADERS }
+      );
+    }
+    
     const organizationId = user.organization_id!;
 
     const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
@@ -45,31 +56,22 @@ async function handleGET(request: NextRequest) {
     );
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "Invalid signup code") {
+      // Import error constants from service
+      const { ERRORS } = await import("@/lib/services/signup-code");
+
+      if (error.message === ERRORS.INVALID_CODE) {
         return NextResponse.json(
-          { error: "Invalid signup code" },
+          { error: ERRORS.INVALID_CODE },
           { status: 400, headers: NO_CACHE_HEADERS },
         );
       }
-      if (error.message === "Your account has already used a signup code") {
+      if (error.message === ERRORS.ALREADY_USED) {
         return NextResponse.json(
-          { error: "Your account has already used a signup code" },
+          { error: ERRORS.ALREADY_USED },
           { status: 409, headers: NO_CACHE_HEADERS },
         );
       }
-      // Handle authentication errors from requireAuthWithOrg
-      // requireAuthWithOrg throws "Unauthorized" or "No organization found" 
-      if (
-        error.message === "Unauthorized" ||
-        error.message === "No organization found" ||
-        error.message.includes("Unauthorized") ||
-        error.message.includes("authentication")
-      ) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 401, headers: NO_CACHE_HEADERS },
-        );
-      }
+      // Note: Authentication errors are now handled in the initial try/catch block
     }
     
     logger.error("[SignupCode Redeem] Error", { error });
