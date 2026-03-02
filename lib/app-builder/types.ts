@@ -160,29 +160,36 @@ export interface AppBuilderModel {
  * Default models available for App Builder.
  * Matches the models available in chat for consistency.
  */
+/** Same IDs as lib/fragments/models.ts; used for app-builder UI. WHY: Single gateway source of truth; see docs/models.md. */
 export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   {
-    id: "anthropic/claude-opus-4.5",
-    name: "Claude Opus 4.5",
-    description: "Most capable model for complex coding tasks",
+    id: "anthropic/claude-opus-4.6",
+    name: "Claude Opus 4.6",
+    description: "Most intelligent model for agents and coding",
     provider: "Anthropic",
   },
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude Sonnet 4.5",
-    description: "Best for complex coding tasks with excellent reasoning",
+    id: "anthropic/claude-sonnet-4.6",
+    name: "Claude Sonnet 4.6",
+    description: "Best balance of speed and intelligence",
     provider: "Anthropic",
+  },
+  {
+    id: "openai/gpt-5.3-codex",
+    name: "GPT-5.3 Codex",
+    description: "Most capable agentic coding model",
+    provider: "OpenAI",
   },
   {
     id: "openai/gpt-5.2-codex",
     name: "GPT-5.2 Codex",
-    description: "OpenAI's most capable coding model",
+    description: "Intelligent coding model for long-horizon tasks",
     provider: "OpenAI",
   },
   {
     id: "openai/gpt-5.2",
     name: "GPT-5.2",
-    description: "OpenAI's most capable multimodal model",
+    description: "Best for coding and agentic tasks",
     provider: "OpenAI",
   },
   {
@@ -205,4 +212,4 @@ export const APP_BUILDER_MODELS: AppBuilderModel[] = [
   },
 ];
 
-export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-opus-4.5";
+export const DEFAULT_APP_BUILDER_MODEL = "anthropic/claude-opus-4.6";

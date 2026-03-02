@@ -36,7 +36,8 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 ### 🤖 AI Generation Studio
 
 - **Text & Chat**:
-  - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
+  - Multi-model support (GPT-4, Claude, Gemini, etc.) via [Vercel AI Gateway](https://vercel.com/ai-gateway/models)
+  - Curated model list and allowlist so only supported models are selectable (see [docs/models.md](docs/models.md) for WHYs and how to add/change models)
   - Real-time streaming responses
   - Conversation persistence with full history
   - Model selection and configuration
@@ -1951,6 +1952,9 @@ Container deployments are billed **daily**:
 ### AI & Machine Learning
 
 - [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [Vercel AI Gateway models](https://vercel.com/ai-gateway/models) — Source of truth for chat model IDs
+- [Models (docs/models.md)](docs/models.md) — Curated list, allowlist, WHYs, how to add/change models
+- [Roadmap (docs/roadmap.md)](docs/roadmap.md) — Model list evolution and deprecation approach
 - [AI SDK Gateway Guide](https://sdk.vercel.ai/docs/ai-sdk-core/providers-and-models)
 - [Google Gemini API](https://ai.google.dev/docs)
 - [OpenAI API Documentation](https://platform.openai.com/docs)

@@ -107,34 +107,40 @@ export type AppBuilderEvent =
 const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid compute max (800s)
 const MAX_ITERATIONS = 30;
 
-// Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-opus-4.5";
-
-// ============================================================================
-// Available Models (fetched dynamically, these are suggestions)
-// ============================================================================
+/** Model IDs match Vercel AI Gateway (https://vercel.com/ai-gateway/models). Default is highest-capability model for coding/agent tasks. */
+const DEFAULT_MODEL = "anthropic/claude-opus-4.6";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-opus-4.5",
-    name: "Claude Opus 4.5",
-    description: "Most capable model for complex coding tasks",
+    id: "anthropic/claude-opus-4.6",
+    name: "Claude Opus 4.6",
+    description: "Most intelligent model for agents and coding",
     isDefault: true,
   },
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude Sonnet 4.5",
-    description: "Best balance of speed and capability for coding tasks",
+    id: "anthropic/claude-sonnet-4.6",
+    name: "Claude Sonnet 4.6",
+    description: "Best balance of speed and intelligence",
+  },
+  {
+    id: "anthropic/claude-opus-4.5",
+    name: "Claude Opus 4.5",
+    description: "Previous generation most capable",
+  },
+  {
+    id: "openai/gpt-5.3-codex",
+    name: "GPT-5.3 Codex",
+    description: "Most capable agentic coding model",
   },
   {
     id: "openai/gpt-5.2-codex",
     name: "GPT-5.2 Codex",
-    description: "OpenAI's most capable coding model",
+    description: "Intelligent coding model for long-horizon tasks",
   },
   {
     id: "openai/gpt-5.2",
     name: "GPT-5.2",
-    description: "OpenAI's most capable model",
+    description: "Best for coding and agentic tasks",
   },
   {
     id: "xai/grok-code-fast-1",
