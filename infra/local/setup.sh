@@ -21,15 +21,15 @@ info "Checking Docker..."
 docker info > /dev/null 2>&1 || fail "Docker is not running"
 pass "Docker is running"
 
-# 2. Start PostgreSQL + Redis via docker-compose
-info "Starting PostgreSQL + Redis (docker compose)..."
+# 2. Start PostgreSQL + Redis + Redis REST proxy via docker-compose
+info "Starting PostgreSQL + Redis + Redis REST proxy (docker compose)..."
 docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" up -d
 sleep 2
 
 docker compose -f "$CLOUD_V2_DIR/docker-compose.yml" ps --format '{{.Name}} {{.Status}}' | while read -r line; do
   info "  $line"
 done
-pass "PostgreSQL + Redis running"
+pass "PostgreSQL + Redis + Redis REST proxy running"
 
 # 3. Create local registry (if not exists)
 info "Creating local registry..."
@@ -166,6 +166,43 @@ docker build -t "localhost:${REGISTRY_PORT}/agent-server:dev" \
 docker push "localhost:${REGISTRY_PORT}/agent-server:dev"
 pass "Agent-server image pushed to localhost:${REGISTRY_PORT}"
 
+# 16. Build & push gateway-discord image
+info "Building gateway-discord image..."
+cd "$CLOUD_V2_DIR/services/gateway-discord"
+bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
+cd "$SCRIPT_DIR"
+
+docker build -t "localhost:${REGISTRY_PORT}/gateway-discord:dev" \
+  "$CLOUD_V2_DIR/services/gateway-discord"
+docker push "localhost:${REGISTRY_PORT}/gateway-discord:dev"
+pass "Gateway-discord image pushed to localhost:${REGISTRY_PORT}"
+
+# 17. Create gateway-discord Secret
+info "Creating gateway-discord-secrets Secret..."
+GW_ENV_FILE="$SCRIPT_DIR/.env.gateway"
+if [ ! -f "$GW_ENV_FILE" ]; then
+  info "  No .env.gateway found, creating with defaults..."
+  cat > "$GW_ENV_FILE" <<'DEFAULTS'
+GATEWAY_BOOTSTRAP_SECRET=local-dev-gateway-secret-change-me
+# Eliza App bot (optional — set to test the system-wide bot)
+# ELIZA_APP_DISCORD_BOT_ENABLED=true
+# ELIZA_APP_DISCORD_BOT_TOKEN=your-bot-token
+# ELIZA_APP_DISCORD_APPLICATION_ID=your-application-id
+# ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:local
+DEFAULTS
+  info "  Edit $GW_ENV_FILE with your secrets, then re-run setup."
+fi
+kubectl create secret generic gateway-discord-secrets \
+  --namespace eliza-infra \
+  --from-env-file="$GW_ENV_FILE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+pass "Secret gateway-discord-secrets created from .env.gateway"
+
+# 18. Deploy gateway-discord
+info "Deploying gateway-discord..."
+kubectl apply -f "$SCRIPT_DIR/manifests/gateway-discord.yaml"
+pass "Gateway-discord deployment applied"
+
 # === Verification ===
 echo ""
 info "=== Verification ==="
@@ -184,6 +221,8 @@ kubectl get crd scaledobjects.keda.sh > /dev/null 2>&1 && pass "KEDA CRD: Scaled
 # Check ExternalName services
 kubectl get svc postgres -n eliza-infra > /dev/null 2>&1 && pass "Service: postgres.eliza-infra" || fail "Service postgres missing"
 kubectl get svc redis -n eliza-infra > /dev/null 2>&1 && pass "Service: redis.eliza-infra" || fail "Service redis missing"
+kubectl get svc redis-rest -n eliza-infra > /dev/null 2>&1 && pass "Service: redis-rest.eliza-infra" || fail "Service redis-rest missing"
+kubectl get svc eliza-cloud -n eliza-infra > /dev/null 2>&1 && pass "Service: eliza-cloud.eliza-infra" || fail "Service eliza-cloud missing"
 
 # Check operator
 kubectl get crd servers.eliza.ai > /dev/null 2>&1 && pass "CRD: servers.eliza.ai" || fail "Server CRD missing"
@@ -210,16 +249,21 @@ kubectl run redis-test --rm -i --restart=Never -n eliza-infra \
 echo ""
 echo -e "${GREEN}=== All checks passed ===${NC}"
 echo ""
-echo "Cluster:    kind-${CLUSTER_NAME}"
-echo "Registry:   localhost:${REGISTRY_PORT}"
-echo "PostgreSQL: postgres.eliza-infra.svc:5432 (eliza_dev/local_dev_password)"
-echo "Redis:      redis.eliza-infra.svc:6379"
-echo "KEDA:       installed in namespace 'keda'"
+echo "Cluster:      kind-${CLUSTER_NAME}"
+echo "Registry:     localhost:${REGISTRY_PORT}"
+echo "PostgreSQL:   postgres.eliza-infra.svc:5432 (eliza_dev/local_dev_password)"
+echo "Redis:        redis.eliza-infra.svc:6379"
+echo "Redis REST:   redis-rest.eliza-infra.svc:8079 (token: local_dev_token)"
+echo "Eliza Cloud:  eliza-cloud.eliza-infra.svc:3000 (run Next.js on host)"
+echo "KEDA:         installed in namespace 'keda'"
 echo ""
-echo "Operator:   deployed in namespace 'pepr-system'"
-echo "Agent img:  localhost:${REGISTRY_PORT}/agent-server:dev"
+echo "Operator:     deployed in namespace 'pepr-system'"
+echo "Agent img:    localhost:${REGISTRY_PORT}/agent-server:dev"
+echo "Gateway img:  localhost:${REGISTRY_PORT}/gateway-discord:dev"
 echo ""
 echo "Next steps:"
-echo "  - Apply test Server CR: kubectl apply -f infra/local/manifests/test-server.yaml"
-echo "  - Wake via KEDA: kubectl run act --rm -i --restart=Never -n eliza-infra --image=redis:7-alpine -- redis-cli -h redis LPUSH keda:srv-test-1:activity wake"
-echo "  - Port-forward: kubectl port-forward -n eliza-agents svc/srv-test-1 3000:3000"
+echo "  1. Start Eliza Cloud locally:  cd eliza-cloud-v2 && bun dev"
+echo "  2. Apply Server CR:            kubectl apply -f infra/local/manifests/shared-eliza.yaml"
+echo "  3. Deploy gateway:             kubectl apply -f infra/local/manifests/gateway-discord.yaml"
+echo "  4. Check gateway logs:         kubectl logs -f -n eliza-infra -l app=gateway-discord"
+echo "  5. Wake agent-server:          kubectl run act --rm -i --restart=Never -n eliza-infra --image=redis:7-alpine -- redis-cli -h redis LPUSH keda:shared-eliza:activity wake"

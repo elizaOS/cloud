@@ -12,6 +12,9 @@ spec:
   cooldownPeriod: 60
   pollingInterval: 10
   secretRef: eliza-agent-secrets
+  agents:
+    - agentId: "eliza"
+      characterRef: "eliza"
   resources:
     requests:
       memory: "1Gi"

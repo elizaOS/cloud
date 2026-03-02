@@ -21,3 +21,27 @@ spec:
   ports:
     - port: 6379
       targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-rest
+  namespace: eliza-infra
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - port: 8079
+      targetPort: 8079
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eliza-cloud
+  namespace: eliza-infra
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - port: 3000
+      targetPort: 3000

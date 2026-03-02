@@ -25,6 +25,19 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  redis-rest:
+    image: hiett/serverless-redis-http:latest
+    container_name: eliza-local-redis-rest
+    restart: unless-stopped
+    ports:
+      - "8079:80"
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local_dev_token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    depends_on:
+      - redis
+
 volumes:
   postgres_data:
   redis_data:
