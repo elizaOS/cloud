@@ -14,7 +14,6 @@ import { creditsService } from "@/lib/services/credits";
 import { creditTransactionsRepository } from "@/db/repositories/credit-transactions";
 import { logger } from "@/lib/utils/logger";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
-import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 
 const CONFIG_PATH = join(process.cwd(), "config/signup-codes.json");
 
