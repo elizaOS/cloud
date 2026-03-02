@@ -14,7 +14,7 @@ import { creditsService } from "@/lib/services/credits";
 import { creditTransactionsRepository } from "@/db/repositories/credit-transactions";
 import { logger } from "@/lib/utils/logger";
 
-const CONFIG_PATH = "config/signup-codes.json"; // Update to a relative path for tracing
+const CONFIG_PATH = join(process.cwd(), "config/signup-codes.json");
 
 interface SignupCodesConfig {
   codes?: Record<string, number>;
@@ -79,8 +79,7 @@ export async function hasUsedSignupCode(organizationId: string): Promise<boolean
   return creditTransactionsRepository.hasSignupCodeBonus(organizationId);
 }
 
-// Import shared utility to avoid duplication
-import { isUniqueConstraintError } from "@/lib/utils/db-errors";
+import { isUniqueConstraintError } from "@/lib/utils/db-errors"; // Import shared utility to avoid duplication
 
 /** WHY redact: code is a shared secret; logs need audit trail without leaking full value. */
 function redactCode(code: string): string {
