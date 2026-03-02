@@ -1921,6 +1921,20 @@ Container deployments are billed **daily**:
 ## 📚 Additional Resources
 
 ### Core Framework
+### Implementation Summary
+
+|Cohort / File(s)|Summary|
+|---|---|
+|**Config & Docs** <br> `README.md`, `config/README.md`, `config/signup-codes.json`, `docs/signup-codes.md`, `docs/ENV_VARIABLES.md`, `content/changelog.mdx`|Add static signup-codes config, usage notes, new docs, and changelog entry describing the feature and config schema.|
+|**Redeem API** <br> `app/api/signup-code/redeem/route.ts`|New GET endpoint to redeem a signup code for the authenticated organization; validates `code` query param, returns structured JSON, handles invalid/used codes (400/409), logs errors, sets no-cache headers, and is rate-limited.|
+|**Auth / User Flow** <br> `app/api/eliza-app/auth/discord/route.ts`, `lib/services/eliza-app/user-service.ts`|Accept optional `signup_code` in Discord OAuth requests and propagate `signupCode` through `findOrCreateByDiscordId()` → `createUserWithOrganization()` to attempt immediate redemption after org creation.|
+|**Signup Code Service** <br> `lib/services/signup-code.ts`|New service to load/normalize/cache `config/signup-codes.json` and expose `getBonusForCode()`, `hasUsedSignupCode()`, and `redeemSignupCode()` with redaction, DB race handling, and credit application.|
+|**Credits / DB Repos** <br> `db/repositories/credit-transactions.ts`|Add `hasSignupCodeBonus(organizationId)` using a write-primary query to check for existing `signup_code_bonus` transactions to reduce race windows.|
+|**DB Migration** <br> `db/migrations/0034_signup_code_bonus_one_per_org.sql`|Create partial unique index ensuring at-most-one `signup_code_bonus` per organization; insert migration journal entry.|
+|**DB Error Utils** <br> `lib/utils/db-errors.ts`|Add `isUniqueConstraintError(error)` to detect Postgres unique-constraint/duplicate-key errors (including nested causes and SQLSTATE `23505`).|
+|**Misc / Cleanup** <br> `CLAUDE.md`|Remove legacy `CLAUDE.md` file. |
+
+### Additional Resources
 
 - [Next.js 15 Documentation](https://nextjs.org/docs)
 - [React 19 Documentation](https://react.dev)
