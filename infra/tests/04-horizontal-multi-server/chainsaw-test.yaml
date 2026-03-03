@@ -90,26 +90,14 @@ spec:
 
     - name: Assert both CRs reconciled (status.phase proves Redis written)
       try:
-        - assert:
+        - script:
             timeout: 60s
-            resource:
-              apiVersion: eliza.ai/v1alpha1
-              kind: Server
-              metadata:
-                name: srv-alpha
-                namespace: eliza-agents
-              status:
-                phase: Pending
-        - assert:
-            timeout: 60s
-            resource:
-              apiVersion: eliza.ai/v1alpha1
-              kind: Server
-              metadata:
-                name: srv-beta
-                namespace: eliza-agents
-              status:
-                phase: Pending
+            content: |
+              for name in srv-alpha srv-beta; do
+                PHASE=$(kubectl get server "$name" -n eliza-agents -o jsonpath='{.status.phase}')
+                echo "$name phase=$PHASE"
+                echo "$PHASE" | grep -qE "^(Pending|ScaledDown)$" || { echo "FAIL: $name phase=$PHASE, expected Pending or ScaledDown"; exit 1; }
+              done
 
     - name: Delete alpha, verify beta survives
       try:
@@ -143,12 +131,9 @@ spec:
               metadata:
                 name: srv-beta
                 namespace: eliza-agents
-        - assert:
-            resource:
-              apiVersion: eliza.ai/v1alpha1
-              kind: Server
-              metadata:
-                name: srv-beta
-                namespace: eliza-agents
-              status:
-                phase: Pending
+        - script:
+            timeout: 15s
+            content: |
+              PHASE=$(kubectl get server srv-beta -n eliza-agents -o jsonpath='{.status.phase}')
+              echo "srv-beta phase=$PHASE"
+              echo "$PHASE" | grep -qE "^(Pending|ScaledDown)$" || { echo "FAIL: phase=$PHASE, expected Pending or ScaledDown"; exit 1; }

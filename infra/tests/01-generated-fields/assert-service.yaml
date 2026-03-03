@@ -9,7 +9,7 @@ metadata:
     eliza.ai/tier: shared
     eliza.ai/project: cloud
 spec:
-  type: ClusterIP
+  clusterIP: None
   ports:
     - port: 3000
       targetPort: 3000

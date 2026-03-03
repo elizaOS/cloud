@@ -134,7 +134,7 @@ export function generateService(server: Server) {
       ownerReferences: ownerRef(server),
     },
     spec: {
-      type: "ClusterIP",
+      clusterIP: "None",
       ports: [{ port: 3000, targetPort: 3000, protocol: "TCP", name: "http" }],
       selector: { "eliza.ai/server": name },
     },
@@ -160,6 +160,16 @@ export function generateScaledObject(server: Server) {
       maxReplicaCount: server.spec.maxReplicas ?? 3,
       cooldownPeriod: server.spec.cooldownPeriod ?? 900,
       pollingInterval: server.spec.pollingInterval ?? 30,
+      advanced: {
+        horizontalPodAutoscalerConfig: {
+          behavior: {
+            scaleDown: {
+              stabilizationWindowSeconds: 300,
+              policies: [{ type: "Pods", value: 1, periodSeconds: 60 }],
+            },
+          },
+        },
+      },
       triggers: [
         {
           type: "redis",

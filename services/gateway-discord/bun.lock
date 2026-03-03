@@ -9,9 +9,11 @@
         "@upstash/redis": "1.35.8",
         "@vercel/blob": "^0.25.0",
         "discord.js": "14.25.1",
+        "hashring": "^3.2.0",
         "hono": "4.10.8",
       },
       "devDependencies": {
+        "@types/hashring": "^3.2.5",
         "@types/node": "22.19.2",
         "typescript": "5.9.3",
       },
@@ -40,6 +42,8 @@
 
     "@sapphire/snowflake": ["@sapphire/snowflake@3.5.3", "", {}, "sha512-jjmJywLAFoWeBi1W7994zZyiNWPIiqRRNAmSERxyg93xRGzNYvGjlZ0gR6x0F4gPRi2+0O6S71kOZYyr3cxaIQ=="],
 
+    "@types/hashring": ["@types/hashring@3.2.5", "", { "dependencies": { "@types/node": "*" } }, "sha512-Y80Bt3Y9Z6erq9bGvwbxLD8z0XGLxK41XXeAJtaX4BbVUvStqhfGjKtXNVNISfBVxE/hndVw6aQ3EdOIVcwIFg=="],
+
     "@types/node": ["@types/node@22.19.2", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-LPM2G3Syo1GLzXLGJAKdqoU35XvrWzGJ21/7sgZTUpbkBaOasTj8tjwn6w+hCkqaa1TfJ/w67rJSwYItlJ2mYw=="],
 
     "@types/ws": ["@types/ws@8.18.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg=="],
@@ -54,11 +58,15 @@
 
     "bytes": ["bytes@3.1.2", "", {}, "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg=="],
 
+    "connection-parse": ["connection-parse@0.0.7", "", {}, "sha512-bTTG28diWg7R7/+qE5NZumwPbCiJOT8uPdZYu674brDjBWQctbaQbYlDKhalS+4i5HxIx+G8dZsnBHKzWpp01A=="],
+
     "discord-api-types": ["discord-api-types@0.38.37", "", {}, "sha512-Cv47jzY1jkGkh5sv0bfHYqGgKOWO1peOrGMkDFM4UmaGMOTgOW8QSexhvixa9sVOiz8MnVOBryWYyw/CEVhj7w=="],
 
     "discord.js": ["discord.js@14.25.1", "", { "dependencies": { "@discordjs/builders": "^1.13.0", "@discordjs/collection": "1.5.3", "@discordjs/formatters": "^0.6.2", "@discordjs/rest": "^2.6.0", "@discordjs/util": "^1.2.0", "@discordjs/ws": "^1.2.3", "@sapphire/snowflake": "3.5.3", "discord-api-types": "^0.38.33", "fast-deep-equal": "3.1.3", "lodash.snakecase": "4.1.1", "magic-bytes.js": "^1.10.0", "tslib": "^2.6.3", "undici": "6.21.3" } }, "sha512-2l0gsPOLPs5t6GFZfQZKnL1OJNYFcuC/ETWsW4VtKVD/tg4ICa9x+jb9bkPffkMdRpRpuUaO/fKkHCBeiCKh8g=="],
 
     "fast-deep-equal": ["fast-deep-equal@3.1.3", "", {}, "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q=="],
+
+    "hashring": ["hashring@3.2.0", "", { "dependencies": { "connection-parse": "0.0.x", "simple-lru-cache": "0.0.x" } }, "sha512-xCMovURClsQZ+TR30icCZj+34Fq1hs0y6YCASD6ZqdRfYRybb5Iadws2WS+w09mGM/kf9xyA5FCdJQGcgcraSA=="],
 
     "hono": ["hono@4.10.8", "", {}, "sha512-DDT0A0r6wzhe8zCGoYOmMeuGu3dyTAE40HHjwUsWFTEy5WxK1x2WDSsBPlEXgPbRIFY6miDualuUDbasPogIww=="],
 
@@ -71,6 +79,8 @@
     "magic-bytes.js": ["magic-bytes.js@1.13.0", "", {}, "sha512-afO2mnxW7GDTXMm5/AoN1WuOcdoKhtgXjIvHmobqTD1grNplhGdv3PFOyjCVmrnOZBIT/gD/koDKpYG+0mvHcg=="],
 
     "retry": ["retry@0.13.1", "", {}, "sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg=="],
+
+    "simple-lru-cache": ["simple-lru-cache@0.0.2", "", {}, "sha512-uEv/AFO0ADI7d99OHDmh1QfYzQk/izT1vCmu/riQfh7qjBVUUgRT87E5s5h7CxWCA/+YoZerykpEthzVrW3LIw=="],
 
     "ts-mixer": ["ts-mixer@6.0.4", "", {}, "sha512-ufKpbmrugz5Aou4wcr5Wc1UUFWOLhq+Fm6qa6P0w0K5Qw2yhaUoiWszhCVuNQyNwrlGiscHOmqYoAox1PtvgjA=="],
 

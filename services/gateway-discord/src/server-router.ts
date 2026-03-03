@@ -1,5 +1,6 @@
 import type { Redis } from "@upstash/redis";
 import { readFileSync } from "fs";
+import { getHashTargets, refreshHashRing } from "./hash-router";
 
 const KEDA_COOLDOWN_SECONDS = Number(process.env.KEDA_COOLDOWN_SECONDS ?? 900);
 const FORWARD_TIMEOUT_MS = 30_000;
@@ -151,8 +152,10 @@ export async function wakeServer(
 }
 
 /**
- * Retries on failure. On first connection failure, calls K8s API
- * to scale the deployment 0→1 for instant wake-up.
+ * Forwards a message to an agent-server pod using consistent hash routing.
+ * Same userId always hits the same pod (session affinity via hash ring).
+ * On connection failure: refreshes DNS, retries on fallback pod.
+ * On scaled-to-zero: triggers K8s wake-up and retries until pod is ready.
  */
 export async function forwardToServer(
   serverUrl: string,
@@ -161,7 +164,6 @@ export async function forwardToServer(
   userId: string,
   text: string,
 ): Promise<string> {
-  const url = `${serverUrl}/agents/${agentId}/message`;
   const body = JSON.stringify({ userId, text });
 
   let lastError: Error | null = null;
@@ -173,35 +175,75 @@ export async function forwardToServer(
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+    // Resolve target pod via consistent hash ring (DNS on headless Service)
+    const targets = await getHashTargets(serverUrl, userId, 2);
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-        signal: controller.signal,
-      });
-
-      if (res.ok) {
-        const data = (await res.json()) as { response: string };
-        return data.response;
-      }
-
-      lastError = new Error(
-        `Server returned ${res.status}: ${await res.text()}`,
-      );
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+    if (targets.length === 0) {
       if (!woken) {
         woken = true;
         wakeServer(serverName, serverUrl);
       }
-    } finally {
-      clearTimeout(timeoutId);
+      lastError = new Error("No pods available (scaled to zero)");
+      continue;
+    }
+
+    const result = await tryTarget(targets[0], agentId, body);
+    if (result.ok) return result.response;
+
+    // Primary failed — refresh ring and try fallback
+    if (targets.length > 1) {
+      await refreshHashRing(serverUrl);
+      const fallback = await tryTarget(targets[1], agentId, body);
+      if (fallback.ok) return fallback.response;
+    }
+
+    lastError = result.error;
+    if (!woken && result.isConnectionError) {
+      woken = true;
+      wakeServer(serverName, serverUrl);
     }
   }
 
   throw lastError ?? new Error("forwardToServer failed");
+}
+
+type TargetResult =
+  | { ok: true; response: string }
+  | { ok: false; error: Error; isConnectionError: boolean };
+
+async function tryTarget(
+  target: string,
+  agentId: string,
+  body: string,
+): Promise<TargetResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`http://${target}/agents/${agentId}/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: controller.signal,
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as { response: string };
+      return { ok: true, response: data.response };
+    }
+
+    return {
+      ok: false,
+      error: new Error(`Server returned ${res.status}: ${await res.text()}`),
+      isConnectionError: false,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err : new Error(String(err)),
+      isConnectionError: true,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

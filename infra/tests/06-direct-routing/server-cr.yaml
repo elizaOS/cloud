@@ -10,6 +10,9 @@ spec:
   image: localhost:5001/agent-server:dev
   maxReplicas: 2
   secretRef: eliza-agent-secrets
+  agents:
+    - agentId: eliza
+      characterRef: Eliza
   resources:
     requests:
       memory: "256Mi"
