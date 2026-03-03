@@ -33,6 +33,14 @@ export const shareTypeEnum = pgEnum("share_type", [
 ]);
 
 /**
+ * Commission tier: 5% of purchase, or 50% of our margin (20% markup → ~8.33% of revenue).
+ */
+export const referralCommissionTierEnum = pgEnum(
+  "referral_commission_tier",
+  ["pct_5", "pct_50"],
+);
+
+/**
  * Referral codes table schema.
  *
  * Stores user referral codes with earnings tracking.
@@ -45,6 +53,9 @@ export const referralCodes = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull().unique(),
+    commission_tier: referralCommissionTierEnum("commission_tier")
+      .default("pct_5")
+      .notNull(),
     total_referrals: integer("total_referrals").default(0).notNull(),
     total_signup_earnings: numeric("total_signup_earnings", {
       precision: 10,

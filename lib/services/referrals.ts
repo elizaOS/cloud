@@ -25,11 +25,13 @@ interface AppContext {
 }
 
 // Reward amounts (in dollars/credits)
+// Commission tiers: pct_5 = rate on purchase; pct_50 = rate on purchase equivalent to 50% of margin (20% markup → 1/6 of revenue → 1/12 ≈ 8.33%).
 const REWARDS = {
   SIGNUP_BONUS: 1.0, // Referrer gets $1 (100 credits) when someone signs up with their code
   REFERRED_BONUS: 0.5, // New user gets $0.50 (50 credits) for using a referral code
   QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 (50 credits) when referred user links social account
-  COMMISSION_RATE: 0.05, // 5% commission on referral purchases
+  COMMISSION_RATE_PCT_5: 0.05, // 5% of purchase
+  COMMISSION_RATE_PCT_50: 1 / 12, // 50% of margin (margin = 1/6 of revenue)
   SHARE_X: 0.25,
   SHARE_FARCASTER: 0.25,
   SHARE_TELEGRAM: 0.25,
@@ -46,6 +48,8 @@ type SocialPlatform = "x" | "farcaster" | "telegram" | "discord";
  */
 type ShareType = "app_share" | "character_share" | "invite_share";
 
+export type ReferralCommissionTier = ReferralCode["commission_tier"];
+
 /**
  * Generates a unique referral code for a user.
  *
@@ -58,11 +62,20 @@ function generateReferralCode(userId: string): string {
   return `${prefix}-${random}`;
 }
 
+function commissionRateForTier(tier: ReferralCommissionTier): number {
+  return tier === "pct_50"
+    ? REWARDS.COMMISSION_RATE_PCT_50
+    : REWARDS.COMMISSION_RATE_PCT_5;
+}
+
 /**
  * Service for managing referral programs and social sharing rewards.
  */
 export class ReferralsService {
-  async getOrCreateCode(userId: string): Promise<ReferralCode> {
+  async getOrCreateCode(
+    userId: string,
+    tier: ReferralCommissionTier = "pct_5",
+  ): Promise<ReferralCode> {
     const existing = await referralCodesRepository.findByUserId(userId);
     if (existing) return existing;
 
@@ -79,6 +92,7 @@ export class ReferralsService {
     return await referralCodesRepository.create({
       user_id: userId,
       code,
+      commission_tier: tier,
     });
   }
 
@@ -201,16 +215,28 @@ export class ReferralsService {
       await referralSignupsRepository.findByReferredUserId(purchaserUserId);
     if (!signup) return 0;
 
-    const commission = purchaseAmount * REWARDS.COMMISSION_RATE;
+    const referralCode = await referralCodesRepository.findById(
+      signup.referral_code_id,
+    );
+    if (!referralCode) return 0;
+
+    const rate = commissionRateForTier(referralCode.commission_tier);
+    const commission = purchaseAmount * rate;
+
+    const description =
+      referralCode.commission_tier === "pct_50"
+        ? "Referral commission (50% of margin)"
+        : "Referral commission (5%)";
 
     await creditsService.addCredits({
       organizationId: referrerOrganizationId,
       amount: commission,
-      description: `Referral commission (${(REWARDS.COMMISSION_RATE * 100).toFixed(0)}%)`,
+      description,
       metadata: {
         referred_user_id: purchaserUserId,
         purchase_amount: purchaseAmount,
         type: "referral_commission",
+        commission_tier: referralCode.commission_tier,
       },
     });
 
@@ -235,6 +261,7 @@ export class ReferralsService {
 
   async getReferralStats(userId: string): Promise<{
     code: string | null;
+    commissionTier: ReferralCommissionTier | null;
     totalReferrals: number;
     totalEarnings: number;
     signupEarnings: number;
@@ -251,6 +278,7 @@ export class ReferralsService {
     if (!referralCode) {
       return {
         code: null,
+        commissionTier: null,
         totalReferrals: 0,
         totalEarnings: 0,
         signupEarnings: 0,
@@ -262,6 +290,7 @@ export class ReferralsService {
 
     return {
       code: referralCode.code,
+      commissionTier: referralCode.commission_tier,
       totalReferrals: referralCode.total_referrals,
       totalEarnings:
         Number(referralCode.total_signup_earnings) +
