@@ -232,12 +232,9 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     ) {
       if (!hasLoggedGatewayModerationUnsupported) {
         hasLoggedGatewayModerationUnsupported = true;
-        logger.warn(
+        logger.debug(
           "[ContentModeration] Vercel Gateway moderations unsupported; falling back to OpenAI",
-          {
-            status: response.status,
-            statusText: response.statusText,
-          },
+          { status: response.status, statusText: response.statusText },
         );
       }
 

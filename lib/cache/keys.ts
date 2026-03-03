@@ -171,6 +171,18 @@ export const CacheKeys = {
     /** One-time nonce for SIWE authentication. Deleted after verification. */
     nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
   },
+  userMetrics: {
+    overview: (rangeDays?: number) =>
+      `user-metrics:overview:${rangeDays ?? 30}d:v1`,
+    daily: (start: string, end: string) =>
+      `user-metrics:daily:${start}:${end}:v1`,
+    retention: (start: string, end: string) =>
+      `user-metrics:retention:${start}:${end}:v1`,
+    activeUsers: (range: string) => `user-metrics:active:${range}:v1`,
+    signups: (start: string, end: string) =>
+      `user-metrics:signups:${start}:${end}:v1`,
+    pattern: () => `user-metrics:*`,
+  },
 } as const;
 
 /**
@@ -287,6 +299,13 @@ export const CacheTTL = {
     // window if a nonce leaks (though nonces are also single-use).
     nonce: 300,
   },
+  userMetrics: {
+    overview: 300, // 5 minutes - live query summary
+    daily: 3600, // 1 hour - pre-computed data changes once per day
+    retention: 3600, // 1 hour - pre-computed data changes once per day
+    activeUsers: 300, // 5 minutes - live query
+    signups: 300, // 5 minutes - live query
+  },
 } as const;
 
 /**
@@ -313,5 +332,9 @@ export const CacheStaleTTL = {
   gallery: {
     items: 60, // Serve stale gallery items after 1 minute
     stats: 60, // Serve stale stats after 1 minute
+  },
+  userMetrics: {
+    overview: 180, // Serve stale overview after 3 minutes
+    activeUsers: 180, // Serve stale active users after 3 minutes
   },
 } as const;

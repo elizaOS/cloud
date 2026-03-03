@@ -287,6 +287,53 @@ export class CacheClient {
   }
 
   /**
+   * Atomically increments a numeric value in cache.
+   * If the key does not exist, it is set to 0 before incrementing.
+   *
+   * @param key - Cache key to increment.
+   * @returns The new value after incrementing.
+   */
+  async incr(key: string): Promise<number> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return 1;
+
+    try {
+      const result = await this.redis.incr(key);
+      this.resetFailures();
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] INCR failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 1;
+    }
+  }
+
+  /**
+   * Sets a TTL (time to live) on an existing key.
+   *
+   * @param key - Cache key.
+   * @param ttlSeconds - Time to live in seconds.
+   */
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
+
+    try {
+      await this.redis.expire(key, ttlSeconds);
+      this.resetFailures();
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] EXPIRE failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
    * Deletes a key from cache.
    *
    * @param key - Cache key to delete.

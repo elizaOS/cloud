@@ -9,6 +9,7 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const maxDuration = 60;
 
@@ -68,6 +69,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 500 },
     );
   }
+
+  await invalidateOAuthState(user.organization_id, "telegram", user.id);
 
   const webhookResult = await telegramAutomationService.setWebhook(
     user.organization_id,

@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Airtable MCP Tools - Bases, Tables, Records
  * Uses per-organization OAuth tokens via oauthService.

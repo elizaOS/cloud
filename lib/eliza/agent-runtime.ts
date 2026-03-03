@@ -72,6 +72,8 @@ export async function handleMessage(
   const runtime = await runtimeFactory.createRuntimeForUser(userContext);
   const messageHandler = createMessageHandler(runtime, userContext);
 
+  // PERF: Use single-shot mode for backward-compat handlers (primarily messaging app webhooks).
+  // These are conversational and don't need multi-step tool use.
   return messageHandler.process({
     roomId,
     text: content.text || "",

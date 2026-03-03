@@ -54,6 +54,12 @@ export async function GET(request: NextRequest) {
  * @returns Created app details, API key, and GitHub repo info.
  */
 export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { success: false, error: "App creation is temporarily disabled" },
+    { status: 403 },
+  );
+
+  /* App creation disabled - original handler body commented out below:
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -142,4 +148,5 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+  */
 }

@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Notion MCP Tools - Pages, Databases, Blocks
  * Uses per-organization OAuth tokens via oauthService.

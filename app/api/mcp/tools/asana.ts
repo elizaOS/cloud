@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Asana MCP Tools - Tasks, Projects, Workspaces, Comments
  * Uses per-organization OAuth tokens via oauthService.

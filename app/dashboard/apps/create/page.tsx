@@ -429,6 +429,11 @@ export default function AppCreatorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // App creation disabled -- redirect to dashboard
+  useEffect(() => {
+    router.replace("/dashboard");
+  }, [router]);
+
   // Set page header
   useSetPageHeader({ title: "Create App" }, []);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
