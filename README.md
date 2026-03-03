@@ -1107,6 +1107,11 @@ curl https://your-app.com/api/v1/chat \
 
 See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 
+**Referral program**:
+
+- Sign-up referral codes with two commission tiers: **5%** of purchase or **50%** of our margin (~8.33% of purchase). Tier is set when the code is created so standard affiliates and strategic partners can be supported without separate programs.
+- Signup/qualified bonuses (referrer and referred user); commission paid when referred users buy credits (Stripe webhook). See [docs/referrals.md](./docs/referrals.md) for flow, API, and WHYs.
+
 ### 10. Analytics & Monitoring
 
 **Location**: `/dashboard/analytics` and `lib/queries/usage.ts`

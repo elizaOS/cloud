@@ -33,7 +33,11 @@ export const shareTypeEnum = pgEnum("share_type", [
 ]);
 
 /**
- * Commission tier: 5% of purchase, or 50% of our margin (20% markup → ~8.33% of revenue).
+ * Commission tier for referral codes.
+ *
+ * WHY two tiers: We support both lightweight affiliates (5% of purchase) and
+ * premium/strategic partners who get 50% of our margin. The tier is set once
+ * when the code is created so commission is predictable and auditable.
  */
 export const referralCommissionTierEnum = pgEnum(
   "referral_commission_tier",
@@ -43,7 +47,9 @@ export const referralCommissionTierEnum = pgEnum(
 /**
  * Referral codes table schema.
  *
- * Stores user referral codes with earnings tracking.
+ * One code per user (user_idx unique). Stores the code string, commission tier,
+ * and aggregated earnings so we can display stats and pay commissions without
+ * scanning signups every time.
  */
 export const referralCodes = pgTable(
   "referral_codes",
@@ -53,6 +59,7 @@ export const referralCodes = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull().unique(),
+    /** pct_5 = 5% of purchase; pct_50 = 50% of our margin (~8.33% of revenue). Default pct_5 so existing codes stay unchanged after migration. */
     commission_tier: referralCommissionTierEnum("commission_tier")
       .default("pct_5")
       .notNull(),
@@ -87,7 +94,10 @@ export const referralCodes = pgTable(
 /**
  * Referral signups table schema.
  *
- * Tracks referral signups and associated bonuses and commissions.
+ * One row per referred user (referred_user_unique). Links referrer → referred user
+ * and the code used, so we can pay commission on that user's future purchases and
+ * track qualified bonus (social link). Commission is stored on the signup and
+ * rolled up on the code for stats.
  */
 export const referralSignups = pgTable(
   "referral_signups",

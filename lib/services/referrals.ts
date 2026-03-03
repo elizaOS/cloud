@@ -13,7 +13,12 @@ import { logger } from "@/lib/utils/logger";
 import * as crypto from "crypto";
 
 /**
- * Service for managing referral codes, signups, and social share rewards.
+ * Referral and social share rewards service.
+ *
+ * WHY: Sign-up referrals and share rewards drive growth; commission on purchases
+ * keeps affiliates aligned with revenue. We support two commission tiers so we can
+ * offer 5% to standard affiliates and 50% of margin to strategic partners without
+ * separate programs or code paths.
  */
 
 /**
@@ -24,14 +29,18 @@ interface AppContext {
   appId?: string;
 }
 
-// Reward amounts (in dollars/credits)
-// Commission tiers: pct_5 = rate on purchase; pct_50 = rate on purchase equivalent to 50% of margin (20% markup → 1/6 of revenue → 1/12 ≈ 8.33%).
+/**
+ * Reward amounts (fixed) and commission rates per tier.
+ * Commission: pct_5 = 5% of purchase; pct_50 = 50% of our margin. We express both
+ * as a fraction of purchase (revenue) so one formula works: commission = purchaseAmount * rate.
+ * WHY 1/12 for pct_50: margin = 20% markup on cost → 1/6 of revenue; 50% of that = 1/12.
+ */
 const REWARDS = {
-  SIGNUP_BONUS: 1.0, // Referrer gets $1 (100 credits) when someone signs up with their code
-  REFERRED_BONUS: 0.5, // New user gets $0.50 (50 credits) for using a referral code
-  QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 (50 credits) when referred user links social account
+  SIGNUP_BONUS: 1.0, // Referrer gets $1 when someone signs up with their code
+  REFERRED_BONUS: 0.5, // New user gets $0.50 for using a referral code
+  QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 when referred user links social account
   COMMISSION_RATE_PCT_5: 0.05, // 5% of purchase
-  COMMISSION_RATE_PCT_50: 1 / 12, // 50% of margin (margin = 1/6 of revenue)
+  COMMISSION_RATE_PCT_50: 1 / 12, // 50% of margin (margin = 1/6 of revenue ≈ 8.33% of purchase)
   SHARE_X: 0.25,
   SHARE_FARCASTER: 0.25,
   SHARE_TELEGRAM: 0.25,
@@ -51,10 +60,7 @@ type ShareType = "app_share" | "character_share" | "invite_share";
 export type ReferralCommissionTier = ReferralCode["commission_tier"];
 
 /**
- * Generates a unique referral code for a user.
- *
- * @param userId - User ID.
- * @returns Referral code string.
+ * Generates a unique referral code for a user (prefix from userId + random suffix).
  */
 function generateReferralCode(userId: string): string {
   const prefix = userId.substring(0, 4).toUpperCase();
@@ -62,16 +68,19 @@ function generateReferralCode(userId: string): string {
   return `${prefix}-${random}`;
 }
 
+/** Returns the commission rate (fraction of purchase) for the given tier. Used so we don't duplicate tier→rate logic. */
 function commissionRateForTier(tier: ReferralCommissionTier): number {
   return tier === "pct_50"
     ? REWARDS.COMMISSION_RATE_PCT_50
     : REWARDS.COMMISSION_RATE_PCT_5;
 }
 
-/**
- * Service for managing referral programs and social sharing rewards.
- */
 export class ReferralsService {
+  /**
+   * Get existing referral code for user, or create one with the given tier.
+   * WHY tier only on create: Existing codes keep their tier so we don't change
+   * commission semantics for already-shared links. Default pct_5 for backward compatibility.
+   */
   async getOrCreateCode(
     userId: string,
     tier: ReferralCommissionTier = "pct_5",
@@ -104,6 +113,11 @@ export class ReferralsService {
     return referralCodesRepository.findByCode(code);
   }
 
+  /**
+   * Apply a referral code at signup. One-time per referred user; creates signup
+   * record and awards signup + referred bonuses. Commission is paid later when
+   * the referred user purchases (Stripe webhook calls processReferralCommission).
+   */
   async applyReferralCode(
     referredUserId: string,
     organizationId: string,
@@ -131,7 +145,7 @@ export class ReferralsService {
       return { success: false, message: "Cannot use your own referral code" };
     }
 
-    // Get referrer's organization to credit them
+    // Credits go to referrer's org; referrer is always a cloud user with an org
     const referrer = await usersRepository.findById(referralCode.user_id);
     if (!referrer?.organization_id) {
       logger.warn("[Referrals] Referrer has no organization", {
@@ -206,6 +220,11 @@ export class ReferralsService {
     };
   }
 
+  /**
+   * Pay commission to the referrer when a referred user makes a purchase.
+   * Called from Stripe webhook after successful checkout. Commission tier comes
+   * from the code used at signup so we don't need cost data—only purchase amount.
+   */
   async processReferralCommission(
     purchaserUserId: string,
     purchaseAmount: number,
@@ -259,6 +278,7 @@ export class ReferralsService {
     return commission;
   }
 
+  /** Stats for the current user's referral code (code, tier, earnings, recent signups). Used by dashboard / referral UI. */
   async getReferralStats(userId: string): Promise<{
     code: string | null;
     commissionTier: ReferralCommissionTier | null;

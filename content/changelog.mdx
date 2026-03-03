@@ -13,6 +13,14 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## January 2026
 
+### Mar 3, 2026
+
+**Referral commission tiers**
+
+- Two referral types: **5%** (5% of purchase) and **50%** (50% of our margin, ~8.33% of purchase). Each referral code has a tier set at creation; commission is one or the other, not both.
+- **Why:** Lets us offer standard affiliates a simple 5% rate and strategic partners 50% of margin without separate programs or code paths. Tier is stored on the code so existing links keep the same commission semantics.
+- New `commission_tier` on referral codes (default `pct_5`). `getOrCreateCode(userId, tier?)` supports optional tier; Stripe webhook pays commission using the code’s tier. See `docs/referrals.md` for flow and API.
+
 ### Jan 8, 2026
 
 <div className="status-badge status-new">New</div>
