@@ -4,7 +4,8 @@ set -euo pipefail
 CLUSTER_NAME="eliza-local"
 REGISTRY_NAME="kind-registry"
 
-echo "Removing operator Helm release..."
+echo "Removing Helm releases..."
+helm uninstall gateway-discord -n eliza-infra 2>/dev/null || true
 helm uninstall eliza-operator -n pepr-system 2>/dev/null || true
 
 echo "Deleting kind cluster '$CLUSTER_NAME'..."
