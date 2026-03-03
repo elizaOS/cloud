@@ -98,7 +98,7 @@ async function ensureUserHasApiKey(
 
 export type AuthResult = {
   user: UserWithOrganization;
-  apiKey?: ApiKey; // Deprecated
+  apiKey?: ApiKey;
   authMethod: "session" | "api_key" | "wallet_signature";
   session_token?: string;
 };
@@ -422,19 +422,39 @@ export async function requireAuthOrApiKey(
     };
   }
 
-  // Backwards compatibility for X-API-Key header during migration
+  // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
   const authHeader = request.headers.get("authorization");
 
   if (apiKeyHeader && apiKeyHeader.trim().length > 0) {
     const apiKey = await apiKeysService.validateApiKey(apiKeyHeader);
-    if (!apiKey || !apiKey.is_active || (apiKey.expires_at && new Date(apiKey.expires_at) < new Date())) {
-      throw new Error("Invalid or expired API key (please migrate to wallet signatures)");
+
+    if (!apiKey) {
+      throw new Error("Invalid or expired API key");
     }
+
+    if (!apiKey.is_active) {
+      throw new Error("API key is inactive");
+    }
+
+    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+      throw new Error("API key has expired");
+    }
+
     const user = await getUserFromApiKey(apiKey);
-    if (!user || !user.is_active || !user.organization?.is_active) {
-      throw new Error("User associated with API key not found or inactive");
+
+    if (!user) {
+      throw new Error("User associated with API key not found");
     }
+
+    if (!user.is_active) {
+      throw new Error("User account is inactive");
+    }
+
+    if (!user.organization?.is_active) {
+      throw new Error("Organization is inactive");
+    }
+
     await apiKeysService.incrementUsage(apiKey.id);
     return { user, apiKey, authMethod: "api_key" };
   }
@@ -477,12 +497,37 @@ export async function requireAuthOrApiKey(
 
     // Try as API key (fallback for non-JWT tokens or if JWT validation failed)
     const apiKey = await apiKeysService.validateApiKey(bearerValue);
-    if (apiKey && apiKey.is_active && (!apiKey.expires_at || new Date(apiKey.expires_at) > new Date())) {
-      const user = await getUserFromApiKey(apiKey);
-      if (user && user.is_active && user.organization?.is_active) {
-        await apiKeysService.incrementUsage(apiKey.id);
-        return { user, apiKey, authMethod: "api_key" };
+
+    if (apiKey) {
+      if (!apiKey.is_active) {
+        throw new Error("API key is inactive");
       }
+
+      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+        throw new Error("API key has expired");
+      }
+
+      const user = await getUserFromApiKey(apiKey);
+
+      if (!user) {
+        throw new Error("User associated with API key not found");
+      }
+
+      if (!user.is_active) {
+        throw new Error("User account is inactive");
+      }
+
+      if (!user.organization?.is_active) {
+        throw new Error("Organization is inactive");
+      }
+
+      await apiKeysService.incrementUsage(apiKey.id);
+
+      return {
+        user,
+        apiKey,
+        authMethod: "api_key",
+      };
     }
 
     // If it looked like a JWT but failed verification, give a helpful error

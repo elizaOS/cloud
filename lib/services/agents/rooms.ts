@@ -275,7 +275,7 @@ export class RoomsService {
 
     return await dbWrite.transaction(async (tx) => {
       // Create room
-      const [room] = await tx
+      const [room] = (await tx
         .insert(roomTable)
         .values({
           id: roomId,
@@ -286,7 +286,7 @@ export class RoomsService {
           metadata: roomInput.metadata,
           createdAt: new Date(),
         })
-        .returning();
+        .returning()) as any[];
 
       // Create entity (upsert - ignore if exists)
       // Must use tx so the insert is visible within this transaction
@@ -367,12 +367,12 @@ export class RoomsService {
       participantCount,
       lastMessage: lastMessage
         ? {
-            time: lastMessage.createdAt || Date.now(),
-            text: ((lastMessage.content?.text as string) || "").substring(
-              0,
-              100,
-            ),
-          }
+          time: lastMessage.createdAt || Date.now(),
+          text: ((lastMessage.content?.text as string) || "").substring(
+            0,
+            100,
+          ),
+        }
         : undefined,
     };
   }

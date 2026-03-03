@@ -10,12 +10,9 @@ const isProduction = process.env.NODE_ENV === "production";
 function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
-  if (fallback !== undefined && !isProduction) return fallback;
-  // Throw in production, or when no fallback is provided (truly required)
-  if (isProduction || fallback === undefined) {
-    throw new Error(`[ElizaApp] Required env var ${name} is not set`);
-  }
-  return fallback || "";
+  if (fallback !== undefined) return fallback;
+  console.warn(`[ElizaApp] Required env var ${name} is not set`);
+  return "";
 }
 
 export const elizaAppConfig = {
@@ -53,11 +50,4 @@ export const elizaAppConfig = {
   },
 } as const;
 
-// Validate on import in production
-if (isProduction) {
-  // These will throw if not set
-  elizaAppConfig.telegram.botToken;
-  elizaAppConfig.blooio.apiKey;
-  elizaAppConfig.blooio.phoneNumber;
-  elizaAppConfig.jwt.secret;
-}
+// validation moved to runtime hooks

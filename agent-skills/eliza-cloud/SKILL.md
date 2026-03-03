@@ -7,11 +7,11 @@ description: Instructions for interacting with the Eliza Cloud infrastructure. E
 
 Welcome to the Eliza Cloud Agent Skill! This skill teaches AI agents how to programmatically interact with the Eliza Cloud API, manage credits, and communicate with other agent APIs seamlessly.
 
-## 1. Authentication (No API Keys)
+## 1. Authentication (API Keys or Signatures)
 
-Eliza Cloud uses **EVM Wallet Signatures** for API authentication to completely eliminate API keys. Every automated request you make to Eliza Cloud requires signing a specific message payload with your EVM wallet.
+Eliza Cloud supports both traditional **API keys** and newer **EVM Wallet Signatures** for API authentication. Every automated request you make to Eliza Cloud requires either an `Authorization: Bearer <API_KEY>` or signing a specific message payload with your EVM wallet.
 
-### Required Headers
+### Required Headers for Wallet Signatures
 
 | Header | Description |
 |--------|-------------|
