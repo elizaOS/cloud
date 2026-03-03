@@ -16,6 +16,7 @@ import {
   resolveAgentServer,
   refreshKedaActivity,
   forwardToServer,
+  resolveIdentity,
 } from "./server-router";
 
 // ============================================
@@ -1248,6 +1249,7 @@ export class GatewayManager {
       const userId = `discord-user-${message.author.id}`;
       const response = await forwardToServer(
         route.serverUrl,
+        route.serverName,
         conn.characterId,
         userId,
         message.content,
@@ -1773,81 +1775,98 @@ export class GatewayManager {
    * Filters to DM-only and forwards to the Eliza App webhook.
    */
   private async handleElizaAppMessage(message: Message): Promise<void> {
-    // Skip bot messages
     if (message.author.bot) return;
+    if (message.guild) return;
+    if (!message.content.trim()) return;
 
-    // DM-only: Skip guild/server messages
-    if (message.guild) {
-      logger.debug("Skipping Eliza App server message", {
-        guildId: message.guildId,
-        channelId: message.channelId,
+    if (!this.redis) {
+      logger.warn("No Redis, cannot route Eliza App message");
+      return;
+    }
+
+    // 1. Identity resolution: discord platformId -> userId + agentId
+    let identity;
+    try {
+      identity = await resolveIdentity(
+        this.redis,
+        this.config.elizaCloudUrl,
+        this.getAuthHeader(),
+        "discord",
+        message.author.id,
+      );
+    } catch (error) {
+      logger.error("Identity resolution failed", {
+        podName: this.config.podName,
+        authorId: message.author.id,
+        error: sanitizeError(error),
       });
       return;
     }
 
-    logger.info("Eliza App DM received", {
-      podName: this.config.podName,
-      messageId: message.id,
-      channelId: message.channelId,
-      authorId: message.author.id,
-      authorUsername: message.author.username,
-    });
-
-    // Forward to Eliza App webhook
-    const webhookUrl = `${this.config.elizaCloudUrl}/api/eliza-app/webhook/discord`;
-
-    const payload = {
-      event_type: "MESSAGE_CREATE",
-      event_id: message.id,
-      data: {
-        id: message.id,
-        channel_id: message.channelId,
-        guild_id: message.guildId, // null for DMs
-        author: {
-          id: message.author.id,
-          username: message.author.username,
-          global_name: message.author.globalName,
-          avatar: message.author.avatar,
-          bot: message.author.bot,
-        },
-        content: message.content,
-        attachments: message.attachments.map((a) => ({
-          url: a.url,
-          content_type: a.contentType,
-          filename: a.name,
-        })),
-      },
-    };
-
-    try {
-      const response = await fetchWithTimeout(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...this.getAuthHeader(),
-        },
-        body: JSON.stringify(payload),
-        timeout: EVENT_FORWARD_TIMEOUT_MS,
+    // 2. Unknown user -> onboarding
+    if (!identity) {
+      logger.info("Unknown Discord user, sending onboarding", {
+        authorId: message.author.id,
       });
-
-      if (response.ok) {
-        logger.info("Eliza App DM forwarded", {
-          podName: this.config.podName,
-          messageId: message.id,
-          status: response.status,
-        });
-      } else {
-        logger.error("Eliza App webhook failed", {
-          podName: this.config.podName,
-          status: response.status,
-          messageId: message.id,
+      try {
+        const appUrl = process.env.ELIZA_APP_URL || "https://eliza.app";
+        await message.reply(
+          `Welcome! To chat with Eliza, connect your Discord account:\n\n${appUrl}/get-started`,
+        );
+      } catch (error) {
+        logger.error("Failed to send onboarding message", {
+          authorId: message.author.id,
+          error: sanitizeError(error),
         });
       }
-    } catch (error) {
-      logger.error("Failed to forward to Eliza App webhook", {
+      return;
+    }
+
+    // 3. Resolve agent -> server pod
+    const route = await resolveAgentServer(this.redis, identity.agentId);
+    if (!route) {
+      logger.warn("No server found for agent", {
         podName: this.config.podName,
+        agentId: identity.agentId,
+        userId: identity.userId,
+      });
+      return;
+    }
+
+    // 4. Forward to pod and reply directly
+    try {
+      await refreshKedaActivity(this.redis, route.serverName);
+      if ("sendTyping" in message.channel) {
+        await message.channel.sendTyping();
+      }
+
+      const userId = `discord-user-${message.author.id}`;
+      const response = await forwardToServer(
+        route.serverUrl,
+        route.serverName,
+        identity.agentId,
+        userId,
+        message.content,
+      );
+
+      if (response) {
+        const truncated =
+          response.length > 2000 ? response.slice(0, 2000) : response;
+        await message.reply(truncated);
+      }
+
+      logger.info("Eliza App message routed to server", {
+        podName: this.config.podName,
+        serverName: route.serverName,
+        agentId: identity.agentId,
+        userId: identity.userId,
+      });
+    } catch (error) {
+      logger.error("Failed to route Eliza App message", {
+        podName: this.config.podName,
+        agentId: identity.agentId,
+        serverName: route.serverName,
         error: sanitizeError(error),
-        messageId: message.id,
       });
     }
   }

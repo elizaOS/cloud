@@ -60,6 +60,10 @@ export const CacheKeys = {
     byEmail: (email: string) => `user:email:${email}:v1`,
     pattern: () => `user:*`,
   },
+  identity: {
+    resolve: (platform: string, platformId: string) =>
+      `identity:${platform}:${platformId}`,
+  },
   memory: {
     item: (orgId: string, memoryId: string) => `memory:${orgId}:${memoryId}:v1`,
     roomRecent: (orgId: string, roomId: string) =>
@@ -218,6 +222,9 @@ export const CacheTTL = {
   },
   user: {
     byEmail: 600, // 10 minutes (was 300s)
+  },
+  identity: {
+    resolve: 300, // 5 minutes
   },
   memory: {
     item: 1440, // 24 minutes (unchanged - memory is critical)

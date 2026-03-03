@@ -84,7 +84,7 @@ export function generateDeployment(server: Server) {
                     fieldRef: { fieldPath: "metadata.name" },
                   },
                 },
-                ...(server.spec.tier === "dedicated" && server.spec.agents?.[0]
+                ...(server.spec.agents?.[0]
                   ? [
                       {
                         name: "AGENT_ID",
@@ -103,13 +103,13 @@ export function generateDeployment(server: Server) {
               },
               livenessProbe: {
                 httpGet: { path: "/health", port: 3000 },
-                initialDelaySeconds: 10,
-                periodSeconds: 30,
+                initialDelaySeconds: 2,
+                periodSeconds: 5,
               },
               readinessProbe: {
                 httpGet: { path: "/ready", port: 3000 },
-                initialDelaySeconds: 5,
-                periodSeconds: 10,
+                initialDelaySeconds: 1,
+                periodSeconds: 2,
               },
             },
           ],

@@ -149,9 +149,12 @@ podAnnotations:
 
 # Service account configuration
 serviceAccount:
-  create: false
+  create: true
   name: ""
   annotations: {}
+
+# KEDA cooldown for scale-to-zero (seconds of inactivity before scaling down)
+kedaCooldownSeconds: 900
 
 # Node selector
 nodeSelector: {}

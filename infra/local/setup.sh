@@ -132,11 +132,11 @@ info "Building operator..."
 cd "$CLOUD_V2_DIR/services/operator"
 npm install --silent 2>/dev/null
 npx pepr build 2>&1 | tail -1
-cd "$SCRIPT_DIR"
 
-info "Applying Server CRD and RBAC..."
-kubectl apply -f "$SCRIPT_DIR/manifests/server-crd.yaml"
-kubectl apply -f "$SCRIPT_DIR/manifests/operator-rbac.yaml"
+# Inject CRD into the generated Helm chart (Helm applies crds/ before templates)
+mkdir -p dist/eliza-operator-chart/crds
+cp crds/server-crd.yaml dist/eliza-operator-chart/crds/
+cd "$SCRIPT_DIR"
 
 info "Deploying operator via Helm..."
 # Pre-create and annotate namespace so Helm can adopt it (chart template includes namespace.yaml)
@@ -144,13 +144,9 @@ kubectl create namespace pepr-system 2>/dev/null || true
 kubectl label namespace pepr-system app.kubernetes.io/managed-by=Helm --overwrite > /dev/null 2>&1
 kubectl annotate namespace pepr-system meta.helm.sh/release-name=eliza-operator --overwrite > /dev/null 2>&1
 kubectl annotate namespace pepr-system meta.helm.sh/release-namespace=pepr-system --overwrite > /dev/null 2>&1
-if helm status eliza-operator -n pepr-system > /dev/null 2>&1; then
-  helm upgrade eliza-operator "$CLOUD_V2_DIR/services/operator/dist/eliza-operator-chart/" \
-    --namespace pepr-system --wait --timeout 120s
-else
-  helm install eliza-operator "$CLOUD_V2_DIR/services/operator/dist/eliza-operator-chart/" \
-    --namespace pepr-system --wait --timeout 120s
-fi
+helm upgrade --install eliza-operator \
+  "$CLOUD_V2_DIR/services/operator/dist/eliza-operator-chart/" \
+  --namespace pepr-system --wait --timeout 120s
 
 kubectl rollout status deployment/pepr-eliza-operator-watcher -n pepr-system --timeout=60s > /dev/null 2>&1
 pass "Operator deployed"
@@ -183,12 +179,16 @@ GW_ENV_FILE="$SCRIPT_DIR/.env.gateway"
 if [ ! -f "$GW_ENV_FILE" ]; then
   info "  No .env.gateway found, creating with defaults..."
   cat > "$GW_ENV_FILE" <<'DEFAULTS'
+ELIZA_CLOUD_URL=http://eliza-cloud.eliza-infra.svc:3000
+KV_REST_API_URL=http://redis-rest.eliza-infra.svc:8079
+KV_REST_API_TOKEN=local_dev_token
 GATEWAY_BOOTSTRAP_SECRET=local-dev-gateway-secret-change-me
+VOICE_MESSAGE_ENABLED=false
+LOG_LEVEL=debug
 # Eliza App bot (optional — set to test the system-wide bot)
-# ELIZA_APP_DISCORD_BOT_ENABLED=true
 # ELIZA_APP_DISCORD_BOT_TOKEN=your-bot-token
 # ELIZA_APP_DISCORD_APPLICATION_ID=your-application-id
-# ELIZA_APP_LEADER_KEY=discord:eliza-app-bot:leader:local
+KEDA_COOLDOWN_SECONDS=60
 DEFAULTS
   info "  Edit $GW_ENV_FILE with your secrets, then re-run setup."
 fi
@@ -198,10 +198,21 @@ kubectl create secret generic gateway-discord-secrets \
   --dry-run=client -o yaml | kubectl apply -f -
 pass "Secret gateway-discord-secrets created from .env.gateway"
 
-# 18. Deploy gateway-discord
-info "Deploying gateway-discord..."
-kubectl apply -f "$SCRIPT_DIR/manifests/gateway-discord.yaml"
-pass "Gateway-discord deployment applied"
+# 18. Deploy gateway-discord via Helm chart
+info "Deploying gateway-discord via Helm..."
+helm upgrade --install gateway-discord \
+  "$CLOUD_V2_DIR/infra/charts/gateway-discord" \
+  --namespace eliza-infra \
+  --values "$SCRIPT_DIR/values-gateway.yaml" \
+  --wait --timeout 120s
+pass "Gateway-discord deployed via Helm"
+
+# 19. Apply Server CRs
+info "Applying Server CRs..."
+for cr in "$SCRIPT_DIR"/manifests/shared-*.yaml; do
+  [ -f "$cr" ] && kubectl apply -f "$cr" && info "  Applied $(basename "$cr")"
+done
+pass "Server CRs applied"
 
 # === Verification ===
 echo ""
@@ -263,7 +274,5 @@ echo "Gateway img:  localhost:${REGISTRY_PORT}/gateway-discord:dev"
 echo ""
 echo "Next steps:"
 echo "  1. Start Eliza Cloud locally:  cd eliza-cloud-v2 && bun dev"
-echo "  2. Apply Server CR:            kubectl apply -f infra/local/manifests/shared-eliza.yaml"
-echo "  3. Deploy gateway:             kubectl apply -f infra/local/manifests/gateway-discord.yaml"
-echo "  4. Check gateway logs:         kubectl logs -f -n eliza-infra -l app=gateway-discord"
-echo "  5. Wake agent-server:          kubectl run act --rm -i --restart=Never -n eliza-infra --image=redis:7-alpine -- redis-cli -h redis LPUSH keda:shared-eliza:activity wake"
+echo "  2. Check gateway logs:         kubectl logs -f -n eliza-infra -l app=gateway-discord"
+echo "  3. Send a DM to the Eliza App bot on Discord"

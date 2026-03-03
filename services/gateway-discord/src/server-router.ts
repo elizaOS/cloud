@@ -1,13 +1,64 @@
 import type { Redis } from "@upstash/redis";
+import { readFileSync } from "fs";
 
-const KEDA_COOLDOWN_SECONDS = 900;
+const KEDA_COOLDOWN_SECONDS = Number(process.env.KEDA_COOLDOWN_SECONDS ?? 900);
 const FORWARD_TIMEOUT_MS = 30_000;
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAY_MS = 2_000;
+const RETRY_ATTEMPTS = 5;
+const RETRY_BASE_DELAY_MS = 2_000;
+const RETRY_INCREMENT_MS = 1_000;
+const IDENTITY_CACHE_TTL_SECONDS = 300;
 
 interface ServerRoute {
   serverName: string;
   serverUrl: string;
+}
+
+export interface ResolvedIdentity {
+  userId: string;
+  organizationId: string;
+  agentId: string;
+}
+
+export async function resolveIdentity(
+  redis: Redis,
+  cloudBaseUrl: string,
+  authHeader: Record<string, string>,
+  platform: string,
+  platformId: string,
+): Promise<ResolvedIdentity | null> {
+  const cacheKey = `identity:${platform}:${platformId}`;
+  const cached = await redis.get<ResolvedIdentity>(cacheKey);
+  if (cached) return cached;
+
+  const url = `${cloudBaseUrl}/api/internal/identity/resolve?platform=${encodeURIComponent(platform)}&platformId=${encodeURIComponent(platformId)}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      headers: authHeader,
+      signal: controller.signal,
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Identity resolve failed: ${res.status}`);
+
+    const data = (await res.json()) as {
+      userId: string;
+      organizationId: string;
+      agentId: string;
+    };
+    const identity: ResolvedIdentity = {
+      userId: data.userId,
+      organizationId: data.organizationId,
+      agentId: data.agentId,
+    };
+    await redis.set(cacheKey, JSON.stringify(identity), {
+      ex: IDENTITY_CACHE_TTL_SECONDS,
+    });
+    return identity;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function resolveAgentServer(
@@ -23,7 +74,6 @@ export async function resolveAgentServer(
   return { serverName, serverUrl };
 }
 
-// See 04-crd-operator.md § KEDA ScaledObjects
 export async function refreshKedaActivity(
   redis: Redis,
   serverName: string,
@@ -34,11 +84,79 @@ export async function refreshKedaActivity(
   await redis.expire(key, KEDA_COOLDOWN_SECONDS);
 }
 
+let k8sToken: string | null = null;
+let k8sCaCert: string | null = null;
+
+function getK8sToken(): string | null {
+  if (k8sToken !== null) return k8sToken;
+  try {
+    k8sToken = readFileSync(
+      "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "utf-8",
+    ).trim();
+  } catch {
+    k8sToken = "";
+  }
+  return k8sToken || null;
+}
+
+function getK8sCaCert(): string | null {
+  if (k8sCaCert !== null) return k8sCaCert;
+  try {
+    k8sCaCert = readFileSync(
+      "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+      "utf-8",
+    );
+  } catch {
+    k8sCaCert = "";
+  }
+  return k8sCaCert || null;
+}
+
+function parseNamespaceFromUrl(serverUrl: string): string | null {
+  // http://{name}.{namespace}.svc:{port}
+  const match = serverUrl.match(/^https?:\/\/[^.]+\.([^.]+)\.svc/);
+  return match?.[1] ?? null;
+}
+
+export async function wakeServer(
+  serverName: string,
+  serverUrl: string,
+): Promise<void> {
+  const token = getK8sToken();
+  if (!token) return;
+
+  const namespace = parseNamespaceFromUrl(serverUrl);
+  if (!namespace) return;
+
+  const apiUrl = `https://kubernetes.default.svc/apis/apps/v1/namespaces/${namespace}/deployments/${serverName}/scale`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/strategic-merge-patch+json",
+      },
+      body: JSON.stringify({ spec: { replicas: 1 } }),
+      tls: { ca: getK8sCaCert() ?? undefined },
+    } as RequestInit);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`wakeServer(${serverName}) failed: ${res.status} ${text}`);
+    }
+  } catch (err) {
+    console.error(`wakeServer(${serverName}) error:`, err);
+  }
+}
+
 /**
- * Retries on failure to handle KEDA cold starts (0→1 scaling).
+ * Retries on failure. On first connection failure, calls K8s API
+ * to scale the deployment 0→1 for instant wake-up.
  */
 export async function forwardToServer(
   serverUrl: string,
+  serverName: string,
   agentId: string,
   userId: string,
   text: string,
@@ -47,10 +165,12 @@ export async function forwardToServer(
   const body = JSON.stringify({ userId, text });
 
   let lastError: Error | null = null;
+  let woken = false;
 
   for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      const delay = RETRY_BASE_DELAY_MS + RETRY_INCREMENT_MS * attempt;
+      await new Promise((r) => setTimeout(r, delay));
     }
 
     const controller = new AbortController();
@@ -74,6 +194,10 @@ export async function forwardToServer(
       );
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      if (!woken) {
+        woken = true;
+        wakeServer(serverName, serverUrl);
+      }
     } finally {
       clearTimeout(timeoutId);
     }

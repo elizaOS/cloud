@@ -29,15 +29,13 @@ const manager = new AgentManager();
 new Elysia().use(cors()).use(createRoutes(manager)).listen(PORT);
 
 manager.initialize().then(async () => {
-  if (process.env.TIER === "shared") {
-    await manager.startAgent("eliza", "Eliza");
-    console.log("Auto-started shared Eliza agent (shared tier)");
-  } else if (process.env.AGENT_ID) {
-    await manager.startAgent(
-      process.env.AGENT_ID,
-      process.env.CHARACTER_REF || process.env.AGENT_ID,
+  const agentId = process.env.AGENT_ID;
+  const characterRef = process.env.CHARACTER_REF || agentId;
+  if (agentId && characterRef) {
+    await manager.startAgent(agentId, characterRef);
+    console.log(
+      `Auto-started agent ${agentId} (${process.env.TIER} tier, character=${characterRef})`,
     );
-    console.log(`Auto-started agent ${process.env.AGENT_ID} (dedicated tier)`);
   }
   console.log(
     `agent-server ${process.env.SERVER_NAME} listening on :${PORT} (tier=${process.env.TIER}, capacity=${process.env.CAPACITY})`,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withInternalAuth } from "@/lib/auth/internal-api";
 import { usersRepository } from "@/db/repositories/users";
 import { logger } from "@/lib/utils/logger";
+import { elizaAppConfig } from "@/lib/services/eliza-app/config";
+import { withCache } from "@/lib/cache/service-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -29,23 +31,34 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
     );
   }
 
-  const user =
-    platform === "discord"
-      ? await usersRepository.findByDiscordIdWithOrganization(platformId)
-      : await usersRepository.findByTelegramIdWithOrganization(platformId);
+  const cacheKey = `identity:${platform}:${platformId}`;
+  const result = await withCache(cacheKey, 300, async () => {
+    const user =
+      platform === "discord"
+        ? await usersRepository.findByDiscordIdWithOrganization(platformId)
+        : await usersRepository.findByTelegramIdWithOrganization(platformId);
 
-  if (!user) {
+    if (!user) return null;
+
+    return {
+      userId: user.id,
+      organizationId: user.organization_id,
+      agentId: elizaAppConfig.defaultAgentId,
+      platformData: {
+        username:
+          platform === "discord"
+            ? user.discord_username
+            : user.telegram_username,
+        globalName:
+          platform === "discord" ? user.discord_global_name : undefined,
+      },
+    };
+  });
+
+  if (!result) {
     logger.info("[Identity] User not found", { platform, platformId });
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    userId: user.id,
-    organizationId: user.organization_id,
-    platformData: {
-      username:
-        platform === "discord" ? user.discord_username : user.telegram_username,
-      globalName: platform === "discord" ? user.discord_global_name : undefined,
-    },
-  });
+  return NextResponse.json(result);
 });
