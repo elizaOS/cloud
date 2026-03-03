@@ -11,6 +11,7 @@ import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,
@@ -97,8 +98,8 @@ async function ensureUserHasApiKey(
 
 export type AuthResult = {
   user: UserWithOrganization;
-  apiKey?: ApiKey;
-  authMethod: "session" | "api_key";
+  apiKey?: ApiKey; // Deprecated
+  authMethod: "session" | "api_key" | "wallet_signature";
   session_token?: string;
 };
 
@@ -280,15 +281,15 @@ async function trackSessionActivity(
     const errorDetails =
       error instanceof Error
         ? {
-            message: error.message,
-            name: error.name,
-            // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
-            code: (error as Error & { code?: string }).code,
-            // Additional context from Drizzle/PostgreSQL
-            detail: (error as Error & { detail?: string }).detail,
-            constraint: (error as Error & { constraint?: string }).constraint,
-            cause: error.cause,
-          }
+          message: error.message,
+          name: error.name,
+          // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
+          code: (error as Error & { code?: string }).code,
+          // Additional context from Drizzle/PostgreSQL
+          detail: (error as Error & { detail?: string }).detail,
+          constraint: (error as Error & { constraint?: string }).constraint,
+          cause: error.cause,
+        }
         : error;
     logger.warn("[AUTH] Session tracking failed:", errorDetails);
   }
@@ -412,47 +413,30 @@ function looksLikeJwt(token: string): boolean {
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for API key in X-API-Key header (always treated as API key)
+  // Try wallet signature authentication first
+  const walletUser = await verifyWalletSignature(request);
+  if (walletUser) {
+    return {
+      user: walletUser,
+      authMethod: "wallet_signature",
+    };
+  }
+
+  // Backwards compatibility for X-API-Key header during migration
   const apiKeyHeader = request.headers.get("X-API-Key");
   const authHeader = request.headers.get("authorization");
 
-  // If X-API-Key is provided, validate it as an API key
   if (apiKeyHeader && apiKeyHeader.trim().length > 0) {
     const apiKey = await apiKeysService.validateApiKey(apiKeyHeader);
-
-    if (!apiKey) {
-      throw new Error("Invalid or expired API key");
+    if (!apiKey || !apiKey.is_active || (apiKey.expires_at && new Date(apiKey.expires_at) < new Date())) {
+      throw new Error("Invalid or expired API key (please migrate to wallet signatures)");
     }
-
-    if (!apiKey.is_active) {
-      throw new Error("API key is inactive");
-    }
-
-    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-      throw new Error("API key has expired");
-    }
-
     const user = await getUserFromApiKey(apiKey);
-
-    if (!user) {
-      throw new Error("User associated with API key not found");
+    if (!user || !user.is_active || !user.organization?.is_active) {
+      throw new Error("User associated with API key not found or inactive");
     }
-
-    if (!user.is_active) {
-      throw new Error("User account is inactive");
-    }
-
-    if (!user.organization?.is_active) {
-      throw new Error("Organization is inactive");
-    }
-
     await apiKeysService.incrementUsage(apiKey.id);
-
-    return {
-      user,
-      apiKey,
-      authMethod: "api_key",
-    };
+    return { user, apiKey, authMethod: "api_key" };
   }
 
   // Check Authorization: Bearer header
@@ -493,37 +477,12 @@ export async function requireAuthOrApiKey(
 
     // Try as API key (fallback for non-JWT tokens or if JWT validation failed)
     const apiKey = await apiKeysService.validateApiKey(bearerValue);
-
-    if (apiKey) {
-      if (!apiKey.is_active) {
-        throw new Error("API key is inactive");
-      }
-
-      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-        throw new Error("API key has expired");
-      }
-
+    if (apiKey && apiKey.is_active && (!apiKey.expires_at || new Date(apiKey.expires_at) > new Date())) {
       const user = await getUserFromApiKey(apiKey);
-
-      if (!user) {
-        throw new Error("User associated with API key not found");
+      if (user && user.is_active && user.organization?.is_active) {
+        await apiKeysService.incrementUsage(apiKey.id);
+        return { user, apiKey, authMethod: "api_key" };
       }
-
-      if (!user.is_active) {
-        throw new Error("User account is inactive");
-      }
-
-      if (!user.organization?.is_active) {
-        throw new Error("Organization is inactive");
-      }
-
-      await apiKeysService.incrementUsage(apiKey.id);
-
-      return {
-        user,
-        apiKey,
-        authMethod: "api_key",
-      };
     }
 
     // If it looked like a JWT but failed verification, give a helpful error

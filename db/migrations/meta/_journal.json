@@ -204,6 +204,20 @@
       "when": 1770317800000,
       "tag": "0028_add_user_platform_oauth_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1772371406424,
+      "tag": "0029_awesome_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1772429754168,
+      "tag": "0030_silky_agent_brand",
+      "breakpoints": true
     }
   ]
 }

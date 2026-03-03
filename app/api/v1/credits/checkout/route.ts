@@ -96,6 +96,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Affiliate/Referral revenue splits are now calculated and handled
+    // implicitly within the Stripe Webhook via the 50/40/10 model,
+    // rather than adding line-items at checkout.
+
+    // Line items for Stripe
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: STRIPE_CURRENCY,
+          product_data: {
+            name: "Account Balance Top-up",
+            description: `Add $${amount.toFixed(2)} to your account balance`,
+          },
+          unit_amount: Math.round(amount * 100),
+        },
+        quantity: 1,
+      },
+    ];
+
     // Get or create Stripe customer
     let customerId = user.organization.stripe_customer_id;
 
@@ -128,32 +147,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Prepare metadata
+    const metadata: Record<string, string> = {
+      organization_id: organizationId,
+      user_id: user.id,
+      credits: amount.toFixed(2),
+      type: "custom_amount",
+    };
+
+    // Checkout Session metadata tracking goes here if needed.
+
     // Create Stripe checkout session
     const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: STRIPE_CURRENCY,
-            product_data: {
-              name: "Account Balance Top-up",
-              description: `Add $${amount.toFixed(2)} to your account balance`,
-            },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       mode: "payment",
       success_url: `${success_url}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel_url,
-      metadata: {
-        organization_id: organizationId,
-        user_id: user.id,
-        credits: amount.toFixed(2),
-        type: "custom_amount",
-      },
+      metadata: metadata,
     });
 
     logger.info("Created credits checkout session", {

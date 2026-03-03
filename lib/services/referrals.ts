@@ -22,6 +22,8 @@ import * as crypto from "crypto";
  */
 interface AppContext {
   appId?: string;
+  appOwnerId?: string;
+  creatorId?: string;
 }
 
 // Reward amounts (in dollars/credits)
@@ -131,6 +133,8 @@ export class ReferralsService {
       referral_code_id: referralCode.id,
       referrer_user_id: referralCode.user_id,
       referred_user_id: referredUserId,
+      app_owner_id: appContext?.appOwnerId || null,
+      creator_id: appContext?.creatorId || referralCode.user_id,
     });
 
     // Award bonus to referred user (app-specific or org balance)
@@ -231,6 +235,83 @@ export class ReferralsService {
     });
 
     return commission;
+  }
+
+  /**
+   * Calculates the revenue splits for a purchase based on the 50/40/10 structure
+   * and multi-tier "referrals of referrals" logic.
+   */
+  async calculateRevenueSplits(
+    userId: string,
+    purchaseAmount: number,
+  ): Promise<{
+    elizaCloudAmount: number;
+    splits: Array<{
+      userId: string;
+      role: "app_owner" | "creator" | "editor" | "base";
+      amount: number;
+    }>;
+  }> {
+    const signup = await referralSignupsRepository.findByReferredUserId(userId);
+
+    // Default: 100% to ElizaCloud if no referrer
+    if (!signup) {
+      return { elizaCloudAmount: purchaseAmount, splits: [] };
+    }
+
+    // 50/40/10 Split
+    let elizaCloudAmount = purchaseAmount * 0.50; // Shaw
+    const appOwnerAmount = purchaseAmount * 0.40; // Me
+    const baseCreatorAmount = purchaseAmount * 0.10; // Creator
+
+    const splits: Array<{ userId: string; role: "app_owner" | "creator" | "editor"; amount: number }> = [];
+
+    // App Owner Share (40%)
+    if (signup.app_owner_id) {
+      splits.push({
+        userId: signup.app_owner_id,
+        role: "app_owner",
+        amount: appOwnerAmount,
+      });
+    } else {
+      // If no explicit app owner, 40% falls back to ElizaCloud
+      elizaCloudAmount += appOwnerAmount;
+    }
+
+    const creatorId = signup.creator_id || signup.referrer_user_id;
+
+    // Check for multi-tier "nano banana" referral links
+    const referralCode = await referralCodesRepository.findById(signup.referral_code_id);
+    if (referralCode && referralCode.parent_referral_id) {
+      const parentCode = await referralCodesRepository.findById(referralCode.parent_referral_id);
+      if (parentCode) {
+        // Distribute creator's 10% -> 8% Creator, 2% Editor (Parent)
+        splits.push({
+          userId: creatorId,
+          role: "creator",
+          amount: purchaseAmount * 0.08,
+        });
+        splits.push({
+          userId: parentCode.user_id,
+          role: "editor",
+          amount: purchaseAmount * 0.02,
+        });
+      } else {
+        splits.push({
+          userId: creatorId,
+          role: "creator",
+          amount: baseCreatorAmount,
+        });
+      }
+    } else {
+      splits.push({
+        userId: creatorId,
+        role: "creator",
+        amount: baseCreatorAmount,
+      });
+    }
+
+    return { elizaCloudAmount, splits };
   }
 
   async getReferralStats(userId: string): Promise<{

@@ -385,29 +385,73 @@ class UserMcpsService {
       creditsCharged = x402AmountUsd * CREDITS_PER_DOLLAR;
     }
 
+    // Affiliate logic
+    let affiliateFeeCredits = 0;
+    let platformFeeCredits = 0;
+    let affiliateOwnerId: string | null = null;
+    let affiliateCodeId: string | null = null;
+
+    if (params.userId) {
+      try {
+        const { affiliatesService } = await import("@/lib/services/affiliates");
+        const referrer = await affiliatesService.getReferrer(params.userId!);
+        if (referrer) {
+          affiliateOwnerId = referrer.user_id;
+          affiliateCodeId = referrer.id;
+          const affiliatePercent = Number(referrer.markup_percent);
+          const platformPercent = 20.0;
+
+          affiliateFeeCredits = creditsCharged * (affiliatePercent / 100);
+          platformFeeCredits = creditsCharged * (platformPercent / 100);
+        }
+      } catch (e) {
+        logger.error(`[UserMcps] Error fetching referrer for ${params.userId}`, e);
+      }
+    }
+
+    const totalCreditsToDeduct = creditsCharged + affiliateFeeCredits + platformFeeCredits;
+
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
 
     const creatorEarnings = creditsCharged * creatorSharePct;
-    const platformEarnings = creditsCharged * platformSharePct;
+    const platformEarnings = (creditsCharged * platformSharePct) + platformFeeCredits;
 
     // Charge the consumer
-    if (params.paymentType === "credits" && creditsCharged > 0) {
+    if (params.paymentType === "credits" && totalCreditsToDeduct > 0) {
       const deductResult = await creditsService.deductCredits({
         organizationId: params.organizationId,
-        amount: creditsCharged,
+        amount: totalCreditsToDeduct,
         description: `MCP: ${mcp.name} - ${params.toolName}`,
         metadata: {
           mcp_id: mcp.id,
           mcp_name: mcp.name,
           tool_name: params.toolName,
           creator_org_id: mcp.organization_id,
+          affiliate_fee: affiliateFeeCredits.toFixed(4),
+          platform_fee: platformFeeCredits.toFixed(4)
         },
       });
 
       if (!deductResult.success) {
         throw new Error("Insufficient credits");
       }
+    }
+
+    // Credit Affiliate
+    if (affiliateFeeCredits > 0 && affiliateOwnerId && affiliateCodeId) {
+      await redeemableEarningsService.addEarnings({
+        userId: affiliateOwnerId,
+        amount: affiliateFeeCredits / CREDITS_PER_DOLLAR,
+        source: "affiliate",
+        sourceId: affiliateCodeId,
+        description: `API Usage Affiliate Fee: ${mcp.name} - ${params.toolName}`,
+        metadata: {
+          buyer_user_id: params.userId,
+          buyer_org_id: params.organizationId,
+          mcp_id: mcp.id
+        },
+      });
     }
 
     // Credit the creator's organization credits (for platform operations)

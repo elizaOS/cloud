@@ -258,26 +258,63 @@ export class AutoTopUpService {
       };
     }
 
+    // Affiliate lookup
+    let affiliateFeeAmount = 0;
+    let platformFeeAmount = 0;
+    let metadata: Record<string, string> = {
+      organization_id: organizationId,
+      user_id: trackingId.replace("org:", ""), // Try to get user ID
+      credits: amount.toFixed(2),
+      type: "auto_top_up",
+    };
+
+    try {
+      const { affiliatesService } = await import("@/lib/services/affiliates");
+      // Find the first user in the org to check for affiliate link. Preference to the trackingId user if it's not an org fallback.
+      let checkUserId = trackingId.startsWith("org:") ? null : trackingId;
+
+      if (!checkUserId) {
+        const users = await usersRepository.listByOrganization(organizationId);
+        if (users.length > 0) checkUserId = users[0].id;
+      }
+
+      if (checkUserId) {
+        const referrer = await affiliatesService.getReferrer(checkUserId);
+        if (referrer) {
+          const affiliatePercent = Number(referrer.markup_percent);
+          const platformPercent = 20.0;
+
+          affiliateFeeAmount = amount * (affiliatePercent / 100);
+          platformFeeAmount = amount * (platformPercent / 100);
+
+          metadata.affiliate_code_id = referrer.id;
+          metadata.affiliate_owner_id = referrer.user_id;
+          metadata.affiliate_earnings = affiliateFeeAmount.toFixed(2);
+          metadata.platform_fee = platformFeeAmount.toFixed(2);
+        }
+      }
+    } catch (e) {
+      logger.error(`[AutoTopUp] Failed to lookup affiliate for org ${organizationId}`, e);
+    }
+
+    const totalAmount = amount + affiliateFeeAmount + platformFeeAmount;
+
     // Create and confirm PaymentIntent with saved payment method
-    logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
+    logger.info(`[AutoTopUp] Creating PaymentIntent for $${totalAmount.toFixed(2)} (Base: $${amount.toFixed(2)})`);
 
     const IDEMPOTENCY_WINDOW_MS = 5 * 60 * 1000;
     const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / IDEMPOTENCY_WINDOW_MS)}`;
 
     const paymentIntent = await requireStripe().paymentIntents.create(
       {
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: Math.round(totalAmount * 100), // Convert to cents
         currency: "usd",
         customer: org.stripe_customer_id,
         payment_method: org.stripe_default_payment_method,
         confirm: true,
         off_session: true, // Critical: allows charging without user present
-        metadata: {
-          organization_id: organizationId,
-          credits: amount.toFixed(2),
-          type: "auto_top_up",
-        },
-        description: `Auto top-up - $${amount.toFixed(2)}`,
+        metadata: metadata,
+        description: `Auto top-up - $${totalAmount.toFixed(2)}`,
       },
       { idempotencyKey },
     );
