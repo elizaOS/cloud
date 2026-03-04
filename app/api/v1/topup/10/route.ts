@@ -5,35 +5,34 @@ import { usersService } from "@/lib/services/users";
 import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
+import { isAddress } from "viem";
 
-// TODO: Technical Debt - These three route files (/10, /50, /100) contain duplicated code
-// This should be consolidated into a single dynamic route ([amount]) with amount validation
-// Requirements:
-// 1. Move to app/api/v1/topup/[amount]/route.ts
-// 2. Add amount validation against allowlist [10,50,100]
-// 3. Update all client code to use new dynamic route
-// 4. Add monitoring during migration
-// 5. Remove deprecated static routes after traffic shifts
-const AMOUNT = 10;
+const ALLOWED_AMOUNTS = [10, 50, 100];
 
-async function handler(req: NextRequest): Promise<any> {
+async function handler(req: NextRequest, { params }: { params: { amount: string } }): Promise<any> {
+    const amount = parseInt(params.amount, 10);
+
+    if (!ALLOWED_AMOUNTS.includes(amount)) {
+        return NextResponse.json(
+            { error: "Invalid topup amount. Allowed values: 10, 50, 100" },
+            { status: 400 }
+        );
+    }
     try {
         const body = await req.json();
         const { walletAddress } = body;
 
-        if (!walletAddress) {
+        if (!walletAddress || !isAddress(walletAddress)) {
             return NextResponse.json(
-                { error: "walletAddress is required" },
+                { error: "Valid EVM walletAddress is required" },
                 { status: 400 }
             );
         }
 
-        // Process topup logic: find or create user and org
         let user = await usersService.getByWalletAddress(walletAddress);
         let organizationId = user?.organization_id;
 
         if (!user || !organizationId) {
-            // Create new org and user if they don't exist
             const org = await organizationsService.create({
                 name: `Wallet ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`,
                 slug: `wallet-${walletAddress.toLowerCase()}`,
@@ -56,7 +55,6 @@ async function handler(req: NextRequest): Promise<any> {
         const ref = req.nextUrl.searchParams.get("ref") || req.nextUrl.searchParams.get("referral_code") || body.ref || body.referral_code;
         const appOwnerId = req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
 
-        // Apply referral code if present (and first-touch)
         if (ref && user) {
             const result = await referralsService.applyReferralCode(user.id, organizationId, ref, {
                 appOwnerId: appOwnerId || undefined
@@ -66,16 +64,14 @@ async function handler(req: NextRequest): Promise<any> {
             }
         }
 
-        // Add credits
-        await organizationsService.updateCreditBalance(organizationId, AMOUNT);
+        await organizationsService.updateCreditBalance(organizationId, amount);
 
-        logger.info(`Topped up ${walletAddress} with $${AMOUNT} via x402`);
+        logger.info(`Topped up ${walletAddress} with $${amount} via x402`);
 
-        // Process revenue splits
         if (user) {
-            const { splits } = await referralsService.calculateRevenueSplits(user.id, AMOUNT);
+            const { splits } = await referralsService.calculateRevenueSplits(user.id, amount);
             if (splits.length > 0) {
-                logger.info(`[x402] Processing revenue splits for $${AMOUNT} purchase by user ${user.id}`);
+                logger.info(`[x402] Processing revenue splits for $${amount} purchase by user ${user.id}`);
                 for (const split of splits) {
                     if (split.amount <= 0) continue;
 
@@ -86,7 +82,7 @@ async function handler(req: NextRequest): Promise<any> {
                         amount: split.amount,
                         source: source,
                         sourceId: "x402_crypto_split",
-                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / AMOUNT * 100).toFixed(0)}%) for $${AMOUNT} crypto topup`,
+                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
                         metadata: {
                             buyer_user_id: user.id,
                             buyer_org_id: organizationId,
@@ -101,10 +97,10 @@ async function handler(req: NextRequest): Promise<any> {
 
         return NextResponse.json({
             success: true,
-            amount: AMOUNT,
+            amount,
             walletAddress,
             organizationId,
-            message: `Successfully topped up $${AMOUNT}`
+            message: `Successfully topped up $${amount}`
         });
     } catch (error) {
         logger.error("Error processing topup", error);
@@ -112,12 +108,14 @@ async function handler(req: NextRequest): Promise<any> {
     }
 }
 
-// Ensure the recipient address is set via ENV
-const payTo = (process.env.X402_RECIPIENT_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+const payTo = (process.env.X402_RECIPIENT_ADDRESS || '').trim();
+if (!payTo || payTo === "0x0000000000000000000000000000000000000000") {
+    throw new Error("X402_RECIPIENT_ADDRESS is not set in the environment.")
+}
 
 export const POST = withX402(
     handler,
-    payTo,
+    payTo as `0x${string}`,
     {
         price: "$10.00",
         network: (process.env.X402_NETWORK || "base-sepolia") as any,
