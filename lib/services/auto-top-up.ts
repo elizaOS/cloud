@@ -161,16 +161,6 @@ export class AutoTopUpService {
       `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
     );
 
-    // Get user for PostHog tracking - wrapped in try-catch to prevent analytics
-    // from blocking critical billing operations (database timeouts, etc.)
-    //
-    // User Attribution Strategy:
-    // 1. Billing email owner - most likely the person responsible for billing decisions
-    // 2. First organization user - fallback when billing email not set or no match
-    // 3. Organization ID prefixed - final fallback for edge cases (no users, DB errors)
-    //
-    // Note: Consider adding configured_by_user_id to auto_top_up settings if more
-    // accurate attribution is needed (track who enabled auto top-up vs who pays)
     let trackingId = `org:${organizationId}`;
     try {
       const users = await usersRepository.listByOrganization(organizationId);
@@ -261,21 +251,9 @@ export class AutoTopUpService {
     // Affiliate lookup
     let affiliateFeeAmount = 0;
     let platformFeeAmount = 0;
-    // Omit user_id if it's an org ID to avoid type error with undefined
-    let metadata: Record<string, string> = {
-      organization_id: organizationId,
-      credits: amount.toFixed(2),
-      type: "auto_top_up",
-      total_charged: totalAmount.toFixed(2),
-      fees_included: "true"
-    };
-    if (!trackingId.startsWith("org:")) {
-      metadata.user_id = trackingId;
-    }
-
+    
     try {
       const { affiliatesService } = await import("@/lib/services/affiliates");
-      // Find the first user in the org to check for affiliate link. Preference to the trackingId user if it's not an org fallback.
       let checkUserId = trackingId.startsWith("org:") ? null : trackingId;
 
       if (!checkUserId) {
@@ -291,11 +269,6 @@ export class AutoTopUpService {
 
           affiliateFeeAmount = amount * (affiliatePercent / 100);
           platformFeeAmount = amount * (platformPercent / 100);
-
-          metadata.affiliate_code_id = referrer.id;
-          metadata.affiliate_owner_id = referrer.user_id;
-          metadata.affiliate_earnings = affiliateFeeAmount.toFixed(2);
-          metadata.platform_fee = platformFeeAmount.toFixed(2);
         }
       }
     } catch (e) {
@@ -303,8 +276,44 @@ export class AutoTopUpService {
     }
 
     const totalAmount = amount + affiliateFeeAmount + platformFeeAmount;
+    
+    let metadata: Record<string, string> = {
+      organization_id: organizationId,
+      credits: amount.toFixed(2),
+      type: "auto_top_up",
+      total_charged: totalAmount.toFixed(2),
+      fees_included: "true"
+    };
 
-    // Create and confirm PaymentIntent with saved payment method
+    if (!trackingId.startsWith("org:")) {
+      metadata.user_id = trackingId;
+    }
+    
+    // Add affiliate metadata if applicable
+    if (affiliateFeeAmount > 0) {
+      try {
+        const { affiliatesService } = await import("@/lib/services/affiliates");
+        let checkUserId = trackingId.startsWith("org:") ? null : trackingId;
+
+        if (!checkUserId) {
+          const users = await usersRepository.listByOrganization(organizationId);
+          if (users.length > 0) checkUserId = users[0].id;
+        }
+
+        if (checkUserId) {
+          const referrer = await affiliatesService.getReferrer(checkUserId);
+          if (referrer) {
+            metadata.affiliate_code_id = referrer.id;
+            metadata.affiliate_owner_id = referrer.user_id;
+            metadata.affiliate_earnings = affiliateFeeAmount.toFixed(2);
+            metadata.platform_fee = platformFeeAmount.toFixed(2);
+          }
+        }
+      } catch (e) {
+        logger.error(`[AutoTopUp] Failed to add affiliate metadata for org ${organizationId}`, e);
+      }
+    }
+
     logger.info(`[AutoTopUp] Creating PaymentIntent for $${totalAmount.toFixed(2)} (Base: $${amount.toFixed(2)})`);
 
     const IDEMPOTENCY_WINDOW_MS = 5 * 60 * 1000;
@@ -312,12 +321,12 @@ export class AutoTopUpService {
 
     const paymentIntent = await requireStripe().paymentIntents.create(
       {
-        amount: Math.round(amount * 100), // Convert to cents - base amount only, fees handled by metadata
+        amount: Math.round(totalAmount * 100),
         currency: "usd",
         customer: org.stripe_customer_id,
         payment_method: org.stripe_default_payment_method,
         confirm: true,
-        off_session: true, // Critical: allows charging without user present
+        off_session: true,
         metadata: metadata,
         description: `Auto top-up - $${totalAmount.toFixed(2)}`,
       },
@@ -329,7 +338,6 @@ export class AutoTopUpService {
     );
 
     if (paymentIntent.status === "succeeded") {
-      // Credits will be added by webhook, but we can return success here
       const previousBalance = Number(org.credit_balance);
       const newBalance = previousBalance + amount;
 
@@ -337,7 +345,6 @@ export class AutoTopUpService {
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
       );
 
-      // Track auto top-up completed in PostHog
       trackServerEvent(trackingId, "auto_topup_completed", {
         organization_id: organizationId,
         amount,
@@ -346,7 +353,6 @@ export class AutoTopUpService {
         payment_intent_id: paymentIntent.id,
       });
 
-      // Also track unified checkout_completed
       trackServerEvent(trackingId, "checkout_completed", {
         payment_method: "stripe",
         amount,
@@ -356,7 +362,6 @@ export class AutoTopUpService {
         credits_added: amount,
       });
 
-      // Send success email notification
       logger.info(
         `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
       );
@@ -368,8 +373,6 @@ export class AutoTopUpService {
         paymentIntent.id,
       );
 
-      // Note: Credits are added by webhook handler to avoid race conditions
-      // We just return the expected new balance here for logging
       return {
         organizationId,
         success: true,
@@ -380,12 +383,10 @@ export class AutoTopUpService {
       paymentIntent.status === "requires_action" ||
       paymentIntent.status === "requires_payment_method"
     ) {
-      // Payment needs additional action or failed
       logger.error(
         `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
       );
 
-      // Track auto top-up failed
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         amount,
@@ -406,7 +407,6 @@ export class AutoTopUpService {
         `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
       );
 
-      // Track auto top-up failed
       trackServerEvent(trackingId, "auto_topup_failed", {
         organization_id: organizationId,
         amount,
@@ -447,7 +447,6 @@ export class AutoTopUpService {
       updated_at: new Date(),
     });
 
-    // Send email notification
     void this.queueAutoTopUpDisabledEmail(org, reason);
   }
 
@@ -598,7 +597,6 @@ export class AutoTopUpService {
       throw new Error("Organization not found");
     }
 
-    // If enabling auto top-up, validate requirements
     if (settings.enabled === true) {
       if (!org.stripe_default_payment_method) {
         throw new Error(
@@ -606,16 +604,13 @@ export class AutoTopUpService {
         );
       }
 
-      // Get current or new values
       const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
       const threshold =
         settings.threshold ?? Number(org.auto_top_up_threshold || 0);
 
-      // Validate settings
       this.validateSettings(amount, threshold);
     }
 
-    // If amount or threshold are being updated, validate them
     if (settings.amount !== undefined || settings.threshold !== undefined) {
       const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
       const threshold =
@@ -623,7 +618,6 @@ export class AutoTopUpService {
       this.validateSettings(amount, threshold);
     }
 
-    // Build update object
     const updates: Partial<Organization> = {
       updated_at: new Date(),
     };
@@ -647,5 +641,5 @@ export class AutoTopUpService {
   }
 }
 
-// Export singleton instance
 export const autoTopUpService = new AutoTopUpService();
+
