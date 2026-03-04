@@ -29,6 +29,24 @@ export const models: LLMModel[] = [
     multiModal: true,
     tier: "$$",
   },
+  // Keep as alias for backward compatibility with existing agent configs
+  {
+    id: "openai/gpt-4o-mini",
+    name: "GPT-4o (Legacy)",
+    provider: "OpenAI",
+    providerId: "openai",
+    multiModal: true,
+    tier: "$$",
+  },
+  // Keep as alias for backward compatibility with existing agent configs
+  {
+    id: "openai/gpt-4-turbo",
+    name: "GPT-4 Turbo (Legacy)",
+    provider: "OpenAI",
+    providerId: "openai",
+    multiModal: true,
+    tier: "$$",
+  },
   {
     id: "openai/gpt-5.3",
     name: "GPT-5.3",
