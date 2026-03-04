@@ -3,7 +3,7 @@ import { verifyMessage } from "viem";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
-import { cache as redisCache } from "@/lib/cache/client";
+import { redisCache } from "@/lib/cache/client";
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
