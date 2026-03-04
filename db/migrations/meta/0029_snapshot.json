@@ -1,5 +1,5 @@
 {
-  "id": "ed9f9b50-75de-4021-a71f-d19b0d636834",
+  "id": "8dfa43c8-de18-4aa1-9f04-1877c2f791d2",
   "prevId": "d071b1cf-73b3-4ffd-ae5d-5aa4ee9ad05e",
   "version": "7",
   "dialect": "postgresql",
@@ -7508,6 +7508,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "parent_referral_id": {
+          "name": "parent_referral_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "total_referrals": {
           "name": "total_referrals",
           "type": "integer",
@@ -7640,6 +7646,18 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "app_owner_id": {
+          "name": "app_owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creator_id": {
+          "name": "creator_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "signup_bonus_credited": {
           "name": "signup_bonus_credited",
@@ -7775,6 +7793,32 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "referral_signups_app_owner_id_users_id_fk": {
+          "name": "referral_signups_app_owner_id_users_id_fk",
+          "tableFrom": "referral_signups",
+          "tableTo": "users",
+          "columnsFrom": [
+            "app_owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "referral_signups_creator_id_users_id_fk": {
+          "name": "referral_signups_creator_id_users_id_fk",
+          "tableFrom": "referral_signups",
+          "tableTo": "users",
+          "columnsFrom": [
+            "creator_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -11679,6 +11723,20 @@
         },
         "earned_from_affiliates": {
           "name": "earned_from_affiliates",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.0000'"
+        },
+        "earned_from_app_owner_shares": {
+          "name": "earned_from_app_owner_shares",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.0000'"
+        },
+        "earned_from_creator_shares": {
+          "name": "earned_from_creator_shares",
           "type": "numeric(18, 4)",
           "primaryKey": false,
           "notNull": true,
@@ -22705,10 +22763,10 @@
         },
         "markup_percent": {
           "name": "markup_percent",
-          "type": "numeric(5, 2)",
+          "type": "numeric(6, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'12.50'"
+          "default": "'20.00'"
         },
         "is_active": {
           "name": "is_active",
@@ -22793,7 +22851,7 @@
       "checkConstraints": {
         "markup_percent_range": {
           "name": "markup_percent_range",
-          "value": "\"affiliate_codes\".\"markup_percent\" >= 0 AND \"affiliate_codes\".\"markup_percent\" <= 25"
+          "value": "\"affiliate_codes\".\"markup_percent\" >= 0 AND \"affiliate_codes\".\"markup_percent\" <= 1000"
         }
       },
       "isRLSEnabled": false
@@ -22886,6 +22944,213 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_server_wallets": {
+      "name": "agent_server_wallets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "privy_wallet_id": {
+          "name": "privy_wallet_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_type": {
+          "name": "chain_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_address": {
+          "name": "client_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_server_wallets_organization_idx": {
+          "name": "agent_server_wallets_organization_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_server_wallets_user_idx": {
+          "name": "agent_server_wallets_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_server_wallets_character_idx": {
+          "name": "agent_server_wallets_character_idx",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_server_wallets_privy_wallet_idx": {
+          "name": "agent_server_wallets_privy_wallet_idx",
+          "columns": [
+            {
+              "expression": "privy_wallet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_server_wallets_address_idx": {
+          "name": "agent_server_wallets_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_server_wallets_client_address_idx": {
+          "name": "agent_server_wallets_client_address_idx",
+          "columns": [
+            {
+              "expression": "client_address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_server_wallets_organization_id_organizations_id_fk": {
+          "name": "agent_server_wallets_organization_id_organizations_id_fk",
+          "tableFrom": "agent_server_wallets",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agent_server_wallets_user_id_users_id_fk": {
+          "name": "agent_server_wallets_user_id_users_id_fk",
+          "tableFrom": "agent_server_wallets",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agent_server_wallets_character_id_user_characters_id_fk": {
+          "name": "agent_server_wallets_character_id_user_characters_id_fk",
+          "tableFrom": "agent_server_wallets",
+          "tableTo": "user_characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -22987,7 +23252,9 @@
         "miniapp",
         "agent",
         "mcp",
-        "affiliate"
+        "affiliate",
+        "app_owner_revenue_share",
+        "creator_revenue_share"
       ]
     },
     "public.ledger_entry_type": {

@@ -208,15 +208,8 @@
     {
       "idx": 29,
       "version": "7",
-      "when": 1772371406424,
-      "tag": "0029_awesome_vindicator",
-      "breakpoints": true
-    },
-    {
-      "idx": 30,
-      "version": "7",
-      "when": 1772429754168,
-      "tag": "0030_silky_agent_brand",
+      "when": 1772590927728,
+      "tag": "0029_short_penance",
       "breakpoints": true
     }
   ]

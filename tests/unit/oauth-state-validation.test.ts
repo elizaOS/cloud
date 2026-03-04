@@ -130,9 +130,9 @@ describe("OAuth State Schema Validation", () => {
       };
 
       // Zod strips unknown properties, so this should pass but without __proto__
-      const result = OAuthStateSchema.parse(protoAttempt);
-      expect(result).not.toHaveProperty("__proto__");
-      expect(result).not.toHaveProperty("isAdmin");
+      const result = OAuthStateSchema.parse(protoAttempt) as Record<string, unknown>;
+      expect(Object.prototype.hasOwnProperty.call(result, "__proto__")).toBe(false);
+      expect(Object.prototype.hasOwnProperty.call(result, "isAdmin")).toBe(false);
     });
 
     it("handles deeply nested malicious objects", () => {

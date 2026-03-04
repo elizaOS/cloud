@@ -6,7 +6,7 @@ CREATE TYPE "public"."mcp_pricing_type" AS ENUM('free', 'credits', 'x402');--> s
 CREATE TYPE "public"."mcp_status" AS ENUM('draft', 'pending_review', 'live', 'suspended', 'deprecated');--> statement-breakpoint
 CREATE TYPE "public"."redemption_network" AS ENUM('ethereum', 'base', 'bnb', 'solana');--> statement-breakpoint
 CREATE TYPE "public"."redemption_status" AS ENUM('pending', 'approved', 'processing', 'completed', 'failed', 'rejected', 'expired');--> statement-breakpoint
-CREATE TYPE "public"."earnings_source" AS ENUM('miniapp', 'agent', 'mcp', 'affiliate');--> statement-breakpoint
+CREATE TYPE "public"."earnings_source" AS ENUM('miniapp', 'agent', 'mcp', 'affiliate', 'app_owner_revenue_share', 'creator_revenue_share');--> statement-breakpoint
 CREATE TYPE "public"."ledger_entry_type" AS ENUM('earning', 'redemption', 'adjustment', 'refund');--> statement-breakpoint
 CREATE TYPE "public"."admin_role" AS ENUM('super_admin', 'moderator', 'viewer');--> statement-breakpoint
 CREATE TYPE "public"."moderation_action" AS ENUM('refused', 'warned', 'flagged_for_ban', 'banned');--> statement-breakpoint
@@ -740,6 +740,7 @@ CREATE TABLE "referral_codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"code" text NOT NULL,
+	"parent_referral_id" uuid,
 	"total_referrals" integer DEFAULT 0 NOT NULL,
 	"total_signup_earnings" numeric(10, 2) DEFAULT '0.00' NOT NULL,
 	"total_qualified_earnings" numeric(10, 2) DEFAULT '0.00' NOT NULL,
@@ -754,6 +755,8 @@ CREATE TABLE "referral_signups" (
 	"referral_code_id" uuid NOT NULL,
 	"referrer_user_id" uuid NOT NULL,
 	"referred_user_id" uuid NOT NULL,
+	"app_owner_id" uuid,
+	"creator_id" uuid,
 	"signup_bonus_credited" boolean DEFAULT false NOT NULL,
 	"signup_bonus_amount" numeric(10, 2) DEFAULT '0.00',
 	"qualified_at" timestamp,
@@ -1165,6 +1168,8 @@ CREATE TABLE "redeemable_earnings" (
 	"earned_from_agents" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
 	"earned_from_mcps" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
 	"earned_from_affiliates" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"earned_from_app_owner_shares" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
+	"earned_from_creator_shares" numeric(18, 4) DEFAULT '0.0000' NOT NULL,
 	"last_earning_at" timestamp,
 	"last_redemption_at" timestamp,
 	"version" numeric(10, 0) DEFAULT '0' NOT NULL,
@@ -2149,12 +2154,12 @@ CREATE TABLE "affiliate_codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"code" text NOT NULL,
-	"markup_percent" numeric(5, 2) DEFAULT '12.50' NOT NULL,
+	"markup_percent" numeric(6, 2) DEFAULT '20.00' NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "affiliate_codes_code_unique" UNIQUE("code"),
-	CONSTRAINT "markup_percent_range" CHECK ("affiliate_codes"."markup_percent" >= 0 AND "affiliate_codes"."markup_percent" <= 25)
+	CONSTRAINT "markup_percent_range" CHECK ("affiliate_codes"."markup_percent" >= 0 AND "affiliate_codes"."markup_percent" <= 1000)
 );
 --> statement-breakpoint
 CREATE TABLE "user_affiliates" (
@@ -2162,6 +2167,19 @@ CREATE TABLE "user_affiliates" (
 	"user_id" uuid NOT NULL,
 	"affiliate_code_id" uuid NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "agent_server_wallets" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"character_id" uuid,
+	"privy_wallet_id" text NOT NULL,
+	"address" text NOT NULL,
+	"chain_type" text NOT NULL,
+	"client_address" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -2227,6 +2245,8 @@ ALTER TABLE "referral_codes" ADD CONSTRAINT "referral_codes_user_id_users_id_fk"
 ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referral_code_id_referral_codes_id_fk" FOREIGN KEY ("referral_code_id") REFERENCES "public"."referral_codes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referrer_user_id_users_id_fk" FOREIGN KEY ("referrer_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referred_user_id_users_id_fk" FOREIGN KEY ("referred_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_app_owner_id_users_id_fk" FOREIGN KEY ("app_owner_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_creator_id_users_id_fk" FOREIGN KEY ("creator_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "social_share_rewards" ADD CONSTRAINT "social_share_rewards_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cache" ADD CONSTRAINT "cache_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channel_participants" ADD CONSTRAINT "channel_participants_channel_id_channels_id_fk" FOREIGN KEY ("channel_id") REFERENCES "public"."channels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -2372,6 +2392,9 @@ ALTER TABLE "entity_settings" ADD CONSTRAINT "entity_settings_user_id_users_id_f
 ALTER TABLE "affiliate_codes" ADD CONSTRAINT "affiliate_codes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_affiliates" ADD CONSTRAINT "user_affiliates_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_affiliates" ADD CONSTRAINT "user_affiliates_affiliate_code_id_affiliate_codes_id_fk" FOREIGN KEY ("affiliate_code_id") REFERENCES "public"."affiliate_codes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_server_wallets" ADD CONSTRAINT "agent_server_wallets_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_server_wallets" ADD CONSTRAINT "agent_server_wallets_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_server_wallets" ADD CONSTRAINT "agent_server_wallets_character_id_user_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."user_characters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "organizations_auto_top_up_enabled_idx" ON "organizations" USING btree ("auto_top_up_enabled");--> statement-breakpoint
@@ -2808,4 +2831,10 @@ CREATE INDEX "entity_settings_key_idx" ON "entity_settings" USING btree ("key");
 CREATE INDEX "affiliate_codes_user_idx" ON "affiliate_codes" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "affiliate_codes_code_idx" ON "affiliate_codes" USING btree ("code");--> statement-breakpoint
 CREATE UNIQUE INDEX "user_affiliates_user_idx" ON "user_affiliates" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_affiliates_affiliate_idx" ON "user_affiliates" USING btree ("affiliate_code_id");
+CREATE INDEX "user_affiliates_affiliate_idx" ON "user_affiliates" USING btree ("affiliate_code_id");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_organization_idx" ON "agent_server_wallets" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_user_idx" ON "agent_server_wallets" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_character_idx" ON "agent_server_wallets" USING btree ("character_id");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_privy_wallet_idx" ON "agent_server_wallets" USING btree ("privy_wallet_id");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_address_idx" ON "agent_server_wallets" USING btree ("address");--> statement-breakpoint
+CREATE INDEX "agent_server_wallets_client_address_idx" ON "agent_server_wallets" USING btree ("client_address");

@@ -80,14 +80,14 @@ describe("Idempotency Utility", () => {
       const key = `${testPrefix}:source-test-${Date.now()}`;
 
       // This should not throw
-      await expect(markAsProcessed(key, "twilio")).resolves.not.toThrow();
+      await markAsProcessed(key, "twilio");
     });
 
     it("uses default source when not provided", async () => {
       const key = `${testPrefix}:default-source-${Date.now()}`;
 
       // Should not throw
-      await expect(markAsProcessed(key)).resolves.not.toThrow();
+      await markAsProcessed(key);
     });
 
     it("handles duplicate marking gracefully", async () => {
@@ -95,7 +95,7 @@ describe("Idempotency Utility", () => {
 
       // Mark twice - should not throw
       await markAsProcessed(key, "test");
-      await expect(markAsProcessed(key, "test")).resolves.not.toThrow();
+      await markAsProcessed(key, "test");
 
       // Should still be processed
       expect(await isAlreadyProcessed(key)).toBe(true);
@@ -141,7 +141,7 @@ describe("Idempotency Utility", () => {
 
   describe("clearProcessedMessages", () => {
     it("clears all messages without error", async () => {
-      await expect(clearProcessedMessages()).resolves.not.toThrow();
+      await clearProcessedMessages();
     });
   });
 });
@@ -182,7 +182,7 @@ describe("Idempotency Security Tests", () => {
     it("handles very long keys", async () => {
       const longKey = `${securityPrefix}:${"x".repeat(500)}`;
       expect(await isAlreadyProcessed(longKey)).toBe(false);
-      await expect(markAsProcessed(longKey, "test")).resolves.not.toThrow();
+      await markAsProcessed(longKey, "test");
     });
 
     it("handles keys with special webhook-related characters", async () => {
