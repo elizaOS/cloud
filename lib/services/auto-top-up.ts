@@ -261,12 +261,17 @@ export class AutoTopUpService {
     // Affiliate lookup
     let affiliateFeeAmount = 0;
     let platformFeeAmount = 0;
+    // Omit user_id if it's an org ID to avoid type error with undefined
     let metadata: Record<string, string> = {
       organization_id: organizationId,
-      user_id: trackingId.startsWith("org:") ? undefined : trackingId, // Only use if actual user ID
       credits: amount.toFixed(2),
       type: "auto_top_up",
+      total_charged: totalAmount.toFixed(2),
+      fees_included: "true"
     };
+    if (!trackingId.startsWith("org:")) {
+      metadata.user_id = trackingId;
+    }
 
     try {
       const { affiliatesService } = await import("@/lib/services/affiliates");
@@ -307,7 +312,7 @@ export class AutoTopUpService {
 
     const paymentIntent = await requireStripe().paymentIntents.create(
       {
-        amount: Math.round(totalAmount * 100), // Convert to cents
+        amount: Math.round(amount * 100), // Convert to cents - base amount only, fees handled by metadata
         currency: "usd",
         customer: org.stripe_customer_id,
         payment_method: org.stripe_default_payment_method,
