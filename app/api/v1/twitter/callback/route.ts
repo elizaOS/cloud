@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -111,6 +112,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   await cache.del(stateKey);
+
+  await invalidateOAuthState(state.organizationId, "twitter", state.userId);
 
   const redirectWithSuccess = redirectUrl.includes("?")
     ? `${redirectUrl}&twitter_connected=true&twitter_username=${tokens.screenName}`

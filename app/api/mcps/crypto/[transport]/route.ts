@@ -1,3 +1,4 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
@@ -447,7 +448,8 @@ const handler = createMcpHandler(
   },
   {
     redisUrl: process.env.REDIS_URL,
-    basePath: "/api/mcps/crypto",
+    streamableHttpEndpoint: "/api/mcps/crypto/streamable-http",
+    disableSse: true,
     maxDuration: 300,
   },
 );
@@ -465,4 +467,24 @@ const handler = createMcpHandler(
  * @param context - Route context containing the transport parameter.
  * @returns MCP handler response.
  */
-export { handler as GET, handler as POST, handler as DELETE };
+function withTransportValidation(
+  fn: (req: Request) => Promise<Response>,
+) {
+  return async (
+    req: Request,
+    { params }: { params: Promise<{ transport: string }> },
+  ): Promise<Response> => {
+    const { transport } = await params;
+    if (transport !== "streamable-http") {
+      return new Response(
+        JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+        { status: 405, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    return fn(req);
+  };
+}
+
+export const GET = withTransportValidation(handler);
+export const POST = withTransportValidation(handler);
+export const DELETE = withTransportValidation(handler);

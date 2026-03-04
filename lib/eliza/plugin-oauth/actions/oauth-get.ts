@@ -27,6 +27,10 @@ export const oauthGetAction: ActionWithParams = {
     "CHECK_CONNECTION", "VERIFY_CONNECTION", "CONNECTION_STATUS", "IS_CONNECTED",
     "DONE", "FINISHED", "COMPLETED", "DID_IT_WORK", "CHECK_GOOGLE",
     "CHECK_LINEAR", "CHECK_SLACK", "CHECK_GITHUB", "CHECK_NOTION",
+    "CHECK_TWITTER", "CHECK_X", "VERIFY_TWITTER", "VERIFY_X",
+    "CHECK_ASANA", "CHECK_DROPBOX", "CHECK_SALESFORCE", "CHECK_AIRTABLE", "CHECK_ZOOM",
+    "CHECK_JIRA", "VERIFY_JIRA", "CHECK_LINKEDIN", "VERIFY_LINKEDIN",
+    "CHECK_MICROSOFT", "CHECK_OUTLOOK",
   ],
   description:
     "Check status of an OAuth connection. Use when user says 'done' after connecting, or asks about connection status.",
@@ -34,7 +38,7 @@ export const oauthGetAction: ActionWithParams = {
   parameters: {
     platform: {
       type: "string",
-      description: "Platform to check: google, linear, slack, github, notion. If not specified, checks all.",
+      description: "Platform to check: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft. If not specified, checks all.",
       required: false,
     },
   },
@@ -112,6 +116,14 @@ export const oauthGetAction: ActionWithParams = {
     [
       { name: "{{name1}}", content: { text: "is my google connected?" } },
       { name: "{{name2}}", content: { text: "Google connected! Logged in as user@gmail.com.", actions: ["OAUTH_GET"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "is my twitter connected?" } },
+      { name: "{{name2}}", content: { text: "Twitter connected! Logged in as @username.", actions: ["OAUTH_GET"] } },
+    ],
+    [
+      { name: "{{name1}}", content: { text: "check my x connection" } },
+      { name: "{{name2}}", content: { text: "Twitter connected! Logged in as @username.", actions: ["OAUTH_GET"] } },
     ],
   ] as ActionExample[][],
 };

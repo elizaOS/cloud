@@ -252,9 +252,9 @@ export class RoomsService {
         metadata: input.metadata,
         createdAt: new Date(),
       })
-      .returning()) as any[];
+      .returning()) as Room[];
 
-    return roomResult[0] as Room;
+    return roomResult[0];
   }
 
   /**
@@ -273,9 +273,9 @@ export class RoomsService {
       throw new Error("agentId is required for createRoomWithParticipant");
     }
 
-    return await dbWrite.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx): Promise<Room> => {
       // Create room
-      const [room] = (await tx
+      const rows = await tx
         .insert(roomTable)
         .values({
           id: roomId,
@@ -286,7 +286,8 @@ export class RoomsService {
           metadata: roomInput.metadata,
           createdAt: new Date(),
         })
-        .returning()) as any[];
+        .returning();
+      const room = (rows as unknown as Room[])[0];
 
       // Create entity (upsert - ignore if exists)
       // Must use tx so the insert is visible within this transaction

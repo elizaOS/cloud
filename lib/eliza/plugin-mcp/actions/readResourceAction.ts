@@ -179,7 +179,7 @@ export const readResourceAction: Action = {
       const result = await mcpService.readResource(serverName, uri);
       logger.debug(`Read resource ${uri} from server ${serverName}`);
 
-      const { resourceContent, resourceMeta } = processResourceResult(result, uri);
+      const { resourceContent, resourceMeta } = processResourceResult(result as { contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }> }, uri);
 
       await handleResourceAnalysis(
         runtime,

@@ -21,6 +21,7 @@ import {
   requiresAssistantMode,
   hasAffiliateData,
 } from "./agent-mode-types";
+import { cloudN8nPlugin } from "./plugin-n8n";
 
 // Plugin cache - preloaded at module init to eliminate dynamic import latency
 let _knowledgePlugin: Plugin | null = null;
@@ -34,10 +35,15 @@ async function preloadPlugins(): Promise<void> {
   try {
     // Only preload web-search plugin (local version)
     // Knowledge plugin is loaded on-demand when documents exist
-    const webSearchModule = await import("./plugin-web-search/src").catch((e) => {
-      logger.warn("[AgentLoader] Failed to preload local web-search plugin:", e);
-      return null;
-    });
+    const webSearchModule = await import("./plugin-web-search/src").catch(
+      (e) => {
+        logger.warn(
+          "[AgentLoader] Failed to preload local web-search plugin:",
+          e,
+        );
+        return null;
+      },
+    );
 
     if (webSearchModule) {
       _webSearchPlugin = asPlugin(webSearchModule.webSearchPlugin);
@@ -51,11 +57,7 @@ async function preloadPlugins(): Promise<void> {
 
 preloadPlugins();
 
-export type ModeUpgradeReason =
-  | "settings_plugin"
-  | "explicit_plugin"
-  | "has_knowledge"
-  | "none";
+export type ModeUpgradeReason = "settings_plugin" | "has_knowledge" | "none";
 
 export interface ModeResolution {
   mode: AgentMode;
@@ -104,7 +106,7 @@ async function resolveEffectiveMode(
   if (hasExplicitSettingsPlugin(characterPlugins)) {
     return {
       mode: AgentMode.ASSISTANT,
-      upgradeReason: "explicit_plugin",
+      upgradeReason: "settings_plugin",
       documentCount,
     };
   }
@@ -151,6 +153,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
   "@elizaos/plugin-memory": asPlugin(memoryPlugin),
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
+  "@elizaos/plugin-n8n-workflow": cloudN8nPlugin,
   "@eliza-cloud/plugin-assistant": cloudBootstrapPlugin,
   "@eliza-cloud/plugin-affiliate": affiliatePlugin,
   "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,
@@ -210,13 +213,24 @@ export class AgentLoader {
     plugins: Plugin[];
     modeResolution: ModeResolution;
   }> {
-    // Default character has no capabilities that require mode upgrade
-    const modeResolution: ModeResolution = { mode: agentMode, upgradeReason: "none" };
-    const characterSettings: Record<string, unknown> = {};
+    // Use default character's actual settings for plugin resolution
+    const characterSettings: Record<string, unknown> = {
+      ...(defaultAgent.character.settings ?? {}),
+    };
     if (options?.webSearchEnabled) {
       characterSettings.webSearch = { enabled: true };
     }
-    const plugins = await this.resolvePlugins(agentMode, [], characterSettings);
+    const modeResolution = await resolveEffectiveMode(
+      agentMode,
+      defaultAgent.character.id!,
+      characterSettings,
+      [],
+    );
+    const plugins = await this.resolvePlugins(
+      modeResolution.mode,
+      [],
+      characterSettings,
+    );
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 

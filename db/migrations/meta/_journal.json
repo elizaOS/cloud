@@ -208,8 +208,43 @@
     {
       "idx": 29,
       "version": "7",
+      "when": 1770372642065,
+      "tag": "0029_add_missing_apps_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1770518468000,
+      "tag": "0030_add_milaidy_sandboxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1770600000000,
+      "tag": "0031_add_n8n_credential_mappings",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1770600100000,
+      "tag": "0032_add_microsoft_platform_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1771424653235,
+      "tag": "0033_add_engagement_metrics_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
       "when": 1772590927728,
-      "tag": "0029_short_penance",
+      "tag": "0034_short_penance",
       "breakpoints": true
     }
   ]
