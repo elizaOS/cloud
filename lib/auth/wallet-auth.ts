@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { verifyMessage } from "viem";
+import { verifyMessage, getAddress } from "viem";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
@@ -8,13 +8,16 @@ import { redisCache } from "@/lib/cache/client";
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function verifyWalletSignature(request: NextRequest): Promise<UserWithOrganization | null> {
-    const walletAddress = request.headers.get("X-Wallet-Address");
+    const rawWalletAddress = request.headers.get("X-Wallet-Address");
     const timestampStr = request.headers.get("X-Timestamp");
     const signature = request.headers.get("X-Wallet-Signature");
 
-    if (!walletAddress || !timestampStr || !signature) {
+    if (!rawWalletAddress || !timestampStr || !signature) {
         return null;
     }
+
+    // Normalize the wallet address to EIP-55 format
+    const walletAddress = getAddress(rawWalletAddress);
 
     // 1. Verify Timestamp
     const timestamp = parseInt(timestampStr, 10);
@@ -44,7 +47,6 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     if (nonceExists) {
         throw new Error("Signature has already been used");
     }
-    
     // 4. Verify Signature
     try {
         const isValid = await verifyMessage({
