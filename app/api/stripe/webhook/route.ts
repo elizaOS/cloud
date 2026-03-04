@@ -112,6 +112,9 @@ async function handleStripeWebhook(req: NextRequest) {
           const isAppPurchase =
             purchaseSource === "miniapp_app" && appId && userId;
 
+          // Track the payment intent ID to ensure idempotency on webhook retries
+          const revenueSourceId = paymentIntentId;
+
           if (!organizationId || !credits) {
             logger.warn(
               `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
@@ -295,15 +298,15 @@ async function handleStripeWebhook(req: NextRequest) {
                   if (split.amount <= 0) continue;
 
                   const source = split.role === "app_owner" ? "app_owner_revenue_share"
-                    : split.role === "editor" ? "editor_revenue_share"
+                    : split.role === "editor" ? "creator_revenue_share" // Map editor to creator until DB schema updated
                     : "creator_revenue_share";
 
                   await redeemableEarningsService.addEarnings({
                     userId: split.userId,
                     amount: split.amount,
                     source: source,
-                    sourceId: "revenue_split",
-                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                    sourceId: revenueSourceId,
+                    description: `${split.role === "app_owner" ? "App Owner" : split.role === "editor" ? "Editor" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
                     metadata: {
                       buyer_user_id: userId,
                       buyer_org_id: organizationId,
