@@ -413,13 +413,24 @@ function looksLikeJwt(token: string): boolean {
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Try wallet signature authentication first
-  const walletUser = await verifyWalletSignature(request);
-  if (walletUser) {
-    return {
-      user: walletUser,
-      authMethod: "wallet_signature",
-    };
+  // Try wallet signature authentication first (if headers present)
+  const hasWalletHeaders = request.headers.get("X-Wallet-Address") && 
+                          request.headers.get("X-Wallet-Signature") && 
+                          request.headers.get("X-Timestamp");
+
+  if (hasWalletHeaders) {
+    try {
+      const walletUser = await verifyWalletSignature(request);
+      if (walletUser) {
+        return {
+          user: walletUser,
+          authMethod: "wallet_signature",
+        };
+      }
+    } catch (e) {
+      // Failed wallet auth - fall through to other methods
+      logger.debug("[Auth] Wallet auth failed, trying other methods:", e);
+    }
   }
 
   // Check for API key in X-API-Key header

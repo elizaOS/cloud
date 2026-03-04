@@ -263,7 +263,7 @@ export class AutoTopUpService {
     let platformFeeAmount = 0;
     let metadata: Record<string, string> = {
       organization_id: organizationId,
-      user_id: trackingId.replace("org:", ""), // Try to get user ID
+      user_id: trackingId.startsWith("org:") ? undefined : trackingId, // Only use if actual user ID
       credits: amount.toFixed(2),
       type: "auto_top_up",
     };

@@ -6,6 +6,14 @@ import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
 
+// TODO: Technical Debt - These three route files (/10, /50, /100) contain duplicated code
+// This should be consolidated into a single dynamic route ([amount]) with amount validation
+// Requirements:
+// 1. Move to app/api/v1/topup/[amount]/route.ts
+// 2. Add amount validation against allowlist [10,50,100]
+// 3. Update all client code to use new dynamic route
+// 4. Add monitoring during migration
+// 5. Remove deprecated static routes after traffic shifts
 const AMOUNT = 10;
 
 async function handler(req: NextRequest): Promise<any> {

@@ -34,9 +34,20 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     // Path: /api/v1/chat/completions
     const method = request.method;
     const path = request.nextUrl.pathname;
+    const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
     const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
 
-    // 3. Verify Signature
+    // 3. Check Redis for nonce to prevent replay
+    const nonceKey = `wallet-nonce:${nonce}`;
+    const nonceExists = await redisCache.get(nonceKey);
+    if (nonceExists) {
+        throw new Error("Signature has already been used");
+    }
+    
+    // Set nonce with 5-min expiry matching timestamp window
+    await redisCache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+
+    // 4. Verify Signature
     try {
         const isValid = await verifyMessage({
             address: walletAddress as `0x${string}`,

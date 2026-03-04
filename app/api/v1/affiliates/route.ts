@@ -2,7 +2,15 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
-import { getCorsHeaders } from "@/lib/utils/cors";
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-Wallet-Address, X-Wallet-Signature, X-Timestamp",
+    "Vary": "Origin"
+  };
+}
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
