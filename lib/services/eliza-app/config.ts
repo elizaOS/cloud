@@ -59,4 +59,20 @@ export const elizaAppConfig = {
   },
 } as const;
 
-// validation moved to runtime hooks
+// Validate all required env vars are set in production
+if (isProduction) {
+  const requiredVars = [
+    "ELIZA_APP_TELEGRAM_BOT_TOKEN",
+    "ELIZA_APP_BLOOIO_API_KEY",
+    "ELIZA_APP_DISCORD_BOT_TOKEN",
+    "ELIZA_APP_DISCORD_APPLICATION_ID",
+    "ELIZA_APP_DISCORD_CLIENT_SECRET",
+    "ELIZA_APP_JWT_SECRET"
+  ];
+
+  for (const varName of requiredVars) {
+    if (!process.env[varName]) {
+      throw new Error(`Required env var ${varName} is not set in production`);
+    }
+  }
+}
