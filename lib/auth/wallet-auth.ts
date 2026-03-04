@@ -45,9 +45,6 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         throw new Error("Signature has already been used");
     }
     
-    // Set nonce with 5-min expiry matching timestamp window
-    await redisCache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-
     // 4. Verify Signature
     try {
         const isValid = await verifyMessage({
@@ -59,6 +56,9 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         if (!isValid) {
             throw new Error("Invalid wallet signature");
         }
+        
+        // Only store the nonce after signature is verified to prevent DoS
+        await redisCache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
     } catch (error) {
         logger.error("Wallet signature verification failed", error);
         throw new Error("Signature verification failed");
