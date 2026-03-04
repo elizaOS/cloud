@@ -3,10 +3,9 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { getCorsHeaders } from "@/lib/utils/cors"; // Using shared CORS utility
 
 export const dynamic = "force-dynamic";
-
-import { getCorsHeaders } from "@/lib/utils/cors"; // Using shared CORS utility
 
 export async function OPTIONS(request: NextRequest) {
     const origin = request.headers.get("origin");
