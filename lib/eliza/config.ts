@@ -51,25 +51,39 @@ export function getDefaultModels() {
 }
 
 /**
- * Allowed models for chat interface
- * These are the curated models we want to offer to users
+ * Allowlist of model IDs permitted for chat and API. Used to validate user/chosen model before starting a request.
+ * - WHY allowlist: Only these IDs can be used; prevents arbitrary model IDs (abuse, cost, gateway errors). Must stay in sync with lib/fragments/models.ts.
+ * - WHY keep legacy IDs: Existing configs and automation may reference older models; we keep them until the gateway deprecates.
+ * See docs/models.md for WHYs and how to add/change models.
  */
 export const ALLOWED_CHAT_MODELS = [
   // Moonshot AI Models
   "moonshotai/kimi-k2-0905",
   "moonshotai/kimi-k2-turbo",
-  // OpenAI Models
-  "openai/gpt-5",
+  // OpenAI
+  "openai/gpt-5.2",
   "openai/gpt-5-mini",
-  // Anthropic Claude Models
+  "openai/gpt-5-nano",
+  "openai/gpt-5.2-pro",
+  "openai/gpt-5",
+  "openai/gpt-4.1",
+  "openai/gpt-4o",
+  "openai/gpt-4o-mini",
+  "openai/gpt-4-turbo",
+  // Anthropic
+  "anthropic/claude-opus-4.6",
+  "anthropic/claude-sonnet-4.6",
+  "anthropic/claude-haiku-4.5",
   "anthropic/claude-opus-4.5",
   "anthropic/claude-sonnet-4.5",
   "anthropic/claude-opus-4.1",
-  // Google Gemini Models
+  "anthropic/claude-sonnet-4",
+  "anthropic/claude-3-5-sonnet-20241022",
+  // Google
   "google/gemini-2.5-flash-lite",
   "google/gemini-2.5-flash",
   "google/gemini-3-pro-preview",
-  // DeepSeek Models
+  // DeepSeek
   "deepseek/deepseek-v3.2-exp",
   "deepseek/deepseek-r1",
 ] as const;

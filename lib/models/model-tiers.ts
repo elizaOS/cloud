@@ -55,8 +55,8 @@ function extractProvider(modelId: string): string {
 }
 
 const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
-const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-opus-4.5");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
+const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-opus-4.6");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.6");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
@@ -346,7 +346,7 @@ export const DEFAULT_MODEL_TIER: ModelTier = "pro";
  * logger.info(config.modelId); // "google/gemini-2.5-flash-lite"
  *
  * // Using raw model ID (returns matching tier or creates custom config)
- * const config = resolveModel("anthropic/claude-sonnet-4.5");
+ * const config = resolveModel("anthropic/claude-sonnet-4.6");
  */
 export function resolveModel(tierOrModelId?: string | null): ModelTierConfig {
   if (!tierOrModelId) {

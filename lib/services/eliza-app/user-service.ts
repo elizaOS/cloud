@@ -13,25 +13,17 @@
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { creditsService } from "@/lib/services/credits";
+import { redeemSignupCode } from "@/lib/services/signup-code";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
+import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
 
 const ELIZA_APP_INITIAL_CREDITS = 5.0;
-
-function isUniqueConstraintError(error: unknown): boolean {
-  if (error instanceof Error) {
-    // PostgreSQL unique violation error code
-    return error.message.includes("unique constraint") ||
-           error.message.includes("duplicate key") ||
-           (error as { code?: string }).code === "23505";
-  }
-  return false;
-}
 
 export interface FindOrCreateResult {
   user: User;
@@ -89,8 +81,9 @@ async function createUserWithOrganization(params: {
   userData: Omit<NewUser, "organization_id">;
   organizationName: string;
   slugGenerator: () => string;
+  signupCode?: string;
 }): Promise<FindOrCreateResult> {
-  const { userData, organizationName, slugGenerator } = params;
+  const { userData, organizationName, slugGenerator, signupCode } = params;
   const slug = await ensureUniqueSlug(slugGenerator);
 
   const organization = await organizationsRepository.create({
@@ -114,6 +107,19 @@ async function createUserWithOrganization(params: {
     role: "owner",
     is_active: true,
   });
+
+  // Apply signup code bonus AFTER user creation succeeds (prevents orphaned credits)
+  if (signupCode) {
+    try {
+      await redeemSignupCode(organization.id, signupCode);
+    } catch (error) {
+      // For new orgs, "already used" shouldn't happen, but log if it does
+      logger.warn("[ElizaAppUserService] Signup code redemption failed for new org", {
+        organizationId: organization.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   await apiKeysService.create({
     user_id: user.id,
@@ -461,6 +467,7 @@ class ElizaAppUserService {
       avatarUrl?: string | null;
     },
     phoneNumber?: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     // Validate required fields
     if (!discordId?.trim()) {
@@ -614,6 +621,7 @@ class ElizaAppUserService {
         },
         organizationName,
         slugGenerator: () => generateSlugFromDiscord(discordData.username, discordId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first

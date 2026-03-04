@@ -29,8 +29,8 @@ export const elizaAppConfig = {
 
   // Model preferences for webhook channels (Telegram, iMessage)
   modelPreferences: {
-    smallModel: "anthropic/claude-sonnet-4.5",
-    largeModel: "anthropic/claude-sonnet-4.5",
+    smallModel: "anthropic/claude-sonnet-4.6",
+    largeModel: "anthropic/claude-sonnet-4.6",
   },
 
   // Prompt preset for eliza-app channels (engaging, conversation-continuing behavior)

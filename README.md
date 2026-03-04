@@ -36,7 +36,8 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 ### 🤖 AI Generation Studio
 
 - **Text & Chat**:
-  - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
+  - Multi-model support (GPT-4, Claude, Gemini, etc.) via [Vercel AI Gateway](https://vercel.com/ai-gateway/models)
+  - Curated model list and allowlist so only supported models are selectable (see [docs/models.md](docs/models.md) for WHYs and how to add/change models)
   - Real-time streaming responses
   - Conversation persistence with full history
   - Model selection and configuration
@@ -228,8 +229,10 @@ eliza-cloud-v2/
 │   ├── rate-limiter.ts      # Rate limiting
 │   ├── utils.ts             # General utilities
 │   └── types.ts             # Shared TypeScript types
+├── config/                  # Static config (e.g. signup-codes.json)
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
+│   ├── signup-codes.md     # Signup code bonus credits (WHYs, API, roadmap)
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
@@ -1924,6 +1927,20 @@ Container deployments are billed **daily**:
 ## 📚 Additional Resources
 
 ### Core Framework
+### Implementation Summary
+
+|Cohort / File(s)|Summary|
+|---|---|
+|**Config & Docs** <br> `README.md`, `config/README.md`, `config/signup-codes.json`, `docs/signup-codes.md`, `docs/ENV_VARIABLES.md`, `content/changelog.mdx`|Add static signup-codes config, usage notes, new docs, and changelog entry describing the feature and config schema.|
+|**Redeem API** <br> `app/api/signup-code/redeem/route.ts`|New GET endpoint to redeem a signup code for the authenticated organization; validates `code` query param, returns structured JSON, handles invalid/used codes (400/409), logs errors, sets no-cache headers, and is rate-limited.|
+|**Auth / User Flow** <br> `app/api/eliza-app/auth/discord/route.ts`, `lib/services/eliza-app/user-service.ts`|Accept optional `signup_code` in Discord OAuth requests and propagate `signupCode` through `findOrCreateByDiscordId()` → `createUserWithOrganization()` to attempt immediate redemption after org creation.|
+|**Signup Code Service** <br> `lib/services/signup-code.ts`|New service to load/normalize/cache `config/signup-codes.json` and expose `getBonusForCode()`, `hasUsedSignupCode()`, and `redeemSignupCode()` with redaction, DB race handling, and credit application.|
+|**Credits / DB Repos** <br> `db/repositories/credit-transactions.ts`|Add `hasSignupCodeBonus(organizationId)` using a write-primary query to check for existing `signup_code_bonus` transactions to reduce race windows.|
+|**DB Migration** <br> `db/migrations/0034_signup_code_bonus_one_per_org.sql`|Create partial unique index ensuring at-most-one `signup_code_bonus` per organization; insert migration journal entry.|
+|**DB Error Utils** <br> `lib/utils/db-errors.ts`|Add `isUniqueConstraintError(error)` to detect Postgres unique-constraint/duplicate-key errors (including nested causes and SQLSTATE `23505`).|
+|**Misc / Cleanup** <br> `CLAUDE.md`|Remove legacy `CLAUDE.md` file. |
+
+### Additional Resources
 
 - [Next.js 15 Documentation](https://nextjs.org/docs)
 - [React 19 Documentation](https://react.dev)
@@ -1940,6 +1957,9 @@ Container deployments are billed **daily**:
 ### AI & Machine Learning
 
 - [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [Vercel AI Gateway models](https://vercel.com/ai-gateway/models) — Source of truth for chat model IDs
+- [Models (docs/models.md)](docs/models.md) — Curated list, allowlist, WHYs, how to add/change models
+- [Roadmap (docs/roadmap.md)](docs/roadmap.md) — Model list evolution and deprecation approach
 - [AI SDK Gateway Guide](https://sdk.vercel.ai/docs/ai-sdk-core/providers-and-models)
 - [Google Gemini API](https://ai.google.dev/docs)
 - [OpenAI API Documentation](https://platform.openai.com/docs)
@@ -1949,6 +1969,7 @@ Container deployments are billed **daily**:
 
 ### Authentication & Billing
 
+- [Signup codes](docs/signup-codes.md) — One-time bonus credits per org (config, API, design WHYs)
 - [Privy Authentication](https://docs.privy.io/guide/react/wallets/usage/overview)
 - [Privy Webhooks](https://docs.privy.io/guide/server/webhooks)
 - [Stripe API Documentation](https://stripe.com/docs/api)

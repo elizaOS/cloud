@@ -11,6 +11,40 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
+## March 2026
+
+### Mar 1, 2026
+
+<div className="status-badge status-updated">Updated</div>
+
+**Chat model list aligned with Vercel AI Gateway**
+
+- Curated model list (OpenAI, Anthropic, Google, Moonshot, DeepSeek) now uses IDs from [Vercel AI Gateway](https://vercel.com/ai-gateway/models) so requests match the gateway exactly.
+- **Why**: We route chat through the gateway; wrong or outdated model IDs cause failed calls. Using the gateway’s IDs as source of truth keeps the platform in sync.
+- Newer models added (e.g. GPT-5.2, GPT-5 mini/nano, Claude Opus 4.6, Sonnet 4.6, Haiku 4.5). Legacy models (e.g. Claude 3.5 Sonnet, Claude Sonnet 4, GPT-4o, gpt-4-turbo) kept in the list.
+- **Why keep legacy models**: Customers may have saved preferences or automation using older IDs; removing them would break existing configs. We only drop models when the gateway deprecates them.
+- Defaults for app builder and model tiers updated to Claude Opus 4.6 / Sonnet 4.6 where appropriate.
+- See [Models](docs/models.md) for WHYs, allowlist design, and how to add or change models.
+
+---
+
+## February 2026
+
+### Feb 28, 2026
+
+<div className="status-badge status-new">New</div>
+
+**Signup codes (bonus credits)**
+
+- One-time bonus credits per organization via configurable signup codes
+- **Why**: Marketing and ads need shareable links (e.g. `?code=launch50`) that grant extra credits; config file allows adding codes without env or DB changes
+- Config in `config/signup-codes.json`; redeem via `GET /api/signup-code/redeem?code=...` (session required)
+- Eliza App Discord signup accepts optional `signup_code` in body for new users
+- One redemption per org enforced by DB unique index; no-cache on redeem to avoid prefetch/cache triggering redemption
+- See [Signup codes](docs/signup-codes.md) for design WHYs, API, and roadmap
+
+---
+
 ## January 2026
 
 ### Mar 3, 2026
