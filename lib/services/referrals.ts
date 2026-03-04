@@ -259,10 +259,10 @@ export class ReferralsService {
       return { elizaCloudAmount: purchaseAmount, splits: [] };
     }
 
-    // 50/40/10 Split
-    let elizaCloudAmount = purchaseAmount * 0.50; // Platform share (50%)
-    const appOwnerAmount = purchaseAmount * 0.40; // App owner share (40%)
-    const baseCreatorAmount = purchaseAmount * 0.10; // Content creator share (10%)
+    // 50/40/10 Revenue Split Structure
+    let elizaCloudAmount = purchaseAmount * 0.50; // Platform infrastructure & operations (50%)
+    const appOwnerAmount = purchaseAmount * 0.40; // App owner/publisher share (40%) 
+    const baseCreatorAmount = purchaseAmount * 0.10; // Content creator/developer share (10%)
 
     const splits: Array<{ userId: string; role: "app_owner" | "creator" | "editor"; amount: number }> = [];
 
