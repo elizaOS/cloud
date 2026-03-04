@@ -9,8 +9,8 @@ import { isAddress } from "viem";
 
 const ALLOWED_AMOUNTS = [10, 50, 100];
 
-async function handler(req: NextRequest, { params }: { params: { amount: string } }): Promise<any> {
-    const amount = parseInt(params.amount, 10);
+async function handler(req: NextRequest): Promise<any> {
+    const amount = 10; // Hard-coded amount for this specific route
 
     if (!ALLOWED_AMOUNTS.includes(amount)) {
         return NextResponse.json(
@@ -81,8 +81,8 @@ async function handler(req: NextRequest, { params }: { params: { amount: string 
                         userId: split.userId,
                         amount: split.amount,
                         source: source,
-                        sourceId: "x402_crypto_split",
-                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
+            sourceId: `x402_crypto_split_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
                         metadata: {
                             buyer_user_id: user.id,
                             buyer_org_id: organizationId,
@@ -108,9 +108,9 @@ async function handler(req: NextRequest, { params }: { params: { amount: string 
     }
 }
 
-const payTo = (process.env.X402_RECIPIENT_ADDRESS || '').trim();
-if (!payTo || payTo === "0x0000000000000000000000000000000000000000") {
-    throw new Error("X402_RECIPIENT_ADDRESS is not set in the environment.")
+const payTo = process.env.X402_RECIPIENT_ADDRESS;
+if (!payTo || payTo.trim() === '' || payTo.trim() === "0x0000000000000000000000000000000000000000") {
+    throw new Error("X402_RECIPIENT_ADDRESS must be configured with a valid EVM address");
 }
 
 export const POST = withX402(
