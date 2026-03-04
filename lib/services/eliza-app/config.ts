@@ -13,8 +13,10 @@ function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
   if (fallback !== undefined) return fallback;
-  console.warn(`[ElizaApp] Required env var ${name} is not set`);
-  return "";
+  if (isProduction) {
+    throw new Error(`Required env var ${name} is not set in production`);
+  }
+  throw new Error(`Required env var ${name} is not set`);
 }
 
 export const elizaAppConfig = {
