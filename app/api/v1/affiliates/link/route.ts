@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-import { getCorsHeaders } from "@/lib/utils/cors";
+import { getCorsHeaders } from "@/lib/utils/cors"; // Using shared CORS utility
 
 export async function OPTIONS(request: NextRequest) {
     const origin = request.headers.get("origin");
