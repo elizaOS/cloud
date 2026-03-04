@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { executeServerWalletRpc } from "@/lib/services/server-wallets";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKey, verifyWalletSignature } from "@/lib/auth";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -17,7 +17,8 @@ const rpcPayloadSchema = z.object({
 async function handlePOST(request: NextRequest) {
     try {
         await requireAuthOrApiKey(request);
-        // Note: We authenticate this request via the Ed25519/Secp256k1 client signature
+        // Authenticate the request using both standard headers and wallet signature.
+        const authenticatedUser = await verifyWalletSignature(request);
         // passed in the body, verifying against the clientAddress registered in the DB.
 
         // 1. Parse Body
