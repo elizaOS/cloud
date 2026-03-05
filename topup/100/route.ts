@@ -11,10 +11,12 @@ function getX402TransactionId(req: NextRequest): string {
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"; // Example zero address
 const REQUIRED_ENV_VAR = process.env.X402_RECIPIENT_ADDRESS; // Environment variable for recipient address
 
-// Validate environment variable at module initialization
-if (!REQUIRED_ENV_VAR || REQUIRED_ENV_VAR === ZERO_ADDRESS) {
-  throw new Error("Environment variable 'X402_RECIPIENT_ADDRESS' is missing or set to zero address.");
-}
+// Check environment variable during request handling instead of initialization
+const validateEnvVar = () => {
+  if (!REQUIRED_ENV_VAR || REQUIRED_ENV_VAR === ZERO_ADDRESS) {
+    throw new Error("Environment variable 'X402_RECIPIENT_ADDRESS' is missing or set to zero address.");
+  }
+};
 
 export async function handler(req: NextRequest): Promise<NextResponse> {
   try {
@@ -30,7 +32,8 @@ export async function handler(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: true, message: "Successfully processed top-up" });
 
   } catch (error) {
-    logger.error(`[Topup100] ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`[Topup100] ${message}`);
     return NextResponse.json({ error: "Failed to process top-up" }, {
       status: 500,
       headers: { "Content-Type": "application/json" },
