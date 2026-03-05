@@ -3,7 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { getCorsHeaders } from "@/lib/utils/cors"; // Using shared CORS utility
+import { getCorsHeaders } from "@/lib/utils/cors";
 
 export const dynamic = "force-dynamic";
 
@@ -45,24 +45,22 @@ export async function POST(request: NextRequest) {
             { success: true, link },
             { headers: corsHeaders }
         );
-    } catch (error: any) {
-        if (error?.message?.includes("Unauthorized")) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        logger.error("[Affiliates Link] Error linking user to affiliate code", {
+            error: errorMessage,
+        });
+
+        if (errorMessage.includes("not found") || errorMessage.includes("invalid")) {
             return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401, headers: corsHeaders }
+                { error: errorMessage },
+                { status: 404, headers: corsHeaders }
             );
         }
 
-        if (error?.message?.includes("already linked") || error?.message?.includes("cannot refer themselves") || error?.message?.includes("Invalid affiliate")) {
-            return NextResponse.json(
-                { error: error.message },
-                { status: 400, headers: corsHeaders }
-            );
-        }
-
-        logger.error("[Affiliates Link API] Error linking user:", error);
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: "Failed to link affiliate code" },
             { status: 500, headers: corsHeaders }
         );
     }
