@@ -20,6 +20,7 @@ const validateEnvVar = () => {
 
 export async function handler(req: NextRequest): Promise<NextResponse> {
   try {
+    validateEnvVar();
     const authResult = await requireAuthOrApiKeyWithOrg(req);
     
     // Use transaction id from the request or a reliable source
