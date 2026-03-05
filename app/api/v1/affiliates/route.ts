@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 
 export async function OPTIONS(request: NextRequest) {
     const origin = request.headers.get("origin");
-    return new NextResponse(null, {
-        status: 204,
-        headers: getCorsHeaders(origin),
-    });
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
 }
 
 /**
@@ -22,34 +22,34 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
     const origin = request.headers.get("origin");
-    const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin);
 
-    try {
-        const { user } = await requireAuthOrApiKeyWithOrg(request);
-        const code = await affiliatesService.getAffiliateCode(user.id);
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const code = await affiliatesService.getAffiliateCode(user.id);
 
-        return NextResponse.json(
-            { code: code ?? null },
-            { headers: corsHeaders }
-        );
-    } catch (error) {
-        if (error instanceof Error && error.message.includes("Unauthorized")) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401, headers: corsHeaders }
-            );
-        }
-
-        logger.error("[Affiliates API] Error getting code:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500, headers: corsHeaders }
-        );
+    return NextResponse.json(
+      { code: code ?? null },
+      { headers: corsHeaders }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unauthorized")) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
     }
+
+    logger.error("[Affiliates API] Error getting code:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 const MarkupSchema = z.object({
-    markupPercent: z.number().min(0).max(1000),
+  markupPercent: z.number().min(0).max(1000),
 });
 
 /**
