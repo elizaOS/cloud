@@ -6,7 +6,6 @@
 import { NextRequest } from "next/server";
 import { verifyMessage, getAddress } from "viem";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
-import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 import { cache } from "@/lib/cache/client";
 
@@ -21,7 +20,12 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         return null;
     }
 
-    const walletAddress = getAddress(rawWalletAddress);
+    let walletAddress: string;
+    try {
+        walletAddress = getAddress(rawWalletAddress);
+    } catch {
+        throw new Error("Invalid wallet address format");
+    }
 
     const timestamp = parseInt(timestampStr, 10);
     if (isNaN(timestamp)) {
