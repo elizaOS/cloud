@@ -31,11 +31,6 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     }
 
     // 2. Reconstruct the message
-    // E.g., 
-    // Eliza Cloud Authentication
-    // Timestamp: 1711234567890
-    // Method: POST
-    // Path: /api/v1/chat/completions
     const method = request.method;
     const path = request.nextUrl.pathname;
     const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
@@ -47,6 +42,7 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     if (nonceExists) {
         throw new Error("Signature has already been used");
     }
+    
     // 4. Verify Signature
     try {
         const isValid = await verifyMessage({
@@ -66,7 +62,7 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         throw new Error("Signature verification failed");
     }
 
-    // 4. Lookup User & Organization
+    // 5. Lookup User & Organization
     const user = await usersService.getByWalletAddressWithOrganization(walletAddress);
     if (!user) {
         throw new Error("User associated with wallet address not found");
@@ -82,3 +78,4 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
 
     return user;
 }
+
