@@ -1,58 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
 import { withX402, type RouteConfig } from "x402-next";
-import { organizationsService } from "@/lib/services/organizations";
-import { getTopupRecipient } from "@/lib/services/topup";
-import { referralsService } from "@/lib/services/referrals";
-import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
-import { logger } from "@/lib/utils/logger";
-import { isAddress } from "viem";
-import crypto from "crypto";
+import { createTopupHandler, getPayToAddress, createWrappedHandler, getNetwork } from "@/lib/services/topup-handler";
 
 const AMOUNT = 100;
+const handler = createTopupHandler({ amount: AMOUNT });
+const payTo = getPayToAddress();
+const wrappedHandler = createWrappedHandler(handler, payTo);
+const network = getNetwork() as RouteConfig["network"];
 
-async function handler(req: NextRequest): Promise<NextResponse> {
-    try {
-        const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
-        if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
-            const msg = "walletAddress is required (body or wallet signature headers)";
-            return NextResponse.json({ error: msg }, { status: 400 });
-        }
-        if (body?.walletAddress && !isAddress(body.walletAddress)) {
-            return NextResponse.json(
-                { error: "Valid EVM walletAddress is required" },
-                { status: 400 }
-            );
-        }
-        let recipient;
-        try {
-            recipient = await getTopupRecipient(req, body);
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            if (msg.includes("walletAddress is required")) {
-                return NextResponse.json({ error: msg }, { status: 400 });
-            }
-            return NextResponse.json({ error: msg }, { status: 401 });
-        }
+const routeConfig: RouteConfig = {
+    price: `$${AMOUNT}.00`,
+    network,
+    config: { description: `Topup $${AMOUNT} credits for Eliza Cloud` },
+};
 
-        const { user, organizationId, walletAddress } = recipient;
-        const ref = req.nextUrl.searchParams.get("ref") || req.nextUrl.searchParams.get("referral_code") || body.ref || body.referral_code;
-        const appOwnerId = req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
-
-        if (ref && user) {
-            const result = await referralsService.applyReferralCode(user.id, organizationId, ref, {
-                appOwnerId: appOwnerId || undefined
-            });
-            if (result.success) {
-                logger.info(`[x402] Successfully applied referral code ${ref} to user ${user.id}`);
-            }
-        }
-
-        await organizationsService.updateCreditBalance(organizationId, AMOUNT);
-
-        logger.info(`Topped up ${walletAddress} with $${AMOUNT} via x402`);
-
-        if (user) {
-            const { splits } = await referralsService.calculateRevenueSplits(user.id, AMOUNT);
+export const POST = withX402(wrappedHandler, payTo, routeConfig);
             if (splits.length > 0) {
                 logger.info(`[x402] Processing revenue splits for $${AMOUNT} purchase by user ${user.id}`);
                 for (const split of splits) {
