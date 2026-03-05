@@ -418,12 +418,17 @@ export async function requireAuthOrApiKey(
                           request.headers.get("X-Wallet-Signature") && 
                           request.headers.get("X-Timestamp");
 
+  // Note: When wallet headers are present, we fail closed — API key/session fallback is intentionally skipped
+  // to prevent clients from bypassing wallet auth by sending stale wallet headers alongside valid API keys
   if (hasWalletHeaders) {
     try {
       // verifyWalletSignature returns UserWithOrganization or throws when headers are present
       const walletUser = await verifyWalletSignature(request);
+      if (!walletUser) {
+        throw new Error("Wallet authentication failed");
+      }
       return {
-        user: walletUser!,
+        user: walletUser,
         authMethod: "wallet_signature",
       };
     } catch (e) {
