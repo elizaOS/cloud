@@ -428,6 +428,10 @@ export async function requireAuthOrApiKey(
       };
     } catch (e) {
       logger.error("[AUTH] Wallet auth failed with headers present:", e);
+      // Preserve service errors but clean auth errors for security
+      if (e instanceof Error && e.message.includes("Service temporarily")) {
+        throw e; // Propagate service outage errors
+      }
       throw new Error("Invalid wallet signature");
     }
   }
