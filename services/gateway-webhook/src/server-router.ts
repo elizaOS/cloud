@@ -1,6 +1,7 @@
 import type { Redis } from "@upstash/redis";
 import { readFileSync } from "fs";
 import { getHashTargets, refreshHashRing } from "./hash-router";
+import { logger } from "./logger";
 
 const KEDA_COOLDOWN_SECONDS = Number(process.env.KEDA_COOLDOWN_SECONDS ?? 900);
 const FORWARD_TIMEOUT_MS = 30_000;
@@ -97,7 +98,10 @@ function getK8sToken(): string | null {
       "/var/run/secrets/kubernetes.io/serviceaccount/token",
       "utf-8",
     ).trim();
-  } catch {
+  } catch (err) {
+    logger.debug("K8s service account token not available", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     k8sToken = "";
   }
   return k8sToken || null;
@@ -110,14 +114,16 @@ function getK8sCaCert(): string | null {
       "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
       "utf-8",
     );
-  } catch {
+  } catch (err) {
+    logger.debug("K8s CA cert not available", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     k8sCaCert = "";
   }
   return k8sCaCert || null;
 }
 
 function parseNamespaceFromUrl(serverUrl: string): string | null {
-  // http://{name}.{namespace}.svc:{port}
   const match = serverUrl.match(/^https?:\/\/[^.]+\.([^.]+)\.svc/);
   return match?.[1] ?? null;
 }
@@ -146,19 +152,20 @@ export async function wakeServer(
     } as RequestInit);
     if (!res.ok) {
       const text = await res.text();
-      console.error(`wakeServer(${serverName}) failed: ${res.status} ${text}`);
+      logger.error("wakeServer failed", {
+        serverName,
+        status: res.status,
+        body: text,
+      });
     }
   } catch (err) {
-    console.error(`wakeServer(${serverName}) error:`, err);
+    logger.error("wakeServer error", {
+      serverName,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
-/**
- * Forwards a message to an agent-server pod using consistent hash routing.
- * Same userId always hits the same pod (session affinity via hash ring).
- * On connection failure: refreshes DNS, retries on fallback pod.
- * On scaled-to-zero: triggers K8s wake-up and retries until pod is ready.
- */
 export async function forwardToServer(
   serverUrl: string,
   serverName: string,
@@ -177,13 +184,12 @@ export async function forwardToServer(
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    // Resolve target pod via consistent hash ring (DNS on headless Service)
     const targets = await getHashTargets(serverUrl, userId, 2);
 
     if (targets.length === 0) {
       if (!woken) {
         woken = true;
-        wakeServer(serverName, serverUrl);
+        wakeServer(serverName, serverUrl).catch(() => {});
       }
       lastError = new Error("No pods available (scaled to zero)");
       continue;
@@ -192,7 +198,6 @@ export async function forwardToServer(
     const result = await tryTarget(targets[0], agentId, body);
     if (result.ok) return result.response;
 
-    // Primary failed — refresh ring and try fallback
     if (targets.length > 1) {
       await refreshHashRing(serverUrl);
       const fallback = await tryTarget(targets[1], agentId, body);
@@ -202,7 +207,7 @@ export async function forwardToServer(
     lastError = result.error;
     if (!woken && result.isConnectionError) {
       woken = true;
-      wakeServer(serverName, serverUrl);
+      wakeServer(serverName, serverUrl).catch(() => {});
     }
   }
 

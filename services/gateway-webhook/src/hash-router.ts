@@ -1,5 +1,6 @@
 import HashRing from "hashring";
 import { readFileSync } from "fs";
+import { logger } from "./logger";
 
 const REFRESH_MS = 5_000;
 
@@ -84,9 +85,11 @@ async function resolvePodIPs(
     }
     return ips;
   } catch (err) {
-    console.error(
-      `[hash-router] EndpointSlice resolution failed for ${serviceName}: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.debug("EndpointSlice resolution failed", {
+      serviceName,
+      namespace,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }
@@ -105,7 +108,7 @@ function updateRing(
 ): RingState | undefined {
   if (podIPs.length === 0) {
     if (existing) {
-      console.log(`[hash-router] ${serviceName} all pods gone, clearing ring`);
+      logger.info("All pods gone, clearing ring", { serviceName });
       rings.delete(serviceName);
     }
     return undefined;
@@ -119,11 +122,12 @@ function updateRing(
   const added = podIPs.filter((ip) => !existing?.podIPs.includes(ip));
   const removed = existing?.podIPs.filter((ip) => !podIPs.includes(ip)) ?? [];
   if (added.length > 0 || removed.length > 0) {
-    console.log(
-      `[hash-router] ${serviceName} ring updated: ${podIPs.length} pods` +
-        (added.length > 0 ? ` +${added.join(",")}` : "") +
-        (removed.length > 0 ? ` -${removed.join(",")}` : ""),
-    );
+    logger.info("Hash ring updated", {
+      serviceName,
+      pods: podIPs.length,
+      added: added.length > 0 ? added : undefined,
+      removed: removed.length > 0 ? removed : undefined,
+    });
   }
 
   const state: RingState = {

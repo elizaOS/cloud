@@ -186,6 +186,7 @@ interface GatewayConfig {
   gatewayBootstrapSecret: string;
   redisUrl?: string;
   redisToken?: string;
+  project: string;
 }
 
 /** JWT token response from token endpoint */
@@ -1238,6 +1239,7 @@ export class GatewayManager {
       logger.warn("No server found for agent", {
         connectionId,
         agentId: conn.characterId,
+        project: this.config.project,
       });
       return;
     }
@@ -1265,6 +1267,7 @@ export class GatewayManager {
         connectionId,
         serverName: route.serverName,
         agentId: conn.characterId,
+        project: this.config.project,
       });
     } catch (error) {
       conn.eventsFailed++;
@@ -1273,6 +1276,7 @@ export class GatewayManager {
         connectionId,
         agentId: conn.characterId,
         serverName: route.serverName,
+        project: this.config.project,
         error: sanitizeError(error),
       });
     }
@@ -1784,7 +1788,7 @@ export class GatewayManager {
       return;
     }
 
-    // 1. Identity resolution: discord platformId -> userId + agentId
+    // 1. Identity resolution: discord platformId -> userId + agentId (auto-creates if new)
     let identity;
     try {
       identity = await resolveIdentity(
@@ -1793,6 +1797,7 @@ export class GatewayManager {
         this.getAuthHeader(),
         "discord",
         message.author.id,
+        message.author.username,
       );
     } catch (error) {
       logger.error("Identity resolution failed", {
@@ -1803,22 +1808,10 @@ export class GatewayManager {
       return;
     }
 
-    // 2. Unknown user -> onboarding
     if (!identity) {
-      logger.info("Unknown Discord user, sending onboarding", {
+      logger.error("Identity resolution returned null", {
         authorId: message.author.id,
       });
-      try {
-        const appUrl = process.env.ELIZA_APP_URL || "https://eliza.app";
-        await message.reply(
-          `Welcome! To chat with Eliza, connect your Discord account:\n\n${appUrl}/get-started`,
-        );
-      } catch (error) {
-        logger.error("Failed to send onboarding message", {
-          authorId: message.author.id,
-          error: sanitizeError(error),
-        });
-      }
       return;
     }
 
@@ -1829,6 +1822,7 @@ export class GatewayManager {
         podName: this.config.podName,
         agentId: identity.agentId,
         userId: identity.userId,
+        project: this.config.project,
       });
       return;
     }
@@ -1860,12 +1854,14 @@ export class GatewayManager {
         serverName: route.serverName,
         agentId: identity.agentId,
         userId: identity.userId,
+        project: this.config.project,
       });
     } catch (error) {
       logger.error("Failed to route Eliza App message", {
         podName: this.config.podName,
         agentId: identity.agentId,
         serverName: route.serverName,
+        project: this.config.project,
         error: sanitizeError(error),
       });
     }

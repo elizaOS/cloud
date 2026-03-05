@@ -207,7 +207,60 @@ helm upgrade --install gateway-discord \
   --wait --timeout 120s
 pass "Gateway-discord deployed via Helm"
 
-# 19. Apply Server CRs
+# 19. Build & push gateway-webhook image
+info "Building gateway-webhook image..."
+cd "$CLOUD_V2_DIR/services/gateway-webhook"
+bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
+cd "$SCRIPT_DIR"
+
+docker build -t "localhost:${REGISTRY_PORT}/gateway-webhook:dev" \
+  "$CLOUD_V2_DIR/services/gateway-webhook"
+docker push "localhost:${REGISTRY_PORT}/gateway-webhook:dev"
+pass "Gateway-webhook image pushed to localhost:${REGISTRY_PORT}"
+
+# 20. Create gateway-webhook Secret
+info "Creating gateway-webhook-secrets Secret..."
+GW_WEBHOOK_ENV_FILE="$SCRIPT_DIR/.env.gateway-webhook"
+if [ ! -f "$GW_WEBHOOK_ENV_FILE" ]; then
+  info "  No .env.gateway-webhook found, creating with defaults..."
+  cat > "$GW_WEBHOOK_ENV_FILE" <<'DEFAULTS'
+GATEWAY_BOOTSTRAP_SECRET=local-dev-gateway-secret-change-me
+KV_REST_API_URL=http://redis-rest.eliza-infra.svc:8079
+KV_REST_API_TOKEN=local_dev_token
+ELIZA_CLOUD_URL=http://eliza-cloud.eliza-infra.svc:3000
+ELIZA_APP_TELEGRAM_BOT_TOKEN=
+ELIZA_APP_TELEGRAM_WEBHOOK_SECRET=
+ELIZA_APP_BLOOIO_API_KEY=
+ELIZA_APP_BLOOIO_WEBHOOK_SECRET=
+ELIZA_APP_BLOOIO_PHONE_NUMBER=
+ELIZA_APP_TWILIO_ACCOUNT_SID=
+ELIZA_APP_TWILIO_AUTH_TOKEN=
+ELIZA_APP_TWILIO_PHONE_NUMBER=
+ELIZA_APP_WHATSAPP_ACCESS_TOKEN=
+ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID=
+ELIZA_APP_WHATSAPP_APP_SECRET=
+ELIZA_APP_WHATSAPP_VERIFY_TOKEN=
+ELIZA_APP_WHATSAPP_PHONE_NUMBER=
+ELIZA_APP_DEFAULT_AGENT_ID=b850bc30-45f8-0041-a00a-83df46d8555d
+DEFAULTS
+  info "  Edit $GW_WEBHOOK_ENV_FILE with your secrets, then re-run setup."
+fi
+kubectl create secret generic gateway-webhook-secrets \
+  --namespace eliza-infra \
+  --from-env-file="$GW_WEBHOOK_ENV_FILE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+pass "Secret gateway-webhook-secrets created from .env.gateway-webhook"
+
+# 21. Deploy gateway-webhook via Helm chart
+info "Deploying gateway-webhook via Helm..."
+helm upgrade --install gateway-webhook \
+  "$CLOUD_V2_DIR/infra/charts/gateway-webhook" \
+  --namespace eliza-infra \
+  --values "$SCRIPT_DIR/values-gateway-webhook.yaml" \
+  --wait --timeout 120s
+pass "Gateway-webhook deployed via Helm"
+
+# 22. Apply Server CRs
 info "Applying Server CRs..."
 for cr in "$SCRIPT_DIR"/manifests/shared-*.yaml; do
   [ -f "$cr" ] && kubectl apply -f "$cr" && info "  Applied $(basename "$cr")"
@@ -271,8 +324,10 @@ echo ""
 echo "Operator:     deployed in namespace 'pepr-system'"
 echo "Agent img:    localhost:${REGISTRY_PORT}/agent-server:dev"
 echo "Gateway img:  localhost:${REGISTRY_PORT}/gateway-discord:dev"
+echo "Webhook img:  localhost:${REGISTRY_PORT}/gateway-webhook:dev"
 echo ""
 echo "Next steps:"
 echo "  1. Start Eliza Cloud locally:  cd eliza-cloud-v2 && bun dev"
 echo "  2. Check gateway logs:         kubectl logs -f -n eliza-infra -l app=gateway-discord"
-echo "  3. Send a DM to the Eliza App bot on Discord"
+echo "  3. Check webhook gateway logs: kubectl logs -f -n eliza-infra -l app=gateway-webhook"
+echo "  4. Send a DM to the Eliza App bot on Discord"

@@ -47,12 +47,15 @@ const elizaCloudUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   "https://elizacloud.ai";
 
+const project = process.env.PROJECT ?? "cloud";
+
 const gatewayManager = new GatewayManager({
   podName,
   elizaCloudUrl,
   gatewayBootstrapSecret,
   redisUrl: process.env.REDIS_URL ?? process.env.KV_REST_API_URL,
   redisToken: process.env.KV_REST_API_TOKEN,
+  project,
 });
 
 // Liveness check - is the pod alive and should NOT be restarted?
