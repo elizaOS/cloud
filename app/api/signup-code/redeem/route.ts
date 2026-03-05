@@ -12,13 +12,13 @@ const NO_CACHE_HEADERS = {
 } as const;
 
 /**
- * GET /api/signup-code/redeem?code=...
+ * POST /api/signup-code/redeem
  * Redeem a signup code for the current user's organization (one-time bonus credits).
  * Auth: session only (no API key). WHY: Redemption is a one-time user action; API keys would let scripts burn codes.
  * Rate limit: CRITICAL. WHY: Redeem grants credits; strict limit reduces brute-force and abuse.
  * See docs/signup-codes.md for full WHYs.
  */
-async function handleGET(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     let user;
     try {
@@ -75,4 +75,4 @@ async function handleGET(request: NextRequest) {
 }
 
 /* WHY CRITICAL: Redeem grants credits; strict rate limit (e.g. 5/5min) reduces abuse. */
-export const GET = withRateLimit(handleGET, RateLimitPresets.CRITICAL);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
