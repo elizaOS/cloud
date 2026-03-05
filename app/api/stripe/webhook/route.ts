@@ -294,7 +294,7 @@ async function handleStripeWebhook(req: NextRequest) {
                 const { redeemableEarningsService } = await import("@/lib/services/redeemable-earnings");
 
                 for (const split of splits) {
-                  if (split.amount <= 0 || split.role === "editor") continue; 
+                  if (split.amount <= 0) continue; 
 
                   const source = split.role === "app_owner" ? "app_owner_revenue_share" 
                     : "creator_revenue_share";
