@@ -13,6 +13,7 @@
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { creditsService } from "@/lib/services/credits";
+import { redeemSignupCode } from "@/lib/services/signup-code";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -89,8 +90,9 @@ async function createUserWithOrganization(params: {
   userData: Omit<NewUser, "organization_id">;
   organizationName: string;
   slugGenerator: () => string;
+  signupCode?: string;
 }): Promise<FindOrCreateResult> {
-  const { userData, organizationName, slugGenerator } = params;
+  const { userData, organizationName, slugGenerator, signupCode } = params;
   const slug = await ensureUniqueSlug(slugGenerator);
 
   const organization = await organizationsRepository.create({
@@ -114,6 +116,18 @@ async function createUserWithOrganization(params: {
     role: "owner",
     is_active: true,
   });
+
+  /* WHY try/catch: Invalid or already-used code must not block account creation; log and continue. */
+  if (signupCode) {
+    try {
+      await redeemSignupCode(organization.id, signupCode);
+    } catch (error) {
+      logger.warn("[ElizaAppUserService] Signup code redemption failed for new org", {
+        organizationId: organization.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   await apiKeysService.create({
     user_id: user.id,
@@ -146,6 +160,7 @@ class ElizaAppUserService {
   async findOrCreateByTelegramWithPhone(
     telegramData: TelegramAuthData,
     phoneNumber: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     const telegramId = String(telegramData.id);
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -296,6 +311,7 @@ class ElizaAppUserService {
         },
         organizationName,
         slugGenerator: () => generateSlugFromTelegram(telegramData.username, telegramId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first
@@ -461,6 +477,7 @@ class ElizaAppUserService {
       avatarUrl?: string | null;
     },
     phoneNumber?: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     // Validate required fields
     if (!discordId?.trim()) {
@@ -614,6 +631,7 @@ class ElizaAppUserService {
         },
         organizationName,
         slugGenerator: () => generateSlugFromDiscord(discordData.username, discordId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first

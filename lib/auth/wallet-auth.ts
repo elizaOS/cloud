@@ -1,11 +1,16 @@
+/**
+ * Per-request wallet auth via X-Wallet-Address, X-Timestamp, X-Wallet-Signature.
+ * WHY: Clients can authenticate without storing an API key; method+path in message prevents replay on other endpoints.
+ * Unknown wallets are created on first valid signature (findOrCreateUserByWalletAddress).
+ */
 import { NextRequest } from "next/server";
 import { verifyMessage, getAddress } from "viem";
-import { usersService } from "@/lib/services/users";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
-import { redisCache } from "@/lib/cache/client";
+import { cache } from "@/lib/cache/client";
 
-const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // WHY: limits replay window while allowing clock skew
 
 export async function verifyWalletSignature(request: NextRequest): Promise<UserWithOrganization | null> {
     const rawWalletAddress = request.headers.get("X-Wallet-Address") || "";
@@ -28,38 +33,31 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         throw new Error("Signature timestamp expired");
     }
 
+    /* WHY method+path in message: binds signature to this request so it cannot be replayed on another endpoint. */
     const method = request.method;
     const path = request.nextUrl.pathname;
     const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
-    const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
-
     const nonceKey = `wallet-nonce:${nonce}`;
-    const nonceExists = await redisCache.get(nonceKey);
+    const nonceExists = await cache.get(nonceKey);
     if (nonceExists) {
         throw new Error("Signature has already been used");
     }
-    
-    try {
-        const isValid = await verifyMessage({
-            address: walletAddress as `0x${string}`,
-            message,
-            signature: signature as `0x${string}`,
-        });
 
-        if (!isValid) {
-            throw new Error("Invalid wallet signature");
-        }
-        
-        await redisCache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-    } catch (error) {
-        logger.error("Wallet signature verification failed", error);
-        throw new Error("Signature verification failed");
+    const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
+
+    const isValid = await verifyMessage({
+        address: walletAddress as `0x${string}`,
+        message,
+        signature: signature as `0x${string}`,
+    });
+
+    if (!isValid) {
+        throw new Error("Invalid wallet signature");
     }
 
-    const user = await usersService.getByWalletAddressWithOrganization(walletAddress);
-    if (!user) {
-        throw new Error("User associated with wallet address not found");
-    }
+    await cache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+
+    const { user } = await findOrCreateUserByWalletAddress(walletAddress);
 
     if (!user.is_active) {
         throw new Error("User account is inactive");

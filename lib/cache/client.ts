@@ -85,6 +85,14 @@ export class CacheClient {
   }
 
   /**
+   * Whether the cache backend (Redis) is connected and the circuit breaker is closed.
+   */
+  isAvailable(): boolean {
+    this.initialize();
+    return !!(this.enabled && this.redis && !this.isCircuitOpen());
+  }
+
+  /**
    * Gets a value from cache.
    *
    * @param key - Cache key.
@@ -304,6 +312,22 @@ export class CacheClient {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  /**
+   * Gets a value and deletes the key in one flow.
+   * Used for single-use values (e.g. SIWE nonce). Not atomic; two concurrent
+   * callers could both receive the value before either deletes.
+   *
+   * @param key - Cache key.
+   * @returns The value if present, or null.
+   */
+  async getAndDelete<T>(key: string): Promise<T | null> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
+    const value = await this.get<T>(key);
+    if (value !== null) await this.del(key);
+    return value;
   }
 
   /**

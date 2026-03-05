@@ -165,6 +165,7 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login",
   "/api/auth/cli-session",
+  "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
   "/api/set-anonymous-session",
   "/api/anonymous-session",
   "/api/affiliate",
@@ -176,6 +177,7 @@ const publicPaths = [
   "/api/v1/embeddings",
   "/api/v1/models",
   "/api/v1/credits/topup",
+  "/api/v1/topup", // x402 payment-gated topup (auth via payment proof, not session)
   "/api/stripe/webhook",
   "/api/crypto/webhook",
   "/api/privy/webhook",
@@ -232,7 +234,7 @@ export async function proxy(request: NextRequest) {
         "Access-Control-Allow-Methods":
           "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret",
+          "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session, X-Gateway-Secret, X-Wallet-Address, X-Timestamp, X-Wallet-Signature",
         "Access-Control-Max-Age": "86400",
         "X-Proxy-Time": `${Date.now() - startTime}ms`,
       },
@@ -263,7 +265,9 @@ export async function proxy(request: NextRequest) {
       : null;
     const apiKey = request.headers.get("X-API-Key");
 
-    if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    // WHY walletSig passthrough: requireAuthOrApiKey accepts wallet-header auth; without this, wallet-only requests get 401 here
+    const walletSig = request.headers.get("X-Wallet-Signature");
+    if (apiKey || walletSig || (bearerToken && bearerToken.startsWith("eliza_"))) {
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });

@@ -103,7 +103,7 @@ export function AffiliatesPageClient() {
                             Affiliate Program
                         </h3>
                         <p className="text-sm text-white/60 mb-2">
-                            Share your customized referral link with your users and partners to earn a percentage of all their credit purchases and ElizaOS Agent usage.
+                            Share your customized referral link with your users and partners to earn a percentage of all their credit purchases and elizaOS Agent usage.
                         </p>
                         <p className="text-sm text-white/60">
                             When a user signs up using your link, you get a direct cut (your markup percentage) of their activity forever. You can track this revenue in your
@@ -149,7 +149,7 @@ export function AffiliatesPageClient() {
                     <div>
                         <h3 className="text-lg font-semibold text-white mb-1">Fee Markup Setting</h3>
                         <p className="text-sm text-white/60 max-w-xl">
-                            Set the exact percentage you want to charge your referred users on top of base ElizaOS prices. This fee applies to credit top-ups and exact usage cost for MCPs/Agents.
+                            Set the exact percentage you want to charge your referred users on top of base elizaOS prices. This fee applies to credit top-ups and exact usage cost for MCPs/Agents.
                         </p>
                     </div>
 

@@ -130,7 +130,7 @@ Eliza Cloud V2 has strong MCP foundations: OAuth across 12 providers, encrypted 
 
 ### Tier 2 — Discoverable (via SEARCH_ACTIONS only)
 
-Every other MCP tool not listed above. Not registered as direct ElizaOS actions at boot. Indexed in BM25. When found via `SEARCH_ACTIONS`, dynamically registered as real actions on the runtime for subsequent iterations.
+Every other MCP tool not listed above. Not registered as direct elizaOS actions at boot. Indexed in BM25. When found via `SEARCH_ACTIONS`, dynamically registered as real actions on the runtime for subsequent iterations.
 
 ### Configuration
 

@@ -163,6 +163,14 @@ export const CacheKeys = {
     /** Pattern for invalidating all workflow cache for an org */
     orgPattern: (orgId: string) => `n8n:workflows:${orgId}:*`,
   },
+  /**
+   * SIWE (Sign-In With Ethereum) nonce cache.
+   * Single-use nonces stored by value; consumed on verify.
+   */
+  siwe: {
+    nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
+    pattern: () => `siwe:*`,
+  },
   userMetrics: {
     overview: (rangeDays?: number) =>
       `user-metrics:overview:${rangeDays ?? 30}d:v1`,
@@ -284,6 +292,9 @@ export const CacheTTL = {
   n8nWorkflows: {
     list: 60, // 1 minute - workflow list
     workflow: 120, // 2 minutes - single workflow details
+  },
+  siwe: {
+    nonce: 300, // 5 minutes - one-time nonce TTL
   },
   userMetrics: {
     overview: 300, // 5 minutes - live query summary

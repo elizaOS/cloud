@@ -385,7 +385,9 @@ class UserMcpsService {
       creditsCharged = x402AmountUsd * CREDITS_PER_DOLLAR;
     }
 
-    // Affiliate logic
+    // WHY affiliate fee on top of creditsCharged: Customer pays base + affiliate% + platform%;
+    // we pay affiliate from that. Referral splits are not used for MCP — keeps one payout
+    // type per transaction so we never over-allocate.
     let affiliateFeeCredits = 0;
     let platformFeeCredits = 0;
     let affiliateOwnerId: string | null = null;

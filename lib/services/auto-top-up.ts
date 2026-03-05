@@ -211,6 +211,9 @@ export class AutoTopUpService {
       };
     }
 
+    // WHY affiliate lookup here: Affiliate markup is added to what the customer pays
+    // (we don't eat it). So totalAmount = amount + affiliate% + platform%; credits
+    // added = amount. Revenue splits are not run for auto top-up (see Stripe webhook).
     let affiliateFeeAmount = 0;
     let platformFeeAmount = 0;
     let totalAmount: number;

@@ -246,6 +246,13 @@
       "when": 1772590927728,
       "tag": "0034_short_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1772591000000,
+      "tag": "0035_signup_code_bonus_one_per_org",
+      "breakpoints": true
     }
   ]
 }

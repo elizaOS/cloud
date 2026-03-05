@@ -5,7 +5,6 @@ import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { referralsService } from "@/lib/services/referrals";
 import { discordService } from "@/lib/services/discord";
-import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { headers } from "next/headers";
@@ -285,7 +284,10 @@ async function handleStripeWebhook(req: NextRequest) {
               });
             }
 
-            // Process revenue splits (50/40/10) if this user has a referrer
+            // WHY revenue splits only in checkout.session.completed: This branch handles
+            // user-initiated credit purchases (checkout session has user_id). Auto top-up
+            // uses payment_intent.succeeded only and does not run splits — so we never
+            // double-apply referral and avoid splitting when there is no referrer context.
             if (userId) {
               const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
 
@@ -350,9 +352,6 @@ async function handleStripeWebhook(req: NextRequest) {
             });
           }
 
-          // Deprecated legacy processReferralCommission call is removed since
-          // calculateRevenueSplits completely handles the 50/40/10 split internally.
-
           try {
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
               `cs_${session.id}`,
@@ -409,8 +408,10 @@ async function handleStripeWebhook(req: NextRequest) {
           `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
         );
 
-        // Only process if this is a one-time purchase or auto-top-up
-        // Credit pack purchases are handled by checkout.session.completed
+        // One-time and auto-top-up use PaymentIntent directly (no checkout session).
+        // WHY no revenue splits here: Auto top-up has no user_id in metadata by design;
+        // referral splits run only for checkout.session.completed. Keeps referral and
+        // affiliate flows separate (affiliate markup is applied when creating the PaymentIntent).
         const purchaseType = paymentIntent.metadata?.type;
 
         if (!purchaseType || purchaseType === "credit_pack") {

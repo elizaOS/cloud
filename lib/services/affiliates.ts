@@ -3,9 +3,16 @@ import type { AffiliateCode, UserAffiliate } from "@/db/schemas/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 
+/**
+ * Affiliate (revenue-share) service. WHY separate from referrals: Referrals split
+ * purchase revenue (50/40/10) at signup attribution; affiliates get a markup added
+ * to what the customer pays (auto top-up, MCP). So we never apply both to the same
+ * transaction, avoiding over-payout. getReferrer() is used by auto-top-up and
+ * user-mcps to resolve markup; linkUserToAffiliateCode is used at signup or via API.
+ */
 export class AffiliatesService {
     /**
-     * Generates or returns an existing affiliate code for the user
+     * Generates or returns an existing affiliate code for the user.
      */
     async getOrCreateAffiliateCode(
         userId: string,
@@ -19,7 +26,7 @@ export class AffiliatesService {
             return existing;
         }
 
-        // Default markup is 20.0%
+        // WHY default 20%: Balances affiliate incentive with customer acceptance; can be overridden per code.
         const markup = markupPercent ?? 20.0;
         if (markup < 0 || markup > 1000) {
             throw new Error("Markup percent must be between 0 and 1000");
@@ -90,7 +97,8 @@ export class AffiliatesService {
     }
 
     /**
-     * Retrieves the affiliate who referred the user (if any)
+     * Retrieves the affiliate who referred the user (if any). Used by auto-top-up
+     * and MCP to add markup to the charge and pay the affiliate from it.
      */
     async getReferrer(userId: string): Promise<AffiliateCode | null> {
         const link = await affiliatesRepository.getUserAffiliate(userId);

@@ -4,7 +4,7 @@
  * Maps: /api/v1/agents/{agentId}/n8n/{...path}
  *    →  plugin route: /n8n-workflow/{...path}
  *
- * The ElizaOS runtime collects plugin routes during initialization and
+ * The elizaOS runtime collects plugin routes during initialization and
  * prefixes them with the plugin name. So the plugin's `/workflows` route
  * becomes `/n8n-workflow/workflows` on the runtime.
  */

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
-import { usersService } from "@/lib/services/users";
+import { getTopupRecipient } from "@/lib/services/topup";
 import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
@@ -10,39 +10,19 @@ const AMOUNT = 100;
 
 async function handler(req: NextRequest): Promise<any> {
     try {
-        const body = await req.json();
-        const { walletAddress } = body;
-
-        if (!walletAddress) {
-            return NextResponse.json(
-                { error: "walletAddress is required" },
-                { status: 400 }
-            );
-        }
-
-        let user = await usersService.getByWalletAddress(walletAddress);
-        let organizationId = user?.organization_id;
-
-        if (!user || !organizationId) {
-            const org = await organizationsService.create({
-                name: `Wallet ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`,
-                slug: `wallet-${walletAddress.toLowerCase()}`,
-                credit_balance: "0",
-            });
-            organizationId = org.id;
-
-            if (!user) {
-                user = await usersService.create({
-                    wallet_address: walletAddress,
-                    wallet_chain_type: "evm",
-                    wallet_verified: true,
-                    organization_id: organizationId,
-                });
-            } else {
-                await usersService.update(user.id, { organization_id: organizationId });
+        const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
+        let recipient;
+        try {
+            recipient = await getTopupRecipient(req, body);
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("walletAddress is required")) {
+                return NextResponse.json({ error: msg }, { status: 400 });
             }
+            return NextResponse.json({ error: msg }, { status: 401 });
         }
 
+        const { user, organizationId, walletAddress } = recipient;
         const ref = req.nextUrl.searchParams.get("ref") || req.nextUrl.searchParams.get("referral_code") || body.ref || body.referral_code;
         const appOwnerId = req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
 

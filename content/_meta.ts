@@ -29,6 +29,9 @@ const meta = {
   authentication: {
     title: "Authentication",
   },
+  "wallet-api": {
+    title: "Wallet API",
+  },
 
   // ─────────────────────────────────────────────────────────────────────
   // Core Features - Agents

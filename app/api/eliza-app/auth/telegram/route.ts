@@ -41,7 +41,7 @@ const phoneNumberSchema = z.string().min(1, "Phone number is required").transfor
 });
 
 /**
- * Request body schema: Telegram Login Widget data + phone number from frontend
+ * Request body schema: Telegram Login Widget data + phone number from frontend + optional signup code
  */
 const telegramAuthSchema = z.object({
   // Phone number entered by user in frontend modal (required for cross-platform)
@@ -54,6 +54,8 @@ const telegramAuthSchema = z.object({
   photo_url: z.string().url().max(2048).optional(),
   auth_date: z.number().int().positive(),
   hash: z.string().length(64), // SHA-256 hash is 64 hex characters
+  // Optional signup code for bonus credits (new users only; one per org)
+  signup_code: z.string().optional().transform((s) => s?.trim() || undefined),
 });
 
 /**
@@ -111,7 +113,7 @@ async function handleTelegramAuth(
     );
   }
 
-  const { phone_number: phoneNumber, ...telegramData } = parseResult.data;
+  const { phone_number: phoneNumber, signup_code: signupCode, ...telegramData } = parseResult.data;
   const authData: TelegramAuthData = telegramData;
 
   // Verify Telegram authentication data
@@ -208,6 +210,7 @@ async function handleTelegramAuth(
       result = await elizaAppUserService.findOrCreateByTelegramWithPhone(
         authData,
         phoneNumber,
+        signupCode,
       );
     } catch (error) {
       if (error instanceof Error) {
@@ -279,6 +282,7 @@ async function handleTelegramAuth(
     phoneNumber: `***${phoneNumber.slice(-4)}`,
     isNewUser: isNew,
     sessionBased: !!existingSession,
+    hasSignupCode: !!signupCode,
   });
 
   // Create session (new session includes all known identities)

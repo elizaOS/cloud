@@ -14,7 +14,7 @@ fi
 
 REGION="${AWS_REGION:-us-east-1}"
 
-echo "📋 ElizaOS User Stacks"
+echo "📋 elizaOS User Stacks"
 echo "======================"
 echo "Region: $REGION"
 echo ""

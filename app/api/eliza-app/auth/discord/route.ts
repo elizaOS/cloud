@@ -45,7 +45,7 @@ const optionalPhoneSchema = z
   });
 
 /**
- * Request body schema: Discord OAuth2 code + redirect_uri + state (CSRF) + optional phone
+ * Request body schema: Discord OAuth2 code + redirect_uri + state (CSRF) + optional phone + optional signup code
  */
 const discordAuthSchema = z.object({
   // OAuth2 authorization code from Discord redirect
@@ -59,6 +59,8 @@ const discordAuthSchema = z.object({
     .regex(/^[0-9a-f]{64}$/, "Invalid state parameter format"),
   // Optional phone number for cross-platform linking
   phone_number: optionalPhoneSchema,
+  // Optional signup code for bonus credits (new users only; one per org)
+  signup_code: z.string().optional().transform((s) => s?.trim() || undefined),
 });
 
 /**
@@ -117,13 +119,14 @@ async function handleDiscordAuth(
     );
   }
 
-  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber } =
+  const { code, redirect_uri: redirectUri, state, phone_number: phoneNumber, signup_code: signupCode } =
     parseResult.data;
 
   logger.info("[ElizaApp DiscordAuth] Processing OAuth2 callback", {
     redirectUri,
     statePrefix: state.slice(0, 8) + "...",
     hasPhone: !!phoneNumber,
+    hasSignupCode: !!signupCode,
   });
 
   // Check for existing session (session-based linking: user already logged in via another platform)
@@ -214,7 +217,8 @@ async function handleDiscordAuth(
           globalName: discordUser.global_name,
           avatarUrl,
         },
-        phoneNumber, // Pass phone for cross-platform linking (step 2 in findOrCreate)
+        phoneNumber,
+        signupCode,
       );
     } catch (error) {
       if (error instanceof Error) {
