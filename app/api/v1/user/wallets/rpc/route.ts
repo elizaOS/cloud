@@ -53,10 +53,15 @@ async function handlePOST(request: NextRequest) {
             );
         }
 
-        if (error instanceof Error && (error.message.includes("Invalid RPC signature") || error.message.includes("Server wallet not found"))) {
+        // Auth errors are identified by error.name to avoid fragile string matching on messages
+        const isAuthError = error instanceof Error && (
+            error.name === "InvalidRpcSignatureError" ||
+            error.name === "ServerWalletNotFoundError"
+        );
+        if (isAuthError) {
             return NextResponse.json(
-                { success: false, error: error.message },
-                { status: 401 } // Unauthorized
+                { success: false, error: error instanceof Error ? error.message : "Authentication failed" },
+                { status: 401 }
             );
         }
 
