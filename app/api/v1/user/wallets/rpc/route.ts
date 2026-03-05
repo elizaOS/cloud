@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { executeServerWalletRpc } from "@/lib/services/server-wallets";
-import { verifyWalletSignature } from "@/lib/auth";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
