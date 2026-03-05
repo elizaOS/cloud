@@ -254,7 +254,7 @@ export class ReferralsService {
     elizaCloudAmount: number;
     splits: Array<{
       userId: string;
-      role: "app_owner" | "creator" | "editor" | "base";
+      role: "app_owner" | "creator";
       amount: number;
     }>;
   }> {
