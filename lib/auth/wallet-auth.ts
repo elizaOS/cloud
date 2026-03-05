@@ -45,6 +45,7 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
 
   // Note: Fail closed if cache unavailable to prevent replay attacks during Redis outages
   if (!cache.isAvailable()) {
+    // Consider in-memory fallback or document as SLA
     throw new Error("Service temporarily unavailable");
   }
 
@@ -80,3 +81,4 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
 
   return user;
 }
+
