@@ -302,20 +302,29 @@ async function handleStripeWebhook(req: NextRequest) {
                   const source = split.role === "app_owner" ? "app_owner_revenue_share" 
                     : "creator_revenue_share";
 
-                  await redeemableEarningsService.addEarnings({
-                    userId: split.userId,
-                    amount: split.amount,
-                    source: source,
-                    sourceId: `${paymentIntentId}:${split.userId}`,
-                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
-                    metadata: {
-                      buyer_user_id: userId,
-                      buyer_org_id: organizationId,
-                      payment_intent_id: paymentIntentId,
-                      role: split.role,
-                    },
-                  });
-                  logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
+                  try {
+                    await redeemableEarningsService.addEarnings({
+                      userId: split.userId,
+                      amount: split.amount,
+                      source: source,
+                      sourceId: `${paymentIntentId}:${split.userId}`,
+                      description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                      metadata: {
+                        buyer_user_id: userId,
+                        buyer_org_id: organizationId,
+                        payment_intent_id: paymentIntentId,
+                        role: split.role,
+                      },
+                    });
+                    logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
+                  } catch (splitError) {
+                    // Log error but continue processing other splits
+                    logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId})`, {
+                      error: splitError instanceof Error ? splitError.message : String(splitError),
+                      amount: split.amount,
+                      paymentIntentId,
+                    });
+                  }
                 }
               }
             }
