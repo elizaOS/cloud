@@ -89,13 +89,6 @@ export async function executeServerWalletRpc({
         throw new Error("RPC request expired: Timestamp must be within the last 5 minutes");
     }
 
-    // Atomically check and consume the nonce
-    const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
-    const nonceSet = await cache.setNX(nonceKey, '1', 24 * 60 * 60); // 24hr TTL
-    if (!nonceSet) {
-        throw new Error("RPC nonce already used: Request appears to be a replay attack");
-    }
-
     // 1. Verify the signature from the local agent  
     const isValid = await verifyMessage({
         address: clientAddress as `0x${string}`,
@@ -105,6 +98,13 @@ export async function executeServerWalletRpc({
 
     if (!isValid) {
         throw new Error("Invalid RPC signature: The client address does not match the signature for this payload.");
+    }
+
+    // Atomically check and consume the nonce
+    const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
+    const nonceSet = await cache.setNX(nonceKey, '1', 24 * 60 * 60); // 24hr TTL
+    if (!nonceSet) {
+        throw new Error("RPC nonce already used: Request appears to be a replay attack");
     }
 
     // 2. Look up the server wallet mapped to this client
