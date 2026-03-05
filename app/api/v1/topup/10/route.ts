@@ -59,7 +59,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}`).digest("hex");
+                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}-${Date.now()}-${crypto.randomUUID()}`).digest("hex");
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
