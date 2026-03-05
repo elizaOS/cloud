@@ -17,6 +17,9 @@ const rpcPayloadSchema = z.object({
 async function handlePOST(request: NextRequest) {
     try {
         const authenticatedUser = await verifyWalletSignature(request);
+        if (!authenticatedUser) {
+            return NextResponse.json({ success: false, error: "Wallet authentication required" }, { status: 401 });
+        }
 
         // 1. Parse Body
         const body = await request.json();
