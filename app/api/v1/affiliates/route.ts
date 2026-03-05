@@ -75,22 +75,22 @@ export async function PUT(request: NextRequest) {
     const { markupPercent } = validation.data;
     const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
-        return NextResponse.json(
-            { code },
-            { headers: corsHeaders }
-        );
-    } catch (error) {
-        if (error instanceof Error && error.message.includes("Unauthorized")) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401, headers: corsHeaders }
-            );
-        }
-
-        logger.error("[Affiliates API] Error updating markup:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500, headers: corsHeaders }
-        );
+    return NextResponse.json(
+      { code },
+      { headers: corsHeaders }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unauthorized")) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
     }
+
+    logger.error("[Affiliates API] Error updating markup:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
