@@ -1,4 +1,3 @@
-```
 export interface LLMModel {
   id: string;
   name: string;
@@ -21,6 +20,7 @@ export interface LLMModelConfig {
   maxTokens?: number;
 }
 
+// Restored removed models
 export const models: LLMModel[] = [
   {
     id: "openai/gpt-4o",
@@ -47,7 +47,27 @@ export const models: LLMModel[] = [
     multiModal: true,
     tier: "$$",
   },
+  {
+    id: "claude-sonnet-4",
+    name: "Claude Sonnet 4",
+    provider: "Claude",
+    providerId: "claude",
+    tier: "$$$",
+  },
+  {
+    id: "claude-opus-4.5",
+    name: "Claude Opus 4.5",
+    provider: "Claude",
+    providerId: "claude",
+    tier: "$$$",
+  },
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    provider: "Google",
+    providerId: "google",
+    tier: "$$$",
+  },
 ];
 
 export default models;
-```
