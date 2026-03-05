@@ -1,3 +1,4 @@
+```typescript
 // @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * GitHub MCP Server - Repos, Issues, PRs
@@ -1085,3 +1086,5 @@ async function handleRequest(req: NextRequest, { params }: { params: Promise<{ t
 export const GET = handleRequest;
 export const POST = handleRequest;
 export const DELETE = handleRequest;
+
+```
