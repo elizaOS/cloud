@@ -8,9 +8,9 @@ const wrappedHandler = createWrappedHandler(handler, payTo);
 const network = getNetwork() as RouteConfig["network"];
 
 const routeConfig: RouteConfig = {
-    price: `$${AMOUNT}.00`,
-    network,
-    config: { description: `Topup $${AMOUNT} credits for Eliza Cloud` },
+  price: `$${AMOUNT}.00`,
+  network,
+  config: { description: `Topup $${AMOUNT} credits for Eliza Cloud` },
 };
 
 export const POST = withX402(wrappedHandler, payTo, routeConfig);
