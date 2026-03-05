@@ -169,11 +169,6 @@ export class ReferralsService {
       return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
     }
 
-    // Prevent self-referral abuse via app owner revenue share
-    if (appContext?.appOwnerId === referredUserId) {
-      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
-    }
-
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(referralCode.user_id);
     if (!referrer?.organization_id) {
