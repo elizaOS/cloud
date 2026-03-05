@@ -419,23 +419,23 @@ export async function requireAuthOrApiKey(
                           request.headers.get("X-Timestamp");
 
   if (hasWalletHeaders) {
-      try {
-        const walletUser = await verifyWalletSignature(request);
-        if (!walletUser) {
-          // When wallet headers are present but verification returns null,
-          // this should be a terminal failure - not a silent fallthrough
-          logger.error("[AUTH] Wallet auth failed - headers present but verification returned null");
-          throw new Error("Invalid wallet signature");
-        }
-        return {
-          user: walletUser,
-          authMethod: "wallet_signature",
-        };
-      } catch (e) {
-        logger.error("[AUTH] Wallet auth failed with headers present:", e);
+    try {
+      const walletUser = await verifyWalletSignature(request);
+      if (!walletUser) {
+        // When wallet headers are present but verification returns null,
+        // this should be a terminal failure - not a silent fallthrough
+        logger.error("[AUTH] Wallet auth failed - headers present but verification returned null");
         throw new Error("Invalid wallet signature");
       }
+      return {
+        user: walletUser,
+        authMethod: "wallet_signature",
+      };
+    } catch (e) {
+      logger.error("[AUTH] Wallet auth failed with headers present:", e);
+      throw new Error("Invalid wallet signature");
     }
+  }
 
   // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
