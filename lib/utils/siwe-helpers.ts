@@ -42,6 +42,9 @@ export async function validateSIWEMessage(
   if (!parsed.address) {
     throw new Error("SIWE message missing address");
   }
+  if (!parsed.nonce) {
+    throw new Error("SIWE message missing nonce");
+  }
   const expectedHost = getAppHost();
   if (parsed.domain !== expectedHost) {
     throw new Error(
