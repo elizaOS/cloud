@@ -76,3 +76,4 @@ async function handlePOST(request: NextRequest) {
 
 /* WHY CRITICAL: Redeem grants credits; strict rate limit (e.g. 5/5min) reduces abuse. */
 export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
+
