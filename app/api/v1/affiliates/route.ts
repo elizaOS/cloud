@@ -21,7 +21,7 @@ export async function OPTIONS(request: NextRequest) {
  * Returns { code: null } if no code exists — use PUT to create one.
  */
 export async function GET(request: NextRequest) {
-    const origin = request.headers.get("origin");
+  const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
   try {
@@ -57,29 +57,23 @@ const MarkupSchema = z.object({
  * Updates or creates the current user's affiliate code with a specific markup.
  */
 export async function PUT(request: NextRequest) {
-    const origin = request.headers.get("origin");
+  const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const body = await request.json();
-        const validation = MarkupSchema.safeParse(body);
-        if (!validation.success) {
-            return NextResponse.json(
-                { error: "Invalid markup. Must be a number between 0 and 1000." },
-                { status: 400, headers: corsHeaders }
-            );
-        }
+    const validation = MarkupSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid markup. Must be a number between 0 and 200." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
-        const { markupPercent } = validation.data;
-        
-        // Note: markupPercent > 200 is unusually high; log for operator awareness
-        if (markupPercent > 200) {
-            logger.warn(`[Affiliates API] High markup configured: ${markupPercent}% for user ${user.id}`);
-        }
-        
-        const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
+    const { markupPercent } = validation.data;
+    const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
         return NextResponse.json(
             { code },
