@@ -12,7 +12,7 @@ const isProduction = process.env.NODE_ENV === "production";
 function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
-  if (fallback !== undefined) return fallback;
+  if (fallback !== undefined && !isProduction) return fallback;
   if (isProduction) {
     throw new Error(`Required env var ${name} is not set in production`);
   }
