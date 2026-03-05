@@ -8,6 +8,7 @@ import { verifyMessage, getAddress } from "viem";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import type { UserWithOrganization } from "@/lib/types";
 import { cache } from "@/lib/cache/client";
+import { logger } from "@/lib/utils/logger";
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // WHY: limits replay window while allowing clock skew
 
@@ -64,9 +65,14 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
 
   // Note: Use SET NX (set-if-not-exists) to atomically check and mark nonce as used, preventing TOCTOU race
   // Placed after signature verification so invalid signatures don't burn valid nonces
-  const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-  if (!wasSet) {
-    throw new Error("Signature has already been used");
+  try {
+    const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+    if (!wasSet) {
+      throw new Error("Signature has already been used");
+    }
+  } catch (error) {
+    logger.error("[Wallet Auth] Failed to set nonce:", error);
+    throw new Error("Service temporarily unavailable");
   }
 
   const { user } = await findOrCreateUserByWalletAddress(walletAddress);
