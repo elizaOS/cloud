@@ -14,8 +14,6 @@ const routeConfig: RouteConfig = {
 };
 
 export const POST = withX402(wrappedHandler, payTo, routeConfig);
-    try {
-        const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
         if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
             const msg = "walletAddress is required (body or wallet signature headers)";
             return NextResponse.json({ error: msg }, { status: 400 });
