@@ -75,10 +75,4 @@ async function handlePOST(request: NextRequest) {
 }
 
 /* WHY CRITICAL: Redeem grants credits; strict rate limit (e.g. 5/5min) reduces abuse. */
-// Support both GET and POST for backward compatibility
-// Note: GET method is retained for backward compatibility, but usage is deprecated.
-/**
- * Note: GET method is deprecated due to security concerns and will be removed in the future.
- * Usage should be migrated to POST method. See migration plan in docs.
- */
 export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
