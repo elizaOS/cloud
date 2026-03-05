@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
-import { getCorsHeaders } from "@/lib/utils/cors"; // Using shared CORS utility
+import { getCorsHeaders } from "@/lib/utils/cors";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +17,8 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/affiliates
- * Retrieves the current user's affiliate code if it exists.
- * Returns { code: null } if no code exists — use PUT to create one.
+ * Retrieves the current user's affiliate code without creating one.
+ * Returns { code: null } if no code exists.
  */
 export async function GET(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -49,14 +49,15 @@ export async function GET(request: NextRequest) {
 }
 
 const MarkupSchema = z.object({
-  markupPercent: z.number().min(0).max(200), // Capped at 200% to prevent excessive markups
+  // Note: Max 200% markup to match database check constraint and avoid excessive pricing
+  markupPercent: z.number().min(0).max(200),
 });
 
 /**
- * PUT /api/v1/affiliates
- * Updates or creates the current user's affiliate code with a specific markup.
+ * POST /api/v1/affiliates
+ * Creates a new affiliate code for the user with specified markup.
  */
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -67,13 +68,13 @@ export async function PUT(request: NextRequest) {
     const validation = MarkupSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid markup. Must be a number between 0 and 200." },
+        { error: "Invalid markup. Must be a number between 0 and 200%." },
         { status: 400, headers: corsHeaders }
       );
     }
 
     const { markupPercent } = validation.data;
-    const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
+    const code = await affiliatesService.createAffiliateCode(user.id, markupPercent);
 
     return NextResponse.json(
       { code },
@@ -87,7 +88,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    logger.error("[Affiliates API] Error updating markup:", error);
+    logger.error("[Affiliates API] Error creating affiliate code:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500, headers: corsHeaders }
