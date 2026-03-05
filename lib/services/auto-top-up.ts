@@ -8,9 +8,6 @@ import { emailService } from "./email";
 import { logger } from "@/lib/utils/logger";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 
-/**
- * Constants for auto top-up validation
- */
 export const AUTO_TOP_UP_LIMITS = {
   MIN_AMOUNT: 1,
   MAX_AMOUNT: 1000,
@@ -18,9 +15,6 @@ export const AUTO_TOP_UP_LIMITS = {
   MAX_THRESHOLD: 1000,
 } as const;
 
-/**
- * Result of executing an auto top-up for an organization
- */
 export interface AutoTopUpResult {
   organizationId: string;
   success: boolean;
@@ -29,9 +23,6 @@ export interface AutoTopUpResult {
   error?: string;
 }
 
-/**
- * Summary of auto top-up check run
- */
 export interface AutoTopUpCheckResult {
   timestamp: Date;
   organizationsChecked: number;
@@ -41,18 +32,7 @@ export interface AutoTopUpCheckResult {
   results: AutoTopUpResult[];
 }
 
-/**
- * Service for managing automatic balance top-ups
- * Monitors organization balances and automatically charges when balance falls below threshold
- */
 export class AutoTopUpService {
-  /**
-   * Validate auto top-up settings
-   *
-   * @param amount - The amount to charge on auto top-up
-   * @param threshold - The balance threshold to trigger auto top-up
-   * @throws Error if settings are invalid
-   */
   validateSettings(amount: number, threshold: number): void {
     if (amount < AUTO_TOP_UP_LIMITS.MIN_AMOUNT) {
       throw new Error(
@@ -79,12 +59,6 @@ export class AutoTopUpService {
     }
   }
 
-  /**
-   * Check and execute auto top-ups for all eligible organizations
-   * This method is called periodically by a cron job
-   *
-   * @returns Summary of the auto top-up check run
-   */
   async checkAndExecuteAutoTopUps(): Promise<AutoTopUpCheckResult> {
     const startTime = new Date();
     const results: AutoTopUpResult[] = [];
@@ -93,8 +67,6 @@ export class AutoTopUpService {
       `[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`,
     );
 
-    // Find organizations that need auto top-up
-    // Using raw SQL for numeric comparison to avoid type coercion issues
     const orgsNeedingTopUp = await dbRead
       .select()
       .from(organizations)
@@ -146,13 +118,6 @@ export class AutoTopUpService {
     };
   }
 
-  /**
-   * Execute auto top-up for a specific organization
-   * Creates a PaymentIntent with the saved payment method and processes the payment
-   *
-   * @param org - The organization to top up
-   * @returns Result of the auto top-up operation
-   */
   async executeAutoTopUp(org: Organization): Promise<AutoTopUpResult> {
     const organizationId = org.id;
 
@@ -186,7 +151,6 @@ export class AutoTopUpService {
     const threshold = Number(org.auto_top_up_threshold);
     const topUpAmount = Number(org.auto_top_up_amount || 0);
 
-    // Track auto top-up triggered
     trackServerEvent(trackingId, "auto_topup_triggered", {
       organization_id: organizationId,
       current_balance: currentBalance,
@@ -194,7 +158,6 @@ export class AutoTopUpService {
       top_up_amount: topUpAmount,
     });
 
-    // Validate organization has necessary Stripe data
     if (!org.stripe_customer_id) {
       logger.error(`[AutoTopUp] Org ${organizationId} missing Stripe customer`);
       trackServerEvent(trackingId, "auto_topup_failed", {
@@ -248,10 +211,10 @@ export class AutoTopUpService {
       };
     }
 
-    // Affiliate lookup
     let affiliateFeeAmount = 0;
     let platformFeeAmount = 0;
-    
+    let totalAmount: number;
+
     try {
       const { affiliatesService } = await import("@/lib/services/affiliates");
       let checkUserId = trackingId.startsWith("org:") ? null : trackingId;
@@ -269,55 +232,40 @@ export class AutoTopUpService {
 
           affiliateFeeAmount = amount * (affiliatePercent / 100);
           platformFeeAmount = amount * (platformPercent / 100);
+          logger.info("Affiliate metadata applied", referrer);
         }
       }
     } catch (e) {
-      logger.error(`[AutoTopUp] Failed to lookup affiliate for org ${organizationId}`, e);
+      logger.error(
+        `[AutoTopUp] Failed to lookup affiliate for org ${organizationId}`,
+        e,
+      );
     }
 
-    const totalAmount = amount + affiliateFeeAmount + platformFeeAmount;
-    
-    let metadata: Record<string, string> = {
+    totalAmount = amount + affiliateFeeAmount + platformFeeAmount;
+
+    const metadata: Record<string, string> = {
       organization_id: organizationId,
       credits: amount.toFixed(2),
       type: "auto_top_up",
       total_charged: totalAmount.toFixed(2),
-      fees_included: "true"
+      fees_included: "true",
     };
 
     if (!trackingId.startsWith("org:")) {
       metadata.user_id = trackingId;
     }
-    
-    // Add affiliate metadata if applicable
-    if (affiliateFeeAmount > 0) {
-      try {
-        const { affiliatesService } = await import("@/lib/services/affiliates");
-        let checkUserId = trackingId.startsWith("org:") ? null : trackingId;
 
-        if (!checkUserId) {
-          const users = await usersRepository.listByOrganization(organizationId);
-          if (users.length > 0) checkUserId = users[0].id;
-        }
-
-        if (checkUserId) {
-          const referrer = await affiliatesService.getReferrer(checkUserId);
-          if (referrer) {
-            metadata.affiliate_code_id = referrer.id;
-            metadata.affiliate_owner_id = referrer.user_id;
-            metadata.affiliate_earnings = affiliateFeeAmount.toFixed(2);
-            metadata.platform_fee = platformFeeAmount.toFixed(2);
-          }
-        }
-      } catch (e) {
-        logger.error(`[AutoTopUp] Failed to add affiliate metadata for org ${organizationId}`, e);
-      }
-    }
-
-    logger.info(`[AutoTopUp] Creating PaymentIntent for $${totalAmount.toFixed(2)} (Base: $${amount.toFixed(2)})`);
+    logger.info(
+      `[AutoTopUp] Creating PaymentIntent for $${totalAmount.toFixed(
+        2,
+      )} (Base: $${amount.toFixed(2)})`,
+    );
 
     const IDEMPOTENCY_WINDOW_MS = 5 * 60 * 1000;
-    const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(Date.now() / IDEMPOTENCY_WINDOW_MS)}`;
+    const idempotencyKey = `auto-topup-${organizationId}-${Math.floor(
+      Date.now() / IDEMPOTENCY_WINDOW_MS,
+    )}`;
 
     const paymentIntent = await requireStripe().paymentIntents.create(
       {
@@ -421,13 +369,6 @@ export class AutoTopUpService {
     }
   }
 
-  /**
-   * Disable auto top-up for an organization
-   * Called when payment fails or configuration is invalid
-   *
-   * @param organizationId - The organization ID
-   * @param reason - Reason for disabling
-   */
   private async disableAutoTopUp(
     organizationId: string,
     reason: string,
@@ -450,9 +391,6 @@ export class AutoTopUpService {
     void this.queueAutoTopUpDisabledEmail(org, reason);
   }
 
-  /**
-   * Queue success email notification for auto top-up
-   */
   private async queueAutoTopUpSuccessEmail(
     org: Organization,
     amount: number,
@@ -515,9 +453,6 @@ export class AutoTopUpService {
     }
   }
 
-  /**
-   * Queue disabled email notification for auto top-up
-   */
   private async queueAutoTopUpDisabledEmail(
     org: Organization,
     reason: string,
@@ -538,9 +473,6 @@ export class AutoTopUpService {
     });
   }
 
-  /**
-   * Get user email for organization
-   */
   private async getUserEmail(orgId: string): Promise<string | null> {
     logger.info(`[AutoTopUp] getUserEmail: Fetching users for org ${orgId}`);
     const users = await usersRepository.listByOrganization(orgId);
@@ -550,12 +482,6 @@ export class AutoTopUpService {
     return email;
   }
 
-  /**
-   * Get auto top-up settings for an organization
-   *
-   * @param organizationId - The organization ID
-   * @returns Auto top-up settings
-   */
   async getSettings(organizationId: string): Promise<{
     enabled: boolean;
     amount: number;
@@ -576,13 +502,6 @@ export class AutoTopUpService {
     };
   }
 
-  /**
-   * Update auto top-up settings for an organization
-   *
-   * @param organizationId - The organization ID
-   * @param settings - Settings to update
-   * @throws Error if validation fails or no payment method exists
-   */
   async updateSettings(
     organizationId: string,
     settings: {
@@ -642,4 +561,3 @@ export class AutoTopUpService {
 }
 
 export const autoTopUpService = new AutoTopUpService();
-

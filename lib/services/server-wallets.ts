@@ -13,12 +13,24 @@ export interface ProvisionWalletParams {
 }
 
 export async function provisionServerWallet({
+export async function provisionWallet({
     organizationId,
     userId,
     characterId,
     clientAddress,
     chainType,
 }: ProvisionWalletParams) {
+    // First check if a wallet already exists for this client address
+    const existing = await db
+        .select()
+        .from(agentServerWallets)
+        .where(sql`client_address = ${clientAddress}`)
+        .limit(1);
+
+    if (existing.length > 0) {
+        throw new Error('Wallet already exists for this client address');
+    }
+
     const privy = getPrivyClient();
 
     // Create a server wallet in Privy Wallet API

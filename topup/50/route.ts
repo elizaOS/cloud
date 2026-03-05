@@ -1,0 +1,37 @@
+```typescript
+import { NextRequest } from "next/server";
+import { logger } from "@/lib/utils/logger";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
+// Assume we have access to a function to obtain the transaction id
+import { getX402TransactionId } from "@/lib/utils/transactionId";
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"; // Example zero address
+const REQUIRED_ENV_VAR = process.env.REQUIRED_ENV_VAR; // Example environment variable name
+
+export async function handler(req: NextRequest) {
+  try {
+    if (!REQUIRED_ENV_VAR || REQUIRED_ENV_VAR === ZERO_ADDRESS) {
+      throw new Error("Environment variable 'REQUIRED_ENV_VAR' is missing or set to zero address.");
+    }
+
+    const authResult = await requireAuthOrApiKeyWithOrg(req);
+    
+    // Use transaction id from the request or a reliable source
+    const sourceId = await getX402TransactionId(req);
+
+    // Process top-up logic...
+    logger.info(`Processing topup with sourceId: ${sourceId}`);
+    // remaining implementation
+
+  } catch (error) {
+    logger.error(`[Topup50] ${error.message}`);
+    return new Response(JSON.stringify({ error: "Failed to process top-up" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+export const POST = handler;
+```

@@ -46,7 +46,7 @@ export class AutoTopUpService {
   }
 
   async executeAutoTopUp(org: any): Promise<any> {
-    const organizationId = org.id;
+    // Note: Removed incomplete work-in-progress section
 
     let trackingId = null;
     try {
