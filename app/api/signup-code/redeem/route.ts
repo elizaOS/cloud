@@ -3,6 +3,7 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { redeemSignupCode, ERRORS } from "@/lib/services/signup-code";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
 
 /* WHY no-cache: Prevents CDN/browser from caching 200 and hiding 409 (already used) on retry. */
 const NO_CACHE_HEADERS = {
@@ -34,15 +35,18 @@ async function handlePOST(request: NextRequest) {
 
     const organizationId = user.organization_id!;
     const body = await request.json();
-    const code = body.code?.trim();
-    if (!code) {
+    const bodySchema = z.object({
+      code: z.string().min(1).trim()
+    });
+    const result = bodySchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
         { error: "code is required in request body" },
         { status: 400, headers: NO_CACHE_HEADERS },
       );
     }
 
-    const bonus = await redeemSignupCode(organizationId, code);
+    const bonus = await redeemSignupCode(organizationId, result.data.code);
     return NextResponse.json(
       {
         success: true,
