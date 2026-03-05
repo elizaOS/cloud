@@ -160,8 +160,13 @@ export class ReferralsService {
       return { success: false, message: "Referral code is no longer active" };
     }
 
-    if (referralCode.user_id === referredUserId || (appContext?.appOwnerId && appContext.appOwnerId === referredUserId)) {
-      return { success: false, message: "Cannot use your own referral code or claim app owner revenue from your own purchase" };
+    if (referralCode.user_id === referredUserId) {
+      return { success: false, message: "Cannot use your own referral code" };
+    }
+
+    // Prevent self-referral abuse via app owner revenue share
+    if (appContext?.appOwnerId === referredUserId) {
+      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
     }
 
     // Get referrer's organization to credit them

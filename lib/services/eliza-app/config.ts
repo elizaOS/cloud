@@ -13,9 +13,12 @@ function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
   if (fallback !== undefined && !isProduction) return fallback;
+  // Always throw in production for required vars
   if (isProduction) {
     throw new Error(`Required env var ${name} is not set in production`);
   }
+  console.warn(`Missing env var ${name}, using fallback`);
+  if (fallback !== undefined) return fallback;
   throw new Error(`Required env var ${name} is not set`);
 }
 
@@ -61,10 +64,24 @@ export const elizaAppConfig = {
   },
 } as const;
 
-// In production, only JWT is required for the app to boot/build. Telegram, Discord, and Blooio
-// vars are optional; routes that use them will fail at runtime if not set.
+// Validate all required environment variables in production
 if (isProduction) {
+  // JWT is required for the core app to function
   if (!process.env.ELIZA_APP_JWT_SECRET) {
     throw new Error("Required env var ELIZA_APP_JWT_SECRET is not set in production");
+  }
+  
+  // Validate channel-specific required vars if they're enabled
+  if (process.env.ELIZA_APP_TELEGRAM_ENABLED === "true" && !process.env.ELIZA_APP_TELEGRAM_BOT_TOKEN) {
+    throw new Error("Telegram is enabled but ELIZA_APP_TELEGRAM_BOT_TOKEN is not set in production");
+  }
+  if (process.env.ELIZA_APP_BLOOIO_ENABLED === "true" && !process.env.ELIZA_APP_BLOOIO_API_KEY) {
+    throw new Error("Blooio is enabled but ELIZA_APP_BLOOIO_API_KEY is not set in production");
+  }
+  if (process.env.ELIZA_APP_DISCORD_ENABLED === "true" && 
+      (!process.env.ELIZA_APP_DISCORD_BOT_TOKEN || 
+       !process.env.ELIZA_APP_DISCORD_APPLICATION_ID || 
+       !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET)) {
+    throw new Error("Discord is enabled but required Discord env vars are not set in production");
   }
 }
