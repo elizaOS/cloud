@@ -52,11 +52,16 @@ export async function POST(request: NextRequest) {
             error: errorMessage,
         });
 
-        if (errorMessage.includes("not found") || errorMessage.includes("invalid")) {
-            return NextResponse.json(
-                { error: errorMessage },
-                { status: 404, headers: corsHeaders }
-            );
+        // Check for specific error types from service
+        if (error instanceof Error) {
+            // Standard error codes that match repository-level errors
+            if (error.message === affiliatesService.ERRORS.INVALID_CODE || 
+                error.message === affiliatesService.ERRORS.CODE_NOT_FOUND) {
+                return NextResponse.json(
+                    { error: error.message },
+                    { status: 404, headers: corsHeaders }
+                );
+            }
         }
 
         return NextResponse.json(
