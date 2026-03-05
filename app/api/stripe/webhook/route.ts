@@ -324,6 +324,14 @@ async function handleStripeWebhook(req: NextRequest) {
                       sourceId: `${paymentIntentId}:${split.userId}`,
                       retryable: true,
                     });
+                    // Emit metric for failed revenue split for monitoring/alerting
+                    trackServerEvent(userId, "revenue_split_failed", {
+                      payment_intent_id: paymentIntentId,
+                      split_user_id: split.userId,
+                      split_role: split.role,
+                      split_amount: split.amount,
+                      error: splitError instanceof Error ? splitError.message : String(splitError)
+                    });
                   }
                 }
               }
