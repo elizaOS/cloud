@@ -8,6 +8,7 @@ const AMOUNT = 50;
 const handler = createTopupHandler({
   amount: AMOUNT,
   getSourceId: (walletAddress: string, paymentId: string) => {
+    // Note: Ensuring idempotent source ID
     return crypto.createHash("sha256")
       .update(`${walletAddress}-${AMOUNT}-${paymentId}`)
       .digest("hex");
