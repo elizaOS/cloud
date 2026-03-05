@@ -18,6 +18,7 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * GET /api/v1/affiliates
  * Retrieves the current user's affiliate code if it exists.
+ * Returns { code: null } if no code exists — use PUT to create one.
  */
 export async function GET(request: NextRequest) {
     const origin = request.headers.get("origin");
@@ -25,10 +26,10 @@ export async function GET(request: NextRequest) {
 
     try {
         const { user } = await requireAuthOrApiKeyWithOrg(request);
-        const code = await affiliatesService.getOrCreateAffiliateCode(user.id);
+        const code = await affiliatesService.getAffiliateCode(user.id);
 
         return NextResponse.json(
-            { code },
+            { code: code ?? null },
             { headers: corsHeaders }
         );
     } catch (error) {
