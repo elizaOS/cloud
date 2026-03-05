@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withInternalAuth } from "@/lib/auth/internal-api";
 import { withCache } from "@/lib/cache/service-cache";
-import { telegramAutomationService } from "@/lib/services/telegram-automation";
-import { blooioAutomationService } from "@/lib/services/blooio-automation";
-import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { secretsService } from "@/lib/services/secrets";
 import { charactersService } from "@/lib/services/characters/characters";
-import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -20,69 +16,6 @@ const SUPPORTED_PLATFORMS = [
 type Platform = (typeof SUPPORTED_PLATFORMS)[number];
 
 const CACHE_TTL_SECONDS = 300;
-
-// ── Per-org config (legacy: org-scoped automation services) ──────────────
-
-async function fetchOrgTelegramConfig(orgId: string) {
-  const [botToken, webhookSecret] = await Promise.all([
-    telegramAutomationService.getBotToken(orgId),
-    telegramAutomationService.getWebhookSecret(orgId),
-  ]);
-  if (!botToken) return null;
-  return {
-    agentId: elizaAppConfig.defaultAgentId,
-    orgId,
-    botToken,
-    webhookSecret,
-  };
-}
-
-async function fetchOrgBlooioConfig(orgId: string) {
-  const [apiKey, webhookSecret, fromNumber] = await Promise.all([
-    blooioAutomationService.getApiKey(orgId),
-    blooioAutomationService.getWebhookSecret(orgId),
-    blooioAutomationService.getFromNumber(orgId),
-  ]);
-  if (!apiKey) return null;
-  return {
-    agentId: elizaAppConfig.defaultAgentId,
-    orgId,
-    apiKey,
-    blooioWebhookSecret: webhookSecret,
-    fromNumber,
-  };
-}
-
-async function fetchOrgTwilioConfig(orgId: string) {
-  const [accountSid, authToken, phoneNumber] = await Promise.all([
-    twilioAutomationService.getAccountSid(orgId),
-    twilioAutomationService.getAuthToken(orgId),
-    twilioAutomationService.getPhoneNumber(orgId),
-  ]);
-  if (!accountSid || !authToken) return null;
-  return {
-    agentId: elizaAppConfig.defaultAgentId,
-    orgId,
-    accountSid,
-    authToken,
-    phoneNumber,
-  };
-}
-
-async function fetchOrgConfig(platform: Platform, orgId: string) {
-  switch (platform) {
-    case "telegram":
-      return fetchOrgTelegramConfig(orgId);
-    case "blooio":
-      return fetchOrgBlooioConfig(orgId);
-    case "twilio":
-      return fetchOrgTwilioConfig(orgId);
-    case "whatsapp":
-      return null;
-  }
-}
-
-// ── Per-agent config (secrets table with project_id = agentId) ───────────
 
 async function resolveAgentOrg(agentId: string): Promise<string | null> {
   const character = await charactersService.getById(agentId);
@@ -160,17 +93,14 @@ async function fetchAgentConfig(
   }
 }
 
-// ── Handler ──────────────────────────────────────────────────────────────
-
 export const GET = withInternalAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
-  const orgId = searchParams.get("orgId");
   const agentId = searchParams.get("agentId");
   const platform = searchParams.get("platform");
 
-  if ((!orgId && !agentId) || !platform) {
+  if (!agentId || !platform) {
     return NextResponse.json(
-      { error: "platform required, plus either orgId or agentId" },
+      { error: "agentId and platform required" },
       { status: 400 },
     );
   }
@@ -182,14 +112,10 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
     );
   }
 
-  const cacheKey = agentId
-    ? `webhook-config:${platform}:agent:${agentId}`
-    : `webhook-config:${platform}:org:${orgId}`;
+  const cacheKey = `webhook-config:${platform}:agent:${agentId}`;
 
   const config = await withCache(cacheKey, CACHE_TTL_SECONDS, () =>
-    agentId
-      ? fetchAgentConfig(platform as Platform, agentId)
-      : fetchOrgConfig(platform as Platform, orgId!),
+    fetchAgentConfig(platform as Platform, agentId),
   );
 
   if (!config) {
