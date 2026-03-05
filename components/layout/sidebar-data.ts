@@ -161,7 +161,7 @@ export const sidebarSections: SidebarSection[] = [
         id: "affiliates",
         label: "Affiliates",
         href: "/dashboard/affiliates",
-        icon: UserCog, // Or maybe Users? We already imported UserCog
+        icon: UserCog,
         freeAllowed: false,
       },
       {
