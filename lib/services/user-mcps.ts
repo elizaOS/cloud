@@ -409,7 +409,7 @@ class UserMcpsService {
       }
     }
 
-    const totalCreditsToDeduct = creditsCharged + affiliateFeeCredits + platformFeeCredits;
+    const totalCreditsToDeduct = creditsCharged + platformFeeCredits; // Affiliate markup was removed for fair user pricing
 
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
