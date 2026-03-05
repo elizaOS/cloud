@@ -8,7 +8,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 export async function OPTIONS(request: NextRequest) {
-    const origin = request.headers.get("origin");
+  const origin = request.headers.get("origin");
   return new NextResponse(null, {
     status: 204,
     headers: getCorsHeaders(origin),
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 const MarkupSchema = z.object({
-  markupPercent: z.number().min(0).max(1000),
+  markupPercent: z.number().min(0).max(200), // Capped at 200% to prevent excessive markups
 });
 
 /**
@@ -58,12 +58,12 @@ const MarkupSchema = z.object({
  */
 export async function PUT(request: NextRequest) {
     const origin = request.headers.get("origin");
-    const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin);
 
-    try {
-        const { user } = await requireAuthOrApiKeyWithOrg(request);
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-        const body = await request.json();
+    const body = await request.json();
         const validation = MarkupSchema.safeParse(body);
         if (!validation.success) {
             return NextResponse.json(
