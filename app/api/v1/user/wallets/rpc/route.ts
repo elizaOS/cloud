@@ -12,6 +12,8 @@ const rpcPayloadSchema = z.object({
         params: z.array(z.any()),
     }),
     signature: z.string().startsWith("0x"),
+    timestamp: z.number().int().positive(),
+    nonce: z.string().min(1)
 });
 
 async function handlePOST(request: NextRequest) {
