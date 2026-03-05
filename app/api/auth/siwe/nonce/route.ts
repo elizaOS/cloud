@@ -34,6 +34,10 @@ async function handler(request: NextRequest) {
     chainId: Number.isNaN(chainId) ? 1 : chainId,
     version: "1",
     statement: "Sign in to Eliza Cloud",
+  }, {
+    headers: {
+      "Cache-Control": "no-store",
+    },
   });
 }
 
