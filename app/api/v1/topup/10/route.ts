@@ -1,3 +1,4 @@
+```
 import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
@@ -11,7 +12,6 @@ import crypto from "crypto";
 const ALLOWED_AMOUNTS = [10, 50, 100];
 
 async function handler(req: NextRequest): Promise<any> {
-    // Extract amount from dynamic route segment
     const amount = Number(req.url.split('/').pop()) || 10;
 
     if (!ALLOWED_AMOUNTS.includes(amount)) {
@@ -78,7 +78,7 @@ async function handler(req: NextRequest): Promise<any> {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    const sourceId = crypto.createHash('sha256').update(`${walletAddress}-${amount}-${Date.now()}`).digest('hex');
+                    const sourceId = crypto.createHash('sha256').update(`${walletAddress}-${amount}`).digest('hex');
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
@@ -120,9 +120,9 @@ export const POST = withX402(
     handler,
     payTo as `0x${string}`,
     {
-        price: "$10.00",
+        price: price => `$${price.toFixed(2)}`,
         network: (process.env.X402_NETWORK || "base-sepolia") as any,
-        config: { description: "Topup $10 credits for Eliza Cloud" }
+        config: { description: price => `Topup $${price.toFixed(2)} credits for Eliza Cloud` }
     }
 );
-
+```
