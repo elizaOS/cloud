@@ -1,4 +1,3 @@
-```
 import { organizations } from "@/db/schemas/organizations";
 import { usersRepository } from "@/db/repositories";
 import { emailService } from "./email";
@@ -46,7 +45,7 @@ export class AutoTopUpService {
   }
 
   async executeAutoTopUp(org: any): Promise<any> {
-    // Note: Removed incomplete work-in-progress section
+    const organizationId = org.id;
 
     let trackingId = null;
     try {
@@ -98,4 +97,3 @@ export class AutoTopUpService {
 }
 
 export const autoTopUpService = new AutoTopUpService();
-```
