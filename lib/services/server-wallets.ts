@@ -3,6 +3,7 @@ import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { eq } from "drizzle-orm";
 import { getPrivyClient } from "@/lib/auth/privy-client";
 import { verifyMessage } from "viem";
+import { cache } from "@/lib/cache/client";
 
 export interface ProvisionWalletParams {
     organizationId: string;
@@ -67,6 +68,8 @@ export async function getOrganizationIdForClientAddress(clientAddress: string): 
 export interface RpcPayload {
     method: string;
     params: unknown[];
+    timestamp: number; // Timestamp when request was initiated
+    nonce: string; // Unique nonce for replay protection
 }
 
 export interface ExecuteParams {
@@ -80,7 +83,20 @@ export async function executeServerWalletRpc({
     payload,
     signature,
 }: ExecuteParams) {
-    // 1. Verify the signature from the local agent
+    // Validate timestamp freshness (5 minute window)
+    const now = Date.now();
+    if (!payload.timestamp || now - payload.timestamp > 5 * 60 * 1000) {
+        throw new Error("RPC request expired: Timestamp must be within the last 5 minutes");
+    }
+
+    // Atomically check and consume the nonce
+    const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
+    const nonceSet = await cache.setNX(nonceKey, '1', 24 * 60 * 60); // 24hr TTL
+    if (!nonceSet) {
+        throw new Error("RPC nonce already used: Request appears to be a replay attack");
+    }
+
+    // 1. Verify the signature from the local agent  
     const isValid = await verifyMessage({
         address: clientAddress as `0x${string}`,
         message: JSON.stringify(payload),
