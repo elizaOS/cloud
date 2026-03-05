@@ -62,10 +62,17 @@ async function handler(request: NextRequest) {
 
   // Only deactivate previous SIWE-generated keys, not all user keys
   await apiKeysService.deactivateUserKeysByName(user.id, "SIWE sign-in");
-  
+
+  if (!user.organization_id) {
+    return NextResponse.json(
+      { error: "User organization ID is null" },
+      { status: 500 }
+    );
+  }
+
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
-    organization_id: user.organization_id!,
+    organization_id: user.organization_id,
     name: "SIWE sign-in", 
     is_active: true,
   });
