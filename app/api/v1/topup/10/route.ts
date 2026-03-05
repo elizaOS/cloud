@@ -6,11 +6,13 @@ import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
 import { isAddress } from "viem";
+import crypto from "crypto";
 
 const ALLOWED_AMOUNTS = [10, 50, 100];
 
 async function handler(req: NextRequest): Promise<any> {
-    const amount = 10; // Hard-coded amount for this specific route
+    // Extract amount from dynamic route segment
+    const amount = Number(req.url.split('/').pop()) || 10;
 
     if (!ALLOWED_AMOUNTS.includes(amount)) {
         return NextResponse.json(
@@ -76,13 +78,14 @@ async function handler(req: NextRequest): Promise<any> {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                    const sourceId = crypto.createHash('sha256').update(`${walletAddress}-${amount}-${Date.now()}`).digest('hex');
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
                         amount: split.amount,
                         source: source,
-            sourceId: `x402_crypto_split_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
+                        sourceId: `x402_crypto_split_${sourceId}`,
+                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
                         metadata: {
                             buyer_user_id: user.id,
                             buyer_org_id: organizationId,
@@ -122,3 +125,4 @@ export const POST = withX402(
         config: { description: "Topup $10 credits for Eliza Cloud" }
     }
 );
+
