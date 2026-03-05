@@ -3,6 +3,20 @@ import type { AffiliateCode, UserAffiliate } from "@/db/schemas/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
 
+// Error codes for consistent error handling
+export const ERRORS = {
+    INVALID_CODE: "Invalid affiliate code",
+    CODE_NOT_FOUND: "Affiliate code not found",
+    ALREADY_LINKED: "User is already linked to an affiliate",
+    SELF_REFERRAL: "Users cannot refer themselves"
+} as const;
+
+function isPgUniqueViolation(error: { code?: string; message?: string }): boolean {
+    return error?.code === "23505" || 
+           error?.message?.includes("unique") || 
+           error?.message?.includes("duplicate");
+}
+
 /**
  * Affiliate (revenue-share) service. WHY separate from referrals: Referrals split
  * purchase revenue (50/40/10) at signup attribution; affiliates get a markup added
@@ -43,10 +57,11 @@ export class AffiliatesService {
 
             logger.info("[Affiliates] Created new affiliate code", { userId, code });
             return newCode;
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const pgError = error as { code?: string; message?: string };
             // Handle race condition: if another request created the code concurrently,
             // fetch and return the existing one instead of failing
-            if (error?.code === "23505" || error?.message?.includes("unique") || error?.message?.includes("duplicate")) {
+            if (isPgUniqueViolation(pgError)) {
                 const existingAfterRace = await affiliatesRepository.getAffiliateCodeByUserId(userId);
                 if (existingAfterRace) {
                     logger.info("[Affiliates] Resolved race condition, returning existing code", { userId });
