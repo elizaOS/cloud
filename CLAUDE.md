@@ -59,3 +59,4 @@ db/
 components/    # React components
 scripts/       # CLI utilities
 ```
+

@@ -36,7 +36,7 @@ Redeem endpoint uses **CRITICAL** preset (e.g. 5 requests per 5 minutes in prod)
   - `401`: Not authenticated or no org.
 
 All responses include no-cache headers.
-All responses include no-cache headers so the GET isn’t cached or prefetched.
+All responses include no-cache headers so the POST isn’t cached or prefetched.
 
 ## Security and limits
 

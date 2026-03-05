@@ -1132,7 +1132,7 @@ See [docs/referrals.md](./docs/referrals.md) for flow, API, and revenue math; [d
 #### Signup codes
 
 - **What**: One-time bonus credits per organization, e.g. `launch50` → $50. Codes are defined in the `SIGNUP_CODES_JSON` env var (JSON object); if unset, defaults to `{}` (no codes). **Why env var:** So each environment (staging, prod) can have its own codes without committing them; no config file in the repo.
-- **Where**: Redeem via `GET /api/signup-code/redeem?code=...` (session auth only) or during **Discord/Telegram** signup by passing `signup_code` in the auth body. **Why one per org:** Prevents abuse (one shared code = one bonus per org) and keeps "welcome bonus" semantics.
+- **Where**: Redeem via `POST /api/signup-code/redeem` (session auth only) or during **Discord/Telegram** signup by passing `signup_code` in the auth body. **Why one per org:** Prevents abuse (one shared code = one bonus per org) and keeps "welcome bonus" semantics.
 - **Distinct from referrals:** Referrals split **revenue** on purchases (50/40/10). Signup codes are flat **campaign bonuses**; an org can use both. See [docs/signup-codes.md](./docs/signup-codes.md) for API, security (rate limit CRITICAL, no-cache, two-layer one-per-org), and WHYs.
 
 #### Wallet API (SIWE + wallet header auth)

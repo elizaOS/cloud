@@ -52,11 +52,17 @@ export async function POST(request: NextRequest) {
             error: errorMessage,
         });
 
+        // Local error constants to avoid dependency on service-level static properties
+        const AFFILIATE_ERRORS = {
+            INVALID_CODE: "Invalid affiliate code",
+            CODE_NOT_FOUND: "Affiliate code not found"
+        };
+        
         // Check for specific error types from service
         if (error instanceof Error) {
             // Standard error codes that match repository-level errors
-            if (error.message === affiliatesService.ERRORS.INVALID_CODE || 
-                error.message === affiliatesService.ERRORS.CODE_NOT_FOUND) {
+            if (error.message === AFFILIATE_ERRORS.INVALID_CODE || 
+                error.message === AFFILIATE_ERRORS.CODE_NOT_FOUND) {
                 return NextResponse.json(
                     { error: error.message },
                     { status: 404, headers: corsHeaders }

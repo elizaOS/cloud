@@ -1,5 +1,6 @@
 ```typescript
 // @ts-nocheck — MCP tool types cause exponential type inference
+// Note: Wallet auth fails on partial headers to prevent replay attacks
 /**
  * GitHub MCP Server - Repos, Issues, PRs
  *
