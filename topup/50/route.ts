@@ -2,7 +2,10 @@ import { withX402, type RouteConfig } from "x402-next";
 import { createTopupHandler, getPayToAddress, createWrappedHandler, getNetwork } from "@/lib/services/topup-handler";
 
 const AMOUNT = 50;
-const handler = createTopupHandler({ amount: AMOUNT });
+const handler = createTopupHandler({
+  amount: AMOUNT,
+  getSourceId: (walletAddress, paymentId) => sha256(`${walletAddress}-${AMOUNT}-${paymentId}`)
+});
 const payTo = getPayToAddress();
 const wrappedHandler = createWrappedHandler(handler, payTo);
 const network = getNetwork() as RouteConfig["network"];
