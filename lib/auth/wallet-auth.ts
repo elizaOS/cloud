@@ -43,15 +43,10 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     if (!cache.isAvailable()) {
         throw new Error("Service temporarily unavailable");
     }
-    
-    // Note: Use SET NX (set-if-not-exists) to atomically check and mark nonce as used, preventing TOCTOU race
-    const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-    if (!wasSet) {
-        throw new Error("Signature has already been used");
-    }
 
     const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
 
+    // Note: Verify signature BEFORE consuming nonce to prevent attackers from burning valid nonces with invalid signatures
     const isValid = await verifyMessage({
         address: walletAddress as `0x${string}`,
         message,
@@ -61,8 +56,13 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     if (!isValid) {
         throw new Error("Invalid wallet signature");
     }
-
-    // Note: Nonce is already atomically marked as used via setNX above
+    
+    // Note: Use SET NX (set-if-not-exists) to atomically check and mark nonce as used, preventing TOCTOU race
+    // Placed after signature verification so invalid signatures don't burn valid nonces
+    const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+    if (!wasSet) {
+        throw new Error("Signature has already been used");
+    }
 
     const { user } = await findOrCreateUserByWalletAddress(walletAddress);
 
