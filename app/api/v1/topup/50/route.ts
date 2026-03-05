@@ -1,16 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
 import { withX402, type RouteConfig } from "x402-next";
-import { organizationsService } from "@/lib/services/organizations";
-import { getTopupRecipient } from "@/lib/services/topup";
-import { referralsService } from "@/lib/services/referrals";
-import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
-import { logger } from "@/lib/utils/logger";
-import { isAddress } from "viem";
-import crypto from "crypto";
+import { createTopupHandler, getPayToAddress, createWrappedHandler, getNetwork } from "@/lib/services/topup-handler";
 
 const AMOUNT = 50;
+const handler = createTopupHandler({ amount: AMOUNT });
+const payTo = getPayToAddress();
+const wrappedHandler = createWrappedHandler(handler, payTo);
+const network = getNetwork() as RouteConfig["network"];
 
-async function handler(req: NextRequest): Promise<NextResponse> {
+const routeConfig: RouteConfig = {
+    price: `$${AMOUNT}.00`,
+    network,
+    config: { description: `Topup $${AMOUNT} credits for Eliza Cloud` },
+};
+
+export const POST = withX402(wrappedHandler, payTo, routeConfig);
     try {
         const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
         if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
@@ -59,7 +62,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}`).digest("hex");
+                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}-${Date.now()}-${crypto.randomUUID()}`).digest("hex");
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
