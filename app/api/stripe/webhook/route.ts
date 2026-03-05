@@ -111,9 +111,6 @@ async function handleStripeWebhook(req: NextRequest) {
           const isAppPurchase =
             purchaseSource === "miniapp_app" && appId && userId;
 
-          // Track the payment intent ID to ensure idempotency on webhook retries
-          const revenueSourceId = `${paymentIntentId}:${userId}`;
-
           if (!organizationId || !credits) {
             logger.warn(
               `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
@@ -318,11 +315,14 @@ async function handleStripeWebhook(req: NextRequest) {
                     });
                     logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
                   } catch (splitError) {
-                    // Log error but continue processing other splits
-                    logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId})`, {
+                    // Note: Failed splits are logged for manual reconciliation; addEarnings uses sourceId
+                    // for idempotency so retrying the webhook will safely re-attempt failed splits
+                    logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`, {
                       error: splitError instanceof Error ? splitError.message : String(splitError),
                       amount: split.amount,
                       paymentIntentId,
+                      sourceId: `${paymentIntentId}:${split.userId}`,
+                      retryable: true,
                     });
                   }
                 }
