@@ -1,1 +1,3 @@
-// File intentionally empty - removing as it was mistakenly committed
+export const helloWorld = () => {
+    return "Hello, World!";
+};
