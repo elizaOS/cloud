@@ -4,7 +4,7 @@ One-time bonus credits for new or existing organizations, loaded from env. Usabl
 
 ## Why signup codes?
 
-- **Marketing and ads**: Campaigns need a single shareable link (e.g. `yourapp.com/api/signup-code/redeem?code=launch50`) that grants extra credits. **Why:** Lets marketing/partners drive signups without code changes; amounts are controlled per environment via env var.
+- **Marketing and ads**: Campaigns need a single shareable form page (e.g. `yourapp.com/signup-codes`) where users can enter promotional codes for extra credits. **Why:** Lets marketing/partners drive signups without code changes; amounts are controlled per environment via env var.
 - **One per org**: Each organization may redeem at most one signup code ever. This keeps abuse low and makes “welcome bonus” semantics clear.
 - **Distinct from referral codes**: Referral codes link user-to-user and trigger 50/40/10 revenue splits on **purchases**. Signup codes are flat **campaign bonuses** (no revenue split); an org can use both. See [referrals.md](./referrals.md#signup-codes-vs-referrals-when-signup-codes-exist).
 
@@ -25,9 +25,9 @@ Redeem endpoint uses **CRITICAL** preset (e.g. 5 requests per 5 minutes in prod)
 
 ## API
 
-### GET /api/signup-code/redeem
+### POST /api/signup-code/redeem
 
-- **Query**: `code` (required) — signup code.
+- **Body**: `{ code: string }` — signup code.
 - **Auth**: Session required (`requireAuthWithOrg`). No API key.
 - **Responses**:
   - `200`: `{ success: true, bonus: number, message: string }`
@@ -35,6 +35,7 @@ Redeem endpoint uses **CRITICAL** preset (e.g. 5 requests per 5 minutes in prod)
   - `409`: Org has already used a signup code.
   - `401`: Not authenticated or no org.
 
+All responses include no-cache headers.
 All responses include no-cache headers so the GET isn’t cached or prefetched.
 
 ## Security and limits
