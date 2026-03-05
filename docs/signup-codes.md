@@ -42,7 +42,7 @@ All responses include no-cache headers so the POST isn’t cached or prefetched.
 
 - **Rate limit**: CRITICAL preset on the redeem endpoint. **Why:** Limits credit-grant abuse and brute-force.
 - **One per org**: Application check (`hasSignupCodeBonus` on primary DB) plus DB partial unique index on `credit_transactions(organization_id)` WHERE `type = 'credit'` AND `metadata->>'type' = 'signup_code_bonus'`. **Why:** Two layers so a race (two concurrent redeems for same org) still only grants one bonus; the second insert fails on the unique index.
-- **Session-only redeem**: GET redeem requires session auth, not API key. **Why:** Redemption is a one-time user action from a browser; API keys would allow scripts to burn codes.
+- **Session-only redeem**: POST redeem requires session auth, not API key. **Why:** Redemption is a one-time user action from a browser; API keys would allow scripts to burn codes.
 - **No-cache headers**: All redeem responses send no-store/no-cache. **Why:** Prevents CDNs or browsers from caching success and hiding 409 (already used).
 - **Codes**: From env only; redacted in logs (e.g. `la***`). **Why:** Avoid logging raw codes in case logs are exposed.
 
