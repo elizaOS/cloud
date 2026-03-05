@@ -1,6 +1,6 @@
-```
+```typescript
 import { NextRequest } from "next/server";
-import { verifyMessage } from "viem";
+import { verifyMessage, getAddress } from "viem";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
@@ -11,11 +11,11 @@ const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
 export async function verifyWalletSignature(
   request: NextRequest
 ): Promise<UserWithOrganization | null> {
-  const walletAddress = request.headers.get("X-Wallet-Address");
+  const rawWalletAddress = request.headers.get("X-Wallet-Address");
   const timestampStr = request.headers.get("X-Timestamp");
   const signature = request.headers.get("X-Wallet-Signature");
 
-  if (!walletAddress || !timestampStr || !signature) {
+  if (!rawWalletAddress || !timestampStr || !signature) {
     return null;
   }
 
@@ -33,13 +33,14 @@ export async function verifyWalletSignature(
   // 2. Reconstruct the message
   const method = request.method;
   const path = request.nextUrl.pathname;
-  const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
+  const nonce = `${rawWalletAddress}-${timestamp}-${method}-${path}`;
   const message = `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`;
 
-  // 4. Verify Signature
+  // 3. Verify Signature
   try {
+    const normalizedWalletAddress = getAddress(rawWalletAddress);
     const isValid = await verifyMessage({
-      address: walletAddress as `0x${string}`,
+      address: normalizedWalletAddress as `0x${string}`,
       message,
       signature: signature as `0x${string}`,
     });
@@ -52,7 +53,7 @@ export async function verifyWalletSignature(
     throw new Error("Signature verification failed");
   }
 
-  // 3. Check Redis for nonce to prevent replay
+  // 4. Check Redis for nonce to prevent replay
   const nonceKey = `wallet-nonce:${nonce}`;
   const nonceExists = await redisCache.get(nonceKey);
   if (nonceExists) {
@@ -62,8 +63,8 @@ export async function verifyWalletSignature(
   // Set nonce with 5-min expiry matching timestamp window
   await redisCache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
 
-  // 4. Lookup User & Organization
-  const user = await usersService.getByWalletAddressWithOrganization(walletAddress);
+  // 5. Lookup User & Organization
+  const user = await usersService.getByWalletAddressWithOrganization(rawWalletAddress);
   if (!user) {
     throw new Error("User associated with wallet address not found");
   }
