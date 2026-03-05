@@ -1,4 +1,4 @@
-```
+```typescript
 import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
@@ -12,7 +12,8 @@ import crypto from "crypto";
 const ALLOWED_AMOUNTS = [10, 50, 100];
 
 async function handler(req: NextRequest): Promise<any> {
-    const amount = Number(req.url.split('/').pop()) || 10;
+    const pathSegments = req.nextUrl.pathname.split('/');
+    const amount = Number(pathSegments[pathSegments.length - 2]);
 
     if (!ALLOWED_AMOUNTS.includes(amount)) {
         return NextResponse.json(
