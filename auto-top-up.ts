@@ -1,5 +1,5 @@
+```
 import { organizations } from "@/db/schemas/organizations";
-import { eq, and, sql } from "drizzle-orm";
 import { usersRepository } from "@/db/repositories";
 import { emailService } from "./email";
 import { logger } from "@/lib/utils/logger";
@@ -48,7 +48,7 @@ export class AutoTopUpService {
   async executeAutoTopUp(org: any): Promise<any> {
     const organizationId = org.id;
 
-    let trackingId = `org:${organizationId}`;
+    let trackingId = null;
     try {
       const users = await usersRepository.listByOrganization(organizationId);
       const billingUser = org.billing_email
@@ -58,39 +58,38 @@ export class AutoTopUpService {
 
       if (!userId) {
         logger.warn("No user ID found for analytics");
+      } else {
+        trackingId = userId;
       }
-
-      trackingId = userId || `org:${organizationId}`;
     } catch (userLookupError) {
-      logger.warn(
-        `[AutoTopUp] Failed to fetch users for analytics, using org ID`,
-        {
-          organizationId,
-          error:
-            userLookupError instanceof Error
-              ? userLookupError.message
-              : "Unknown error",
-        }
+      logger.warn("[AutoTopUp] Failed to fetch users for analytics", {
+        organizationId,
+        error:
+          userLookupError instanceof Error
+            ? userLookupError.message
+            : "Unknown error",
+      });
+    }
+
+    if (!trackingId) {
+      logger.info(
+        `[AutoTopUp] Skipping tracking for org ${organizationId} as no user ID is available.`
       );
+      return { success: true };
     }
 
     const metadata: Record<string, string> = {
       organization_id: organizationId,
-      credits: "100.00", 
+      credits: "100.00",
       type: "auto_top_up",
+      user_id: trackingId,
     };
-
-    if (trackingId.startsWith("org:")) {
-      metadata.user_id = "";
-    } else {
-      metadata.user_id = trackingId;
-    }
 
     logger.info(`[AutoTopUp] Metadata prepared: ${JSON.stringify(metadata)}`);
 
     trackServerEvent(trackingId, "auto_topup_triggered", metadata);
 
-    // Following code for payment processing...
+    // Other processing...
 
     return {
       success: true,
@@ -99,4 +98,4 @@ export class AutoTopUpService {
 }
 
 export const autoTopUpService = new AutoTopUpService();
-
+```
