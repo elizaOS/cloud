@@ -37,8 +37,11 @@ npx drizzle-kit generate --custom --name=descriptive_name
 - No `CREATE INDEX CONCURRENTLY` (runs in transaction)
 - Use `IF NOT EXISTS` / `IF EXISTS` for creating tables
 - Never edit applied migrations
-- NEVER use omnibus migrations that recreate the full schema or existing objects - they will fail in production. Use small targeted migrations adding ONLY your new objects.
-  Create separate migrations for: 1) new schema objects, 2) data backfills, 3) cleanup/drops
+- NEVER use omnibus migrations that recreate the full schema or existing objects - they will fail in production by locking active tables. Instead:
+  1. Create small targeted migrations that ONLY add your new schema objects
+  2. Use separate migrations for data backfills
+  3. Put cleanup/drops in their own migration
+  4. Group related objects together but limit migrations to <100 lines
 - See `docs/database-migrations.md` for details
 
 ## Type Checking
