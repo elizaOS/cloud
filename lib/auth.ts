@@ -420,15 +420,10 @@ export async function requireAuthOrApiKey(
 
   if (hasWalletHeaders) {
     try {
+      // verifyWalletSignature returns UserWithOrganization or throws when headers are present
       const walletUser = await verifyWalletSignature(request);
-      if (!walletUser) {
-        // When wallet headers are present but verification returns null,
-        // this should be a terminal failure - not a silent fallthrough
-        logger.error("[AUTH] Wallet auth failed - headers present but verification returned null");
-        throw new Error("Invalid wallet signature");
-      }
       return {
-        user: walletUser,
+        user: walletUser!,
         authMethod: "wallet_signature",
       };
     } catch (e) {
