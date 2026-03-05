@@ -34,14 +34,30 @@ export class AffiliatesService {
 
         const code = `AFF-${nanoid(8).toUpperCase()}`;
 
-        const newCode = await affiliatesRepository.createAffiliateCode({
-            user_id: userId,
-            code,
-            markup_percent: markup.toFixed(2),
-        });
+        try {
+            const newCode = await affiliatesRepository.createAffiliateCode({
+                user_id: userId,
+                code,
+                markup_percent: markup.toFixed(2),
+            });
 
-        logger.info("[Affiliates] Created new affiliate code", { userId, code });
-        return newCode;
+            logger.info("[Affiliates] Created new affiliate code", { userId, code });
+            return newCode;
+        } catch (error: any) {
+            // Handle race condition: if another request created the code concurrently,
+            // fetch and return the existing one instead of failing
+            if (error?.code === "23505" || error?.message?.includes("unique") || error?.message?.includes("duplicate")) {
+                const existingAfterRace = await affiliatesRepository.getAffiliateCodeByUserId(userId);
+                if (existingAfterRace) {
+                    logger.info("[Affiliates] Resolved race condition, returning existing code", { userId });
+                    if (markupPercent !== undefined && Number(existingAfterRace.markup_percent) !== markupPercent) {
+                        return this.updateMarkup(userId, markupPercent);
+                    }
+                    return existingAfterRace;
+                }
+            }
+            throw error;
+        }
     }
 
     /**
@@ -58,7 +74,7 @@ export class AffiliatesService {
         }
 
         const updated = await affiliatesRepository.updateAffiliateCode(existing.id, {
-            markup_percent: markupPercent.toFixed(2) as any,
+            markup_percent: markupPercent.toFixed(2),
         });
 
         if (!updated) {
