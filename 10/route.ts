@@ -1,1 +1,1 @@
-// This file has been removed as it was mistakenly committed.
+// File intentionally empty - removing as it was mistakenly committed

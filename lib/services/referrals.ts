@@ -282,7 +282,7 @@ export class ReferralsService {
     const appOwnerAmount = purchaseAmount * APP_OWNER;
     const baseCreatorAmount = purchaseAmount * CREATOR;
 
-    const splits: Array<{ userId: string; role: "app_owner" | "creator" | "editor"; amount: number }> = [];
+    const splits: Array<{ userId: string; role: "app_owner" | "creator"; amount: number }> = [];
 
     if (signup.app_owner_id) {
       splits.push({
@@ -307,7 +307,7 @@ export class ReferralsService {
         });
         splits.push({
           userId: parentCode.user_id,
-          role: "editor",
+          role: "creator",
           amount: purchaseAmount * EDITOR_TIER,
         });
       } else {
