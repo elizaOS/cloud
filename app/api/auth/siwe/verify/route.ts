@@ -70,14 +70,6 @@ async function handler(request: NextRequest) {
   // Only deactivate previous SIWE-generated keys, not all user keys
   await apiKeysService.deactivateUserKeysByName(user.id, "SIWE sign-in");
 
-  if (!user.organization_id) {
-    // Return error if org creation failed instead of potential null reference
-    return NextResponse.json(
-      { error: "Organization creation failed - please try again" },
-      { status: 400 }
-    );
-  }
-
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id,
