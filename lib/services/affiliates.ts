@@ -32,12 +32,13 @@ export class AffiliatesService {
         userId: string,
         markupPercent?: number
     ): Promise<AffiliateCode> {
-        const existing = await affiliatesRepository.getAffiliateCodeByUserId(userId);
-        if (existing) {
-            if (markupPercent !== undefined && Number(existing.markup_percent) !== markupPercent) {
+        // First try to get existing code
+        let affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
+        if (affiliateCode) {
+            if (markupPercent !== undefined && Number(affiliateCode.markup_percent) !== markupPercent) {
                 return this.updateMarkup(userId, markupPercent);
             }
-            return existing;
+            return affiliateCode;
         }
 
         // WHY default 20%: Balances affiliate incentive with customer acceptance; can be overridden per code.
@@ -48,30 +49,30 @@ export class AffiliatesService {
 
         const code = `AFF-${nanoid(8).toUpperCase()}`;
 
-        try {
-            const newCode = await affiliatesRepository.createAffiliateCode({
-                user_id: userId,
-                code,
-                markup_percent: markup.toFixed(2),
-            });
+        // Try to insert, but if a concurrent insert happened, get the existing record
+        affiliateCode = await affiliatesRepository.createAffiliateCodeIfNotExists({
+            user_id: userId,
+            code,
+            markup_percent: markup.toFixed(2),
+        });
 
-            logger.info("[Affiliates] Created new affiliate code", { userId, code });
-            return newCode;
-        } catch (error: unknown) {
-            const pgError = error as { code?: string; message?: string };
-            // Handle race condition: if another request created the code concurrently,
-            // fetch and return the existing one instead of failing
-            if (isPgUniqueViolation(pgError)) {
-                const existingAfterRace = await affiliatesRepository.getAffiliateCodeByUserId(userId);
-                if (existingAfterRace) {
-                    logger.info("[Affiliates] Resolved race condition, returning existing code", { userId });
-                    if (markupPercent !== undefined && Number(existingAfterRace.markup_percent) !== markupPercent) {
-                        return this.updateMarkup(userId, markupPercent);
-                    }
-                    return existingAfterRace;
-                }
+        if (!affiliateCode) {
+            // Another request won the race, get the existing code
+            affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
+            if (!affiliateCode) {
+                throw new Error("Failed to create or retrieve affiliate code");
             }
-            throw error;
+            logger.info("[Affiliates] Using concurrently created affiliate code", { userId });
+        } else {
+            logger.info("[Affiliates] Created new affiliate code", { userId, code });
+        }
+
+        // Check if markup needs to be updated
+        if (markupPercent !== undefined && Number(affiliateCode.markup_percent) !== markupPercent) {
+            return this.updateMarkup(userId, markupPercent);
+        }
+        
+        return affiliateCode;
         }
     }
 
