@@ -1,8 +1,13 @@
+// DEPRECATED: This file is a stray artifact at repo root and should be deleted.
+// The actual auto-top-up service is at lib/services/auto-top-up.ts
+// This stub only does analytics tracking without crediting the organization.
+
 import { organizations } from "@/db/schemas/organizations";
 import { usersRepository } from "@/db/repositories";
 import { emailService } from "./email";
 import { logger } from "@/lib/utils/logger";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import type { Organization } from "@/db/schemas/organizations";
 
 /**
  * Constants for auto top-up validation
@@ -44,7 +49,7 @@ export class AutoTopUpService {
     }
   }
 
-  async executeAutoTopUp(org: any): Promise<any> {
+  async executeAutoTopUp(org: Organization): Promise<{ success: boolean }> {
     const organizationId = org.id;
 
     let trackingId = null;
