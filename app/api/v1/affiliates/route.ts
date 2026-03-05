@@ -78,8 +78,8 @@ export async function PUT(request: NextRequest) {
             { code },
             { headers: corsHeaders }
         );
-    } catch (error: any) {
-        if (error?.message?.includes("Unauthorized")) {
+    } catch (error) {
+        if (error instanceof Error && error.message.includes("Unauthorized")) {
             return NextResponse.json(
                 { error: "Unauthorized" },
                 { status: 401, headers: corsHeaders }
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
 
         logger.error("[Affiliates API] Error updating markup:", error);
         return NextResponse.json(
-            { error: error?.message || "Internal server error" },
+            { error: "Internal server error" },
             { status: 500, headers: corsHeaders }
         );
     }
