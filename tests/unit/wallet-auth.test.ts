@@ -11,10 +11,15 @@ mock.module("@/lib/services/wallet-signup", () => ({
     findOrCreateUserByWalletAddress: mockFindOrCreate,
 }));
 
+const mockCacheSetNX = mock(() => true);
+const mockCacheIsAvailable = mock(() => true);
+
 mock.module("@/lib/cache/client", () => ({
     cache: {
         get: mockCacheGet,
         set: mockCacheSet,
+        setNX: mockCacheSetNX,
+        isAvailable: mockCacheIsAvailable,
     },
 }));
 
