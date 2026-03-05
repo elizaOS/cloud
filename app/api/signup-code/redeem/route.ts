@@ -22,6 +22,7 @@ async function handleGET(request: NextRequest) {
   try {
     let user;
     try {
+      // Note: Intentionally using session-only auth (no request param) to prevent API key abuse for code redemption
       user = await requireAuthWithOrg();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
