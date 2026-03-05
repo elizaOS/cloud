@@ -26,12 +26,12 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
+import { createMcpHandler } from "@modelcontextprotocol/sdk/server/mcp.js";
+
 let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
 
 async function getGitHubMcpHandler() {
   if (mcpHandler) return mcpHandler;
-
-  const { createMcpHandler } = await import("mcp-handler");
   const { z } = await import("zod");
 
   async function getGitHubToken(organizationId: string): Promise<string> {
