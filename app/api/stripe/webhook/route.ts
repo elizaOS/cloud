@@ -304,7 +304,7 @@ async function handleStripeWebhook(req: NextRequest) {
                       userId: split.userId,
                       amount: split.amount,
                       source: source,
-                      sourceId: `${paymentIntentId}:${split.userId}`,
+                      sourceId: `revenue_split:${paymentIntentId}:${split.userId}`, // Include payment intent for uniqueness
                       description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
                       metadata: {
                         buyer_user_id: userId,

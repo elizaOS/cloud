@@ -20,27 +20,18 @@ export async function provisionServerWallet({
     clientAddress,
     chainType,
 }: ProvisionWalletParams) {
-    // First check if a wallet already exists for this client address
-    const existing = await db
-        .select()
-        .from(agentServerWallets)
-        .where(eq(agentServerWallets.client_address, clientAddress))
-        .limit(1);
-
-    if (existing.length > 0) {
-        throw new Error('Wallet already exists for this client address');
-    }
-
     const privy = getPrivyClient();
+    let wallet;
 
-    // Create a server wallet in Privy Wallet API
-    const wallet = await privy.walletApi.create({
-        chainType: chainType === "evm" ? "ethereum" : "solana",
-    });
+    try {
+        // Create a server wallet in Privy Wallet API
+        wallet = await privy.walletApi.create({
+            chainType: chainType === "evm" ? "ethereum" : "solana",
+        });
 
-    // Insert into our DB
-    const [record] = await db
-        .insert(agentServerWallets)
+        // Try to insert into our DB
+        const [record] = await db
+            .insert(agentServerWallets)
         .values({
             organization_id: organizationId,
             user_id: userId,
@@ -52,7 +43,21 @@ export async function provisionServerWallet({
         })
         .returning();
 
-    return record;
+        return record;
+    } catch (error: any) {
+        // If this was a unique constraint violation, another request beat us to it
+        if (error.code === '23505' || error.message?.includes('unique constraint')) {
+            // Clean up the orphaned Privy wallet since we couldn't record it
+            if (wallet?.id) {
+                await privy.walletApi.delete(wallet.id).catch(() => {
+                    // Best effort cleanup - log but continue if this fails
+                    console.error(`Failed to clean up orphaned Privy wallet ${wallet.id}`);
+                });
+            }
+            throw new Error('Wallet already exists for this client address');
+        }
+        throw error; // Re-throw any other errors
+    }
 }
 
 /** Returns the organization_id that owns the server wallet for this client address, or null if none. */

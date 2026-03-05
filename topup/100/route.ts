@@ -1,45 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-
-// Assume we have access to a function to obtain the transaction id
-// Placeholder function to obtain the transaction id
-function getX402TransactionId(req: NextRequest): string {
+import { withX402, type RouteConfig } from "x402-next";
+import crypto from "crypto";
+import { createTopupHandler, getPayToAddress, createWrappedHandler, getNetwork } from "@/lib/services/topup-handler";
   return "dummy-transaction-id"; // Replace with actual implementation
 }
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"; // Example zero address
-const REQUIRED_ENV_VAR = process.env.X402_RECIPIENT_ADDRESS; // Environment variable for recipient address
-
-// Check environment variable during request handling instead of initialization
-const validateEnvVar = () => {
-  if (!REQUIRED_ENV_VAR || REQUIRED_ENV_VAR === ZERO_ADDRESS) {
-    throw new Error("Environment variable 'X402_RECIPIENT_ADDRESS' is missing or set to zero address.");
+const AMOUNT = 100;
+const handler = createTopupHandler({
+  amount: AMOUNT,
+  getSourceId: (walletAddress: string, paymentId: string) => {
+    return crypto.createHash("sha256")
+      .update(`${walletAddress}-${AMOUNT}-${paymentId}`)
+      .digest("hex");
   }
+});
+  const payTo = getPayToAddress();
+const wrappedHandler = createWrappedHandler(handler, payTo);
+const network = getNetwork() as RouteConfig["network"];
+
+const routeConfig: RouteConfig = {
+  price: `$${AMOUNT}.00`,
+  network,
+  config: { description: `Topup $${AMOUNT} credits for Eliza Cloud` },
 };
 
-export async function handler(req: NextRequest): Promise<NextResponse> {
-  try {
-    validateEnvVar();
-    const authResult = await requireAuthOrApiKeyWithOrg(req);
-    
-    // Use transaction id from the request or a reliable source
-    const sourceId = await getX402TransactionId(req) + `-${Date.now()}`;
-
-    // Process top-up logic...
-    logger.info(`Processing topup with sourceId: ${sourceId}`);
-    // remaining implementation
-
-    return NextResponse.json({ success: true, message: "Successfully processed top-up" });
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`[Topup100] ${message}`);
-    return NextResponse.json({ error: "Failed to process top-up" }, {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-}
-
-export const POST = handler;
+export const POST = withX402(wrappedHandler, payTo, routeConfig);

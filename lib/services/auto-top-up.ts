@@ -249,7 +249,7 @@ export class AutoTopUpService {
 
     const metadata: Record<string, string> = {
       organization_id: organizationId,
-      credits: amount.toFixed(2),
+      credits: totalAmount.toFixed(2),
       type: "auto_top_up",
       total_charged: totalAmount.toFixed(2),
       fees_included: "true",
@@ -285,12 +285,12 @@ export class AutoTopUpService {
     );
 
     logger.info(
-      `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
-    );
+        `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
+      );
 
-    if (paymentIntent.status === "succeeded") {
-      const previousBalance = Number(org.credit_balance);
-      const newBalance = previousBalance + amount;
+      if (paymentIntent.status === "succeeded") {
+        const previousBalance = Number(org.credit_balance);
+        const newBalance = previousBalance + totalAmount;
 
       logger.info(
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,

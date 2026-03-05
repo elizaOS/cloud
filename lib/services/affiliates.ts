@@ -53,7 +53,7 @@ export class AffiliatesService {
         affiliateCode = await affiliatesRepository.createAffiliateCodeIfNotExists({
             user_id: userId,
             code,
-            markup_percent: markup.toFixed(2),
+            markup_percent: markup.toFixed(2) as string,
         });
 
         if (!affiliateCode) {
@@ -90,7 +90,7 @@ export class AffiliatesService {
         }
 
         const updated = await affiliatesRepository.updateAffiliateCode(existing.id, {
-            markup_percent: markupPercent.toFixed(2),
+            markup_percent: markupPercent.toFixed(2) as string,
         });
 
         if (!updated) {
