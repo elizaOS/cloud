@@ -37,6 +37,7 @@ npx drizzle-kit generate --custom --name=descriptive_name
 - No `CREATE INDEX CONCURRENTLY` (runs in transaction)
 - Use `IF NOT EXISTS` / `IF EXISTS` for creating tables
 - Never edit applied migrations
+- Avoid omnibus migrations that recreate the full schema — use targeted additive migrations for new objects only
 - See `docs/database-migrations.md` for details
 
 ## Type Checking
