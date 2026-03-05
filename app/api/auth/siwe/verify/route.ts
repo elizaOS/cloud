@@ -60,10 +60,13 @@ async function handler(request: NextRequest) {
 
   const { user, isNewAccount } = await findOrCreateUserByWalletAddress(address);
 
+  // Deactivate any previous SIWE keys before creating new one
+  await apiKeysService.deactivateUserKeys(user.id, "SIWE sign-in");
+  
   const { plainKey } = await apiKeysService.create({
     user_id: user.id,
     organization_id: user.organization_id!,
-    name: "SIWE sign-in",
+    name: "SIWE sign-in", 
     is_active: true,
   });
 
