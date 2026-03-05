@@ -113,7 +113,7 @@ async function handleStripeWebhook(req: NextRequest) {
             purchaseSource === "miniapp_app" && appId && userId;
 
           // Track the payment intent ID to ensure idempotency on webhook retries
-          const revenueSourceId = paymentIntentId;
+          const revenueSourceId = `${paymentIntentId}:${userId}`;
 
           if (!organizationId || !credits) {
             logger.warn(
@@ -295,18 +295,17 @@ async function handleStripeWebhook(req: NextRequest) {
                 const { redeemableEarningsService } = await import("@/lib/services/redeemable-earnings");
 
                 for (const split of splits) {
-                  if (split.amount <= 0) continue;
+                  if (split.amount <= 0 || split.role === "editor") continue; 
 
-                  const source = split.role === "app_owner" ? "app_owner_revenue_share"
-                    : split.role === "editor" ? "creator_revenue_share" // Map editor to creator until DB schema updated
+                  const source = split.role === "app_owner" ? "app_owner_revenue_share" 
                     : "creator_revenue_share";
 
                   await redeemableEarningsService.addEarnings({
                     userId: split.userId,
                     amount: split.amount,
                     source: source,
-                    sourceId: revenueSourceId,
-                    description: `${split.role === "app_owner" ? "App Owner" : split.role === "editor" ? "Editor" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                    sourceId: `${paymentIntentId}:${split.userId}`,
+                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / credits * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
                     metadata: {
                       buyer_user_id: userId,
                       buyer_org_id: organizationId,
@@ -716,3 +715,4 @@ export const POST = withRateLimit(
   handleStripeWebhook,
   RateLimitPresets.AGGRESSIVE,
 );
+
