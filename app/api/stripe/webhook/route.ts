@@ -332,6 +332,11 @@ async function handleStripeWebhook(req: NextRequest) {
                       split_amount: split.amount,
                       error: splitError instanceof Error ? splitError.message : String(splitError)
                     });
+                    // Return 500 to trigger Stripe's retry mechanism for failed splits
+                    return NextResponse.json(
+                      { error: "Failed to process revenue split", retryable: true },
+                      { status: 500 }
+                    );
                   }
                 }
               }
