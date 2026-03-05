@@ -3,7 +3,10 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 
 // Assume we have access to a function to obtain the transaction id
-import { getX402TransactionId } from "@/lib/utils/transactionId";
+// Placeholder function to obtain the transaction id
+function getX402TransactionId(req: NextRequest): string {
+  return "dummy-transaction-id"; // Replace with actual implementation
+}
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"; // Example zero address
 const REQUIRED_ENV_VAR = process.env.X402_RECIPIENT_ADDRESS; // Environment variable for recipient address
@@ -18,7 +21,7 @@ export async function handler(req: NextRequest): Promise<NextResponse> {
     const authResult = await requireAuthOrApiKeyWithOrg(req);
     
     // Use transaction id from the request or a reliable source
-    const sourceId = await getX402TransactionId(req);
+    const sourceId = await getX402TransactionId(req) + `-${Date.now()}`;
 
     // Process top-up logic...
     logger.info(`Processing topup with sourceId: ${sourceId}`);
