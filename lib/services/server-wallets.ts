@@ -24,7 +24,7 @@ export async function provisionWallet({
     const existing = await db
         .select()
         .from(agentServerWallets)
-        .where(sql`client_address = ${clientAddress}`)
+        .where(eq(agentServerWallets.client_address, clientAddress))
         .limit(1);
 
     if (existing.length > 0) {
