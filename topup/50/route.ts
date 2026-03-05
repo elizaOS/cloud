@@ -15,3 +15,5 @@ const routeConfig: RouteConfig = {
 
 export const POST = withX402(wrappedHandler, payTo, routeConfig);
 
+// Note: Removed duplicated POST export after refactoring to ensure unique declaration.
+
