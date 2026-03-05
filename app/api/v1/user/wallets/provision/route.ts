@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { provisionServerWallet } from "@/lib/services/server-wallets";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -20,8 +20,8 @@ const provisionWalletSchema = z
 
 async function handlePOST(request: NextRequest) {
     try {
-        // 1. Authenticate Request
-        const user = await requireAuth();
+        // 1. Authenticate Request (supports session, API key, and wallet signature)
+        const user = await requireAuthOrApiKey(request);
 
         // 2. Parse Body
         const body = await request.json();
