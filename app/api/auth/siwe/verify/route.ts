@@ -60,13 +60,21 @@ async function handler(request: NextRequest) {
 
   const { user, isNewAccount } = await findOrCreateUserByWalletAddress(address);
 
+  if (!user.organization_id) {
+    return NextResponse.json(
+      { error: "Organization creation failed - please try again" },
+      { status: 400 }
+    );
+  }
+
   // Only deactivate previous SIWE-generated keys, not all user keys
   await apiKeysService.deactivateUserKeysByName(user.id, "SIWE sign-in");
 
   if (!user.organization_id) {
+    // Return error if org creation failed instead of potential null reference
     return NextResponse.json(
-      { error: "User organization ID is null" },
-      { status: 500 }
+      { error: "Organization creation failed - please try again" },
+      { status: 400 }
     );
   }
 
