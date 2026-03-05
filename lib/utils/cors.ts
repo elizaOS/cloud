@@ -6,9 +6,10 @@ const ALLOWED_ORIGINS = [
 
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   // Only reflect origin if it's in the allowlist; otherwise use first allowed origin or reject
+  // Only set origin header for allowed origins, otherwise omit it entirely
   const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) 
     ? origin 
-    : ALLOWED_ORIGINS[0] || "";
+    : "null";  // Return null for non-allowed origins
   
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
