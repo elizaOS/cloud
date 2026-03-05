@@ -411,7 +411,9 @@ class UserMcpsService {
       }
     }
 
-    const totalCreditsToDeduct = creditsCharged + platformFeeCredits; // Affiliate markup was removed for fair user pricing
+    // Note: User pays base + platform fee only. Affiliate earns from platform's share (subsidized),
+    // not added to user's bill. This is intentional to keep user pricing competitive.
+    const totalCreditsToDeduct = creditsCharged + platformFeeCredits;
 
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
