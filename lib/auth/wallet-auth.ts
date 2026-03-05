@@ -81,4 +81,3 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
 
   return user;
 }
-
