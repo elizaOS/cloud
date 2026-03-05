@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -47,7 +48,7 @@ const timings: Record<string, number> = {};
 // ASSISTANT Mode with MCP Tests
 // ============================================================================
 
-describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -162,7 +163,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
 // ASSISTANT Mode with Web Search Tests
 // ============================================================================
 
-describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
   let localConnectionString: string;

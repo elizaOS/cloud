@@ -5,13 +5,22 @@ vi.mock("@/lib/auth/privy-client", () => ({
     getPrivyClient: vi.fn(),
 }));
 
+const mockSelectChain = vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+        }),
+    }),
+});
+
 vi.mock("@/db/client", () => ({
     db: {
+        select: mockSelectChain,
         insert: vi.fn(),
         query: {
             agentServerWallets: {
                 findFirst: vi.fn(),
-            }
+            },
         },
     },
 }));

@@ -31,6 +31,16 @@ mock.module("@/lib/utils/logger", () => ({
   },
 }));
 
+const mockDelPattern = mock(() => Promise.resolve());
+mock.module("@/lib/cache/client", () => ({
+  cache: {
+    delPattern: mockDelPattern,
+    del: () => Promise.resolve(),
+    get: () => Promise.resolve(null),
+    set: () => Promise.resolve(),
+  },
+}));
+
 // ─── Import after mocks ──────────────────────────────────────────────────────
 
 import { GET } from "@/app/api/cron/compute-metrics/route";

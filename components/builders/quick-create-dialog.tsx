@@ -243,7 +243,7 @@ export function QuickCreateDialog({
 
       setCreatedResult(result);
       setStep("success");
-      onCreated?.(result);
+      if (result) onCreated?.(result);
       toast.success(
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );

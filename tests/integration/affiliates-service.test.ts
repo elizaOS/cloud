@@ -59,7 +59,7 @@ async function cleanupFixtures() {
     }
 }
 
-describe("Affiliate System Services", () => {
+describe.skipIf(!process.env.DATABASE_URL)("Affiliate System Services", () => {
     beforeAll(async () => {
         const fixtures = await setupFixtures();
         userA = fixtures.userA;

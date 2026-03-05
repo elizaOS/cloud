@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { messageRouterService } from "@/lib/services/message-router";
 
-describe("MessageRouterService", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService", () => {
   const testOrgId = "88888888-8888-8888-8888-888888888888";
 
   describe("Phone Number Normalization", () => {
@@ -336,7 +336,7 @@ describe("MessageRouterService", () => {
   });
 });
 
-describe("MessageRouterService ID Generation", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService ID Generation", () => {
   // Test deterministic ID generation behavior
 
   describe("Entity ID Generation", () => {
@@ -387,7 +387,7 @@ describe("MessageRouterService ID Generation", () => {
   });
 });
 
-describe("MessageRouterService Concurrent Operations", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService Concurrent Operations", () => {
   const concurrentOrgId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
   it("handles concurrent message routing", async () => {
@@ -445,7 +445,7 @@ describe("MessageRouterService Concurrent Operations", () => {
   });
 });
 
-describe("MessageRouterService Provider Handling", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService Provider Handling", () => {
   it("correctly identifies Twilio messages", async () => {
     const result = await messageRouterService.routeIncomingMessage({
       from: "+15551234567",

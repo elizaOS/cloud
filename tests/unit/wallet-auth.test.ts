@@ -1,17 +1,26 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
-import { usersService } from "@/lib/services/users";
+import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import * as viem from "viem";
 
-// Mock dependencies
-mock.module("@/lib/services/users", () => ({
-    usersService: {
-        getByWalletAddressWithOrganization: mock(),
+const mockFindOrCreate = mock();
+const mockCacheGet = mock();
+const mockCacheSet = mock();
+
+mock.module("@/lib/services/wallet-signup", () => ({
+    findOrCreateUserByWalletAddress: mockFindOrCreate,
+}));
+
+mock.module("@/lib/cache/client", () => ({
+    cache: {
+        get: mockCacheGet,
+        set: mockCacheSet,
     },
 }));
 
 mock.module("viem", () => ({
     verifyMessage: mock(),
+    getAddress: (addr: string) => addr,
 }));
 
 describe("Wallet Authentication", () => {
@@ -32,11 +41,15 @@ describe("Wallet Authentication", () => {
             },
         };
 
-        (usersService.getByWalletAddressWithOrganization as any).mockResolvedValue({
-            id: "user-1",
-            wallet_address: mockWallet,
-            is_active: true,
-            organization: { is_active: true }
+        mockCacheGet.mockResolvedValue(null);
+        mockCacheSet.mockResolvedValue(undefined as never);
+        mockFindOrCreate.mockResolvedValue({
+            user: {
+                id: "user-1",
+                wallet_address: mockWallet,
+                is_active: true,
+                organization: { is_active: true },
+            },
         });
 
         (viem.verifyMessage as any).mockResolvedValue(true);
@@ -56,7 +69,7 @@ describe("Wallet Authentication", () => {
     it("should reject an expired timestamp", async () => {
         mockRequest.headers.get = mock((name: string) => {
             if (name === "X-Wallet-Address") return mockWallet;
-            if (name === "X-Timestamp") return (Date.now() - 10 * 60 * 1000).toString(); // 10 mins ago
+            if (name === "X-Timestamp") return (Date.now() - 10 * 60 * 1000).toString();
             if (name === "X-Wallet-Signature") return "0xmocksignature";
             return null;
         });
@@ -67,7 +80,7 @@ describe("Wallet Authentication", () => {
     it("should reject an invalid signature", async () => {
         (viem.verifyMessage as any).mockResolvedValue(false);
 
-        await expect(verifyWalletSignature(mockRequest)).rejects.toThrow("Signature verification failed");
+        await expect(verifyWalletSignature(mockRequest)).rejects.toThrow("Invalid wallet signature");
     });
 
     it("should return null if headers are missing", async () => {
@@ -77,27 +90,31 @@ describe("Wallet Authentication", () => {
         expect(result).toBeNull();
     });
 
-    it("should throw if user is not found", async () => {
-        (usersService.getByWalletAddressWithOrganization as any).mockResolvedValue(null);
+    it("should throw when findOrCreateUserByWalletAddress throws", async () => {
+        mockFindOrCreate.mockRejectedValueOnce(new Error("User associated with wallet address not found"));
 
         await expect(verifyWalletSignature(mockRequest)).rejects.toThrow("User associated with wallet address not found");
     });
 
     it("should throw if user or org is inactive", async () => {
-        (usersService.getByWalletAddressWithOrganization as any).mockResolvedValue({
-            id: "user-1",
-            wallet_address: mockWallet,
-            is_active: false,
-            organization: { is_active: true }
+        mockFindOrCreate.mockResolvedValueOnce({
+            user: {
+                id: "user-1",
+                wallet_address: mockWallet,
+                is_active: false,
+                organization: { is_active: true },
+            },
         });
 
         await expect(verifyWalletSignature(mockRequest)).rejects.toThrow("User account is inactive");
 
-        (usersService.getByWalletAddressWithOrganization as any).mockResolvedValue({
-            id: "user-1",
-            wallet_address: mockWallet,
-            is_active: true,
-            organization: { is_active: false }
+        mockFindOrCreate.mockResolvedValueOnce({
+            user: {
+                id: "user-1",
+                wallet_address: mockWallet,
+                is_active: true,
+                organization: { is_active: false },
+            },
         });
 
         await expect(verifyWalletSignature(mockRequest)).rejects.toThrow("Organization is inactive");

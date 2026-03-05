@@ -37,7 +37,7 @@ async function cleanupUser(id: string) {
     await dbWrite.delete(users).where(eq(users.id, id)).catch(() => { });
 }
 
-describe("Revenue Splits & Multi-Tier Referrals", () => {
+describe.skipIf(!process.env.DATABASE_URL)("Revenue Splits & Multi-Tier Referrals", () => {
     beforeAll(async () => {
         userA = await createUser("User A", `usera-${Date.now()}@test.com`);
         userB = await createUser("User B", `userb-${Date.now()}@test.com`);

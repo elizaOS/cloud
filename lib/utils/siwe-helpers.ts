@@ -39,6 +39,9 @@ export async function validateSIWEMessage(
   signature: `0x${string}`,
 ): Promise<{ address: string; parsed: SiweMessage }> {
   const parsed = parseSiweMessage(message);
+  if (!parsed.address) {
+    throw new Error("SIWE message missing address");
+  }
   const expectedHost = getAppHost();
   if (parsed.domain !== expectedHost) {
     throw new Error(
@@ -46,8 +49,9 @@ export async function validateSIWEMessage(
     );
   }
 
+  const address = getAddress(parsed.address);
   const valid = await verifyMessage({
-    address: getAddress(parsed.address),
+    address,
     message,
     signature,
   });
@@ -55,7 +59,7 @@ export async function validateSIWEMessage(
     throw new Error(SIWE_SIGNATURE_INVALID);
   }
 
-  return { address: getAddress(parsed.address), parsed };
+  return { address, parsed: parsed as SiweMessage };
 }
 
 /**

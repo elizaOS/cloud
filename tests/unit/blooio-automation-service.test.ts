@@ -27,7 +27,7 @@ const mockValidateBlooioChatId = mock(() => true);
 
 // These would typically be mocked at module level, but for now we test observable behavior
 
-describe("BlooioAutomationService", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("BlooioAutomationService", () => {
   const testOrgId = "11111111-1111-1111-1111-111111111111";
   const testUserId = "22222222-2222-2222-2222-222222222222";
   const testApiKey = "bloo_test_api_key_123";

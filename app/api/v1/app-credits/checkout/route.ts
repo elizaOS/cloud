@@ -6,14 +6,9 @@ import { dbRead } from "@/db/client";
 import { users } from "@/db/schemas/users";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import Stripe from "stripe";
+import { requireStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  // @ts-expect-error -- Pinned to production-tested version; see #287 for upgrade plan
-  apiVersion: "2024-11-20.acacia",
-});
 
 // CORS headers - reflect origin for credentialed requests
 function getCorsHeaders(origin: string | null) {
@@ -131,6 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe checkout session
+    const stripe = requireStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [

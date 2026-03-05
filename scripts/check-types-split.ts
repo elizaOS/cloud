@@ -51,13 +51,14 @@ async function createTempTsconfig(
       `${directory}/**/*.ts`,
       `${directory}/**/*.tsx`,
     ],
-    // Keep the same excludes
+    // Keep the same excludes (include __tests__ so bun:test files are not type-checked with node types)
     exclude: [
       "node_modules",
       "ignore",
       "e2e",
       "scripts",
       "tests",
+      "**/__tests__/**",
       ".next",
       "out",
       "build",

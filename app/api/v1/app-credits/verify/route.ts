@@ -2,14 +2,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { appCreditsService } from "@/lib/services/app-credits";
-import Stripe from "stripe";
+import { requireStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  // @ts-expect-error -- Pinned to production-tested version; see #287 for upgrade plan
-  apiVersion: "2024-11-20.acacia",
-});
 
 // CORS headers - reflect origin for credentialed requests
 function getCorsHeaders(origin: string | null) {
@@ -63,6 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Retrieve the checkout session from Stripe
+    const stripe = requireStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (!session) {

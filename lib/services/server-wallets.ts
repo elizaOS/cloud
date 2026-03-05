@@ -13,7 +13,6 @@ export interface ProvisionWalletParams {
 }
 
 export async function provisionServerWallet({
-export async function provisionWallet({
     organizationId,
     userId,
     characterId,
@@ -24,7 +23,7 @@ export async function provisionWallet({
     const existing = await db
         .select()
         .from(agentServerWallets)
-        .where(sql`client_address = ${clientAddress}`)
+        .where(eq(agentServerWallets.client_address, clientAddress))
         .limit(1);
 
     if (existing.length > 0) {
@@ -55,9 +54,19 @@ export async function provisionWallet({
     return record;
 }
 
+/** Returns the organization_id that owns the server wallet for this client address, or null if none. */
+export async function getOrganizationIdForClientAddress(clientAddress: string): Promise<string | null> {
+    const row = await db
+        .select({ organization_id: agentServerWallets.organization_id })
+        .from(agentServerWallets)
+        .where(eq(agentServerWallets.client_address, clientAddress))
+        .limit(1);
+    return row[0]?.organization_id ?? null;
+}
+
 export interface RpcPayload {
     method: string;
-    params: any[];
+    params: unknown[];
 }
 
 export interface ExecuteParams {

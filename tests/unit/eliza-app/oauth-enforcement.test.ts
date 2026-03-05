@@ -40,20 +40,24 @@ function extractMessagesFromWebhook(): {
     "utf-8"
   );
 
-  // Extract Telegram rejection message (OAuth enforcement - unregistered users)
+  // Telegram rejection: code uses template literal with elizaAppConfig.appUrl, not literal "https://eliza.app"
   const telegramMatch = telegramWebhook.match(
-    /"👋 Welcome! To chat with Eliza, please connect your Telegram first:\\n\\nhttps:\/\/eliza\.app\/get-started"/
+    /Welcome! To chat with Eliza, please connect your Telegram first[\s\S]*?get-started/
   );
+  const hasTelegramEmoji = telegramWebhook.includes("👋") && (telegramMatch?.length ?? 0) > 0;
 
-  // Extract status not connected message
+  // Status not connected: "Connect your Telegram at: ${elizaAppConfig.appUrl}/get-started"
   const statusMatch = telegramWebhook.match(
-    /Connect your Telegram at: https:\/\/eliza\.app\/get-started/
+    /Connect your Telegram at:[\s\S]*?get-started/
   );
 
   return {
-    telegramRejection: telegramMatch
-      ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
-      : "",
+    telegramRejection:
+      telegramMatch && hasTelegramEmoji
+        ? "👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
+        : telegramMatch
+          ? "Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
+          : "",
     statusNotConnected: statusMatch
       ? "Connect your Telegram at: https://eliza.app/get-started"
       : "",

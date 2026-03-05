@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withX402 } from "x402-next";
+import { withX402, type RouteConfig } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
 import { getTopupRecipient } from "@/lib/services/topup";
 import { referralsService } from "@/lib/services/referrals";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
+import { isAddress } from "viem";
+import crypto from "crypto";
 
 const AMOUNT = 100;
 
-async function handler(req: NextRequest): Promise<any> {
+async function handler(req: NextRequest): Promise<NextResponse> {
     try {
         const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
+        if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
+            const msg = "walletAddress is required (body or wallet signature headers)";
+            return NextResponse.json({ error: msg }, { status: 400 });
+        }
+        if (body?.walletAddress && !isAddress(body.walletAddress)) {
+            return NextResponse.json(
+                { error: "Valid EVM walletAddress is required" },
+                { status: 400 }
+            );
+        }
         let recipient;
         try {
             recipient = await getTopupRecipient(req, body);
@@ -26,7 +38,6 @@ async function handler(req: NextRequest): Promise<any> {
         const ref = req.nextUrl.searchParams.get("ref") || req.nextUrl.searchParams.get("referral_code") || body.ref || body.referral_code;
         const appOwnerId = req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
 
-        // Apply referral code if present (and first-touch)
         if (ref && user) {
             const result = await referralsService.applyReferralCode(user.id, organizationId, ref, {
                 appOwnerId: appOwnerId || undefined
@@ -40,7 +51,6 @@ async function handler(req: NextRequest): Promise<any> {
 
         logger.info(`Topped up ${walletAddress} with $${AMOUNT} via x402`);
 
-        // Process revenue splits
         if (user) {
             const { splits } = await referralsService.calculateRevenueSplits(user.id, AMOUNT);
             if (splits.length > 0) {
@@ -49,12 +59,13 @@ async function handler(req: NextRequest): Promise<any> {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}`).digest("hex");
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
                         amount: split.amount,
                         source: source,
-                        sourceId: "x402_crypto_split",
+                        sourceId: `x402_crypto_split_${sourceId}`,
                         description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / AMOUNT * 100).toFixed(0)}%) for $${AMOUNT} crypto topup`,
                         metadata: {
                             buyer_user_id: user.id,
@@ -81,14 +92,27 @@ async function handler(req: NextRequest): Promise<any> {
     }
 }
 
-const payTo = (process.env.X402_RECIPIENT_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+const payToRaw = process.env.X402_RECIPIENT_ADDRESS?.trim();
+const payTo =
+    payToRaw && payToRaw !== "0x0000000000000000000000000000000000000000" && isAddress(payToRaw)
+        ? (payToRaw as `0x${string}`)
+        : ("0x0000000000000000000000000000000000000001" as `0x${string}`);
 
-export const POST = withX402(
-    handler,
-    payTo,
-    {
-        price: "$100.00",
-        network: (process.env.X402_NETWORK || "base-sepolia") as any,
-        config: { description: "Topup $100 credits for Eliza Cloud" }
+async function wrappedHandler(req: NextRequest): Promise<NextResponse> {
+    if (payTo === "0x0000000000000000000000000000000000000001") {
+        return NextResponse.json(
+            { error: "X402_RECIPIENT_ADDRESS is not configured" },
+            { status: 503 }
+        );
     }
-);
+    return handler(req);
+}
+
+const network = (process.env.X402_NETWORK || "base-sepolia") as RouteConfig["network"];
+const routeConfig: RouteConfig = {
+    price: "$100.00",
+    network,
+    config: { description: "Topup $100 credits for Eliza Cloud" },
+};
+
+export const POST = withX402(wrappedHandler, payTo, routeConfig);

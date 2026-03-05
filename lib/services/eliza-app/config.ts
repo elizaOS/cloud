@@ -61,20 +61,10 @@ export const elizaAppConfig = {
   },
 } as const;
 
-// Validate all required env vars are set in production
+// In production, only JWT is required for the app to boot/build. Telegram, Discord, and Blooio
+// vars are optional; routes that use them will fail at runtime if not set.
 if (isProduction) {
-  const requiredVars = [
-    "ELIZA_APP_TELEGRAM_BOT_TOKEN",
-    "ELIZA_APP_BLOOIO_API_KEY",
-    "ELIZA_APP_DISCORD_BOT_TOKEN",
-    "ELIZA_APP_DISCORD_APPLICATION_ID",
-    "ELIZA_APP_DISCORD_CLIENT_SECRET",
-    "ELIZA_APP_JWT_SECRET"
-  ];
-
-  for (const varName of requiredVars) {
-    if (!process.env[varName]) {
-      throw new Error(`Required env var ${varName} is not set in production`);
-    }
+  if (!process.env.ELIZA_APP_JWT_SECRET) {
+    throw new Error("Required env var ELIZA_APP_JWT_SECRET is not set in production");
   }
 }

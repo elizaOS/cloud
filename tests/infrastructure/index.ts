@@ -4,6 +4,7 @@
 
 // Local database connection (uses same DB as running server)
 export {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   getDatabaseInfo,

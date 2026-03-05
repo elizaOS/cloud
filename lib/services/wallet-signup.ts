@@ -45,7 +45,7 @@ export async function findOrCreateUserByWalletAddress(
 
   /* WHY slug wallet-${normalized}: consistent with topup and SIWE; lowercase for unique indexing. */
   const slug = `wallet-${normalized}`;
-  let org: Organization | null = await organizationsRepository.findBySlug(slug);
+  let org: Organization | null = (await organizationsRepository.findBySlug(slug)) ?? null;
   if (!org) {
     org = await organizationsService.create({
       name: `Wallet ${address.slice(0, 6)}...${address.slice(-4)}`,

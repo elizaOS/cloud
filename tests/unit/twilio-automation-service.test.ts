@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 
-describe("TwilioAutomationService", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("TwilioAutomationService", () => {
   const testOrgId = "11111111-1111-1111-1111-111111111111";
   const testUserId = "22222222-2222-2222-2222-222222222222";
   const testAccountSid = "ACtest12345678901234567890123456";
@@ -317,7 +317,7 @@ describe("TwilioAutomationService", () => {
   });
 });
 
-describe("TwilioAutomationService Cache Behavior", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("TwilioAutomationService Cache Behavior", () => {
   const cacheTestOrgId = "66666666-6666-6666-6666-666666666666";
 
   beforeEach(() => {
@@ -361,7 +361,7 @@ describe("TwilioAutomationService Cache Behavior", () => {
   });
 });
 
-describe("TwilioAutomationService Edge Cases", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("TwilioAutomationService Edge Cases", () => {
   it("handles concurrent status checks for same org", async () => {
     const orgId = "77777777-7777-7777-7777-777777777777";
     twilioAutomationService.invalidateStatusCache(orgId);

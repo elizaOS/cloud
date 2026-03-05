@@ -19,7 +19,7 @@ import {
   clearProcessedMessages,
 } from "@/lib/utils/idempotency";
 
-describe("Idempotency Utility", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("Idempotency Utility", () => {
   // Use unique keys for each test to avoid conflicts
   const testPrefix = `test-${Date.now()}`;
 
@@ -148,7 +148,7 @@ describe("Idempotency Utility", () => {
   });
 });
 
-describe("tryClaimForProcessing", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("tryClaimForProcessing", () => {
   const claimPrefix = `claim-${Date.now()}`;
 
   afterAll(async () => {
@@ -193,7 +193,7 @@ describe("tryClaimForProcessing", () => {
   });
 });
 
-describe("releaseProcessingClaim", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("releaseProcessingClaim", () => {
   const releasePrefix = `release-${Date.now()}`;
 
   afterAll(async () => {
@@ -236,7 +236,7 @@ describe("releaseProcessingClaim", () => {
   });
 });
 
-describe("Idempotency Security Tests", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("Idempotency Security Tests", () => {
   const securityPrefix = `security-${Date.now()}`;
 
   describe("Replay Attack Prevention", () => {

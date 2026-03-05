@@ -4,21 +4,19 @@ import { requireAuth } from "@/lib/auth";
 import { provisionServerWallet } from "@/lib/services/server-wallets";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { isAddress } from "ethers";
+import { isAddress } from "viem";
 
-const provisionWalletSchema = z.object({
-    chainType: z.enum(["evm", "solana"]),
-    clientAddress: z.string().min(10).refine(
-        (addr, ctx) => {
-            if (ctx.parent.chainType === "evm") {
-                return isAddress(addr);
-            }
-            return true;
-        },
-        { message: "Invalid EVM address" }
-    ),
-    characterId: z.string().uuid().optional().nullable(),
-});
+const provisionWalletSchema = z
+    .object({
+        chainType: z.enum(["evm", "solana"]),
+        clientAddress: z.string().min(10),
+        characterId: z.string().uuid().optional().nullable(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.chainType === "evm" && !isAddress(data.clientAddress)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid EVM address", path: ["clientAddress"] });
+        }
+    });
 
 async function handlePOST(request: NextRequest) {
     try {

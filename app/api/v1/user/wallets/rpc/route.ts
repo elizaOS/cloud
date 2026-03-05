@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { executeServerWalletRpc } from "@/lib/services/server-wallets";
+import { executeServerWalletRpc, getOrganizationIdForClientAddress } from "@/lib/services/server-wallets";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { organizationsService } from "@/lib/services/organizations";
 
 const rpcPayloadSchema = z.object({
     clientAddress: z.string().min(10),
@@ -23,13 +22,12 @@ async function handlePOST(request: NextRequest) {
         const body = await request.json();
         const validated = rpcPayloadSchema.parse(body);
 
-        // 2. Verify `clientAddress` belongs to the authenticated organization
+        // 2. Verify the server wallet for this clientAddress belongs to the authenticated organization
         const organizationId = authResult.user.organization_id;
-        const organization = await organizationsService.getByWalletAddress(validated.clientAddress);
-
-        if (organizationId !== organization.id) {
+        const walletOrgId = await getOrganizationIdForClientAddress(validated.clientAddress);
+        if (!walletOrgId || walletOrgId !== organizationId) {
             return NextResponse.json(
-                { success: false, error: "Unauthorized: clientAddress does not belong to user organization" },
+                { success: false, error: "Unauthorized: clientAddress does not belong to your organization" },
                 { status: 403 }
             );
         }

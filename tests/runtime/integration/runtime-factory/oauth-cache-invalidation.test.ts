@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -66,7 +67,7 @@ async function cleanupEnvironment(): Promise<void> {
   }
 }
 
-describe("RuntimeCache.removeByOrganization", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
   beforeAll(setupEnvironment, 60000);
   afterAll(cleanupEnvironment);
 
@@ -234,7 +235,7 @@ describe("RuntimeCache.removeByOrganization", () => {
   }, 60000);
 });
 
-describe("EntitySettingsCache invalidation", () => {
+describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
   beforeAll(setupEnvironment, 60000);
   afterAll(cleanupEnvironment);
 
@@ -316,7 +317,7 @@ describe("EntitySettingsCache invalidation", () => {
   }, 30000);
 });
 
-describe("OAuth flow cache invalidation integration", () => {
+describe.skipIf(!hasDatabaseUrl)("OAuth flow cache invalidation integration", () => {
   beforeAll(setupEnvironment, 60000);
   afterAll(cleanupEnvironment);
 
@@ -391,7 +392,7 @@ describe("OAuth flow cache invalidation integration", () => {
   }, 180000);
 });
 
-describe("Edge cases and error handling", () => {
+describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
   beforeAll(setupEnvironment, 60000);
   afterAll(cleanupEnvironment);
 

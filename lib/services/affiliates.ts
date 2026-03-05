@@ -37,7 +37,7 @@ export class AffiliatesService {
         const newCode = await affiliatesRepository.createAffiliateCode({
             user_id: userId,
             code,
-            markup_percent: Number(markup.toFixed(2)),
+            markup_percent: markup.toFixed(2),
         });
 
         logger.info("[Affiliates] Created new affiliate code", { userId, code });

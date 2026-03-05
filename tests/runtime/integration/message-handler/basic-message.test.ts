@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -39,7 +40,7 @@ let testRuntimeResult: TestRuntimeResult;
 let testUserContext: TestUserContext;
 const timings: Record<string, number> = {};
 
-describe("Message Handler - Basic Message Processing", () => {
+describe.skipIf(!hasDatabaseUrl)("Message Handler - Basic Message Processing", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(60));
     console.log("SETTING UP BASIC MESSAGE TEST ENVIRONMENT");

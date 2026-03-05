@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withX402 } from "x402-next";
+import { withX402, type RouteConfig } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
 import { getTopupRecipient } from "@/lib/services/topup";
 import { referralsService } from "@/lib/services/referrals";
@@ -8,18 +8,9 @@ import { logger } from "@/lib/utils/logger";
 import { isAddress } from "viem";
 import crypto from "crypto";
 
-const ALLOWED_AMOUNTS = [10, 50, 100];
+const AMOUNT = 10;
 
-async function handler(req: NextRequest): Promise<any> {
-    const pathSegments = req.nextUrl.pathname.split('/');
-    const amount = Number(pathSegments[pathSegments.length - 1]);
-
-    if (!ALLOWED_AMOUNTS.includes(amount)) {
-        return NextResponse.json(
-            { error: "Invalid topup amount. Allowed values: 10, 50, 100" },
-            { status: 400 }
-        );
-    }
+async function handler(req: NextRequest): Promise<NextResponse> {
     try {
         const body = await req.json().catch(() => ({})) as { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string };
         if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
@@ -56,26 +47,26 @@ async function handler(req: NextRequest): Promise<any> {
             }
         }
 
-        await organizationsService.updateCreditBalance(organizationId, amount);
+        await organizationsService.updateCreditBalance(organizationId, AMOUNT);
 
-        logger.info(`Topped up ${walletAddress} with $${amount} via x402`);
+        logger.info(`Topped up ${walletAddress} with $${AMOUNT} via x402`);
 
         if (user) {
-            const { splits } = await referralsService.calculateRevenueSplits(user.id, amount);
+            const { splits } = await referralsService.calculateRevenueSplits(user.id, AMOUNT);
             if (splits.length > 0) {
-                logger.info(`[x402] Processing revenue splits for $${amount} purchase by user ${user.id}`);
+                logger.info(`[x402] Processing revenue splits for $${AMOUNT} purchase by user ${user.id}`);
                 for (const split of splits) {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    const sourceId = crypto.createHash('sha256').update(`${walletAddress}-${amount}`).digest('hex');
+                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}`).digest("hex");
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
                         amount: split.amount,
                         source: source,
                         sourceId: `x402_crypto_split_${sourceId}`,
-                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / amount * 100).toFixed(0)}%) for $${amount} crypto topup`,
+                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${(split.amount / AMOUNT * 100).toFixed(0)}%) for $${AMOUNT} crypto topup`,
                         metadata: {
                             buyer_user_id: user.id,
                             buyer_org_id: organizationId,
@@ -90,10 +81,10 @@ async function handler(req: NextRequest): Promise<any> {
 
         return NextResponse.json({
             success: true,
-            amount,
+            amount: AMOUNT,
             walletAddress,
             organizationId,
-            message: `Successfully topped up $${amount}`
+            message: `Successfully topped up $${AMOUNT}`
         });
     } catch (error) {
         logger.error("Error processing topup", error);
@@ -101,17 +92,28 @@ async function handler(req: NextRequest): Promise<any> {
     }
 }
 
-const payTo = process.env.X402_RECIPIENT_ADDRESS;
-if (!payTo || payTo.trim() === '' || payTo.trim() === "0x0000000000000000000000000000000000000000") {
-    throw new Error("X402_RECIPIENT_ADDRESS must be configured with a valid EVM address");
+// Required at runtime; use placeholder at module load so build succeeds without X402_RECIPIENT_ADDRESS
+const payToRaw = process.env.X402_RECIPIENT_ADDRESS?.trim();
+const payTo =
+    payToRaw && payToRaw !== "0x0000000000000000000000000000000000000000" && isAddress(payToRaw)
+        ? (payToRaw as `0x${string}`)
+        : ("0x0000000000000000000000000000000000000001" as `0x${string}`);
+
+async function wrappedHandler(req: NextRequest): Promise<NextResponse> {
+    if (payTo === "0x0000000000000000000000000000000000000001") {
+        return NextResponse.json(
+            { error: "X402_RECIPIENT_ADDRESS is not configured" },
+            { status: 503 }
+        );
+    }
+    return handler(req);
 }
 
-export const POST = withX402(
-    handler,
-    payTo as `0x${string}`,
-    {
-        price: price => `$${price.toFixed(2)}`,
-        network: (process.env.X402_NETWORK || "base-sepolia") as any,
-        config: { description: price => `Topup $${price.toFixed(2)} credits for Eliza Cloud` }
-    }
-);
+const network = (process.env.X402_NETWORK || "base-sepolia") as RouteConfig["network"];
+const routeConfig: RouteConfig = {
+    price: "$10.00",
+    network,
+    config: { description: "Topup $10 credits for Eliza Cloud" },
+};
+
+export const POST = withX402(wrappedHandler, payTo, routeConfig);
