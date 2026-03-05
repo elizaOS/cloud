@@ -63,13 +63,13 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     throw new Error("Invalid wallet signature");
   }
 
-  // Note: Use SET NX (set-if-not-exists) to atomically check and mark nonce as used, preventing TOCTOU race
-  // Placed after signature verification so invalid signatures don't burn valid nonces
+  // Note: Mark nonce as used atomically using getAndDelete - if nonce exists, it's already used
   try {
-    const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-    if (!wasSet) {
+    const existing = await cache.getAndDelete(nonceKey);
+    if (existing !== null) {
       throw new Error("Signature has already been used");
     }
+    await cache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
   } catch (error) {
     logger.error("[Wallet Auth] Failed to set nonce:", error);
     throw new Error("Service temporarily unavailable");

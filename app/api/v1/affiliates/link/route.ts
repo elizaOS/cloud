@@ -52,11 +52,8 @@ export async function POST(request: NextRequest) {
             error: errorMessage,
         });
 
-        // Local error constants to avoid dependency on service-level static properties
-        const AFFILIATE_ERRORS = {
-            INVALID_CODE: "Invalid affiliate code",
-            CODE_NOT_FOUND: "Affiliate code not found"
-        };
+        // Use service-level error constants for consistent messaging
+        const { AFFILIATE_ERRORS } = affiliatesService;
         
         // Check for specific error types from service
         if (error instanceof Error) {

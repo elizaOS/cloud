@@ -432,11 +432,13 @@ export async function requireAuthOrApiKey(
         authMethod: "wallet_signature",
       };
     } catch (e) {
-      logger.error("[AUTH] Wallet auth failed with headers present:", e);
+      // Always fail closed when wallet headers are present
+      logger.error("[AUTH] Wallet auth failed with headers present - failing closed:", e);
       // Preserve service errors but clean auth errors for security
       if (e instanceof Error && e.message.includes("Service temporarily")) {
         throw e; // Propagate service outage errors
       }
+      // Return 401 and do not fall through to other auth methods
       throw new Error("Invalid wallet signature");
     }
   }

@@ -12,11 +12,13 @@ const isProduction = process.env.NODE_ENV === "production";
 function requireEnv(name: string, fallback?: string): string {
   const value = process.env[name];
   if (value) return value;
-  if (fallback !== undefined && !isProduction) return fallback;
-  // Always throw in production for required vars
+  
+  // In production, never use fallbacks - always require explicit env vars
   if (isProduction) {
     throw new Error(`Required env var ${name} is not set in production`);
   }
+  
+  // In development/test, can use fallbacks
   console.warn(`Missing env var ${name}, using fallback`);
   if (fallback !== undefined) return fallback;
   throw new Error(`Required env var ${name} is not set`);

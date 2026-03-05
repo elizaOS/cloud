@@ -1,8 +1,6 @@
 import { withX402, type RouteConfig } from "x402-next";
 import crypto from "crypto";
 import { createTopupHandler, getPayToAddress, createWrappedHandler, getNetwork } from "@/lib/services/topup-handler";
-  return "dummy-transaction-id"; // Replace with actual implementation
-}
 
 const AMOUNT = 100;
 const handler = createTopupHandler({

@@ -53,13 +53,21 @@ export async function findOrCreateUserByWalletAddress(
         slug,
         credit_balance: "0.00",
       });
+
+      // Important: Only grant initial credits if we successfully created the org
+      // This ensures only one credit grant happens even with concurrent requests
       if (grantInitialCredits && INITIAL_FREE_CREDITS > 0) {
-        await creditsService.addCredits({
-          organizationId: org.id,
-          amount: INITIAL_FREE_CREDITS,
-          description: "Wallet sign-up bonus",
-          metadata: { type: "wallet_signup" },
-        });
+        try {
+          await creditsService.addCredits({
+            organizationId: org.id,
+            amount: INITIAL_FREE_CREDITS,
+            description: "Wallet sign-up bonus",
+            metadata: { type: "wallet_signup" },
+          });
+        } catch (err) {
+          // Log but don't fail if credit grant fails - org is still usable
+          console.error("Failed to grant initial credits:", err);
+        }
       }
     } catch (e) {
       // Note: Handle race condition where two concurrent requests try to create the same org
@@ -67,8 +75,13 @@ export async function findOrCreateUserByWalletAddress(
         e instanceof Error &&
         (e.message.includes("unique") || e.message.includes("duplicate"));
       if (!isUniqueViolation) throw e;
+
+      // Important: For race conditions, retry finding the org that won the race
       org = (await organizationsRepository.findBySlug(slug)) ?? null;
-      if (!org) throw e;
+      if (!org) {
+        // If we still can't find it, something else went wrong
+        throw new Error("Organization creation failed and could not find existing org");
+      }
       // Note: Skip initial credits for raced org - first creator already granted them
     }
   }
