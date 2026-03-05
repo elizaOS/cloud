@@ -33,10 +33,11 @@ async function handlePOST(request: NextRequest) {
     }
 
     const organizationId = user.organization_id!;
-    const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
+    const body = await request.json();
+    const code = body.code?.trim();
     if (!code) {
       return NextResponse.json(
-        { error: "code is required (query param)" },
+        { error: "code is required in request body" },
         { status: 400, headers: NO_CACHE_HEADERS },
       );
     }
