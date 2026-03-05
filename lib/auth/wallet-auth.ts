@@ -38,8 +38,15 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     const path = request.nextUrl.pathname;
     const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
     const nonceKey = `wallet-nonce:${nonce}`;
-    const nonceExists = await cache.get(nonceKey);
-    if (nonceExists) {
+    
+    // Note: Fail closed if cache unavailable to prevent replay attacks during Redis outages
+    if (!cache.isAvailable()) {
+        throw new Error("Service temporarily unavailable");
+    }
+    
+    // Note: Use SET NX (set-if-not-exists) to atomically check and mark nonce as used, preventing TOCTOU race
+    const wasSet = await cache.setNX(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+    if (!wasSet) {
         throw new Error("Signature has already been used");
     }
 
@@ -55,7 +62,7 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
         throw new Error("Invalid wallet signature");
     }
 
-    await cache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
+    // Note: Nonce is already atomically marked as used via setNX above
 
     const { user } = await findOrCreateUserByWalletAddress(walletAddress);
 
