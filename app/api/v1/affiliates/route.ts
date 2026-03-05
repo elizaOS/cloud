@@ -72,6 +72,12 @@ export async function PUT(request: NextRequest) {
         }
 
         const { markupPercent } = validation.data;
+        
+        // Note: markupPercent > 200 is unusually high; log for operator awareness
+        if (markupPercent > 200) {
+            logger.warn(`[Affiliates API] High markup configured: ${markupPercent}% for user ${user.id}`);
+        }
+        
         const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
         return NextResponse.json(
