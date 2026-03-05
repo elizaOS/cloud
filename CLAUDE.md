@@ -35,7 +35,7 @@ npx drizzle-kit generate --custom --name=descriptive_name
 
 ### Rules
 - No `CREATE INDEX CONCURRENTLY` (runs in transaction)
-- Use `IF NOT EXISTS` / `IF EXISTS`
+- Use `IF NOT EXISTS` / `IF EXISTS` for creating tables
 - Never edit applied migrations
 - See `docs/database-migrations.md` for details
 
