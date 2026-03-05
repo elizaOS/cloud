@@ -315,9 +315,8 @@ export class CacheClient {
   }
 
   /**
-   * Gets a value and deletes the key in one flow.
-   * Used for single-use values (e.g. SIWE nonce). Not atomic; two concurrent
-   * callers could both receive the value before either deletes.
+   * Atomically gets a value and deletes the key using GETDEL (Redis ≥6.2).
+   * Used for single-use values (e.g. SIWE nonce) to prevent replay attacks.
    *
    * @param key - Cache key.
    * @returns The value if present, or null.
@@ -325,9 +324,30 @@ export class CacheClient {
   async getAndDelete<T>(key: string): Promise<T | null> {
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
-    const value = await this.get<T>(key);
-    if (value !== null) await this.del(key);
-    return value;
+    
+    try {
+      // Use GETDEL for atomic get-and-delete (Redis ≥6.2)
+      const value = await this.redis.getdel<string>(key);
+      if (value === null || value === undefined) return null;
+      
+      // Check for corrupted cache values
+      if (typeof value === "string" && value === "[object Object]") {
+        logger.warn(`[Cache] Corrupted cache value detected in getAndDelete for key ${key}`);
+        return null;
+      }
+      
+      // Parse JSON string back to object
+      const parsed: T = typeof value === "string" ? JSON.parse(value) : value;
+      this.resetFailures();
+      return parsed;
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] GETDEL failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 
   /**
