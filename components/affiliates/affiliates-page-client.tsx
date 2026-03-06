@@ -30,7 +30,7 @@ export function AffiliatesPageClient() {
             if (res.ok) {
                 const data = await res.json();
                 setAffiliateData(data.code);
-                setMarkupPercent(data.code.markup_percent);
+                setMarkupPercent(data.code ? data.code.markup_percent : "0.00");
             }
         } catch (e) {
             console.error("Failed to load affiliate data", e);

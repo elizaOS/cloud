@@ -18,14 +18,13 @@ const rpcPayloadSchema = z.object({
 
 async function handlePOST(request: NextRequest) {
     try {
+        const body = await request.json();
+        const validated = rpcPayloadSchema.parse(body);
+
         const authenticatedUser = await verifyWalletSignature(request);
         if (!authenticatedUser) {
             return NextResponse.json({ success: false, error: "Wallet authentication required" }, { status: 401 });
         }
-
-        // 1. Parse Body
-        const body = await request.json();
-        const validated = rpcPayloadSchema.parse(body);
 
         // 2. Verify the request is coming from the actual wallet owner
         if (authenticatedUser.wallet_address.toLowerCase() !== validated.clientAddress.toLowerCase()) {

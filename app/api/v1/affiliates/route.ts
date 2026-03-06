@@ -49,9 +49,61 @@ export async function GET(request: NextRequest) {
 }
 
 const MarkupSchema = z.object({
-  // Note: Max 200% markup to match database check constraint and avoid excessive pricing
-  markupPercent: z.number().min(0).max(200),
+  markupPercent: z.number().min(0).max(1000),
 });
+
+const UpdateMarkupSchema = z.object({
+  markupPercent: z.number().min(0).max(1000),
+});
+
+/**
+ * PUT /api/v1/affiliates
+ * Updates the current user's affiliate code markup (code must already exist).
+ */
+export async function PUT(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+    const body = await request.json();
+    const validation = UpdateMarkupSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid markup. Must be a number between 0 and 1000%." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const { markupPercent } = validation.data;
+    const code = await affiliatesService.updateMarkup(user.id, markupPercent);
+
+    return NextResponse.json(
+      { code },
+      { headers: corsHeaders }
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unauthorized")) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+    if (error instanceof Error && error.message.includes("Affiliate code not found")) {
+      return NextResponse.json(
+        { error: "No affiliate code. Create one with POST first." },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    logger.error("[Affiliates API] Error updating markup:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
 
 /**
  * POST /api/v1/affiliates
@@ -68,7 +120,7 @@ export async function POST(request: NextRequest) {
     const validation = MarkupSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid markup. Must be a number between 0 and 200%." },
+        { error: "Invalid markup. Must be a number between 0 and 1000%." },
         { status: 400, headers: corsHeaders }
       );
     }

@@ -145,18 +145,15 @@ async function handleStripeWebhook(req: NextRequest) {
               paymentIntentId,
             );
 
-          if (existingTransaction) {
+          const isDuplicate = !!existingTransaction;
+          if (isDuplicate) {
             logger.debug(
-              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed`,
-            );
-            return NextResponse.json(
-              { received: true, duplicate: true },
-              { status: 200 },
+              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed; will still attempt revenue splits (idempotent)`,
             );
           }
 
-          // Handle app-specific purchases with creator monetization
-          if (isAppPurchase) {
+          // Handle app-specific purchases with creator monetization (skip if duplicate)
+          if (isAppPurchase && !isDuplicate) {
             logger.info(
               `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`,
             );
@@ -240,8 +237,8 @@ async function handleStripeWebhook(req: NextRequest) {
                 stripePaymentIntentId: paymentIntentId,
               });
             }
-          } else {
-            // Regular credit purchase (not app-specific)
+          } else if (!isDuplicate) {
+            // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)
             await creditsService.addCredits({
               organizationId,
               amount: credits,
@@ -259,7 +256,6 @@ async function handleStripeWebhook(req: NextRequest) {
               `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
             );
 
-            // Track credits purchased in PostHog using internal UUID
             if (userId) {
               trackServerEvent(userId, "credits_purchased", {
                 amount: credits,
@@ -269,7 +265,6 @@ async function handleStripeWebhook(req: NextRequest) {
                 payment_method: "stripe",
               });
 
-              // Also track unified checkout_completed event
               trackServerEvent(userId, "checkout_completed", {
                 payment_method: "stripe",
                 amount: credits,
@@ -280,12 +275,10 @@ async function handleStripeWebhook(req: NextRequest) {
                 stripe_session_id: session.id,
               });
             }
+          }
 
-            // WHY revenue splits only in checkout.session.completed: This branch handles
-            // user-initiated credit purchases (checkout session has user_id). Auto top-up
-            // uses payment_intent.succeeded only and does not run splits — so we never
-            // double-apply referral and avoid splitting when there is no referrer context.
-            if (userId) {
+          // Revenue splits: run even on duplicate (addEarnings is idempotent by sourceId) so retries after split failure succeed
+          if (!isAppPurchase && userId) {
               const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
 
               if (splits.length > 0) {
@@ -342,7 +335,7 @@ async function handleStripeWebhook(req: NextRequest) {
               }
             }
 
-            // Log payment to Discord (fire and forget)
+          if (!isDuplicate) {
             organizationsRepository.findById(organizationId).then((org) => {
               const user = userId
                 ? usersRepository.findById(userId)
@@ -374,8 +367,9 @@ async function handleStripeWebhook(req: NextRequest) {
             });
           }
 
-          try {
-            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+          if (!isDuplicate) {
+            try {
+              const existingInvoice = await invoicesService.getByStripeInvoiceId(
               `cs_${session.id}`,
             );
 
@@ -414,11 +408,12 @@ async function handleStripeWebhook(req: NextRequest) {
                 `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`,
               );
             }
-          } catch (invoiceError) {
-            logger.error(
-              "[Stripe Webhook] Non-critical error creating invoice record",
-              invoiceError,
-            );
+            } catch (invoiceError) {
+              logger.error(
+                "[Stripe Webhook] Non-critical error creating invoice record",
+                invoiceError,
+              );
+            }
           }
         }
         break;

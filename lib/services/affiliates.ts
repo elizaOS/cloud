@@ -26,6 +26,13 @@ function isPgUniqueViolation(error: { code?: string; message?: string }): boolea
  */
 export class AffiliatesService {
     /**
+     * Returns the user's affiliate code if it exists. Read-only; does not create.
+     */
+    async getAffiliateCode(userId: string): Promise<AffiliateCode | null> {
+        return affiliatesRepository.getAffiliateCodeByUserId(userId);
+    }
+
+    /**
      * Generates or returns an existing affiliate code for the user.
      */
     async getOrCreateAffiliateCode(
@@ -73,7 +80,6 @@ export class AffiliatesService {
         }
         
         return affiliateCode;
-        }
     }
 
     /**

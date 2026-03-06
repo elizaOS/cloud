@@ -59,11 +59,12 @@ async function handler(req: NextRequest): Promise<NextResponse> {
             const { splits } = await referralsService.calculateRevenueSplits(user.id, AMOUNT);
             if (splits.length > 0) {
                 logger.info(`[x402] Processing revenue splits for $${AMOUNT} purchase by user ${user.id}`);
+                const paymentId = req.headers.get("X-PAYMENT") ?? crypto.randomUUID();
                 for (const split of splits) {
                     if (split.amount <= 0) continue;
 
                     const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}`).digest("hex");
+                    const sourceId = crypto.createHash("sha256").update(`${walletAddress}-${AMOUNT}-${paymentId}`).digest("hex");
 
                     await redeemableEarningsService.addEarnings({
                         userId: split.userId,
