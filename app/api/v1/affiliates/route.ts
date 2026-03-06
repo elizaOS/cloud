@@ -17,8 +17,8 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/affiliates
- * Retrieves the current user's affiliate code without creating one.
- * Returns { code: null } if no code exists.
+ * Read-only: returns the current user's affiliate code if it exists.
+ * Returns { code: null } when the user has no affiliate code (use POST to create).
  */
 export async function GET(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const code = await affiliatesService.getOrCreateAffiliateCode(user.id);
+    const code = await affiliatesService.getAffiliateCode(user.id);
 
     return NextResponse.json(
       { code: code ?? null },
@@ -52,10 +52,6 @@ const MarkupSchema = z.object({
   markupPercent: z.number().min(0).max(1000),
 });
 
-const UpdateMarkupSchema = z.object({
-  markupPercent: z.number().min(0).max(1000),
-});
-
 /**
  * PUT /api/v1/affiliates
  * Updates the current user's affiliate code markup (code must already exist).
@@ -68,7 +64,7 @@ export async function PUT(request: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const body = await request.json();
-    const validation = UpdateMarkupSchema.safeParse(body);
+    const validation = MarkupSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid markup. Must be a number between 0 and 1000%." },

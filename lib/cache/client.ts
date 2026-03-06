@@ -364,9 +364,18 @@ export class CacheClient {
         logger.warn(`[Cache] Corrupted cache value detected in getAndDelete for key ${key}`);
         return null;
       }
-      
-      // Parse JSON string back to object
-      const parsed: T = typeof value === "string" ? JSON.parse(value) : value;
+
+      // Plain strings (e.g. SIWE nonce, "used") are stored verbatim; only object payloads are JSON-serialized
+      let parsed: T;
+      if (typeof value === "string") {
+        try {
+          parsed = JSON.parse(value) as T;
+        } catch {
+          parsed = value as T;
+        }
+      } else {
+        parsed = value as T;
+      }
       this.resetFailures();
       return parsed;
     } catch (error) {

@@ -107,7 +107,7 @@ export async function executeServerWalletRpc({
 
     // Atomically check and consume the nonce
     const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
-    const nonceSet = await cache.setNX(nonceKey, '1', 24 * 60 * 60); // 24hr TTL
+    const nonceSet = await cache.setIfNotExists(nonceKey, "1", 24 * 60 * 60 * 1000); // 24hr TTL
     if (!nonceSet) {
         throw new Error("RPC nonce already used: Request appears to be a replay attack");
     }

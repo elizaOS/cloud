@@ -29,6 +29,12 @@ vi.mock("viem", () => ({
     verifyMessage: vi.fn(),
 }));
 
+vi.mock("@/lib/cache/client", () => ({
+    cache: {
+        setIfNotExists: vi.fn().mockResolvedValue(true),
+    },
+}));
+
 import { getPrivyClient } from "@/lib/auth/privy-client";
 import { db } from "@/db/client";
 import { verifyMessage } from "viem";
@@ -81,7 +87,12 @@ describe("server-wallets service", () => {
                 walletApi: { rpc: mockRpc }
             });
 
-            const payload = { method: "eth_sendTransaction", params: [{ to: "0xBeef" }] };
+            const payload = {
+                method: "eth_sendTransaction",
+                params: [{ to: "0xBeef" }],
+                timestamp: Date.now(),
+                nonce: "test-nonce-1",
+            };
             const result = await executeServerWalletRpc({
                 clientAddress: "0xClient" as `0x${string}`,
                 payload,
@@ -93,7 +104,6 @@ describe("server-wallets service", () => {
                 message: JSON.stringify(payload),
                 signature: "0xSig",
             });
-
             expect(db.query.agentServerWallets.findFirst).toHaveBeenCalled();
 
             expect(mockRpc).toHaveBeenCalledWith(expect.objectContaining({
@@ -109,7 +119,7 @@ describe("server-wallets service", () => {
 
             await expect(executeServerWalletRpc({
                 clientAddress: "0xClient",
-                payload: { method: "eth_sendTransaction", params: [] },
+                payload: { method: "eth_sendTransaction", params: [], timestamp: Date.now(), nonce: "n1" },
                 signature: "0xSig" as `0x${string}`,
             })).rejects.toThrow("Invalid RPC signature");
         });
@@ -120,7 +130,7 @@ describe("server-wallets service", () => {
 
             await expect(executeServerWalletRpc({
                 clientAddress: "0xClient",
-                payload: { method: "eth_sendTransaction", params: [] },
+                payload: { method: "eth_sendTransaction", params: [], timestamp: Date.now(), nonce: "n2" },
                 signature: "0xSig" as `0x${string}`,
             })).rejects.toThrow("Server wallet not found");
         });

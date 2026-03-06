@@ -274,52 +274,52 @@ async function handleStripeWebhook(req: NextRequest) {
                 credits_added: credits,
                 stripe_session_id: session.id,
               });
+            }
+          }
 
-              // Revenue splits only when not duplicate to avoid extra DB load on webhook retries
-              if (!isAppPurchase) {
-                const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
-                if (splits.length > 0) {
-                  logger.info(`[Stripe Webhook] Processing revenue splits for $${credits.toFixed(2)} purchase by user ${userId}`);
-                  const { redeemableEarningsService } = await import("@/lib/services/redeemable-earnings");
-                  for (const split of splits) {
-                    if (split.amount <= 0) continue;
-                    const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
-                    try {
-                      await redeemableEarningsService.addEarnings({
-                        userId: split.userId,
-                        amount: split.amount,
-                        source,
-                        sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
-                        description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / credits) * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
-                        metadata: {
-                          buyer_user_id: userId,
-                          buyer_org_id: organizationId,
-                          payment_intent_id: paymentIntentId,
-                          role: split.role,
-                        },
-                      });
-                      logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
-                    } catch (splitError) {
-                      logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`, {
-                        error: splitError instanceof Error ? splitError.message : String(splitError),
-                        amount: split.amount,
-                        paymentIntentId,
-                        sourceId: `${paymentIntentId}:${split.userId}`,
-                        retryable: true,
-                      });
-                      trackServerEvent(userId, "revenue_split_failed", {
-                        payment_intent_id: paymentIntentId,
-                        split_user_id: split.userId,
-                        split_role: split.role,
-                        split_amount: split.amount,
-                        error: splitError instanceof Error ? splitError.message : String(splitError),
-                      });
-                      return NextResponse.json(
-                        { error: "Failed to process revenue split", retryable: true },
-                        { status: 500 },
-                      );
-                    }
-                  }
+          // Revenue splits: run even when isDuplicate so retries can complete failed splits; addEarnings is idempotent by sourceId
+          if (!isAppPurchase && userId) {
+            const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
+            if (splits.length > 0) {
+              logger.info(`[Stripe Webhook] Processing revenue splits for $${credits.toFixed(2)} purchase by user ${userId}`);
+              const { redeemableEarningsService } = await import("@/lib/services/redeemable-earnings");
+              for (const split of splits) {
+                if (split.amount <= 0) continue;
+                const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                try {
+                  await redeemableEarningsService.addEarnings({
+                    userId: split.userId,
+                    amount: split.amount,
+                    source,
+                    sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / credits) * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                    metadata: {
+                      buyer_user_id: userId,
+                      buyer_org_id: organizationId,
+                      payment_intent_id: paymentIntentId,
+                      role: split.role,
+                    },
+                  });
+                  logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
+                } catch (splitError) {
+                  logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`, {
+                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                    amount: split.amount,
+                    paymentIntentId,
+                    sourceId: `${paymentIntentId}:${split.userId}`,
+                    retryable: true,
+                  });
+                  trackServerEvent(userId, "revenue_split_failed", {
+                    payment_intent_id: paymentIntentId,
+                    split_user_id: split.userId,
+                    split_role: split.role,
+                    split_amount: split.amount,
+                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                  });
+                  return NextResponse.json(
+                    { error: "Failed to process revenue split", retryable: true },
+                    { status: 500 },
+                  );
                 }
               }
             }

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { isAddress } from "viem";
 
+const SOLANA_BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
 const provisionWalletSchema = z
     .object({
         chainType: z.enum(["evm", "solana"]),
@@ -15,6 +17,9 @@ const provisionWalletSchema = z
     .superRefine((data, ctx) => {
         if (data.chainType === "evm" && !isAddress(data.clientAddress)) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid EVM address", path: ["clientAddress"] });
+        }
+        if (data.chainType === "solana" && !SOLANA_BASE58.test(data.clientAddress)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid Solana address (base58, 32–44 chars)", path: ["clientAddress"] });
         }
     });
 
