@@ -346,7 +346,8 @@ export class CacheClient {
         key,
         error: error instanceof Error ? error.message : String(error),
       });
-      return null;
+      // Re-throw Redis failures to prevent proceeding with a failed GETDEL
+      throw new Error("Cache operation failed during getAndDelete", { cause: error });
     }
   }
 
