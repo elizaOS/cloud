@@ -5,6 +5,7 @@
  * Handles CRUD, revenue distribution, and discovery.
  */
 
+import crypto from "crypto";
 import {
   userMcpsRepository,
   mcpUsageRepository,
@@ -442,13 +443,14 @@ class UserMcpsService {
       }
     }
 
-    // Credit Affiliate
+    // Credit Affiliate (per-call unique sourceId so each MCP call is credited; idempotency is per-call)
     if (affiliateFeeCredits > 0 && affiliateOwnerId && affiliateCodeId) {
+      const callId = crypto.randomUUID();
       await redeemableEarningsService.addEarnings({
         userId: affiliateOwnerId,
         amount: affiliateFeeCredits / CREDITS_PER_DOLLAR,
         source: "affiliate",
-        sourceId: affiliateCodeId,
+        sourceId: `affiliate_mcp:${affiliateCodeId}:${callId}`,
         description: `API Usage Affiliate Fee: ${mcp.name} - ${params.toolName}`,
         metadata: {
           buyer_user_id: params.userId,

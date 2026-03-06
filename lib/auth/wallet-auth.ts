@@ -8,7 +8,6 @@ import { verifyMessage, getAddress } from "viem";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import type { UserWithOrganization } from "@/lib/types";
 import { cache } from "@/lib/cache/client";
-import { logger } from "@/lib/utils/logger";
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // WHY: limits replay window while allowing clock skew
 
@@ -63,16 +62,10 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     throw new Error("Invalid wallet signature");
   }
 
-  // Note: Mark nonce as used atomically using getAndDelete - if nonce exists, it's already used
-  try {
-    const existing = await cache.getAndDelete(nonceKey);
-    if (existing !== null) {
-      throw new Error("Signature has already been used");
-    }
-    await cache.set(nonceKey, "used", MAX_TIMESTAMP_AGE_MS / 1000);
-  } catch (error) {
-    logger.error("[Wallet Auth] Failed to set nonce:", error);
-    throw new Error("Service temporarily unavailable");
+  // Atomic SET NX PX: only one concurrent request can claim this nonce; prevents TOCTOU race
+  const claimed = await cache.setIfNotExists(nonceKey, "used", MAX_TIMESTAMP_AGE_MS);
+  if (!claimed) {
+    throw new Error("Signature has already been used");
   }
 
   const { user } = await findOrCreateUserByWalletAddress(walletAddress);

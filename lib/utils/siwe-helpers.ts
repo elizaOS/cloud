@@ -15,6 +15,8 @@ export type { SiweMessage };
 const SIWE_DOMAIN_MISMATCH = "SIWE domain does not match app host";
 const SIWE_NONCE_INVALID = "SIWE nonce invalid or already used";
 const SIWE_SIGNATURE_INVALID = "SIWE signature invalid";
+const SIWE_EXPIRED = "SIWE message has expired";
+const SIWE_NOT_YET_VALID = "SIWE message not yet valid";
 
 /**
  * Consumes the nonce from cache (single-use). Returns true if the nonce was
@@ -60,6 +62,14 @@ export async function validateSIWEMessage(
   });
   if (!valid) {
     throw new Error(SIWE_SIGNATURE_INVALID);
+  }
+
+  const now = Date.now();
+  if (parsed.expirationTime && parsed.expirationTime.getTime() <= now) {
+    throw new Error(SIWE_EXPIRED);
+  }
+  if (parsed.notBefore && parsed.notBefore.getTime() > now) {
+    throw new Error(SIWE_NOT_YET_VALID);
   }
 
   return { address, parsed: parsed as SiweMessage };

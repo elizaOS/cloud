@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAddress } from "viem";
+import { cache } from "@/lib/cache/client";
 import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -39,6 +40,13 @@ function buildResponse(
  * WHY new key each time: client may have lost previous key; SIWE is the recovery path. Rate limit STRICT (account creation + key issuance).
  */
 async function handler(request: NextRequest) {
+  if (!cache.isAvailable()) {
+    return NextResponse.json(
+      { error: "Service temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+
   const body = (await request.json().catch(() => null)) as VerifyBody | null;
   if (!body?.message || !body?.signature) {
     return NextResponse.json(

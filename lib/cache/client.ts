@@ -268,6 +268,35 @@ export class CacheClient {
   }
 
   /**
+   * Atomically set key to value with TTL only if key does not exist (SET NX PX).
+   * Used for single-use nonces to prevent TOCTOU races between getAndDelete and set.
+   *
+   * @param key - Cache key.
+   * @param value - Value to set (string or serializable).
+   * @param ttlMs - Time to live in milliseconds.
+   * @returns true if key was set, false if key already existed.
+   */
+  async setIfNotExists<T>(key: string, value: T, ttlMs: number): Promise<boolean> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+      throw new Error("Cache unavailable for atomic set-if-not-exists");
+    }
+
+    if (!this.isValidCacheValue(value)) {
+      throw new Error(`Invalid cache value for key ${key}`);
+    }
+
+    const serialized =
+      typeof value === "string" ? value : JSON.stringify(value);
+
+    const start = Date.now();
+    const result = await this.redis.set(key, serialized, { nx: true, px: ttlMs });
+    this.resetFailures();
+    this.logMetric(key, "setIfNotExists", Date.now() - start);
+    return result === "OK";
+  }
+
+  /**
    * Atomically increments a numeric value in cache.
    * If the key does not exist, it is set to 0 before incrementing.
    *

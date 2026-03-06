@@ -4,7 +4,6 @@ import crypto from "crypto";
 
 const AMOUNT = 100;
 
-// Create deterministic sourceId based on x402 payment ID and wallet
 const handler = createTopupHandler({ 
   amount: AMOUNT,
   getSourceId: (walletAddress: string, paymentId: string) => {

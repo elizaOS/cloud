@@ -265,9 +265,11 @@ export async function proxy(request: NextRequest) {
       : null;
     const apiKey = request.headers.get("X-API-Key");
 
-    // WHY walletSig passthrough: requireAuthOrApiKey accepts wallet-header auth; without this, wallet-only requests get 401 here
+    // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
     const walletSig = request.headers.get("X-Wallet-Signature");
-    if (apiKey || walletSig || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    const allowWalletPassthrough =
+      pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
+    if (apiKey || (walletSig && allowWalletPassthrough) || (bearerToken && bearerToken.startsWith("eliza_"))) {
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });
