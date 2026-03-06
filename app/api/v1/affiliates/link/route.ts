@@ -4,6 +4,7 @@ import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { getCorsHeaders } from "@/lib/utils/cors";
+import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ const LinkSchema = z.object({
  * POST /api/v1/affiliates/link
  * Links the current user to a referring affiliate code.
  */
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
     const origin = request.headers.get("origin");
     const corsHeaders = getCorsHeaders(origin);
 
@@ -72,4 +73,4 @@ export async function POST(request: NextRequest) {
             { status: 500, headers: corsHeaders }
         );
     }
-}
+}, RateLimitPresets.STRICT);
