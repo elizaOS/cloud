@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, CheckCircle2, UserCog, Link as LinkIcon, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { getAppUrl } from "@/lib/utils/app-url";
 
 interface AffiliateData {
     id: string;
@@ -126,7 +127,7 @@ export function AffiliatesPageClient() {
                 <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-3">
                     <LinkIcon className="h-5 w-5 text-white/40 shrink-0" />
                     <div className="flex-1 font-mono text-white/80 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                        {typeof window !== "undefined" ? `${window.location.origin}/login?code=${affiliateData?.code}` : `https://eliza.cloud/login?code=${affiliateData?.code}`}
+                        {typeof window !== "undefined" ? `${window.location.origin}/login?code=${affiliateData?.code}` : `${getAppUrl()}/login?code=${affiliateData?.code}`}
                     </div>
                     <Button
                         variant="secondary"

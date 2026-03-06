@@ -81,6 +81,10 @@ All wallet-based account creation goes through **`findOrCreateUserByWalletAddres
 - **Initial credits**: controlled by `grantInitialCredits` (default true for SIWE and wallet-header; false for topup). **Why env `INITIAL_FREE_CREDITS`?** So deployments can set 0 or another value without code change.
 - **Race handling**: on unique constraint (duplicate wallet), we re-fetch the user created by the concurrent request and return that. **Why?** Two concurrent signups for the same wallet should both succeed and see the same account.
 
+## Dependencies / SLA
+
+- **Redis**: SIWE nonce storage and wallet-header nonce consumption both require Redis. If Redis is unavailable, the nonce endpoint returns 503 and wallet-header auth throws "Service temporarily unavailable" (no fallback). **Wallet-header auth is fully unavailable during Redis outages**; this is intentional (fail closed for security). API-key and session auth are unaffected.
+
 ## Proxy and CORS
 
 - **Public paths**: `/api/auth/siwe`, `/api/v1/topup` (no session required; SIWE and x402 handle their own auth).

@@ -34,7 +34,15 @@ async function handlePOST(request: NextRequest) {
     }
 
     const organizationId = user.organization_id!;
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400, headers: NO_CACHE_HEADERS },
+      );
+    }
     const bodySchema = z.object({
       code: z.string().min(1).trim()
     });

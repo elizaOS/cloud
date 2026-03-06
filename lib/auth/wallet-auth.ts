@@ -43,9 +43,9 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
   const nonce = `${walletAddress}-${timestamp}-${method}-${path}`;
   const nonceKey = `wallet-nonce:${nonce}`;
 
-  // Note: Fail closed if cache unavailable to prevent replay attacks during Redis outages
+  // Fail closed if cache unavailable to prevent replay attacks during Redis outages.
+  // SLA: Wallet-header auth is fully unavailable during Redis outages; no fallback.
   if (!cache.isAvailable()) {
-    // Consider in-memory fallback or document as SLA
     throw new Error("Service temporarily unavailable");
   }
 

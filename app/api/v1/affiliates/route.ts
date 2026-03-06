@@ -3,6 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { affiliatesService } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { getCorsHeaders } from "@/lib/utils/cors";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function OPTIONS(request: NextRequest) {
  * Read-only: returns the current user's affiliate code if it exists.
  * Returns { code: null } when the user has no affiliate code (use POST to create).
  */
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -48,6 +49,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+
 const MarkupSchema = z.object({
   markupPercent: z.number().min(0).max(1000),
 });
@@ -56,7 +59,7 @@ const MarkupSchema = z.object({
  * PUT /api/v1/affiliates
  * Updates the current user's affiliate code markup (code must already exist).
  */
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
   const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -100,6 +103,8 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export const PUT = withRateLimit(handlePUT, RateLimitPresets.STANDARD);
 
 /**
  * POST /api/v1/affiliates

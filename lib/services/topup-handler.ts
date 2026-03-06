@@ -6,6 +6,7 @@ import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
+import { withX402, type RouteConfig } from "x402-next";
 import { organizationsService } from "@/lib/services/organizations";
 import { getTopupRecipient } from "@/lib/services/topup";
 import { referralsService } from "@/lib/services/referrals";
@@ -138,4 +139,24 @@ export function createWrappedHandler(
 
 export function getNetwork(): string {
   return process.env.X402_NETWORK || "base-sepolia";
+}
+
+/**
+ * Returns the POST handler for a topup route. Single factory so /10, /50, /100 only differ by amount.
+ */
+export function createTopupRoute(amount: number) {
+  const handler = createTopupHandler({
+    amount,
+    getSourceId: (walletAddress: string, paymentId: string) =>
+      crypto.createHash("sha256").update(`${walletAddress}-${amount}-${paymentId}`).digest("hex"),
+  });
+  const payTo = getPayToAddress();
+  const wrappedHandler = createWrappedHandler(handler, payTo);
+  const network = getNetwork() as RouteConfig["network"];
+  const routeConfig: RouteConfig = {
+    price: `$${amount}.00`,
+    network,
+    config: { description: `Topup $${amount} credits for Eliza Cloud` },
+  };
+  return withX402(wrappedHandler, payTo, routeConfig);
 }
