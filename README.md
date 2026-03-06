@@ -665,6 +665,8 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 
 **Cost**: Token-based pricing from `lib/pricing.ts`
 
+**Anthropic Messages API (Claude Code):** For tools that expect the [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) (e.g. Claude Code), use **POST /api/v1/messages** with the same request/response shape. Set `ANTHROPIC_BASE_URL=https://elizacloud.ai/api/v1` and `ANTHROPIC_API_KEY` to your Cloud API key so usage goes through Cloud credits instead of a direct Anthropic key. See [API docs → Anthropic Messages](/docs/api/messages). *Why: single API key and billing for both OpenAI-style and Anthropic-style clients.*
+
 ### 2. AI Image Generation
 
 **Location**: `/dashboard/image` and `/app/api/v1/generate-image/route.ts`
@@ -998,7 +1000,7 @@ POST /api/eliza/rooms/{roomId}/messages
 
 **Location**: Documented management endpoints that explicitly note API key support
 
-API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`). Not every `/api/v1/` or `/api/my-agents/` route supports API keys today, so rely on the documented list, enabling:
+API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/chat/completions`, `/api/v1/messages`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`). Not every `/api/v1/` or `/api/my-agents/` route supports API keys today, so rely on the documented list, enabling:
 
 - **Programmatic Agent Management**: Create, update, delete, and clone agents via API
 - **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications

@@ -1,0 +1,170 @@
+---
+title: Anthropic Messages API
+description: Anthropic Messages API–compatible endpoint for Claude Code and Anthropic SDKs on elizaOS Cloud.
+---
+
+import { Callout, Tabs } from "nextra/components";
+
+# Anthropic Messages API
+
+<div className="status-badge status-stable">Stable</div>
+
+Anthropic Messages API–compatible endpoint so **Claude Code**, the official Anthropic SDKs, and any client that speaks the [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) can use elizaOS Cloud as their backend—with your Cloud API key and credit-based billing instead of a direct Anthropic key.
+
+## Why this endpoint exists
+
+- **Claude Code** and many tools expect `POST /v1/messages` with `x-api-key` and Anthropic request/response shapes. Without a compatible route, users would have to proxy or rewrite requests. This route lets them set `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` (to your Cloud API key) and use Cloud credits.
+- **Single billing surface**: All usage (OpenAI-style chat, Anthropic-style messages, embeddings) goes through the same org credits and usage analytics.
+- **Same safety and limits**: Content moderation, rate limits, and app credits behave the same as for `/api/v1/chat/completions`.
+
+## Create message
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/messages</span>
+</div>
+
+Send a list of messages and optional system prompt; get a single assistant message (or stream).
+
+**Base URL for Anthropic clients:** Use `https://elizacloud.ai/api/v1` so that the client calls `https://elizacloud.ai/api/v1/messages`. Set the API key to your **elizaOS Cloud API key** (from Dashboard → API Keys), not an Anthropic key.
+
+### Authentication
+
+| Header | Use |
+|--------|-----|
+| `x-api-key: YOUR_CLOUD_API_KEY` | Preferred for Anthropic SDKs (same as Anthropic’s header name). |
+| `Authorization: Bearer YOUR_CLOUD_API_KEY` | Also supported. |
+
+<Callout type="warning">
+  Use your **elizaOS Cloud** API key here. We do not forward to or bill Anthropic directly; we use our gateway and your Cloud credits.
+</Callout>
+
+### Request
+
+<Tabs items={['cURL', 'JavaScript', 'Claude Code config']}>
+  <Tabs.Tab>
+```bash
+curl -X POST "https://elizacloud.ai/api/v1/messages" \
+  -H "x-api-key: YOUR_CLOUD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{
+    "model": "claude-sonnet-4",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```javascript
+const response = await fetch('https://elizacloud.ai/api/v1/messages', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'YOUR_CLOUD_API_KEY',
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
+  },
+  body: JSON.stringify({
+    model: 'claude-sonnet-4',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: 'Hello!' }],
+  }),
+});
+const data = await response.json();
+console.log(data.content[0].text);
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+To use Claude Code with elizaOS Cloud:
+
+1. Get your API key from [Dashboard → API Keys](/dashboard/api-keys).
+2. Set environment variables (or use `~/.claude/settings.json`):
+
+```bash
+export ANTHROPIC_BASE_URL="https://elizacloud.ai/api/v1"
+export ANTHROPIC_API_KEY="eliza_your_api_key_here"
+```
+
+Why `ANTHROPIC_BASE_URL` points at `/api/v1`: Claude Code appends `/messages` to the base URL, so the full URL becomes `https://elizacloud.ai/api/v1/messages`.
+  </Tabs.Tab>
+</Tabs>
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | string | ✓ | Model ID, e.g. `claude-sonnet-4`, `claude-opus-4.5`, or `anthropic/claude-sonnet-4`. We map bare `claude-*` to gateway ids. |
+| `max_tokens` | integer | ✓ | Maximum tokens to generate. |
+| `messages` | array | ✓ | Alternating user/assistant messages; see [Message format](#message-format). |
+| `system` | string or array | | System prompt. Array form: `[{ "type": "text", "text": "..." }]`. |
+| `stream` | boolean | | If true, response is SSE stream (Anthropic event types). Default: false. |
+| `temperature` | number | | Sampling temperature. |
+| `top_p` | number | | Nucleus sampling. |
+| `stop_sequences` | string[] | | Stop sequences. |
+| `tools` | array | | Tool definitions (name, description, input_schema). Supported so Claude Code and tool-using clients work. |
+| `tool_choice` | object | | `auto`, `none`, `any`, or `{ type: "tool", name: "..." }`. |
+
+### Message format
+
+Each message has `role` (`user` or `assistant`) and `content`:
+
+- **Simple:** `content` is a string.
+- **Structured:** `content` is an array of blocks:
+  - `{ "type": "text", "text": "..." }`
+  - `{ "type": "image", "source": { "type": "url", "url": "..." } }` or `{ "type": "base64", "media_type": "...", "data": "..." }`
+  - `{ "type": "tool_use", "id": "...", "name": "...", "input": { ... } }`
+  - `{ "type": "tool_result", "tool_use_id": "...", "content": "..." }`
+
+### Response (non-streaming)
+
+```json
+{
+  "id": "msg_abc123",
+  "type": "message",
+  "role": "assistant",
+  "content": [{ "type": "text", "text": "Hello! How can I help?" }],
+  "model": "claude-sonnet-4",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": { "input_tokens": 10, "output_tokens": 8 }
+}
+```
+
+`stop_reason` can be `end_turn`, `max_tokens`, `stop_sequence`, or `tool_use` when the model requested a tool call.
+
+### Streaming
+
+Set `"stream": true`. The response is `text/event-stream` with Anthropic event types:
+
+- `message_start` — message envelope (id, model, usage placeholder).
+- `content_block_start` / `content_block_delta` / `content_block_stop` — text (and in future, tool_use) blocks.
+- `message_delta` — final usage and stop_reason.
+- `message_stop` — end of message.
+- `ping` — keepalive (why: some clients use it to avoid timeouts).
+- `error` — on stream failure (why: so clients can show an error instead of a broken stream).
+
+### Errors
+
+Errors follow Anthropic’s shape so clients don’t need special handling:
+
+```json
+{ "type": "error", "error": { "type": "authentication_error", "message": "Invalid or expired API key" } }
+```
+
+| HTTP | error.type | When |
+|------|------------|------|
+| 400 | `invalid_request_error` | Missing/invalid body or required fields. |
+| 401 | `authentication_error` | Invalid or missing API key. |
+| 403 | `permission_error` | Account suspended (e.g. moderation). |
+| 429 | `rate_limit_error` | Rate limited or insufficient credits. |
+| 500 | `api_error` | Internal or gateway error. |
+
+Insufficient credits are returned as 429 `rate_limit_error` so Anthropic SDKs and Claude Code treat them as retryable/quotas.
+
+---
+
+## Related
+
+- [Chat Completions](/docs/api/chat) — OpenAI-compatible chat (same models, same credits).
+- [Authentication](/docs/authentication) — API keys and scopes.
+- [Anthropic Messages API](https://docs.anthropic.com/en/api/messages) — Official request/response reference.

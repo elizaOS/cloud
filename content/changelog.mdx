@@ -13,6 +13,18 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## January 2026
 
+### Jan 9, 2026
+
+<div className="status-badge status-new">New</div>
+
+**Anthropic Messages API–compatible endpoint**
+
+- **POST /api/v1/messages** — Full Anthropic Messages API shape (messages, system, tools, tool_choice, streaming with SSE events).
+- **Why:** Claude Code and Anthropic SDKs expect `POST /v1/messages` and `x-api-key`; this lets users set `ANTHROPIC_BASE_URL` and use their Cloud API key instead of an Anthropic key, with the same credits and billing.
+- Supports text, images (URL + base64), and tool use so Claude Code and tool-using clients work without changes.
+- Errors and streaming follow Anthropic formats (e.g. `event: error`, `rate_limit_error` for insufficient credits) so clients don’t need custom handling.
+- Same auth (X-API-Key / Bearer), moderation, rate limits, and app credits as chat completions.
+
 ### Jan 8, 2026
 
 <div className="status-badge status-new">New</div>

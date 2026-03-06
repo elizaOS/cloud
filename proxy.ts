@@ -173,6 +173,7 @@ const publicPaths = [
   "/api/v1/chat",
   "/api/v1/chat/completions",
   "/api/v1/responses",
+  "/api/v1/messages",
   "/api/v1/embeddings",
   "/api/v1/models",
   "/api/v1/credits/topup",
