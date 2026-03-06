@@ -23,3 +23,4 @@ const routeConfig: RouteConfig = {
 
 export const POST = withX402(wrappedHandler, payTo, routeConfig);
     
+// Note: slug format ensures unique identification for wallet transactions reliably.
