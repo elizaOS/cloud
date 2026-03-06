@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const code = await affiliatesService.getAffiliateCode(user.id);
+    const code = await affiliatesService.getOrCreateAffiliateCode(user.id);
 
     return NextResponse.json(
       { code: code ?? null },
@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { markupPercent } = validation.data;
-    const code = await affiliatesService.createAffiliateCode(user.id, markupPercent);
+    // Update existing code by creating a new one with specified markup
+    const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
     return NextResponse.json(
       { code },
