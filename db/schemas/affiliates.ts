@@ -37,10 +37,10 @@ export const affiliateCodes = pgTable(
   (table) => ({
     user_idx: index("affiliate_codes_user_idx").on(table.user_id),
     code_idx: index("affiliate_codes_code_idx").on(table.code),
-    // Ensure markup is between 0 and 1000% (matches UI validation)
+    // Ensure markup is between 0 and 200% to match API validation
     markup_percent_range: check(
       "markup_percent_range", 
-      sql`${table.markup_percent} >= 0 AND ${table.markup_percent} <= 1000`
+      sql`${table.markup_percent} >= 0 AND ${table.markup_percent} <= 200`
     ),
   })
 );
