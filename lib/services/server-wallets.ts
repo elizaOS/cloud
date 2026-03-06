@@ -44,19 +44,20 @@ export async function provisionServerWallet({
         .returning();
 
         return record;
-    } catch (error: any) {
-        // If this was a unique constraint violation, another request beat us to it
-        if (error.code === '23505' || error.message?.includes('unique constraint')) {
-            // Clean up the orphaned Privy wallet since we couldn't record it
+    } catch (error: unknown) {
+        const isUniqueViolation =
+            error instanceof Error &&
+            ((error as { code?: string }).code === "23505" ||
+                error.message.includes("unique constraint"));
+        if (isUniqueViolation) {
             if (wallet?.id) {
                 await privy.walletApi.delete(wallet.id).catch(() => {
-                    // Best effort cleanup - log but continue if this fails
                     console.error(`Failed to clean up orphaned Privy wallet ${wallet.id}`);
                 });
             }
-            throw new Error('Wallet already exists for this client address');
+            throw new Error("Wallet already exists for this client address");
         }
-        throw error; // Re-throw any other errors
+        throw error;
     }
 }
 

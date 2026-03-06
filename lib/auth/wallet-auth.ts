@@ -8,6 +8,7 @@ import { verifyMessage, getAddress } from "viem";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import type { UserWithOrganization } from "@/lib/types";
 import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // WHY: limits replay window while allowing clock skew
 
@@ -68,6 +69,12 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
     throw new Error("Signature has already been used");
   }
 
+  const cacheKey = CacheKeys.walletAuth.user(walletAddress);
+  const cached = await cache.get<UserWithOrganization>(cacheKey);
+  if (cached && cached.is_active && cached.organization?.is_active) {
+    return cached;
+  }
+
   const { user } = await findOrCreateUserByWalletAddress(walletAddress);
 
   if (!user.is_active) {
@@ -77,6 +84,8 @@ export async function verifyWalletSignature(request: NextRequest): Promise<UserW
   if (!user.organization?.is_active) {
     throw new Error("Organization is inactive");
   }
+
+  await cache.set(cacheKey, user, CacheTTL.walletAuth.user);
 
   return user;
 }

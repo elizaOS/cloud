@@ -5,6 +5,7 @@ import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
 import type { Organization } from "@/db/repositories/organizations";
 
 interface VerifyBody {
@@ -60,8 +61,11 @@ async function handler(request: NextRequest) {
     const result = await validateAndConsumeSIWE(body.message, body.signature);
     address = result.address;
   } catch (err) {
+    logger.warn("[SIWE Verify] Validation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
+      { error: "SIWE verification failed" },
       { status: 401 },
     );
   }

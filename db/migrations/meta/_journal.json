@@ -260,6 +260,13 @@
       "when": 1772770320058,
       "tag": "0036_users_wallet_address_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1772773672986,
+      "tag": "0038_agent_server_wallets_client_address_unique",
+      "breakpoints": true
     }
   ]
 }

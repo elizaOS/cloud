@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { affiliatesService } from "@/lib/services/affiliates";
+import { affiliatesService, ERRORS as AFFILIATE_ERRORS } from "@/lib/services/affiliates";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { getCorsHeaders } from "@/lib/utils/cors";
-import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +53,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
             error: errorMessage,
         });
 
-        // Use service-level error constants for consistent messaging
-        const { AFFILIATE_ERRORS } = affiliatesService;
-        
-        // Check for specific error types from service
         if (error instanceof Error) {
-            // Standard error codes that match repository-level errors
             if (error.message === AFFILIATE_ERRORS.INVALID_CODE || 
                 error.message === AFFILIATE_ERRORS.CODE_NOT_FOUND) {
                 return NextResponse.json(

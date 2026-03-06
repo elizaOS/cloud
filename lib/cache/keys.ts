@@ -171,6 +171,9 @@ export const CacheKeys = {
     nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
     pattern: () => `siwe:*`,
   },
+  walletAuth: {
+    user: (address: string) => `wallet-auth:user:${address}:v1`,
+  },
   userMetrics: {
     overview: (rangeDays?: number) =>
       `user-metrics:overview:${rangeDays ?? 30}d:v1`,
@@ -292,6 +295,9 @@ export const CacheTTL = {
   n8nWorkflows: {
     list: 60, // 1 minute - workflow list
     workflow: 120, // 2 minutes - single workflow details
+  },
+  walletAuth: {
+    user: 30, // 30 seconds - avoid DB upsert on every wallet-authenticated request
   },
   siwe: {
     nonce: 300, // 5 minutes - one-time nonce TTL

@@ -37,7 +37,11 @@ async function handlePOST(request: NextRequest) {
         // 3. Execute RPC via Privy Server Wallet
         const result = await executeServerWalletRpc({
             clientAddress: validated.clientAddress,
-            payload: validated.payload,
+            payload: {
+                ...validated.payload,
+                timestamp: validated.timestamp,
+                nonce: validated.nonce,
+            },
             signature: validated.signature as `0x${string}`,
         });
 

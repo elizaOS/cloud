@@ -40,7 +40,7 @@ export const agentServerWallets = pgTable(
         chain_type: text("chain_type").notNull(),
 
         // The EVM address of the local agent used to authenticate RPC calls.
-        client_address: text("client_address").notNull(),
+        client_address: text("client_address").notNull().unique(),
 
         created_at: timestamp("created_at").notNull().defaultNow(),
         updated_at: timestamp("updated_at").notNull().defaultNow(),

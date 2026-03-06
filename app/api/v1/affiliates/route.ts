@@ -8,6 +8,16 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
+function isAuthError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message;
+  return (
+    msg.includes("Unauthorized") ||
+    msg.includes("Invalid wallet signature") ||
+    msg.includes("Wallet authentication failed")
+  );
+}
+
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return new NextResponse(null, {
@@ -34,7 +44,7 @@ async function handleGET(request: NextRequest) {
       { headers: corsHeaders }
     );
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
+    if (isAuthError(error)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
@@ -83,7 +93,7 @@ async function handlePUT(request: NextRequest) {
       { headers: corsHeaders }
     );
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
+    if (isAuthError(error)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
@@ -110,7 +120,7 @@ export const PUT = withRateLimit(handlePUT, RateLimitPresets.STANDARD);
  * POST /api/v1/affiliates
  * Creates a new affiliate code for the user with specified markup.
  */
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
 
@@ -127,7 +137,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { markupPercent } = validation.data;
-    // Update existing code by creating a new one with specified markup
     const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
 
     return NextResponse.json(
@@ -135,7 +144,7 @@ export async function POST(request: NextRequest) {
       { headers: corsHeaders }
     );
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
+    if (isAuthError(error)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: corsHeaders }
@@ -149,3 +158,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

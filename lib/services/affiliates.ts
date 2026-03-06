@@ -11,12 +11,6 @@ export const ERRORS = {
     SELF_REFERRAL: "Users cannot refer themselves"
 } as const;
 
-function isPgUniqueViolation(error: { code?: string; message?: string }): boolean {
-    return error?.code === "23505" || 
-           error?.message?.includes("unique") || 
-           error?.message?.includes("duplicate");
-}
-
 /**
  * Affiliate (revenue-share) service. WHY separate from referrals: Referrals split
  * purchase revenue (50/40/10) at signup attribution; affiliates get a markup added
