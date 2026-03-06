@@ -314,8 +314,9 @@ export async function requireAuth(): Promise<UserWithOrganization> {
 }
 
 /**
- * Require authenticated user WITH organization (excludes anonymous users)
- * Use this for all paid features that require credits/billing
+ * Require authenticated user WITH organization (excludes anonymous users).
+ * Session-only (no API key). Use for signup-code redeem etc. so scripts cannot brute-force via API key.
+ * Use this for all paid features that require credits/billing.
  */
 export async function requireAuthWithOrg(): Promise<
   UserWithOrganization & { organization_id: string; organization: Organization }

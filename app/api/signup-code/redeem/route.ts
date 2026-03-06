@@ -23,8 +23,8 @@ async function handlePOST(request: NextRequest) {
   try {
     let user;
     try {
-      // Note: Intentionally using session-only auth (no request param) to prevent API key abuse for code redemption
-      user = await requireAuthWithOrg(request);
+      // Session-only: requireAuthWithOrg() uses getCurrentUser() (cookies), no request → API key not accepted.
+      user = await requireAuthWithOrg();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return NextResponse.json(
