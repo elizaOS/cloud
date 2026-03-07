@@ -41,6 +41,12 @@ async function callSendMessage(payload: Record<string, unknown>): Promise<Respon
   });
 }
 
+function cleanUrlMarkdown(text: string): string {
+  return text
+    .replace(/\*{1,2}(https?:\/\/[^\s*]+)\*{1,2}/g, "$1")
+    .replace(/_(https?:\/\/[^\s_]+)_/g, "$1");
+}
+
 async function sendTypingIndicator(chatId: number): Promise<void> {
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`, {
@@ -107,7 +113,7 @@ async function sendTelegramMessage(
     const hasLongUrl = URL_PATTERN.test(chunk);
     const ok = await sendWithMarkdownFallback({
       chat_id: chatId,
-      text: chunk,
+      text: cleanUrlMarkdown(chunk),
       reply_to_message_id: i === 0 ? replyToMessageId : undefined,
       ...(hasLongUrl ? {} : { parse_mode: "Markdown" }),
     });
