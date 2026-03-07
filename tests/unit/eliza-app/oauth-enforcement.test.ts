@@ -40,15 +40,13 @@ function extractMessagesFromWebhook(): {
     "utf-8"
   );
 
-  // Telegram rejection: code uses template literal with elizaAppConfig.appUrl, not literal "https://eliza.app"
   const telegramMatch = telegramWebhook.match(
     /Welcome! To chat with Eliza, please connect your Telegram first[\s\S]*?get-started/
   );
   const hasTelegramEmoji = telegramWebhook.includes("👋") && (telegramMatch?.length ?? 0) > 0;
 
-  // Status not connected: "Connect your Telegram at: ${elizaAppConfig.appUrl}/get-started"
   const statusMatch = telegramWebhook.match(
-    /Connect your Telegram at:[\s\S]*?get-started/
+    /Not connected yet[\s\S]*?get-started/
   );
 
   return {
@@ -59,7 +57,7 @@ function extractMessagesFromWebhook(): {
           ? "Welcome! To chat with Eliza, please connect your Telegram first:\n\nhttps://eliza.app/get-started"
           : "",
     statusNotConnected: statusMatch
-      ? "Connect your Telegram at: https://eliza.app/get-started"
+      ? "*Account Status*\n\n❌ Not connected yet\n\nConnect your Telegram at: https://eliza.app/get-started"
       : "",
   };
 }
@@ -227,17 +225,29 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
 
   test("Telegram rejection message exists in webhook (OAuth enforcement)", () => {
     expect(messages.telegramRejection).not.toBe("");
-    expect(messages.telegramRejection).toContain("https://eliza.app/get-started");
-    expect(messages.telegramRejection.toLowerCase()).toContain("telegram");
+    expect(messages.telegramRejection.toLowerCase()).toContain("connect your telegram");
+  });
+
+  test("Telegram rejection message includes get-started URL", () => {
+    expect(messages.telegramRejection).toContain("get-started");
   });
 
   test("Status not connected message exists in webhook", () => {
     expect(messages.statusNotConnected).not.toBe("");
-    expect(messages.statusNotConnected).toContain("https://eliza.app/get-started");
+    expect(messages.statusNotConnected.toLowerCase()).toContain("not connected");
   });
 
   test("Telegram rejection message is welcoming (contains emoji)", () => {
     expect(messages.telegramRejection).toContain("👋");
+  });
+
+  test("Get Started URL is present in rejection path of webhook code", () => {
+    const webhookCode = readFileSync(
+      join(process.cwd(), "app/api/eliza-app/webhook/telegram/route.ts"),
+      "utf-8",
+    );
+    expect(webhookCode).toContain("get-started");
+    expect(webhookCode).toContain("connect your Telegram first");
   });
 });
 

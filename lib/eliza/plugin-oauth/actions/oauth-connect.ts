@@ -38,7 +38,7 @@ export const oauthConnectAction: ActionWithParams = {
     "LINK_MICROSOFT", "LINK_OUTLOOK",
   ],
   description:
-    "Connect an OAuth platform for the user. Returns an authorization URL. After user completes OAuth in browser, they should say 'done' to verify the connection. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
+    "Connect an OAuth platform for the user. ALWAYS execute this action when the user asks to connect — generate a fresh authorization URL every time, even if one was sent before (previous links expire). Never tell the user to 'use a previous link'. Available: google, linear, slack, github, notion, twitter, asana, dropbox, salesforce, airtable, zoom, jira, linkedin, microsoft",
 
   parameters: {
     platform: {
@@ -131,7 +131,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const text = `Connect ${platformName}: ${result.authUrl}\n\nWhen you've finished authorizing, say "done" and I'll verify the connection.`;
+    const text = `Here's your ${platformName} authorization link:\n\n${result.authUrl}\n\nTap the link above to authorize. When you're done, come back here and say "done" — I'll confirm the connection right away.`;
 
     if (callback) await callback({ text, actions: [actionName] });
 
@@ -141,19 +141,19 @@ export const oauthConnectAction: ActionWithParams = {
   examples: [
     [
       { name: "{{name1}}", content: { text: "connect my google account" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link gmail" } },
-      { name: "{{name2}}", content: { text: "Connect Google: https://accounts.google.com/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Google authorization link:\n\nhttps://accounts.google.com/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "connect my twitter account" } },
-      { name: "{{name2}}", content: { text: "Connect Twitter: https://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
     [
       { name: "{{name1}}", content: { text: "link my x account" } },
-      { name: "{{name2}}", content: { text: "Connect Twitter: https://api.twitter.com/oauth/...", actions: ["OAUTH_CONNECT"] } },
+      { name: "{{name2}}", content: { text: "Here's your Twitter authorization link:\n\nhttps://api.twitter.com/oauth/...\n\nTap the link above to authorize. When you're done, come back here and say \"done\".", actions: ["OAUTH_CONNECT"] } },
     ],
   ] as ActionExample[][],
 };

@@ -14,7 +14,6 @@ export function splitMessage(text: string, maxLength = 4096): string[] {
       current += (current ? "\n" : "") + line;
     } else {
       if (current) chunks.push(current);
-      // If a single line is too long, we need to split it
       if (line.length > maxLength) {
         let remaining = line;
         while (remaining.length > maxLength) {
@@ -118,4 +117,22 @@ export function parseCommand(text: string): {
     args: parts.slice(1),
     raw: parts.slice(1).join(" "),
   };
+}
+
+export function createTypingRefresh(
+  chatId: number,
+  botToken: string,
+  intervalMs = 4000,
+  onError?: (error: unknown) => void,
+): { stop: () => void } {
+  const id = setInterval(() => {
+    fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action: "typing" }),
+    }).catch((error) => {
+      onError?.(error);
+    });
+  }, intervalMs);
+  return { stop: () => clearInterval(id) };
 }

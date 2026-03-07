@@ -35,6 +35,7 @@ import {
   getActionResultsFromCache,
 } from "../utils/state";
 import { createPerfTrace } from "@/lib/utils/perf-trace";
+import { invalidateActionValidationCache } from "../providers/actions";
 import {
   type MultiStepActionResult,
   type StrategyMode,
@@ -49,8 +50,8 @@ import {
 const latestResponseIds = new Map<string, Map<string, string>>();
 
 const RETRY_CONFIG = {
-  baseDelayMs: 1000,
-  maxDelayMs: 10000,
+  baseDelayMs: 200,
+  maxDelayMs: 1000,
   backoffMultiplier: 2,
 } as const;
 
@@ -127,7 +128,8 @@ async function withRetry<T>(
         `[MultiStep] ${label} validation failed on attempt ${attempt}/${maxRetries}`,
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error(
         `[MultiStep] ${label} error on attempt ${attempt}/${maxRetries}:`,
         errorMessage,
@@ -631,77 +633,78 @@ export class CloudBootstrapMessageService implements IMessageService {
     let iterationCount = 0;
 
     try {
-    // Wait for MCP service to finish initializing (registering tool actions)
-    const mcpService = runtime.getService("mcp");
-    if (mcpService && "waitForInitialization" in mcpService) {
-      logger.debug("[MultiStep] Waiting for MCP service initialization...");
-      await (
-        mcpService as { waitForInitialization: () => Promise<void> }
-      ).waitForInitialization();
-      logger.debug("[MultiStep] MCP service ready");
-    }
+      // ASSUMPTION: MCP service init already completed during runtime creation
+      // (RuntimeFactory.waitForMcpServiceIfNeeded). If RuntimeFactory changes to
+      // skip that call, MCP tools will be missing on the first message.
 
-    // PERF: Fetch providers once upfront. ACTIONS and USER_AUTH_STATUS are truly stable
-    // for the request lifetime. RECENT_MESSAGES is cached here to give the decision LLM
-    // a consistent view during the loop; the summary step re-fetches it fresh.
-    accumulatedState = await runtime.composeState(
-      message,
-      [
-        "RECENT_MESSAGES",
-        "ACTION_STATE",
-        "ACTIONS",
-        "CHARACTER",
-        "USER_AUTH_STATUS",
-        // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
-        // via McpService.registerToolsAsActions() and appear in ACTIONS provider
-      ],
-      true,
-    );
-    accumulatedState.data.actionResults = traceActionResult;
+      // PERF: Fetch providers once upfront. ACTIONS and USER_AUTH_STATUS are truly stable
+      // for the request lifetime. RECENT_MESSAGES is cached here to give the decision LLM
+      // a consistent view during the loop; the summary step re-fetches it fresh.
+      accumulatedState = await runtime.composeState(
+        message,
+        [
+          "RECENT_MESSAGES",
+          "ACTION_STATE",
+          "ACTIONS",
+          "CHARACTER",
+          "USER_AUTH_STATUS",
+          // NOTE: "MCP" provider removed - MCP tools are now registered as native actions
+          // via McpService.registerToolsAsActions() and appear in ACTIONS provider
+        ],
+        true,
+      );
+      accumulatedState.data.actionResults = traceActionResult;
 
-    // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
-    // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
-    // sees a consistent baseline; the summary step fetches fresh RECENT_MESSAGES.
-    //
-    // TRADE-OFF: Actions that write to memory (notes, lookups, etc.) during iteration N
-    // will NOT be visible in recentMessages for the decision at iteration N+1. This is
-    // acceptable because (a) the decision prompt focuses on action selection, not memory
-    // recall, and (b) refreshing recentMessages per iteration would add ~200-400ms each.
-    // If a future action requires cross-iteration memory visibility, fetch fresh
-    // recentMessages inside that specific iteration instead of using the cached snapshot.
-    const cachedStableValues: Record<string, unknown> = {};
-    const stableProviderKeys = [
-      "recentMessages", "actions", "actionNames", "actionExamples",
-      "actionsWithDescriptions", "actionsWithParams", "userAuthStatus",
-    ];
-    for (const key of stableProviderKeys) {
-      const val = accumulatedState.values?.[key] ?? (accumulatedState as Record<string, unknown>)[key];
-      if (val !== undefined) {
-        cachedStableValues[key] = val;
+      // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
+      // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
+      // sees a consistent baseline; the summary step fetches fresh RECENT_MESSAGES.
+      //
+      // TRADE-OFF: Actions that write to memory (notes, lookups, etc.) during iteration N
+      // will NOT be visible in recentMessages for the decision at iteration N+1. This is
+      // acceptable because (a) the decision prompt focuses on action selection, not memory
+      // recall, and (b) refreshing recentMessages per iteration would add ~200-400ms each.
+      // If a future action requires cross-iteration memory visibility, fetch fresh
+      // recentMessages inside that specific iteration instead of using the cached snapshot.
+      const cachedStableValues: Record<string, unknown> = {};
+      const stableProviderKeys = [
+        "recentMessages",
+        "actions",
+        "actionNames",
+        "actionExamples",
+        "actionsWithDescriptions",
+        "actionsWithParams",
+        "userAuthStatus",
+      ];
+      for (const key of stableProviderKeys) {
+        const val =
+          accumulatedState.values?.[key] ??
+          (accumulatedState as Record<string, unknown>)[key];
+        if (val !== undefined) {
+          cachedStableValues[key] = val;
+        }
       }
-    }
-    // Also cache provider data (used by action execution, not templates)
-    const cachedStableData = accumulatedState.data
-      ? { actionsData: accumulatedState.data.actionsData }
-      : {};
+      // Also cache provider data (used by action execution, not templates)
+      const cachedStableData = accumulatedState.data
+        ? { actionsData: accumulatedState.data.actionsData }
+        : {};
 
-    const streamThinking = async (
-      phase: string,
-      content: string,
-    ): Promise<void> => {
-      if (options?.onReasoningChunk) {
-        await options.onReasoningChunk(
-          content,
-          phase as "planning" | "actions" | "response" | "thinking",
-          message.id as UUID,
-        );
-      }
-    };
+      const streamThinking = async (
+        phase: string,
+        content: string,
+      ): Promise<void> => {
+        if (options?.onReasoningChunk) {
+          await options.onReasoningChunk(
+            content,
+            phase as "planning" | "actions" | "response" | "thinking",
+            message.id as UUID,
+          );
+        }
+      };
 
-    while (iterationCount < maxIterations) {
-      iterationCount++;
-      logger.debug(
-        `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
+      while (iterationCount < maxIterations) {
+        iterationCount++;
+        logger.debug(
+          `[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`,
         );
 
         await streamThinking(
@@ -745,7 +748,8 @@ export class CloudBootstrapMessageService implements IMessageService {
           maxIterations,
           traceActionResult,
           totalActionsExecuted,
-          discoveredActions: discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "",
+          discoveredActions:
+            discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "",
           stepsWarning: remainingSteps <= 2,
           remainingSteps,
         };
@@ -771,7 +775,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         // 3 balances latency (~6-12s max) vs. reliability for complex multi-step queries
         // where LLMs occasionally produce malformed JSON. Override via MULTISTEP_PARSE_RETRIES.
         const maxParseRetries = parseInt(
-          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "3"),
+          String(runtime.getSetting("MULTISTEP_PARSE_RETRIES") ?? "2"),
         );
         let stepResultRaw = "";
         let parsedStep: ParsedMultiStepDecision | null = null;
@@ -847,7 +851,8 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Dedup guard: detect identical consecutive calls
         // Sort keys for deterministic comparison (key order varies across LLM outputs)
         const canonicalParams = (() => {
-          if (!parameters || typeof parameters !== "object") return JSON.stringify(parameters || {});
+          if (!parameters || typeof parameters !== "object")
+            return JSON.stringify(parameters || {});
           const obj = parameters as Record<string, unknown>;
           const sorted: Record<string, unknown> = {};
           for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
@@ -855,7 +860,9 @@ export class CloudBootstrapMessageService implements IMessageService {
         })();
         const dedupKey = action ? `${action}::${canonicalParams}` : "";
         if (action && dedupKey === lastActionKey) {
-          logger.warn(`[MultiStep] Duplicate action detected: ${action} with same params. Forcing completion.`);
+          logger.warn(
+            `[MultiStep] Duplicate action detected: ${action} with same params. Forcing completion.`,
+          );
           traceActionResult.push({
             data: { actionName: action },
             success: false,
@@ -886,7 +893,11 @@ export class CloudBootstrapMessageService implements IMessageService {
           let actionParams: Record<string, unknown> = {};
           if (parameters) {
             if (typeof parameters === "string") {
-              try { actionParams = JSON.parse(parameters); } catch { /* ignore */ }
+              try {
+                actionParams = JSON.parse(parameters);
+              } catch {
+                /* ignore */
+              }
             } else if (typeof parameters === "object") {
               actionParams = parameters;
             }
@@ -1006,7 +1017,8 @@ export class CloudBootstrapMessageService implements IMessageService {
           // # Previous Action Results on success — their side-effects (registering
           // new actions) are sufficient. Failures are still recorded so the LLM
           // can retry with different parameters.
-          const isTransparent = TRANSPARENT_META_ACTIONS.has(action) && actionResult.success;
+          const isTransparent =
+            TRANSPARENT_META_ACTIONS.has(action) && actionResult.success;
           if (!isTransparent) {
             traceActionResult.push(actionResult);
           }
@@ -1014,10 +1026,17 @@ export class CloudBootstrapMessageService implements IMessageService {
 
           // Track newly discovered actions from SEARCH_ACTIONS for explicit visibility
           if (action === "SEARCH_ACTIONS" && actionResult.success && result) {
-            const data = (result as Record<string, unknown>).data as Record<string, unknown> | undefined;
-            const newlyRegistered = data?.newlyRegistered as string[] | undefined;
+            const data = (result as Record<string, unknown>).data as
+              | Record<string, unknown>
+              | undefined;
+            const newlyRegistered = data?.newlyRegistered as
+              | string[]
+              | undefined;
             if (newlyRegistered?.length) {
-              newlyRegistered.forEach(name => discoveredActions.add(name));
+              newlyRegistered.forEach((name) => discoveredActions.add(name));
+              if (message.id) {
+                invalidateActionValidationCache(String(message.id));
+              }
               logger.info(
                 `[MultiStep] Discovered actions: ${newlyRegistered.join(", ")}`,
               );
@@ -1072,188 +1091,30 @@ export class CloudBootstrapMessageService implements IMessageService {
         }
       }
 
-    if (iterationCount >= maxIterations) {
-      logger.warn(
-        `[MultiStep] Reached maximum iterations (${maxIterations})`,
-      );
-    }
-
-    // If FINISH was called, use its response directly — skip summary LLM call
-    if (finishResponse !== null) {
-      logger.info("[MultiStep] Using FINISH response, skipping summary LLM call");
-
-      const responseContent: Content = {
-        actions: ["FINISH"],
-        text: finishResponse,
-        thought: "FINISH action called by decision LLM.",
-        simple: true,
-      };
-
-      if (options?.onStreamChunk) {
-        await options.onStreamChunk(finishResponse, message.id as UUID);
+      if (iterationCount >= maxIterations) {
+        logger.warn(
+          `[MultiStep] Reached maximum iterations (${maxIterations})`,
+        );
       }
 
-      const responseMessages: Memory[] = [
-        {
-          id: asUUID(v4()),
-          entityId: runtime.agentId,
-          agentId: runtime.agentId,
-          content: responseContent,
-          roomId: message.roomId,
-          createdAt: Date.now(),
-        },
-      ];
-
-      return {
-        responseContent,
-        responseMessages,
-        state: accumulatedState,
-        mode: "simple",
-      };
-    }
-
-    // Fallback: summary LLM call (FINISH wasn't called — hit max iterations or isFinish fallback)
-    await streamThinking("response", "\n--- Generating final response ---\n");
-
-    // Inject actionResults into message metadata BEFORE composeState
-    // so ACTION_STATE provider can read them during state composition
-    const summaryMessageWithResults = {
-      ...message,
-      content: {
-        ...message.content,
-        metadata: {
-          ...(message.content.metadata || {}),
-          actionResults: traceActionResult,
-        },
-      },
-    };
-
-    // Fetch all providers fresh for the summary. RECENT_MESSAGES will include
-    // messages created by action execution, which the summary LLM needs to see.
-    const summaryFreshState = await runtime.composeState(
-      summaryMessageWithResults,
-      ["RECENT_MESSAGES", "ACTION_STATE", "ACTIONS", "CHARACTER", "USER_AUTH_STATUS", "APP_CONFIG"],
-      true,
-    );
-    // Summary merge: fresh values take precedence over cached. RECENT_MESSAGES
-    // changed after actions executed, so the stale cached copy must NOT win.
-    accumulatedState = {
-      ...summaryFreshState,
-      values: { ...cachedStableValues, ...summaryFreshState.values },
-      data: { ...cachedStableData, ...summaryFreshState.data },
-    };
-    // Also set on state.data for consistency
-    accumulatedState.data.actionResults = traceActionResult;
-    accumulatedState.totalActionsExecuted = totalActionsExecuted;
-    accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
-    accumulatedState.values.hasActionResults = traceActionResult.length > 0;
-    accumulatedState.values.discoveredActions = discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
-
-    const summaryPrompt = composePromptFromState({
-      state: accumulatedState,
-      template:
-        runtime.character.templates?.multiStepSummaryTemplate ||
-        multiStepSummaryTemplate,
-    });
-
-    // === LLM CALL LOG: multiStepSummary ===
-    logger.info("========== LLM CALL: multiStepSummary ==========");
-    logger.info(
-      `[LLM:multiStepSummary] System Prompt:\n${runtime.character.system || "(none)"}`,
-    );
-    logger.info(`[LLM:multiStepSummary] User Prompt:\n${summaryPrompt}`);
-    logger.info("==============================================");
-
-    // PERF: Reduced from 5 to 2 retries. Each retry adds 1-4s with exponential backoff.
-    const maxSummaryRetries = parseInt(
-      String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "2"),
-    );
-    let finalOutput = "";
-    let summary: Record<string, unknown> | null = null;
-
-    for (
-      let summaryAttempt = 1;
-      summaryAttempt <= maxSummaryRetries;
-      summaryAttempt++
-    ) {
-      try {
-        logger.debug(
-          `[MultiStep] Summary generation attempt ${summaryAttempt}`,
-        );
-        finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
-          prompt: summaryPrompt,
-        });
-
+      // If FINISH was called, use its response directly — skip summary LLM call
+      if (finishResponse !== null) {
         logger.info(
-          `[LLM:multiStepSummary] Response (attempt ${summaryAttempt}):\n${finalOutput}`,
+          "[MultiStep] Using FINISH response, skipping summary LLM call",
         );
-        summary = parseKeyValueXml(finalOutput);
 
-        if (summary?.text) {
-          logger.debug(
-            `[MultiStep] Parsed summary on attempt ${summaryAttempt}`,
-          );
-          break;
-        } else {
-          logger.warn(
-            `[MultiStep] Failed to parse summary on attempt ${summaryAttempt}/${maxSummaryRetries}`,
-          );
-          if (summaryAttempt < maxSummaryRetries) {
-            const delay = getRetryDelay(summaryAttempt);
-            await new Promise((resolve) => setTimeout(resolve, delay));
-          }
+        const responseContent: Content = {
+          actions: ["FINISH"],
+          text: finishResponse,
+          thought: "FINISH action called by decision LLM.",
+          simple: true,
+        };
+
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(finishResponse, message.id as UUID);
         }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        logger.error(
-          `[MultiStep] Summary generation error on attempt ${summaryAttempt}:`,
-          errorMessage,
-        );
-        if (summaryAttempt >= maxSummaryRetries) {
-          logger.warn(
-            "[MultiStep] Failed to generate summary after all retries",
-          );
-          break;
-        }
-        const delay = getRetryDelay(summaryAttempt);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
 
-    let responseContent: Content | null = null;
-    if (summary?.text) {
-      responseContent = {
-        actions: ["MULTI_STEP_SUMMARY"],
-        text: summary.text as string,
-        thought:
-          (summary.thought as string) ||
-          "Final user-facing message after task completion.",
-        simple: true,
-      };
-
-      if (options?.onStreamChunk) {
-        await options.onStreamChunk(summary.text as string, message.id as UUID);
-      }
-    } else {
-      logger.warn(`[MultiStep] No valid summary generated, using fallback`);
-      const fallbackText =
-        "I completed the requested actions, but encountered an issue generating the summary.";
-      responseContent = {
-        actions: ["MULTI_STEP_SUMMARY"],
-        text: fallbackText,
-        thought: "Summary generation failed after retries.",
-        simple: true,
-      };
-
-      // Stream fallback text for consistent user experience
-      if (options?.onStreamChunk) {
-        await options.onStreamChunk(fallbackText, message.id as UUID);
-      }
-    }
-
-    const responseMessages: Memory[] = responseContent
-      ? [
+        const responseMessages: Memory[] = [
           {
             id: asUUID(v4()),
             entityId: runtime.agentId,
@@ -1262,15 +1123,185 @@ export class CloudBootstrapMessageService implements IMessageService {
             roomId: message.roomId,
             createdAt: Date.now(),
           },
-        ]
-      : [];
+        ];
 
-    return {
-      responseContent,
-      responseMessages,
-      state: accumulatedState,
-      mode: "simple",
-    };
+        return {
+          responseContent,
+          responseMessages,
+          state: accumulatedState,
+          mode: "simple",
+        };
+      }
+
+      // Fallback: summary LLM call (FINISH wasn't called — hit max iterations or isFinish fallback)
+      await streamThinking("response", "\n--- Generating final response ---\n");
+
+      // Inject actionResults into message metadata BEFORE composeState
+      // so ACTION_STATE provider can read them during state composition
+      const summaryMessageWithResults = {
+        ...message,
+        content: {
+          ...message.content,
+          metadata: {
+            ...(message.content.metadata || {}),
+            actionResults: traceActionResult,
+          },
+        },
+      };
+
+      // Fetch all providers fresh for the summary. RECENT_MESSAGES will include
+      // messages created by action execution, which the summary LLM needs to see.
+      const summaryFreshState = await runtime.composeState(
+        summaryMessageWithResults,
+        [
+          "RECENT_MESSAGES",
+          "ACTION_STATE",
+          "ACTIONS",
+          "CHARACTER",
+          "USER_AUTH_STATUS",
+          "APP_CONFIG",
+        ],
+        true,
+      );
+      // Summary merge: fresh values take precedence over cached. RECENT_MESSAGES
+      // changed after actions executed, so the stale cached copy must NOT win.
+      accumulatedState = {
+        ...summaryFreshState,
+        values: { ...cachedStableValues, ...summaryFreshState.values },
+        data: { ...cachedStableData, ...summaryFreshState.data },
+      };
+      // Also set on state.data for consistency
+      accumulatedState.data.actionResults = traceActionResult;
+      accumulatedState.totalActionsExecuted = totalActionsExecuted;
+      accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
+      accumulatedState.values.hasActionResults = traceActionResult.length > 0;
+      accumulatedState.values.discoveredActions =
+        discoveredActions.size > 0 ? [...discoveredActions].join(", ") : "";
+
+      const summaryPrompt = composePromptFromState({
+        state: accumulatedState,
+        template:
+          runtime.character.templates?.multiStepSummaryTemplate ||
+          multiStepSummaryTemplate,
+      });
+
+      // === LLM CALL LOG: multiStepSummary ===
+      logger.info("========== LLM CALL: multiStepSummary ==========");
+      logger.info(
+        `[LLM:multiStepSummary] System Prompt:\n${runtime.character.system || "(none)"}`,
+      );
+      logger.info(`[LLM:multiStepSummary] User Prompt:\n${summaryPrompt}`);
+      logger.info("==============================================");
+
+      const maxSummaryRetries = parseInt(
+        String(runtime.getSetting("MULTISTEP_SUMMARY_PARSE_RETRIES") ?? "2"),
+      );
+      let finalOutput = "";
+      let summary: Record<string, unknown> | null = null;
+
+      for (
+        let summaryAttempt = 1;
+        summaryAttempt <= maxSummaryRetries;
+        summaryAttempt++
+      ) {
+        try {
+          logger.debug(
+            `[MultiStep] Summary generation attempt ${summaryAttempt}`,
+          );
+          finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt: summaryPrompt,
+          });
+
+          logger.info(
+            `[LLM:multiStepSummary] Response (attempt ${summaryAttempt}):\n${finalOutput}`,
+          );
+          summary = parseKeyValueXml(finalOutput);
+
+          if (summary?.text) {
+            logger.debug(
+              `[MultiStep] Parsed summary on attempt ${summaryAttempt}`,
+            );
+            break;
+          } else {
+            logger.warn(
+              `[MultiStep] Failed to parse summary on attempt ${summaryAttempt}/${maxSummaryRetries}`,
+            );
+            if (summaryAttempt < maxSummaryRetries) {
+              const delay = getRetryDelay(summaryAttempt);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.error(
+            `[MultiStep] Summary generation error on attempt ${summaryAttempt}:`,
+            errorMessage,
+          );
+          if (summaryAttempt >= maxSummaryRetries) {
+            logger.warn(
+              "[MultiStep] Failed to generate summary after all retries",
+            );
+            break;
+          }
+          const delay = getRetryDelay(summaryAttempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+
+      let responseContent: Content | null = null;
+      if (summary?.text) {
+        responseContent = {
+          actions: ["MULTI_STEP_SUMMARY"],
+          text: summary.text as string,
+          thought:
+            (summary.thought as string) ||
+            "Final user-facing message after task completion.",
+          simple: true,
+        };
+
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(
+            summary.text as string,
+            message.id as UUID,
+          );
+        }
+      } else {
+        logger.warn(`[MultiStep] No valid summary generated, using fallback`);
+        const fallbackText =
+          "I completed the requested actions, but encountered an issue generating the summary.";
+        responseContent = {
+          actions: ["MULTI_STEP_SUMMARY"],
+          text: fallbackText,
+          thought: "Summary generation failed after retries.",
+          simple: true,
+        };
+
+        // Stream fallback text for consistent user experience
+        if (options?.onStreamChunk) {
+          await options.onStreamChunk(fallbackText, message.id as UUID);
+        }
+      }
+
+      const responseMessages: Memory[] = responseContent
+        ? [
+            {
+              id: asUUID(v4()),
+              entityId: runtime.agentId,
+              agentId: runtime.agentId,
+              content: responseContent,
+              roomId: message.roomId,
+              createdAt: Date.now(),
+            },
+          ]
+        : [];
+
+      return {
+        responseContent,
+        responseMessages,
+        state: accumulatedState,
+        mode: "simple",
+      };
     } finally {
       // Restore the original system prompt so other handlers/phases
       // that share this runtime aren't affected by our fallback override.
@@ -1294,86 +1325,88 @@ export class CloudBootstrapMessageService implements IMessageService {
     }
 
     try {
-    state = await runtime.composeState(
-      message,
-      ["RECENT_MESSAGES", "ACTIONS", "CHARACTER"],
-      true,
-    );
+      state = await runtime.composeState(
+        message,
+        ["RECENT_MESSAGES", "ACTIONS", "CHARACTER"],
+        true,
+      );
 
-    const template =
-      runtime.character.templates?.messageHandlerTemplate ||
-      SINGLE_SHOT_TEMPLATE;
-    const prompt = composePromptFromState({ state, template });
+      const template =
+        runtime.character.templates?.messageHandlerTemplate ||
+        SINGLE_SHOT_TEMPLATE;
+      const prompt = composePromptFromState({ state, template });
 
-    logger.info("========== LLM CALL: singleShot ==========");
-    logger.info(
-      `[LLM:singleShot] System Prompt:\n${runtime.character.system || "(none)"}`,
-    );
-    logger.info(`[LLM:singleShot] User Prompt:\n${prompt}`);
-    logger.info("==============================================");
+      logger.info("========== LLM CALL: singleShot ==========");
+      logger.info(
+        `[LLM:singleShot] System Prompt:\n${runtime.character.system || "(none)"}`,
+      );
+      logger.info(`[LLM:singleShot] User Prompt:\n${prompt}`);
+      logger.info("==============================================");
 
-    const maxRetries = options?.maxRetries ?? 3;
-    const parsedResponse = await withRetry(
-      async () => {
-        const response = String(
-          await runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
-        );
-        logger.info(`[LLM:singleShot] Response:\n${response}`);
-        return parseKeyValueXml(response);
-      },
-      (result) => !!(result?.text || result?.thought),
-      maxRetries,
-      "singleShot",
-    );
+      const maxRetries = options?.maxRetries ?? 3;
+      const parsedResponse = await withRetry(
+        async () => {
+          const response = String(
+            await runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
+          );
+          logger.info(`[LLM:singleShot] Response:\n${response}`);
+          return parseKeyValueXml(response);
+        },
+        (result) => !!(result?.text || result?.thought),
+        maxRetries,
+        "singleShot",
+      );
 
-    if (!parsedResponse) {
-      logger.error("[CloudBootstrap] All single-shot attempts failed");
-      return {
-        responseContent: null,
-        responseMessages: [],
-        state,
-        mode: "none",
+      if (!parsedResponse) {
+        logger.error("[CloudBootstrap] All single-shot attempts failed");
+        return {
+          responseContent: null,
+          responseMessages: [],
+          state,
+          mode: "none",
+        };
+      }
+
+      const actions = parsedResponse.actions
+        ? String(parsedResponse.actions)
+            .split(",")
+            .map((a: string) => a.trim())
+            .filter(Boolean)
+        : [];
+
+      const responseContent: Content = {
+        text: String(parsedResponse.text || ""),
+        thought: String(parsedResponse.thought || ""),
+        actions,
+        source: message.content.source,
+        inReplyTo: message.id
+          ? createUniqueUuid(runtime, message.id)
+          : undefined,
       };
-    }
 
-    const actions = parsedResponse.actions
-      ? String(parsedResponse.actions)
-          .split(",")
-          .map((a: string) => a.trim())
-          .filter(Boolean)
-      : [];
+      if (options?.onStreamChunk && responseContent.text) {
+        await options.onStreamChunk(responseContent.text, message.id as UUID);
+      }
 
-    const responseContent: Content = {
-      text: String(parsedResponse.text || ""),
-      thought: String(parsedResponse.thought || ""),
-      actions,
-      source: message.content.source,
-      inReplyTo: message.id ? createUniqueUuid(runtime, message.id) : undefined,
-    };
+      const responseMessages: Memory[] = responseContent.text
+        ? [
+            {
+              id: asUUID(v4()),
+              entityId: runtime.agentId,
+              agentId: runtime.agentId,
+              roomId: message.roomId,
+              content: responseContent,
+              createdAt: Date.now(),
+            },
+          ]
+        : [];
 
-    if (options?.onStreamChunk && responseContent.text) {
-      await options.onStreamChunk(responseContent.text, message.id as UUID);
-    }
-
-    const responseMessages: Memory[] = responseContent.text
-      ? [
-          {
-            id: asUUID(v4()),
-            entityId: runtime.agentId,
-            agentId: runtime.agentId,
-            roomId: message.roomId,
-            content: responseContent,
-            createdAt: Date.now(),
-          },
-        ]
-      : [];
-
-    return {
-      responseContent: responseContent.text ? responseContent : null,
-      responseMessages,
-      state,
-      mode: actions.length ? "actions" : "simple",
-    };
+      return {
+        responseContent: responseContent.text ? responseContent : null,
+        responseMessages,
+        state,
+        mode: actions.length ? "actions" : "simple",
+      };
     } finally {
       runtime.character.system = originalSystemPrompt;
     }
