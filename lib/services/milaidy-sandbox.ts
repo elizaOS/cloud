@@ -55,6 +55,17 @@ const HEALTH_CHECK_TIMEOUT_MS = 60_000;
 const HEALTH_CHECK_INTERVAL_MS = 2_000;
 const MAX_BACKUPS = 10;
 
+function sanitizeProjectNameSegment(value: string): string {
+  const sanitized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 20);
+
+  return sanitized || "agent";
+}
+
 export class MiladySandboxService {
 
   // Agent CRUD
@@ -262,7 +273,7 @@ export class MiladySandboxService {
   private async provisionNeon(rec: MiladySandbox): Promise<{ success: boolean; connectionUri?: string; error?: string }> {
     await miladySandboxesRepository.update(rec.id, { database_status: "provisioning" });
     const neon = getNeonClient();
-    const name = `milady-${(rec.agent_name ?? "agent").substring(0, 20)}-${rec.id.substring(0, 8)}`;
+    const name = `milady-${sanitizeProjectNameSegment(rec.agent_name ?? "agent")}-${rec.id.substring(0, 8)}`;
     const result = await neon.createProject({ name, region: "aws-us-east-1" });
 
     const updated = await miladySandboxesRepository.update(rec.id, {

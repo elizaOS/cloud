@@ -11,12 +11,18 @@
  */
 
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { creditsService } from "@/lib/services/credits";
+import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
+const MAX_BATCH_SIZE = 100;
+const EVM_RPC_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: process.env.NODE_ENV !== "production" ? 10_000 : 100,
+} as const;
 
 /**
  * Alchemy network slugs for each chain name.
@@ -45,7 +51,7 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
   gnosis: "gnosis-mainnet",
 };
 
-export async function POST(
+async function postHandler(
   request: NextRequest,
   { params }: { params: Promise<{ chain: string }> },
 ) {
@@ -76,15 +82,33 @@ export async function POST(
   const rpcUrl = `https://${alchemySlug}.g.alchemy.com/v2/${alchemyApiKey}`;
   const body = await request.text();
 
-  // Determine if batch request for billing
-  let requestCount = 1;
+  let parsedBody: unknown;
   try {
-    const parsed = JSON.parse(body);
-    if (Array.isArray(parsed)) {
-      requestCount = parsed.length;
-    }
+    parsedBody = JSON.parse(body);
   } catch {
-    // Single request or invalid JSON — upstream will handle
+    return Response.json(
+      { error: "Invalid JSON-RPC body" },
+      { status: 400 },
+    );
+  }
+
+  let requestCount = 1;
+  if (Array.isArray(parsedBody)) {
+    if (parsedBody.length === 0) {
+      return Response.json(
+        { error: "JSON-RPC batch requests must include at least one item" },
+        { status: 400 },
+      );
+    }
+
+    if (parsedBody.length > MAX_BATCH_SIZE) {
+      return Response.json(
+        { error: `JSON-RPC batch limit exceeded (max ${MAX_BATCH_SIZE})` },
+        { status: 400 },
+      );
+    }
+
+    requestCount = parsedBody.length;
   }
 
   if (requestCount > 0) {
@@ -125,3 +149,5 @@ export async function POST(
     },
   });
 }
+
+export const POST = withRateLimit(postHandler, EVM_RPC_RATE_LIMIT);
