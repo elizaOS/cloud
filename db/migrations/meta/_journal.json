@@ -267,6 +267,41 @@
       "when": 1772773672986,
       "tag": "0038_agent_server_wallets_client_address_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1772775000000,
+      "tag": "0039_add_service_billing_and_entity_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1772775100000,
+      "tag": "0040_improve_service_pricing_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1772775200000,
+      "tag": "0041_seed_market_data_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1772775300000,
+      "tag": "0042_seed_evm_rpc_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1772775400000,
+      "tag": "0043_seed_chain_data_pricing",
+      "breakpoints": true
     }
   ]
 }

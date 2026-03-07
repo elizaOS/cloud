@@ -130,7 +130,28 @@ const ENV_VARS = {
   // Solana RPC
   SOLANA_RPC_PROVIDER_API_KEY: {
     required: false,
-    description: "Solana RPC provider API key (enables Solana blockchain access)",
+    description:
+      "Solana RPC provider API key (enables Solana blockchain access)",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
+  },
+
+  // Market Data API
+  MARKET_DATA_PROVIDER_API_KEY: {
+    required: false,
+    description:
+      "Market data API key (enables multi-chain token price and market data)",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
+  },
+
+  // Alchemy EVM RPC
+  ALCHEMY_API_KEY: {
+    required: false,
+    description:
+      "Alchemy API key (enables EVM blockchain access via /api/v1/rpc/*)",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
   },
 } as const;
 
@@ -231,10 +252,7 @@ export function requireValidEnvironment(): void {
   }
 
   // CRITICAL: Prevent production from running with devnet admin bypass
-  if (
-    process.env.NODE_ENV === "production" &&
-    process.env.DEVNET === "true"
-  ) {
+  if (process.env.NODE_ENV === "production" && process.env.DEVNET === "true") {
     console.error("");
     console.error("🚨 SECURITY ERROR: Production environment with DEVNET=true");
     console.error("   This enables admin bypass for anvil wallet (0xf39F...)");

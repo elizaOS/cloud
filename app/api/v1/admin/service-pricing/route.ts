@@ -1,21 +1,21 @@
 
 /**
  * Admin Service Pricing Management API
- * 
+ *
  * CRITICAL: Revenue-generating endpoint - pricing changes affect billing
- * 
+ *
  * Cache Consistency Strategy:
  * - Double invalidation (pre + post DB update) prevents race conditions
  * - TTL-based safety net (5min) limits stale data exposure
  * - Fail-fast behavior makes cache failures visible
  * - Critical logging for post-update cache failures
- * 
+ *
  * Monitoring Recommendations:
  * - Alert on CRITICAL log level for cache invalidation failures
  * - Track pricing cache hit/miss ratios
  * - Monitor cache invalidation error rates
  * - Set up dead letter queue for failed invalidations
- * 
+ *
  * @see lib/services/proxy/pricing.ts for cache implementation
  * @see docs/api-security.md for security architecture
  */
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const pricing = await servicePricingRepository.listByService(serviceId);
+    const pricing = await servicePricingRepository.listByService(serviceId, false);
 
     return NextResponse.json({
       service_id: serviceId,
@@ -56,7 +56,9 @@ export async function GET(request: NextRequest) {
         method: p.method,
         cost: p.cost,
         description: p.description,
+        metadata: p.metadata,
         is_active: p.is_active,
+        updated_by: p.updated_by,
         updated_at: p.updated_at,
       })),
     });
@@ -94,7 +96,7 @@ export async function PUT(request: NextRequest) {
   let body;
   try {
     body = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
   }
 
@@ -152,6 +154,8 @@ export async function PUT(request: NextRequest) {
         service_id: result.service_id,
         method: result.method,
         cost: result.cost,
+        description: result.description,
+        metadata: result.metadata,
         is_active: result.is_active,
         updated_at: result.updated_at,
       },

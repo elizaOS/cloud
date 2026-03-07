@@ -1,8 +1,8 @@
 /**
  * Solana RPC Proxy Endpoint
- * 
+ *
  * Public API for proxying Solana RPC requests with rate limiting and billing.
- * 
+ *
  * CORS: Unrestricted by design - see lib/services/proxy/cors.ts for security rationale.
  * Authentication: API key required (X-API-Key header)
  * Rate Limiting: Per API key
@@ -11,33 +11,34 @@
 
 import { NextResponse, NextRequest } from "next/server";
 import { createHandler } from "@/lib/services/proxy/engine";
-import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
-import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
+import {
+  applyCorsHeaders,
+  handleCorsOptions,
+} from "@/lib/services/proxy/cors";
+import {
+  rpcConfigForChain,
+  rpcHandlerForChain,
+} from "@/lib/services/proxy/services/rpc";
 
 export const maxDuration = 30;
+const CORS_METHODS = "POST, OPTIONS";
 
 export async function OPTIONS() {
-  return handleCorsOptions("POST, OPTIONS");
+  return handleCorsOptions(CORS_METHODS);
 }
 
-const basePostHandler = createHandler(solanaRpcConfig, solanaRpcHandler);
+const basePostHandler = createHandler(
+  rpcConfigForChain("solana"),
+  rpcHandlerForChain("solana"),
+);
 
 export async function POST(request: NextRequest) {
-  const corsHeaders = getCorsHeaders("POST, OPTIONS");
-  
   try {
-    const response = await basePostHandler(request);
-
-    // Add CORS headers to response
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      response.headers.set(key, value);
-    }
-
-    return response;
+    return applyCorsHeaders(await basePostHandler(request), CORS_METHODS);
   } catch {
-    return new NextResponse("Internal Server Error", {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return applyCorsHeaders(
+      new NextResponse("Internal Server Error", { status: 500 }),
+      CORS_METHODS,
+    );
   }
 }

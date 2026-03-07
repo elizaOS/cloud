@@ -141,7 +141,7 @@ describe('Service Pricing Admin Routes', () => {
       expect(invalidateServicePricingCache).toHaveBeenCalledTimes(2);
     });
 
-    it('should update service pricing when cache invalidation fails', async () => {
+    it('should update service pricing when only post-update cache invalidation fails', async () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing', {
         method: 'PUT',
         body: JSON.stringify({
@@ -168,8 +168,8 @@ describe('Service Pricing Admin Routes', () => {
         updated_at: new Date(),
       });
       vi.mocked(invalidateServicePricingCache)
-        .mockRejectedValueOnce(new Error('Cache error'))
-        .mockResolvedValueOnce();
+        .mockResolvedValueOnce()
+        .mockRejectedValueOnce(new Error('Cache error'));
 
       const response = await PUT(request);
       expect(response.status).toBe(200);

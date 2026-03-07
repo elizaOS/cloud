@@ -219,14 +219,16 @@ describe("Service Pricing Admin API - Integration", () => {
       expect(mockInvalidateCache).toHaveBeenCalledWith("solana-rpc");
     });
 
-    it("handles cache invalidation failure gracefully", async () => {
+    it("handles post-update cache invalidation failure gracefully", async () => {
       mockUpsert.mockResolvedValue({
         id: "1",
         service_id: "solana-rpc",
         method: "getBalance",
         cost: "0.001",
       } as any);
-      mockInvalidateCache.mockRejectedValue(new Error("Redis unavailable"));
+      mockInvalidateCache
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("Redis unavailable"));
 
       const request = createRequest("PUT", "http://localhost/api/v1/admin/service-pricing", {
         service_id: "solana-rpc",
@@ -234,7 +236,7 @@ describe("Service Pricing Admin API - Integration", () => {
         cost: 0.001,
         reason: "Update pricing",
       });
-      // Should still succeed - cache invalidation failure shouldn't break the upsert
+      // Post-update invalidation failure is visible but should not roll back the write.
       const response = await PUT(request);
       expect(response.status).toBe(200);
     });

@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
       Number.isFinite(parsedLimit) && parsedLimit > 0
         ? Math.min(parsedLimit, 500)
         : 50;
+    const rawOffset = url.searchParams.get("offset");
+    const parsedOffset = rawOffset ? parseInt(rawOffset, 10) : 0;
+    const offset =
+      Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 
     if (!serviceId) {
       return NextResponse.json(
@@ -33,17 +37,25 @@ export async function GET(request: NextRequest) {
     const history = await servicePricingRepository.listAuditHistory(
       serviceId,
       limit,
+      offset,
     );
 
     return NextResponse.json({
       service_id: serviceId,
-      history: history.map(h => ({
+      limit,
+      offset,
+      history: history.map((h) => ({
         id: h.id,
+        service_pricing_id: h.service_pricing_id,
         method: h.method,
         old_cost: h.old_cost,
         new_cost: h.new_cost,
+        change_type: h.change_type,
         reason: h.reason,
-        updated_by: h.updated_by,
+        changed_by: h.changed_by,
+        updated_by: h.changed_by,
+        ip_address: h.ip_address,
+        user_agent: h.user_agent,
         created_at: h.created_at,
       })),
     });
