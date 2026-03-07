@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
   try {
     // Authenticate user (supports both session and API key)
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
+    const organizationId = user.organization_id;
 
     // Parse request body
     const body = await request.json();
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
         .where(eq(userVoices.elevenlabsVoiceId, voiceId))
         .limit(1);
 
-      if (voice && voice.organizationId === user.organization_id!) {
+      if (voice && voice.organizationId === organizationId) {
         userVoiceId = voice.id;
         voiceName = voice.name;
         isCustomVoice = true;
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Reserve credits BEFORE generation
     try {
       reservation = await creditsService.reserve({
-        organizationId: user.organization_id!,
+        organizationId,
         amount: estimatedCost,
         userId: user.id,
         description: `TTS generation: ${text.length} chars${isCustomVoice ? " (custom voice)" : ""}`,
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         await usageService.create({
-          organization_id: user.organization_id!!,
+          organization_id: organizationId,
           user_id: user.id,
           api_key_id: apiKey?.id ?? null,
           type: "tts",
