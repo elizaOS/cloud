@@ -13,6 +13,7 @@ import {
   VOICE_CLONE_INSTANT_COST,
   VOICE_CLONE_PROFESSIONAL_COST,
 } from "@/lib/pricing-constants";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const MAX_FILES = 10;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
@@ -302,9 +303,12 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     logger.error("[Voice Clone API] Unexpected error:", error);
-
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const status = getErrorStatusCode(error);
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
     }
 
     return NextResponse.json(

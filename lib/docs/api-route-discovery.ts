@@ -38,8 +38,13 @@ export interface DiscoveredApiRoute {
   >;
 }
 
+interface PublicApiRoot {
+  dirName: string;
+  urlPrefix: string;
+}
+
 const METHOD_RE =
-  /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\b/g;
+  /export\s+(?:(?:async\s+)?function|const)\s+(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\b/g;
 
 function segmentToOpenApi(segment: string): string {
   // Dynamic route: [id] -> {id}
@@ -101,46 +106,52 @@ function buildMetaIndex() {
   return index;
 }
 
+const PUBLIC_API_ROOTS: PublicApiRoot[] = [
+  { dirName: "v1", urlPrefix: "/api/v1" },
+  { dirName: "elevenlabs", urlPrefix: "/api/elevenlabs" },
+];
+
 /**
- * Discovers Next.js route handlers under `app/api/v1/<...>/route.ts` and returns
- * a list of OpenAPI-ish paths with supported HTTP methods.
+ * Discovers public Next.js route handlers and returns a list of OpenAPI-ish
+ * paths with supported HTTP methods.
  *
  * This powers docs-side API exploration without needing to manually keep
  * endpoint lists in sync with real code.
  */
-export async function discoverApiV1Routes(): Promise<DiscoveredApiRoute[]> {
-  const root = path.join(process.cwd(), "app", "api", "v1");
-  const discoveredFiles: Array<{ filePath: string; segments: string[] }> = [];
-
-  await walkRoutes(root, [], discoveredFiles);
-
+export async function discoverPublicApiRoutes(): Promise<DiscoveredApiRoute[]> {
+  const apiRoot = path.join(process.cwd(), "app", "api");
   const metaIndex = buildMetaIndex();
   const routes: DiscoveredApiRoute[] = [];
 
-  for (const file of discoveredFiles) {
-    const source = await fs.readFile(file.filePath, "utf8");
-    const methods = extractMethods(source);
+  for (const root of PUBLIC_API_ROOTS) {
+    const discoveredFiles: Array<{ filePath: string; segments: string[] }> = [];
+    await walkRoutes(path.join(apiRoot, root.dirName), [], discoveredFiles);
 
-    const apiPath =
-      "/api/v1" +
-      (file.segments.length
-        ? `/${file.segments.map(segmentToOpenApi).join("/")}`
-        : "");
+    for (const file of discoveredFiles) {
+      const source = await fs.readFile(file.filePath, "utf8");
+      const methods = extractMethods(source);
 
-    // Attach metadata when present for that exact path+method pair.
-    // If multiple methods exist, we still keep one meta (best-effort) by
-    // preferring the first method match.
-    const firstMethod = methods[0];
-    const meta = firstMethod
-      ? metaIndex.get(`${firstMethod} ${apiPath}`)
-      : undefined;
+      const apiPath =
+        root.urlPrefix +
+        (file.segments.length
+          ? `/${file.segments.map(segmentToOpenApi).join("/")}`
+          : "");
 
-    routes.push({
-      path: apiPath,
-      methods,
-      filePath: file.filePath,
-      meta,
-    });
+      // Attach metadata when present for that exact path+method pair.
+      // If multiple methods exist, we still keep one meta (best-effort) by
+      // preferring the first method match.
+      const firstMethod = methods[0];
+      const meta = firstMethod
+        ? metaIndex.get(`${firstMethod} ${apiPath}`)
+        : undefined;
+
+      routes.push({
+        path: apiPath,
+        methods,
+        filePath: file.filePath,
+        meta,
+      });
+    }
   }
 
   routes.sort((a, b) => {
@@ -149,4 +160,9 @@ export async function discoverApiV1Routes(): Promise<DiscoveredApiRoute[]> {
   });
 
   return routes;
+}
+
+// Backwards-compatible alias for older call sites.
+export async function discoverApiV1Routes(): Promise<DiscoveredApiRoute[]> {
+  return discoverPublicApiRoutes();
 }

@@ -17,6 +17,7 @@ import {
   InsufficientCreditsError,
   type CreditReservation,
 } from "@/lib/services/credits";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -51,6 +52,7 @@ const VALID_MODELS = [
  */
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
+  let reservation: CreditReservation | undefined;
   try {
     const { user, apiKey, session_token } =
       await requireAuthOrApiKeyWithOrg(request);
@@ -84,7 +86,6 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Reserve credits BEFORE generation
-    let reservation: CreditReservation;
     try {
       reservation = await creditsService.reserve({
         organizationId: user.organization_id!,
@@ -274,13 +275,19 @@ async function handlePOST(request: NextRequest) {
   } catch (error) {
     logger.error("[VIDEO GENERATION] Error:", error);
 
+    const status = getErrorStatusCode(error);
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
+    }
+
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
 
     // If reservation was made, reconcile with fallback cost (partial charge for attempt)
-    // @ts-expect-error - reservation may not be defined if error occurred before reservation
-    if (typeof reservation !== "undefined") {
-      // @ts-expect-error - reservation is defined at this point
+    if (reservation) {
       await reservation.reconcile(VIDEO_GENERATION_FALLBACK_COST);
       logger.info("[VIDEO GENERATION] Credits reconciled with fallback cost", {
         fallbackCost: VIDEO_GENERATION_FALLBACK_COST,

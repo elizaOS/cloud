@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { z } from "zod";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { updateApiKeySchema } from "../schemas";
 
 /**
  * DELETE /api/v1/api-keys/[id]
@@ -17,7 +20,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
     const existingKey = await apiKeysService.getById(id);
@@ -35,9 +38,15 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     logger.error("[API Keys] Error deleting API key", { error });
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to delete API key" },
-      { status: 500 },
+      {
+        error:
+          status === 500
+            ? "Failed to delete API key"
+            : getSafeErrorMessage(error),
+      },
+      { status },
     );
   }
 }
@@ -56,7 +65,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
     const existingKey = await apiKeysService.getById(id);
@@ -77,7 +86,7 @@ export async function PATCH(
       rate_limit,
       is_active,
       expires_at,
-    } = body;
+    } = updateApiKeySchema.parse(body);
 
     const updatedKey = await apiKeysService.update(id, {
       ...(name !== undefined && { name }),
@@ -85,9 +94,7 @@ export async function PATCH(
       ...(permissions !== undefined && { permissions }),
       ...(rate_limit !== undefined && { rate_limit }),
       ...(is_active !== undefined && { is_active }),
-      ...(expires_at !== undefined && {
-        expires_at: expires_at ? new Date(expires_at) : null,
-      }),
+      ...(expires_at !== undefined && { expires_at }),
     });
 
     if (!updatedKey) {
@@ -115,9 +122,22 @@ export async function PATCH(
     );
   } catch (error) {
     logger.error("[API Keys] Error updating API key", { error });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation error", details: error.issues },
+        { status: 400 },
+      );
+    }
+
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to update API key" },
-      { status: 500 },
+      {
+        error:
+          status === 500
+            ? "Failed to update API key"
+            : getSafeErrorMessage(error),
+      },
+      { status },
     );
   }
 }

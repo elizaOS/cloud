@@ -2,6 +2,8 @@ import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { logger } from "@/lib/utils/logger";
 import { requireAuth } from "@/lib/auth";
 import type { ElizaCharacter } from "@/lib/types";
+import { NextResponse } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const createSystemPrompt = `You are an AI assistant helping users create character definitions for elizaOS agents.
 
@@ -114,6 +116,13 @@ export async function POST(request: Request) {
       isEditMode?: boolean;
     } = body;
 
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { error: "Messages array cannot be empty" },
+        { status: 400 },
+      );
+    }
+
     const systemPrompt =
       isEditMode && character
         ? editSystemPrompt(character)
@@ -130,12 +139,17 @@ export async function POST(request: Request) {
     return result.toUIMessageStreamResponse();
   } catch (error) {
     logger.error("Character assistant error:", error);
+    const status = getErrorStatusCode(error);
+    const errorMessage =
+      status === 500
+        ? "Failed to process character assistant request"
+        : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
-        error: "Failed to process character assistant request",
+        error: errorMessage,
       }),
       {
-        status: 500,
+        status,
         headers: { "Content-Type": "application/json" },
       },
     );

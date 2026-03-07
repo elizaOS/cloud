@@ -20,6 +20,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 export const maxDuration = 60;
 
@@ -474,10 +475,17 @@ async function handlePOST(req: NextRequest) {
     logger.error("chat-api", "Error processing chat", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return new Response(JSON.stringify({ error: "Failed to process chat" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    const status = getErrorStatusCode(error);
+    return new Response(
+      JSON.stringify({
+        error:
+          status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
+      }),
+      {
+        status,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 

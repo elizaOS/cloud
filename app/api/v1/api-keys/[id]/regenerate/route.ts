@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 /**
  * POST /api/v1/api-keys/[id]/regenerate
@@ -17,7 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
     const existingKey = await apiKeysService.getById(id);
@@ -68,9 +69,15 @@ export async function POST(
     );
   } catch (error) {
     logger.error("Error regenerating API key:", error);
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to regenerate API key" },
-      { status: 500 },
+      {
+        error:
+          status === 500
+            ? "Failed to regenerate API key"
+            : getSafeErrorMessage(error),
+      },
+      { status },
     );
   }
 }

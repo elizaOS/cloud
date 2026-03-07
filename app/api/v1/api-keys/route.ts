@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { z } from "zod";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { createApiKeySchema } from "./schemas";
 
 /**
  * GET /api/v1/api-keys
@@ -18,9 +21,10 @@ export async function GET() {
     return NextResponse.json({ keys });
   } catch (error) {
     logger.error("Error fetching API keys:", error);
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to fetch API keys" },
-      { status: 500 },
+      { error: status === 500 ? "Failed to fetch API keys" : getSafeErrorMessage(error) },
+      { status },
     );
   }
 }
@@ -37,20 +41,17 @@ export async function POST(request: NextRequest) {
     const user = await requireAuthWithOrg();
 
     const body = await request.json();
-    const { name, description, permissions, rate_limit, expires_at } = body;
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
+    const { name, description, permissions, rate_limit, expires_at } =
+      createApiKeySchema.parse(body);
 
     const { apiKey, plainKey } = await apiKeysService.create({
-      name: name.trim(),
-      description: description?.trim() || null,
+      name,
+      description,
       organization_id: user.organization_id!!,
       user_id: user.id,
-      permissions: permissions || [],
-      rate_limit: rate_limit || 1000,
-      expires_at: expires_at ? new Date(expires_at) : null,
+      permissions,
+      rate_limit,
+      expires_at: expires_at ?? null,
       is_active: true,
     });
 
@@ -72,9 +73,17 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     logger.error("Error creating API key:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation error", details: error.issues },
+        { status: 400 },
+      );
+    }
+
+    const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: "Failed to create API key" },
-      { status: 500 },
+      { error: status === 500 ? "Failed to create API key" : getSafeErrorMessage(error) },
+      { status },
     );
   }
 }

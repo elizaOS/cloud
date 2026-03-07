@@ -14,6 +14,7 @@ import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const MAX_TEXT_LENGTH = 5000;
 
@@ -195,11 +196,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[TTS API] Error:", error);
+    const status = getErrorStatusCode(error);
 
     // Refund reserved credits if TTS failed
     if (reservation) {
       await reservation.reconcile(0);
       logger.info("[TTS API] Refunded credits after error");
+    }
+
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
     }
 
     if (error instanceof Error) {

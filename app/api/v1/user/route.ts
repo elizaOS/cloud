@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services/users";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -65,19 +66,17 @@ async function handleGET() {
     });
   } catch (error) {
     logger.error("Error fetching user:", error);
+    const status = getErrorStatusCode(error);
 
     return NextResponse.json(
       {
         success: false,
         error:
-          error instanceof Error ? error.message : "Failed to fetch user data",
+          status === 500
+            ? "Failed to fetch user data"
+            : getSafeErrorMessage(error),
       },
-      {
-        status:
-          error instanceof Error && error.message.includes("Forbidden")
-            ? 403
-            : 500,
-      },
+      { status },
     );
   }
 }
@@ -166,14 +165,11 @@ async function handlePATCH(request: NextRequest) {
       {
         success: false,
         error:
-          error instanceof Error ? error.message : "Failed to update profile",
+          getErrorStatusCode(error) === 500
+            ? "Failed to update profile"
+            : getSafeErrorMessage(error),
       },
-      {
-        status:
-          error instanceof Error && error.message.includes("Forbidden")
-            ? 403
-            : 500,
-      },
+      { status: getErrorStatusCode(error) },
     );
   }
 }

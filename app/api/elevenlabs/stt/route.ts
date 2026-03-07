@@ -11,6 +11,7 @@ import {
 import { calculateSTTCost } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { fileTypeFromBuffer } from "file-type";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -245,11 +246,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[STT API] Error:", error);
+    const status = getErrorStatusCode(error);
 
     // Refund reserved credits if STT failed
     if (reservation) {
       await reservation.reconcile(0);
       logger.info("[STT API] Refunded credits after error");
+    }
+
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
     }
 
     if (error instanceof Error) {

@@ -160,9 +160,19 @@ export class PayoutProcessorService {
     // Load Solana keypair
     const solanaKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
     if (solanaKey) {
-      const decoded = bs58.decode(solanaKey);
-      this.solanaKeypair = Keypair.fromSecretKey(decoded);
-      logger.info("[PayoutProcessor] Solana hot wallet configured");
+      try {
+        const decoded = bs58.decode(solanaKey);
+        this.solanaKeypair = Keypair.fromSecretKey(decoded);
+        logger.info("[PayoutProcessor] Solana hot wallet configured");
+      } catch (error) {
+        this.solanaKeypair = null;
+        logger.error(
+          "[PayoutProcessor] Invalid SOLANA_PAYOUT_PRIVATE_KEY - Solana payouts disabled",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
+      }
     } else {
       this.solanaKeypair = null;
       logger.warn(
@@ -696,5 +706,24 @@ export class PayoutProcessorService {
   }
 }
 
-// Export singleton instance
-export const payoutProcessorService = new PayoutProcessorService();
+let payoutProcessorServiceInstance: PayoutProcessorService | null = null;
+
+function getPayoutProcessorService() {
+  if (!payoutProcessorServiceInstance) {
+    payoutProcessorServiceInstance = new PayoutProcessorService();
+  }
+
+  return payoutProcessorServiceInstance;
+}
+
+// Export a lazy singleton proxy so invalid config does not break module evaluation.
+export const payoutProcessorService = new Proxy(
+  {} as PayoutProcessorService,
+  {
+    get(_target, property) {
+      const service = getPayoutProcessorService();
+      const value = Reflect.get(service, property, service);
+      return typeof value === "function" ? value.bind(service) : value;
+    },
+  },
+);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
 /**
  * GET /api/elevenlabs/voices
@@ -41,6 +42,14 @@ export async function GET() {
     });
   } catch (error) {
     logger.error("[Voices API] Error:", error);
+    const status = getErrorStatusCode(error);
+
+    if (status !== 500) {
+      return NextResponse.json(
+        { error: getSafeErrorMessage(error) },
+        { status },
+      );
+    }
 
     if (
       error instanceof Error &&

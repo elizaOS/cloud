@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { discoverApiV1Routes } from "@/lib/docs/api-route-discovery";
+import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 
 type OpenApiPathItem = Record<
   string,
@@ -44,7 +44,7 @@ function tagForPath(routePath: string) {
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
-  const discovered = await discoverApiV1Routes();
+  const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};
 
   for (const r of discovered) {
