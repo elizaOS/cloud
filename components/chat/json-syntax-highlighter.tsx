@@ -11,13 +11,19 @@ export function JsonSyntaxHighlighter({
   onChange,
   isValid,
 }: JsonSyntaxHighlighterProps) {
+  const escapeHtml = (text: string) =>
+    text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+
   const highlightJson = (text: string) => {
     if (!text) return text;
 
     const lines = text.split("\n");
     return lines
       .map((line, lineIndex) => {
-        let highlighted = line;
+        let highlighted = escapeHtml(line);
 
         // Highlight brackets and braces first
         highlighted = highlighted.replace(

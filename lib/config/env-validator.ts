@@ -31,10 +31,10 @@ export interface EnvValidationResult {
  * Environment variable definitions
  */
 const ENV_VARS = {
-  // Database - Single database for platform and ElizaOS
+  // Database - Single database for platform and elizaOS
   DATABASE_URL: {
     required: true,
-    description: "PostgreSQL connection string (platform + ElizaOS tables)",
+    description: "PostgreSQL connection string (platform + elizaOS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",
@@ -101,6 +101,21 @@ const ENV_VARS = {
     description: "OxaPay merchant API key for crypto payments",
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters",
+  },
+
+  // Signup codes (optional - JSON object { "codes": { "<code>": <amount>, ... } })
+  SIGNUP_CODES_JSON: {
+    required: false,
+    description: "Signup code bonuses as JSON; default {} if unset",
+    validate: (value: string) => {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === "object" && parsed !== null;
+      } catch {
+        return false;
+      }
+    },
+    errorMessage: "Must be valid JSON object",
   },
 
   // Cron Jobs
@@ -205,7 +220,7 @@ export function requireValidEnvironment(): void {
     console.error(
       "Please check your .env.local file and set the required variables.",
     );
-    console.error("See example.env.local for reference.");
+    console.error("See .env.example for reference.");
     throw new Error("Invalid environment configuration");
   }
 

@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -14,14 +18,18 @@
     "jsx": "react-jsx",
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "plugins": [
       {
         "name": "next"
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -33,7 +41,9 @@
     "components/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
-    "db/**/*.ts"
+    "db/**/*.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

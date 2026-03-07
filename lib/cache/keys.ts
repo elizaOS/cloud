@@ -163,6 +163,29 @@ export const CacheKeys = {
     /** Pattern for invalidating all workflow cache for an org */
     orgPattern: (orgId: string) => `n8n:workflows:${orgId}:*`,
   },
+  /**
+   * SIWE (Sign-In With Ethereum) nonce cache.
+   * Single-use nonces stored by value; consumed on verify.
+   */
+  siwe: {
+    nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
+    pattern: () => `siwe:*`,
+  },
+  walletAuth: {
+    user: (address: string) => `wallet-auth:user:${address}:v1`,
+  },
+  userMetrics: {
+    overview: (rangeDays?: number) =>
+      `user-metrics:overview:${rangeDays ?? 30}d:v1`,
+    daily: (start: string, end: string) =>
+      `user-metrics:daily:${start}:${end}:v1`,
+    retention: (start: string, end: string) =>
+      `user-metrics:retention:${start}:${end}:v1`,
+    activeUsers: (range: string) => `user-metrics:active:${range}:v1`,
+    signups: (start: string, end: string) =>
+      `user-metrics:signups:${start}:${end}:v1`,
+    pattern: () => `user-metrics:*`,
+  },
 } as const;
 
 /**
@@ -273,6 +296,19 @@ export const CacheTTL = {
     list: 60, // 1 minute - workflow list
     workflow: 120, // 2 minutes - single workflow details
   },
+  walletAuth: {
+    user: 30, // 30 seconds - avoid DB upsert on every wallet-authenticated request
+  },
+  siwe: {
+    nonce: 300, // 5 minutes - one-time nonce TTL
+  },
+  userMetrics: {
+    overview: 300, // 5 minutes - live query summary
+    daily: 3600, // 1 hour - pre-computed data changes once per day
+    retention: 3600, // 1 hour - pre-computed data changes once per day
+    activeUsers: 300, // 5 minutes - live query
+    signups: 300, // 5 minutes - live query
+  },
 } as const;
 
 /**
@@ -299,5 +335,9 @@ export const CacheStaleTTL = {
   gallery: {
     items: 60, // Serve stale gallery items after 1 minute
     stats: 60, // Serve stale stats after 1 minute
+  },
+  userMetrics: {
+    overview: 180, // Serve stale overview after 3 minutes
+    activeUsers: 180, // Serve stale active users after 3 minutes
   },
 } as const;

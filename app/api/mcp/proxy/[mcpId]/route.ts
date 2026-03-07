@@ -24,6 +24,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 
 const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
@@ -144,7 +145,18 @@ export async function POST(
   let targetUrl: string;
 
   if (mcp.endpoint_type === "external" && mcp.external_endpoint) {
-    targetUrl = mcp.external_endpoint;
+    try {
+      targetUrl = (await assertSafeOutboundUrl(mcp.external_endpoint)).toString();
+    } catch (error) {
+      logger.warn("[MCP Proxy] Blocked unsafe external endpoint", {
+        mcpId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return NextResponse.json(
+        { error: "Unsafe external MCP endpoint" },
+        { status: 400 },
+      );
+    }
   } else if (mcp.endpoint_type === "container" && mcp.container_id) {
     // Get container URL - use MCP creator's organization ID
     const container = await containersService.getById(
@@ -190,6 +202,7 @@ export async function POST(
   try {
     mcpResponse = await fetch(targetUrl, {
       method: "POST",
+      redirect: "manual",
       headers: {
         "Content-Type": "application/json",
         // Forward relevant headers
@@ -199,6 +212,10 @@ export async function POST(
       },
       body: JSON.stringify(body),
     });
+
+    if (mcpResponse.status >= 300 && mcpResponse.status < 400) {
+      throw new Error("External MCP redirects are not allowed");
+    }
   } catch (error) {
     logger.error("[MCP Proxy] Failed to reach MCP endpoint", {
       mcpId,

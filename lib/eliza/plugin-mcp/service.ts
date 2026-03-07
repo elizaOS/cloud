@@ -215,7 +215,7 @@ export class McpService extends Service {
     this.connectionStates.set(name, state);
 
     try {
-      const client = new Client({ name: "ElizaOS", version: "1.0.0" }, { capabilities: {} });
+      const client = new Client({ name: "elizaOS", version: "1.0.0" }, { capabilities: {} });
       const transport =
         config.type === "stdio"
           ? this.createStdioTransport(name, config)

@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -93,7 +94,7 @@ async function getAgentSettingsFromDb(): Promise<Record<string, unknown>> {
   }
 }
 
-describe("User Context Isolation", () => {
+describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
   beforeAll(setupEnvironment);
   afterAll(cleanupEnvironment);
 

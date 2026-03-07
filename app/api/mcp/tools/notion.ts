@@ -4,8 +4,8 @@
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
@@ -94,8 +94,8 @@ export function registerNotionTools(server: McpServer): void {
       description: "Search pages and data sources",
       inputSchema: {
         query: z.string().optional(),
-        filter: z.record(z.any()).optional(),
-        sort: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
+        sort: z.record(z.string(), z.any()).optional(),
         start_cursor: z.string().optional(),
         page_size: z.number().int().min(1).max(100).optional(),
       },
@@ -136,7 +136,7 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create page",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {
@@ -155,7 +155,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update page properties",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -235,7 +235,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Append blocks to a block",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -254,7 +254,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update block",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -308,7 +308,7 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create database",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {
@@ -327,7 +327,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update database",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -364,7 +364,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Query data source",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()).optional(),
+        body: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ id, body }) => {
@@ -386,7 +386,7 @@ export function registerNotionTools(server: McpServer): void {
       description: "Update data source properties",
       inputSchema: {
         id: z.string().min(1),
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ id, body }) => {
@@ -471,7 +471,7 @@ export function registerNotionTools(server: McpServer): void {
     {
       description: "Create comment",
       inputSchema: {
-        body: z.record(z.any()),
+        body: z.record(z.string(), z.any()),
       },
     },
     async ({ body }) => {

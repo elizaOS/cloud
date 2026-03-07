@@ -139,7 +139,7 @@ describe("Security Validations", () => {
       // JavaScript has limited precision for large numbers
       const largeNumber = '{"id": 9007199254740993}'; // > Number.MAX_SAFE_INTEGER
       const parsed = JSON.parse(largeNumber);
-      expect(parsed.id).not.toBe(9007199254740993); // Precision lost
+      expect(parsed.id.toString()).not.toBe("9007199254740993"); // Precision lost
     });
 
     it("handles escaped characters", () => {
@@ -171,7 +171,7 @@ describe("Security Validations", () => {
     it("preserves valid unicode characters", () => {
       const unicode = "Hello 世界 🌍";
       // Valid unicode should not be stripped
-      expect(unicode.length).toBe(12);
+      expect(unicode.length).toBe(11);
     });
   });
 

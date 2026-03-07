@@ -5,7 +5,6 @@ import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { referralsService } from "@/lib/services/referrals";
 import { discordService } from "@/lib/services/discord";
-import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { headers } from "next/headers";
@@ -146,18 +145,15 @@ async function handleStripeWebhook(req: NextRequest) {
               paymentIntentId,
             );
 
-          if (existingTransaction) {
+          const isDuplicate = !!existingTransaction;
+          if (isDuplicate) {
             logger.debug(
-              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed`,
-            );
-            return NextResponse.json(
-              { received: true, duplicate: true },
-              { status: 200 },
+              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed; will still attempt revenue splits (idempotent)`,
             );
           }
 
-          // Handle app-specific purchases with creator monetization
-          if (isAppPurchase) {
+          // Handle app-specific purchases with creator monetization (skip if duplicate)
+          if (isAppPurchase && !isDuplicate) {
             logger.info(
               `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`,
             );
@@ -241,8 +237,8 @@ async function handleStripeWebhook(req: NextRequest) {
                 stripePaymentIntentId: paymentIntentId,
               });
             }
-          } else {
-            // Regular credit purchase (not app-specific)
+          } else if (!isDuplicate) {
+            // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)
             await creditsService.addCredits({
               organizationId,
               amount: credits,
@@ -260,7 +256,6 @@ async function handleStripeWebhook(req: NextRequest) {
               `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
             );
 
-            // Track credits purchased in PostHog using internal UUID
             if (userId) {
               trackServerEvent(userId, "credits_purchased", {
                 amount: credits,
@@ -270,7 +265,6 @@ async function handleStripeWebhook(req: NextRequest) {
                 payment_method: "stripe",
               });
 
-              // Also track unified checkout_completed event
               trackServerEvent(userId, "checkout_completed", {
                 payment_method: "stripe",
                 amount: credits,
@@ -281,8 +275,57 @@ async function handleStripeWebhook(req: NextRequest) {
                 stripe_session_id: session.id,
               });
             }
+          }
 
-            // Log payment to Discord (fire and forget)
+          // Revenue splits: run even when isDuplicate so retries can complete failed splits; addEarnings is idempotent by sourceId
+          if (!isAppPurchase && userId) {
+            const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
+            if (splits.length > 0) {
+              logger.info(`[Stripe Webhook] Processing revenue splits for $${credits.toFixed(2)} purchase by user ${userId}`);
+              const { redeemableEarningsService } = await import("@/lib/services/redeemable-earnings");
+              for (const split of splits) {
+                if (split.amount <= 0) continue;
+                const source = split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                try {
+                  await redeemableEarningsService.addEarnings({
+                    userId: split.userId,
+                    amount: split.amount,
+                    source,
+                    sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / credits) * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                    metadata: {
+                      buyer_user_id: userId,
+                      buyer_org_id: organizationId,
+                      payment_intent_id: paymentIntentId,
+                      role: split.role,
+                    },
+                  });
+                  logger.info(`[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`);
+                } catch (splitError) {
+                  logger.error(`[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`, {
+                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                    amount: split.amount,
+                    paymentIntentId,
+                    sourceId: `${paymentIntentId}:${split.userId}`,
+                    retryable: true,
+                  });
+                  trackServerEvent(userId, "revenue_split_failed", {
+                    payment_intent_id: paymentIntentId,
+                    split_user_id: split.userId,
+                    split_role: split.role,
+                    split_amount: split.amount,
+                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                  });
+                  return NextResponse.json(
+                    { error: "Failed to process revenue split", retryable: true },
+                    { status: 500 },
+                  );
+                }
+              }
+            }
+          }
+
+          if (!isDuplicate) {
             organizationsRepository.findById(organizationId).then((org) => {
               const user = userId
                 ? usersRepository.findById(userId)
@@ -314,32 +357,9 @@ async function handleStripeWebhook(req: NextRequest) {
             });
           }
 
-          // Process referral commission if this user was referred
-          if (userId) {
-            const referralSignup =
-              await referralSignupsRepository.findByReferredUserId(userId);
-            if (referralSignup) {
-              const referrerUser = await usersRepository.findById(
-                referralSignup.referrer_user_id,
-              );
-              if (referrerUser?.organization_id) {
-                const commission =
-                  await referralsService.processReferralCommission(
-                    userId,
-                    credits,
-                    referrerUser.organization_id,
-                  );
-                if (commission > 0) {
-                  logger.info(
-                    `[Stripe Webhook] Referral commission credited: $${commission.toFixed(2)} to org ${referrerUser.organization_id}`,
-                  );
-                }
-              }
-            }
-          }
-
-          try {
-            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+          if (!isDuplicate) {
+            try {
+              const existingInvoice = await invoicesService.getByStripeInvoiceId(
               `cs_${session.id}`,
             );
 
@@ -378,11 +398,12 @@ async function handleStripeWebhook(req: NextRequest) {
                 `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`,
               );
             }
-          } catch (invoiceError) {
-            logger.error(
-              "[Stripe Webhook] Non-critical error creating invoice record",
-              invoiceError,
-            );
+            } catch (invoiceError) {
+              logger.error(
+                "[Stripe Webhook] Non-critical error creating invoice record",
+                invoiceError,
+              );
+            }
           }
         }
         break;
@@ -394,8 +415,10 @@ async function handleStripeWebhook(req: NextRequest) {
           `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
         );
 
-        // Only process if this is a one-time purchase or auto-top-up
-        // Credit pack purchases are handled by checkout.session.completed
+        // One-time and auto-top-up use PaymentIntent directly (no checkout session).
+        // WHY no revenue splits here: Auto top-up has no user_id in metadata by design;
+        // referral splits run only for checkout.session.completed. Keeps referral and
+        // affiliate flows separate (affiliate markup is applied when creating the PaymentIntent).
         const purchaseType = paymentIntent.metadata?.type;
 
         if (!purchaseType || purchaseType === "credit_pack") {
@@ -700,3 +723,4 @@ export const POST = withRateLimit(
   handleStripeWebhook,
   RateLimitPresets.AGGRESSIVE,
 );
+

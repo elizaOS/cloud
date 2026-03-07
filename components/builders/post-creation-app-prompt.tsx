@@ -69,13 +69,22 @@ const ENTITY_CONFIG: Record<
 };
 
 export function PostCreationAppPrompt({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   open,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onOpenChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   entityType,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   entityId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   entityName,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSkip,
 }: PostCreationAppPromptProps) {
+  return null;
+
+  /* App creation disabled - original component body commented out below:
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -200,4 +209,5 @@ export function PostCreationAppPrompt({
       </DialogContent>
     </Dialog>
   );
+  */
 }

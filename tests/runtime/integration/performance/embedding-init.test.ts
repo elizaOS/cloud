@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   verifyConnection,
   getConnectionString,
   createTestDataSet,
@@ -19,7 +20,7 @@ import {
   type TestRuntimeResult,
 } from "../../../infrastructure";
 
-describe("Embedding Initialization Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
   let connectionString: string;
   let testData: TestDataSet;
   const runtimes: TestRuntimeResult[] = [];

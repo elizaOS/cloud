@@ -15,6 +15,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -85,7 +86,7 @@ let runtime: TestRuntime;
 let testUser: TestUserContext;
 const timings: Record<string, number> = {};
 
-describe("CloudBootstrapMessageService - Web Search Multi-Step", () => {
+describe.skipIf(!hasDatabaseUrl)("CloudBootstrapMessageService - Web Search Multi-Step", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(70));
     console.log("MULTI-STEP WEB SEARCH INTEGRATION TESTS");

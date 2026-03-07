@@ -25,13 +25,9 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 async function getLinearMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   const { createMcpHandler } = await import("mcp-handler");
-  const { z } = await import("zod3");
+  const { z } = await import("zod");
 
   async function getLinearToken(organizationId: string): Promise<string> {
     const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "linear" });
@@ -86,7 +82,7 @@ async function getLinearMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       server.tool("linear_status", "Check Linear OAuth connection status", {}, async () => {
         try {
@@ -110,7 +106,7 @@ async function getLinearMcpHandler() {
         "linear_list_issues",
         "List or filter issues",
         {
-          filter: z.record(z.any()).optional(),
+          filter: z.record(z.string(), z.any()).optional(),
           first: z.number().int().min(1).max(100).optional(),
           after: z.string().optional(),
           orderBy: z.string().optional(),
@@ -458,7 +454,7 @@ async function getLinearMcpHandler() {
         {
           first: z.number().int().min(1).max(100).optional(),
           after: z.string().optional(),
-          filter: z.record(z.any()).optional(),
+          filter: z.record(z.string(), z.any()).optional(),
         },
         async ({ first, after, filter }) => {
           try {
@@ -613,7 +609,7 @@ async function getLinearMcpHandler() {
         {
           first: z.number().int().min(1).max(100).optional(),
           after: z.string().optional(),
-          filter: z.record(z.any()).optional(),
+          filter: z.record(z.string(), z.any()).optional(),
         },
         async ({ first, after, filter }) => {
           try {
@@ -709,7 +705,7 @@ async function getLinearMcpHandler() {
         {
           first: z.number().int().min(1).max(100).optional(),
           after: z.string().optional(),
-          filter: z.record(z.any()).optional(),
+          filter: z.record(z.string(), z.any()).optional(),
         },
         async ({ first, after, filter }) => {
           try {
@@ -830,8 +826,6 @@ async function getLinearMcpHandler() {
     { capabilities: { tools: {} } },
     { streamableHttpEndpoint: "/api/mcps/linear/streamable-http", disableSse: true, maxDuration: 60 },
   );
-
-  return mcpHandler;
 }
 
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {

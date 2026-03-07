@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -85,7 +86,7 @@ async function cleanupTestEnvironment(): Promise<void> {
   console.log("✅ Cleanup complete\n");
 }
 
-describe("MCP Plugin Loading - Production Flow", () => {
+describe.skipIf(!hasDatabaseUrl)("MCP Plugin Loading - Production Flow", () => {
   beforeAll(setupTestEnvironment);
   afterAll(cleanupTestEnvironment);
 
@@ -143,7 +144,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
     }
   }, 30000);
 
-  it("should create test user with ElizaOS entities", async () => {
+  it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
     testUserContext = await createTestUser(

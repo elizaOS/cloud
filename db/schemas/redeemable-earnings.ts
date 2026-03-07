@@ -41,6 +41,9 @@ export const earningsSourceEnum = pgEnum("earnings_source", [
   "miniapp", // From owning an app (legacy name, now called "app")
   "agent", // From owning a public agent
   "mcp", // From owning a published MCP
+  "affiliate", // From referring users
+  "app_owner_revenue_share", // Revenue split for app owners (40%)
+  "creator_revenue_share", // Revenue split for creators (10%)
 ]);
 
 /**
@@ -73,7 +76,7 @@ export const redeemableEarnings = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .unique(), // One balance per user
 
-    // Total earned from ALL sources (apps + agents + mcps)
+    // Total earned from ALL sources (apps + agents + mcps + affiliates)
     // This ONLY increases, never decreases
     total_earned: numeric("total_earned", { precision: 18, scale: 4 })
       .notNull()
@@ -111,6 +114,24 @@ export const redeemableEarnings = pgTable(
       .notNull()
       .default("0.0000"),
     earned_from_mcps: numeric("earned_from_mcps", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0.0000"),
+    earned_from_affiliates: numeric("earned_from_affiliates", {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default("0.0000"),
+    earned_from_app_owner_shares: numeric("earned_from_app_owner_shares", {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default("0.0000"),
+    earned_from_creator_shares: numeric("earned_from_creator_shares", {
+      precision: 18,
+      scale: 4,
+    })
       .notNull()
       .default("0.0000"),
 

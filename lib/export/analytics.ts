@@ -21,12 +21,12 @@ export interface ExportOptions {
 }
 
 /**
- * Sanitize value to prevent CSV injection attacks
+ * Sanitize value to prevent spreadsheet formula injection attacks.
  * Values starting with =, +, -, @, tab, or carriage return are prefixed with '
  * @param value - The value to sanitize
- * @returns Sanitized value safe for CSV export
+ * @returns Sanitized value safe for spreadsheet export
  */
-function sanitizeCSVValue(value: string): string {
+function sanitizeSpreadsheetValue(value: string): string {
   const dangerousChars = ["=", "+", "-", "@", "\t", "\r"];
 
   if (dangerousChars.some((char) => value.startsWith(char))) {
@@ -74,7 +74,7 @@ export function generateCSV(
         const stringValue = value?.toString() ?? "";
 
         // Sanitize for CSV injection
-        const sanitized = sanitizeCSVValue(stringValue);
+        const sanitized = sanitizeSpreadsheetValue(stringValue);
 
         // Quote if contains comma or quote
         if (sanitized.includes(",") || sanitized.includes('"')) {
@@ -128,28 +128,28 @@ export async function generateExcel(
   columns: Array<ExportColumn>,
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const XLSX = await import("xlsx");
-
-  const workbook = XLSX.utils.book_new();
-  const worksheetData: Array<Array<string | number>> = [];
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Analytics Data");
 
   let metadataRowCount = 0;
 
   if (options?.includeTimestamp) {
-    worksheetData.push(["Generated:", new Date().toISOString()]);
+    worksheet.addRow(["Generated:", new Date().toISOString()]);
     metadataRowCount++;
   }
 
   if (options?.includeMetadata && data.length > 0) {
-    worksheetData.push(["Total Records:", data.length]);
+    worksheet.addRow(["Total Records:", data.length]);
     metadataRowCount++;
   }
 
   if (metadataRowCount > 0) {
-    worksheetData.push([]);
+    worksheet.addRow([]);
   }
 
-  worksheetData.push(columns.map((col) => col.label));
+  const headerRowNumber = metadataRowCount > 0 ? metadataRowCount + 2 : 1;
+  worksheet.addRow(columns.map((col) => col.label));
 
   const dataRows = data.map((row) =>
     columns.map((col) => {
@@ -166,33 +166,29 @@ export async function generateExcel(
         return value;
       }
 
-      return String(value);
+      return sanitizeSpreadsheetValue(String(value));
     }),
   );
 
-  worksheetData.push(...dataRows);
-
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-
-  if (metadataRowCount > 0) {
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-    range.s.r = metadataRowCount + 1;
-    worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
-  }
-
-  const colWidths = columns.map((col) => ({
-    wch: Math.max(col.label.length, 15),
-  }));
-  worksheet["!cols"] = colWidths;
-
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics Data");
-
-  const excelBuffer = XLSX.write(workbook, {
-    type: "buffer",
-    bookType: "xlsx",
+  dataRows.forEach((row) => {
+    worksheet.addRow(row);
   });
 
-  return Buffer.from(excelBuffer);
+  if (columns.length > 0) {
+    worksheet.autoFilter = {
+      from: { row: headerRowNumber, column: 1 },
+      to: { row: headerRowNumber, column: columns.length },
+    };
+  }
+
+  columns.forEach((col, index) => {
+    worksheet.getColumn(index + 1).width = Math.max(col.label.length, 15);
+  });
+
+  const excelBuffer = await workbook.xlsx.writeBuffer();
+  return Buffer.isBuffer(excelBuffer)
+    ? excelBuffer
+    : Buffer.from(excelBuffer);
 }
 
 /**

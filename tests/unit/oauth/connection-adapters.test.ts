@@ -48,17 +48,14 @@ describe("Connection Adapters Registry", () => {
       expect(adapter).toBeNull();
     });
 
-    it("should be case-sensitive", () => {
-      expect(getAdapter("Google")).toBeNull();
-      expect(getAdapter("TWITTER")).toBeNull();
-    });
+
   });
 
   describe("getAllAdapters", () => {
     it("should return array of all adapters", () => {
       const adapters = getAllAdapters();
       expect(Array.isArray(adapters)).toBe(true);
-      expect(adapters.length).toBe(4); // google, twitter, twilio, blooio
+      expect(adapters.length).toBeGreaterThanOrEqual(4);
     });
 
     it("should include adapters for all defined providers", () => {

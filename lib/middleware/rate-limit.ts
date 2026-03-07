@@ -45,8 +45,8 @@ function validateRateLimitConfig() {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       throw new Error(
         "🚨 SECURITY: Redis rate limiting is required in production. " +
-          "In-memory rate limiting allows bypass across serverless instances. " +
-          "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
+        "In-memory rate limiting allows bypass across serverless instances. " +
+        "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
       );
     }
     logger.info(
@@ -137,9 +137,9 @@ function getDefaultKey(request: NextRequest): string {
 
 /**
  * Check rate limit for a request (synchronous, in-memory only)
- * @deprecated Use checkRateLimitAsync for production multi-instance deployments
+ * Internal fallback for development mode.
  */
-export function checkRateLimit(
+function checkRateLimit(
   request: NextRequest,
   config: RateLimitConfig,
 ): {

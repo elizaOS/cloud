@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { discordAutomationService } from "@/lib/services/discord-automation";
 
 export const maxDuration = 30;
@@ -23,7 +24,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const { searchParams } = new URL(request.url);
-  const returnUrl = searchParams.get("returnUrl") || "/dashboard/settings";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const defaultReturnPath = "/dashboard/settings?tab=connections";
+  const safeReturnTarget = resolveSafeRedirectTarget(
+    searchParams.get("returnUrl"),
+    baseUrl,
+    defaultReturnPath,
+  );
+  const returnUrl = `${safeReturnTarget.pathname}${safeReturnTarget.search}${safeReturnTarget.hash}`;
 
   const state = {
     organizationId: user.organization_id,

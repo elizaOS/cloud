@@ -76,8 +76,9 @@ const COMMON_TIMEZONES = [
 // MCP Handler
 // ============================================================================
 
-const handler = createMcpHandler(
-  (server) => {
+function createHandler() {
+  return createMcpHandler(
+    (server) => {
     // ========================================================================
     // Tool 1: Get Current Time
     // ========================================================================
@@ -771,19 +772,20 @@ const handler = createMcpHandler(
         }
       },
     );
-  },
-  {
-    capabilities: {
-      tools: {},
     },
-  },
-  {
-    redisUrl: process.env.REDIS_URL,
-    streamableHttpEndpoint: "/api/mcps/time/streamable-http",
-    disableSse: true,
-    maxDuration: 30,
-  },
-);
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
+    {
+      redisUrl: process.env.REDIS_URL,
+      streamableHttpEndpoint: "/api/mcps/time/streamable-http",
+      disableSse: true,
+      maxDuration: 30,
+    },
+  );
+}
 
 /**
  * GET /api/mcps/time/[transport]
@@ -797,24 +799,25 @@ const handler = createMcpHandler(
  * @param context - Route context containing the transport parameter.
  * @returns MCP handler response.
  */
-function withTransportValidation(
-  fn: (req: Request) => Promise<Response>,
-) {
-  return async (
-    req: Request,
-    { params }: { params: Promise<{ transport: string }> },
-  ): Promise<Response> => {
-    const { transport } = await params;
-    if (transport !== "streamable-http") {
-      return new Response(
-        JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
-        { status: 405, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return fn(req);
-  };
+async function handleTransportRequest(
+  request: Request,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
+  const { transport } = await params;
+
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const handler = createHandler();
+  return await handler(request);
 }
 
-export const GET = withTransportValidation(handler);
-export const POST = withTransportValidation(handler);
-export const DELETE = withTransportValidation(handler);
+export const GET = handleTransportRequest;
+export const POST = handleTransportRequest;
+export const DELETE = handleTransportRequest;

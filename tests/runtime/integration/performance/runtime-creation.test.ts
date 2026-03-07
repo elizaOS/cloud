@@ -10,6 +10,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -31,7 +32,7 @@ import type { UUID } from "@elizaos/core";
 // Runtime Creation Performance Tests
 // ============================================================================
 
-describe("Runtime Creation Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Runtime Creation Performance", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;
@@ -154,7 +155,7 @@ describe("Runtime Creation Performance", () => {
 // Database Query Performance Tests
 // ============================================================================
 
-describe("Database Query Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;
@@ -305,7 +306,7 @@ describe("Database Query Performance", () => {
 // Runtime Caching Performance Tests
 // ============================================================================
 
-describe("Runtime Caching Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Runtime Caching Performance", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;

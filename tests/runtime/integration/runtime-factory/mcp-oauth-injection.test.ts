@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -117,7 +118,7 @@ function getMcpSettings(runtime: any): { servers?: Record<string, unknown> } | u
   return runtime.settings?.mcp || runtime.character?.settings?.mcp;
 }
 
-describe("MCP OAuth Injection", () => {
+describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
   beforeAll(setupEnvironment);
   afterAll(cleanupEnvironment);
 

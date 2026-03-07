@@ -5,6 +5,7 @@
  * Handles CRUD, revenue distribution, and discovery.
  */
 
+import crypto from "crypto";
 import {
   userMcpsRepository,
   mcpUsageRepository,
@@ -13,6 +14,7 @@ import {
 import { creditsService } from "./credits";
 import { containersService } from "./containers";
 import { redeemableEarningsService } from "./redeemable-earnings";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 
 // ============================================================================
@@ -125,6 +127,10 @@ class UserMcpsService {
       if (container.organization_id !== params.organizationId) {
         throw new Error("Container does not belong to this organization");
       }
+    }
+
+    if (params.endpointType === "external" && params.externalEndpoint) {
+      await assertSafeOutboundUrl(params.externalEndpoint);
     }
 
     // Check slug uniqueness
@@ -309,6 +315,9 @@ class UserMcpsService {
     if (mcp.endpoint_type === "external" && !mcp.external_endpoint) {
       throw new Error("External MCP must have an endpoint URL");
     }
+    if (mcp.endpoint_type === "external" && mcp.external_endpoint) {
+      await assertSafeOutboundUrl(mcp.external_endpoint);
+    }
 
     const updated = await userMcpsRepository.updateStatus(id, "live");
     if (!updated) {
@@ -385,29 +394,78 @@ class UserMcpsService {
       creditsCharged = x402AmountUsd * CREDITS_PER_DOLLAR;
     }
 
+    // WHY affiliate fee on top of creditsCharged: Customer pays base + affiliate% + platform%;
+    // we pay affiliate from that. Referral splits are not used for MCP — keeps one payout
+    // type per transaction so we never over-allocate.
+    let affiliateFeeCredits = 0;
+    let platformFeeCredits = 0;
+    let affiliateOwnerId: string | null = null;
+    let affiliateCodeId: string | null = null;
+
+    if (params.userId) {
+      try {
+        const { affiliatesService } = await import("@/lib/services/affiliates");
+        const referrer = await affiliatesService.getReferrer(params.userId!);
+        if (referrer) {
+          affiliateOwnerId = referrer.user_id;
+          affiliateCodeId = referrer.id;
+          const affiliatePercent = Number(referrer.markup_percent);
+          const platformPercent = 20.0;
+
+          affiliateFeeCredits = creditsCharged * (affiliatePercent / 100);
+          platformFeeCredits = creditsCharged * (platformPercent / 100);
+        }
+      } catch (e) {
+        logger.error(`[UserMcps] Error fetching referrer for ${params.userId}`, e);
+      }
+    }
+
+    // Note: User pays base + platform fee only. Affiliate earns from platform's share (subsidized),
+    // not added to user's bill. This is intentional to keep user pricing competitive.
+    const totalCreditsToDeduct = creditsCharged + platformFeeCredits;
+
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
 
     const creatorEarnings = creditsCharged * creatorSharePct;
-    const platformEarnings = creditsCharged * platformSharePct;
+    const platformEarnings = (creditsCharged * platformSharePct) + platformFeeCredits;
 
     // Charge the consumer
-    if (params.paymentType === "credits" && creditsCharged > 0) {
+    if (params.paymentType === "credits" && totalCreditsToDeduct > 0) {
       const deductResult = await creditsService.deductCredits({
         organizationId: params.organizationId,
-        amount: creditsCharged,
+        amount: totalCreditsToDeduct,
         description: `MCP: ${mcp.name} - ${params.toolName}`,
         metadata: {
           mcp_id: mcp.id,
           mcp_name: mcp.name,
           tool_name: params.toolName,
           creator_org_id: mcp.organization_id,
+          affiliate_fee: affiliateFeeCredits.toFixed(4),
+          platform_fee: platformFeeCredits.toFixed(4)
         },
       });
 
       if (!deductResult.success) {
         throw new Error("Insufficient credits");
       }
+    }
+
+    // Credit Affiliate (per-call unique sourceId so each MCP call is credited; idempotency is per-call)
+    if (affiliateFeeCredits > 0 && affiliateOwnerId && affiliateCodeId) {
+      const callId = crypto.randomUUID();
+      await redeemableEarningsService.addEarnings({
+        userId: affiliateOwnerId,
+        amount: affiliateFeeCredits / CREDITS_PER_DOLLAR,
+        source: "affiliate",
+        sourceId: `affiliate_mcp:${affiliateCodeId}:${callId}`,
+        description: `API Usage Affiliate Fee: ${mcp.name} - ${params.toolName}`,
+        metadata: {
+          buyer_user_id: params.userId,
+          buyer_org_id: params.organizationId,
+          mcp_id: mcp.id
+        },
+      });
     }
 
     // Credit the creator's organization credits (for platform operations)

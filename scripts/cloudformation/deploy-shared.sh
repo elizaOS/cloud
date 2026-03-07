@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy ElizaOS Shared Infrastructure v2 (Production Ready)
+# Deploy elizaOS Shared Infrastructure v2 (Production Ready)
 # VPC, ALB, IAM Roles - Deploy this ONCE before any user deployments
 
 set -e
@@ -17,7 +17,7 @@ REGION="${AWS_REGION:-us-east-1}"
 ENVIRONMENT="${ENVIRONMENT:-production}"
 CERTIFICATE_ARN="${ACM_CERTIFICATE_ARN}"
 
-echo "🚀 ElizaOS Shared Infrastructure Deployment v2 (Production Ready)"
+echo "🚀 elizaOS Shared Infrastructure Deployment v2 (Production Ready)"
 echo "=================================================================="
 echo "Region: $REGION"
 echo "Environment: $ENVIRONMENT"
@@ -67,7 +67,7 @@ if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGI
           ParameterKey=CertificateArn,ParameterValue="$CERTIFICATE_ARN" \
         --capabilities CAPABILITY_NAMED_IAM \
         --region "$REGION" \
-        --tags Key=Project,Value=ElizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
+        --tags Key=Project,Value=elizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
       
       echo "⏳ Waiting for stack update to complete..."
       aws cloudformation wait stack-update-complete \
@@ -94,7 +94,7 @@ if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGI
           ParameterKey=CertificateArn,ParameterValue="$CERTIFICATE_ARN" \
         --capabilities CAPABILITY_NAMED_IAM \
         --region "$REGION" \
-        --tags Key=Project,Value=ElizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
+        --tags Key=Project,Value=elizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
       ;;
     *)
       echo "Cancelled."
@@ -112,7 +112,7 @@ else
       ParameterKey=CertificateArn,ParameterValue="$CERTIFICATE_ARN" \
     --capabilities CAPABILITY_NAMED_IAM \
     --region "$REGION" \
-    --tags Key=Project,Value=ElizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
+    --tags Key=Project,Value=elizaOS Key=ManagedBy,Value=CloudFormation Key=Version,Value=v2
 
   echo "⏳ Waiting for stack to complete (this may take 5-10 minutes)..."
   aws cloudformation wait stack-create-complete \

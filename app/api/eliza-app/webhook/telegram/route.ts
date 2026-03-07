@@ -22,6 +22,7 @@ import { createMessageHandler } from "@/lib/eliza/message-handler";
 import { userContextService } from "@/lib/eliza/user-context";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
+import { createPerfTrace } from "@/lib/utils/perf-trace";
 import type { Update, Message } from "telegraf/types";
 
 export const dynamic = "force-dynamic";
@@ -88,13 +89,55 @@ async function sendTelegramMessage(
   return true;
 }
 
-async function handleMessage(message: Message): Promise<void> {
-  if (!("text" in message) || !message.text) return;
-  if (message.chat.type !== "private") return;
+/**
+ * PERF: Send "typing" indicator to show the user that the bot is processing.
+ * This dramatically improves perceived latency -- users see immediate feedback
+ * instead of waiting 3-8s with no indication.
+ * Telegram automatically clears the typing indicator after 5 seconds,
+ * so we repeat it periodically for longer processing.
+ */
+async function sendTypingAction(chatId: number): Promise<void> {
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          action: "typing",
+        }),
+      },
+    );
+  } catch (error) {
+    // Non-critical, don't fail the request
+    logger.debug("[ElizaApp TelegramWebhook] Failed to send typing action", {
+      chatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Start a periodic typing indicator that auto-refreshes every 4 seconds.
+ * Returns a cleanup function to stop the interval.
+ * Telegram clears typing after 5s, so we refresh at 4s to maintain continuity.
+ */
+function startTypingIndicator(chatId: number): () => void {
+  // Send immediately
+  sendTypingAction(chatId);
+  // Refresh every 4 seconds
+  const interval = setInterval(() => sendTypingAction(chatId), 4000);
+  return () => clearInterval(interval);
+}
+
+async function handleMessage(message: Message): Promise<boolean> {
+  if (!("text" in message) || !message.text) return true;
+  if (message.chat.type !== "private") return true;
 
   if (!message.from) {
     logger.warn("[ElizaApp TelegramWebhook] Message missing sender (from)");
-    return;
+    return true;
   }
 
   const telegramUserId = String(message.from.id);
@@ -102,108 +145,124 @@ async function handleMessage(message: Message): Promise<void> {
 
   if (text.startsWith("/")) {
     await handleCommand(message);
-    return;
+    return true;
   }
 
-  // Look up user - they must have completed OAuth first
-  const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
-  if (!userWithOrg?.organization) {
-    await sendTelegramMessage(
-      message.chat.id,
-      `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
-    );
-    return;
-  }
-  const { organization } = userWithOrg;
+  const perfTrace = createPerfTrace("telegram-webhook");
+  const stopTyping = startTypingIndicator(message.chat.id);
 
-  const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
-  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
+  try {
+    perfTrace.mark("user-lookup");
+    const userWithOrg = await elizaAppUserService.getByTelegramId(telegramUserId);
+    if (!userWithOrg?.organization) {
+      await sendTelegramMessage(
+        message.chat.id,
+        `👋 Welcome! To chat with Eliza, please connect your Telegram first:\n\n${elizaAppConfig.appUrl}/get-started`,
+      );
+      return true;
+    }
+    const { organization } = userWithOrg;
 
-  const existingRoom = await roomsService.getRoomSummary(roomId);
-  if (!existingRoom) {
-    await roomsService.createRoom({
-      id: roomId,
-      agentId: DEFAULT_AGENT_ID,
-      entityId,
-      source: "telegram",
-      type: "DM",
-      name: `Telegram: ${message.from.first_name || telegramUserId}`,
-      metadata: {
-        channel: "telegram",
-        telegramUserId,
-        telegramChatId: message.chat.id,
+    const roomId = generateElizaAppRoomId("telegram", DEFAULT_AGENT_ID, telegramUserId);
+    const entityId = userWithOrg.id;
+
+    perfTrace.mark("room-setup");
+    const existingRoom = await roomsService.getRoomSummary(roomId);
+    if (!existingRoom) {
+      await roomsService.createRoom({
+        id: roomId,
+        agentId: DEFAULT_AGENT_ID,
+        entityId,
+        source: "telegram",
+        type: "DM",
+        name: `Telegram: ${message.from.first_name || telegramUserId}`,
+        metadata: {
+          channel: "telegram",
+          telegramUserId,
+          telegramChatId: message.chat.id,
+          userId: entityId,
+          organizationId: organization.id,
+        },
+      });
+    }
+    try {
+      await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+        throw error;
+      }
+    }
+
+    perfTrace.mark("acquire-lock");
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    });
+
+    if (!lock) {
+      logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", {
+        roomId,
+        lockServiceEnabled: distributedLocks.isEnabled(),
+      });
+      return false;
+    }
+
+    try {
+      const userContext = await userContextService.buildContext({
+        user: { ...userWithOrg, organization } as never,
+        isAnonymous: false,
+        agentMode: AgentMode.ASSISTANT,
+      });
+      userContext.characterId = DEFAULT_AGENT_ID;
+      userContext.webSearchEnabled = true;
+      userContext.modelPreferences = elizaAppConfig.modelPreferences;
+      
+      const { name, description, ...promptConfig } = elizaAppConfig.promptPreset;
+      userContext.appPromptConfig = promptConfig;
+
+      logger.info("[ElizaApp TelegramWebhook] Processing message", {
         userId: entityId,
-        organizationId: organization.id,
-      },
-    });
-  }
-  // Always ensure participant exists (handles partial failures on retry)
-  try {
-    await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
-  } catch (error) {
-    // Ignore "already exists" errors, re-throw others
-    const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
-      throw error;
+        roomId,
+        mode: "assistant",
+      });
+
+      perfTrace.mark("create-runtime");
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      const messageHandler = createMessageHandler(runtime, userContext);
+
+      perfTrace.mark("message-processing");
+      const result = await messageHandler.process({
+        roomId,
+        text,
+        agentModeConfig: { mode: AgentMode.ASSISTANT },
+      });
+
+      const responseContent = result.message.content;
+      const responseText =
+        typeof responseContent === "string"
+          ? responseContent
+          : responseContent?.text || "";
+
+      perfTrace.mark("send-response");
+      if (responseText) {
+        await sendTelegramMessage(message.chat.id, responseText, message.message_id);
+      }
+      return true;
+    } catch (error) {
+      logger.error("[ElizaApp TelegramWebhook] Agent failed", {
+        error: error instanceof Error ? error.message : String(error),
+        roomId,
+      });
+      return false;
+    } finally {
+      stopTyping();
+      await lock.release();
     }
-  }
-
-  // TTL must be >= maxDuration (120s) to prevent lock expiry during processing
-  const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 120000, {
-    maxRetries: 10,
-    initialDelayMs: 100,
-    maxDelayMs: 2000,
-  });
-
-  if (!lock) {
-    logger.warn("[ElizaApp TelegramWebhook] Room locked - message already being processed", {
-      roomId,
-      lockServiceEnabled: distributedLocks.isEnabled(),
-    });
-    return;
-  }
-
-  try {
-    const userContext = await userContextService.buildContext({
-      user: { ...userWithOrg, organization } as never,
-      isAnonymous: false,
-      agentMode: AgentMode.ASSISTANT,
-    });
-    userContext.characterId = DEFAULT_AGENT_ID;
-    userContext.webSearchEnabled = true;
-    userContext.modelPreferences = elizaAppConfig.modelPreferences;
-
-    logger.info("[ElizaApp TelegramWebhook] Processing message", {
-      userId: entityId,
-      roomId,
-      mode: "assistant",
-    });
-
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    const messageHandler = createMessageHandler(runtime, userContext);
-
-    const result = await messageHandler.process({
-      roomId,
-      text,
-      agentModeConfig: { mode: AgentMode.ASSISTANT },
-    });
-
-    const responseContent = result.message.content;
-    const responseText =
-      typeof responseContent === "string"
-        ? responseContent
-        : responseContent?.text || "";
-
-    if (responseText) {
-      await sendTelegramMessage(message.chat.id, responseText, message.message_id);
-    }
-  } catch (error) {
-    logger.error("[ElizaApp TelegramWebhook] Agent failed", {
-      error: error instanceof Error ? error.message : String(error),
-      roomId,
-    });
   } finally {
-    await lock.release();
+    stopTyping();
+    perfTrace.end();
   }
 }
 

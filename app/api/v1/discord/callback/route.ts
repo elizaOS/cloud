@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
 import { discordAutomationService } from "@/lib/services/discord-automation";
 import { logger } from "@/lib/utils/logger";
 
@@ -23,25 +24,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   // Parse state for return URL (do this early for error redirects)
-  let returnUrl = "/dashboard/settings?tab=connections";
+  const defaultReturnPath = "/dashboard/settings?tab=connections";
+  let returnTarget = resolveSafeRedirectTarget(
+    undefined,
+    baseUrl,
+    defaultReturnPath,
+  );
   if (state) {
     try {
       const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-      if (stateData.returnUrl) {
-        returnUrl = stateData.returnUrl;
-      }
+      returnTarget = resolveSafeRedirectTarget(
+        typeof stateData.returnUrl === "string" ? stateData.returnUrl : undefined,
+        baseUrl,
+        defaultReturnPath,
+      );
     } catch {
       // Use default return URL
     }
   }
 
+  function redirectWithStatus(
+    status: "connected" | "error",
+    params: Record<string, string>,
+  ): NextResponse {
+    const target = new URL(returnTarget.toString());
+    target.searchParams.set("discord", status);
+    Object.entries(params).forEach(([key, value]) => {
+      target.searchParams.set(key, value);
+    });
+    return NextResponse.redirect(target);
+  }
+
   // Handle OAuth errors (user cancelled, etc.)
   if (error) {
     logger.warn("[Discord Callback] OAuth error", { error, errorDescription });
-    const errorUrl = `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=${encodeURIComponent(
-      errorDescription || error,
-    )}`;
-    return NextResponse.redirect(new URL(errorUrl, baseUrl));
+    return redirectWithStatus("error", {
+      message: errorDescription || error,
+    });
   }
 
   // For bot OAuth, guild_id is returned directly in URL params
@@ -51,12 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       hasState: !!state,
       hasCode: !!code,
     });
-    return NextResponse.redirect(
-      new URL(
-        `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=missing_params`,
-        baseUrl,
-      ),
-    );
+    return redirectWithStatus("error", { message: "missing_params" });
   }
 
   try {
@@ -67,21 +81,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
     if (result.success) {
-      const successUrl = `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=connected&guildId=${result.guildId}&guildName=${encodeURIComponent(result.guildName || "")}`;
-      return NextResponse.redirect(new URL(successUrl, baseUrl));
+      return redirectWithStatus("connected", {
+        guildId: result.guildId ?? guildId,
+        guildName: result.guildName || "",
+      });
     } else {
-      const errorUrl = `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=${encodeURIComponent(result.error || "unknown")}`;
-      return NextResponse.redirect(new URL(errorUrl, baseUrl));
+      return redirectWithStatus("error", {
+        message: result.error || "unknown",
+      });
     }
   } catch (error) {
     logger.error("[Discord Callback] Unexpected error", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.redirect(
-      new URL(
-        `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}discord=error&message=callback_failed`,
-        baseUrl,
-      ),
-    );
+    return redirectWithStatus("error", { message: "callback_failed" });
   }
 }

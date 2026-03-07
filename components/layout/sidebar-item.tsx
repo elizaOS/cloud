@@ -32,9 +32,9 @@ export function SidebarNavigationItem({
   const pathname = usePathname();
   const router = useRouter();
   const { authenticated } = usePrivy();
-  // Use exact match for dashboard, startsWith for other routes (excluding /create sub-paths)
+  // Use exact match for dashboard and admin root; startsWith for other routes
   const isActive =
-    item.href === "/dashboard"
+    item.href === "/dashboard" || item.href === "/dashboard/admin"
       ? pathname === item.href
       : pathname === item.href ||
         (pathname?.startsWith(item.href + "/") &&

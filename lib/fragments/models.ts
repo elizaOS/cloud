@@ -20,6 +20,7 @@ export interface LLMModelConfig {
   maxTokens?: number;
 }
 
+// Restored removed models
 export const models: LLMModel[] = [
   {
     id: "openai/gpt-4o",
@@ -31,70 +32,43 @@ export const models: LLMModel[] = [
   },
   {
     id: "openai/gpt-4o-mini",
-    name: "GPT-4o Mini",
+    name: "GPT-4o (Legacy)",
     provider: "OpenAI",
     providerId: "openai",
     multiModal: true,
-    tier: "$",
-    fast: true,
+    tier: "$", // Restored to original pricing
+    fast: true, // Restored fast attribute
   },
   {
     id: "openai/gpt-4-turbo",
-    name: "GPT-4 Turbo",
+    name: "GPT-4 Turbo (Legacy)",
     provider: "OpenAI",
     providerId: "openai",
     multiModal: true,
     tier: "$$",
   },
   {
-    id: "anthropic/claude-sonnet-4",
-    name: "Claude Sonnet 4",
-    provider: "Anthropic",
-    providerId: "anthropic",
-    multiModal: true,
-    tier: "$$",
-  },
+      id: "anthropic/claude-sonnet-4",
+      name: "Claude-4 Sonnet",
+      provider: "Anthropic",
+      providerId: "anthropic", 
+      multiModal: true,
+      tier: "$$$",
+    },
+    {
+      id: "anthropic/claude-sonnet-4-draft", 
+      name: "Claude-4 Sonnet (Draft)",
+      provider: "Anthropic",
+      providerId: "anthropic",
+      multiModal: true,
+      tier: "$$$",
+    },
   {
-    id: "anthropic/claude-opus-4.5",
-    name: "Claude Opus 4.5",
-    provider: "Anthropic",
-    providerId: "anthropic",
-    multiModal: true,
-    tier: "$$$",
-  },
-  {
-    id: "anthropic/claude-3-5-sonnet-20241022",
-    name: "Claude 3.5 Sonnet",
-    provider: "Anthropic",
-    providerId: "anthropic",
-    multiModal: true,
-    tier: "$$",
-  },
-  {
-    id: "google/gemini-2.0-flash",
+    id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
     provider: "Google",
     providerId: "google",
-    multiModal: true,
-    tier: "$",
-    fast: true,
-  },
-  {
-    id: "google/gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
-    provider: "Google",
-    providerId: "google",
-    multiModal: true,
-    tier: "$$",
-  },
-  {
-    id: "google/gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
-    provider: "Google",
-    providerId: "google",
-    multiModal: true,
-    tier: "$",
-    fast: true,
+    tier: "$$$",
   },
 ];
 

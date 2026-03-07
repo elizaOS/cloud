@@ -24,12 +24,7 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
-// Lazy-loaded handler
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 async function getGoogleMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   const { createMcpHandler } = await import("mcp-handler");
   const { z } = await import("zod/v3");
 
@@ -125,7 +120,7 @@ async function getGoogleMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       server.tool("google_status", "Check Google OAuth connection status", {}, async () => {
         try {
@@ -243,8 +238,6 @@ async function getGoogleMcpHandler() {
     { capabilities: { tools: {} } },
     { streamableHttpEndpoint: "/api/mcps/google/streamable-http", disableSse: true, maxDuration: 60 },
   );
-
-  return mcpHandler;
 }
 
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {

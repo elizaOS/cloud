@@ -19,7 +19,7 @@ import {
   clearProcessedMessages,
 } from "@/lib/utils/idempotency";
 
-describe("Idempotency Utility", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("Idempotency Utility", () => {
   // Use unique keys for each test to avoid conflicts
   const testPrefix = `test-${Date.now()}`;
 
@@ -82,14 +82,14 @@ describe("Idempotency Utility", () => {
       const key = `${testPrefix}:source-test-${Date.now()}`;
 
       // This should not throw
-      await expect(markAsProcessed(key, "twilio")).resolves.not.toThrow();
+      await markAsProcessed(key, "twilio");
     });
 
     it("uses default source when not provided", async () => {
       const key = `${testPrefix}:default-source-${Date.now()}`;
 
       // Should not throw
-      await expect(markAsProcessed(key)).resolves.not.toThrow();
+      await markAsProcessed(key);
     });
 
     it("handles duplicate marking gracefully", async () => {
@@ -97,7 +97,7 @@ describe("Idempotency Utility", () => {
 
       // Mark twice - should not throw
       await markAsProcessed(key, "test");
-      await expect(markAsProcessed(key, "test")).resolves.not.toThrow();
+      await markAsProcessed(key, "test");
 
       // Should still be processed
       expect(await isAlreadyProcessed(key)).toBe(true);
@@ -143,12 +143,12 @@ describe("Idempotency Utility", () => {
 
   describe("clearProcessedMessages", () => {
     it("clears all messages without error", async () => {
-      await expect(clearProcessedMessages()).resolves.not.toThrow();
+      await clearProcessedMessages();
     });
   });
 });
 
-describe("tryClaimForProcessing", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("tryClaimForProcessing", () => {
   const claimPrefix = `claim-${Date.now()}`;
 
   afterAll(async () => {
@@ -193,7 +193,7 @@ describe("tryClaimForProcessing", () => {
   });
 });
 
-describe("releaseProcessingClaim", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("releaseProcessingClaim", () => {
   const releasePrefix = `release-${Date.now()}`;
 
   afterAll(async () => {
@@ -236,7 +236,7 @@ describe("releaseProcessingClaim", () => {
   });
 });
 
-describe("Idempotency Security Tests", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("Idempotency Security Tests", () => {
   const securityPrefix = `security-${Date.now()}`;
 
   describe("Replay Attack Prevention", () => {
@@ -272,7 +272,7 @@ describe("Idempotency Security Tests", () => {
     it("handles very long keys", async () => {
       const longKey = `${securityPrefix}:${"x".repeat(500)}`;
       expect(await isAlreadyProcessed(longKey)).toBe(false);
-      await expect(markAsProcessed(longKey, "test")).resolves.not.toThrow();
+      await markAsProcessed(longKey, "test");
     });
 
     it("handles keys with special webhook-related characters", async () => {

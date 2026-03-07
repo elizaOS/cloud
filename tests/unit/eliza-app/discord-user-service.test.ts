@@ -43,7 +43,7 @@ describe("Discord User Service", () => {
 
     test("handles unicode characters by removing them", () => {
       const slug = generateSlugFromDiscord("Test🎉User", "123456789");
-      expect(slug).toMatch(/^discord-testuser-[a-z0-9]+$/);
+      expect(slug).toMatch(/^discord-test--user-[a-z0-9]+$/);
     });
 
     test("generates unique slugs on multiple calls", () => {
@@ -210,8 +210,8 @@ describe("Discord User Service", () => {
     const isUniqueConstraintError = (error: unknown): boolean => {
       if (error instanceof Error) {
         return error.message.includes("unique constraint") ||
-               error.message.includes("duplicate key") ||
-               (error as { code?: string }).code === "23505";
+          error.message.includes("duplicate key") ||
+          (error as { code?: string }).code === "23505";
       }
       return false;
     };

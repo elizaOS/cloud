@@ -22,7 +22,7 @@ if [ "$FORCE" != "--force" ]; then
   exit 1
 fi
 
-echo "🗑️  Finding all ElizaOS user stacks..."
+echo "🗑️  Finding all elizaOS user stacks..."
 
 # Get all user stacks
 STACKS=$(aws cloudformation list-stacks \
@@ -68,7 +68,7 @@ echo "🧹 Post-cleanup tasks:"
 echo "1. Run cleanup script to remove orphaned resources:"
 echo "   bun run scripts/cleanup-orphaned-stacks.ts"
 echo "2. Verify all EBS volumes are deleted:"
-echo "   aws ec2 describe-volumes --filters \"Name=tag:BillingEntity,Values=ElizaOS\" --region $REGION"
+echo "   aws ec2 describe-volumes --filters \"Name=tag:BillingEntity,Values=elizaOS\" --region $REGION"
 echo "3. Check for any failed deletions:"
 echo "   aws cloudformation list-stacks --stack-status-filter DELETE_FAILED --region $REGION | grep elizaos-user"
 

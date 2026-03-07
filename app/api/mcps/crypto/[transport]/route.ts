@@ -141,82 +141,83 @@ function formatLargeNumber(num: number): string {
 }
 
 // Create MCP handler with crypto tools
-const handler = createMcpHandler(
-  (server) => {
-    // Tool 1: Get Price - Get current price for a cryptocurrency
-    server.tool(
-      "get_price",
-      "Get the current price of a cryptocurrency in your preferred currency. " +
-        "Supports thousands of coins including Bitcoin (BTC), Ethereum (ETH), Solana (SOL), etc. " +
-        "You can use either the full name (bitcoin) or symbol (btc).",
-      {
-        coin: z
-          .string()
-          .describe(
-            "The cryptocurrency name or symbol (e.g., 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol')",
-          ),
-        currency: z
-          .string()
-          .optional()
-          .default("usd")
-          .describe(
-            "The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD.",
-          ),
-      },
-      async ({ coin, currency = "usd" }) => {
-        try {
-          const coinId = resolveCoinId(coin);
-          const cacheKey = `price:${coinId}:${currency}`;
+function createHandler() {
+  return createMcpHandler(
+    (server) => {
+      // Tool 1: Get Price - Get current price for a cryptocurrency
+      server.tool(
+        "get_price",
+        "Get the current price of a cryptocurrency in your preferred currency. " +
+          "Supports thousands of coins including Bitcoin (BTC), Ethereum (ETH), Solana (SOL), etc. " +
+          "You can use either the full name (bitcoin) or symbol (btc).",
+        {
+          coin: z
+            .string()
+            .describe(
+              "The cryptocurrency name or symbol (e.g., 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol')",
+            ),
+          currency: z
+            .string()
+            .optional()
+            .default("usd")
+            .describe(
+              "The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD.",
+            ),
+        },
+        async ({ coin, currency = "usd" }) => {
+          try {
+            const coinId = resolveCoinId(coin);
+            const cacheKey = `price:${coinId}:${currency}`;
 
-          const data = (await fetchWithCache(
-            `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`,
-            cacheKey,
-          )) as CoinGeckoPriceData;
+            const data = (await fetchWithCache(
+              `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`,
+              cacheKey,
+            )) as CoinGeckoPriceData;
 
-          if (!data[coinId]) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: `Cryptocurrency "${coin}" not found. Try using the full name (e.g., "bitcoin") or check the spelling.`,
-                      suggestion:
-                        "Use list_trending to see popular cryptocurrencies.",
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+            if (!data[coinId]) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: `Cryptocurrency "${coin}" not found. Try using the full name (e.g., "bitcoin") or check the spelling.`,
+                        suggestion:
+                          "Use list_trending to see popular cryptocurrencies.",
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
 
-          const coinData = data[coinId];
-          const price = coinData[currency];
-          const change24h =
-            coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
-          const marketCap =
-            coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
-          const volume24h =
-            coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
+            const coinData = data[coinId];
+            const price = coinData[currency];
+            const change24h =
+              coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
+            const marketCap =
+              coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
+            const volume24h =
+              coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
 
-          const response = {
-            coin: coinId,
-            symbol: coin.toUpperCase(),
-            price: {
-              value: price,
-              currency: currency.toUpperCase(),
-              formatted: `${currency.toUpperCase()} ${price?.toLocaleString(
-                undefined,
-                {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: price < 1 ? 8 : 2,
-                },
-              )}`,
-            },
-            change24h: change24h
+            const response = {
+              coin: coinId,
+              symbol: coin.toUpperCase(),
+              price: {
+                value: price,
+                currency: currency.toUpperCase(),
+                formatted: `${currency.toUpperCase()} ${price?.toLocaleString(
+                  undefined,
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: price < 1 ? 8 : 2,
+                  },
+                )}`,
+              },
+              change24h: change24h
               ? {
                   percent: change24h,
                   formatted: `${change24h >= 0 ? "+" : ""}${change24h.toFixed(2)}%`,
@@ -440,19 +441,20 @@ const handler = createMcpHandler(
         }
       },
     );
-  },
-  {
-    capabilities: {
-      tools: {},
     },
-  },
-  {
-    redisUrl: process.env.REDIS_URL,
-    streamableHttpEndpoint: "/api/mcps/crypto/streamable-http",
-    disableSse: true,
-    maxDuration: 300,
-  },
-);
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
+    {
+      redisUrl: process.env.REDIS_URL,
+      streamableHttpEndpoint: "/api/mcps/crypto/streamable-http",
+      disableSse: true,
+      maxDuration: 300,
+    },
+  );
+}
 
 /**
  * GET /api/mcps/crypto/[transport]
@@ -467,24 +469,25 @@ const handler = createMcpHandler(
  * @param context - Route context containing the transport parameter.
  * @returns MCP handler response.
  */
-function withTransportValidation(
-  fn: (req: Request) => Promise<Response>,
-) {
-  return async (
-    req: Request,
-    { params }: { params: Promise<{ transport: string }> },
-  ): Promise<Response> => {
-    const { transport } = await params;
-    if (transport !== "streamable-http") {
-      return new Response(
-        JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
-        { status: 405, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return fn(req);
-  };
+async function handleTransportRequest(
+  request: Request,
+  { params }: { params: Promise<{ transport: string }> },
+): Promise<Response> {
+  const { transport } = await params;
+
+  if (transport !== "streamable-http") {
+    return new Response(
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
+      { status: 405, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const handler = createHandler();
+  return await handler(request);
 }
 
-export const GET = withTransportValidation(handler);
-export const POST = withTransportValidation(handler);
-export const DELETE = withTransportValidation(handler);
+export const GET = handleTransportRequest;
+export const POST = handleTransportRequest;
+export const DELETE = handleTransportRequest;

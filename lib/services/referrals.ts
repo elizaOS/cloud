@@ -13,28 +13,75 @@ import { logger } from "@/lib/utils/logger";
 import * as crypto from "crypto";
 
 /**
- * Service for managing referral codes, signups, and social share rewards.
+ * Referral and social share rewards service.
+ *
+ * WHY two concepts in one module: Referral codes drive signups and tie revenue to
+ * a 50/40/10 split on purchase; social share rewards are also growth incentives
+ * and share the same credit/org plumbing. Keeps all "growth reward" logic in one place.
  */
 
 /**
  * Context for app-specific operations.
- * When appId is provided, credits go to app balance instead of org balance.
+ * WHY appOwnerId/creatorId: When a user signs up via a miniapp or embed, we need to
+ * attribute the 40% and 10% shares to the app owner and creator for calculateRevenueSplits.
+ * When appId is set, referred-user bonus goes to app balance instead of org balance.
  */
 interface AppContext {
   appId?: string;
+  appOwnerId?: string;
+  creatorId?: string;
 }
 
-// Reward amounts (in dollars/credits)
+/**
+ * Reward amounts (in dollars/credits). WHY minted not carved: Signup/qualified bonuses
+ * are customer acquisition cost; we don't deduct them from any purchase so we never
+ * risk over-allocating revenue. Revenue share for referrers is handled by the 50/40/10
+ * split in calculateRevenueSplits, not by a separate commission.
+ */
 const REWARDS = {
   SIGNUP_BONUS: 1.0, // Referrer gets $1 (100 credits) when someone signs up with their code
   REFERRED_BONUS: 0.5, // New user gets $0.50 (50 credits) for using a referral code
   QUALIFIED_BONUS: 0.5, // Referrer gets $0.50 (50 credits) when referred user links social account
-  COMMISSION_RATE: 0.05, // 5% commission on referral purchases
   SHARE_X: 0.25,
   SHARE_FARCASTER: 0.25,
   SHARE_TELEGRAM: 0.25,
   SHARE_DISCORD: 0.25,
 } as const;
+
+/**
+ * Referral revenue split (must sum to 1.0). Used by calculateRevenueSplits.
+ * WHY single source of truth: So we never over- or under-allocate; changing one
+ * number without fixing the others would break the invariant. Assertions below
+ * enforce 50+40+10=100% and 8+2=10% at startup.
+ * - ELIZA_CLOUD: platform share
+ * - APP_OWNER: app owner share (or ELIZA_CLOUD if no app_owner_id)
+ * - CREATOR: creator share; with multi-tier this becomes CREATOR_TIER + EDITOR_TIER
+ */
+export const REFERRAL_REVENUE_SPLITS = {
+  ELIZA_CLOUD: 0.5,
+  APP_OWNER: 0.4,
+  CREATOR: 0.1,
+  /** Multi-tier: creator gets 8%, editor (parent) gets 2% of purchase */
+  CREATOR_TIER: 0.08,
+  EDITOR_TIER: 0.02,
+} as const;
+
+const SPLITS_TOTAL =
+  REFERRAL_REVENUE_SPLITS.ELIZA_CLOUD +
+  REFERRAL_REVENUE_SPLITS.APP_OWNER +
+  REFERRAL_REVENUE_SPLITS.CREATOR;
+if (Math.abs(SPLITS_TOTAL - 1) > 1e-9) {
+  throw new Error(
+    `Referral revenue splits must sum to 1.0 (got ${SPLITS_TOTAL}). Fix REFERRAL_REVENUE_SPLITS.`,
+  );
+}
+const MULTI_TIER_TOTAL =
+  REFERRAL_REVENUE_SPLITS.CREATOR_TIER + REFERRAL_REVENUE_SPLITS.EDITOR_TIER;
+if (Math.abs(MULTI_TIER_TOTAL - REFERRAL_REVENUE_SPLITS.CREATOR) > 1e-9) {
+  throw new Error(
+    `Multi-tier creator split must equal CREATOR (${REFERRAL_REVENUE_SPLITS.CREATOR}); got ${MULTI_TIER_TOTAL}.`,
+  );
+}
 
 /**
  * Social platform identifier.
@@ -117,6 +164,16 @@ export class ReferralsService {
       return { success: false, message: "Cannot use your own referral code" };
     }
 
+    // Prevent self-referral abuse via app owner revenue share
+    if (appContext?.appOwnerId === referredUserId) {
+      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
+    }
+
+    // Prevent self-referral abuse via app owner revenue share
+    if (appContext?.appOwnerId === referredUserId) {
+      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
+    }
+
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(referralCode.user_id);
     if (!referrer?.organization_id) {
@@ -131,6 +188,8 @@ export class ReferralsService {
       referral_code_id: referralCode.id,
       referrer_user_id: referralCode.user_id,
       referred_user_id: referredUserId,
+      app_owner_id: appContext?.appOwnerId || null,
+      creator_id: appContext?.creatorId || referralCode.user_id,
     });
 
     // Award bonus to referred user (app-specific or org balance)
@@ -192,45 +251,89 @@ export class ReferralsService {
     };
   }
 
-  async processReferralCommission(
-    purchaserUserId: string,
+  /**
+   * Calculates the revenue splits for a purchase based on the 50/40/10 structure
+   * and multi-tier "referrals of referrals" logic.
+   * WHY assert total === purchaseAmount: Prevents logic bugs (e.g. missing branch)
+   * from silently over- or under-paying; fail fast instead of wrong payouts.
+   */
+  async calculateRevenueSplits(
+    userId: string,
     purchaseAmount: number,
-    referrerOrganizationId: string,
-  ): Promise<number> {
-    const signup =
-      await referralSignupsRepository.findByReferredUserId(purchaserUserId);
-    if (!signup) return 0;
+  ): Promise<{
+    elizaCloudAmount: number;
+    splits: Array<{
+      userId: string;
+      role: "app_owner" | "creator" | "editor";
+      amount: number;
+    }>;
+  }> {
+    const signup = await referralSignupsRepository.findByReferredUserId(userId);
 
-    const commission = purchaseAmount * REWARDS.COMMISSION_RATE;
+    // Default: 100% to ElizaCloud if no referrer
+    if (!signup) {
+      return { elizaCloudAmount: purchaseAmount, splits: [] };
+    }
 
-    await creditsService.addCredits({
-      organizationId: referrerOrganizationId,
-      amount: commission,
-      description: `Referral commission (${(REWARDS.COMMISSION_RATE * 100).toFixed(0)}%)`,
-      metadata: {
-        referred_user_id: purchaserUserId,
-        purchase_amount: purchaseAmount,
-        type: "referral_commission",
-      },
-    });
+    const { ELIZA_CLOUD, APP_OWNER, CREATOR, CREATOR_TIER, EDITOR_TIER } =
+      REFERRAL_REVENUE_SPLITS;
 
-    // PERFORMANCE: Update commission stats in parallel
-    await Promise.all([
-      referralSignupsRepository.addCommission(signup.id, commission),
-      referralCodesRepository.addCommissionEarnings(
-        signup.referral_code_id,
-        commission,
-      ),
-    ]);
+    let elizaCloudAmount = purchaseAmount * ELIZA_CLOUD;
+    const appOwnerAmount = purchaseAmount * APP_OWNER;
+    const baseCreatorAmount = purchaseAmount * CREATOR;
 
-    logger.info("[Referrals] Commission credited", {
-      purchaserUserId,
-      referrerId: signup.referrer_user_id,
-      purchaseAmount,
-      commission,
-    });
+    const splits: Array<{ userId: string; role: "app_owner" | "creator"; amount: number }> = [];
 
-    return commission;
+    if (signup.app_owner_id) {
+      splits.push({
+        userId: signup.app_owner_id,
+        role: "app_owner",
+        amount: appOwnerAmount,
+      });
+    } else {
+      elizaCloudAmount += appOwnerAmount;
+    }
+
+    const creatorId = signup.creator_id || signup.referrer_user_id;
+
+    const referralCode = await referralCodesRepository.findById(signup.referral_code_id);
+    if (referralCode && referralCode.parent_referral_id) {
+      const parentCode = await referralCodesRepository.findById(referralCode.parent_referral_id);
+      if (parentCode) {
+        splits.push({
+          userId: creatorId,
+          role: "creator",
+          amount: purchaseAmount * CREATOR_TIER,
+        });
+        splits.push({
+          userId: parentCode.user_id,
+          role: "creator",
+          amount: purchaseAmount * EDITOR_TIER,
+        });
+      } else {
+        splits.push({
+          userId: creatorId,
+          role: "creator",
+          amount: baseCreatorAmount,
+        });
+      }
+    } else {
+      splits.push({
+        userId: creatorId,
+        role: "creator",
+        amount: baseCreatorAmount,
+      });
+    }
+
+    const splitsSum = splits.reduce((s, x) => s + x.amount, 0);
+    const totalAllocated = elizaCloudAmount + splitsSum;
+    if (Math.abs(totalAllocated - purchaseAmount) > 1e-6) {
+      throw new Error(
+        `Referral revenue split total must equal purchaseAmount: ${totalAllocated} !== ${purchaseAmount}`,
+      );
+    }
+
+    return { elizaCloudAmount, splits };
   }
 
   async getReferralStats(userId: string): Promise<{

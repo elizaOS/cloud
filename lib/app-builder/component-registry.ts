@@ -539,7 +539,7 @@ export default function DashboardPage() {
     ],
     example: `import { VideoGenerator } from '@/components/eliza/media/video-generator';
 
-<VideoGenerator onGenerate={(url) => console.log(url)} />`,
+<VideoGenerator onGenerate={(url) => logger.debug(url)} />`,
     relatedComponents: ["ImageGenerator"],
   },
 
@@ -690,8 +690,8 @@ export function generateComponentCatalog(
 ): string {
   const components = categories
     ? Object.values(ELIZA_COMPONENTS).filter((c) =>
-        categories.includes(c.category),
-      )
+      categories.includes(c.category),
+    )
     : Object.values(ELIZA_COMPONENTS);
 
   const grouped = components.reduce(

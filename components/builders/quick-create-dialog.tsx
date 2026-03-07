@@ -60,13 +60,13 @@ interface TypeOption {
 }
 
 const TYPE_OPTIONS: TypeOption[] = [
-  {
-    type: "app",
-    label: "App",
-    description: "Web app or mobile experience",
-    icon: Smartphone,
-    color: "text-cyan-400",
-  },
+  // {
+  //   type: "app",
+  //   label: "App",
+  //   description: "Web app or mobile experience",
+  //   icon: Smartphone,
+  //   color: "text-cyan-400",
+  // },
   {
     type: "agent",
     label: "AI Agent",
@@ -131,11 +131,11 @@ export function QuickCreateDialog({
       onOpenChange(false);
       return;
     }
-    if (type === "app") {
-      router.push("/dashboard/apps/create");
-      onOpenChange(false);
-      return;
-    }
+    // if (type === "app") {
+    //   router.push("/dashboard/apps/create");
+    //   onOpenChange(false);
+    //   return;
+    // }
     setSelectedType(type);
     setName(generateName(type));
     setStep("configure");
@@ -227,9 +227,9 @@ export function QuickCreateDialog({
 
     try {
       switch (selectedType) {
-        case "app":
-          result = await createApp(false);
-          break;
+        // case "app":
+        //   result = await createApp(false);
+        //   break;
         case "service":
           result = await createApp(true);
           break;
@@ -243,7 +243,7 @@ export function QuickCreateDialog({
 
       setCreatedResult(result);
       setStep("success");
-      onCreated?.(result);
+      if (result) onCreated?.(result);
       toast.success(
         `${TYPE_OPTIONS.find((t) => t.type === selectedType)?.label} created`,
       );

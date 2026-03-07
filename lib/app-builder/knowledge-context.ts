@@ -198,6 +198,7 @@ const SDK_REFERENCE_FULL = `
 The SDK is pre-configured. Just import and use:
 
 \`\`\`typescript
+import { logger } from '@/lib/utils/logger';
 import { 
   chat, 
   chatStream, 
@@ -218,7 +219,7 @@ import {
 const response = await chat([
   { role: 'user', content: 'Hello!' }
 ], 'gpt-4o');
-console.log(response.choices[0].message.content);
+logger.debug(response.choices[0].message.content);
 
 // Streaming (async generator)
 for await (const chunk of chatStream([{ role: 'user', content: 'Hello!' }])) {
@@ -255,7 +256,7 @@ const agents = await listAgents();
 
 // Get a specific agent
 const agent = await getAgent('agent-id');
-console.log(agent.name, agent.description);
+logger.debug(agent.name, agent.description);
 
 // Chat with an agent (maintains conversation via roomId)
 let roomId: string | undefined;
@@ -268,7 +269,7 @@ roomId = newRoomId; // Save for continued conversation
 
 // Streaming agent chat
 for await (const chunk of chatWithAgentStream('agent-id', 'Hello!', roomId)) {
-  console.log(chunk.text);
+  logger.debug(chunk.text);
 }
 \`\`\`
 
@@ -276,7 +277,7 @@ for await (const chunk of chatWithAgentStream('agent-id', 'Hello!', roomId)) {
 
 \`\`\`typescript
 const { url, filename, size, mimeType } = await uploadFile(file, 'document.pdf');
-console.log('Uploaded to:', url);
+logger.info('Uploaded to:', url);
 \`\`\`
 
 ### Credits
@@ -346,7 +347,7 @@ const { agents, loading, error, chatWith } = useAgents();
 
 // agents is auto-fetched on mount
 const response = await chatWith(agents[0].id, 'Hello!');
-console.log(response.text);
+logger.debug(response.text);
 // Conversation state is tracked automatically per agent
 \`\`\`
 
@@ -369,7 +370,7 @@ await send('Hello!');
 
 // Streaming
 for await (const chunk of sendStream('Tell me a story')) {
-  console.log(chunk); // Real-time text
+  logger.debug(chunk); // Real-time text
 }
 \`\`\`
 
@@ -390,7 +391,7 @@ const { upload, loading, error, uploadedUrl, reset } = useFileUpload();
 
 const handleUpload = async (file: File) => {
   const url = await upload(file);
-  console.log('Uploaded to:', url);
+  logger.info('Uploaded to:', url);
 };
 \`\`\`
 `;

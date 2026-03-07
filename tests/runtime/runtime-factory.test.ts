@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -96,7 +97,7 @@ async function cleanupEnvironment(): Promise<void> {
 // CHAT Mode Tests
 // ============================================================================
 
-describe("RuntimeFactory - CHAT Mode", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - CHAT Mode", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -168,7 +169,7 @@ describe("RuntimeFactory - CHAT Mode", () => {
 // ASSISTANT Mode Tests (with MCP)
 // ============================================================================
 
-describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -237,7 +238,7 @@ describe("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
 // ASSISTANT Mode with Web Search
 // ============================================================================
 
-describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -288,7 +289,7 @@ describe("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
 // BUILD Mode Tests
 // ============================================================================
 
-describe("RuntimeFactory - BUILD Mode", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - BUILD Mode", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -341,7 +342,7 @@ describe("RuntimeFactory - BUILD Mode", () => {
 // Caching Tests
 // ============================================================================
 
-describe("RuntimeFactory - Caching Behavior", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
   beforeAll(setupEnvironment);
   afterAll(cleanupEnvironment);
 
@@ -395,7 +396,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
 // Performance Benchmarks
 // ============================================================================
 
-describe("RuntimeFactory - Performance Benchmarks", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Performance Benchmarks", () => {
   beforeAll(setupEnvironment);
   afterAll(cleanupEnvironment);
 

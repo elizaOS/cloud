@@ -7,6 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -65,7 +66,7 @@ async function cleanupEnvironment(): Promise<void> {
   }
 }
 
-describe("Runtime Creation Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Runtime Creation Performance", () => {
   const runtimes: TestRuntimeResult[] = [];
   const collector = new TimingCollector();
 
@@ -154,7 +155,7 @@ describe("Runtime Creation Performance", () => {
   }, 180000);
 });
 
-describe("Database Query Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
   let testRuntime: TestRuntimeResult;
   let testUser: TestUserContext;
 
@@ -270,7 +271,7 @@ describe("Database Query Performance", () => {
   });
 });
 
-describe("Runtime Caching Performance", () => {
+describe.skipIf(!hasDatabaseUrl)("Runtime Caching Performance", () => {
   const runtimes: TestRuntimeResult[] = [];
 
   beforeAll(setupEnvironment, 60000);

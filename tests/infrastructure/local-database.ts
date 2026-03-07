@@ -7,6 +7,10 @@
 
 import { Client } from "pg";
 
+/** True when DATABASE_URL is set (use with describe.skipIf(!hasDatabaseUrl) for DB-dependent suites). */
+export const hasDatabaseUrl =
+  typeof process.env.DATABASE_URL === "string" && process.env.DATABASE_URL.length > 0;
+
 /**
  * Get the connection string from environment
  */

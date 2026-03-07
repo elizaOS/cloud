@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -40,7 +41,7 @@ let connectionString: string;
 let testData: TestDataSet;
 const timings: Record<string, number> = {};
 
-describe("RuntimeFactory - Caching Behavior", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(60));
     console.log("SETTING UP CACHING TEST ENVIRONMENT");
@@ -133,7 +134,7 @@ describe("RuntimeFactory - Caching Behavior", () => {
 // Performance Benchmarks
 // ============================================================================
 
-describe("RuntimeFactory - Performance Benchmarks", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Performance Benchmarks", () => {
   let localConnectionString: string;
   let localTestData: TestDataSet;
   const localTimings: Record<string, number> = {};

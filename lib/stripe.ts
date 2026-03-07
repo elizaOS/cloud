@@ -54,6 +54,8 @@ function initStripe(): Stripe | null {
 
   stripeInstance = new Stripe(secretKey, {
     typescript: true,
+    // @ts-expect-error -- Pinned to production-tested version; see #287 for upgrade plan
+    apiVersion: "2024-11-20.acacia",
   });
   return stripeInstance;
 }

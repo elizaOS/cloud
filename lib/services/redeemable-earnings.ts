@@ -34,7 +34,7 @@ import Decimal from "decimal.js";
 // TYPES
 // ============================================================================
 
-type EarningsSource = "miniapp" | "agent" | "mcp";
+type EarningsSource = "miniapp" | "agent" | "mcp" | "affiliate" | "app_owner_revenue_share" | "creator_revenue_share";
 
 interface AddEarningsParams {
   userId: string;
@@ -216,6 +216,9 @@ class RedeemableEarningsService {
               source === "miniapp" ? amountDecimal : "0.0000",
             earned_from_agents: source === "agent" ? amountDecimal : "0.0000",
             earned_from_mcps: source === "mcp" ? amountDecimal : "0.0000",
+            earned_from_affiliates: source === "affiliate" ? amountDecimal : "0.0000",
+            earned_from_app_owner_shares: source === "app_owner_revenue_share" ? amountDecimal : "0.0000",
+            earned_from_creator_shares: source === "creator_revenue_share" ? amountDecimal : "0.0000",
             last_earning_at: new Date(),
           })
           .returning();
@@ -226,7 +229,13 @@ class RedeemableEarningsService {
             ? redeemableEarnings.earned_from_miniapps
             : source === "agent"
               ? redeemableEarnings.earned_from_agents
-              : redeemableEarnings.earned_from_mcps;
+              : source === "mcp"
+                ? redeemableEarnings.earned_from_mcps
+                : source === "affiliate"
+                  ? redeemableEarnings.earned_from_affiliates
+                  : source === "app_owner_revenue_share"
+                    ? redeemableEarnings.earned_from_app_owner_shares
+                    : redeemableEarnings.earned_from_creator_shares;
 
         [earnings] = await tx
           .update(redeemableEarnings)
@@ -342,7 +351,13 @@ class RedeemableEarningsService {
           ? redeemableEarnings.earned_from_miniapps
           : source === "agent"
             ? redeemableEarnings.earned_from_agents
-            : redeemableEarnings.earned_from_mcps;
+            : source === "mcp"
+              ? redeemableEarnings.earned_from_mcps
+              : source === "affiliate"
+                ? redeemableEarnings.earned_from_affiliates
+                : source === "app_owner_revenue_share"
+                  ? redeemableEarnings.earned_from_app_owner_shares
+                  : redeemableEarnings.earned_from_creator_shares;
 
       // Reduce balances - use GREATEST to prevent going negative
       const [updated] = await tx

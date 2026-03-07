@@ -25,13 +25,9 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 async function getGitHubMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   const { createMcpHandler } = await import("mcp-handler");
-  const { z } = await import("zod3");
+  const { z } = await import("zod");
 
   async function getGitHubToken(organizationId: string): Promise<string> {
     const result = await oauthService.getValidTokenByPlatform({ organizationId, platform: "github" });
@@ -85,7 +81,7 @@ async function getGitHubMcpHandler() {
     return query ? `?${query}` : "";
   }
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       server.tool("github_status", "Check GitHub OAuth connection status", {}, async () => {
         try {
@@ -580,7 +576,7 @@ async function getGitHubMcpHandler() {
           pull_number: z.number().int().min(1),
           body: z.string().optional(),
           event: z.string().optional(),
-          comments: z.array(z.record(z.any())).optional(),
+          comments: z.array(z.record(z.string(), z.any())).optional(),
         },
         async ({ owner, repo, pull_number, body, event, comments }) => {
           try {
@@ -963,8 +959,8 @@ async function getGitHubMcpHandler() {
           message: z.string().min(1),
           content: z.string().min(1),
           branch: z.string().optional(),
-          committer: z.record(z.any()).optional(),
-          author: z.record(z.any()).optional(),
+          committer: z.record(z.string(), z.any()).optional(),
+          author: z.record(z.string(), z.any()).optional(),
         },
         async ({ owner, repo, path, message, content, branch, committer, author }) => {
           try {
@@ -992,8 +988,8 @@ async function getGitHubMcpHandler() {
           content: z.string().min(1),
           sha: z.string().min(1),
           branch: z.string().optional(),
-          committer: z.record(z.any()).optional(),
-          author: z.record(z.any()).optional(),
+          committer: z.record(z.string(), z.any()).optional(),
+          author: z.record(z.string(), z.any()).optional(),
         },
         async ({ owner, repo, path, message, content, sha, branch, committer, author }) => {
           try {
@@ -1020,8 +1016,8 @@ async function getGitHubMcpHandler() {
           message: z.string().min(1),
           sha: z.string().min(1),
           branch: z.string().optional(),
-          committer: z.record(z.any()).optional(),
-          author: z.record(z.any()).optional(),
+          committer: z.record(z.string(), z.any()).optional(),
+          author: z.record(z.string(), z.any()).optional(),
         },
         async ({ owner, repo, path, message, sha, branch, committer, author }) => {
           try {
@@ -1040,8 +1036,6 @@ async function getGitHubMcpHandler() {
     { capabilities: { tools: {} } },
     { streamableHttpEndpoint: "/api/mcps/github/streamable-http", disableSse: true, maxDuration: 60 },
   );
-
-  return mcpHandler;
 }
 
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {
