@@ -117,7 +117,9 @@ export async function GET(request: NextRequest) {
     }
 
     const paymentIntentId =
-      typeof session.payment_intent === "string" ? session.payment_intent : null;
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : null;
 
     if (!paymentIntentId) {
       return NextResponse.json(
@@ -172,7 +174,11 @@ export async function GET(request: NextRequest) {
       errorMessage.includes("Authentication required") ||
       errorMessage.includes("Invalid or expired token") ||
       errorMessage.includes("Invalid or expired API key") ||
-      errorMessage.includes("Forbidden: This feature requires a full account") ||
+      errorMessage.includes("Invalid wallet signature") ||
+      errorMessage.includes("Wallet authentication failed") ||
+      errorMessage.includes(
+        "Forbidden: This feature requires a full account",
+      ) ||
       errorMessage.includes("Organization is inactive");
 
     if (isAuthError) {

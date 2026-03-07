@@ -36,7 +36,6 @@ yarn-error.log*
 .env.dev
 .env.development
 .env.production
-example.env.local
 
 # vercel
 .vercel
@@ -71,11 +70,5 @@ logs/
 test_output.log
 ts_errors.log
 
-# Stray root files (duplicates / generated)
-wallet-auth.ts
-auto-top-up.ts
-route.ts
-redeemable-earnings.ts
-sidebar-data.ts
 .prr/
 modelcontextprotocol/

@@ -44,7 +44,7 @@
     "admin:promote": "bun run scripts/promote-admin.ts",
     "admin:list": "bun run scripts/promote-admin.ts --list",
     "admin:revoke": "bun run scripts/promote-admin.ts --revoke",
-    "test:unit": "SKIP_DB_DEPENDENT=1 bun test --preload ./tests/load-env.ts tests/unit",
+    "test:unit": "SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test --preload ./tests/load-env.ts tests/unit",
     "test:integration": "bun test --preload ./tests/load-env.ts tests/integration --timeout 120000",
     "test:runtime": "bun test --preload ./tests/load-env.ts tests/runtime --timeout 120000",
     "test:mcp": "bun test --preload ./tests/load-env.ts tests/runtime/mcp-loading.test.ts --timeout 120000",

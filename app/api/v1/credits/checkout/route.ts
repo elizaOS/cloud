@@ -204,6 +204,8 @@ export async function POST(request: NextRequest) {
       errorMessage.includes("Authentication required") ||
       errorMessage.includes("Invalid or expired token") ||
       errorMessage.includes("Invalid or expired API key") ||
+      errorMessage.includes("Invalid wallet signature") ||
+      errorMessage.includes("Wallet authentication failed") ||
       errorMessage.includes("Forbidden");
 
     const isValidationError =

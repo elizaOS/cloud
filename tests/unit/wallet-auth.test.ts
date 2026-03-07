@@ -11,14 +11,14 @@ mock.module("@/lib/services/wallet-signup", () => ({
     findOrCreateUserByWalletAddress: mockFindOrCreate,
 }));
 
-const mockCacheSetNX = mock(() => true);
+const mockCacheSetIfNotExists = mock(() => true);
 const mockCacheIsAvailable = mock(() => true);
 
 mock.module("@/lib/cache/client", () => ({
     cache: {
         get: mockCacheGet,
         set: mockCacheSet,
-        setNX: mockCacheSetNX,
+        setIfNotExists: mockCacheSetIfNotExists,
         isAvailable: mockCacheIsAvailable,
     },
 }));
@@ -48,6 +48,7 @@ describe("Wallet Authentication", () => {
 
         mockCacheGet.mockResolvedValue(null);
         mockCacheSet.mockResolvedValue(undefined as never);
+        mockCacheSetIfNotExists.mockResolvedValue(true);
         mockFindOrCreate.mockResolvedValue({
             user: {
                 id: "user-1",
