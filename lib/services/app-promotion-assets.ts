@@ -1,4 +1,5 @@
 import { logger } from "@/lib/utils/logger";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { parseAiJson } from "@/lib/utils/ai-json-parse";
 import { generateText, streamText } from "ai";
@@ -61,66 +62,6 @@ class AppPromotionAssetsService {
   private websiteContextCache = new Map<string, WebsiteContext>();
 
   /**
-   * Validate URL to prevent SSRF attacks
-   */
-  private isValidExternalUrl(url: string): boolean {
-    const parsed = new URL(url);
-
-    // Only allow http/https protocols
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return false;
-    }
-
-    const hostname = parsed.hostname.toLowerCase();
-
-    // Block localhost variations
-    if (
-      hostname === "localhost" ||
-      hostname === "0.0.0.0" ||
-      hostname.endsWith(".localhost")
-    ) {
-      return false;
-    }
-
-    // Block IPv6 loopback and private ranges
-    if (
-      hostname === "[::1]" ||
-      hostname === "[::]" ||
-      hostname.startsWith("[fc") || // fc00::/7 unique local
-      hostname.startsWith("[fd") || // fc00::/7 unique local
-      hostname.startsWith("[fe80") // fe80::/10 link-local
-    ) {
-      return false;
-    }
-
-    // Block private IPv4 ranges
-    const ipParts = hostname.split(".");
-    if (ipParts.length === 4 && ipParts.every((p) => /^\d+$/.test(p))) {
-      const first = parseInt(ipParts[0], 10);
-      const second = parseInt(ipParts[1], 10);
-
-      // 0.x.x.x (current network)
-      if (first === 0) return false;
-      // 10.x.x.x (private)
-      if (first === 10) return false;
-      // 127.x.x.x (loopback - entire range)
-      if (first === 127) return false;
-      // 172.16.x.x - 172.31.x.x (private)
-      if (first === 172 && second >= 16 && second <= 31) return false;
-      // 192.168.x.x (private)
-      if (first === 192 && second === 168) return false;
-      // 169.254.x.x (link-local / AWS metadata)
-      if (first === 169 && second === 254) return false;
-      // 224.x.x.x - 239.x.x.x (multicast)
-      if (first >= 224 && first <= 239) return false;
-      // 240.x.x.x - 255.x.x.x (reserved)
-      if (first >= 240) return false;
-    }
-
-    return true;
-  }
-
-  /**
    * Fetch and analyze website content for better image generation
    */
   private async fetchWebsiteContext(url: string): Promise<WebsiteContext> {
@@ -137,22 +78,27 @@ class AppPromotionAssetsService {
       return context;
     }
 
-    // Validate URL to prevent SSRF
-    if (!this.isValidExternalUrl(url)) {
+    let safeUrl: URL;
+    try {
+      safeUrl = await assertSafeOutboundUrl(url);
+    } catch (error) {
       logger.warn("[PromotionAssets] Blocked internal URL", { url });
       return context;
     }
 
     try {
-      logger.info("[PromotionAssets] Fetching website context", { url });
+      logger.info("[PromotionAssets] Fetching website context", {
+        url: safeUrl.toString(),
+      });
 
       const response = await Promise.race([
-        fetch(url, {
+        fetch(safeUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (compatible; ElizaCloudBot/1.0; +https://eliza.gg)",
             Accept: "text/html",
           },
+          redirect: "error",
         }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Timeout")), 10_000),

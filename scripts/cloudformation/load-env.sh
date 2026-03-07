@@ -7,7 +7,7 @@ ENV_FILE="../../.env.local"
 if [ ! -f "$ENV_FILE" ]; then
   echo "❌ Error: .env.local not found at $ENV_FILE"
   echo "   Please create .env.local file in project root"
-  echo "   Copy from example.env.local and fill in your values"
+  echo "   Copy from .env.example and fill in your values"
   exit 1
 fi
 
@@ -48,5 +48,4 @@ echo "  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:+✓ Set}"
 echo "  ACM_CERTIFICATE_ARN: ${ACM_CERTIFICATE_ARN:-❌ Not set}"
 echo "  ENVIRONMENT: ${ENVIRONMENT:-production}"
 echo ""
-
 

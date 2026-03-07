@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
@@ -43,7 +44,10 @@ interface BillingSuccessPageProps {
  * @param sessionId - The Stripe checkout session ID.
  * @returns An object indicating success, error, credits added, and whether it was already processed.
  */
-async function verifyAndProcessSession(sessionId: string): Promise<{
+async function verifyAndProcessSession(
+  sessionId: string,
+  viewer: Awaited<ReturnType<typeof requireAuthWithOrg>>,
+): Promise<{
   success: boolean;
   error?: string;
   credits?: number;
@@ -69,10 +73,25 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const purchaseType = session.metadata?.type || "checkout";
   const paymentIntentId = session.payment_intent as string;
 
-  if (!organizationId || !credits) {
+  if (
+    organizationId !== viewer.organization_id ||
+    (userId && userId !== viewer.id)
+  ) {
+    return {
+      success: false,
+      error: "You do not have access to this checkout session.",
+    };
+  }
+
+  if (
+    !organizationId ||
+    !credits ||
+    (purchaseType !== "custom_amount" && purchaseType !== "credit_pack")
+  ) {
     console.warn("[BillingSuccess] Invalid metadata", {
       hasOrgId: !!organizationId,
       hasValidCredits: !!credits,
+      purchaseType,
     });
     return {
       success: false,
@@ -155,53 +174,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     );
   }
 
-  await creditsService.addCredits({
-    organizationId,
-    amount: credits,
-    description: `Balance top-up - $${credits.toFixed(2)}`,
-    metadata: {
-      user_id: userId,
-      payment_intent_id: paymentIntentId,
-      session_id: sessionId,
-      type: purchaseType,
-      source: "success_page_fallback",
-    },
-    stripePaymentIntentId: paymentIntentId,
-  });
-
-  // Create invoice record
-  const existingInvoice = await invoicesService.getByStripeInvoiceId(
-    `cs_${sessionId}`,
-  );
-
-  if (!existingInvoice) {
-    const amountTotal = session.amount_total
-      ? (session.amount_total / 100).toString()
-      : credits.toString();
-
-    await invoicesService.create({
-      organization_id: organizationId,
-      stripe_invoice_id: `cs_${sessionId}`,
-      stripe_customer_id: session.customer as string,
-      stripe_payment_intent_id: paymentIntentId,
-      amount_due: amountTotal,
-      amount_paid: amountTotal,
-      currency: session.currency || "usd",
-      status: "paid",
-      invoice_type: purchaseType,
-      invoice_number: undefined,
-      invoice_pdf: undefined,
-      hosted_invoice_url: undefined,
-      credits_added: credits.toString(),
-      metadata: {
-        type: purchaseType,
-        session_id: sessionId,
-        source: "success_page_fallback",
-      },
-      paid_at: new Date(),
-    });
-  }
-
   return {
     success: true,
     credits,
@@ -220,6 +192,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 export default async function BillingSuccessPage({
   searchParams,
 }: BillingSuccessPageProps) {
+  const viewer = await requireAuthWithOrg();
   const params = await searchParams;
   const fromSettings = params.from === "settings";
   const sessionId = params.session_id;
@@ -235,7 +208,7 @@ export default async function BillingSuccessPage({
     | undefined = undefined;
 
   if (sessionId) {
-    const result = await verifyAndProcessSession(sessionId);
+    const result = await verifyAndProcessSession(sessionId, viewer);
     verificationResult = result;
   }
 

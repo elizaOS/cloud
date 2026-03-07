@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { appsService } from "@/lib/services/apps";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { isAllowedOrigin } from "@/lib/security/origin-validation";
 import type { App, ApiKey } from "@/lib/types";
 
 /**
@@ -35,29 +36,7 @@ export function validateOrigin(
   if (!requestOrigin) {
     return true;
   }
-
-  // Check if wildcard is allowed
-  if (allowedOrigins.includes("*")) {
-    return true;
-  }
-
-  // Check exact matches
-  if (allowedOrigins.includes(requestOrigin)) {
-    return true;
-  }
-
-  // Check wildcard subdomains (e.g., *.example.com)
-  for (const allowed of allowedOrigins) {
-    if (allowed.includes("*")) {
-      const pattern = allowed.replace(/\*/g, ".*");
-      const regex = new RegExp(`^${pattern}$`);
-      if (regex.test(requestOrigin)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return isAllowedOrigin(allowedOrigins, requestOrigin);
 }
 
 /**

@@ -25,11 +25,7 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 async function getGitHubMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   const { createMcpHandler } = await import("mcp-handler");
   const { z } = await import("zod");
 
@@ -85,7 +81,7 @@ async function getGitHubMcpHandler() {
     return query ? `?${query}` : "";
   }
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       server.tool("github_status", "Check GitHub OAuth connection status", {}, async () => {
         try {
@@ -1040,8 +1036,6 @@ async function getGitHubMcpHandler() {
     { capabilities: { tools: {} } },
     { streamableHttpEndpoint: "/api/mcps/github/streamable-http", disableSse: true, maxDuration: 60 },
   );
-
-  return mcpHandler;
 }
 
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {

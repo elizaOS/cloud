@@ -25,14 +25,7 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   );
 }
 
-// Lazy-loaded MCP handler to avoid triggering undici Response polyfill
-// at module evaluation time. The polyfill breaks NextResponse instanceof
-// checks in other routes. See: https://github.com/vercel/next.js/issues/58611
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 export async function getMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   // Dynamic imports to delay polyfill until first MCP request
   const { createMcpHandler } = await import("mcp-handler");
   const {
@@ -63,7 +56,7 @@ export async function getMcpHandler() {
     registerTwitterTools,
   } = await import("./tools");
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       registerCreditTools(server);
       registerApiKeyTools(server);
@@ -94,8 +87,6 @@ export async function getMcpHandler() {
     {},
     { basePath: "/api" },
   );
-
-  return mcpHandler;
 }
 
 /**

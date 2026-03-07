@@ -14,6 +14,7 @@ import type {
 import { seoRequestTypeEnum, seoRequests } from "@/db/schemas/seo";
 import { creditsService } from "./credits";
 import { db } from "@/db/client";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 
 export type CreateSeoRequestParams = {
@@ -240,7 +241,7 @@ async function submitIndexNow(
     "INDEXNOW_KEY_LOCATION",
     "IndexNow key location",
   );
-  const url = new URL(urlToSubmit);
+  const url = await assertSafeOutboundUrl(urlToSubmit);
 
   const response = await fetch("https://api.indexnow.org/indexnow", {
     method: "POST",
@@ -267,7 +268,11 @@ async function runHealthCheck(pageUrl: string): Promise<{
   robots: boolean;
   canonical?: string;
 }> {
-  const response = await fetch(pageUrl, { method: "GET" });
+  const safeUrl = await assertSafeOutboundUrl(pageUrl);
+  const response = await fetch(safeUrl, {
+    method: "GET",
+    redirect: "error",
+  });
   const body = await response.text();
   const canonicalMatch = body.match(
     /<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i,

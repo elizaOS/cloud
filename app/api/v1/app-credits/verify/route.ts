@@ -2,18 +2,19 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { appCreditsService } from "@/lib/services/app-credits";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { requireStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-// CORS headers - reflect origin for credentialed requests
-function getCorsHeaders(origin: string | null) {
+// CORS headers - open CORS without credentials. Cross-origin callers must
+// authenticate explicitly with bearer/API-key headers instead of cookies.
+function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -22,11 +23,10 @@ function getCorsHeaders(origin: string | null) {
  * OPTIONS /api/v1/app-credits/verify
  * CORS preflight handler
  */
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
+    headers: getCorsHeaders(),
   });
 }
 
@@ -43,10 +43,10 @@ export async function OPTIONS(request: NextRequest) {
  * - amount: Amount of credits purchased (if successful)
  */
 export async function GET(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id");
 
@@ -58,8 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Retrieve the checkout session from Stripe
-    const stripe = requireStripe();
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -107,6 +106,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (organizationId !== user.organization_id || userId !== user.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Forbidden",
+        },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
+    const paymentIntentId =
+      typeof session.payment_intent === "string" ? session.payment_intent : null;
+
+    if (!paymentIntentId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing payment intent",
+        },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
     // Process the purchase (add credits to user's app balance)
     // This is idempotent - if credits were already added via webhook,
     // this will just return success
@@ -116,7 +138,7 @@ export async function GET(request: NextRequest) {
         userId,
         organizationId,
         purchaseAmount: amount,
-        stripePaymentIntentId: sessionId,
+        stripePaymentIntentId: paymentIntentId,
       });
 
       logger.info("Verified and processed app credit purchase", {
@@ -143,13 +165,33 @@ export async function GET(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Verification failed";
+    const isAuthError =
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Invalid or expired token") ||
+      errorMessage.includes("Invalid or expired API key") ||
+      errorMessage.includes("Forbidden: This feature requires a full account") ||
+      errorMessage.includes("Organization is inactive");
+
+    if (isAuthError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized",
+        },
+        { status: 401, headers: getCorsHeaders() },
+      );
+    }
+
     logger.error("Failed to verify purchase:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Verification failed",
+        error: errorMessage,
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: getCorsHeaders() },
     );
   }
 }

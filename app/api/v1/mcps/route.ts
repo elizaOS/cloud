@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userMcpsService } from "@/lib/services/user-mcps";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -122,6 +123,21 @@ export async function POST(request: NextRequest) {
       { error: "externalEndpoint is required for external MCPs" },
       { status: 400 },
     );
+  }
+  if (data.endpointType === "external" && data.externalEndpoint) {
+    try {
+      await assertSafeOutboundUrl(data.externalEndpoint);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unsafe external endpoint",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const mcp = await userMcpsService.create({

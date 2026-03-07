@@ -18,7 +18,7 @@ import { baseSepolia, base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
 const ENV_FILE = ".env.local";
-const EXAMPLE_ENV = "example.env.local";
+const EXAMPLE_ENV = ".env.example";
 
 // ============================================================================
 // Environment Helpers

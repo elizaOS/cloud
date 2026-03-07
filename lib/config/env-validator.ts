@@ -220,7 +220,7 @@ export function requireValidEnvironment(): void {
     console.error(
       "Please check your .env.local file and set the required variables.",
     );
-    console.error("See example.env.local for reference.");
+    console.error("See .env.example for reference.");
     throw new Error("Invalid environment configuration");
   }
 

@@ -14,6 +14,7 @@ import {
 import { creditsService } from "./credits";
 import { containersService } from "./containers";
 import { redeemableEarningsService } from "./redeemable-earnings";
+import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 
 // ============================================================================
@@ -126,6 +127,10 @@ class UserMcpsService {
       if (container.organization_id !== params.organizationId) {
         throw new Error("Container does not belong to this organization");
       }
+    }
+
+    if (params.endpointType === "external" && params.externalEndpoint) {
+      await assertSafeOutboundUrl(params.externalEndpoint);
     }
 
     // Check slug uniqueness
@@ -309,6 +314,9 @@ class UserMcpsService {
     }
     if (mcp.endpoint_type === "external" && !mcp.external_endpoint) {
       throw new Error("External MCP must have an endpoint URL");
+    }
+    if (mcp.endpoint_type === "external" && mcp.external_endpoint) {
+      await assertSafeOutboundUrl(mcp.external_endpoint);
     }
 
     const updated = await userMcpsRepository.updateStatus(id, "live");

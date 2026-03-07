@@ -228,6 +228,7 @@ eliza-cloud-v2/
 │   ├── rate-limiter.ts      # Rate limiting
 │   ├── utils.ts             # General utilities
 │   └── types.ts             # Shared TypeScript types
+├── .env.example            # Environment template
 ├── docs/                    # Detailed documentation
 │   ├── API_REFERENCE.md    # Complete API reference
 │   ├── DEPLOYMENT.md       # Deployment guide
@@ -395,7 +396,7 @@ The platform uses a single database with integrated schemas:
 
 ```bash
 cd eliza-cloud-v2
-npm install
+bun install
 ```
 
 ### 2. Environment Setup
@@ -403,10 +404,10 @@ npm install
 Copy the example environment file:
 
 ```bash
-cp example.env.local .env.local
+cp .env.example .env.local
 ```
 
-Edit `.env.local` with your credentials (see [example.env.local](example.env.local) for all options).
+Edit `.env.local` with your credentials (see [.env.example](.env.example) for all options).
 
 **Minimum required variables:**
 
@@ -443,7 +444,7 @@ ELIZA_APP_DISCORD_APPLICATION_ID=    # Developer Portal → General Information 
 ELIZA_APP_DISCORD_CLIENT_SECRET=     # Developer Portal → OAuth2 → Client Secret
 ```
 
-See [example.env.local](example.env.local) for the full list of Eliza App environment variables.
+See [.env.example](.env.example) for the full list of Eliza App environment variables.
 
 **Generate secure passwords:**
 
@@ -926,7 +927,7 @@ Authorization: Bearer eliza_your_api_key
 - elizaOS Cloud account with API key
 - VPC with public subnets configured
 - IAM roles for ECS task execution
-- Environment variables set (see `example.env.local` and `docs/ENV_VARIABLES.md`)
+- Environment variables set (see `.env.example` and `docs/ENV_VARIABLES.md`)
 
 ### 6. elizaOS Agent Integration
 

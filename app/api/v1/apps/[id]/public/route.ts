@@ -3,6 +3,7 @@ import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { isAllowedOrigin } from "@/lib/security/origin-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,8 @@ export async function GET(
         description: apps.description,
         logo_url: apps.logo_url,
         website_url: apps.website_url,
+        app_url: apps.app_url,
+        allowed_origins: apps.allowed_origins,
         is_active: apps.is_active,
         is_approved: apps.is_approved,
       })
@@ -66,6 +69,21 @@ export async function GET(
         { success: false, error: "App not found" },
         { status: 404, headers: CORS_HEADERS },
       );
+    }
+
+    const redirectUri = request.nextUrl.searchParams.get("redirect_uri");
+    if (redirectUri) {
+      const allowedOrigins = [
+        app.app_url,
+        ...(((app.allowed_origins as string[] | null) ?? []).filter(Boolean)),
+      ];
+
+      if (!isAllowedOrigin(allowedOrigins, redirectUri)) {
+        return NextResponse.json(
+          { success: false, error: "redirect_uri is not allowed for this app" },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
     }
 
     return NextResponse.json(

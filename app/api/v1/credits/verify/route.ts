@@ -8,19 +8,20 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { requireStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
-// CORS headers - reflect origin for credentialed requests
-function getCorsHeaders(origin: string | null) {
+// CORS headers - open CORS without credentials. Cross-origin callers must
+// authenticate explicitly with bearer/API-key headers instead of cookies.
+function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -28,11 +29,10 @@ function getCorsHeaders(origin: string | null) {
 /**
  * OPTIONS handler for CORS preflight
  */
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
+    headers: getCorsHeaders(),
   });
 }
 
@@ -48,10 +48,10 @@ export async function OPTIONS(request: NextRequest) {
  * - amount: Amount of credits purchased (if successful)
  */
 export async function GET(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get("session_id");
 
@@ -96,6 +96,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (
+      metadata.organization_id !== user.organization_id ||
+      (metadata.user_id && metadata.user_id !== user.id)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
     const amount = parseFloat(metadata.credits || "0");
 
     logger.info("Verified credits checkout session", {
@@ -114,11 +124,28 @@ export async function GET(request: NextRequest) {
       { headers: corsHeaders },
     );
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Verification failed";
+    const isAuthError =
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Invalid or expired token") ||
+      errorMessage.includes("Invalid or expired API key") ||
+      errorMessage.includes("Forbidden: This feature requires a full account") ||
+      errorMessage.includes("Organization is inactive");
+
+    if (isAuthError) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401, headers: corsHeaders },
+      );
+    }
+
     logger.error("[Credits Verify API v1] Error:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Verification failed",
+        error: errorMessage,
       },
       { status: 500, headers: corsHeaders },
     );

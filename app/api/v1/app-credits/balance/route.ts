@@ -8,14 +8,14 @@ import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-// CORS headers - reflect origin for credentialed requests
-function getCorsHeaders(origin: string | null) {
+// CORS headers - open CORS without credentials. Cross-origin callers must
+// authenticate explicitly with bearer/API-key headers instead of cookies.
+function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -24,11 +24,10 @@ function getCorsHeaders(origin: string | null) {
  * OPTIONS /api/v1/app-credits/balance
  * CORS preflight handler
  */
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
+    headers: getCorsHeaders(),
   });
 }
 
@@ -51,8 +50,7 @@ export async function OPTIONS(request: NextRequest) {
  * - isLow: Whether balance is below threshold
  */
 export async function GET(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   try {
     const { searchParams } = new URL(request.url);
@@ -143,7 +141,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get balance",
       },
-      { status: 500, headers: getCorsHeaders(request.headers.get("origin")) },
+      { status: 500, headers: getCorsHeaders() },
     );
   }
 }

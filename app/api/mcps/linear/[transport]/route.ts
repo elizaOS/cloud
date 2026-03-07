@@ -25,11 +25,7 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
   return typeof resp === "object" && resp !== null && typeof (resp as McpHandlerResponse).status === "number";
 }
 
-let mcpHandler: ((req: Request) => Promise<Response>) | null = null;
-
 async function getLinearMcpHandler() {
-  if (mcpHandler) return mcpHandler;
-
   const { createMcpHandler } = await import("mcp-handler");
   const { z } = await import("zod");
 
@@ -86,7 +82,7 @@ async function getLinearMcpHandler() {
     return { content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }], isError: true };
   }
 
-  mcpHandler = createMcpHandler(
+  return createMcpHandler(
     (server) => {
       server.tool("linear_status", "Check Linear OAuth connection status", {}, async () => {
         try {
@@ -830,8 +826,6 @@ async function getLinearMcpHandler() {
     { capabilities: { tools: {} } },
     { streamableHttpEndpoint: "/api/mcps/linear/streamable-http", disableSse: true, maxDuration: 60 },
   );
-
-  return mcpHandler;
 }
 
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ transport: string }> }): Promise<Response> {

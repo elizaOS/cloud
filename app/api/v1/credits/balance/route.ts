@@ -15,14 +15,14 @@ import { organizationsService } from "@/lib/services/organizations";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// CORS headers - reflect origin for credentialed requests
-function getCorsHeaders(origin: string | null) {
+// CORS headers - open CORS without credentials. Cross-origin callers must
+// authenticate explicitly with bearer/API-key headers instead of cookies.
+function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -30,11 +30,10 @@ function getCorsHeaders(origin: string | null) {
 /**
  * OPTIONS handler for CORS preflight
  */
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: getCorsHeaders(origin),
+    headers: getCorsHeaders(),
   });
 }
 
@@ -49,8 +48,7 @@ export async function OPTIONS(request: NextRequest) {
  * @returns JSON response with balance or error.
  */
 export async function GET(req: NextRequest) {
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);

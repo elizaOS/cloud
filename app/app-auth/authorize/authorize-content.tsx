@@ -63,11 +63,17 @@ export function AuthorizeContent() {
 
       // Fetch app info
       try {
-        const res = await fetch(`/api/v1/apps/${appId}/public`);
+        const res = await fetch(
+          `/api/v1/apps/${appId}/public?redirect_uri=${encodeURIComponent(redirectUri)}`,
+        );
         if (!res.ok) {
           if (res.status === 404) {
             setError(
               "App not found. Please ensure the app is registered with Eliza Cloud.",
+            );
+          } else if (res.status === 400) {
+            setError(
+              "This redirect URI is not registered for the selected app.",
             );
           } else {
             setError("Failed to verify app.");
