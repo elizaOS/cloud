@@ -320,7 +320,7 @@ export class SandboxService {
 
     let sandbox: SandboxInstance;
     try {
-      sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
+      sandbox = (await Sandbox.create(createOptions)) as unknown as SandboxInstance;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

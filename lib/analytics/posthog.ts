@@ -61,6 +61,7 @@ export type PostHogEvent =
   | "auto_topup_triggered"
   | "auto_topup_completed"
   | "auto_topup_failed"
+  | "revenue_split_failed"
   // Checkout Funnel Events
   | "checkout_attempted"
   // Success/Invoice Events
@@ -325,6 +326,14 @@ export interface AutoTopupFailedProps {
   error_reason: string;
 }
 
+export interface RevenueSplitFailedProps {
+  payment_intent_id: string;
+  split_user_id: string;
+  split_role: string;
+  split_amount: number;
+  error: string;
+}
+
 // Checkout Funnel Events
 export interface CheckoutAttemptedProps {
   payment_method: PaymentMethod;
@@ -403,6 +412,7 @@ export type EventProperties =
   | AutoTopupTriggeredProps
   | AutoTopupCompletedProps
   | AutoTopupFailedProps
+  | RevenueSplitFailedProps
   // Checkout Funnel Events
   | CheckoutAttemptedProps
   // Success/Invoice Events

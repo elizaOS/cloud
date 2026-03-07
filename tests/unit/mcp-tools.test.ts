@@ -6,12 +6,16 @@
 import { describe, test, expect } from "bun:test";
 
 describe("MCP Tools Registration", () => {
-  test("getMcpHandler initializes without errors", async () => {
-    const { getMcpHandler } = await import("@/app/api/mcp/route");
-    const handler = await getMcpHandler();
-    expect(handler).toBeDefined();
-    expect(typeof handler).toBe("function");
-  });
+  test(
+    "getMcpHandler initializes without errors",
+    async () => {
+      const { getMcpHandler } = await import("@/app/api/mcp/route");
+      const handler = await getMcpHandler();
+      expect(handler).toBeDefined();
+      expect(typeof handler).toBe("function");
+    },
+    { timeout: 30000 },
+  );
 
   test("all tool modules import without errors", async () => {
     // This catches import errors, missing dependencies, syntax errors

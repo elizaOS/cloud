@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   index,
   numeric,
@@ -26,7 +27,9 @@ export const affiliateCodes = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull().unique(),
     parent_referral_id: uuid("parent_referral_id")
-      .references(() => affiliateCodes.id, { onDelete: "set null" }),
+      .references((): AnyPgColumn => affiliateCodes.id, {
+        onDelete: "set null",
+      }),
     markup_percent: numeric("markup_percent", { precision: 6, scale: 2 })
       .notNull()
       .default("20.00"), // Default 20% markup

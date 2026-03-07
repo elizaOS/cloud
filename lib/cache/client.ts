@@ -586,7 +586,14 @@ export class CacheClient {
 
   private logMetric(
     _key: string,
-    _operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
+    _operation:
+      | "hit"
+      | "miss"
+      | "set"
+      | "setIfNotExists"
+      | "del"
+      | "del_pattern"
+      | "stale",
     _durationMs: number,
     _metadata?: Record<string, unknown>,
   ): void {

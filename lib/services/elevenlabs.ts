@@ -150,7 +150,12 @@ export class ElevenLabsService {
       transcript = result.text || "";
     } else if ("transcripts" in result) {
       // Multi-channel response - combine all channels
-      const transcripts = result.transcripts || {};
+      const transcripts =
+        (
+          result as {
+            transcripts?: Record<string, { text?: string }>;
+          }
+        ).transcripts || {};
       transcript = Object.values(transcripts)
         .map((t: { text?: string }) => t?.text || "")
         .filter(Boolean)

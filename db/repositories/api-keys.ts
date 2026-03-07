@@ -62,6 +62,12 @@ export class ApiKeysRepository {
     });
   }
 
+  async findByUserAndName(userId: string, name: string): Promise<ApiKey[]> {
+    return await dbRead.query.apiKeys.findMany({
+      where: and(eq(apiKeys.user_id, userId), eq(apiKeys.name, name)),
+    });
+  }
+
   // ============================================================================
   // WRITE OPERATIONS (use NA primary)
   // ============================================================================
@@ -113,6 +119,22 @@ export class ApiKeysRepository {
    */
   async delete(id: string): Promise<void> {
     await dbWrite.delete(apiKeys).where(eq(apiKeys.id, id));
+  }
+
+  async deactivateUserKeysByName(userId: string, name: string): Promise<void> {
+    await dbWrite
+      .update(apiKeys)
+      .set({
+        is_active: false,
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(apiKeys.user_id, userId),
+          eq(apiKeys.name, name),
+          eq(apiKeys.is_active, true),
+        ),
+      );
   }
 }
 

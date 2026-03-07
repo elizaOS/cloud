@@ -4,6 +4,7 @@ import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { authContextStorage } from "./lib/context";
 
 export const maxDuration = 60;
+let mcpHandlerPromise: Promise<(req: Request) => Promise<unknown>> | null = null;
 
 /**
  * Response shape from mcp-handler's createMcpHandler().
@@ -26,67 +27,48 @@ function isMcpHandlerResponse(resp: unknown): resp is McpHandlerResponse {
 }
 
 export async function getMcpHandler() {
-  // Dynamic imports to delay polyfill until first MCP request
-  const { createMcpHandler } = await import("mcp-handler");
-  const {
-    registerCreditTools,
-    registerApiKeyTools,
-    registerGenerationTools,
-    registerMemoryTools,
-    registerConversationTools,
-    registerAgentTools,
-    registerContainerTools,
-    registerMcpTools,
-    registerRoomTools,
-    registerUserTools,
-    registerKnowledgeTools,
-    registerRedemptionTools,
-    registerAnalyticsTools,
-    registerGoogleTools,
-    registerLinearTools,
-    registerNotionTools,
-    registerGitHubTools,
-    registerAsanaTools,
-    registerDropboxTools,
-    registerSalesforceTools,
-    registerAirtableTools,
-    registerZoomTools,
-    registerJiraTools,
-    registerLinkedInTools,
-    registerTwitterTools,
-  } = await import("./tools");
+  if (!mcpHandlerPromise) {
+    mcpHandlerPromise = (async () => {
+      const [{ createMcpHandler }, tools] = await Promise.all([
+        import("mcp-handler"),
+        import("./tools"),
+      ]);
 
-  return createMcpHandler(
-    (server) => {
-      registerCreditTools(server);
-      registerApiKeyTools(server);
-      registerGenerationTools(server);
-      registerMemoryTools(server);
-      registerConversationTools(server);
-      registerAgentTools(server);
-      registerContainerTools(server);
-      registerMcpTools(server);
-      registerRoomTools(server);
-      registerUserTools(server);
-      registerKnowledgeTools(server);
-      registerRedemptionTools(server);
-      registerAnalyticsTools(server);
-      registerGoogleTools(server);
-      registerLinearTools(server);
-      registerNotionTools(server);
-      registerGitHubTools(server);
-      registerAsanaTools(server);
-      registerDropboxTools(server);
-      registerSalesforceTools(server);
-      registerAirtableTools(server);
-      registerZoomTools(server);
-      registerJiraTools(server);
-      registerLinkedInTools(server);
-      registerTwitterTools(server);
-    },
-    {},
-    { basePath: "/api" },
-  );
+      return createMcpHandler(
+        (server) => {
+          tools.registerCreditTools(server);
+          tools.registerApiKeyTools(server);
+          tools.registerGenerationTools(server);
+          tools.registerMemoryTools(server);
+          tools.registerConversationTools(server);
+          tools.registerAgentTools(server);
+          tools.registerContainerTools(server);
+          tools.registerMcpTools(server);
+          tools.registerRoomTools(server);
+          tools.registerUserTools(server);
+          tools.registerKnowledgeTools(server);
+          tools.registerRedemptionTools(server);
+          tools.registerAnalyticsTools(server);
+          tools.registerGoogleTools(server);
+          tools.registerLinearTools(server);
+          tools.registerNotionTools(server);
+          tools.registerGitHubTools(server);
+          tools.registerAsanaTools(server);
+          tools.registerDropboxTools(server);
+          tools.registerSalesforceTools(server);
+          tools.registerAirtableTools(server);
+          tools.registerZoomTools(server);
+          tools.registerJiraTools(server);
+          tools.registerLinkedInTools(server);
+          tools.registerTwitterTools(server);
+        },
+        {},
+        { basePath: "/api" },
+      );
+    })();
+  }
+
+  return await mcpHandlerPromise;
 }
 
 /**

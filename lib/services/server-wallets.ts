@@ -2,6 +2,7 @@ import { db } from "@/db/client";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { eq } from "drizzle-orm";
 import { getPrivyClient } from "@/lib/auth/privy-client";
+import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
 import { verifyMessage } from "viem";
 import { cache } from "@/lib/cache/client";
 
@@ -60,7 +61,7 @@ export async function provisionServerWallet({
   chainType,
 }: ProvisionWalletParams) {
   const privy = getPrivyClient();
-  let wallet;
+  let wallet: WalletApiWalletResponseType | null = null;
 
   try {
     wallet = await privy.walletApi.create({
@@ -89,11 +90,22 @@ export async function provisionServerWallet({
       (error instanceof Error && error.message.includes("unique constraint"));
     if (isUniqueViolation) {
       if (wallet?.id) {
-        await privy.walletApi.delete(wallet.id).catch(() => {
-          console.error(
-            `Failed to clean up orphaned Privy wallet ${wallet.id}`,
+        const walletId = wallet.id;
+        const walletApiWithDelete = privy.walletApi as unknown as {
+          delete?: (walletId: string) => Promise<void>;
+        };
+
+        if (walletApiWithDelete.delete) {
+          await walletApiWithDelete.delete(walletId).catch(() => {
+            console.error(
+              `Failed to clean up orphaned Privy wallet ${walletId}`,
+            );
+          });
+        } else {
+          console.warn(
+            `Privy SDK does not expose wallet deletion; orphaned wallet ${walletId} may require manual cleanup`,
           );
-        });
+        }
       }
       throw new WalletAlreadyExistsError();
     }

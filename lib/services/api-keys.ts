@@ -130,6 +130,16 @@ export class ApiKeysService {
 
     await apiKeysRepository.delete(id);
   }
+
+  async deactivateUserKeysByName(userId: string, name: string): Promise<void> {
+    const existingKeys = await apiKeysRepository.findByUserAndName(userId, name);
+
+    for (const key of existingKeys) {
+      await this.invalidateCache(key.key_hash);
+    }
+
+    await apiKeysRepository.deactivateUserKeysByName(userId, name);
+  }
 }
 
 // Export singleton instance
