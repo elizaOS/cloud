@@ -35,10 +35,8 @@ const JWT_ISSUER = "eliza-app";
 const JWT_AUDIENCE = "eliza-app-users";
 
 class ElizaAppSessionService {
-  private secretKey: Uint8Array;
-
-  constructor() {
-    this.secretKey = new TextEncoder().encode(elizaAppConfig.jwt.secret);
+  private getSecretKey(): Uint8Array {
+    return new TextEncoder().encode(elizaAppConfig.jwt.secret);
   }
 
   async createSession(
@@ -64,7 +62,7 @@ class ElizaAppSessionService {
       .setIssuer(JWT_ISSUER)
       .setAudience(JWT_AUDIENCE)
       .setSubject(userId)
-      .sign(this.secretKey);
+      .sign(this.getSecretKey());
 
     logger.info("[ElizaAppSession] Session created", {
       userId,
@@ -79,7 +77,7 @@ class ElizaAppSessionService {
     try {
       const { payload } = await jwtVerify<ElizaAppSessionPayload>(
         token,
-        this.secretKey,
+        this.getSecretKey(),
         {
           issuer: JWT_ISSUER,
           audience: JWT_AUDIENCE,

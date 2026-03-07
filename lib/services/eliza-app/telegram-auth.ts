@@ -29,12 +29,12 @@ export interface TelegramAuthData {
 const MAX_AUTH_AGE_SECONDS = 86400;
 
 class TelegramAuthService {
-  private botToken: string;
-  private secretKey: Buffer;
+  private getBotToken() {
+    return elizaAppConfig.telegram.botToken;
+  }
 
-  constructor() {
-    this.botToken = elizaAppConfig.telegram.botToken;
-    this.secretKey = createHash("sha256").update(this.botToken).digest();
+  private getSecretKey(botToken: string) {
+    return createHash("sha256").update(botToken).digest();
   }
 
   /**
@@ -49,7 +49,8 @@ class TelegramAuthService {
    * @returns true if authentication is valid, false otherwise
    */
   verifyAuth(data: TelegramAuthData): boolean {
-    if (!this.botToken) {
+    const botToken = this.getBotToken();
+    if (!botToken) {
       logger.error("[TelegramAuth] Bot token not configured");
       return false;
     }
@@ -79,7 +80,7 @@ class TelegramAuthService {
     const checkString = this.generateCheckString(data);
 
     // Compute HMAC-SHA256
-    const computedHash = createHmac("sha256", this.secretKey)
+    const computedHash = createHmac("sha256", this.getSecretKey(botToken))
       .update(checkString)
       .digest("hex");
 

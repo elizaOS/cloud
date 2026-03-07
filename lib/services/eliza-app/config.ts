@@ -41,33 +41,41 @@ export const elizaAppConfig = {
   promptPreset: getPromptPreset("eliza-app") as PromptPreset,
 
   // Telegram configuration
-  telegram: {
-    botToken: requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", ""),
-    webhookSecret: process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "",
+  get telegram() {
+    return {
+      botToken: requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", ""),
+      webhookSecret: process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "",
+    };
   },
 
   // Blooio (iMessage) configuration
-  blooio: {
-    apiKey: requireEnv("ELIZA_APP_BLOOIO_API_KEY", ""),
-    webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
-    phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
+  get blooio() {
+    return {
+      apiKey: requireEnv("ELIZA_APP_BLOOIO_API_KEY", ""),
+      webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
+      phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
+    };
   },
 
   // Discord configuration
-  discord: {
-    botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
-    applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
-    clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
+  get discord() {
+    return {
+      botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
+      applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
+      clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
+    };
   },
 
   // JWT configuration - secret required in all environments
-  jwt: {
-    secret: requireEnv("ELIZA_APP_JWT_SECRET"),
+  get jwt() {
+    return {
+      secret: requireEnv("ELIZA_APP_JWT_SECRET"),
+    };
   },
 } as const;
 
-// Validate all required environment variables in production
-if (isProduction) {
+// Validate all required environment variables in production when explicitly invoked.
+export function validateElizaAppConfig() {
   // JWT is required for the core app to function
   if (!process.env.ELIZA_APP_JWT_SECRET) {
     throw new Error("Required env var ELIZA_APP_JWT_SECRET is not set in production");
@@ -86,4 +94,8 @@ if (isProduction) {
        !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET)) {
     throw new Error("Discord is enabled but required Discord env vars are not set in production");
   }
+}
+
+if (isProduction) {
+  validateElizaAppConfig();
 }
