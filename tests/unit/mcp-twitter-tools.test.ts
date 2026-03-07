@@ -817,14 +817,14 @@ describe("Twitter MCP Tools", () => {
       expect(parse(r).error).toContain("not connected");
     });
 
-    test("missing accessTokenSecret returns reconnect error", async () => {
+    test("missing accessTokenSecret returns a specific reconnect error", async () => {
       mockOAuth.getValidTokenByPlatform.mockImplementation(async () => ({
         accessToken: "tok",
         accessTokenSecret: null,
       }));
       const r = await callTool("twitter_get_me");
       expect(r.isError).toBe(true);
-      expect(parse(r).error).toContain("not connected");
+      expect(parse(r).error).toContain("access token secret is missing");
     });
   });
 });

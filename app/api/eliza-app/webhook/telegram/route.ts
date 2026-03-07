@@ -40,9 +40,11 @@ async function callTelegramApi(payload: Record<string, unknown>): Promise<Respon
 }
 
 function cleanUrlMarkdown(text: string): string {
-  return text
-    .replace(/\*{1,2}(https?:\/\/[^\s*]+)\*{1,2}/g, "$1")
-    .replace(/_(https?:\/\/[^\s_]+)_/g, "$1");
+  return text.replace(
+    /(^|[\s(])([*_]{1,2})(https?:\/\/[^\s]+?)\2(?=$|[\s),.!?:;])/g,
+    (_match, prefix: string, _delimiter: string, url: string) =>
+      `${prefix}${url}`,
+  );
 }
 
 async function sendTelegramMessage(
