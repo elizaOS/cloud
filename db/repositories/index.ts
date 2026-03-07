@@ -120,6 +120,6 @@ export * from "./discord-connections";
 export * from "./affiliates";
 
 // ============================================
-// Milaidy Cloud Sandboxes
+// Milady Cloud Sandboxes
 // ============================================
-export * from "./milaidy-sandboxes";
+export * from "./milady-sandboxes";

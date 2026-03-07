@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/v1/milaidy/agents/[agentId]
- * Get details for a specific Milaidy cloud agent.
+ * GET /api/v1/milady/agents/[agentId]
+ * Get details for a specific Milady cloud agent.
  */
 export async function GET(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function GET(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const agent = await milaidySandboxService.getAgent(agentId, user.organization_id);
+  const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
   if (!agent) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
@@ -43,8 +43,8 @@ export async function GET(
 }
 
 /**
- * DELETE /api/v1/milaidy/agents/[agentId]
- * Delete a Milaidy cloud agent and all associated infrastructure.
+ * DELETE /api/v1/milady/agents/[agentId]
+ * Delete a Milady cloud agent and all associated infrastructure.
  */
 export async function DELETE(
   request: NextRequest,
@@ -53,7 +53,7 @@ export async function DELETE(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const deleted = await milaidySandboxService.deleteAgent(agentId, user.organization_id);
+  const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
   if (!deleted) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
@@ -61,7 +61,7 @@ export async function DELETE(
     );
   }
 
-  logger.info("[milaidy-api] Agent deleted", {
+  logger.info("[milady-api] Agent deleted", {
     agentId,
     orgId: user.organization_id,
   });

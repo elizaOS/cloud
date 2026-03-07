@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/v1/milaidy/agents/[agentId]/backups
- * List state backups for a Milaidy cloud agent.
+ * GET /api/v1/milady/agents/[agentId]/backups
+ * List state backups for a Milady cloud agent.
  */
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { agentId } = await params;
 
-  const backups = await milaidySandboxService.listBackups(
+  const backups = await miladySandboxService.listBackups(
     agentId,
     user.organization_id,
   );

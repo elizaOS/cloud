@@ -71,6 +71,16 @@ function CliLoginContent() {
 
       setApiKeyPrefix(data.keyPrefix);
       setStatus("success");
+
+      // Signal the opener window (Milady UI) that auth is complete
+      try {
+        window.opener?.postMessage(
+          { type: "eliza-cloud-auth-complete", sessionId },
+          "*",
+        );
+      } catch {
+        // opener may not be accessible (cross-origin policy or popup blocker)
+      }
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");

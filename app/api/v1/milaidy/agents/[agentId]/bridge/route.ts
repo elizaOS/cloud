@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
-import type { BridgeRequest } from "@/lib/services/milaidy-sandbox";
+import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest } from "@/lib/services/milady-sandbox";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ const bridgeRequestSchema = z.object({
 });
 
 /**
- * POST /api/v1/milaidy/agents/[agentId]/bridge
+ * POST /api/v1/milady/agents/[agentId]/bridge
  * Forward a JSON-RPC request to the sandbox bridge server.
  *
  * Supported methods:
@@ -39,7 +39,7 @@ export async function POST(
   }
 
   const rpcRequest = parsed.data as BridgeRequest;
-  const response = await milaidySandboxService.bridge(
+  const response = await miladySandboxService.bridge(
     agentId,
     user.organization_id,
     rpcRequest,
