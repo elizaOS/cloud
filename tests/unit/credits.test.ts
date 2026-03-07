@@ -6,6 +6,7 @@ import { describe, test, expect } from "bun:test";
 import {
   COST_BUFFER,
   MIN_RESERVATION,
+  EPSILON,
   DEFAULT_OUTPUT_TOKENS,
   InsufficientCreditsError,
   creditsService,
@@ -21,8 +22,13 @@ describe("Credits Constants", () => {
     expect(COST_BUFFER).toBe(1.5);
   });
 
-  test("MIN_RESERVATION is $0.01", () => {
-    expect(MIN_RESERVATION).toBe(0.01);
+  test("MIN_RESERVATION is $0.000001", () => {
+    expect(MIN_RESERVATION).toBe(0.000001);
+  });
+
+  test("EPSILON is 10% of MIN_RESERVATION", () => {
+    expect(EPSILON).toBe(MIN_RESERVATION * 0.1);
+    expect(EPSILON).toBeLessThan(MIN_RESERVATION);
   });
 
   test("DEFAULT_OUTPUT_TOKENS is 500", () => {
@@ -131,9 +137,14 @@ describe("Reconciliation Logic", () => {
     expect(8.0 - 5.0).toBe(3.0);
   });
 
-  test("no-op: difference within EPSILON (0.0001)", () => {
-    const EPSILON = 0.0001;
-    expect(Math.abs(5.0 - 5.00005)).toBeLessThan(EPSILON);
+  test("no-op: difference within EPSILON", () => {
+    const tiny = EPSILON * 0.5;
+    expect(Math.abs(tiny)).toBeLessThan(EPSILON);
+  });
+
+  test("not a no-op: difference exceeds EPSILON", () => {
+    const meaningful = MIN_RESERVATION;
+    expect(Math.abs(meaningful)).toBeGreaterThan(EPSILON);
   });
 
   test("full refund: actual = 0", () => {

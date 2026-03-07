@@ -38,6 +38,7 @@ export * from "./credit-packs";
 export * from "./usage-records";
 export * from "./usage-quotas";
 export * from "./model-pricing";
+export * from "./service-pricing";
 export * from "./provider-health";
 
 // ============================================

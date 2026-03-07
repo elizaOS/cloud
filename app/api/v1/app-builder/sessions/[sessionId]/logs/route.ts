@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 
@@ -7,10 +8,32 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
+  let user;
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { sessionId } = await params;
+    const authResult = await requireAuthOrApiKeyWithOrg(request);
+    user = authResult.user;
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 401 },
+      );
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 403 },
+      );
+    }
+    logger.error("[App Builder] Logs GET auth error", { error });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+  const { sessionId } = await params;
 
+  try {
     await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
@@ -24,14 +47,22 @@ export async function GET(
       logs,
     });
   } catch (error) {
-    logger.error("Failed to get session logs", { error });
-    const message =
-      error instanceof Error ? error.message : "Failed to get logs";
-    const status = message.includes("Unauthorized")
-      ? 403
-      : message.includes("not found")
-        ? 404
-        : 500;
-    return NextResponse.json({ success: false, error: message }, { status });
+    if (error instanceof Error && error.message.includes("Session not found")) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
+    }
+    if (error instanceof Error && error.message.includes("Access denied")) {
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
+    }
+    logger.error("[App Builder] Logs GET error", { error });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

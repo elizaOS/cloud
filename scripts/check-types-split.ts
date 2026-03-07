@@ -17,7 +17,8 @@
  */
 
 import { exec } from "node:child_process";
-import { writeFile, unlink, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -29,21 +30,47 @@ interface CheckResult {
   duration: number;
 }
 
-const DIRECTORIES = ["db", "lib", "components", "app"];
+/**
+ * Split a directory into subdirectories for smaller type-check chunks.
+ * Returns the subdirectories as an array, or [dir] if no subdirectories found.
+ */
+async function splitIntoSubdirectories(dir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const subdirs = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(dir, entry.name))
+      .sort();
+
+    return subdirs.length > 0 ? subdirs : [dir];
+  } catch {
+    return [dir];
+  }
+}
+
+async function getDirectoriesToCheck(): Promise<string[]> {
+  const libSubdirs = await splitIntoSubdirectories("lib");
+  const appSubdirs = await splitIntoSubdirectories("app");
+  const componentSubdirs = await splitIntoSubdirectories("components");
+
+  return ["db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
+}
 
 async function createTempTsconfig(
   directory: string,
-  baseTsconfig: object
+  baseTsconfig: object,
 ): Promise<string> {
-  const tempPath = `tsconfig.${directory}.temp.json`;
+  const safeDirectoryName = directory.replace(/[\\/]/g, ".");
+  const tempPath = `tsconfig.${safeDirectoryName}.temp.json`;
 
   const tempConfig = {
     ...baseTsconfig,
     compilerOptions: {
       ...(baseTsconfig as { compilerOptions: object }).compilerOptions,
-      // Disable incremental for temp configs to avoid conflicts
       incremental: false,
       tsBuildInfoFile: undefined,
+      skipLibCheck: true,
+      skipDefaultLibCheck: true,
     },
     include: [
       "next-env.d.ts",
@@ -65,6 +92,8 @@ async function createTempTsconfig(
       "dist",
       ".turbo",
       "coverage",
+      ".next/types",
+      ".next/dev/types",
     ],
   };
 
@@ -74,7 +103,7 @@ async function createTempTsconfig(
 
 async function checkDirectory(
   directory: string,
-  baseTsconfig: object
+  baseTsconfig: object,
 ): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
@@ -87,9 +116,9 @@ async function checkDirectory(
     const { stdout, stderr } = await execAsync(
       `bunx tsc --noEmit --project ${tempConfigPath} 2>&1`,
       {
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large output
-        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" },
-      }
+        maxBuffer: 10 * 1024 * 1024,
+        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
+      },
     );
 
     const output = stdout + stderr;
@@ -107,11 +136,12 @@ async function checkDirectory(
           error.message
         : String(error);
 
-    console.log(`   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`);
+    console.log(
+      `   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`,
+    );
 
     return { directory, success: false, output, duration };
   } finally {
-    // Clean up temp config
     if (tempConfigPath) {
       await unlink(tempConfigPath).catch(() => {});
     }
@@ -123,16 +153,16 @@ async function main() {
   console.log("==================");
   console.log("Checking directories separately to reduce memory usage.\n");
 
-  // Read base tsconfig
   const baseTsconfigContent = await readFile("tsconfig.json", "utf-8");
   const baseTsconfig = JSON.parse(baseTsconfigContent);
+
+  const directories = await getDirectoriesToCheck();
+  console.log(`Found ${directories.length} directories to check\n`);
 
   const results: CheckResult[] = [];
   const totalStart = Date.now();
 
-  // Check each directory sequentially
-  for (const dir of DIRECTORIES) {
-    // Force garbage collection between runs if available
+  for (const dir of directories) {
     if (global.gc) {
       global.gc();
     }
@@ -143,13 +173,12 @@ async function main() {
 
   const totalDuration = Date.now() - totalStart;
 
-  // Summary
   console.log("\n==================");
   console.log("📊 Summary");
   console.log("==================\n");
 
-  const failed = results.filter((r) => !r.success);
-  const passed = results.filter((r) => r.success);
+  const failed = results.filter((result) => !result.success);
+  const passed = results.filter((result) => result.success);
 
   console.log(`Total time: ${(totalDuration / 1000).toFixed(1)}s`);
   console.log(`Passed: ${passed.length}/${results.length}`);
@@ -159,9 +188,7 @@ async function main() {
 
     for (const result of failed) {
       console.log(`\n--- ${result.directory}/ ---\n`);
-      // Filter out noise and show actual errors
       const lines = result.output.split("\n").filter((line) => {
-        // Skip empty lines and some noise
         return (
           line.trim() &&
           !line.includes("Resolving dependencies") &&

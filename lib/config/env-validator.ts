@@ -126,6 +126,12 @@ const ENV_VARS = {
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters for security",
   },
+
+  // Solana RPC
+  SOLANA_RPC_PROVIDER_API_KEY: {
+    required: false,
+    description: "Solana RPC provider API key (enables Solana blockchain access)",
+  },
 } as const;
 
 /**
@@ -222,6 +228,19 @@ export function requireValidEnvironment(): void {
     );
     console.error("See .env.example for reference.");
     throw new Error("Invalid environment configuration");
+  }
+
+  // CRITICAL: Prevent production from running with devnet admin bypass
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.DEVNET === "true"
+  ) {
+    console.error("");
+    console.error("🚨 SECURITY ERROR: Production environment with DEVNET=true");
+    console.error("   This enables admin bypass for anvil wallet (0xf39F...)");
+    console.error("   DEVNET=true must NEVER be set in production.");
+    console.error("");
+    throw new Error("DEVNET=true is not allowed in production");
   }
 
   logger.info("✅ Environment validation passed");

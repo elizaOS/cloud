@@ -25,9 +25,9 @@ export const organizations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    credit_balance: numeric("credit_balance", { precision: 10, scale: 2 })
+    credit_balance: numeric("credit_balance", { precision: 12, scale: 6 })
       .notNull()
-      .default("100.00"),
+      .default("100.000000"),
     webhook_url: text("webhook_url"),
     webhook_secret: text("webhook_secret"),
     stripe_customer_id: text("stripe_customer_id"),
@@ -41,13 +41,13 @@ export const organizations = pgTable(
       .default(false)
       .notNull(),
     auto_top_up_amount: numeric("auto_top_up_amount", {
-      precision: 10,
-      scale: 2,
+      precision: 12,
+      scale: 6,
     }),
     auto_top_up_threshold: numeric("auto_top_up_threshold", {
-      precision: 10,
-      scale: 2,
-    }).default("0.00"),
+      precision: 12,
+      scale: 6,
+    }).default("0.000000"),
     auto_top_up_subscription_id: text("auto_top_up_subscription_id"),
     max_api_requests: integer("max_api_requests").default(1000),
     max_tokens_per_request: integer("max_tokens_per_request"),
