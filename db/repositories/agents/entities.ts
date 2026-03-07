@@ -1,5 +1,5 @@
 /**
- * Repository for ElizaOS entities table.
+ * Repository for elizaOS entities table.
  *
  * Handles all database operations for entities without spinning up runtime.
  */
@@ -20,7 +20,7 @@ export interface CreateEntityInput {
 }
 
 /**
- * Repository for ElizaOS entity database operations.
+ * Repository for elizaOS entity database operations.
  */
 export class EntitiesRepository {
   // ============================================================================
@@ -178,7 +178,7 @@ export class EntitiesRepository {
       return existing;
     }
 
-    const [entity] = await dbWrite
+    const result = await dbWrite
       .insert(entityTable)
       .values({
         id: input.id,
@@ -188,6 +188,7 @@ export class EntitiesRepository {
         createdAt: new Date(),
       })
       .returning();
+    const [entity] = result as typeof entityTable.$inferSelect[];
 
     return entity as Entity;
   }

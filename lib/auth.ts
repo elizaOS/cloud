@@ -11,6 +11,7 @@ import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,
@@ -98,7 +99,7 @@ async function ensureUserHasApiKey(
 export type AuthResult = {
   user: UserWithOrganization;
   apiKey?: ApiKey;
-  authMethod: "session" | "api_key";
+  authMethod: "session" | "api_key" | "wallet_signature";
   session_token?: string;
 };
 
@@ -280,15 +281,15 @@ async function trackSessionActivity(
     const errorDetails =
       error instanceof Error
         ? {
-            message: error.message,
-            name: error.name,
-            // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
-            code: (error as Error & { code?: string }).code,
-            // Additional context from Drizzle/PostgreSQL
-            detail: (error as Error & { detail?: string }).detail,
-            constraint: (error as Error & { constraint?: string }).constraint,
-            cause: error.cause,
-          }
+          message: error.message,
+          name: error.name,
+          // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
+          code: (error as Error & { code?: string }).code,
+          // Additional context from Drizzle/PostgreSQL
+          detail: (error as Error & { detail?: string }).detail,
+          constraint: (error as Error & { constraint?: string }).constraint,
+          cause: error.cause,
+        }
         : error;
     logger.warn("[AUTH] Session tracking failed:", errorDetails);
   }
@@ -313,8 +314,9 @@ export async function requireAuth(): Promise<UserWithOrganization> {
 }
 
 /**
- * Require authenticated user WITH organization (excludes anonymous users)
- * Use this for all paid features that require credits/billing
+ * Require authenticated user WITH organization (excludes anonymous users).
+ * Session-only (no API key). Use for signup-code redeem etc. so scripts cannot brute-force via API key.
+ * Use this for all paid features that require credits/billing.
  */
 export async function requireAuthWithOrg(): Promise<
   UserWithOrganization & { organization_id: string; organization: Organization }
@@ -412,11 +414,40 @@ function looksLikeJwt(token: string): boolean {
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for API key in X-API-Key header (always treated as API key)
+  // Try wallet signature authentication first (if headers present)
+  const hasWalletHeaders = request.headers.get("X-Wallet-Address") && 
+                          request.headers.get("X-Wallet-Signature") && 
+                          request.headers.get("X-Timestamp");
+
+  // Note: When wallet headers are present, we fail closed — API key/session fallback is intentionally skipped
+  // to prevent clients from bypassing wallet auth by sending stale wallet headers alongside valid API keys
+  if (hasWalletHeaders) {
+    try {
+      // verifyWalletSignature returns UserWithOrganization or throws when headers are present
+      const walletUser = await verifyWalletSignature(request);
+      if (!walletUser) {
+        throw new Error("Wallet authentication failed");
+      }
+      return {
+        user: walletUser,
+        authMethod: "wallet_signature",
+      };
+    } catch (e) {
+      // Always fail closed when wallet headers are present
+      logger.error("[AUTH] Wallet auth failed with headers present - failing closed:", e);
+      // Preserve service errors but clean auth errors for security
+      if (e instanceof Error && e.message.includes("Service temporarily")) {
+        throw e; // Propagate service outage errors
+      }
+      // Return 401 and do not fall through to other auth methods
+      throw new Error("Invalid wallet signature");
+    }
+  }
+
+  // Check for API key in X-API-Key header
   const apiKeyHeader = request.headers.get("X-API-Key");
   const authHeader = request.headers.get("authorization");
 
-  // If X-API-Key is provided, validate it as an API key
   if (apiKeyHeader && apiKeyHeader.trim().length > 0) {
     const apiKey = await apiKeysService.validateApiKey(apiKeyHeader);
 
@@ -447,12 +478,7 @@ export async function requireAuthOrApiKey(
     }
 
     await apiKeysService.incrementUsage(apiKey.id);
-
-    return {
-      user,
-      apiKey,
-      authMethod: "api_key",
-    };
+    return { user, apiKey, authMethod: "api_key" };
   }
 
   // Check Authorization: Bearer header

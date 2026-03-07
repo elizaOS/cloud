@@ -16,7 +16,7 @@ import {
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 
-describe("Agent Phone Number Mapping E2E Tests", () => {
+describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
   let testAgents: string[] = [];

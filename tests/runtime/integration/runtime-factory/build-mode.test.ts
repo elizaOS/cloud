@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -43,7 +44,7 @@ let runtime: TestRuntime;
 let testUser: TestUserContext;
 const timings: Record<string, number> = {};
 
-describe("RuntimeFactory - BUILD Mode", () => {
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - BUILD Mode", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(60));
     console.log("SETTING UP BUILD MODE TEST ENVIRONMENT");

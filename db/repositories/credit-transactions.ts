@@ -1,4 +1,4 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
   creditTransactions,
@@ -67,6 +67,25 @@ export class CreditTransactionsRepository {
       ),
       orderBy: desc(creditTransactions.created_at),
     });
+  }
+
+  /**
+   * Returns true if the organization has already received a signup code bonus.
+   * WHY dbWrite (primary): On redeem, read replica can be stale; using primary avoids granting twice.
+   */
+  async hasSignupCodeBonus(organizationId: string): Promise<boolean> {
+    const [row] = await dbWrite
+      .select({ id: creditTransactions.id })
+      .from(creditTransactions)
+      .where(
+        and(
+          eq(creditTransactions.organization_id, organizationId),
+          eq(creditTransactions.type, "credit"),
+          sql`${creditTransactions.metadata}->>'type' = 'signup_code_bonus'`,
+        ),
+      )
+      .limit(1);
+    return !!row;
   }
 
   // ============================================================================

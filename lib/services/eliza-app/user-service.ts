@@ -13,6 +13,7 @@
 import { usersRepository, type UserWithOrganization } from "@/db/repositories/users";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { creditsService } from "@/lib/services/credits";
+import { redeemSignupCode } from "@/lib/services/signup-code";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -21,7 +22,7 @@ import type { TelegramAuthData } from "./telegram-auth";
 import type { User, NewUser } from "@/db/schemas/users";
 import type { Organization } from "@/db/schemas/organizations";
 
-const ELIZA_APP_INITIAL_CREDITS = 1.0;
+const ELIZA_APP_INITIAL_CREDITS = 5.0;
 
 function isUniqueConstraintError(error: unknown): boolean {
   if (error instanceof Error) {
@@ -89,8 +90,9 @@ async function createUserWithOrganization(params: {
   userData: Omit<NewUser, "organization_id">;
   organizationName: string;
   slugGenerator: () => string;
+  signupCode?: string;
 }): Promise<FindOrCreateResult> {
-  const { userData, organizationName, slugGenerator } = params;
+  const { userData, organizationName, slugGenerator, signupCode } = params;
   const slug = await ensureUniqueSlug(slugGenerator);
 
   const organization = await organizationsRepository.create({
@@ -114,6 +116,18 @@ async function createUserWithOrganization(params: {
     role: "owner",
     is_active: true,
   });
+
+  /* WHY try/catch: Invalid or already-used code must not block account creation; log and continue. */
+  if (signupCode) {
+    try {
+      await redeemSignupCode(organization.id, signupCode);
+    } catch (error) {
+      logger.warn("[ElizaAppUserService] Signup code redemption failed for new org", {
+        organizationId: organization.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   await apiKeysService.create({
     user_id: user.id,
@@ -146,6 +160,7 @@ class ElizaAppUserService {
   async findOrCreateByTelegramWithPhone(
     telegramData: TelegramAuthData,
     phoneNumber: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     const telegramId = String(telegramData.id);
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -296,6 +311,7 @@ class ElizaAppUserService {
         },
         organizationName,
         slugGenerator: () => generateSlugFromTelegram(telegramData.username, telegramId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first
@@ -444,8 +460,14 @@ class ElizaAppUserService {
 
   /**
    * Find or create user by Discord ID.
-   * Auto-provisions users on first message (like Blooio/iMessage).
-   * Used by Discord webhook for Eliza App bot.
+   * Used by Discord OAuth2 flow to provision accounts on first login.
+   *
+   * Cross-platform linking scenarios:
+   * 1. User exists by discord_id → update profile, return existing
+   * 2. User exists by phone_number (Telegram/iMessage-first) → link Discord to that user
+   * 3. Neither exists → create new user
+   *
+   * @param phoneNumber Optional phone number for cross-platform linking (step 2)
    */
   async findOrCreateByDiscordId(
     discordId: string,
@@ -453,7 +475,9 @@ class ElizaAppUserService {
       username: string;
       globalName?: string | null;
       avatarUrl?: string | null;
-    }
+    },
+    phoneNumber?: string,
+    signupCode?: string,
   ): Promise<FindOrCreateResult> {
     // Validate required fields
     if (!discordId?.trim()) {
@@ -463,6 +487,9 @@ class ElizaAppUserService {
       throw new Error("Discord username is required");
     }
 
+    const normalizedPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined;
+
+    // Scenario 1: Check if user exists by discord_id (returning Discord user)
     const existingUser = await usersRepository.findByDiscordIdWithOrganization(discordId);
 
     if (existingUser && existingUser.organization) {
@@ -483,6 +510,22 @@ class ElizaAppUserService {
         needsUpdate = true;
       }
 
+      // Also set phone number if provided and not already set
+      if (normalizedPhone && !existingUser.phone_number) {
+        const phoneOwner = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        if (phoneOwner && phoneOwner.id !== existingUser.id) {
+          logger.warn("[ElizaAppUserService] Phone already owned by another user", {
+            discordUserId: existingUser.id,
+            phoneOwnerId: phoneOwner.id,
+            phone: `***${normalizedPhone.slice(-4)}`,
+          });
+          throw new Error("PHONE_ALREADY_LINKED");
+        }
+        updates.phone_number = normalizedPhone;
+        updates.phone_verified = true;
+        needsUpdate = true;
+      }
+
       if (needsUpdate) {
         try {
           updates.updated_at = new Date();
@@ -490,8 +533,15 @@ class ElizaAppUserService {
           logger.info("[ElizaAppUserService] Updated Discord user profile", {
             userId: existingUser.id,
             discordId,
+            phoneAdded: !!normalizedPhone && !existingUser.phone_number,
           });
         } catch (error) {
+          if (isUniqueConstraintError(error)) {
+            // Phone unique constraint hit - another user has this phone
+            if (normalizedPhone) {
+              throw new Error("PHONE_ALREADY_LINKED");
+            }
+          }
           // Profile update is non-critical - log warning and continue with stale data
           logger.warn("[ElizaAppUserService] Failed to update Discord profile, continuing with stale data", {
             userId: existingUser.id,
@@ -501,10 +551,70 @@ class ElizaAppUserService {
         }
       }
 
+      // Refetch if we updated phone
+      if (normalizedPhone && !existingUser.phone_number) {
+        const refetched = await usersRepository.findByDiscordIdWithOrganization(discordId);
+        if (refetched && refetched.organization) {
+          return { user: refetched, organization: refetched.organization, isNew: false };
+        }
+      }
+
       return { user: existingUser, organization: existingUser.organization, isNew: false };
     }
 
-    // Create new user with Discord identity
+    // Scenario 2: Check if user exists by phone_number (Telegram/iMessage-first user linking Discord)
+    if (normalizedPhone) {
+      const existingPhoneUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+
+      if (existingPhoneUser && existingPhoneUser.organization) {
+        // Re-check discord_id to prevent race condition (TOCTOU)
+        if (existingPhoneUser.discord_id && existingPhoneUser.discord_id !== discordId) {
+          logger.warn("[ElizaAppUserService] Phone user already linked to different Discord (race)", {
+            phoneUserId: existingPhoneUser.id,
+            existingDiscordId: existingPhoneUser.discord_id,
+            newDiscordId: discordId,
+          });
+          throw new Error("DISCORD_ALREADY_LINKED");
+        }
+
+        // Link Discord to the existing phone-based user
+        try {
+          await usersRepository.update(existingPhoneUser.id, {
+            discord_id: discordId,
+            discord_username: discordData.username,
+            discord_global_name: discordData.globalName || undefined,
+            discord_avatar_url: discordData.avatarUrl || undefined,
+            updated_at: new Date(),
+          });
+        } catch (error) {
+          if (isUniqueConstraintError(error)) {
+            logger.warn("[ElizaAppUserService] Race condition on discord link", {
+              discordId,
+              phoneUserId: existingPhoneUser.id,
+            });
+            throw new Error("DISCORD_ALREADY_LINKED");
+          }
+          throw error;
+        }
+
+        logger.info("[ElizaAppUserService] Linked Discord to existing phone user (cross-platform)", {
+          userId: existingPhoneUser.id,
+          discordId,
+          username: discordData.username,
+          phone: `***${normalizedPhone.slice(-4)}`,
+        });
+
+        // Refetch to get updated data
+        const updatedUser = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+        return {
+          user: updatedUser!,
+          organization: updatedUser!.organization!,
+          isNew: false,
+        };
+      }
+    }
+
+    // Scenario 3: Neither exists - create new user with Discord identity
     const displayName = discordData.globalName || discordData.username;
     const organizationName = `${displayName}'s Workspace`;
 
@@ -515,11 +625,13 @@ class ElizaAppUserService {
           discord_username: discordData.username,
           discord_global_name: discordData.globalName || undefined,
           discord_avatar_url: discordData.avatarUrl || undefined,
+          ...(normalizedPhone && { phone_number: normalizedPhone, phone_verified: true }),
           name: displayName,
           is_anonymous: false,
         },
         organizationName,
         slugGenerator: () => generateSlugFromDiscord(discordData.username, discordId),
+        signupCode,
       });
     } catch (error) {
       // Handle race condition: another request created the user first
@@ -530,6 +642,18 @@ class ElizaAppUserService {
             discordId,
           });
           return { user, organization: user.organization, isNew: false };
+        }
+
+        // Constraint may have been on phone_number
+        if (normalizedPhone) {
+          const userByPhone = await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone);
+          if (userByPhone && userByPhone.organization) {
+            logger.warn("[ElizaAppUserService] Phone already linked by race condition", {
+              discordId,
+              phone: `***${normalizedPhone.slice(-4)}`,
+            });
+            throw new Error("PHONE_ALREADY_LINKED");
+          }
         }
       }
       throw error;
@@ -745,6 +869,74 @@ class ElizaAppUserService {
       userId,
       telegramId,
       username: telegramData.username,
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Link a Discord account to an existing user.
+   * Used for session-based linking (user already authenticated via another platform).
+   * Mirrors linkTelegramToUser pattern.
+   */
+  async linkDiscordToUser(
+    userId: string,
+    discordData: {
+      discordId: string;
+      username: string;
+      globalName?: string | null;
+      avatarUrl?: string | null;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const { discordId, username, globalName, avatarUrl } = discordData;
+
+    // Check if this Discord ID is already linked to a different user
+    const existingDiscordUser = await usersRepository.findByDiscordIdWithOrganization(discordId);
+
+    if (existingDiscordUser && existingDiscordUser.id !== userId) {
+      logger.warn("[ElizaAppUserService] Discord already linked to another user", {
+        userId,
+        existingUserId: existingDiscordUser.id,
+        discordId,
+      });
+      return {
+        success: false,
+        error: "This Discord account is already linked to another account",
+      };
+    }
+
+    // If already linked to the same user, treat as idempotent success
+    if (existingDiscordUser && existingDiscordUser.id === userId) {
+      return { success: true };
+    }
+
+    try {
+      await usersRepository.update(userId, {
+        discord_id: discordId,
+        discord_username: username,
+        discord_global_name: globalName || undefined,
+        discord_avatar_url: avatarUrl || undefined,
+        updated_at: new Date(),
+      });
+    } catch (error) {
+      // Handle race condition: another request linked this Discord account first
+      if (isUniqueConstraintError(error)) {
+        logger.warn("[ElizaAppUserService] Discord linking race condition", {
+          userId,
+          discordId,
+        });
+        return {
+          success: false,
+          error: "This Discord account is already linked to another account",
+        };
+      }
+      throw error;
+    }
+
+    logger.info("[ElizaAppUserService] Linked Discord to user", {
+      userId,
+      discordId,
+      username,
     });
 
     return { success: true };

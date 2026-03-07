@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
+description: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, wallet signatures (SIWE and per-request), and x402 payments.
 ---
 
 import { Callout, Tabs, Cards } from "nextra/components";
@@ -15,12 +15,13 @@ Secure your API requests with elizaOS Cloud authentication methods.
 
 elizaOS Cloud supports multiple authentication methods:
 
-| Method        | Use Case           | Header                         |
-| ------------- | ------------------ | ------------------------------ |
-| **API Key**   | Server-to-server   | `Authorization: Bearer ek_xxx` |
-| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx`            |
-| **Session**   | Browser apps       | Cookie-based                   |
-| **x402**      | Crypto payments    | `X-PAYMENT: ...`               |
+| Method           | Use Case                    | Header / flow                                      |
+| ---------------- | --------------------------- | -------------------------------------------------- |
+| **API Key**      | Server-to-server            | `Authorization: Bearer eliza_xxx` or `X-API-Key`   |
+| **Session**      | Browser apps                | Cookie-based (Privy)                               |
+| **SIWE**         | Wallet sign-in, get API key | GET nonce → sign message → POST verify → use key   |
+| **Wallet header**| Per-request wallet auth     | `X-Wallet-Address`, `X-Timestamp`, `X-Wallet-Signature` |
+| **x402**         | Crypto payments             | `X-PAYMENT: ...`                                   |
 
 ## API Keys
 
@@ -155,6 +156,38 @@ function MyComponent() {
   };
 }
 ```
+
+## Wallet & SIWE (Sign-In With Ethereum)
+
+Wallet-based auth supports agents and headless clients that cannot use browser sessions.
+
+### SIWE flow (get an API key)
+
+1. **GET /api/auth/siwe/nonce** — Returns `{ nonce, domain, uri, chainId, version, statement }`. Nonce is one-time, 5 min TTL (Redis). **Why nonce?** Prevents replay; timestamp-only can be replayed within the window.
+2. Build the EIP-4361 message with the nonce and sign it with the wallet.
+3. **POST /api/auth/siwe/verify** — Body `{ message, signature }`. Server validates domain and signature, consumes the nonce, then finds or creates user/org and returns **`apiKey`** with `user` and `organization`. New wallets get initial free credits (configurable via `INITIAL_FREE_CREDITS`).
+4. Use the returned API key: `X-API-Key: <key>` or `Authorization: Bearer <key>` on subsequent requests.
+
+### Wallet header signature (no API key)
+
+Send on every request instead of storing an API key:
+
+- **X-Wallet-Address**: Ethereum address (any case).
+- **X-Timestamp**: Unix ms (must be within ±5 min of server time). **Why?** Binds the signature to a time window and limits replay.
+- **X-Wallet-Signature**: Signature of the message  
+  `Eliza Cloud Authentication\nTimestamp: ${timestamp}\nMethod: ${method}\nPath: ${path}`  
+  so the signature is bound to this request. **Why method + path?** Prevents reusing the same signature on another endpoint.
+
+If the wallet is unknown, the first valid signed request **creates** the account (same as SIWE signup). After that, any endpoint that uses `requireAuthOrApiKey` accepts wallet-header auth.
+
+### x402 topup with wallet
+
+**POST /api/v1/topup/10**, **/50**, **/100** (x402 payment-gated):
+
+- With **wallet sig headers**: credits go to the signer’s wallet (no body `walletAddress` needed).
+- Without wallet sig: send **body.walletAddress**; that wallet’s org is credited. New wallets are created without initial free credits (payment only).
+
+See [Wallet API](/docs/wallet-api) for full reference, WHYs, and file list.
 
 ## x402 Authentication
 

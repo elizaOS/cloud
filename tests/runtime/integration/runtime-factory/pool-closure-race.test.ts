@@ -25,6 +25,7 @@ import {
 } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -106,7 +107,7 @@ async function cleanupTestEnvironment(): Promise<void> {
 // Test Suite: Pool Closure Race Conditions
 // ============================================================================
 
-describe("Pool Closure Race Condition", () => {
+describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 
@@ -699,7 +700,7 @@ describe("Pool Closure Race Condition", () => {
 // Test Suite: Simulating Production Error Scenario
 // ============================================================================
 
-describe("Production Error Reproduction", () => {
+describe.skipIf(!hasDatabaseUrl)("Production Error Reproduction", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 

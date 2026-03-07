@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -45,7 +46,7 @@ import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 // MCP Plugin Loading Tests
 // ============================================================================
 
-describe("MCP Plugin Loading - Production Flow", () => {
+describe.skipIf(!hasDatabaseUrl)("MCP Plugin Loading - Production Flow", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;
@@ -152,7 +153,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
     }
   }, 30000);
 
-  it("should create test user with ElizaOS entities", async () => {
+  it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
     testUserContext = await createTestUser(
@@ -206,7 +207,7 @@ describe("MCP Plugin Loading - Production Flow", () => {
 // MCP Assistant Trending Tokens Tests
 // ============================================================================
 
-describe("MCP Assistant - Trending Tokens Query", () => {
+describe.skipIf(!hasDatabaseUrl)("MCP Assistant - Trending Tokens Query", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;
@@ -328,7 +329,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
     }
   }, 30000);
 
-  it("should create test user with ElizaOS entities", async () => {
+  it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
     testUserContext = await createTestUser(
@@ -460,7 +461,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
 // Debug Tracing Status (Informational)
 // ============================================================================
 
-describe("Debug Tracing Status", () => {
+describe.skipIf(!hasDatabaseUrl)("Debug Tracing Status", () => {
   it("should report debug tracing configuration", () => {
     const debugEnabled = isDebugTracingEnabled();
 

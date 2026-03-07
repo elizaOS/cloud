@@ -71,8 +71,8 @@ export async function withModelRetry<T>({
 
 function getMaxRetries(runtime: IAgentRuntime): number {
   try {
-    const mcp = runtime.getSetting("mcp");
-    if (mcp?.maxRetries !== undefined) {
+    const mcp = runtime.getSetting("mcp") as Record<string, unknown> | string | boolean | number | null;
+    if (mcp && typeof mcp === "object" && "maxRetries" in mcp && mcp.maxRetries !== undefined) {
       const val = Number(mcp.maxRetries);
       if (!isNaN(val) && val >= 0) return val;
     }

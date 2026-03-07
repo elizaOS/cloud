@@ -1,5 +1,5 @@
 /**
- * Message Handler - Processes messages through ElizaOS runtime via CloudBootstrapMessageService.
+ * Message Handler - Processes messages through elizaOS runtime via CloudBootstrapMessageService.
  */
 
 import { v4 as uuidv4 } from "uuid";
@@ -241,7 +241,13 @@ export class MessageHandler {
       );
     });
 
-    await generateRoomTitle(roomId);
+    // PERF: Fire-and-forget room title generation -- don't block the response.
+    // Title generation makes a separate LLM call (1-3s) that the user doesn't need to wait for.
+    generateRoomTitle(roomId).catch((e) => {
+      elizaLogger.warn(
+        `[MessageHandler] Room title generation failed for room ${roomId}: ${e}`,
+      );
+    });
 
     return { message: responseMemory, usage };
   }

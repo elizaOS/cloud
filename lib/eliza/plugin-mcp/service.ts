@@ -22,7 +22,6 @@ const requestContextReady = (async () => {
   }
 })();
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type {
@@ -33,6 +32,9 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { type McpToolAction, createMcpToolActions } from "./actions/dynamic-tool-actions";
+import { Tier2ToolIndex, type Tier2ToolEntry } from "./search/bm25-index";
+import { getCrucialToolsForServer, isCrucialTool } from "./tool-visibility";
+import { toActionName } from "./utils/action-naming";
 import { McpSchemaCache, getSchemaCache } from "./cache";
 import { type McpToolCompatibility, createMcpToolCompatibilitySync } from "./tool-compatibility";
 import {
@@ -62,6 +64,8 @@ export class McpService extends Service {
 
   private connections = new Map<string, McpConnection>();
   private connectionStates = new Map<string, ConnectionState>();
+  /** Tracks the API key used when each connection was created, for staleness detection. */
+  private connectionApiKeys = new Map<string, string>();
   private mcpProvider: McpProvider = {
     values: { mcp: {}, mcpText: "" },
     data: { mcp: {} },
@@ -71,6 +75,8 @@ export class McpService extends Service {
   private toolCompatibility: McpToolCompatibility | null = null;
   private initPromise: Promise<void> | null = null;
   private registeredActions = new Map<string, McpToolAction>();
+  private tier2Index = new Tier2ToolIndex();
+  private tier2Tools: Tier2ToolEntry[] = [];
   private schemaCache = getSchemaCache();
   private lazyConnections = new Map<string, McpServerConfig>();
   /** Per-key mutex to prevent concurrent requests from creating duplicate connections */
@@ -114,6 +120,16 @@ export class McpService extends Service {
       await Promise.allSettled(
         entries.map(async ([name, config]) => {
           try {
+            // In production, only streamable-http is supported (SSE is deprecated on Vercel).
+            // stdio is only allowed in development/local environments.
+            if (process.env.NODE_ENV === "production" && config.type !== "streamable-http") {
+              logger.warn(
+                `[MCP] Skipping server "${name}": transport "${config.type}" is not supported in production (only streamable-http is allowed)`
+              );
+              results.failed.push(name);
+              return;
+            }
+
             const hash = this.schemaCache.hashConfig(config);
 
             // Try cache first
@@ -199,7 +215,7 @@ export class McpService extends Service {
     this.connectionStates.set(name, state);
 
     try {
-      const client = new Client({ name: "ElizaOS", version: "1.0.0" }, { capabilities: {} });
+      const client = new Client({ name: "elizaOS", version: "1.0.0" }, { capabilities: {} });
       const transport =
         config.type === "stdio"
           ? this.createStdioTransport(name, config)
@@ -268,6 +284,7 @@ export class McpService extends Service {
       }
       this.connections.delete(name);
     }
+    this.connectionApiKeys.delete(name);
     const state = this.connectionStates.get(name);
     if (state) {
       if (state.pingInterval) clearInterval(state.pingInterval);
@@ -290,7 +307,7 @@ export class McpService extends Service {
   private createHttpTransport(
     name: string,
     config: HttpMcpServerConfig
-  ): SSEClientTransport | StreamableHTTPClientTransport {
+  ): StreamableHTTPClientTransport {
     if (!config.url) throw new Error(`Missing URL for server ${name}`);
     const url = new URL(config.url);
     const headers: Record<string, string> = { ...config.headers };
@@ -311,10 +328,13 @@ export class McpService extends Service {
       }
     }
 
+    // Track API key used for this connection so we can detect rotation later
+    if (apiKey && typeof apiKey === "string") {
+      this.connectionApiKeys.set(name, apiKey);
+    }
+
     const opts = Object.keys(headers).length > 0 ? { requestInit: { headers } } : undefined;
-    return config.type === "sse"
-      ? new SSEClientTransport(url, opts)
-      : new StreamableHTTPClientTransport(url, opts);
+    return new StreamableHTTPClientTransport(url, opts);
   }
 
   private setupTransportHandlers(
@@ -324,6 +344,12 @@ export class McpService extends Service {
     isStdio: boolean
   ): void {
     conn.transport.onerror = async (e) => {
+      const isAbortError = e?.name === "AbortError";
+      if (!isStdio && isAbortError) {
+        logger.debug({ error: e, server: name }, `[MCP] Suppressed transport AbortError: ${name}`);
+        return;
+      }
+
       const msg = e?.message || "";
       if (isStdio || (!msg.includes("SSE") && !msg.includes("timeout") && msg !== "undefined")) {
         logger.error({ error: e, server: name }, `[MCP] Transport error: ${name}`);
@@ -452,23 +478,58 @@ export class McpService extends Service {
   private registerToolsAsActions(serverName: string, tools: Tool[]): void {
     if (!tools?.length) return;
 
-    const existing = new Set([
-      ...this.runtime.actions.map((a) => a.name),
-      ...this.registeredActions.keys(),
-    ]);
-    const actions = createMcpToolActions(serverName, tools, existing);
+    // Split tools into Tier-1 (crucial, always visible) and Tier-2 (discoverable via SEARCH_ACTIONS).
+    // Servers without a curated crucial-tools list register ALL tools as Tier-1 (old behavior).
+    const hasCuratedList = getCrucialToolsForServer(serverName).length > 0;
+    const crucialTools: Tool[] = [];
+    const tier2Entries: Tier2ToolEntry[] = [];
 
-    for (const action of actions) {
-      if (!this.registeredActions.has(action.name)) {
-        this.runtime.registerAction(action);
-        this.registeredActions.set(action.name, action);
+    for (const tool of tools) {
+      if (!hasCuratedList || isCrucialTool(serverName, tool.name)) {
+        crucialTools.push(tool);
+      } else {
+        tier2Entries.push({
+          serverName,
+          toolName: tool.name,
+          actionName: toActionName(serverName, tool.name),
+          platform: serverName.toLowerCase(),
+          tool,
+        });
       }
     }
 
-    logger.info(`[MCP] Registered ${actions.length} actions for ${serverName}`);
+    // Register Tier-1 crucial tools as runtime actions
+    if (crucialTools.length > 0) {
+      const existing = new Set([
+        ...this.runtime.actions.map((a) => a.name),
+        ...this.registeredActions.keys(),
+      ]);
+      const actions = createMcpToolActions(serverName, crucialTools, existing);
+
+      for (const action of actions) {
+        if (!this.registeredActions.has(action.name)) {
+          this.runtime.registerAction(action);
+          this.registeredActions.set(action.name, action);
+        }
+      }
+    }
+
+    // Add Tier-2 tools to the discoverable index
+    if (tier2Entries.length > 0) {
+      this.tier2Tools = [
+        ...this.tier2Tools.filter((t) => t.serverName !== serverName),
+        ...tier2Entries,
+      ];
+      this.tier2Index.build(this.tier2Tools);
+    }
+
+    logger.info(
+      `[MCP] ${serverName}: ${crucialTools.length} crucial (registered), ${tier2Entries.length} tier-2 (indexed)`
+    );
   }
 
   private unregisterToolsAsActions(serverName: string): void {
+    // Remove Tier-1 actions
     const toRemove: string[] = [];
     for (const [name, action] of this.registeredActions) {
       if (action._mcpMeta.serverName === serverName) toRemove.push(name);
@@ -478,6 +539,13 @@ export class McpService extends Service {
       const idx = this.runtime.actions.findIndex((a) => a.name === name);
       if (idx !== -1) this.runtime.actions.splice(idx, 1);
       this.registeredActions.delete(name);
+    }
+
+    // Remove Tier-2 entries and rebuild index
+    const hadTier2 = this.tier2Tools.some((t) => t.serverName === serverName);
+    if (hadTier2) {
+      this.tier2Tools = this.tier2Tools.filter((t) => t.serverName !== serverName);
+      this.tier2Index.build(this.tier2Tools);
     }
   }
 
@@ -495,6 +563,18 @@ export class McpService extends Service {
 
   getRegisteredActions(): McpToolAction[] {
     return Array.from(this.registeredActions.values());
+  }
+
+  getTier2Index(): Tier2ToolIndex {
+    return this.tier2Index;
+  }
+
+  /** Remove promoted actions from both the source array and BM25 index. */
+  removeFromTier2(actionNames: string[]): void {
+    if (actionNames.length === 0) return;
+    const nameSet = new Set(actionNames);
+    this.tier2Tools = this.tier2Tools.filter((t) => !nameSet.has(t.actionName));
+    this.tier2Index.build(this.tier2Tools);
   }
 
   isLazyConnection(serverName: string): boolean {
@@ -528,7 +608,20 @@ export class McpService extends Service {
     await requestContextReady;
 
     const connectionKey = this.getConnectionKey(serverName);
-    if (this.connections.has(connectionKey) || this.connections.has(serverName)) return;
+
+    // API key freshness guard: if the key rotated since connection creation, disconnect stale connection
+    const matchedKey = this.connections.has(connectionKey) ? connectionKey
+      : this.connections.has(serverName) ? serverName : null;
+    if (matchedKey) {
+      const currentKey = this.runtime.getSetting("ELIZAOS_API_KEY") ?? "";
+      const storedKey = this.connectionApiKeys.get(matchedKey) ?? "";
+      if (currentKey !== storedKey) {
+        logger.info(`[MCP] API key changed for ${matchedKey}, reconnecting`);
+        await this.disconnect(matchedKey);
+      } else {
+        return;
+      }
+    }
 
     // Serialize per-key to prevent concurrent requests from creating duplicate connections
     const inflight = this.connectionLocks.get(connectionKey);

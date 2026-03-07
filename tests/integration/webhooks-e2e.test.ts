@@ -18,7 +18,7 @@ import {
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 
-describe("Webhook Handlers E2E Tests", () => {
+describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
   let agentId: string;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Teardown ElizaOS Shared Infrastructure
+# Teardown elizaOS Shared Infrastructure
 # WARNING: This will affect ALL users. Only run when shutting down the entire platform.
 
 set -e

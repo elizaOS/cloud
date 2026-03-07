@@ -1,10 +1,11 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * GitHub MCP Tools - Repos, Issues, PRs
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
@@ -624,7 +625,7 @@ export function registerGitHubTools(server: McpServer): void {
         pull_number: z.number().int().min(1),
         body: z.string().optional(),
         event: z.string().optional(),
-        comments: z.array(z.record(z.any())).optional(),
+        comments: z.array(z.record(z.string(), z.any())).optional(),
       },
     },
     async ({ owner, repo, pull_number, body, event, comments }) => {
@@ -1087,8 +1088,8 @@ export function registerGitHubTools(server: McpServer): void {
         message: z.string().min(1),
         content: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, content, branch, committer, author }) => {
@@ -1117,8 +1118,8 @@ export function registerGitHubTools(server: McpServer): void {
         content: z.string().min(1),
         sha: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, content, sha, branch, committer, author }) => {
@@ -1146,8 +1147,8 @@ export function registerGitHubTools(server: McpServer): void {
         message: z.string().min(1),
         sha: z.string().min(1),
         branch: z.string().optional(),
-        committer: z.record(z.any()).optional(),
-        author: z.record(z.any()).optional(),
+        committer: z.record(z.string(), z.any()).optional(),
+        author: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ owner, repo, path, message, sha, branch, committer, author }) => {

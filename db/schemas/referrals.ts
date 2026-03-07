@@ -45,6 +45,8 @@ export const referralCodes = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     code: text("code").notNull().unique(),
+    // Used for multi-level referral tracking
+    parent_referral_id: uuid("parent_referral_id"),
     total_referrals: integer("total_referrals").default(0).notNull(),
     total_signup_earnings: numeric("total_signup_earnings", {
       precision: 10,
@@ -91,6 +93,11 @@ export const referralSignups = pgTable(
     referred_user_id: uuid("referred_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Context of the signup for 50/40/10 revenue split
+    app_owner_id: uuid("app_owner_id")
+      .references(() => users.id, { onDelete: "set null" }),
+    creator_id: uuid("creator_id")
+      .references(() => users.id, { onDelete: "set null" }),
     signup_bonus_credited: boolean("signup_bonus_credited")
       .default(false)
       .notNull(),

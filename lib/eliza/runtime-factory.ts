@@ -1,5 +1,5 @@
 /**
- * Runtime Factory - Creates configured ElizaOS runtimes per user/agent context.
+ * Runtime Factory - Creates configured elizaOS runtimes per user/agent context.
  */
 import {
   AgentRuntime,
@@ -40,11 +40,19 @@ const adapterEmbeddingDimensions = new Map<string, number>();
 export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
-  google: { url: "/api/mcps/google/mcp", type: "streamable-http" },
-  github: { url: "/api/mcps/github/mcp", type: "streamable-http" },
-  notion: { url: "/api/mcps/notion/mcp", type: "streamable-http" },
-  linear: { url: "/api/mcps/linear/mcp", type: "streamable-http" },
-  // twitter: { url: "/api/mcps/twitter/mcp", type: "streamable-http" },
+  google: { url: "/api/mcps/google/streamable-http", type: "streamable-http" },
+  github: { url: "/api/mcps/github/streamable-http", type: "streamable-http" },
+  notion: { url: "/api/mcps/notion/streamable-http", type: "streamable-http" },
+  linear: { url: "/api/mcps/linear/streamable-http", type: "streamable-http" },
+  asana: { url: "/api/mcps/asana/streamable-http", type: "streamable-http" },
+  dropbox: { url: "/api/mcps/dropbox/streamable-http", type: "streamable-http" },
+  salesforce: { url: "/api/mcps/salesforce/streamable-http", type: "streamable-http" },
+  airtable: { url: "/api/mcps/airtable/streamable-http", type: "streamable-http" },
+  zoom: { url: "/api/mcps/zoom/streamable-http", type: "streamable-http" },
+  jira: { url: "/api/mcps/jira/streamable-http", type: "streamable-http" },
+  linkedin: { url: "/api/mcps/linkedin/streamable-http", type: "streamable-http" },
+  microsoft: { url: "/api/mcps/microsoft/streamable-http", type: "streamable-http" },
+  twitter: { url: "/api/mcps/twitter/streamable-http", type: "streamable-http" },
 };
 
 interface GlobalWithEliza {
@@ -763,7 +771,7 @@ export class RuntimeFactory {
   }
 
   private buildMcpSettings(
-    charSettings: Record<string, unknown>,
+    _charSettings: Record<string, unknown>,
     context: UserContext,
   ): { mcp?: Record<string, unknown> } {
     const connected = this.getConnectedPlatforms(context);
@@ -775,14 +783,10 @@ export class RuntimeFactory {
 
     elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
 
-    const existingMcp = charSettings.mcp as Record<string, unknown> | undefined;
-    const existingServers =
-      existingMcp?.servers && typeof existingMcp.servers === "object" && !Array.isArray(existingMcp.servers)
-        ? (existingMcp.servers as Record<string, unknown>)
-        : {};
-
+    // Only use servers from MCP_SERVER_CONFIGS — don't merge with DB-stored
+    // server configs which can contain stale full URLs from previous ngrok sessions
     return {
-      mcp: this.transformMcpSettings({ ...existingMcp, servers: { ...existingServers, ...enabledServers } }),
+      mcp: this.transformMcpSettings({ servers: enabledServers }),
     };
   }
 
@@ -1018,7 +1022,7 @@ export class RuntimeFactory {
     };
 
     const startTime = Date.now();
-    const maxWaitMs = 2500; // Allow time for MCP server connections
+    const maxWaitMs = 15000; // Allow time for MCP server connections (dev cold start can take ~10s)
     const maxDelay = 200;
     let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;

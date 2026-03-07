@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -92,7 +93,7 @@ async function cleanupTestEnvironment(): Promise<void> {
 // Test Suite: Mode Switching During Operations
 // ============================================================================
 
-describe("Mode Switching During Operations", () => {
+describe.skipIf(!hasDatabaseUrl)("Mode Switching During Operations", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 
@@ -284,7 +285,7 @@ describe("Mode Switching During Operations", () => {
 // Test Suite: Service Access During Invalidation
 // ============================================================================
 
-describe("Service Access During Invalidation", () => {
+describe.skipIf(!hasDatabaseUrl)("Service Access During Invalidation", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 
@@ -439,7 +440,7 @@ describe("Service Access During Invalidation", () => {
 // Test Suite: Concurrent Configuration Changes
 // ============================================================================
 
-describe("Concurrent Configuration Changes", () => {
+describe.skipIf(!hasDatabaseUrl)("Concurrent Configuration Changes", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 
@@ -590,7 +591,7 @@ describe("Concurrent Configuration Changes", () => {
 // Test Suite: Long-Running Operation Simulation
 // ============================================================================
 
-describe("Long-Running Operation Simulation", () => {
+describe.skipIf(!hasDatabaseUrl)("Long-Running Operation Simulation", () => {
   beforeAll(setupTestEnvironment, TEST_TIMEOUT);
   afterAll(cleanupTestEnvironment);
 

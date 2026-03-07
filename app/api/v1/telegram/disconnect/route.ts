@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const maxDuration = 30;
 
@@ -19,6 +20,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       user.organization_id,
       user.id,
     );
+
+    await invalidateOAuthState(user.organization_id, "telegram", user.id);
 
     logger.info("[Telegram Disconnect] Bot disconnected successfully", {
       organizationId: user.organization_id,

@@ -19,6 +19,7 @@ import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
 import { cache } from "@/lib/cache/client";
+import { InMemoryLRUCache } from "@/lib/cache/in-memory-lru-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
   generateUsernameFromName,
@@ -32,30 +33,47 @@ const characterCacheKey = (id: string) => `character:data:${id}`;
 const CHARACTER_CACHE_TTL = CacheTTL.agent.characterData; // 1 hour
 
 /**
+ * PERF: In-memory cache for character data (60s TTL).
+ * Characters rarely change during active sessions. This eliminates the Redis
+ * round-trip (~5ms) for repeated lookups within the same serverless instance.
+ */
+const inMemoryCharCache = new InMemoryLRUCache<UserCharacter>(100, 60_000);
+
+/**
  * Service for character CRUD operations.
  */
 export class CharactersService {
   /**
    * Get character by ID with caching.
-   * PERFORMANCE: Cache hit reduces latency from ~50ms to ~5ms
+   * PERFORMANCE: 3-layer cache: in-memory (~0ms) > Redis (~5ms) > DB (~50ms)
    */
   async getById(id: string): Promise<UserCharacter | undefined> {
+    // PERF: Check in-memory cache first (eliminates Redis round-trip)
+    const inMemoryHit = inMemoryCharCache.get(id);
+    if (inMemoryHit) {
+      logger.debug(`[Characters] ⚡ In-memory cache HIT: ${id}`);
+      return structuredClone(inMemoryHit);
+    }
+
     const cacheKey = characterCacheKey(id);
 
-    // Try cache first
+    // Try Redis cache
     const cached = await cache.get<UserCharacter>(cacheKey);
     if (cached) {
-      logger.debug(`[Characters] ⚡ Cache HIT: ${id}`);
-      return cached;
+      logger.debug(`[Characters] ⚡ Redis cache HIT: ${id}`);
+      inMemoryCharCache.set(id, cached);
+      return structuredClone(cached);
     }
 
     // Fetch from database
     const character = await userCharactersRepository.findById(id);
 
-    // Cache for future requests (1 hour)
+    // Cache for future requests (Redis: 1 hour, in-memory: 60s)
     if (character) {
       await cache.set(cacheKey, character, CHARACTER_CACHE_TTL);
+      inMemoryCharCache.set(id, character);
       logger.debug(`[Characters] Cache MISS, cached: ${id}`);
+      return structuredClone(character);
     }
 
     return character;
@@ -66,6 +84,7 @@ export class CharactersService {
    * CRITICAL: This now also invalidates the in-memory runtime cache
    */
   async invalidateCache(id: string): Promise<void> {
+    inMemoryCharCache.delete(id);
     // Import dynamically to avoid circular dependency
     const { invalidateCharacterCache } =
       await import("@/lib/cache/character-cache");
@@ -216,7 +235,7 @@ export class CharactersService {
       username,
     });
 
-    // Also create the agent in the ElizaOS agents table
+    // Also create the agent in the elizaOS agents table
     const agent: Partial<Agent> = {
       id: character.id as `${string}-${string}-${string}-${string}-${string}`,
       name: character.name,
@@ -352,7 +371,7 @@ export class CharactersService {
       | undefined;
     const mergedSettings = {
       ...settings,
-      // Include avatarUrl in settings for provider/runtime access (camelCase for ElizaOS compatibility)
+      // Include avatarUrl in settings for provider/runtime access (camelCase for elizaOS compatibility)
       avatarUrl: character.avatar_url ?? undefined,
       ...(affiliateData || loreData
         ? {

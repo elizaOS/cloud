@@ -11,6 +11,34 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ---
 
+## March 2026
+
+### Mar 4, 2026
+
+**Wallet API — SIWE, wallet header auth, topup, docs**
+
+- **SIWE (EIP-4361):** `GET /api/auth/siwe/nonce` and `POST /api/auth/siwe/verify` for programmatic wallet sign-in. Returns API key; new wallets get account and initial free credits. **Why:** Agents and headless clients need to sign in and obtain an API key without a browser; nonce prevents replay, domain binding prevents phishing.
+- **Wallet header signature:** Per-request auth via `X-Wallet-Address`, `X-Timestamp`, `X-Wallet-Signature`. First valid request for an unknown wallet creates the account (same path as SIWE). **Why:** Clients that prefer not to store an API key can prove ownership on each request; method+path in the signed message prevents replay on other endpoints.
+- **x402 topup:** Can credit the signer when wallet sig headers are present, or use `body.walletAddress`. All wallet signup (SIWE, wallet-header, topup) uses shared `findOrCreateUserByWalletAddress` (slug `wallet-${address}`, optional initial credits, race handling). **Why:** One consistent signup path; topup with wallet sig ties payer to credited account.
+- **Proxy & CORS:** Requests with `X-Wallet-Signature` pass through without Privy session; wallet headers added to `Access-Control-Allow-Headers`; `/api/v1/topup` added to public paths. **Why:** Otherwise wallet-header auth would get 401 at the proxy before the API runs.
+- **Docs:** [docs/wallet-api.md](../docs/wallet-api.md) (WHYs, lifecycle, file list), [Wallet API](/docs/wallet-api) and [Authentication](/docs/authentication) updated, README subsection, changelog. llms.txt regenerated.
+
+**Referrals & Affiliates — docs, safety, and cleanup**
+
+- **Documentation**: Added [docs/referrals.md](../docs/referrals.md) with full referral and affiliate flow, WHYs, and API. Referral revenue is 50/40/10 (ElizaCloud / app owner / creator); affiliate revenue is markup on top-up and MCP, passed to the customer. No double-apply on the same transaction.
+- **Revenue math**: Single source of truth for referral splits (`REFERRAL_REVENUE_SPLITS` in `lib/services/referrals.ts`) with startup assertions (50+40+10=100%, 8+2=10%). `calculateRevenueSplits` now asserts total allocated equals purchase amount so changes to constants cannot silently over- or under-pay.
+- **Dead code removed**: Removed unused `processReferralCommission` and `COMMISSION_RATE` from referrals service and unused `referralSignupsRepository` import from Stripe webhook to avoid accidental re-use (which would have double-paid referral on top of 50/40/10).
+- **Comparison doc**: [docs/affiliate-referral-comparison.md](../docs/affiliate-referral-comparison.md) compares this repo with the other cloud repo (commission tiers vs 50/40/10, affiliate markup usage) and includes a revenue math audit.
+- **README**: Referrals & Affiliates subsection under Credit System & Billing with links to the new docs.
+
+**Signup codes — env config, Discord/Telegram wiring, docs**
+
+- **Config**: Signup codes now load from `SIGNUP_CODES_JSON` env var (JSON object); if unset, default to `{}`. **Why:** Env allows per-environment codes without a config file in the repo; default keeps the app runnable when the var is not set.
+- **Eliza App**: Optional `signup_code` in Discord and Telegram auth request bodies; for **new** users only, we apply the bonus in `createUserWithOrganization` (invalid or already-used code logs a warning and does not block account creation). **Why:** New users can get base credits + signup bonus in one step; existing users and bad codes do not break signup.
+- **Docs**: [docs/signup-codes.md](../docs/signup-codes.md) expanded with WHYs (why env var, why one per org, why session-only redeem, why CRITICAL rate limit, why no-cache, two-layer one-per-org). README Signup codes subsection and changelog entry added.
+
+---
+
 ## January 2026
 
 ### Jan 8, 2026

@@ -1,10 +1,11 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Linear MCP Tools - Issues, Projects, Teams
  * Uses per-organization OAuth tokens via oauthService.
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { oauthService } from "@/lib/services/oauth";
 import { getAuthContext } from "../lib/context";
@@ -99,7 +100,7 @@ export function registerLinearTools(server: McpServer): void {
     {
       description: "List or filter issues",
       inputSchema: {
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
         orderBy: z.string().optional(),
@@ -466,7 +467,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {
@@ -625,7 +626,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {
@@ -729,7 +730,7 @@ export function registerLinearTools(server: McpServer): void {
       inputSchema: {
         first: z.number().int().min(1).max(100).optional(),
         after: z.string().optional(),
-        filter: z.record(z.any()).optional(),
+        filter: z.record(z.string(), z.any()).optional(),
       },
     },
     async ({ first, after, filter }) => {

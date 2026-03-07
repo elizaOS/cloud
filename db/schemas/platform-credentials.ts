@@ -62,6 +62,8 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "dropbox",
   "spotify",
   "zoom",
+  // Microsoft OAuth (added via migration 0024)
+  "microsoft",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum(

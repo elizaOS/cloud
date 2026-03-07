@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  hasDatabaseUrl,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -105,7 +106,7 @@ async function cleanupTestEnvironment(): Promise<void> {
   console.log("✅ Cleanup complete\n");
 }
 
-describe("MCP Assistant - Trending Tokens Query", () => {
+describe.skipIf(!hasDatabaseUrl)("MCP Assistant - Trending Tokens Query", () => {
   beforeAll(async () => {
     await setupTestEnvironment();
   });
@@ -173,7 +174,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
     }
   }, 30000);
 
-  it("should create test user with ElizaOS entities", async () => {
+  it("should create test user with elizaOS entities", async () => {
     startTimer("user_creation");
 
     testUserContext = await createTestUser(
@@ -301,7 +302,7 @@ describe("MCP Assistant - Trending Tokens Query", () => {
   }, 120000);
 });
 
-describe("Debug Tracing Status", () => {
+describe.skipIf(!hasDatabaseUrl)("Debug Tracing Status", () => {
   it("should report debug tracing configuration", () => {
     const debugEnabled = isDebugTracingEnabled();
 

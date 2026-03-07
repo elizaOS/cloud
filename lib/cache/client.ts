@@ -85,6 +85,14 @@ export class CacheClient {
   }
 
   /**
+   * Whether the cache backend (Redis) is connected and the circuit breaker is closed.
+   */
+  isAvailable(): boolean {
+    this.initialize();
+    return !!(this.enabled && this.redis && !this.isCircuitOpen());
+  }
+
+  /**
    * Gets a value from cache.
    *
    * @param key - Cache key.
@@ -257,6 +265,128 @@ export class CacheClient {
 
     this.resetFailures();
     this.logMetric(key, "set", Date.now() - start);
+  }
+
+  /**
+   * Atomically set key to value with TTL only if key does not exist (SET NX PX).
+   * Used for single-use nonces to prevent TOCTOU races between getAndDelete and set.
+   *
+   * @param key - Cache key.
+   * @param value - Value to set (string or serializable).
+   * @param ttlMs - Time to live in milliseconds.
+   * @returns true if key was set, false if key already existed.
+   */
+  async setIfNotExists<T>(key: string, value: T, ttlMs: number): Promise<boolean> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+      throw new Error("Cache unavailable for atomic set-if-not-exists");
+    }
+
+    if (!this.isValidCacheValue(value)) {
+      throw new Error(`Invalid cache value for key ${key}`);
+    }
+
+    const serialized =
+      typeof value === "string" ? value : JSON.stringify(value);
+
+    const start = Date.now();
+    const result = await this.redis.set(key, serialized, { nx: true, px: ttlMs });
+    this.resetFailures();
+    this.logMetric(key, "setIfNotExists", Date.now() - start);
+    return result === "OK";
+  }
+
+  /**
+   * Atomically increments a numeric value in cache.
+   * If the key does not exist, it is set to 0 before incrementing.
+   *
+   * @param key - Cache key to increment.
+   * @returns The new value after incrementing.
+   */
+  async incr(key: string): Promise<number> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return 1;
+
+    try {
+      const result = await this.redis.incr(key);
+      this.resetFailures();
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] INCR failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 1;
+    }
+  }
+
+  /**
+   * Sets a TTL (time to live) on an existing key.
+   *
+   * @param key - Cache key.
+   * @param ttlSeconds - Time to live in seconds.
+   */
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
+
+    try {
+      await this.redis.expire(key, ttlSeconds);
+      this.resetFailures();
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] EXPIRE failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Atomically gets a value and deletes the key using GETDEL (Redis ≥6.2).
+   * Used for single-use values (e.g. SIWE nonce) to prevent replay attacks.
+   *
+   * @param key - Cache key.
+   * @returns The value if present, or null.
+   */
+  async getAndDelete<T>(key: string): Promise<T | null> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
+    
+    try {
+      // Use GETDEL for atomic get-and-delete (Redis ≥6.2)
+      const value = await this.redis.getdel<string>(key);
+      if (value === null || value === undefined) return null;
+      
+      // Check for corrupted cache values
+      if (typeof value === "string" && value === "[object Object]") {
+        logger.warn(`[Cache] Corrupted cache value detected in getAndDelete for key ${key}`);
+        return null;
+      }
+
+      // Plain strings (e.g. SIWE nonce, "used") are stored verbatim; only object payloads are JSON-serialized
+      let parsed: T;
+      if (typeof value === "string") {
+        try {
+          parsed = JSON.parse(value) as T;
+        } catch {
+          parsed = value as T;
+        }
+      } else {
+        parsed = value as T;
+      }
+      this.resetFailures();
+      return parsed;
+    } catch (error) {
+      this.recordFailure();
+      logger.error("[Cache] GETDEL failed", {
+        key,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Re-throw Redis failures to prevent proceeding with a failed GETDEL
+      throw new Error("Cache operation failed during getAndDelete", { cause: error });
+    }
   }
 
   /**

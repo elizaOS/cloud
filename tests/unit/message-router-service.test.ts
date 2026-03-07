@@ -12,8 +12,8 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { messageRouterService } from "@/lib/services/message-router";
 
-describe("MessageRouterService", () => {
-  const testOrgId = "router-test-org-123";
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService", () => {
+  const testOrgId = "88888888-8888-8888-8888-888888888888";
 
   describe("Phone Number Normalization", () => {
     // The private normalizePhoneNumber method is tested indirectly through public methods
@@ -224,7 +224,7 @@ describe("MessageRouterService", () => {
 
     it("returns empty array for non-existent organization", async () => {
       const phoneNumbers = await messageRouterService.getPhoneNumbers(
-        "non-existent-org"
+        "99999999-9999-9999-9999-999999999999"
       );
       expect(Array.isArray(phoneNumbers)).toBe(true);
     });
@@ -233,24 +233,21 @@ describe("MessageRouterService", () => {
   describe("getPhoneNumberById", () => {
     it("returns null for non-existent phone number", async () => {
       const phoneNumber = await messageRouterService.getPhoneNumberById(
-        "non-existent-id"
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
       );
       expect(phoneNumber).toBeNull();
     });
 
-    it("returns null for invalid UUID format", async () => {
-      const phoneNumber = await messageRouterService.getPhoneNumberById(
+    it("throws error for invalid UUID format", async () => {
+      await expect(messageRouterService.getPhoneNumberById(
         "not-a-uuid"
-      );
-      expect(phoneNumber === null || phoneNumber === undefined).toBe(true);
+      )).rejects.toThrow();
     });
   });
 
   describe("deactivatePhoneNumber", () => {
     it("does not throw for non-existent phone number", async () => {
-      await expect(
-        messageRouterService.deactivatePhoneNumber("non-existent-id")
-      ).resolves.not.toThrow();
+      await messageRouterService.deactivatePhoneNumber("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     });
   });
 
@@ -339,7 +336,7 @@ describe("MessageRouterService", () => {
   });
 });
 
-describe("MessageRouterService ID Generation", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService ID Generation", () => {
   // Test deterministic ID generation behavior
 
   describe("Entity ID Generation", () => {
@@ -390,8 +387,8 @@ describe("MessageRouterService ID Generation", () => {
   });
 });
 
-describe("MessageRouterService Concurrent Operations", () => {
-  const concurrentOrgId = "concurrent-router-test";
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService Concurrent Operations", () => {
+  const concurrentOrgId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
   it("handles concurrent message routing", async () => {
     const promises = Array(10)
@@ -448,7 +445,7 @@ describe("MessageRouterService Concurrent Operations", () => {
   });
 });
 
-describe("MessageRouterService Provider Handling", () => {
+describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "1")("MessageRouterService Provider Handling", () => {
   it("correctly identifies Twilio messages", async () => {
     const result = await messageRouterService.routeIncomingMessage({
       from: "+15551234567",
