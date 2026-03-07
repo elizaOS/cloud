@@ -211,7 +211,7 @@ async function isMethodAllowed(method: string): Promise<boolean> {
   return allowedMethods.has(method);
 }
 
-async function extractMethodFromBody(body: JsonRpcRequest | JsonRpcBatchRequest): Promise<string> {
+async function extractMethodFromBody(body: ProxyRequestBody): Promise<string> {
   if (!body || typeof body !== "object") {
     throw new Error("Invalid JSON-RPC request: body must be an object");
   }
@@ -290,6 +290,10 @@ export const solanaRpcConfig: ServiceConfig = {
     hitCostMultiplier: 0.5,
   },
   getCost: async (body: ProxyRequestBody) => {
+    if (!body) {
+      throw new Error("Invalid JSON-RPC request: body is required");
+    }
+
     const method = await extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {
@@ -439,6 +443,11 @@ export const solanaRpcHandler: ServiceHandler = async ({
   body,
   searchParams,
 }) => {
+  if (!body) {
+    throw new Error("Invalid JSON-RPC request: body is required");
+  }
+
+  const rpcBody = body as JsonRpcRequest | JsonRpcBatchRequest;
   const network = searchParams.get("network") || "mainnet";
 
   if (network !== "mainnet" && network !== "devnet") {
@@ -473,14 +482,14 @@ export const solanaRpcHandler: ServiceHandler = async ({
     : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
   
   const primaryUrl = `${primaryBaseUrl}/?api-key=${apiKey}`;
-  const maxRetries = getMaxRetries(body);
+  const maxRetries = getMaxRetries(rpcBody);
   const fetchLogs: FetchAttemptLog[] = [];
   let primaryTimedOut = false;
   let primaryStatus: number | undefined;
 
   // Try primary URL with retries (fewer for expensive methods)
   try {
-    const primary = await fetchWithRetry(primaryUrl, body, maxRetries);
+    const primary = await fetchWithRetry(primaryUrl, rpcBody, maxRetries);
     fetchLogs.push(...primary.fetchLogs);
 
     if (primary.response.ok || (primary.response.status >= 400 && primary.response.status < 500)) {
@@ -514,7 +523,7 @@ export const solanaRpcHandler: ServiceHandler = async ({
     logger.info("[Solana RPC] Attempting fallback URL");
 
     try {
-      const fallback = await fetchWithRetry(fallbackUrl, body, maxRetries);
+      const fallback = await fetchWithRetry(fallbackUrl, rpcBody, maxRetries);
       fetchLogs.push(...fallback.fetchLogs);
 
       if (fallback.response.ok) {

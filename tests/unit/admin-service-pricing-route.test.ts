@@ -154,7 +154,7 @@ describe("Admin Service Pricing API", () => {
     expect(mockInvalidateCache).toHaveBeenCalledWith("solana-rpc");
   });
 
-  it("PUT succeeds even if cache invalidation fails", async () => {
+  it("PUT fails when pre-update cache invalidation fails", async () => {
     mockRequireAdminWithResponse.mockResolvedValue({
       user: { id: "admin-1" },
       role: "admin",
@@ -184,6 +184,44 @@ describe("Admin Service Pricing API", () => {
     );
     const response = await PUT(request);
 
+    expect(response.status).toBe(500);
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it("PUT succeeds when only post-update cache invalidation fails", async () => {
+    mockRequireAdminWithResponse.mockResolvedValue({
+      user: { id: "admin-1" },
+      role: "admin",
+    } as any);
+    mockUpsert.mockResolvedValue({
+      id: "1",
+      service_id: "solana-rpc",
+      method: "getBalance",
+      cost: "0.002",
+      is_active: true,
+      updated_at: new Date(),
+    } as any);
+    mockInvalidateCache
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => {
+        throw new Error("Redis down");
+      });
+
+    const { PUT } = await importRoute();
+    const request = createRequest(
+      "PUT",
+      "http://localhost/api/v1/admin/service-pricing",
+      {
+        service_id: "solana-rpc",
+        method: "getBalance",
+        cost: 0.002,
+        reason: "Update pricing",
+      },
+    );
+    const response = await PUT(request);
+
     expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.cache_invalidated).toBe(false);
   });
 });

@@ -21,7 +21,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { AuthenticationError, ForbiddenError } from "@/lib/api/errors";
 import { requireAdminWithResponse } from "@/lib/api/admin-auth";
 import { servicePricingRepository } from "@/db/repositories";
 import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
@@ -110,18 +109,10 @@ export async function PUT(request: NextRequest) {
   const { service_id, method, cost, reason, description, metadata } = parsed.data;
 
   try {
-    // Pre-update cache invalidation
     let cacheInvalidated = false;
-    try {
-      await invalidateServicePricingCache(service_id);
-      cacheInvalidated = true;
-    } catch (error) {
-      logger.warn("[Admin] Pre-update cache invalidation failed", {
-        service_id,
-        method,
-        error: error instanceof Error ? error.message : "Unknown",
-      });
-    }
+
+    // Pre-update invalidation must succeed so the write cannot proceed with stale cache.
+    await invalidateServicePricingCache(service_id);
 
     const result = await servicePricingRepository.upsert(
       service_id,
@@ -133,7 +124,7 @@ export async function PUT(request: NextRequest) {
       metadata,
     );
 
-    // Post-update cache invalidation
+    // Post-update invalidation failure is visible but does not roll back the write.
     try {
       await invalidateServicePricingCache(service_id);
       cacheInvalidated = true;

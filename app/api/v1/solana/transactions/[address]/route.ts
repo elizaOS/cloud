@@ -1,8 +1,8 @@
 /**
  * Solana Transactions API - Get transactions by address
- * 
+ *
  * Public API for retrieving transaction history for a Solana address.
- * 
+ *
  * CORS: Unrestricted by design - see lib/services/proxy/cors.ts for security rationale.
  * Authentication: API key required (X-API-Key header)
  * Rate Limiting: Per API key
@@ -10,9 +10,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { executeWithBody } from "@/lib/services/proxy/engine";
-import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
+import {
+  solanaRpcConfig,
+  solanaRpcHandler,
+} from "@/lib/services/proxy/services/solana-rpc";
 import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
-import { handleCorsOptions, getCorsHeaders } from "@/lib/services/proxy/cors";
+import {
+  getCorsHeaders,
+  handleCorsOptions,
+} from "@/lib/services/proxy/cors";
 
 export const maxDuration = 30;
 
@@ -26,15 +32,16 @@ export async function GET(
 ) {
   const { address } = await params;
 
-  // Validate Solana address format to prevent DoS and invalid requests
   if (!isValidSolanaAddress(address)) {
-    const corsHeaders = getCorsHeaders("GET, OPTIONS");
     return NextResponse.json(
-      { 
+      {
         error: "Invalid Solana address",
-        details: "Address must be a valid base58-encoded public key"
+        details: "Address must be a valid base58-encoded public key",
       },
-      { status: 400, headers: corsHeaders },
+      {
+        status: 400,
+        headers: getCorsHeaders("GET, OPTIONS"),
+      },
     );
   }
 
@@ -48,26 +55,6 @@ export async function GET(
   };
 
   try {
-    const response = await executeWithBody(
-      solanaRpcConfig,
-      solanaRpcHandler,
-      request,
-      body,
-    );
-
-    const corsHeaders = getCorsHeaders("GET, OPTIONS");
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      response.headers.set(key, value);
-    }
-
-    return response;
-  } catch {
-    return new NextResponse("Internal Server Error", {
-      status: 500,
-      headers: getCorsHeaders("GET, OPTIONS"),
-    });
-  }
-}
     const response = await executeWithBody(
       solanaRpcConfig,
       solanaRpcHandler,
