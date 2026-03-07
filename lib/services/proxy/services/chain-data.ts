@@ -5,17 +5,16 @@ import { getServiceMethodCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
 import { ALCHEMY_SLUGS } from "./rpc";
-import { isValidAddress } from "./address-validation";
 
 /**
  * Provider method configuration for enhanced chain data
- * 
+ *
  * WHY dual-mode (REST + JSON-RPC):
  * - Alchemy NFT API is REST (GET requests to /nft/v3/{apiKey}/endpoint)
  * - Alchemy Token/Transfers API is JSON-RPC (POST to /v2/{apiKey} with alchemy_* methods)
  * - Routes stay provider-agnostic by using generic method names
  * - Swapping providers = update these configs, routes unchanged
- * 
+ *
  * WHY buildRpcParams:
  * - Routes use named params (provider-agnostic)
  * - Alchemy JSON-RPC needs positional params (provider-specific)
@@ -61,13 +60,16 @@ const PROVIDER_METHODS: Record<string, ProviderMethod> = {
     // Filter out null/undefined values to avoid sending them to Alchemy
     buildRpcParams: (p) => {
       const params: Record<string, string | string[]> = {
-        category: p.category ? [String(p.category)] : ["external", "erc20", "erc721", "erc1155"],
+        category: p.category
+          ? [String(p.category)]
+          : ["external", "erc20", "erc721", "erc1155"],
       };
       if (p.fromAddress) params.fromAddress = String(p.fromAddress);
       if (p.toAddress) params.toAddress = String(p.toAddress);
       if (p.pageKey) params.pageKey = String(p.pageKey);
       const count = Number(p.maxCount);
-      params.maxCount = (!p.maxCount || Number.isNaN(count)) ? "0x64" : "0x" + count.toString(16);
+      params.maxCount =
+        !p.maxCount || Number.isNaN(count) ? "0x64" : "0x" + count.toString(16);
       return [params];
     },
   },
@@ -75,15 +77,13 @@ const PROVIDER_METHODS: Record<string, ProviderMethod> = {
 
 /**
  * Methods that should not be cached
- * 
+ *
  * WHY getAssetTransfers is non-cacheable:
  * - Real-time transaction data changes every block
  * - Caching = users see stale transactions while still paying 50%
  * - Better to always fetch fresh data
  */
-const NON_CACHEABLE_METHODS = new Set([
-  "getAssetTransfers",
-]);
+const NON_CACHEABLE_METHODS = new Set(["getAssetTransfers"]);
 
 export interface ChainDataRequest {
   method: string;
@@ -93,21 +93,21 @@ export interface ChainDataRequest {
 
 /**
  * Chain Data ServiceConfig
- * 
+ *
  * WHY apiKeyWithOrg auth:
  * - Enhanced data is premium (5-100x more expensive than standard RPC)
  * - Must validate both API key AND org has sufficient balance
- * 
+ *
  * WHY 60 req/min rate limit (stricter than standard RPC's 100):
  * - Enhanced APIs are heavier on upstream provider
  * - Higher per-request cost reduces need for frequent calls
  * - Prevents single org from monopolizing enhanced endpoints
- * 
+ *
  * WHY 30s cache TTL:
  * - NFT metadata rarely changes (safe to cache longer)
  * - Token balances change frequently (keep fresh)
  * - 30s balances freshness vs cost savings
- * 
+ *
  * WHY 50% cost on cache hit:
  * - Zero cost = users abuse cache with rapid refreshes
  * - 100% cost = no incentive to use caching
@@ -135,7 +135,7 @@ export const chainDataConfig: ServiceConfig = {
 
 /**
  * Chain Data ServiceHandler
- * 
+ *
  * WHY validate chain against ALCHEMY_SLUGS (not address-validation.ts EVM_CHAINS):
  * - address-validation.ts includes BSC, but Alchemy doesn't support BSC
  * - Chain-data must validate against actual provider coverage
@@ -148,7 +148,7 @@ export const chainDataHandler: ServiceHandler = async ({ body }) => {
   if (!ALCHEMY_SLUGS[chain]) {
     const supportedChains = Object.keys(ALCHEMY_SLUGS);
     throw new Error(
-      `Chain '${chain}' not supported for enhanced data. Supported chains: ${supportedChains.join(", ")}`
+      `Chain '${chain}' not supported for enhanced data. Supported chains: ${supportedChains.join(", ")}`,
     );
   }
 

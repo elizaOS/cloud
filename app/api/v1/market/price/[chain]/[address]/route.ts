@@ -1,17 +1,17 @@
 /**
  * Market Data: Token Price Endpoint
- * 
+ *
  * GET /api/v1/market/price/{chain}/{address}
- * 
+ *
  * WHY this route exists:
  * - Most common market data query (90% of use cases)
  * - Real-time price is foundation for portfolio tracking, trading, analytics
- * 
+ *
  * WHY separate route per method:
  * - RESTful: each resource type has unique URL
  * - Cacheable: CDNs/browsers can cache by URL path
  * - Readable: /market/price/solana/EPj... is self-documenting
- * 
+ *
  * WHY validate before executeWithBody:
  * - Fail-fast: reject bad input before billing credits
  * - UX: instant error feedback vs slow upstream error
@@ -57,22 +57,24 @@ export async function GET(
   { params }: { params: Promise<{ chain: string; address: string }> },
 ) {
   const { chain, address } = await params;
+  const normalizedChain = chain.toLowerCase();
 
-  if (!isValidChain(chain)) {
+  if (!isValidChain(normalizedChain)) {
     return NextResponse.json(
       {
         error: "Invalid chain",
-        details: "Supported chains: solana, ethereum, arbitrum, avalanche, bsc, optimism, polygon, base, zksync, sui",
+        details:
+          "Supported chains: solana, ethereum, arbitrum, avalanche, bsc, optimism, polygon, base, zksync, sui",
       },
       { status: 400 },
     );
   }
 
-  if (!isValidAddress(chain, address)) {
+  if (!isValidAddress(normalizedChain, address)) {
     return NextResponse.json(
       {
         error: "Invalid address format",
-        details: `Address format invalid for chain: ${chain}`,
+        details: `Address format invalid for chain: ${normalizedChain}`,
       },
       { status: 400 },
     );
@@ -84,7 +86,7 @@ export async function GET(
   // - params: flexible object allows adding fields without route changes
   const body = {
     method: "getPrice",
-    chain,
+    chain: normalizedChain,
     params: { address },
   };
 

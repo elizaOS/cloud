@@ -33,23 +33,25 @@ export async function GET(
   { params }: { params: Promise<{ chain: string; address: string }> },
 ) {
   const { chain, address } = await params;
+  const normalizedChain = chain.toLowerCase();
   const { searchParams } = new URL(request.url);
 
-  if (!isValidChain(chain)) {
+  if (!isValidChain(normalizedChain)) {
     return NextResponse.json(
       {
         error: "Invalid chain",
-        details: "Supported chains: solana, ethereum, arbitrum, avalanche, bsc, optimism, polygon, base, zksync, sui",
+        details:
+          "Supported chains: solana, ethereum, arbitrum, avalanche, bsc, optimism, polygon, base, zksync, sui",
       },
       { status: 400 },
     );
   }
 
-  if (!isValidAddress(chain, address)) {
+  if (!isValidAddress(normalizedChain, address)) {
     return NextResponse.json(
       {
         error: "Invalid address format",
-        details: `Address format invalid for chain: ${chain}`,
+        details: `Address format invalid for chain: ${normalizedChain}`,
       },
       { status: 400 },
     );
@@ -68,7 +70,7 @@ export async function GET(
 
   const body = {
     method: "getTokenTrades",
-    chain,
+    chain: normalizedChain,
     params: requestParams,
   };
 

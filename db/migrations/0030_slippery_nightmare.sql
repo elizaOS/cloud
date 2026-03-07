@@ -24,5 +24,5 @@ CREATE TABLE "service_pricing_audit" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "service_pricing_audit" ADD CONSTRAINT "service_pricing_audit_service_pricing_id_service_pricing_id_fk" FOREIGN KEY ("service_pricing_id") REFERENCES "public"."service_pricing"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "service_pricing_audit" ADD CONSTRAINT "service_pricing_audit_service_pricing_id_service_pricing_id_fk" FOREIGN KEY ("service_pricing_id") REFERENCES "public"."service_pricing"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "service_pricing_service_method_idx" ON "service_pricing" USING btree ("service_id","method");

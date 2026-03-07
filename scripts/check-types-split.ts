@@ -39,9 +39,9 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
     const entries = await readdir(dir, { withFileTypes: true });
     const subdirs = entries
       .filter((entry) => entry.isDirectory())
-      .map((entry) => `${dir}/${entry.name}`)
+      .map((entry) => join(dir, entry.name))
       .sort();
-    
+
     // If no subdirectories found, return the directory itself
     return subdirs.length > 0 ? subdirs : [dir];
   } catch {
@@ -53,24 +53,18 @@ async function splitIntoSubdirectories(dir: string): Promise<string[]> {
 async function getDirectoriesToCheck(): Promise<string[]> {
   // Split large directories into subdirectories for smaller chunks
   const libSubdirs = await splitIntoSubdirectories("lib");
-  
-  // If app/ or components/ grows too large, split them too:
-  // const appSubdirs = await splitIntoSubdirectories("app");
-  // const componentSubdirs = await splitIntoSubdirectories("components");
-  
-  return [
-    "db",
-    ...libSubdirs,
-    "components",
-    "app",
-  ];
+  const appSubdirs = await splitIntoSubdirectories("app");
+  const componentSubdirs = await splitIntoSubdirectories("components");
+
+  return ["db", ...libSubdirs, ...componentSubdirs, ...appSubdirs];
 }
 
 async function createTempTsconfig(
   directory: string,
-  baseTsconfig: object
+  baseTsconfig: object,
 ): Promise<string> {
-  const tempPath = `tsconfig.${directory}.temp.json`;
+  const safeDirectoryName = directory.replace(/[\\/]/g, ".");
+  const tempPath = `tsconfig.${safeDirectoryName}.temp.json`;
 
   const tempConfig = {
     ...baseTsconfig,
@@ -112,7 +106,7 @@ async function createTempTsconfig(
 
 async function checkDirectory(
   directory: string,
-  baseTsconfig: object
+  baseTsconfig: object,
 ): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
@@ -128,7 +122,7 @@ async function checkDirectory(
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large output
         // Limit to 2GB per check instead of 4GB
         env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
-      }
+      },
     );
 
     const output = stdout + stderr;
@@ -146,7 +140,9 @@ async function checkDirectory(
           error.message
         : String(error);
 
-    console.log(`   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`);
+    console.log(
+      `   ✗ ${directory}/ has errors (${(duration / 1000).toFixed(1)}s)`,
+    );
 
     return { directory, success: false, output, duration };
   } finally {

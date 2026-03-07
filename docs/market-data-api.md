@@ -9,6 +9,7 @@ Provider-agnostic multi-chain market data API with credit-based billing.
 The Market Data API is designed to be **provider-agnostic**. Routes never mention the underlying provider (currently Birdeye), making it trivial to swap providers without touching route files.
 
 **WHY this matters:**
+
 - **Provider migration**: Switch from Birdeye to CoinGecko/DexScreener in <1 hour
 - **Multi-provider**: Run multiple providers simultaneously for redundancy
 - **LLM-friendly**: AI agents can add routes without learning provider-specific APIs
@@ -41,11 +42,13 @@ The Market Data API is designed to be **provider-agnostic**. Routes never mentio
 ## Endpoints
 
 ### Token Price
+
 ```bash
 GET /api/v1/market/price/{chain}/{address}
 ```
 
 **WHY separate by chain/address:**
+
 - RESTful: each resource has a unique URL
 - Cacheable: browsers/CDNs can cache by URL
 - Readable: `/market/price/solana/EPj...` is self-documenting
@@ -53,6 +56,7 @@ GET /api/v1/market/price/{chain}/{address}
 **Supported chains:** solana, ethereum, arbitrum, avalanche, bsc, optimism, polygon, base, zksync, sui
 
 **Response:**
+
 ```json
 {
   "value": 0.999845,
@@ -66,6 +70,7 @@ GET /api/v1/market/price/{chain}/{address}
 ---
 
 ### Token Overview
+
 ```bash
 GET /api/v1/market/token/{chain}/{address}
 ```
@@ -77,16 +82,19 @@ Get comprehensive token metadata: supply, holders, liquidity, social links, secu
 ---
 
 ### OHLCV Candles
+
 ```bash
 GET /api/v1/market/candles/{chain}/{address}?type=1H&time_from=1707000000&time_to=1707100000
 ```
 
 **Query params:**
+
 - `type`: `1m`, `3m`, `5m`, `15m`, `30m`, `1H`, `2H`, `4H`, `6H`, `8H`, `12H`, `1D`, `1W`
 - `time_from`: Unix timestamp (seconds)
 - `time_to`: Unix timestamp (seconds)
 
 **WHY query params not in URL path:**
+
 - Optional parameters: not all requests need time filtering
 - Variable types: too many to enumerate in path
 - HTTP spec: query params are for filtering, path is for resources
@@ -96,11 +104,13 @@ GET /api/v1/market/candles/{chain}/{address}?type=1H&time_from=1707000000&time_t
 ---
 
 ### Token Trades
+
 ```bash
 GET /api/v1/market/trades/{chain}/{address}?limit=50&offset=0&tx_type=swap
 ```
 
 **Query params:**
+
 - `limit`: 1-100 (default 50)
 - `offset`: pagination offset
 - `tx_type`: `swap`, `add`, `remove` (liquidity operations)
@@ -112,6 +122,7 @@ GET /api/v1/market/trades/{chain}/{address}?limit=50&offset=0&tx_type=swap
 ---
 
 ### Wallet Portfolio
+
 ```bash
 GET /api/v1/market/portfolio/{chain}/{address}
 ```
@@ -119,6 +130,7 @@ GET /api/v1/market/portfolio/{chain}/{address}
 Get all tokens held by a wallet with balances, prices, and USD values.
 
 **WHY this is useful:**
+
 - Portfolio tracking: see user's total holdings
 - Token discovery: find what tokens users actually hold
 - Analytics: understand which tokens are popular
@@ -141,6 +153,7 @@ curl -X PUT https://api.elizacloud.ai/api/v1/admin/service-pricing \
 ```
 
 **WHY DB-backed pricing:**
+
 - **Instant updates**: No code deploys to change prices
 - **Audit trail**: Every price change logged with who/when/why
 - **A/B testing**: Easy to test different price points
@@ -153,6 +166,7 @@ Cost = (Provider CU cost) × $0.00001 × 1.2 (markup)
 ```
 
 **WHY 20% markup:**
+
 - Covers platform costs (Redis, compute, support)
 - Allows for provider price increases without immediate platform losses
 - Industry standard: AWS charges 25-40% markup on upstream services
@@ -165,16 +179,18 @@ Cache miss: 100% of normal cost
 ```
 
 **WHY 50% split:**
+
 - User saves money by using cache properly (setting `Cache-Control: max-age=30`)
 - Platform saves upstream API costs
 - Win-win: encourages efficient usage without making cache free (which leads to abuse)
 
 **Example:**
+
 ```
 getPrice = $0.000120 per request
 
 Without caching: 1000 requests = $0.12
-With caching (80% hit rate): 
+With caching (80% hit rate):
   - 200 misses × $0.000120 = $0.024
   - 800 hits × $0.000060 = $0.048
   - Total = $0.072 (40% savings for user)
@@ -185,11 +201,13 @@ With caching (80% hit rate):
 ### Chain Validation
 
 **WHY validate chains:**
+
 - Fail-fast: reject invalid chains immediately, not after billing
 - Security: prevent injection attacks via malformed chain names
 - UX: clear error messages vs cryptic provider errors
 
 **Supported chains:**
+
 - Solana: `[1-9A-HJ-NP-Za-km-z]{32,44}` (base58)
 - EVM: `0x[a-fA-F0-9]{40}` (checksummed hex)
 - Sui: `0x[a-fA-F0-9]{64}` (longer hex)
@@ -197,6 +215,7 @@ With caching (80% hit rate):
 ### Address Validation
 
 **WHY validate addresses:**
+
 - **DoS prevention**: Reject 10MB "address" strings before they hit upstream
 - **Cost saving**: Invalid address = wasted credits + API call
 - **UX**: Instant feedback on typos vs 2-second upstream roundtrip
@@ -206,11 +225,13 @@ With caching (80% hit rate):
 **Default:** 100 requests/minute per organization
 
 **WHY 100 req/min:**
+
 - Birdeye free tier: 150 req/min
 - We reserve 33% margin for retries + bursts
 - Can increase per-org via pricing tiers
 
 **WHY per-org not per-API-key:**
+
 - Prevents users from creating multiple API keys to bypass limits
 - Aligns with billing (credits are per-org)
 - Simpler to manage and explain to users
@@ -222,21 +243,24 @@ With caching (80% hit rate):
 **Cache key:** org + method + chain + params (hashed)
 
 **WHY 30s TTL:**
+
 - Token prices change every 1-5 seconds
 - 30s is stale enough to save costs but fresh enough for most dashboards
 - Users can override with `Cache-Control: max-age=0` for real-time needs
 
 **WHY 128KB limit:**
+
 - Most responses <10KB (price, metadata)
 - Portfolio can be 50-100KB (100+ tokens)
 - 128KB covers 99% without wasting Redis memory
 - Oversized responses skip cache, full cost billed
 
 **Cache headers:**
+
 ```
 X-Cache: HIT|MISS
 X-Cache-Age: 12  (seconds since cached)
-Cache-Control: max-age=30  (when it expires)
+Cache-Control: private, max-age=30  (remaining freshness for this org-scoped response)
 ```
 
 ## Error Handling
@@ -251,6 +275,7 @@ All routes return consistent error formats:
 ```
 
 **WHY consistent errors:**
+
 - LLMs can parse and react to errors reliably
 - Users can build robust error handling once, works across all endpoints
 - Support can diagnose issues faster with standardized messages
@@ -272,7 +297,7 @@ To switch from Birdeye to another provider:
 
 ```typescript
 // lib/services/proxy/config.ts
-MARKET_DATA_BASE_URL: "https://api.coingecko.com"  // was birdeye.so
+MARKET_DATA_BASE_URL: "https://api.coingecko.com"; // was birdeye.so
 ```
 
 ### 2. Update Path Mappings
@@ -280,7 +305,7 @@ MARKET_DATA_BASE_URL: "https://api.coingecko.com"  // was birdeye.so
 ```typescript
 // lib/services/proxy/services/market-data.ts
 const PROVIDER_PATHS: Record<string, string> = {
-  getPrice: "/v3/simple/token_price",  // was /defi/price
+  getPrice: "/v3/simple/token_price", // was /defi/price
   // ... update other paths
 };
 ```
@@ -299,7 +324,7 @@ headers: {
 
 ```sql
 -- Update costs based on new provider's pricing
-UPDATE service_pricing 
+UPDATE service_pricing
 SET cost = 0.000200  -- CoinGecko charges more than Birdeye
 WHERE service_id = 'market-data' AND method = 'getPrice';
 ```
@@ -333,7 +358,7 @@ const PROVIDER_PATHS: Record<string, string> = {
 
 ```sql
 INSERT INTO service_pricing (service_id, method, cost, metadata)
-VALUES ('market-data', 'getTokenHolders', 0.000600, 
+VALUES ('market-data', 'getTokenHolders', 0.000600,
         '{"cu": 50, "markup": 1.2, "description": "Token holder distribution"}');
 ```
 
@@ -356,24 +381,22 @@ return executeWithBody(marketDataConfig, marketDataHandler, request, body);
 
 ### API Key Security
 
-**WHY sanitize logs:**
-- Birdeye requires API key in URL: `?api-key=xxx`
-- Standard logging would expose keys
-- Automatic sanitization in `retryFetch` prevents leaks
+**WHY keep provider auth in headers:**
 
-```typescript
-// All logs show:
-url: "https://api.birdeye.so/defi/price?api-key=***"
-```
+- Birdeye authentication is sent in the `X-API-KEY` header, not the URL
+- Keeping provider secrets out of URLs avoids credential leaks in logs and traces
+- `retryFetch` only logs sanitized URLs and never emits auth headers
 
 ### Input Validation
 
 **WHY validate everything:**
+
 - DoS: 10MB address string crashes server
 - Injection: malformed chain could break upstream queries
 - Cost: invalid requests waste credits
 
 **What we validate:**
+
 1. Chain exists in supported list
 2. Address matches chain's format (regex)
 3. Query params are within reasonable bounds (limit ≤ 100)
@@ -381,6 +404,7 @@ url: "https://api.birdeye.so/defi/price?api-key=***"
 ### Rate Limiting
 
 **WHY per-org not per-user:**
+
 - Orgs pay for credits, they should control usage
 - Prevents single user from eating org's entire quota
 - Aligns with business model
@@ -390,18 +414,22 @@ url: "https://api.birdeye.so/defi/price?api-key=***"
 Key metrics to track:
 
 1. **Cache hit rate**: Should be >70% for most endpoints
+
    - Low hit rate = users not using `Cache-Control` properly
    - Consider adjusting default TTL or education
 
 2. **Upstream latency**: P95 should be <500ms
+
    - High latency = provider issues or network problems
    - May need to add fallback provider
 
 3. **Error rate**: Should be <1%
+
    - High errors = provider instability or our bug
    - Check provider status page + our logs
 
 4. **Cost per request**: Track actual provider cost vs our pricing
+
    - If provider raises prices, we know immediately
    - Adjust our pricing to maintain margins
 
@@ -422,6 +450,7 @@ bun test tests/integration/market-data.test.ts
 ```
 
 **WHY integration tests:**
+
 - Unit tests can't catch provider API changes
 - Integration tests verify full request/response cycle
 - Catch issues before users do
@@ -429,41 +458,50 @@ bun test tests/integration/market-data.test.ts
 ## Common Issues
 
 ### "Invalid chain"
+
 - **Cause**: Typo in chain name or unsupported chain
 - **Fix**: Check supported chains list, use lowercase
 
 ### "Invalid address format"
+
 - **Cause**: Wrong address format for chain (e.g., EVM address on Solana)
 - **Fix**: Verify address matches chain's format
 
 ### "Insufficient credits"
+
 - **Cause**: Organization balance is zero
 - **Fix**: Top up credits via billing page
 
 ### "Rate limit exceeded"
+
 - **Cause**: >100 requests/min from single org
 - **Fix**: Implement backoff in client, or contact support for higher limit
 
 ### "Market data provider error" (502)
+
 - **Cause**: Upstream provider (Birdeye) returned error
 - **Fix**: Check provider status page, retry in a few seconds
 
 ## Future Enhancements
 
 1. **Multi-provider redundancy**
+
    - Try Birdeye first, fallback to CoinGecko on failure
    - Improves reliability to 99.9%+
 
 2. **Smart caching**
+
    - Longer TTL for stablecoins (price rarely changes)
    - Shorter TTL for volatile meme coins
    - Adaptive TTL based on price volatility
 
 3. **Batch requests**
+
    - Get prices for 100 tokens in one request
    - Reduces per-token cost for portfolio apps
 
 4. **WebSocket streaming**
+
    - Real-time price updates without polling
    - Lower latency, better UX for trading apps
 

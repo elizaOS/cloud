@@ -5,7 +5,10 @@ import {
   requireAuthOrApiKey,
   requireAuthOrApiKeyWithOrg,
 } from "@/lib/auth";
-import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
 import { cache } from "@/lib/cache/client";
@@ -14,11 +17,18 @@ import { PricingNotFoundError } from "./pricing";
 import type {
   ServiceConfig,
   ServiceHandler,
-  HandlerContext,
   HandlerResult,
   AuthLevel,
 } from "./types";
 import crypto from "crypto";
+
+type CachedProxyResponse = {
+  body: string;
+  status: number;
+  headers: Record<string, string>;
+  cachedAt: number;
+  ttl?: number;
+};
 
 async function getAuthForLevel(request: NextRequest, level: AuthLevel) {
   switch (level) {
@@ -47,6 +57,52 @@ function buildCacheKey(
   return `svc:${serviceId}:${orgId}:${contentHash}`;
 }
 
+function getRequestedMaxAge(request: NextRequest): number {
+  const cacheControl = request.headers.get("cache-control");
+  const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
+  return maxAgeMatch ? Number.parseInt(maxAgeMatch[1], 10) : 0;
+}
+
+function getMethodFromBody(body: unknown): string {
+  return body && typeof body === "object" && "method" in body
+    ? String(body.method)
+    : "_default";
+}
+
+function isCacheableResponseContentType(response: Response): boolean {
+  const contentType = response.headers.get("content-type")?.toLowerCase();
+  if (!contentType || contentType.includes("text/event-stream")) {
+    return false;
+  }
+
+  return (
+    contentType.startsWith("text/") ||
+    contentType.includes("json") ||
+    contentType.includes("xml") ||
+    contentType.includes("javascript") ||
+    contentType.includes("x-www-form-urlencoded")
+  );
+}
+
+function withCacheHeaders(
+  headersInit: HeadersInit,
+  cacheStatus: "HIT" | "MISS",
+  maxAge: number,
+  age?: number,
+): Headers {
+  const headers = new Headers(headersInit);
+  headers.set("Cache-Control", `private, max-age=${Math.max(0, maxAge)}`);
+  headers.set("X-Cache", cacheStatus);
+
+  if (age !== undefined) {
+    headers.set("X-Cache-Age", String(age));
+  } else {
+    headers.delete("X-Cache-Age");
+  }
+
+  return headers;
+}
+
 export function createHandler(
   config: ServiceConfig,
   work: ServiceHandler,
@@ -60,8 +116,14 @@ export function createHandler(
       const { user } = auth;
       const apiKey = "apiKey" in auth ? auth.apiKey : undefined;
 
-      const body =
-        request.method === "POST" ? await request.json() : null;
+      let body: unknown = null;
+      if (request.method === "POST") {
+        try {
+          body = await request.json();
+        } catch {
+          return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+        }
+      }
 
       const cost = await config.getCost(body, searchParams);
 
@@ -72,80 +134,76 @@ export function createHandler(
         description: config.name,
       });
 
-      let cached = false;
-      let cacheAge: number | undefined;
-
-      if (config.cache && body && !Array.isArray(body)) {
-        const cacheControl = request.headers.get("cache-control");
-        const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1]) : 0;
-
-        if (clientMaxAge > 0) {
-          const method =
-            body && typeof body === "object" && "method" in body
-              ? String(body.method)
-              : "_default";
-
-          const isCacheable = config.cache.isMethodCacheable
-            ? config.cache.isMethodCacheable(method)
-            : true;
-
-          if (isCacheable) {
-            const cacheKey = buildCacheKey(
-              config.id,
-              user.organization_id,
-              body,
-              searchParams,
-            );
-
-            const cachedResponse = await cache.get<{
-              body: string;
-              status: number;
-              headers: Record<string, string>;
-              cachedAt: number;
-            }>(cacheKey);
-
-            if (cachedResponse) {
-              const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
-              if (age <= clientMaxAge) {
-                cached = true;
-                cacheAge = age;
-
-                const hitMultiplier = config.cache.hitCostMultiplier ?? 0.5;
-                await reservation.reconcile(cost * hitMultiplier);
-
-                const response = new Response(cachedResponse.body, {
-                  status: cachedResponse.status,
-                  headers: {
-                    ...cachedResponse.headers,
-                    "X-Cache": "HIT",
-                    "X-Cache-Age": String(age),
-                  },
-                });
-
-                (async () => {
-                  try {
-                    await usageService.create({
-                      organization_id: user.organization_id,
-                      user_id: user.id,
-                      api_key_id: apiKey?.id,
-                      type: config.id,
-                      provider: config.id,
-                      input_cost: cost * hitMultiplier,
-                      output_cost: 0,
-                      markup: 0,
-                      duration_ms: Date.now() - startTime,
-                      is_successful: true,
-                      metadata: { cached: true, cache_age: age },
-                    });
-                  } catch (error) {
-                    logger.error("[Proxy Engine] Usage tracking failed (cache hit)", { error });
-                  }
-                })();
-
-                return response;
-              }
+      const cacheCandidate =
+        config.cache && body && !Array.isArray(body)
+          ? {
+              clientMaxAge: getRequestedMaxAge(request),
+              method: getMethodFromBody(body),
             }
+          : null;
+
+      const cacheKey =
+        cacheCandidate &&
+        cacheCandidate.clientMaxAge > 0 &&
+        (config.cache.isMethodCacheable
+          ? config.cache.isMethodCacheable(cacheCandidate.method)
+          : true)
+          ? buildCacheKey(config.id, user.organization_id, body, searchParams)
+          : null;
+
+      if (cacheKey && cacheCandidate) {
+        const cachedResponse = await cache.get<CachedProxyResponse>(cacheKey);
+
+        if (cachedResponse) {
+          const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
+          const storedMaxAge = cachedResponse.ttl ?? config.cache.maxTTL;
+          const effectiveMaxAge = Math.min(
+            cacheCandidate.clientMaxAge,
+            storedMaxAge,
+          );
+
+          if (age <= effectiveMaxAge) {
+            const hitMultiplier = config.cache.hitCostMultiplier ?? 0.5;
+            const remainingMaxAge = Math.max(effectiveMaxAge - age, 0);
+
+            await reservation.reconcile(cost * hitMultiplier);
+
+            const response = new Response(cachedResponse.body, {
+              status: cachedResponse.status,
+              headers: withCacheHeaders(
+                cachedResponse.headers,
+                "HIT",
+                remainingMaxAge,
+                age,
+              ),
+            });
+
+            void (async () => {
+              try {
+                await usageService.create({
+                  organization_id: user.organization_id,
+                  user_id: user.id,
+                  api_key_id: apiKey?.id,
+                  type: config.id,
+                  provider: config.id,
+                  input_cost: cost * hitMultiplier,
+                  output_cost: 0,
+                  markup: 0,
+                  duration_ms: Date.now() - startTime,
+                  is_successful: true,
+                  metadata: { cached: true, cache_age: age },
+                });
+              } catch (error) {
+                logger.error(
+                  "[Proxy Engine] Usage tracking failed (cache hit)",
+                  {
+                    error,
+                  },
+                );
+              }
+            })();
+
+            return response;
           }
         }
       }
@@ -162,70 +220,51 @@ export function createHandler(
       await reservation.reconcile(actualCost);
 
       if (
+        cacheKey &&
+        cacheCandidate &&
         config.cache &&
-        body &&
-        !Array.isArray(body) &&
-        !cached &&
-        result.response.ok
+        result.response.ok &&
+        isCacheableResponseContentType(result.response)
       ) {
-        const cacheControl = request.headers.get("cache-control");
-        const maxAgeMatch = cacheControl?.match(/max-age=(\d+)/);
-        const clientMaxAge = maxAgeMatch ? parseInt(maxAgeMatch[1]) : 0;
+        const clonedResponse = result.response.clone();
+        const responseBody = await clonedResponse.text();
+        const maxSize = config.cache.maxResponseSize ?? 65536;
 
-        if (clientMaxAge > 0) {
-          const method =
-            body && typeof body === "object" && "method" in body
-              ? String(body.method)
-              : "_default";
+        if (responseBody.length <= maxSize) {
+          const ttl = Math.min(
+            cacheCandidate.clientMaxAge,
+            config.cache.maxTTL,
+          );
+          const responseHeaders = withCacheHeaders(
+            result.response.headers,
+            "MISS",
+            ttl,
+          );
+          const headersObj: Record<string, string> = {};
+          responseHeaders.forEach((value, key) => {
+            headersObj[key] = value;
+          });
 
-          const isCacheable = config.cache.isMethodCacheable
-            ? config.cache.isMethodCacheable(method)
-            : true;
+          await cache.set(
+            cacheKey,
+            {
+              body: responseBody,
+              status: result.response.status,
+              headers: headersObj,
+              cachedAt: Date.now(),
+              ttl,
+            },
+            ttl,
+          );
 
-          if (isCacheable) {
-            // Clone response before consuming body to preserve original stream
-            const clonedResponse = result.response.clone();
-            const responseBody = await clonedResponse.text();
-            const maxSize = config.cache.maxResponseSize ?? 65536;
-
-            if (responseBody.length <= maxSize) {
-              const cacheKey = buildCacheKey(
-                config.id,
-                user.organization_id,
-                body,
-                searchParams,
-              );
-
-              const ttl = Math.min(clientMaxAge, config.cache.maxTTL);
-              const headersObj: Record<string, string> = {};
-              result.response.headers.forEach((value, key) => {
-                headersObj[key] = value;
-              });
-
-              await cache.set(
-                cacheKey,
-                {
-                  body: responseBody,
-                  status: result.response.status,
-                  headers: headersObj,
-                  cachedAt: Date.now(),
-                },
-                ttl,
-              );
-
-              result.response = new Response(responseBody, {
-                status: result.response.status,
-                headers: {
-                  ...headersObj,
-                  "X-Cache": "MISS",
-                },
-              });
-            }
-          }
+          result.response = new Response(responseBody, {
+            status: result.response.status,
+            headers: responseHeaders,
+          });
         }
       }
 
-      (async () => {
+      void (async () => {
         try {
           await usageService.create({
             organization_id: user.organization_id,
@@ -270,14 +309,17 @@ export function createHandler(
       }
 
       if (error instanceof Error) {
-        if (error.message.includes("validation") || error.message.includes("Invalid")) {
-          return NextResponse.json(
-            { error: error.message },
-            { status: 400 },
-          );
+        if (
+          error.message.includes("validation") ||
+          error.message.includes("Invalid")
+        ) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        if (error.name === "TimeoutError" || error.message.includes("timeout")) {
+        if (
+          error.name === "TimeoutError" ||
+          error.message.includes("timeout")
+        ) {
           return NextResponse.json(
             { error: "Upstream service timeout" },
             { status: 504 },

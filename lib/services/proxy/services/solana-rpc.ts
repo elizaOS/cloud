@@ -64,7 +64,7 @@ export const SOLANA_ALLOWED_METHODS = new Set([
   "requestAirdrop",
   "sendTransaction",
   "simulateTransaction",
-  
+
   // Tier 2 - DAS API (explicitly priced)
   "getAsset",
   "getAssetsByOwner",
@@ -78,7 +78,7 @@ export const SOLANA_ALLOWED_METHODS = new Set([
   "getAssetBatch",
   "getSignaturesForAsset",
   "getNftEditions",
-  
+
   // Tier 2 - Complex/Historical (explicitly priced)
   "getProgramAccounts",
   "getBlock",
@@ -88,7 +88,7 @@ export const SOLANA_ALLOWED_METHODS = new Set([
   "getSignaturesForAddress",
   "getBlockTime",
   "getInflationReward",
-  
+
   // Tier 3 - Enhanced/ZK (explicitly priced)
   "getTransactionsForAddress",
   "getValidityProof",
@@ -104,7 +104,9 @@ function extractMethodFromBody(body: unknown): string {
       throw new Error("Invalid JSON-RPC batch: empty array");
     }
     if (body.length > PROXY_CONFIG.MAX_BATCH_SIZE) {
-      throw new Error(`Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.MAX_BATCH_SIZE} requests`);
+      throw new Error(
+        `Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.MAX_BATCH_SIZE} requests`,
+      );
     }
     return "_batch";
   }
@@ -114,11 +116,11 @@ function extractMethodFromBody(body: unknown): string {
   }
 
   const method = body.method;
-  
+
   // Validate method is in whitelist
   if (!SOLANA_ALLOWED_METHODS.has(method)) {
     throw new Error(
-      `Method '${method}' is not supported. See /api/v1/solana/methods for allowed methods.`
+      `Method '${method}' is not supported. See docs/rpc-api.md for the supported Solana RPC methods.`,
     );
   }
 
@@ -143,13 +145,17 @@ export const solanaRpcConfig: ServiceConfig = {
     const method = extractMethodFromBody(body);
 
     if (method === "_batch" && Array.isArray(body)) {
-      return calculateBatchCost("solana-rpc", SOLANA_ALLOWED_METHODS, body, PROXY_CONFIG.MAX_BATCH_SIZE);
+      return calculateBatchCost(
+        "solana-rpc",
+        SOLANA_ALLOWED_METHODS,
+        body,
+        PROXY_CONFIG.MAX_BATCH_SIZE,
+      );
     }
 
     return getServiceMethodCost("solana-rpc", method);
   },
 };
-
 
 export const solanaRpcHandler: ServiceHandler = async ({
   body,
@@ -167,14 +173,16 @@ export const solanaRpcHandler: ServiceHandler = async ({
   }
 
   // Build primary and fallback URLs
-  const primaryBaseUrl = network === "mainnet" 
-    ? PROXY_CONFIG.HELIUS_MAINNET_URL 
-    : PROXY_CONFIG.HELIUS_DEVNET_URL;
-  
-  const fallbackBaseUrl = network === "mainnet"
-    ? PROXY_CONFIG.HELIUS_MAINNET_FALLBACK_URL
-    : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
-  
+  const primaryBaseUrl =
+    network === "mainnet"
+      ? PROXY_CONFIG.HELIUS_MAINNET_URL
+      : PROXY_CONFIG.HELIUS_DEVNET_URL;
+
+  const fallbackBaseUrl =
+    network === "mainnet"
+      ? PROXY_CONFIG.HELIUS_MAINNET_FALLBACK_URL
+      : PROXY_CONFIG.HELIUS_DEVNET_FALLBACK_URL;
+
   // Note: Helius requires API key in URL. Alternative patterns checked:
   // - Authorization header: Not supported by Helius RPC
   // - x-api-key header: Not supported by Helius RPC
@@ -212,7 +220,7 @@ export const solanaRpcHandler: ServiceHandler = async ({
       if (fallbackBaseUrl) {
         logger.info("[Solana RPC] Attempting fallback URL");
         const fallbackUrl = `${fallbackBaseUrl}/?api-key=${apiKey}`;
-        
+
         try {
           const fallbackResponse = await retryFetch({
             url: fallbackUrl,
@@ -229,14 +237,17 @@ export const solanaRpcHandler: ServiceHandler = async ({
             serviceTag: "Solana RPC",
             nonRetriableStatuses: [400, 404],
           });
-          
+
           if (fallbackResponse.ok) {
             logger.info("[Solana RPC] Fallback succeeded");
             return { response: fallbackResponse };
           }
-          
+
           const fallbackError = await fallbackResponse.text();
-          const sanitizedFallback = fallbackUrl.replace(/api-key=[^&]+/, "api-key=***");
+          const sanitizedFallback = fallbackUrl.replace(
+            /api-key=[^&]+/,
+            "api-key=***",
+          );
           logger.error("[Solana RPC] Fallback also failed", {
             url: sanitizedFallback,
             status: fallbackResponse.status,
@@ -244,7 +255,8 @@ export const solanaRpcHandler: ServiceHandler = async ({
           });
         } catch (fallbackErr) {
           logger.error("[Solana RPC] Fallback error", {
-            error: fallbackErr instanceof Error ? fallbackErr.message : "Unknown",
+            error:
+              fallbackErr instanceof Error ? fallbackErr.message : "Unknown",
           });
         }
       }
@@ -264,7 +276,9 @@ export const solanaRpcHandler: ServiceHandler = async ({
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
       const sanitizedUrl = primaryUrl.replace(/api-key=[^&]+/, "api-key=***");
-      logger.error("[Solana RPC] All attempts timed out", { url: sanitizedUrl });
+      logger.error("[Solana RPC] All attempts timed out", {
+        url: sanitizedUrl,
+      });
       throw new Error("timeout");
     }
     throw error;

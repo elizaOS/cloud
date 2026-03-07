@@ -5,9 +5,44 @@ import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+function getAdminAuthStatus(error: unknown): 401 | 403 | null {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (
+    message.includes("Unauthorized") ||
+    message.includes("Authentication required") ||
+    message.includes("Invalid or expired token") ||
+    message.includes("Invalid or expired API key") ||
+    message.includes("Invalid wallet signature") ||
+    message.includes("Wallet authentication failed") ||
+    message.includes("Wallet connection required for admin access")
+  ) {
+    return 401;
+  }
+
+  if (message.includes("Admin access required")) {
+    return 403;
+  }
+
+  return null;
+}
+
+function handleAdminError(error: unknown, context: string) {
+  const message =
+    error instanceof Error ? error.message : "Internal server error";
+  const authStatus = getAdminAuthStatus(error);
+
+  if (authStatus) {
+    return NextResponse.json({ error: message }, { status: authStatus });
+  }
+
+  logger.error(`[Admin Service Pricing] ${context}`, { error: message });
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAdmin(request);
+    await requireAdmin(request);
 
     const url = new URL(request.url);
     const serviceId = url.searchParams.get("service_id");
@@ -35,10 +70,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    return handleAdminError(error, "Failed to load service pricing");
   }
 }
 
@@ -111,9 +143,6 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    return handleAdminError(error, "Failed to update service pricing");
   }
 }

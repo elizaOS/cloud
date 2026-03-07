@@ -4,37 +4,11 @@ import type { ServiceConfig, ServiceHandler } from "../types";
 import { getServiceMethodCost, calculateBatchCost } from "../pricing";
 import { PROXY_CONFIG } from "../config";
 import { retryFetch } from "../fetch";
-import { 
-  solanaRpcConfig, 
-  solanaRpcHandler,
-  SOLANA_ALLOWED_METHODS,
-  SOLANA_NON_CACHEABLE_METHODS,
-} from "./solana-rpc";
-
-/**
- * Provider configuration for multi-chain RPC
- * 
- * WHY this abstraction:
- * - Standard RPC methods (eth_*, Solana) are commodity across providers
- * - Provider registry = swap providers without touching routes
- * - Each chain family has specific URL patterns, headers, method sets
- */
-interface RpcProviderConfig {
-  buildUrl: (chain: string, network: string) => string;
-  buildFallbackUrl?: (chain: string, network: string) => string | undefined;
-  headers: Record<string, string>;
-  allowedMethods: Set<string>;
-  nonCacheableMethods: Set<string>;
-  serviceId: string;
-  maxBatchSize: number;
-  maxRetries: number;
-  initialRetryDelayMs: number;
-  timeoutMs: number;
-}
+import { solanaRpcConfig, solanaRpcHandler } from "./solana-rpc";
 
 /**
  * Alchemy chain-to-slug mapping (mainnet)
- * 
+ *
  * WHY exported: chain-data.ts needs this to validate chains for enhanced APIs
  */
 export const ALCHEMY_SLUGS: Record<string, string> = {
@@ -60,7 +34,7 @@ export const ALCHEMY_TESTNET_SLUGS: Record<string, string> = {
 
 /**
  * EVM RPC method whitelist
- * 
+ *
  * WHY standard methods only:
  * - These methods are identical across all EVM RPC providers
  * - Provider-specific methods (alchemy_*) go in chain-data.ts
@@ -73,7 +47,7 @@ const EVM_ALLOWED_METHODS = new Set([
   "eth_syncing",
   "eth_protocolVersion",
   "net_listening",
-  
+
   // 10 CU tier
   "eth_blockNumber",
   "eth_feeHistory",
@@ -84,7 +58,7 @@ const EVM_ALLOWED_METHODS = new Set([
   "eth_subscribe",
   "eth_unsubscribe",
   "eth_createAccessList",
-  
+
   // 20 CU tier
   "eth_getBalance",
   "eth_getBlockByNumber",
@@ -106,14 +80,14 @@ const EVM_ALLOWED_METHODS = new Set([
   "eth_getBlockReceipts",
   "web3_clientVersion",
   "web3_sha3",
-  
+
   // 26 CU tier
   "eth_call",
-  
+
   // 40 CU tier
   "eth_sendRawTransaction",
   "eth_simulateV1",
-  
+
   // 60 CU tier
   "eth_getLogs",
   "eth_getFilterLogs",
@@ -121,7 +95,7 @@ const EVM_ALLOWED_METHODS = new Set([
 
 /**
  * EVM methods that should not be cached
- * 
+ *
  * WHY these are non-cacheable:
  * - Mutations: sendRawTransaction (changes blockchain state)
  * - Rapidly changing: blockNumber, gasPrice, maxPriorityFeePerGas (update every block)
@@ -137,7 +111,7 @@ const EVM_NON_CACHEABLE_METHODS = new Set([
 
 /**
  * Extract method from JSON-RPC request body (EVM)
- * 
+ *
  * WHY separate from Solana's extractMethodFromBody:
  * - Different method whitelists
  * - Different error messages (EVM vs Solana context)
@@ -153,7 +127,9 @@ function extractEvmMethodFromBody(body: unknown): string {
       throw new Error("Invalid JSON-RPC batch: empty array");
     }
     if (body.length > PROXY_CONFIG.ALCHEMY_MAX_BATCH_SIZE) {
-      throw new Error(`Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.ALCHEMY_MAX_BATCH_SIZE} requests`);
+      throw new Error(
+        `Invalid JSON-RPC batch: maximum ${PROXY_CONFIG.ALCHEMY_MAX_BATCH_SIZE} requests`,
+      );
     }
     return "_batch";
   }
@@ -163,10 +139,10 @@ function extractEvmMethodFromBody(body: unknown): string {
   }
 
   const method = body.method;
-  
+
   if (!EVM_ALLOWED_METHODS.has(method)) {
     throw new Error(
-      `Method '${method}' is not supported for EVM chains. Supported methods: standard JSON-RPC only.`
+      `Method '${method}' is not supported for EVM chains. Supported methods: standard JSON-RPC only.`,
     );
   }
 
@@ -175,7 +151,7 @@ function extractEvmMethodFromBody(body: unknown): string {
 
 /**
  * Build EVM RPC config
- * 
+ *
  * WHY build dynamically instead of constant:
  * - ServiceConfig.getCost is async (reads from DB/cache)
  * - Can't initialize at module level without top-level await
@@ -200,7 +176,12 @@ function buildEvmRpcConfig(): ServiceConfig {
       const method = extractEvmMethodFromBody(body);
 
       if (method === "_batch" && Array.isArray(body)) {
-        return calculateBatchCost("evm-rpc", EVM_ALLOWED_METHODS, body, PROXY_CONFIG.ALCHEMY_MAX_BATCH_SIZE);
+        return calculateBatchCost(
+          "evm-rpc",
+          EVM_ALLOWED_METHODS,
+          body,
+          PROXY_CONFIG.ALCHEMY_MAX_BATCH_SIZE,
+        );
       }
 
       return getServiceMethodCost("evm-rpc", method);
@@ -210,7 +191,7 @@ function buildEvmRpcConfig(): ServiceConfig {
 
 /**
  * Build EVM RPC handler
- * 
+ *
  * WHY closure pattern:
  * - Captures chain at creation time
  * - Allows chain-specific URL building and validation
@@ -229,9 +210,10 @@ function buildEvmRpcHandler(chain: string): ServiceHandler {
       throw new Error("ALCHEMY_API_KEY not configured");
     }
 
-    const slugMap = network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
+    const slugMap =
+      network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
     const slug = slugMap[chain];
-    
+
     if (!slug) {
       throw new Error(`Chain '${chain}' not supported on ${network}`);
     }
@@ -303,7 +285,7 @@ export function isValidRpcChain(chain: string): boolean {
 
 /**
  * Get ServiceConfig for a chain
- * 
+ *
  * WHY return solanaRpcConfig directly:
  * - Single source of truth for Solana config
  * - /api/v1/solana/rpc and /api/v1/rpc/solana must behave identically
@@ -313,17 +295,17 @@ export function rpcConfigForChain(chain: string): ServiceConfig {
   if (chain === "solana") {
     return solanaRpcConfig;
   }
-  
+
   if (!ALCHEMY_SLUGS[chain]) {
     throw new Error(`Unsupported chain: ${chain}`);
   }
-  
+
   return buildEvmRpcConfig();
 }
 
 /**
  * Get ServiceHandler for a chain
- * 
+ *
  * WHY return solanaRpcHandler directly:
  * - Same reasoning as rpcConfigForChain
  * - Ensures backward compatibility
@@ -333,10 +315,10 @@ export function rpcHandlerForChain(chain: string): ServiceHandler {
   if (chain === "solana") {
     return solanaRpcHandler;
   }
-  
+
   if (!ALCHEMY_SLUGS[chain]) {
     throw new Error(`Unsupported chain: ${chain}`);
   }
-  
+
   return buildEvmRpcHandler(chain);
 }

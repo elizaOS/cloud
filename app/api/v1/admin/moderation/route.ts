@@ -14,8 +14,44 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { adminService } from "@/lib/services/admin";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+
+function getAdminAuthStatus(error: unknown): 401 | 403 | null {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (
+    message.includes("Unauthorized") ||
+    message.includes("Authentication required") ||
+    message.includes("Invalid or expired token") ||
+    message.includes("Invalid or expired API key") ||
+    message.includes("Invalid wallet signature") ||
+    message.includes("Wallet authentication failed") ||
+    message.includes("Wallet connection required for admin access")
+  ) {
+    return 401;
+  }
+
+  if (message.includes("Admin access required")) {
+    return 403;
+  }
+
+  return null;
+}
+
+function handleModerationError(error: unknown, context: string) {
+  const message =
+    error instanceof Error ? error.message : "Internal server error";
+  const authStatus = getAdminAuthStatus(error);
+
+  if (authStatus) {
+    return NextResponse.json({ error: message }, { status: authStatus });
+  }
+
+  logger.error(`[Admin Moderation] ${context}`, { error: message });
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
 
 /**
  * GET /api/v1/admin/moderation
@@ -30,101 +66,97 @@ export async function GET(request: NextRequest) {
   try {
     const { user, role } = await requireAdmin(request);
 
-  const url = new URL(request.url);
-  const view = url.searchParams.get("view") || "overview";
-  const limit = Math.min(
-    parseInt(url.searchParams.get("limit") || "100"),
-    1000,
-  );
-  const userId = url.searchParams.get("userId");
+    const url = new URL(request.url);
+    const view = url.searchParams.get("view") || "overview";
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") || "100", 10),
+      1000,
+    );
+    const userId = url.searchParams.get("userId");
 
-  switch (view) {
-    case "overview": {
-      const [violations, flaggedUsers, bannedUsers, admins] = await Promise.all(
-        [
-          adminService.getRecentViolations(10),
-          adminService.getUsersFlaggedForReview(),
-          adminService.getBannedUsers(),
-          adminService.listAdmins(),
-        ],
-      );
+    switch (view) {
+      case "overview": {
+        const [violations, flaggedUsers, bannedUsers, admins] =
+          await Promise.all([
+            adminService.getRecentViolations(10),
+            adminService.getUsersFlaggedForReview(),
+            adminService.getBannedUsers(),
+            adminService.listAdmins(),
+          ]);
 
-      return NextResponse.json({
-        recentViolations: violations.map((v) => ({
-          ...v,
-          messageText: v.messageText.slice(0, 100) + "...",
-        })),
-        totalViolations: violations.length,
-        flaggedUsers: flaggedUsers.length,
-        bannedUsers: bannedUsers.length,
-        adminCount: admins.length,
-        currentAdmin: {
-          wallet: user.wallet_address,
-          role,
-        },
-      });
-    }
-
-    case "violations": {
-      const violations = await adminService.getRecentViolations(limit);
-      return NextResponse.json({
-        violations: violations.map((v) => ({
-          ...v,
-          messageText:
-            v.messageText.slice(0, 200) +
-            (v.messageText.length > 200 ? "..." : ""),
-        })),
-        total: violations.length,
-      });
-    }
-
-    case "users": {
-      const flaggedUsers = await adminService.getUsersFlaggedForReview();
-      const bannedUsers = await adminService.getBannedUsers();
-
-      return NextResponse.json({
-        flaggedUsers,
-        bannedUsers,
-        totalFlagged: flaggedUsers.length,
-        totalBanned: bannedUsers.length,
-      });
-    }
-
-    case "admins": {
-      const admins = await adminService.listAdmins();
-      return NextResponse.json({
-        admins,
-        total: admins.length,
-        canManageAdmins: role === "super_admin",
-      });
-    }
-
-    case "user-detail": {
-      if (!userId) {
-        return NextResponse.json(
-          { error: "userId required for user-detail view" },
-          { status: 400 },
-        );
+        return NextResponse.json({
+          recentViolations: violations.map((v) => ({
+            ...v,
+            messageText: v.messageText.slice(0, 100) + "...",
+          })),
+          totalViolations: violations.length,
+          flaggedUsers: flaggedUsers.length,
+          bannedUsers: bannedUsers.length,
+          adminCount: admins.length,
+          currentAdmin: {
+            wallet: user.wallet_address,
+            role,
+          },
+        });
       }
 
-      const details = await adminService.getUserDetails(userId);
-      return NextResponse.json(details);
-    }
+      case "violations": {
+        const violations = await adminService.getRecentViolations(limit);
+        return NextResponse.json({
+          violations: violations.map((v) => ({
+            ...v,
+            messageText:
+              v.messageText.slice(0, 200) +
+              (v.messageText.length > 200 ? "..." : ""),
+          })),
+          total: violations.length,
+        });
+      }
 
-    default:
-      return NextResponse.json(
-        {
-          error:
-            "Invalid view. Must be: overview, violations, users, admins, user-detail",
-        },
-        { status: 400 },
-      );
-  }
+      case "users": {
+        const flaggedUsers = await adminService.getUsersFlaggedForReview();
+        const bannedUsers = await adminService.getBannedUsers();
+
+        return NextResponse.json({
+          flaggedUsers,
+          bannedUsers,
+          totalFlagged: flaggedUsers.length,
+          totalBanned: bannedUsers.length,
+        });
+      }
+
+      case "admins": {
+        const admins = await adminService.listAdmins();
+        return NextResponse.json({
+          admins,
+          total: admins.length,
+          canManageAdmins: role === "super_admin",
+        });
+      }
+
+      case "user-detail": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required for user-detail view" },
+            { status: 400 },
+          );
+        }
+
+        const details = await adminService.getUserDetails(userId);
+        return NextResponse.json(details);
+      }
+
+      default:
+        return NextResponse.json(
+          {
+            error:
+              "Invalid view. Must be: overview, violations, users, admins, user-detail",
+          },
+          { status: 400 },
+        );
+    }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    return handleModerationError(error, "Failed to load moderation data");
   }
 }
 
@@ -192,136 +224,147 @@ export async function POST(request: NextRequest) {
       targetWallet: walletAddress,
     });
 
-  switch (action) {
-    case "ban": {
-      if (!userId) {
-        return NextResponse.json({ error: "userId required" }, { status: 400 });
+    switch (action) {
+      case "ban": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required" },
+            { status: 400 },
+          );
+        }
+        if (!reason) {
+          return NextResponse.json(
+            { error: "reason required for ban" },
+            { status: 400 },
+          );
+        }
+        await adminService.banUser({
+          userId,
+          adminUserId: user.id,
+          reason,
+        });
+        return NextResponse.json({ success: true, message: "User banned" });
       }
-      if (!reason) {
-        return NextResponse.json(
-          { error: "reason required for ban" },
-          { status: 400 },
+
+      case "unban": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required" },
+            { status: 400 },
+          );
+        }
+        await adminService.unbanUser(userId, user.id);
+        return NextResponse.json({ success: true, message: "User unbanned" });
+      }
+
+      case "mark_spammer": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required" },
+            { status: 400 },
+          );
+        }
+        await adminService.markUserAs({
+          userId,
+          status: "spammer",
+          adminUserId: user.id,
+          reason,
+        });
+        return NextResponse.json({
+          success: true,
+          message: "User marked as spammer",
+        });
+      }
+
+      case "mark_scammer": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required" },
+            { status: 400 },
+          );
+        }
+        await adminService.markUserAs({
+          userId,
+          status: "scammer",
+          adminUserId: user.id,
+          reason,
+        });
+        return NextResponse.json({
+          success: true,
+          message: "User marked as scammer",
+        });
+      }
+
+      case "clear_status": {
+        if (!userId) {
+          return NextResponse.json(
+            { error: "userId required" },
+            { status: 400 },
+          );
+        }
+        await adminService.unbanUser(userId, user.id);
+        return NextResponse.json({
+          success: true,
+          message: "User status cleared",
+        });
+      }
+
+      case "add_admin": {
+        if (!walletAddress) {
+          return NextResponse.json(
+            { error: "walletAddress required" },
+            { status: 400 },
+          );
+        }
+        const admin = await adminService.promoteToAdmin({
+          walletAddress,
+          role,
+          grantedByWallet: user.wallet_address ?? undefined,
+          notes,
+        });
+        return NextResponse.json({
+          success: true,
+          message: "Admin added",
+          admin: {
+            id: admin.id,
+            walletAddress: admin.walletAddress,
+            role: admin.role,
+          },
+        });
+      }
+
+      case "revoke_admin": {
+        if (!walletAddress) {
+          return NextResponse.json(
+            { error: "walletAddress required" },
+            { status: 400 },
+          );
+        }
+
+        if (
+          walletAddress.toLowerCase() === user.wallet_address?.toLowerCase()
+        ) {
+          return NextResponse.json(
+            { error: "Cannot revoke your own admin privileges" },
+            { status: 400 },
+          );
+        }
+
+        await adminService.revokeAdmin(
+          walletAddress,
+          user.wallet_address ?? undefined,
         );
+        return NextResponse.json({
+          success: true,
+          message: "Admin privileges revoked",
+        });
       }
-      await adminService.banUser({
-        userId,
-        adminUserId: user.id,
-        reason,
-      });
-      return NextResponse.json({ success: true, message: "User banned" });
+
+      default:
+        return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
-
-    case "unban": {
-      if (!userId) {
-        return NextResponse.json({ error: "userId required" }, { status: 400 });
-      }
-      await adminService.unbanUser(userId, user.id);
-      return NextResponse.json({ success: true, message: "User unbanned" });
-    }
-
-    case "mark_spammer": {
-      if (!userId) {
-        return NextResponse.json({ error: "userId required" }, { status: 400 });
-      }
-      await adminService.markUserAs({
-        userId,
-        status: "spammer",
-        adminUserId: user.id,
-        reason,
-      });
-      return NextResponse.json({
-        success: true,
-        message: "User marked as spammer",
-      });
-    }
-
-    case "mark_scammer": {
-      if (!userId) {
-        return NextResponse.json({ error: "userId required" }, { status: 400 });
-      }
-      await adminService.markUserAs({
-        userId,
-        status: "scammer",
-        adminUserId: user.id,
-        reason,
-      });
-      return NextResponse.json({
-        success: true,
-        message: "User marked as scammer",
-      });
-    }
-
-    case "clear_status": {
-      if (!userId) {
-        return NextResponse.json({ error: "userId required" }, { status: 400 });
-      }
-      await adminService.unbanUser(userId, user.id);
-      return NextResponse.json({
-        success: true,
-        message: "User status cleared",
-      });
-    }
-
-    case "add_admin": {
-      if (!walletAddress) {
-        return NextResponse.json(
-          { error: "walletAddress required" },
-          { status: 400 },
-        );
-      }
-      const admin = await adminService.promoteToAdmin({
-        walletAddress,
-        role,
-        grantedByWallet: user.wallet_address ?? undefined,
-        notes,
-      });
-      return NextResponse.json({
-        success: true,
-        message: "Admin added",
-        admin: {
-          id: admin.id,
-          walletAddress: admin.walletAddress,
-          role: admin.role,
-        },
-      });
-    }
-
-    case "revoke_admin": {
-      if (!walletAddress) {
-        return NextResponse.json(
-          { error: "walletAddress required" },
-          { status: 400 },
-        );
-      }
-
-      // Can't revoke yourself
-      if (
-        walletAddress.toLowerCase() === user.wallet_address?.toLowerCase()
-      ) {
-        return NextResponse.json(
-          { error: "Cannot revoke your own admin privileges" },
-          { status: 400 },
-        );
-      }
-
-      await adminService.revokeAdmin(
-        walletAddress,
-        user.wallet_address ?? undefined,
-      );
-      return NextResponse.json({
-        success: true,
-        message: "Admin privileges revoked",
-      });
-    }
-
-    default:
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Wallet connection") ? 401 :
-                   message.includes("Admin access") ? 403 : 401;
-    return NextResponse.json({ error: message }, { status });
+    return handleModerationError(error, "Failed to perform moderation action");
   }
 }
 

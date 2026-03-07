@@ -4,11 +4,11 @@ import { logger } from "@/lib/utils/logger";
 import { PROXY_CONFIG } from "./config";
 
 const CACHE_TTL = PROXY_CONFIG.PRICING_CACHE_TTL;
-const CACHE_STALE_TIME = PROXY_CONFIG.PRICING_CACHE_STALE_TIME;
 
 // Hardcoded fallback to prevent service outage if DB pricing is misconfigured
 // This is intentionally high to encourage fixing the DB pricing ASAP
 const FALLBACK_COST = 1.0; // $1.00 per request
+const inflightPricingLoads = new Map<string, Promise<Record<string, string>>>();
 
 export class PricingNotFoundError extends Error {
   constructor(
@@ -18,6 +18,43 @@ export class PricingNotFoundError extends Error {
     super(`Pricing not found for service ${serviceId}, method ${method}`);
     this.name = "PricingNotFoundError";
   }
+}
+
+async function loadPricingMap(
+  serviceId: string,
+): Promise<Record<string, string>> {
+  const existingLoad = inflightPricingLoads.get(serviceId);
+  if (existingLoad) {
+    return existingLoad;
+  }
+
+  const cacheKey = `service-pricing:${serviceId}`;
+  const loadPromise = (async () => {
+    const pricingRecords =
+      await servicePricingRepository.listByService(serviceId);
+    const pricingMap: Record<string, string> = {};
+
+    if (pricingRecords.length === 0) {
+      logger.error("[Pricing] No pricing records in DB, using fallback", {
+        serviceId,
+        fallback: FALLBACK_COST,
+      });
+      await cache.set(cacheKey, pricingMap, CACHE_TTL);
+      return pricingMap;
+    }
+
+    for (const record of pricingRecords) {
+      pricingMap[record.method] = String(record.cost);
+    }
+
+    await cache.set(cacheKey, pricingMap, CACHE_TTL);
+    return pricingMap;
+  })().finally(() => {
+    inflightPricingLoads.delete(serviceId);
+  });
+
+  inflightPricingLoads.set(serviceId, loadPromise);
+  return loadPromise;
 }
 
 export async function getServiceMethodCost(
@@ -40,25 +77,7 @@ export async function getServiceMethodCost(
     return Number(cost);
   }
 
-  const pricingRecords = await servicePricingRepository.listByService(
-    serviceId,
-  );
-
-  if (pricingRecords.length === 0) {
-    logger.error("[Pricing] No pricing records in DB, using fallback", {
-      serviceId,
-      method,
-      fallback: FALLBACK_COST,
-    });
-    return FALLBACK_COST;
-  }
-
-  const pricingMap: Record<string, string> = {};
-  for (const record of pricingRecords) {
-    pricingMap[record.method] = record.cost;
-  }
-
-  await cache.set(cacheKey, pricingMap, CACHE_TTL);
+  const pricingMap = await loadPricingMap(serviceId);
 
   const cost = pricingMap[method] ?? pricingMap["_default"];
   if (!cost) {
@@ -77,24 +96,25 @@ export async function invalidateServicePricingCache(
   serviceId: string,
 ): Promise<void> {
   const cacheKey = `service-pricing:${serviceId}`;
+  inflightPricingLoads.delete(serviceId);
   await cache.del(cacheKey);
   logger.info(`Invalidated pricing cache for service: ${serviceId}`);
 }
 
 /**
  * Calculate total cost for a JSON-RPC batch request
- * 
+ *
  * WHY this function exists:
  * - Both Solana and EVM RPC support batch requests
  * - Batch cost = sum of individual method costs
  * - Extracting to shared utility prevents code duplication
  * - Single source of truth for batch cost calculation logic
- * 
+ *
  * WHY parallel cost fetching:
  * - Sequential await in loop is slow (up to 20 items * ~50ms each = 1s)
  * - Fetching unique methods in parallel reduces latency
  * - Example: batch with 10x getBalance + 10x getTransaction = only 2 DB/cache hits
- * 
+ *
  * WHY validate entire batch upfront:
  * - One invalid method should reject the entire batch (fail-fast)
  * - Prevents partial execution and confusing errors
@@ -135,5 +155,8 @@ export async function calculateBatchCost(
     }),
   );
 
-  return methods.reduce((total, method) => total + (costMap.get(method) ?? 0), 0);
+  return methods.reduce(
+    (total, method) => total + (costMap.get(method) ?? 0),
+    0,
+  );
 }
