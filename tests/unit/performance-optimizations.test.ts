@@ -14,37 +14,62 @@ describe("Action validation cache", () => {
 
   beforeEach(async () => {
     // Module-level cache is a singleton — tests use unique message IDs to avoid interference.
-    const mod = await import("@/lib/eliza/plugin-cloud-bootstrap/providers/actions");
+    const mod = await import(
+      "@/lib/eliza/plugin-cloud-bootstrap/providers/actions"
+    );
     actionsProvider = mod.actionsProvider;
     invalidateActionValidationCache = mod.invalidateActionValidationCache;
   });
 
-  function makeRuntime(actions: Action[], mcpToolCount?: number): IAgentRuntime {
+  function makeRuntime(
+    actions: Action[],
+    mcpToolCount?: number,
+  ): IAgentRuntime {
     return {
       actions,
-      getService: () => mcpToolCount !== undefined ? {
-        getTier2Index: () => ({ getToolCount: () => mcpToolCount }),
-      } : undefined,
+      getService: () =>
+        mcpToolCount !== undefined
+          ? {
+              getTier2Index: () => ({ getToolCount: () => mcpToolCount }),
+            }
+          : undefined,
     } as unknown as IAgentRuntime;
   }
 
   function makeMessage(id: string): Memory {
-    return { id, content: { text: "test" }, roomId: "room-1", entityId: "entity-1" } as unknown as Memory;
+    return {
+      id,
+      content: { text: "test" },
+      roomId: "room-1",
+      entityId: "entity-1",
+    } as unknown as Memory;
   }
 
   const emptyState = { values: {}, data: {}, text: "" } as State;
 
   test("returns validated actions, filters out invalid ones", async () => {
     const validAction: Action = {
-      name: "TEST_ACTION", description: "A test action",
-      validate: async () => true, handler: async () => {}, similes: [], examples: [],
+      name: "TEST_ACTION",
+      description: "A test action",
+      validate: async () => true,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
     const invalidAction: Action = {
-      name: "INVALID_ACTION", description: "Should be filtered",
-      validate: async () => false, handler: async () => {}, similes: [], examples: [],
+      name: "INVALID_ACTION",
+      description: "Should be filtered",
+      validate: async () => false,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
-    const result = await actionsProvider.get!(makeRuntime([validAction, invalidAction]), makeMessage("msg-validate-1"), emptyState);
+    const result = await actionsProvider.get!(
+      makeRuntime([validAction, invalidAction]),
+      makeMessage("msg-validate-1"),
+      emptyState,
+    );
 
     expect(result.data.actionsData).toHaveLength(1);
     expect(result.data.actionsData[0].name).toBe("TEST_ACTION");
@@ -53,9 +78,15 @@ describe("Action validation cache", () => {
   test("caches results — same message ID validates only once", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "COUNTED_ACTION", description: "Counts validate calls",
-      validate: async () => { validateCallCount++; return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "COUNTED_ACTION",
+      description: "Counts validate calls",
+      validate: async () => {
+        validateCallCount++;
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
     const runtime = makeRuntime([action]);
@@ -70,9 +101,15 @@ describe("Action validation cache", () => {
   test("different message IDs produce separate cache entries", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "COUNTED_2", description: "test",
-      validate: async () => { validateCallCount++; return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "COUNTED_2",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
     const runtime = makeRuntime([action]);
@@ -84,9 +121,15 @@ describe("Action validation cache", () => {
   test("invalidateActionValidationCache forces re-validation", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "INVALIDATE_TEST", description: "test",
-      validate: async () => { validateCallCount++; return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "INVALIDATE_TEST",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
     const runtime = makeRuntime([action]);
@@ -104,48 +147,88 @@ describe("Action validation cache", () => {
 
   test("action throwing during validation is filtered out, others survive", async () => {
     const goodAction: Action = {
-      name: "GOOD", description: "Works",
-      validate: async () => true, handler: async () => {}, similes: [], examples: [],
+      name: "GOOD",
+      description: "Works",
+      validate: async () => true,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
     const badAction: Action = {
-      name: "BAD", description: "Throws",
-      validate: async () => { throw new Error("boom"); },
-      handler: async () => {}, similes: [], examples: [],
+      name: "BAD",
+      description: "Throws",
+      validate: async () => {
+        throw new Error("boom");
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
-    const result = await actionsProvider.get!(makeRuntime([goodAction, badAction]), makeMessage("msg-error-1"), emptyState);
+    const result = await actionsProvider.get!(
+      makeRuntime([goodAction, badAction]),
+      makeMessage("msg-error-1"),
+      emptyState,
+    );
     expect(result.data.actionsData).toHaveLength(1);
     expect(result.data.actionsData[0].name).toBe("GOOD");
   });
 
   test("caches discoverable tool count from MCP service", async () => {
     const action: Action = {
-      name: "MCP_TEST", description: "test",
-      validate: async () => true, handler: async () => {}, similes: [], examples: [],
+      name: "MCP_TEST",
+      description: "test",
+      validate: async () => true,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
-    const result = await actionsProvider.get!(makeRuntime([action], 42), makeMessage("msg-mcp-count-1"), emptyState);
+    const result = await actionsProvider.get!(
+      makeRuntime([action], 42),
+      makeMessage("msg-mcp-count-1"),
+      emptyState,
+    );
     expect(result.values.discoverableToolCount).toBe("42");
   });
 
   test("handles missing MCP service gracefully", async () => {
     const action: Action = {
-      name: "NO_MCP", description: "test",
-      validate: async () => true, handler: async () => {}, similes: [], examples: [],
+      name: "NO_MCP",
+      description: "test",
+      validate: async () => true,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
-    const runtime = { actions: [action], getService: () => undefined } as unknown as IAgentRuntime;
+    const runtime = {
+      actions: [action],
+      getService: () => undefined,
+    } as unknown as IAgentRuntime;
 
-    const result = await actionsProvider.get!(runtime, makeMessage("msg-no-mcp-1"), emptyState);
+    const result = await actionsProvider.get!(
+      runtime,
+      makeMessage("msg-no-mcp-1"),
+      emptyState,
+    );
     expect(result.values.discoverableToolCount).toBe("");
   });
 
   test("no validated actions returns empty values", async () => {
     const action: Action = {
-      name: "NEVER_VALID", description: "test",
-      validate: async () => false, handler: async () => {}, similes: [], examples: [],
+      name: "NEVER_VALID",
+      description: "test",
+      validate: async () => false,
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
-    const result = await actionsProvider.get!(makeRuntime([action]), makeMessage("msg-empty-1"), emptyState);
+    const result = await actionsProvider.get!(
+      makeRuntime([action]),
+      makeMessage("msg-empty-1"),
+      emptyState,
+    );
     expect(result.data.actionsData).toHaveLength(0);
     expect(result.values.actionsWithParams).toBe("");
   });
@@ -153,9 +236,16 @@ describe("Action validation cache", () => {
   test("parallel calls after cache is warm all return same data", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "CONCURRENT", description: "test",
-      validate: async () => { validateCallCount++; await new Promise(r => setTimeout(r, 50)); return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "CONCURRENT",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        await new Promise((r) => setTimeout(r, 50));
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
     const runtime = makeRuntime([action]);
@@ -177,9 +267,16 @@ describe("Action validation cache", () => {
   test("concurrent calls on cold cache cause redundant validation (known trade-off)", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "COLD_CONCURRENT", description: "test",
-      validate: async () => { validateCallCount++; await new Promise(r => setTimeout(r, 30)); return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "COLD_CONCURRENT",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        await new Promise((r) => setTimeout(r, 30));
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
 
     const runtime = makeRuntime([action]);
@@ -199,22 +296,72 @@ describe("Action validation cache", () => {
     expect(r3.data.actionsData).toHaveLength(1);
   });
 
-  test("TTL cleanup is scheduled at 120s in source", async () => {
-    const source = await Bun.file("lib/eliza/plugin-cloud-bootstrap/providers/actions.ts").text();
-    const ttlMatch = source.match(/setTimeout\(\(\)\s*=>\s*validationCache\.delete\(cacheKey\),\s*([\d_]+)/);
-    expect(ttlMatch).not.toBeNull();
-    expect(Number(ttlMatch![1].replace(/_/g, ""))).toBe(120_000);
+  test("invalidation clears the stale eviction timer before recaching", async () => {
+    let validateCallCount = 0;
+    const action: Action = {
+      name: "STALE_TIMER",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
+    };
+
+    const runtime = makeRuntime([action]);
+    const message = makeMessage("msg-stale-timer-1");
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    const clearedHandles: unknown[] = [];
+
+    globalThis.setTimeout = (() => ({
+      id: Symbol("timer"),
+      unref: () => undefined,
+    })) as unknown as typeof setTimeout;
+    globalThis.clearTimeout = ((handle?: ReturnType<typeof setTimeout>) => {
+      clearedHandles.push(handle);
+    }) as typeof clearTimeout;
+
+    try {
+      await actionsProvider.get!(runtime, message, emptyState);
+      expect(validateCallCount).toBe(1);
+
+      invalidateActionValidationCache("msg-stale-timer-1");
+      expect(clearedHandles).toHaveLength(1);
+
+      await actionsProvider.get!(runtime, message, emptyState);
+      expect(validateCallCount).toBe(2);
+    } finally {
+      globalThis.setTimeout = originalSetTimeout;
+      globalThis.clearTimeout = originalClearTimeout;
+    }
   });
 
   test("undefined message.id works but skips cache", async () => {
     let validateCallCount = 0;
     const action: Action = {
-      name: "EDGE", description: "test",
-      validate: async () => { validateCallCount++; return true; },
-      handler: async () => {}, similes: [], examples: [],
+      name: "EDGE",
+      description: "test",
+      validate: async () => {
+        validateCallCount++;
+        return true;
+      },
+      handler: async () => {},
+      similes: [],
+      examples: [],
     };
-    const runtime = { actions: [action], getService: () => undefined } as unknown as IAgentRuntime;
-    const msg = { id: undefined, content: { text: "test" }, roomId: "r", entityId: "e" } as unknown as Memory;
+    const runtime = {
+      actions: [action],
+      getService: () => undefined,
+    } as unknown as IAgentRuntime;
+    const msg = {
+      id: undefined,
+      content: { text: "test" },
+      roomId: "r",
+      entityId: "e",
+    } as unknown as Memory;
 
     const r1 = await actionsProvider.get!(runtime, msg, emptyState);
     expect(r1.data.actionsData).toHaveLength(1);
@@ -232,7 +379,9 @@ describe("Cache invalidation flow", () => {
     const source = await Bun.file(
       "lib/eliza/plugin-cloud-bootstrap/services/cloud-bootstrap-message-service.ts",
     ).text();
-    expect(source).toContain('import { invalidateActionValidationCache } from "../providers/actions"');
+    expect(source).toContain(
+      'import { invalidateActionValidationCache } from "../providers/actions"',
+    );
   });
 
   test("invalidation is called inside SEARCH_ACTIONS success path", async () => {
@@ -240,7 +389,7 @@ describe("Cache invalidation flow", () => {
       "lib/eliza/plugin-cloud-bootstrap/services/cloud-bootstrap-message-service.ts",
     ).text();
     const match = source.match(
-      /if \(action === "SEARCH_ACTIONS"[\s\S]*?invalidateActionValidationCache\(message\.id as string\)/,
+      /if \(action === "SEARCH_ACTIONS"[\s\S]*?if \(message\.id\) \{[\s\S]*?invalidateActionValidationCache\(String\(message\.id\)\)/,
     );
     expect(match).not.toBeNull();
   });
@@ -249,7 +398,11 @@ describe("Cache invalidation flow", () => {
 // ─── Retry Config ────────────────────────────────────────────────────────────
 
 describe("Retry config", () => {
-  let sourceRetryConfig: { baseDelayMs: number; maxDelayMs: number; backoffMultiplier: number };
+  let sourceRetryConfig: {
+    baseDelayMs: number;
+    maxDelayMs: number;
+    backoffMultiplier: number;
+  };
 
   beforeEach(async () => {
     const source = await Bun.file(
@@ -271,7 +424,11 @@ describe("Retry config", () => {
 
   test("backoff sequence caps at maxDelayMs", () => {
     const { baseDelayMs, maxDelayMs, backoffMultiplier } = sourceRetryConfig;
-    const delay = (attempt: number) => Math.min(baseDelayMs * Math.pow(backoffMultiplier, attempt - 1), maxDelayMs);
+    const delay = (attempt: number) =>
+      Math.min(
+        baseDelayMs * Math.pow(backoffMultiplier, attempt - 1),
+        maxDelayMs,
+      );
 
     expect(delay(1)).toBe(200);
     expect(delay(2)).toBe(400);
@@ -282,7 +439,10 @@ describe("Retry config", () => {
   test("delay never exceeds max even at extreme attempt numbers", () => {
     const { baseDelayMs, maxDelayMs, backoffMultiplier } = sourceRetryConfig;
     for (let attempt = 1; attempt <= 100; attempt++) {
-      const delay = Math.min(baseDelayMs * Math.pow(backoffMultiplier, attempt - 1), maxDelayMs);
+      const delay = Math.min(
+        baseDelayMs * Math.pow(backoffMultiplier, attempt - 1),
+        maxDelayMs,
+      );
       expect(delay).toBeLessThanOrEqual(maxDelayMs);
       expect(Number.isFinite(delay)).toBe(true);
     }
@@ -296,22 +456,30 @@ describe("Multi-step decision template", () => {
   let summaryTemplate: string;
 
   beforeEach(async () => {
-    const mod = await import("@/lib/eliza/plugin-cloud-bootstrap/templates/multi-step");
+    const mod = await import(
+      "@/lib/eliza/plugin-cloud-bootstrap/templates/multi-step"
+    );
     decisionTemplate = mod.multiStepDecisionTemplate;
     summaryTemplate = mod.multiStepSummaryTemplate;
   });
 
   test("contains minimize-iterations and strengthened FINISH rules", () => {
     expect(decisionTemplate).toContain("Minimize iterations");
-    expect(decisionTemplate).toContain("Most tasks need only 1 action + FINISH");
+    expect(decisionTemplate).toContain(
+      "Most tasks need only 1 action + FINISH",
+    );
     expect(decisionTemplate).toContain("call FINISH immediately");
     expect(decisionTemplate).toContain("Do NOT add extra iterations");
   });
 
   test("preserves OAuth/connect rules from ux-overhaul", () => {
     expect(decisionTemplate).toContain("OAUTH_CONNECT");
-    expect(decisionTemplate).toContain("links expire and must be freshly generated");
-    expect(decisionTemplate).toContain("Always execute actions for user requests");
+    expect(decisionTemplate).toContain(
+      "links expire and must be freshly generated",
+    );
+    expect(decisionTemplate).toContain(
+      "Always execute actions for user requests",
+    );
   });
 
   test("all 8 rules present and numbered", () => {
@@ -334,14 +502,20 @@ describe("Multi-step decision template", () => {
 // ─── MCP Timeout ─────────────────────────────────────────────────────────────
 
 describe("MCP timeout constant", () => {
-  test("DEFAULT_MCP_TIMEOUT_SECONDS is 15000ms", async () => {
-    const { DEFAULT_MCP_TIMEOUT_SECONDS } = await import("@/lib/eliza/plugin-mcp/types");
-    expect(DEFAULT_MCP_TIMEOUT_SECONDS).toBe(15000);
+  test("DEFAULT_MCP_TIMEOUT_MS is 15000ms and the legacy alias still matches", async () => {
+    const { DEFAULT_MCP_TIMEOUT_MS, DEFAULT_MCP_TIMEOUT_SECONDS } =
+      await import("@/lib/eliza/plugin-mcp/types");
+    expect(DEFAULT_MCP_TIMEOUT_MS).toBe(15000);
+    expect(DEFAULT_MCP_TIMEOUT_SECONDS).toBe(DEFAULT_MCP_TIMEOUT_MS);
   });
 
   test("other MCP constants unchanged", async () => {
-    const { DEFAULT_MAX_RETRIES, MAX_RECONNECT_ATTEMPTS, BACKOFF_MULTIPLIER, INITIAL_RETRY_DELAY } =
-      await import("@/lib/eliza/plugin-mcp/types");
+    const {
+      DEFAULT_MAX_RETRIES,
+      MAX_RECONNECT_ATTEMPTS,
+      BACKOFF_MULTIPLIER,
+      INITIAL_RETRY_DELAY,
+    } = await import("@/lib/eliza/plugin-mcp/types");
 
     expect(DEFAULT_MAX_RETRIES).toBe(2);
     expect(MAX_RECONNECT_ATTEMPTS).toBe(5);
@@ -349,12 +523,11 @@ describe("MCP timeout constant", () => {
     expect(INITIAL_RETRY_DELAY).toBe(2000);
   });
 
-  test("timeoutInMillis=0 falls through to default (|| treats 0 as falsy)", () => {
-    const DEFAULT = 15000;
-    expect(0 || DEFAULT).toBe(15000);
-    expect(undefined || DEFAULT).toBe(15000);
-    expect(null || DEFAULT).toBe(15000);
-    expect(45000 || DEFAULT).toBe(45000);
+  test("service uses the millisecond timeout constant when timeoutInMillis is absent", async () => {
+    const source = await Bun.file("lib/eliza/plugin-mcp/service.ts").text();
+    expect(source).toContain(
+      "config.timeoutInMillis || DEFAULT_MCP_TIMEOUT_MS",
+    );
   });
 });
 
@@ -374,7 +547,9 @@ describe("Parse retry defaults", () => {
     const source = await Bun.file(
       "lib/eliza/plugin-cloud-bootstrap/services/cloud-bootstrap-message-service.ts",
     ).text();
-    const match = source.match(/MULTISTEP_SUMMARY_PARSE_RETRIES.*?\?\?\s*"(\d+)"/);
+    const match = source.match(
+      /MULTISTEP_SUMMARY_PARSE_RETRIES.*?\?\?\s*"(\d+)"/,
+    );
     expect(match).not.toBeNull();
     expect(match![1]).toBe("2");
   });

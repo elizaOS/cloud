@@ -1,4 +1,9 @@
-import { type Action, type IAgentRuntime, Service, logger } from "@elizaos/core";
+import {
+  type Action,
+  type IAgentRuntime,
+  Service,
+  logger,
+} from "@elizaos/core";
 
 // getRequestContext may not be exported in all @elizaos/core versions.
 // We attempt a dynamic import at startup; if unavailable, per-entity connection
@@ -7,17 +12,22 @@ let getRequestContext: (() => { entityId?: string } | undefined) | undefined;
 const requestContextReady = (async () => {
   try {
     const mod = await import("@elizaos/core");
-    if ("getRequestContext" in mod && typeof mod.getRequestContext === "function") {
+    if (
+      "getRequestContext" in mod &&
+      typeof mod.getRequestContext === "function"
+    ) {
       getRequestContext = mod.getRequestContext as typeof getRequestContext;
-      logger.info("[MCP] Per-user connection isolation enabled (getRequestContext available)");
+      logger.info(
+        "[MCP] Per-user connection isolation enabled (getRequestContext available)",
+      );
     } else {
       logger.warn(
-        "[MCP] getRequestContext not exported by @elizaos/core — per-user connection isolation disabled"
+        "[MCP] getRequestContext not exported by @elizaos/core — per-user connection isolation disabled",
       );
     }
   } catch {
     logger.warn(
-      "[MCP] Could not import getRequestContext — per-user connection isolation disabled"
+      "[MCP] Could not import getRequestContext — per-user connection isolation disabled",
     );
   }
 })();
@@ -31,16 +41,22 @@ import type {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { type McpToolAction, createMcpToolActions } from "./actions/dynamic-tool-actions";
+import {
+  type McpToolAction,
+  createMcpToolActions,
+} from "./actions/dynamic-tool-actions";
 import { Tier2ToolIndex, type Tier2ToolEntry } from "./search/bm25-index";
 import { getCrucialToolsForServer, isCrucialTool } from "./tool-visibility";
 import { toActionName } from "./utils/action-naming";
 import { McpSchemaCache, getSchemaCache } from "./cache";
-import { type McpToolCompatibility, createMcpToolCompatibilitySync } from "./tool-compatibility";
+import {
+  type McpToolCompatibility,
+  createMcpToolCompatibilitySync,
+} from "./tool-compatibility";
 import {
   BACKOFF_MULTIPLIER,
   type ConnectionState,
-  DEFAULT_MCP_TIMEOUT_SECONDS,
+  DEFAULT_MCP_TIMEOUT_MS,
   DEFAULT_PING_CONFIG,
   type HttpMcpServerConfig,
   INITIAL_RETRY_DELAY,
@@ -56,7 +72,8 @@ import {
 } from "./types";
 import { buildMcpProviderData } from "./utils/mcp";
 
-const err = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+const err = (e: unknown): string =>
+  e instanceof Error ? e.message : String(e);
 
 export class McpService extends Service {
   static serviceType = MCP_SERVICE_NAME;
@@ -115,16 +132,23 @@ export class McpService extends Service {
 
       const start = Date.now();
       const entries = Object.entries(settings.servers);
-      const results = { cached: [] as string[], connected: [] as string[], failed: [] as string[] };
+      const results = {
+        cached: [] as string[],
+        connected: [] as string[],
+        failed: [] as string[],
+      };
 
       await Promise.allSettled(
         entries.map(async ([name, config]) => {
           try {
             // In production, only streamable-http is supported (SSE is deprecated on Vercel).
             // stdio is only allowed in development/local environments.
-            if (process.env.NODE_ENV === "production" && config.type !== "streamable-http") {
+            if (
+              process.env.NODE_ENV === "production" &&
+              config.type !== "streamable-http"
+            ) {
               logger.warn(
-                `[MCP] Skipping server "${name}": transport "${config.type}" is not supported in production (only streamable-http is allowed)`
+                `[MCP] Skipping server "${name}": transport "${config.type}" is not supported in production (only streamable-http is allowed)`,
               );
               results.failed.push(name);
               return;
@@ -134,9 +158,16 @@ export class McpService extends Service {
 
             // Try cache first
             if (this.schemaCache.isEnabled) {
-              const cached = await this.schemaCache.getSchemas(this.runtime.agentId, name, hash);
+              const cached = await this.schemaCache.getSchemas(
+                this.runtime.agentId,
+                name,
+                hash,
+              );
               if (cached) {
-                this.registerToolsAsActions(name, McpSchemaCache.toTools(cached));
+                this.registerToolsAsActions(
+                  name,
+                  McpSchemaCache.toTools(cached),
+                );
                 this.lazyConnections.set(name, config);
                 results.cached.push(`${name}:${cached.tools.length}`);
                 return;
@@ -150,7 +181,12 @@ export class McpService extends Service {
             await this.connect(name, config);
             const server = this.connections.get(name)?.server;
             if (this.schemaCache.isEnabled && server?.tools?.length) {
-              await this.schemaCache.setSchemas(this.runtime.agentId, name, hash, server.tools);
+              await this.schemaCache.setSchemas(
+                this.runtime.agentId,
+                name,
+                hash,
+                server.tools,
+              );
             }
 
             if (isHttpTransport) {
@@ -165,16 +201,19 @@ export class McpService extends Service {
               results.connected.push(`${name}:${server?.tools?.length || 0}`);
             }
           } catch (e) {
-            logger.error({ error: err(e), server: name }, `[MCP] Failed: ${name}`);
+            logger.error(
+              { error: err(e), server: name },
+              `[MCP] Failed: ${name}`,
+            );
             results.failed.push(name);
           }
-        })
+        }),
       );
 
       const total = results.cached.length + results.connected.length;
       logger.info(
         `[MCP] Ready ${total}/${entries.length} in ${Date.now() - start}ms ` +
-          `(${results.cached.length} cached, ${results.connected.length} connected, ${results.failed.length} failed)`
+          `(${results.cached.length} cached, ${results.connected.length} connected, ${results.failed.length} failed)`,
       );
 
       this.mcpProvider = buildMcpProviderData(this.getServers());
@@ -185,7 +224,12 @@ export class McpService extends Service {
   }
 
   private getSettings(): McpSettings | undefined {
-    let s = this.runtime.getSetting("mcp") as McpSettings | string | boolean | number | null;
+    let s = this.runtime.getSetting("mcp") as
+      | McpSettings
+      | string
+      | boolean
+      | number
+      | null;
     if (!s || typeof s !== "object" || !("servers" in s)) {
       const rt = this.runtime as IAgentRuntime & {
         character?: { settings?: { mcp?: McpSettings } };
@@ -196,7 +240,9 @@ export class McpService extends Service {
         s = rt.settings?.mcp ?? null;
       }
     }
-    return s && typeof s === "object" && "servers" in s ? (s as McpSettings) : undefined;
+    return s && typeof s === "object" && "servers" in s
+      ? (s as McpSettings)
+      : undefined;
   }
 
   // ─── Connection Management ─────────────────────────────────────────────────
@@ -204,7 +250,7 @@ export class McpService extends Service {
   private async connect(
     name: string,
     config: McpServerConfig,
-    options?: { skipActionRegistration?: boolean }
+    options?: { skipActionRegistration?: boolean },
   ): Promise<void> {
     await this.disconnect(name);
     const state: ConnectionState = {
@@ -215,7 +261,10 @@ export class McpService extends Service {
     this.connectionStates.set(name, state);
 
     try {
-      const client = new Client({ name: "ElizaOS", version: "1.0.0" }, { capabilities: {} });
+      const client = new Client(
+        { name: "ElizaOS", version: "1.0.0" },
+        { capabilities: {} },
+      );
       const transport =
         config.type === "stdio"
           ? this.createStdioTransport(name, config)
@@ -232,14 +281,16 @@ export class McpService extends Service {
       await Promise.race([
         client.connect(transport),
         new Promise<never>((_, rej) =>
-          setTimeout(() => rej(new Error("Connection timeout")), 60000)
+          setTimeout(() => rej(new Error("Connection timeout")), 60000),
         ),
       ]);
 
       const caps = client.getServerCapabilities();
       const tools = await this.fetchTools(name);
       const resources = caps?.resources ? await this.fetchResources(name) : [];
-      const resourceTemplates = caps?.resources ? await this.fetchResourceTemplates(name) : [];
+      const resourceTemplates = caps?.resources
+        ? await this.fetchResourceTemplates(name)
+        : [];
 
       conn.server = {
         status: "connected",
@@ -279,7 +330,7 @@ export class McpService extends Service {
       } catch (e) {
         logger.debug(
           { error: err(e), server: name },
-          "[MCP] Error during disconnect (expected during shutdown)"
+          "[MCP] Error during disconnect (expected during shutdown)",
         );
       }
       this.connections.delete(name);
@@ -293,12 +344,19 @@ export class McpService extends Service {
     }
   }
 
-  private createStdioTransport(name: string, config: StdioMcpServerConfig): StdioClientTransport {
-    if (!config.command) throw new Error(`Missing command for stdio server ${name}`);
+  private createStdioTransport(
+    name: string,
+    config: StdioMcpServerConfig,
+  ): StdioClientTransport {
+    if (!config.command)
+      throw new Error(`Missing command for stdio server ${name}`);
     return new StdioClientTransport({
       command: config.command,
       args: config.args,
-      env: { ...config.env, ...(process.env.PATH ? { PATH: process.env.PATH } : {}) },
+      env: {
+        ...config.env,
+        ...(process.env.PATH ? { PATH: process.env.PATH } : {}),
+      },
       stderr: "pipe",
       cwd: config.cwd,
     });
@@ -306,7 +364,7 @@ export class McpService extends Service {
 
   private createHttpTransport(
     name: string,
-    config: HttpMcpServerConfig
+    config: HttpMcpServerConfig,
   ): StreamableHTTPClientTransport {
     if (!config.url) throw new Error(`Missing URL for server ${name}`);
     const url = new URL(config.url);
@@ -318,7 +376,9 @@ export class McpService extends Service {
     if (apiKey && typeof apiKey === "string" && !headers["X-API-Key"]) {
       // Only inject for same-origin to prevent leaking to external domains
       const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000";
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.APP_URL ||
+        "http://localhost:3000";
       try {
         if (url.origin === new URL(baseUrl).origin) {
           headers["X-API-Key"] = apiKey;
@@ -333,7 +393,10 @@ export class McpService extends Service {
       this.connectionApiKeys.set(name, apiKey);
     }
 
-    const opts = Object.keys(headers).length > 0 ? { requestInit: { headers } } : undefined;
+    const opts =
+      Object.keys(headers).length > 0
+        ? { requestInit: { headers } }
+        : undefined;
     return new StreamableHTTPClientTransport(url, opts);
   }
 
@@ -341,18 +404,29 @@ export class McpService extends Service {
     name: string,
     conn: McpConnection,
     _state: ConnectionState,
-    isStdio: boolean
+    isStdio: boolean,
   ): void {
     conn.transport.onerror = async (e) => {
       const isAbortError = e?.name === "AbortError";
       if (!isStdio && isAbortError) {
-        logger.debug({ error: e, server: name }, `[MCP] Suppressed transport AbortError: ${name}`);
+        logger.debug(
+          { error: e, server: name },
+          `[MCP] Suppressed transport AbortError: ${name}`,
+        );
         return;
       }
 
       const msg = e?.message || "";
-      if (isStdio || (!msg.includes("SSE") && !msg.includes("timeout") && msg !== "undefined")) {
-        logger.error({ error: e, server: name }, `[MCP] Transport error: ${name}`);
+      if (
+        isStdio ||
+        (!msg.includes("SSE") &&
+          !msg.includes("timeout") &&
+          msg !== "undefined")
+      ) {
+        logger.error(
+          { error: e, server: name },
+          `[MCP] Transport error: ${name}`,
+        );
         conn.server.status = "disconnected";
         conn.server.error = `${conn.server.error || ""}\n${msg}`;
       }
@@ -381,13 +455,19 @@ export class McpService extends Service {
         await Promise.race([
           conn.client.listTools(),
           new Promise((_, r) =>
-            setTimeout(() => r(new Error("Ping timeout")), this.pingConfig.timeoutMs)
+            setTimeout(
+              () => r(new Error("Ping timeout")),
+              this.pingConfig.timeoutMs,
+            ),
           ),
         ]);
         state.consecutivePingFailures = 0;
       } catch (e) {
         state.consecutivePingFailures++;
-        if (state.consecutivePingFailures >= this.pingConfig.failuresBeforeDisconnect) {
+        if (
+          state.consecutivePingFailures >=
+          this.pingConfig.failuresBeforeDisconnect
+        ) {
           this.handleDisconnect(name, e);
         }
       }
@@ -407,7 +487,8 @@ export class McpService extends Service {
       return;
     }
 
-    const delay = INITIAL_RETRY_DELAY * BACKOFF_MULTIPLIER ** state.reconnectAttempts;
+    const delay =
+      INITIAL_RETRY_DELAY * BACKOFF_MULTIPLIER ** state.reconnectAttempts;
     state.reconnectTimeout = setTimeout(async () => {
       state.reconnectAttempts++;
       const config = this.connections.get(name)?.server.config;
@@ -431,44 +512,60 @@ export class McpService extends Service {
       return (res?.tools || []).map((t) => {
         if (!t.inputSchema) return t;
         const toolCompatibility =
-          this.toolCompatibility ?? createMcpToolCompatibilitySync(this.runtime);
+          this.toolCompatibility ??
+          createMcpToolCompatibilitySync(this.runtime);
         this.toolCompatibility = toolCompatibility;
         if (!toolCompatibility) return t;
         try {
           const inputSchema = toolCompatibility.transformToolSchema(
-            t.inputSchema
+            t.inputSchema,
           ) as Tool["inputSchema"];
           return { ...t, inputSchema };
         } catch (e) {
           logger.debug(
             { error: err(e), tool: t.name },
-            "[MCP] Schema transform failed, using original"
+            "[MCP] Schema transform failed, using original",
           );
           return t;
         }
       });
     } catch (e) {
-      logger.warn({ error: err(e), server: name }, "[MCP] Failed to fetch tools");
+      logger.warn(
+        { error: err(e), server: name },
+        "[MCP] Failed to fetch tools",
+      );
       return [];
     }
   }
 
   private async fetchResources(name: string): Promise<Resource[]> {
     try {
-      return (await this.connections.get(name)?.client.listResources())?.resources || [];
+      return (
+        (await this.connections.get(name)?.client.listResources())?.resources ||
+        []
+      );
     } catch (e) {
-      logger.debug({ error: err(e), server: name }, "[MCP] Failed to fetch resources");
+      logger.debug(
+        { error: err(e), server: name },
+        "[MCP] Failed to fetch resources",
+      );
       return [];
     }
   }
 
-  private async fetchResourceTemplates(name: string): Promise<ResourceTemplate[]> {
+  private async fetchResourceTemplates(
+    name: string,
+  ): Promise<ResourceTemplate[]> {
     try {
       return (
-        (await this.connections.get(name)?.client.listResourceTemplates())?.resourceTemplates || []
+        (await this.connections.get(name)?.client.listResourceTemplates())
+          ?.resourceTemplates || []
       );
     } catch (e) {
-      logger.debug({ error: err(e), server: name }, "[MCP] Failed to fetch resource templates");
+      logger.debug(
+        { error: err(e), server: name },
+        "[MCP] Failed to fetch resource templates",
+      );
       return [];
     }
   }
@@ -524,7 +621,7 @@ export class McpService extends Service {
     }
 
     logger.info(
-      `[MCP] ${serverName}: ${crucialTools.length} crucial (registered), ${tier2Entries.length} tier-2 (indexed)`
+      `[MCP] ${serverName}: ${crucialTools.length} crucial (registered), ${tier2Entries.length} tier-2 (indexed)`,
     );
   }
 
@@ -544,7 +641,9 @@ export class McpService extends Service {
     // Remove Tier-2 entries and rebuild index
     const hadTier2 = this.tier2Tools.some((t) => t.serverName === serverName);
     if (hadTier2) {
-      this.tier2Tools = this.tier2Tools.filter((t) => t.serverName !== serverName);
+      this.tier2Tools = this.tier2Tools.filter(
+        (t) => t.serverName !== serverName,
+      );
       this.tier2Index.build(this.tier2Tools);
     }
   }
@@ -610,8 +709,11 @@ export class McpService extends Service {
     const connectionKey = this.getConnectionKey(serverName);
 
     // API key freshness guard: if the key rotated since connection creation, disconnect stale connection
-    const matchedKey = this.connections.has(connectionKey) ? connectionKey
-      : this.connections.has(serverName) ? serverName : null;
+    const matchedKey = this.connections.has(connectionKey)
+      ? connectionKey
+      : this.connections.has(serverName)
+        ? serverName
+        : null;
     if (matchedKey) {
       const currentKey = this.runtime.getSetting("ELIZAOS_API_KEY") ?? "";
       const storedKey = this.connectionApiKeys.get(matchedKey) ?? "";
@@ -639,9 +741,13 @@ export class McpService extends Service {
     }
   }
 
-  private async doConnect(connectionKey: string, serverName: string): Promise<void> {
+  private async doConnect(
+    connectionKey: string,
+    serverName: string,
+  ): Promise<void> {
     // Re-check after acquiring the "lock"
-    if (this.connections.has(connectionKey) || this.connections.has(serverName)) return;
+    if (this.connections.has(connectionKey) || this.connections.has(serverName))
+      return;
 
     const config = this.lazyConnections.get(serverName);
     if (!config) throw new Error(`Unknown server: ${serverName}`);
@@ -650,7 +756,9 @@ export class McpService extends Service {
     // Skip action registration for per-entity connections — actions are already
     // registered under the base serverName during init().
     const isPerEntity = connectionKey !== serverName;
-    await this.connect(connectionKey, config, { skipActionRegistration: isPerEntity });
+    await this.connect(connectionKey, config, {
+      skipActionRegistration: isPerEntity,
+    });
 
     const server = this.connections.get(connectionKey)?.server;
     if (this.schemaCache.isEnabled && server?.tools?.length) {
@@ -658,7 +766,7 @@ export class McpService extends Service {
         this.runtime.agentId,
         serverName,
         this.schemaCache.hashConfig(config),
-        server.tools
+        server.tools,
       );
     }
 
@@ -669,7 +777,7 @@ export class McpService extends Service {
   async callTool(
     serverName: string,
     toolName: string,
-    args?: Record<string, unknown>
+    args?: Record<string, unknown>,
   ): Promise<CallToolResult> {
     await this.ensureConnected(serverName);
     const conn = this.getConnection(serverName);
@@ -677,10 +785,14 @@ export class McpService extends Service {
     if (conn.server.disabled) throw new Error(`Server disabled: ${serverName}`);
 
     const config = JSON.parse(conn.server.config);
-    const timeout = config.timeoutInMillis || DEFAULT_MCP_TIMEOUT_SECONDS;
-    const result = await conn.client.callTool({ name: toolName, arguments: args }, undefined, {
-      timeout,
-    });
+    const timeout = config.timeoutInMillis || DEFAULT_MCP_TIMEOUT_MS;
+    const result = await conn.client.callTool(
+      { name: toolName, arguments: args },
+      undefined,
+      {
+        timeout,
+      },
+    );
     if (!result.content) throw new Error("Invalid tool result");
     return result as CallToolResult;
   }
@@ -701,6 +813,8 @@ export class McpService extends Service {
     const config = JSON.parse(conn.server.config);
     await this.disconnect(connectionKey);
     const isPerEntity = connectionKey !== serverName;
-    await this.connect(connectionKey, config, { skipActionRegistration: isPerEntity });
+    await this.connect(connectionKey, config, {
+      skipActionRegistration: isPerEntity,
+    });
   }
 }
