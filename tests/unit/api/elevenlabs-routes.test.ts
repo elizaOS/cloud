@@ -18,6 +18,7 @@ class MockInsufficientCreditsError extends Error {
 
 const mockRequireAuth = mock();
 const mockRequireAuthWithOrg = mock();
+const mockRequireAuthOrApiKeyWithOrg = mock();
 const mockGetVoices = mock();
 const mockTextToSpeech = mock();
 const mockSpeechToText = mock();
@@ -42,6 +43,7 @@ const reservationFactory = () => ({
 mock.module("@/lib/auth", () => ({
   requireAuth: mockRequireAuth,
   requireAuthWithOrg: mockRequireAuthWithOrg,
+  requireAuthOrApiKeyWithOrg: mockRequireAuthOrApiKeyWithOrg,
 }));
 
 mock.module("@/lib/services/elevenlabs", () => ({
@@ -146,6 +148,7 @@ beforeEach(() => {
 
   mockRequireAuth.mockReset();
   mockRequireAuthWithOrg.mockReset();
+  mockRequireAuthOrApiKeyWithOrg.mockReset();
   mockGetVoices.mockReset();
   mockTextToSpeech.mockReset();
   mockSpeechToText.mockReset();
@@ -161,6 +164,10 @@ beforeEach(() => {
 
   mockRequireAuth.mockResolvedValue(authenticatedUser);
   mockRequireAuthWithOrg.mockResolvedValue(authenticatedUser);
+  mockRequireAuthOrApiKeyWithOrg.mockResolvedValue({
+    user: authenticatedUser,
+    apiKey: null,
+  });
   mockGetVoices.mockResolvedValue([
     { voice_id: "v1", name: "Premade", category: "premade" },
     { voice_id: "v2", name: "Professional", category: "professional" },
