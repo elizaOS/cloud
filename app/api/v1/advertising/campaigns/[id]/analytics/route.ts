@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(
       {
         error: "Invalid date parameters",
-        details: dateValidation.error.errors.map((e) => e.message),
+        details: dateValidation.error.issues.map((e) => e.message),
       },
       { status: 400 },
     );

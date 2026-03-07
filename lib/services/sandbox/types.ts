@@ -82,6 +82,9 @@ export interface SandboxInstance {
     durationMs: number,
     opts?: { signal?: AbortSignal },
   ) => Promise<void>;
+
+  // Snapshotting (optional - may not be available on all sandbox instances)
+  snapshot?: (opts?: { signal?: AbortSignal }) => Promise<{ snapshotId: string }>;
 }
 
 export type SandboxProgress =
@@ -101,6 +104,14 @@ export interface SandboxConfig {
   organizationId?: string;
   projectId?: string;
   onProgress?: (progress: SandboxProgress) => void;
+
+  // Snapshot options
+  /** Use a specific snapshot ID instead of cloning from git */
+  snapshotId?: string;
+  /** Template key for snapshot lookup (e.g., "default", "chat") */
+  templateKey?: string;
+  /** Skip snapshot lookup and always create from git */
+  skipSnapshotLookup?: boolean;
 }
 
 export interface SandboxSessionData {
@@ -109,4 +120,6 @@ export interface SandboxSessionData {
   status: "initializing" | "ready" | "generating" | "error" | "stopped";
   devServerUrl?: string;
   startedAt?: Date;
+  /** Whether this sandbox was created from a snapshot */
+  createdFromSnapshot?: boolean;
 }

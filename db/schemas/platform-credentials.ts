@@ -25,6 +25,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apps } from "./apps";
@@ -50,6 +51,19 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "mastodon",
   "twilio",
   "google_calendar",
+  // Generic OAuth providers (added via migration 0023)
+  "linear",
+  "notion",
+  "hubspot",
+  "salesforce",
+  "jira",
+  "asana",
+  "airtable",
+  "dropbox",
+  "spotify",
+  "zoom",
+  // Microsoft OAuth (added via migration 0024)
+  "microsoft",
 ]);
 
 export const platformCredentialStatusEnum = pgEnum(
@@ -135,6 +149,9 @@ export const platformCredentials = pgTable(
       table.platform,
       table.platform_user_id,
     ),
+    user_platform_idx: uniqueIndex("platform_credentials_user_platform_idx")
+      .on(table.organization_id, table.user_id, table.platform)
+      .where(sql`${table.user_id} is not null`),
     status_idx: index("platform_credentials_status_idx").on(table.status),
   }),
 );

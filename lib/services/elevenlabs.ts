@@ -9,6 +9,7 @@
  */
 
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import type { ElevenLabs } from "@elevenlabs/elevenlabs-js";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -40,7 +41,7 @@ export interface TTSOptions {
  */
 export interface STTOptions {
   audioFile: File | Blob;
-  modelId?: string;
+  modelId?: ElevenLabs.SpeechToTextConvertRequestModelId;
   languageCode?: string;
 }
 
@@ -121,12 +122,22 @@ export class ElevenLabsService {
    * Convert speech to text
    */
   async speechToText(options: STTOptions): Promise<string> {
-    const modelId = options.modelId || "scribe_v1";
+    const modelId: ElevenLabs.SpeechToTextConvertRequestModelId =
+      options.modelId === "scribe_v2" ? "scribe_v2" : "scribe_v1";
+
+    const FileConstructor = globalThis.File;
+    if (!FileConstructor) {
+      throw new Error("File is not available in this environment");
+    }
+    const audioFile =
+      options.audioFile instanceof FileConstructor
+        ? options.audioFile
+        : new FileConstructor([options.audioFile], "audio");
 
     logger.info(`[ElevenLabs STT] Transcribing audio: model=${modelId}`);
 
     const result = await this.client.speechToText.convert({
-      file: options.audioFile as File,
+      file: audioFile,
       modelId,
       languageCode: options.languageCode,
     });

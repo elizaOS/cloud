@@ -22,7 +22,7 @@ import {
 import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 
-const DEFAULT_INITIAL_CREDITS = 1.0;
+const DEFAULT_INITIAL_CREDITS = 5.0;
 const getInitialCredits = (): number => {
   const envValue = process.env.INITIAL_FREE_CREDITS;
   if (envValue) {
@@ -269,6 +269,28 @@ export async function syncUserFromPrivy(
     }
   }
 
+  // Check if email is already taken by a different Privy account (account linking)
+  if (email) {
+    const existingByEmail =
+      await usersService.getByEmailWithOrganization(email);
+    if (existingByEmail && existingByEmail.privy_user_id !== privyUserId) {
+      console.info(
+        `Linking Privy account for ${email}: ${existingByEmail.privy_user_id} → ${privyUserId}`,
+      );
+      await usersService.update(existingByEmail.id, {
+        privy_user_id: privyUserId,
+        updated_at: new Date(),
+      });
+      const linkedUser = await usersService.getByPrivyId(privyUserId);
+      if (!linkedUser) {
+        throw new Error(
+          `Failed to fetch user after Privy account linking for ${email}`,
+        );
+      }
+      return linkedUser;
+    }
+  }
+
   // Create new user and organization
   // Check for abuse before creating new account
   if (!skipAbuseCheck && signupContext) {
@@ -409,18 +431,24 @@ export async function syncUserFromPrivy(
           existingUser = await usersService.getByEmailWithOrganization(email);
         }
         if (existingUser) {
-          // Check if it's the same Privy user or a different one
           if (existingUser.privy_user_id !== privyUserId) {
-            // Email is already registered with a different Privy account
-            // This happens when user signs up with email, then tries OAuth with same email
-            // TODO: Consider account linking instead of blocking
-            console.warn(
-              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
+            // Same email, different Privy auth method (e.g. email login → Google OAuth)
+            // Link accounts by updating to the new Privy ID
+            console.info(
+              `Linking Privy account for ${email}: ${existingUser.privy_user_id} → ${privyUserId}`,
             );
+            await usersService.update(existingUser.id, {
+              privy_user_id: privyUserId,
+              updated_at: new Date(),
+            });
             await organizationsService.delete(organization.id);
-            throw new Error(
-              `Email ${email} is already registered with a different account`,
-            );
+            const linkedUser = await usersService.getByPrivyId(privyUserId);
+            if (!linkedUser) {
+              throw new Error(
+                `Failed to fetch user after Privy account linking for ${email}`,
+              );
+            }
+            return linkedUser;
           }
           break;
         }

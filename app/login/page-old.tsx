@@ -101,7 +101,15 @@ function LoginPageContent() {
         return () => clearTimeout(timeout);
       }
     }
-  }, [ready, authenticated, router, loadingButton, user, isProcessingOAuth]);
+  }, [
+    ready,
+    authenticated,
+    router,
+    loadingButton,
+    user,
+    isProcessingOAuth,
+    searchParams,
+  ]);
 
   // Monitor email state to show code input
   useEffect(() => {

@@ -352,3 +352,67 @@ export type SessionRestoreHistory = InferSelectModel<
 export type NewSessionRestoreHistory = InferInsertModel<
   typeof sessionRestoreHistory
 >;
+/**
+ * Sandbox template snapshots table schema.
+ *
+ * Stores Vercel Sandbox snapshots for templates to enable faster startup.
+ * Instead of cloning from git and reinstalling dependencies each time,
+ * sandboxes can be created from a snapshot that already has everything set up.
+ *
+ * Snapshots expire after 7 days (Vercel's limit), so we track expiration
+ * and automatically refresh them.
+ *
+ * @see https://vercel.com/docs/vercel-sandbox#snapshotting
+ */
+export const sandboxTemplateSnapshots = pgTable(
+  "sandbox_template_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    // Snapshot identification
+    snapshot_id: text("snapshot_id").notNull().unique(), // Vercel Sandbox snapshot ID
+    template_key: text("template_key").notNull(), // e.g., "default", "chat", template slug
+
+    // Source tracking
+    github_repo: text("github_repo"), // The GitHub repo this snapshot was created from
+    github_commit_sha: text("github_commit_sha"), // Commit SHA at time of snapshot
+
+    // Snapshot metadata
+    node_modules_size_mb: integer("node_modules_size_mb"), // Size of node_modules in MB
+    total_files: integer("total_files"), // Number of files in the snapshot
+
+    // Status
+    status: text("status")
+      .$type<"creating" | "ready" | "expired" | "failed">()
+      .default("creating")
+      .notNull(),
+    error_message: text("error_message"),
+
+    // Timestamps
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    expires_at: timestamp("expires_at").notNull(), // 7 days from creation
+    last_used_at: timestamp("last_used_at"),
+
+    // Usage tracking
+    usage_count: integer("usage_count").default(0).notNull(),
+  },
+  (table) => ({
+    template_key_idx: index("sandbox_snapshots_template_key_idx").on(
+      table.template_key,
+    ),
+    status_idx: index("sandbox_snapshots_status_idx").on(table.status),
+    expires_at_idx: index("sandbox_snapshots_expires_at_idx").on(
+      table.expires_at,
+    ),
+    snapshot_id_idx: index("sandbox_snapshots_snapshot_id_idx").on(
+      table.snapshot_id,
+    ),
+  }),
+);
+
+export type SandboxTemplateSnapshot = InferSelectModel<
+  typeof sandboxTemplateSnapshots
+>;
+export type NewSandboxTemplateSnapshot = InferInsertModel<
+  typeof sandboxTemplateSnapshots
+>;

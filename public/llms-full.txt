@@ -1304,8 +1304,26 @@ Summary: Create and manage AI agents on elizaOS Cloud.
 
 Create, configure, and manage your AI agents (characters).
 
-  Agents API has two endpoint patterns: dashboard routes under `/api/my-agents/`
-  and programmatic API under `/api/v1/app/agents`. Both require authentication.
+  **API Key Support:** All agent management endpoints support API key authentication. This enables:
+  - **Developers** to manage agents programmatically from scripts and CI/CD pipelines
+  - **AI Agents** to create and manage other agents autonomously
+  - **Integration** with external systems that need to provision agents automatically
+
+## Authentication
+
+All agent endpoints accept authentication via:
+- **Session cookie** (Privy) - for browser-based access
+- **API Key** - via `X-API-Key` header or `Authorization: Bearer` header
+
+```bash
+# Using X-API-Key header (recommended)
+curl "https://elizacloud.ai/api/my-agents/characters" \
+  -H "X-API-Key: YOUR_API_KEY"
+
+# Using Authorization header
+curl "https://elizacloud.ai/api/my-agents/characters" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
 
 ## List Agents
 
@@ -1475,15 +1493,19 @@ Create a copy of an existing agent.
 
 Get usage statistics for an agent.
 
+Currently returns placeholder stats.
+
 ### Response
 
 ```json
 {
   "success": true,
   "data": {
-    "views": 500,
-    "interactions": 1200,
-    "messageCount": 1500
+    "stats": {
+      "views": 0,
+      "interactions": 0,
+      "messageCount": 0
+    }
   }
 }
 ```
@@ -2564,7 +2586,12 @@ Summary: Manage credits and billing on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-Manage your credits and view usage.
+Manage your credits, billing settings, and view usage.
+
+  **API Key Support:** All billing endpoints support API key authentication. This enables:
+  - **Developers** to monitor usage and manage billing programmatically
+  - **AI Agents** to autonomously manage their own budgets and ensure continuous operation
+  - **Automation** to configure auto-top-up settings without manual intervention
 
 ## Get Credit Balance
 
@@ -2742,6 +2769,115 @@ Verify a completed payment and add credits.
 
 ---
 
+## Billing Settings
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/billing/settings</span>
+</div>
+
+Get billing configuration including auto-top-up settings.
+
+### Response
+
+```json
+{
+  "success": true,
+  "settings": {
+    "autoTopUp": {
+      "enabled": true,
+      "amount": 25.0,
+      "threshold": 5.0,
+      "hasPaymentMethod": true
+    },
+    "limits": {
+      "minAmount": 1,
+      "maxAmount": 1000,
+      "minThreshold": 0,
+      "maxThreshold": 1000
+    }
+  }
+}
+```
+
+---
+
+## Update Billing Settings
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-put">PUT</span>
+  <span className="path">/api/v1/billing/settings</span>
+</div>
+
+Configure auto-top-up to automatically replenish credits when balance falls below a threshold.
+
+  **Why Auto-Top-Up?** AI agents operating autonomously need uninterrupted access to credits. 
+  Auto-top-up ensures your agents never stop working due to insufficient balance.
+
+### Request
+
+```json
+{
+  "autoTopUp": {
+    "enabled": true,
+    "amount": 25.0,
+    "threshold": 5.0
+  }
+}
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `autoTopUp.enabled` | boolean | Enable or disable auto-top-up |
+| `autoTopUp.amount` | number | Amount to charge when triggered ($1-$1000) |
+| `autoTopUp.threshold` | number | Balance threshold to trigger top-up ($0-$1000) |
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Billing settings updated successfully",
+  "settings": {
+    "autoTopUp": {
+      "enabled": true,
+      "amount": 25.0,
+      "threshold": 5.0,
+      "hasPaymentMethod": true
+    }
+  }
+}
+```
+
+  Auto-top-up requires a saved payment method. Add a payment method via the dashboard before enabling.
+
+---
+
+## Trigger Auto-Top-Up
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/auto-top-up/trigger</span>
+</div>
+
+Manually trigger an auto-top-up check. Useful for testing or when you want to top up immediately.
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Auto top-up successful! Added $25.00",
+  "amount": 25.0,
+  "previousBalance": 3.5,
+  "newBalance": 28.5
+}
+```
+
+---
+
 ## Get Transaction History
 
 <div className="api-endpoint">
@@ -2749,41 +2885,40 @@ Verify a completed payment and add credits.
   <span className="path">/api/credits/transactions</span>
 </div>
 
-Get credit transaction history.
-
-  This endpoint uses `/api/credits/` rather than `/api/v1/credits/`.
+Get credit transaction history for your organization.
 
 ### Query Parameters
 
-| Parameter | Type    | Description                    |
-| --------- | ------- | ------------------------------ |
-| `limit`   | integer | Results per page (default: 20) |
-| `offset`  | integer | Pagination offset              |
+| Parameter | Type    | Description                              |
+| --------- | ------- | ---------------------------------------- |
+| `limit`   | integer | Max results returned (default: 100)      |
+| `hours`   | integer | Limit results to the last N hours        |
 
 ### Response
 
 ```json
 {
-  "success": true,
   "transactions": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "id": "txn_abc123",
+      "organization_id": "org_123",
       "type": "usage",
-      "amount": -0.05,
-      "description": "Chat completion (gpt-4o)",
-      "created_at": "2024-01-15T10:30:00Z"
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "type": "topup",
-      "amount": 50.0,
-      "description": "Stripe payment",
-      "created_at": "2024-01-14T08:00:00Z"
+      "amount": -100,
+      "description": "Text to speech generation",
+      "metadata": null,
+      "stripe_payment_intent_id": null,
+      "created_at": "2024-01-15T10:30:00.000Z"
     }
   ],
-  "total": 150
+  "total": 1,
+  "period": {
+    "start": "2024-01-15T09:30:00.000Z",
+    "end": "2024-01-15T10:30:00.000Z"
+  }
 }
 ```
+
+Note: `offset` is not supported for this endpoint.
 
 ---
 
@@ -4216,24 +4351,39 @@ Summary: Text-to-speech and voice cloning on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-Text-to-speech generation and voice cloning capabilities powered by ElevenLabs.
+Text-to-speech generation and voice cloning capabilities.
 
-  Voice APIs are available at `/api/elevenlabs/` rather than `/api/v1/`. This is
-  a dedicated integration path for voice services.
+  **API Key Support:** `/api/v1/voice/*` endpoints support both session-based authentication and API key authentication.
+  Legacy `/api/elevenlabs/*` endpoints are session-based only.
+
+## Endpoint Patterns
+
+Voice APIs are available at two paths:
+
+| Pattern | Description | Auth | Use Case |
+|---------|-------------|------|----------|
+| `/api/v1/voice/*` | **Recommended** - Generic, provider-agnostic endpoints | Session or API key | New integrations, programmatic access |
+| `/api/elevenlabs/*` | Legacy endpoints (still supported) | Session only | Existing integrations, backwards compatibility |
+
+API key authentication is available only on `/api/v1/voice/*`. Legacy `/api/elevenlabs/*` endpoints require session-based auth and do not accept API keys.
+
+---
 
 ## Text to Speech
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/elevenlabs/tts</span>
+  <span className="path">/api/v1/voice/tts</span>
 </div>
+
+  Legacy path: `/api/elevenlabs/tts` (still supported for backwards compatibility)
 
 Convert text to speech audio using premium AI voices.
 
   
 ```bash
-curl -X POST "https://elizacloud.ai/api/elevenlabs/tts" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+curl -X POST "https://elizacloud.ai/api/v1/voice/tts" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Hello, this is a test of the text to speech system.",
@@ -4245,10 +4395,10 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/tts" \
   
   
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/elevenlabs/tts', {
+const response = await fetch('https://elizacloud.ai/api/v1/voice/tts', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
+    'X-API-Key': 'YOUR_API_KEY',
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -4267,9 +4417,9 @@ const audioUrl = URL.createObjectURL(audioBlob);
 ```python
 
 response = requests.post(
-    'https://elizacloud.ai/api/elevenlabs/tts',
+    'https://elizacloud.ai/api/v1/voice/tts',
     headers={
-        'Authorization': 'Bearer YOUR_API_KEY',
+        'X-API-Key': 'YOUR_API_KEY',
         'Content-Type': 'application/json',
     },
     json={
@@ -4313,8 +4463,10 @@ Returns audio data as `audio/mpeg` stream. The `Content-Length` header indicates
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/elevenlabs/stt</span>
+  <span className="path">/api/v1/voice/stt</span>
 </div>
+
+  Legacy path: `/api/elevenlabs/stt` (still supported for backwards compatibility)
 
 Transcribe audio to text.
 
@@ -4323,18 +4475,24 @@ Transcribe audio to text.
 Upload audio as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/elevenlabs/stt" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+curl -X POST "https://elizacloud.ai/api/v1/voice/stt" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -F "audio=@recording.mp3"
 ```
 
 ### Response
 
+Returns JSON with `transcript` and `duration_ms`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `transcript` | string | Transcribed text |
+| `duration_ms` | number | Audio duration in milliseconds |
+
 ```json
 {
-  "text": "Hello, this is a transcription test.",
-  "language": "en",
-  "confidence": 0.95
+  "transcript": "Hello, this is a transcription test.",
+  "duration_ms": 3245
 }
 ```
 
@@ -4344,39 +4502,46 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/stt" \
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/elevenlabs/voices</span>
+  <span className="path">/api/v1/voice/list</span>
 </div>
 
-Get available voices.
+  Legacy path: `/api/elevenlabs/voices/user` (still supported for backwards compatibility)
+
+Get your cloned voices with pagination and filtering.
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `includeInactive` | boolean | Include inactive voices (default: false) |
+| `cloneType` | string | Filter by `instant` or `professional` |
+| `limit` | number | Results per page (default: 50, max: 100) |
+| `offset` | number | Pagination offset |
 
 ### Response
 
 ```json
 {
+  "success": true,
   "voices": [
     {
-      "id": "voice_abc123",
-      "name": "Rachel",
-      "category": "premade",
-      "labels": {
-        "accent": "american",
-        "gender": "female"
-      }
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "elevenlabsVoiceId": "xyz789",
+      "name": "My Custom Voice",
+      "description": "A professional voice clone",
+      "cloneType": "instant",
+      "sampleCount": 3,
+      "usageCount": 150,
+      "isActive": true,
+      "createdAt": "2024-01-15T10:30:00Z"
     }
-  ]
+  ],
+  "total": 5,
+  "limit": 50,
+  "offset": 0,
+  "hasMore": false
 }
 ```
-
----
-
-## Get User Voices
-
-<div className="api-endpoint">
-  <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/elevenlabs/voices/user</span>
-</div>
-
-Get your cloned voices.
 
 ---
 
@@ -4384,8 +4549,10 @@ Get your cloned voices.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/elevenlabs/voices/clone</span>
+  <span className="path">/api/v1/voice/clone</span>
 </div>
+
+  Legacy path: `/api/elevenlabs/voices/clone` (still supported for backwards compatibility)
 
 Create a voice clone from audio samples.
 
@@ -4394,18 +4561,19 @@ Create a voice clone from audio samples.
 Upload audio samples as `multipart/form-data`:
 
 ```bash
-curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+curl -X POST "https://elizacloud.ai/api/v1/voice/clone" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -F "name=My Voice" \
-  -F "files=@sample1.mp3" \
-  -F "files=@sample2.mp3"
+  -F "cloneType=instant" \
+  -F "file0=@sample1.mp3" \
+  -F "file1=@sample2.mp3"
 ```
 
 ### Response
 
 ```json
 {
-  "id": "voice_xyz789",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
   "name": "My Voice",
   "status": "processing"
 }
@@ -4418,18 +4586,56 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
 
 ---
 
+## Get Voice
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/voice/{"{id}"}</span>
+</div>
+
+  Legacy path: `/api/elevenlabs/voices/{id}` (still supported for backwards compatibility)
+
+Get details for a specific voice by its internal UUID.
+
+```bash
+curl "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+---
+
+## Update Voice
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-patch">PATCH</span>
+  <span className="path">/api/v1/voice/{"{id}"}</span>
+</div>
+
+Update a voice's metadata.
+
+```bash
+curl -X PATCH "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Updated Voice Name", "isActive": true}'
+```
+
+---
+
 ## Delete Voice
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/elevenlabs/voices/{"{id}"}</span>
+  <span className="path">/api/v1/voice/{"{id}"}</span>
 </div>
+
+  Legacy path: `/api/elevenlabs/voices/{id}` (still supported for backwards compatibility)
 
 Delete a cloned voice from your account.
 
 ```bash
-curl -X DELETE "https://elizacloud.ai/api/elevenlabs/voices/voice_xyz789" \
-  -H "Authorization: Bearer YOUR_API_KEY"
+curl -X DELETE "https://elizacloud.ai/api/v1/voice/123e4567-e89b-12d3-a456-426614174000" \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 ### Response
@@ -4443,22 +4649,33 @@ curl -X DELETE "https://elizacloud.ai/api/elevenlabs/voices/voice_xyz789" \
 
 ---
 
-## Verify Voice
+## Voice Cloning Jobs
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/elevenlabs/voices/verify/{"{id}"}</span>
+  <span className="path">/api/v1/voice/jobs</span>
 </div>
 
-Check voice cloning status. Cloning typically takes 30-60 seconds.
+  Legacy path: `/api/elevenlabs/voices/jobs` (still supported for backwards compatibility)
+
+Check status of active voice cloning jobs.
 
 ### Response
 
 ```json
 {
-  "id": "voice_xyz789",
-  "status": "ready",
-  "quality": 0.92
+  "success": true,
+  "jobs": [
+    {
+      "id": "job_xyz789",
+      "voiceName": "My Voice",
+      "jobType": "instant",
+      "status": "processing",
+      "progress": 50,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 1
 }
 ```
 
@@ -4466,8 +4683,9 @@ Check voice cloning status. Cloning typically takes 30-60 seconds.
 
 | Status       | Description                          |
 | ------------ | ------------------------------------ |
+| `pending`    | Job is queued                        |
 | `processing` | Voice clone is being generated       |
-| `ready`      | Voice is ready to use                |
+| `completed`  | Voice is ready to use                |
 | `failed`     | Cloning failed (check audio quality) |
 
 ---

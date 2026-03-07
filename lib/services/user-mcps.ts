@@ -30,7 +30,7 @@ export interface CreateMcpParams {
   containerId?: string;
   externalEndpoint?: string;
   endpointPath?: string;
-  transportType?: "http" | "sse" | "streamable-http";
+  transportType?: "streamable-http" | "stdio";
   tools?: Array<{
     name: string;
     description: string;
@@ -56,7 +56,7 @@ export interface UpdateMcpParams {
   version?: string;
   category?: string;
   endpointPath?: string;
-  transportType?: "http" | "sse" | "streamable-http";
+  transportType?: "streamable-http" | "stdio";
   tools?: Array<{
     name: string;
     description: string;
@@ -68,9 +68,9 @@ export interface UpdateMcpParams {
   x402PriceUsd?: number;
   x402Enabled?: boolean;
   creatorSharePercentage?: number;
-  documentationUrl?: string;
-  sourceCodeUrl?: string;
-  supportEmail?: string;
+  documentationUrl?: string | null;
+  sourceCodeUrl?: string | null;
+  supportEmail?: string | null;
   tags?: string[];
   icon?: string;
   color?: string;
@@ -115,7 +115,10 @@ class UserMcpsService {
   async create(params: CreateMcpParams): Promise<UserMcp> {
     // Validate container exists if using container endpoint
     if (params.endpointType === "container" && params.containerId) {
-      const container = await containersService.getById(params.containerId);
+      const container = await containersService.getById(
+        params.containerId,
+        params.organizationId,
+      );
       if (!container) {
         throw new Error("Container not found");
       }
@@ -608,7 +611,13 @@ class UserMcpsService {
       throw new Error("Unauthorized");
     }
 
-    return mcpUsageRepository.getStats(mcpId);
+    const stats = await mcpUsageRepository.getStats(mcpId);
+    return {
+      totalRequests: stats.totalRequests,
+      totalCreditsEarned: stats.totalCreditsCharged,
+      totalX402EarnedUsd: stats.totalX402Usd,
+      uniqueUsers: stats.uniqueOrgs,
+    };
   }
 
   /**
@@ -640,7 +649,7 @@ class UserMcpsService {
     description: string;
     category: string;
     endpoint: string;
-    type: "http" | "sse" | "streamable-http";
+    type: "streamable-http" | "stdio";
     version: string;
     status: "live" | "coming_soon" | "maintenance";
     icon: string;
@@ -662,7 +671,7 @@ class UserMcpsService {
       servers: Record<
         string,
         {
-          type: "http" | "sse" | "streamable-http";
+          type: "streamable-http" | "stdio";
           url: string;
         }
       >;
@@ -683,7 +692,7 @@ class UserMcpsService {
       description: mcp.description,
       category: mcp.category,
       endpoint,
-      type: mcp.transport_type as "http" | "sse" | "streamable-http",
+      type: mcp.transport_type as "streamable-http" | "stdio",
       version: mcp.version,
       status: mcp.status === "live" ? "live" : "coming_soon",
       icon: mcp.icon ?? "puzzle",
@@ -709,7 +718,7 @@ class UserMcpsService {
       configTemplate: {
         servers: {
           [mcp.slug]: {
-            type: mcp.transport_type as "http" | "sse" | "streamable-http",
+            type: mcp.transport_type as "streamable-http" | "stdio",
             url: endpoint,
           },
         },

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,7 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * GET /api/credits/balance
  * Gets the credit balance for the authenticated user's organization.
+ * Supports both Privy session and API key authentication.
  *
  * Query params:
  * - fresh=true: Bypass cache and fetch directly from DB (use after payments)
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     // Check if fresh data is requested (e.g., after payment)
     const forceFresh = req.nextUrl.searchParams.get("fresh") === "true";

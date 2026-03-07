@@ -37,9 +37,16 @@ interface RouteParams {
   params: Promise<{ sessionId: string }>;
 }
 
+/** Image attachment in base64 format */
+const ImageSchema = z.object({
+  base64: z.string(),
+  mimeType: z.string(),
+});
+
 const SendPromptSchema = z.object({
   prompt: z.string().min(1).max(10000),
   model: z.string().optional(), // Optional model selection
+  images: z.array(ImageSchema).max(5).optional(), // Up to 5 images
 });
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -86,7 +93,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { prompt, model } = validationResult.data;
+    const { prompt, model, images } = validationResult.data;
 
     const stream = new TransformStream();
     const rawWriter = stream.writable.getWriter();
@@ -170,6 +177,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           sandboxId: session.sandboxId,
           appId: session.appId,
           model,
+          images,
           abortSignal: abortController.signal,
         })) {
           // Check for abort

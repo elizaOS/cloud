@@ -127,10 +127,9 @@ export async function handleMessageSend(
     .join("\n");
 
   if (textContent) {
-    contentModerationService.moderateAgentInBackground(
+    contentModerationService.moderateInBackground(
       textContent,
       ctx.user.id,
-      ctx.agentIdentifier,
       undefined,
       (result) => {
         logger.warn("[A2A] Moderation violation detected", {

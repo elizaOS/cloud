@@ -15,8 +15,8 @@ import {
   Shield,
   Wallet,
   Coins,
-  Workflow,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -31,6 +31,7 @@ export interface SidebarItem {
   freeAllowed?: boolean;
   featureFlag?: FeatureFlag;
   adminOnly?: boolean; // Only show for admin users
+  superAdminOnly?: boolean; // Only show for super_admin role
   comingSoon?: boolean; // Show as disabled with "soon" tag
 }
 
@@ -51,33 +52,25 @@ export const sidebarSections: SidebarSection[] = [
       },
     ],
   },
-  {
-    title: "Apps",
-    items: [
-      {
-        id: "app-creator",
-        label: "App Creator",
-        href: "/dashboard/apps/create",
-        icon: Sparkles,
-        freeAllowed: false,
-      },
-      {
-        id: "my-apps",
-        label: "My Apps",
-        href: "/dashboard/apps",
-        icon: Grid3x3,
-        freeAllowed: false,
-      },
-      {
-        id: "workflows",
-        label: "Workflows",
-        href: "/dashboard/workflows",
-        icon: Workflow,
-        freeAllowed: false,
-        comingSoon: true,
-      },
-    ],
-  },
+  // {
+  //   title: "Apps",
+  //   items: [
+  //     {
+  //       id: "app-creator",
+  //       label: "App Creator",
+  //       href: "/dashboard/apps/create",
+  //       icon: Sparkles,
+  //       freeAllowed: false,
+  //     },
+  //     {
+  //       id: "my-apps",
+  //       label: "My Apps",
+  //       href: "/dashboard/apps",
+  //       icon: Grid3x3,
+  //       freeAllowed: false,
+  //     },
+  //   ],
+  // },
   {
     title: "Agents",
     items: [
@@ -192,6 +185,15 @@ export const sidebarSections: SidebarSection[] = [
         icon: Coins,
         freeAllowed: false,
         adminOnly: true,
+      },
+      {
+        id: "admin-metrics",
+        label: "Metrics",
+        href: "/dashboard/admin/metrics",
+        icon: BarChart3,
+        freeAllowed: false,
+        adminOnly: true,
+        superAdminOnly: true,
       },
     ],
   },

@@ -45,12 +45,19 @@ export interface MessageOperation {
   reasoning?: string; // Reasoning that led to this operation (for accordion)
 }
 
+/** Image attachment preview for display in chat */
+export interface MessageImagePreview {
+  id: string;
+  previewUrl: string;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
   reasoning?: string; // Overall reasoning (deprecated - use operations.reasoning)
   operations?: MessageOperation[]; // Per-operation data with reasoning for accordions
   filesAffected?: string[];
+  images?: MessageImagePreview[]; // Attached images for preview
   timestamp: string;
   _thinkingId?: number;
 }

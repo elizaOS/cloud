@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -64,6 +64,7 @@ function getMaxAgentsForOrg(
 /**
  * POST /api/v1/app/agents
  * Creates a new AI agent (character) for the authenticated user.
+ * Supports both Privy session and API key authentication.
  * Rate limited: 10 agent creations per minute.
  * Enforces organization agent quotas and user permissions.
  *
@@ -75,7 +76,7 @@ function getMaxAgentsForOrg(
  */
 async function handlePOST(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Check user role - only members, admins, and owners can create agents
     if (user.role === "viewer") {
@@ -166,6 +167,7 @@ async function handlePOST(request: NextRequest) {
       user_id: user.id,
       organization_id: user.organization_id,
       source: "cloud",
+      character_data: {},
     });
 
     // Track agent creation in PostHog using internal UUID

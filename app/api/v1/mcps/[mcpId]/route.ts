@@ -36,13 +36,13 @@ const updateMcpSchema = z.object({
     ])
     .optional(),
   endpointPath: z.string().max(100).optional(),
-  transportType: z.enum(["http", "sse", "streamable-http"]).optional(),
+  transportType: z.enum(["streamable-http", "stdio"]).optional(),
   tools: z
     .array(
       z.object({
         name: z.string().min(1).max(50),
         description: z.string().min(1).max(500),
-        inputSchema: z.record(z.unknown()).optional(),
+        inputSchema: z.record(z.string(), z.unknown()).optional(),
         cost: z.string().max(20).optional(),
       }),
     )

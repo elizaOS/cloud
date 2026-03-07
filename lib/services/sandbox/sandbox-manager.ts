@@ -14,7 +14,13 @@ import { logger } from "@/lib/utils/logger";
  */
 export interface SandboxSummary {
   sandboxId: string;
-  status: "pending" | "running" | "stopping" | "stopped" | "failed";
+  status:
+    | "pending"
+    | "running"
+    | "stopping"
+    | "stopped"
+    | "failed"
+    | "snapshotting";
   createdAt: Date;
   timeout: number;
 }
@@ -59,8 +65,8 @@ export interface GetSandboxOptions {
  */
 async function getSandboxSDK() {
   try {
-    const module = await import("@vercel/sandbox");
-    return module.Sandbox || module.default;
+    const sandboxModule = await import("@vercel/sandbox");
+    return sandboxModule.Sandbox || sandboxModule.default;
   } catch (error) {
     logger.error("Failed to import @vercel/sandbox", {
       error: error instanceof Error ? error.message : "Unknown",
@@ -94,17 +100,26 @@ export async function listSandboxes(
       until,
       signal,
     });
+    const parsedResult = "json" in result ? result.json : result;
+    const sandboxes = (parsedResult.sandboxes ?? []) as Array<{
+      id: string;
+      status: SandboxSummary["status"];
+      timeout: number;
+      createdAt?: string | number;
+      requestedAt?: number;
+    }>;
+    const pagination = parsedResult.pagination;
 
     return {
-      sandboxes: result.sandboxes.map((s: SandboxSummary) => ({
-        sandboxId: s.sandboxId,
+      sandboxes: sandboxes.map((s) => ({
+        sandboxId: s.id,
         status: s.status,
-        createdAt: new Date(s.createdAt),
+        createdAt: new Date(s.createdAt ?? s.requestedAt ?? Date.now()),
         timeout: s.timeout,
       })),
       pagination: {
-        next: result.pagination?.next,
-        hasMore: !!result.pagination?.next,
+        next: pagination?.next ? String(pagination.next) : undefined,
+        hasMore: !!pagination?.next,
       },
     };
   } catch (error) {

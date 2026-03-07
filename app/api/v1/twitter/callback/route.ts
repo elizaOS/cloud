@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { cache } from "@/lib/cache/client";
 import { logger } from "@/lib/utils/logger";
+import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -28,20 +29,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const stateKey = `twitter_oauth:${oauthToken}`;
-  const stateJson = await cache.get(stateKey);
+  const stateData = await cache.get(stateKey);
 
-  if (!stateJson) {
+  if (!stateData) {
     return NextResponse.redirect(
       `${defaultRedirect}&twitter_error=expired_or_invalid`,
     );
   }
 
-  const state = JSON.parse(stateJson as string) as {
+  // Cache may return object directly or JSON string depending on implementation
+  let state: {
     oauthTokenSecret: string;
     organizationId: string;
     userId: string;
     redirectUrl?: string;
   };
+
+  try {
+    const parsed = typeof stateData === "string" ? JSON.parse(stateData) : stateData;
+    
+    // Validate required fields exist
+    if (!parsed || typeof parsed !== "object" ||
+        typeof parsed.oauthTokenSecret !== "string" ||
+        typeof parsed.organizationId !== "string" ||
+        typeof parsed.userId !== "string") {
+      throw new Error("Invalid state data structure");
+    }
+    
+    state = parsed;
+  } catch (error) {
+    logger.error("[Twitter Callback] Failed to parse state data", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await cache.del(stateKey);
+    return NextResponse.redirect(
+      `${defaultRedirect}&twitter_error=invalid_state`,
+    );
+  }
 
   const redirectUrl = state.redirectUrl || defaultRedirect;
 
@@ -88,6 +112,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   await cache.del(stateKey);
+
+  await invalidateOAuthState(state.organizationId, "twitter", state.userId);
 
   const redirectWithSuccess = redirectUrl.includes("?")
     ? `${redirectUrl}&twitter_connected=true&twitter_username=${tokens.screenName}`

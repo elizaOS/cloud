@@ -5,13 +5,14 @@
  * Each organization has their own webhook URL with their orgId.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
 import { logger } from "@/lib/utils/logger";
 import { isCommand } from "@/lib/utils/telegram-helpers";
+import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import type { Update, Message, ChatMemberUpdated } from "telegraf/types";
 import type { App } from "@/db/schemas/apps";
 
@@ -21,13 +22,46 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-export async function POST(
-  request: Request,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+async function handleTelegramWebhook(
+  request: NextRequest,
+  context?: { params: Promise<RouteParams["params"]> },
+): Promise<Response> {
+  const { params } = context || { params: Promise.resolve({ orgId: "" }) };
   const { orgId } = await params;
 
-  const botToken = await telegramAutomationService.getBotToken(orgId);
+  // Verify the webhook secret token from Telegram
+  // See: https://core.telegram.org/bots/api#setwebhook
+  const secretToken = request.headers.get("x-telegram-bot-api-secret-token");
+  const storedSecret = await telegramAutomationService.getWebhookSecret(orgId);
+
+  // In production, require secret token verification
+  // In development, allow requests without secret for testing (but log a warning)
+  if (storedSecret) {
+    if (!secretToken) {
+      logger.warn("[Telegram Webhook] Missing secret token header", { orgId });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (secretToken !== storedSecret) {
+      logger.warn("[Telegram Webhook] Invalid secret token", { orgId });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    // No secret configured - org doesn't have telegram set up
+    // Return 200 OK to stop Telegram from retrying (webhook was likely orphaned)
+    logger.warn("[Telegram Webhook] No webhook secret configured - ignoring", { orgId });
+    return NextResponse.json({ ok: true, status: "not_configured" });
+  }
+
+  let botToken = await telegramAutomationService.getBotToken(orgId);
+
+  // DEV ONLY: Fallback to env variable for testing
+  if (!botToken && process.env.NODE_ENV === "development") {
+    botToken = process.env.TELEGRAM_BOT_TOKEN || null;
+    if (botToken) {
+      logger.info("[Telegram Webhook] Using fallback bot token from env", { orgId });
+    }
+  }
+
   if (!botToken) {
     logger.warn("[Telegram Webhook] No bot token for organization", { orgId });
     return NextResponse.json({ error: "Bot not configured" }, { status: 404 });
@@ -71,6 +105,10 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
+
+// Export POST handler with rate limiting (100 requests/min per IP)
+// Uses AGGRESSIVE preset for webhook endpoints
+export const POST = withRateLimit(handleTelegramWebhook, RateLimitPresets.AGGRESSIVE);
 
 /**
  * Track a chat from a regular message/post.
@@ -257,6 +295,7 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
     const chatId = ctx.chat.id;
     const userName = ctx.from?.first_name;
 
+    // Route to app automation
     const matchingApp = activeApps.find(
       (app) =>
         app.telegram_automation?.channelId === String(chatId) ||

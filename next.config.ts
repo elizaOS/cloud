@@ -2,6 +2,25 @@ import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
 
+// =============================================================================
+// CRITICAL SECURITY VALIDATION
+// =============================================================================
+// Fail fast if SKIP_WEBHOOK_VERIFICATION is enabled in production.
+// This environment variable bypasses webhook signature verification and must
+// NEVER be enabled in production environments.
+// =============================================================================
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.SKIP_WEBHOOK_VERIFICATION === "true"
+) {
+  throw new Error(
+    "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
+      "This is a critical security misconfiguration that would allow " +
+      "unauthenticated webhook requests. Remove this environment variable " +
+      "from your production deployment."
+  );
+}
+
 const withNextra = nextra({
   // Only scan the content directory for MDX files
   contentDirBasePath: "/docs",
@@ -112,6 +131,11 @@ const nextConfig: NextConfig = {
         "@walletconnect/logger": loggerStubPath,
       };
     }
+    // When DEV_LINKED=1, disable symlink resolution so webpack follows
+    // symlinked dist/ directories from dev-link.sh
+    if (process.env.DEV_LINKED === "1") {
+      config.resolve.symlinks = false;
+    }
     return config;
   },
   transpilePackages: ["next-mdx-remote"],
@@ -130,7 +154,6 @@ const nextConfig: NextConfig = {
     "pdfjs-dist",
     "canvas",
     "pdf-parse",
-    "@elizaos/plugin-mcp",
     "@modelcontextprotocol/sdk",
     "mcp-handler",
     "express",
@@ -219,6 +242,17 @@ const nextConfig: NextConfig = {
   },
   // Exclude auth-error from page generation to avoid naming conflict
   pageExtensions: ["tsx", "ts", "jsx", "js", "mdx", "md"],
+
+  async rewrites() {
+    return [
+      // Serve static HTML for privacy policy (required for Google OAuth verification)
+      // Google's crawler needs plain HTML, not React-rendered pages
+      {
+        source: "/privacy-policy",
+        destination: "/privacy-policy.html",
+      },
+    ];
+  },
 };
 
 export default withNextra(nextConfig);

@@ -1,9 +1,10 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * MCP Server management tools
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { getAuthContext } from "../lib/context";
 import { jsonResponse, errorResponse } from "../lib/responses";
@@ -32,12 +33,13 @@ export function registerMcpTools(server: McpServer): void {
     async ({ scope, limit }) => {
       try {
         const { user } = getAuthContext();
-        const mcps = await userMcpsService.list({
-          organizationId: user.organization_id,
-          scope,
-          limit,
-          offset: 0,
-        });
+        const mcps =
+          scope === "public"
+            ? await userMcpsService.listPublic({ limit })
+            : await userMcpsService.listByOrganization(user.organization_id, {
+                limit,
+                offset: 0,
+              });
 
         return jsonResponse({
           success: true,
@@ -76,12 +78,11 @@ export function registerMcpTools(server: McpServer): void {
       try {
         const { user } = getAuthContext();
         const mcp = await userMcpsService.create({
-          organization_id: user.organization_id,
-          user_id: user.id,
+          organizationId: user.organization_id,
+          userId: user.id,
           name,
           slug,
           description,
-          status: "draft",
         });
 
         return jsonResponse({ success: true, mcpId: mcp.id, slug: mcp.slug });

@@ -1,8 +1,4 @@
 export { MyAgentsClient } from "./my-agents-client";
-export { CharacterLibraryGrid } from "./character-library-grid";
-export {
-  CharacterLibraryCard,
-  type AgentWithOwnership,
-} from "./character-library-card";
+export { CharacterLibraryGrid, type AgentWithOwnership } from "./character-library-grid";
 export { CharacterFilters } from "./character-filters";
 export { EmptyState } from "./empty-state";

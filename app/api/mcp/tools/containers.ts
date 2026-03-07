@@ -1,10 +1,11 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Container MCP tools
  * Tools for managing deployed containers
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import {
   creditsService,
   InsufficientCreditsError,
@@ -217,6 +218,12 @@ export function registerContainerTools(server: McpServer): void {
         const { user } = getAuthContext();
         const DEPLOYMENT_COST = 10;
 
+        // Validate ECR URI before reserving credits to avoid credit leaks
+        const [repositoryUri, imageTag] = ecrImageUri.split(":");
+        if (!imageTag) {
+          throw new Error("ECR image URI must include a tag");
+        }
+
         let reservation: CreditReservation | null = null;
         try {
           reservation = await creditsService.reserve({
@@ -236,14 +243,20 @@ export function registerContainerTools(server: McpServer): void {
         try {
           container = await containersService.create({
             organization_id: user.organization_id,
+            user_id: user.id,
             name,
             project_name: projectName,
-            ecr_image_uri: ecrImageUri,
+            ecr_repository_uri: repositoryUri,
+            ecr_image_tag: imageTag,
+            image_tag: imageTag,
             port,
             cpu,
             memory,
             environment_vars: environmentVars || {},
             status: "deploying",
+            metadata: {
+              ecr_image_uri: ecrImageUri,
+            },
           });
         } catch (opError) {
           await reservation?.reconcile(0);

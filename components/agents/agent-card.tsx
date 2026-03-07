@@ -515,7 +515,11 @@ export function AgentCard({
 
         {/* Top left badges */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
-          {!isPublic && isOwned && <Lock className="h-4 w-4 text-white/70" />}
+          {!isPublic && isOwned && (
+            <div className="bg-black/30 rounded-md p-1.5">
+              <Lock className=" h-4 w-4 text-white/70" />
+            </div>
+          )}
           {!isOwned && (
             <span className="text-xs text-white/70 bg-black/30 px-2 py-0.5 rounded-md">
               by @{agent.ownerUsername || "unknown"}

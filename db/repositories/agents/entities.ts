@@ -39,7 +39,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .limit(1);
 
-    return result[0] || null;
+    return (result[0] || null) as Entity | null;
   }
 
   /**
@@ -53,7 +53,7 @@ export class EntitiesRepository {
       .from(entityTable)
       .where(inArray(entityTable.id, entityIds));
 
-    return results;
+    return results as Entity[];
   }
 
   /**
@@ -66,7 +66,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.agentId, agentId))
       .limit(limit);
 
-    return results;
+    return results as Entity[];
   }
 
   /**
@@ -178,7 +178,7 @@ export class EntitiesRepository {
       return existing;
     }
 
-    const [entity] = await dbWrite
+    const result = await dbWrite
       .insert(entityTable)
       .values({
         id: input.id,
@@ -188,8 +188,9 @@ export class EntitiesRepository {
         createdAt: new Date(),
       })
       .returning();
+    const [entity] = result as typeof entityTable.$inferSelect[];
 
-    return entity;
+    return entity as Entity;
   }
 
   /**
@@ -202,7 +203,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .returning();
 
-    return entity;
+    return entity as Entity;
   }
 
   /**
@@ -218,7 +219,7 @@ export class EntitiesRepository {
       .where(eq(entityTable.id, entityId))
       .returning();
 
-    return entity;
+    return entity as Entity;
   }
 
   /**

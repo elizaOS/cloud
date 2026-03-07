@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -34,6 +34,8 @@ yarn-error.log*
 .env
 .env.local
 .env.dev
+.env.development
+.env.production
 
 # vercel
 .vercel
@@ -56,3 +58,12 @@ src-tauri/Cargo.lock
 
 ignore/
 .env*.local
+
+.claude/*
+claudedocs
+
+# prr state file (auto-generated)
+.pr-resolver-state.json
+
+# Dev logs
+logs/

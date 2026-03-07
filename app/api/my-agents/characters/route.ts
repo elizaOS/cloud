@@ -1,5 +1,27 @@
+/**
+ * Agent List API
+ *
+ * GET /api/my-agents/characters
+ * Lists user's own agents/characters with filtering and sorting.
+ * Supports both Privy session and API key authentication.
+ *
+ * WHY API KEY SUPPORT:
+ * --------------------
+ * 1. PROGRAMMATIC AGENT MANAGEMENT: Developers need to list their agents from scripts,
+ *    CI/CD pipelines, and external systems without browser-based auth flows.
+ *
+ * 2. AGENT ORCHESTRATION: Meta-agents (agents that manage other agents) need to
+ *    discover and interact with their fleet of specialized agents.
+ *
+ * 3. DASHBOARD INTEGRATIONS: External dashboards and monitoring tools need to
+ *    display agent inventories without requiring Privy session cookies.
+ *
+ * 4. MULTI-TENANT PLATFORMS: Platforms built on elizaOS Cloud can manage agents
+ *    on behalf of their users via API keys.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
@@ -15,7 +37,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
 
     // Parse search filters

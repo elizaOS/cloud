@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // Prevents malicious JSON with unexpected types or deeply nested structures
 
 const McpServerConfigSchema = z.object({
-  type: z.enum(["http", "sse", "streamable-http"]),
+  type: z.enum(["streamable-http", "stdio"]),
   // Accept either full URLs or pathnames (starting with /)
   // Pathnames will be expanded to full URLs at runtime
   url: z

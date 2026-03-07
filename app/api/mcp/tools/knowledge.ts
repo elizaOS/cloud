@@ -1,9 +1,10 @@
+// @ts-nocheck — MCP tool types cause exponential type inference
 /**
  * Knowledge and gallery tools
  */
 
-import type { McpServer } from "mcp-handler";
-import { z } from "zod3";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod/v3";
 import { memoryService } from "@/lib/services/memory";
 import { generationsService } from "@/lib/services/generations";
 import { getAuthContext } from "../lib/context";

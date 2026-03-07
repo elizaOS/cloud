@@ -192,6 +192,24 @@ export const redeemableEarningsLedger = pgTable(
         admin_user_id?: string;
         ip_address?: string;
         user_agent?: string;
+        idempotency_key?: string;
+        completed_at?: string;
+        refunded_at?: string;
+        app_id?: string;
+        earnings_type?: string;
+        transaction_user_id?: string;
+        mcp_id?: string;
+        mcp_name?: string;
+        tool_name?: string;
+        consumer_org_id?: string;
+        payment_type?: string;
+        credits_earned?: number;
+        agent_id?: string;
+        agent_name?: string;
+        model?: string;
+        tokens?: number;
+        protocol?: string;
+        type?: string;
       }>()
       .default({})
       .notNull(),

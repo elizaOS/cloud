@@ -6,7 +6,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { User, Server, Wallet, ArrowRight, Zap, Coins } from "lucide-react";
 
 interface RevenueFlowDiagramProps {
@@ -26,22 +25,19 @@ export function RevenueFlowDiagram({
   const userPays = baseCost + markup;
 
   return (
-    <BrandCard className={cn("relative overflow-hidden", className)}>
-      <CornerBrackets size="sm" className="opacity-20" />
-
+    <div className={cn("bg-neutral-900 rounded-xl p-4 flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="relative z-10 mb-6">
-        <h3 className="text-sm font-medium text-white flex items-center gap-2">
-          <Zap className="h-4 w-4 text-[#FF5800]" />
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-white">
           How Revenue Flows
         </h3>
-        <p className="text-xs text-white/40 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           Example: User makes an AI request (${baseCost.toFixed(2)} base cost)
         </p>
       </div>
 
       {/* Flow Diagram */}
-      <div className="relative z-10">
+      <div className="pb-4">
         {/* Desktop/Tablet Layout */}
         <div className="hidden sm:flex items-center justify-between gap-2">
           {/* User */}
@@ -50,7 +46,7 @@ export function RevenueFlowDiagram({
             label="User"
             value={`Pays $${userPays.toFixed(2)}`}
             color="text-blue-400"
-            bgColor="bg-blue-500/20"
+            bgColor="bg-blue-500/10"
           />
 
           {/* Arrow 1 */}
@@ -61,8 +57,8 @@ export function RevenueFlowDiagram({
             icon={<Server className="h-5 w-5" />}
             label="Platform"
             value={`Keeps $${baseCost.toFixed(2)}`}
-            color="text-white/70"
-            bgColor="bg-white/10"
+            color="text-neutral-400"
+            bgColor="bg-white/5"
           />
 
           {/* Arrow 2 */}
@@ -74,13 +70,13 @@ export function RevenueFlowDiagram({
             label="You"
             value={`Earn $${markup.toFixed(2)}`}
             color="text-[#FF5800]"
-            bgColor="bg-[#FF5800]/20"
+            bgColor="bg-[#FF5800]/10"
             highlight
           />
         </div>
 
         {/* Mobile Layout */}
-        <div className="sm:hidden space-y-3">
+        <div className="sm:hidden space-y-2">
           <FlowNodeMobile
             icon={<User className="h-4 w-4" />}
             label="User pays"
@@ -88,13 +84,13 @@ export function RevenueFlowDiagram({
             color="text-blue-400"
           />
           <div className="flex justify-center">
-            <ArrowRight className="h-4 w-4 text-white/30 rotate-90" />
+            <ArrowRight className="h-4 w-4 text-neutral-600 rotate-90" />
           </div>
           <FlowNodeMobile
             icon={<Server className="h-4 w-4" />}
             label="Platform keeps"
             value={`$${baseCost.toFixed(2)}`}
-            color="text-white/60"
+            color="text-neutral-400"
             sublabel="(base cost)"
           />
           <div className="flex justify-center">
@@ -112,32 +108,29 @@ export function RevenueFlowDiagram({
       </div>
 
       {/* Breakdown */}
-      <div className="relative z-10 mt-6 pt-4 border-t border-white/10">
-        <div className="grid grid-cols-2 gap-4 text-xs">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-purple-400">
-              <Zap className="h-3 w-3" />
-              <span>Inference Markup</span>
+      <div className="mt-auto pt-4 border-t border-white/10">
+        <div className="space-y-3 text-xs">
+          <div className="flex items-start gap-2">
+            <Zap className="h-3 w-3 text-purple-400 mt-0.5" />
+            <div>
+              <p className="font-medium text-purple-400">Inference Markup</p>
+              <p className="text-neutral-500 mt-0.5">
+                You set {markupPercentage}% markup on AI costs. More usage = more earnings.
+              </p>
             </div>
-            <p className="text-white/50">
-              You set {markupPercentage}% markup on AI costs.
-              <br />
-              More usage = more earnings.
-            </p>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-yellow-400">
-              <Coins className="h-3 w-3" />
-              <span>Purchase Share</span>
+          <div className="flex items-start gap-2">
+            <Coins className="h-3 w-3 text-amber-400 mt-0.5" />
+            <div>
+              <p className="font-medium text-amber-400">Purchase Share</p>
+              <p className="text-neutral-500 mt-0.5">
+                Earn {purchaseSharePercentage}% when users buy credits in your app.
+              </p>
             </div>
-            <p className="text-white/50">
-              Earn {purchaseSharePercentage}% when users buy credits in your
-              app.
-            </p>
           </div>
         </div>
       </div>
-    </BrandCard>
+    </div>
   );
 }
 
@@ -161,11 +154,11 @@ function FlowNode({
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-2 p-3 rounded-lg border transition-all",
+        "flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors w-[90px]",
         highlight
-          ? "border-[#FF5800]/30 animate-glow-pulse"
+          ? "border-[#FF5800]/30"
           : "border-white/10",
-        bgColor,
+        bgColor
       )}
     >
       <div className={cn(color)}>{icon}</div>
@@ -184,17 +177,17 @@ interface FlowArrowProps {
 
 function FlowArrow({ label, highlight }: FlowArrowProps) {
   return (
-    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+    <div className="flex flex-col items-center gap-1 w-[50px]">
       <ArrowRight
         className={cn(
           "h-4 w-4",
-          highlight ? "text-[#FF5800]" : "text-white/30",
+          highlight ? "text-[#FF5800]" : "text-neutral-600"
         )}
       />
       <span
         className={cn(
           "text-[10px] font-mono",
-          highlight ? "text-[#FF5800]" : "text-white/40",
+          highlight ? "text-[#FF5800]" : "text-neutral-500"
         )}
       >
         {label}
@@ -223,10 +216,10 @@ function FlowNodeMobile({
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border",
+        "flex items-center justify-between p-3 rounded-xl border",
         highlight
           ? "border-[#FF5800]/30 bg-[#FF5800]/10"
-          : "border-white/10 bg-white/5",
+          : "border-white/10 bg-black/30"
       )}
     >
       <div className="flex items-center gap-2">
@@ -234,7 +227,7 @@ function FlowNodeMobile({
         <div>
           <span className="text-xs text-white">{label}</span>
           {sublabel && (
-            <span className="text-[10px] text-white/40 ml-1">{sublabel}</span>
+            <span className="text-[10px] text-neutral-500 ml-1">{sublabel}</span>
           )}
         </div>
       </div>

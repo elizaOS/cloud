@@ -32,6 +32,7 @@ import {
   calculateCost,
   getProviderFromModel,
   normalizeModelName,
+  getSafeModelParams,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -111,17 +112,55 @@ function addCorsHeaders(response: Response): Response {
 // Message Conversion
 // ============================================================================
 
+/**
+ * Infer image media type from URL
+ */
+function inferImageMediaType(url: string): string {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes(".png") || lowerUrl.includes("image/png"))
+    return "image/png";
+  if (lowerUrl.includes(".gif") || lowerUrl.includes("image/gif"))
+    return "image/gif";
+  if (lowerUrl.includes(".webp") || lowerUrl.includes("image/webp"))
+    return "image/webp";
+  if (lowerUrl.includes(".svg") || lowerUrl.includes("image/svg"))
+    return "image/svg+xml";
+  // Default to JPEG for .jpg, .jpeg, or unknown
+  return "image/jpeg";
+}
+
 function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
   return messages.map((msg) => {
-    const content =
-      typeof msg.content === "string"
-        ? msg.content
-        : msg.content.map((part) => part.text || "").join("");
+    // Handle simple string content
+    if (typeof msg.content === "string") {
+      return {
+        id: crypto.randomUUID(),
+        role: msg.role as "system" | "user" | "assistant",
+        parts: [{ type: "text" as const, text: msg.content }],
+      };
+    }
+
+    // Handle multipart content (text + images)
+    const parts = msg.content
+      .map((part) => {
+        if (part.image_url) {
+          return {
+            type: "file" as const,
+            url: part.image_url.url,
+            mediaType: inferImageMediaType(part.image_url.url),
+          };
+        }
+        if (part.text) {
+          return { type: "text" as const, text: part.text };
+        }
+        return null;
+      })
+      .filter((part): part is NonNullable<typeof part> => part !== null);
 
     return {
       id: crypto.randomUUID(),
       role: msg.role as "system" | "user" | "assistant",
-      parts: [{ type: "text" as const, text: content }],
+      parts,
     };
   });
 }
@@ -405,10 +444,7 @@ async function handleStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
-  const result = streamText({
-    model: gateway.languageModel(model),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+  const safeParams = getSafeModelParams(model, {
     temperature: request.temperature,
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
@@ -418,6 +454,13 @@ async function handleStreamingRequest(
         ? request.stop
         : [request.stop]
       : undefined,
+  });
+
+  const result = streamText({
+    model: gateway.languageModel(model),
+    system: systemPrompt,
+    messages: await convertToModelMessages(messages),
+    ...safeParams,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
     onFinish: async ({ text, usage }) => {
       try {
@@ -563,10 +606,7 @@ async function handleNonStreamingRequest(
 ) {
   const provider = getProviderFromModel(model);
 
-  const result = await generateText({
-    model: gateway.languageModel(model),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+  const safeParamsNonStream = getSafeModelParams(model, {
     temperature: request.temperature,
     topP: request.top_p,
     frequencyPenalty: request.frequency_penalty,
@@ -576,6 +616,13 @@ async function handleNonStreamingRequest(
         ? request.stop
         : [request.stop]
       : undefined,
+  });
+
+  const result = await generateText({
+    model: gateway.languageModel(model),
+    system: systemPrompt,
+    messages: await convertToModelMessages(messages),
+    ...safeParamsNonStream,
     ...(request.max_tokens && { maxOutputTokens: request.max_tokens }),
   });
 
@@ -649,4 +696,4 @@ async function handleNonStreamingRequest(
   );
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);

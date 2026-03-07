@@ -425,13 +425,33 @@ OPENAI_API_KEY=sk-your_openai_key
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
 
+**Eliza App variables** (for Telegram, iMessage, and Discord integrations):
+
+```env
+# JWT secret for Eliza App user sessions (required)
+ELIZA_APP_JWT_SECRET=          # Generate: openssl rand -hex 32
+
+# Telegram (optional)
+ELIZA_APP_TELEGRAM_BOT_TOKEN=  # From @BotFather
+
+# iMessage / Blooio (optional)
+ELIZA_APP_BLOOIO_API_KEY=      # From Blooio dashboard
+
+# Discord (optional)
+ELIZA_APP_DISCORD_BOT_TOKEN=         # Developer Portal → Bot
+ELIZA_APP_DISCORD_APPLICATION_ID=    # Developer Portal → General Information (also the OAuth2 Client ID)
+ELIZA_APP_DISCORD_CLIENT_SECRET=     # Developer Portal → OAuth2 → Client Secret
+```
+
+See [example.env.local](example.env.local) for the full list of Eliza App environment variables.
+
 **Generate secure passwords:**
 
 ```bash
 # Generate PRIVY_WEBHOOK_SECRET (min 32 chars)
 openssl rand -base64 32
 
-# Generate CRON_SECRET
+# Generate CRON_SECRET / ELIZA_APP_JWT_SECRET
 openssl rand -hex 32
 ```
 
@@ -440,13 +460,6 @@ openssl rand -hex 32
 Run migrations to create all tables:
 
 ```bash
-npm run db:push
-```
-
-For production, use migration files:
-
-```bash
-npm run db:generate
 npm run db:migrate
 ```
 
@@ -485,9 +498,8 @@ npm run build            # Production build with Turbopack
 npm start                # Start production server
 
 # Database
-npm run db:generate      # Generate migrations
-npm run db:migrate       # Run migrations
-npm run db:push          # Push schema changes (dev only)
+npm run db:generate      # Generate migrations from schema changes
+npm run db:migrate       # Run pending migrations
 npm run db:studio        # Open Drizzle Studio
 
 # Code Quality
@@ -509,7 +521,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 3. **Instant feedback**: Turbopack provides sub-second HMR
 4. **Test features**: Navigate to `/dashboard` routes
 5. **Check types**: `npm run check-types`
-6. **Database changes**: Edit `db/*/schema.ts` → `npm run db:push`
+6. **Database changes**: Edit `db/schemas/*.ts` → `npm run db:generate` → `npm run db:migrate`
 
 ### Project Structure Guidelines
 
@@ -982,7 +994,35 @@ POST /api/eliza/rooms/{roomId}/messages
 }
 ```
 
-### 8. API Key Management
+### 8. Developer API & Programmatic Access
+
+**Location**: Documented management endpoints that explicitly note API key support
+
+API key authentication is available for the specific endpoints documented in this README (for example: `/api/v1/chat`, `/api/v1/generate-image`, `/api/v1/generate-video`, `/api/v1/containers`, `/api/v1/voice/*`, `/api/v1/billing/*`, `/api/v1/models`, `/api/v1/gallery`). Not every `/api/v1/` or `/api/my-agents/` route supports API keys today, so rely on the documented list, enabling:
+
+- **Programmatic Agent Management**: Create, update, delete, and clone agents via API
+- **Voice Integration**: Text-to-speech, speech-to-text, and voice cloning for voice-enabled applications
+- **Billing Automation**: Monitor balance, configure auto-top-up, and manage credits programmatically
+- **AI Agent Autonomy**: Enable AI agents to manage their own resources and budgets
+
+Session-based auth only (no API key support yet): `/api/v1/api-keys`, `/api/v1/apps/[id]/deploy`, `/api/v1/dashboard`, `/api/my-agents/characters/[id]/track-interaction`.
+
+**Why API Keys for Management Endpoints?**
+
+Traditional SaaS platforms only expose limited APIs. We've enabled API key authentication across these management endpoints because:
+
+1. **Developer Experience**: Developers can build integrations without browser-based auth flows
+2. **Agent Autonomy**: AI agents need to manage their own resources (credits, other agents, voices) autonomously
+3. **Automation**: CI/CD pipelines, scripts, and external systems can interact with the platform programmatically
+4. **No Vendor Lock-in**: Generic endpoint paths (`/api/v1/voice/` instead of provider-specific paths) allow switching providers without breaking integrations
+
+**Generic Voice API**: Voice endpoints use provider-agnostic paths (`/api/v1/voice/tts` instead of `/api/elevenlabs/tts`) so your code doesn't need to change if the underlying provider changes. Legacy paths are preserved for backwards compatibility.
+
+**Billing Management**: Agents and developers can configure auto-top-up settings programmatically, ensuring autonomous agents never stop working due to insufficient credits.
+
+---
+
+### 9. API Key Management
 
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 
@@ -1309,7 +1349,7 @@ Integrated into the main database via `@elizaos/plugin-sql` schema. These tables
 **Generate migration**:
 
 ```bash
-npm run db:generate
+bun run db:generate
 ```
 
 This creates SQL migration files in `db/migrations/`.
@@ -1317,16 +1357,8 @@ This creates SQL migration files in `db/migrations/`.
 **Apply migration**:
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
-
-**Push schema (dev only)**:
-
-```bash
-npm run db:push
-```
-
-⚠️ **Never use `db:push` in production** - always use migrations.
 
 ### Race Condition Prevention
 
@@ -1363,7 +1395,7 @@ See `lib/queries/container-quota.ts` for full implementation.
 
 ### Authentication
 
-All API routes support two authentication methods:
+Documented management endpoints that include API key examples support two authentication methods:
 
 1. **Session Cookie** (Privy): Automatic for logged-in users
 2. **API Key Header**: `Authorization: Bearer eliza_your_key`

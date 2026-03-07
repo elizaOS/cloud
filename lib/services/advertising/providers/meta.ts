@@ -511,29 +511,25 @@ export const metaAdsProvider: AdProvider = {
       }
 
       // Create ad creative
+      const linkData: Record<string, unknown> = {
+        link: input.destinationUrl,
+        message: input.primaryText ?? "",
+        name: input.headline ?? "",
+        description: input.description ?? "",
+        call_to_action: {
+          type: mapCtaToMeta(input.callToAction),
+        },
+      };
       const creativeData: Record<string, unknown> = {
         name: input.name,
         object_story_spec: {
-          link_data: {
-            link: input.destinationUrl,
-            message: input.primaryText ?? "",
-            name: input.headline ?? "",
-            description: input.description ?? "",
-            call_to_action: {
-              type: mapCtaToMeta(input.callToAction),
-            },
-          },
+          link_data: linkData,
         },
       };
 
       // Add image if provided
       if (input.media.length > 0 && input.media[0].type === "image") {
-        (creativeData.object_story_spec as Record<string, unknown>).link_data =
-          {
-            ...(creativeData.object_story_spec as Record<string, unknown>)
-              .link_data,
-            picture: input.media[0].url,
-          };
+        linkData.picture = input.media[0].url;
       }
 
       const creativeParams = new URLSearchParams({

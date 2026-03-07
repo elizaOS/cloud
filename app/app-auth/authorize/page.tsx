@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { BrandButton } from "@/components/brand";
 import { Loader2, AlertTriangle, Shield, ArrowRight, X } from "lucide-react";
 import LandingHeader from "@/components/layout/landing-header";
@@ -136,6 +137,7 @@ function AuthorizeContent() {
     ready,
     authenticated,
     user,
+    appId,
     appInfo,
     redirectUri,
     state,
@@ -264,10 +266,13 @@ function AuthorizeContent() {
             {/* App info */}
             <div className="flex flex-col items-center gap-4 text-center">
               {appInfo?.logo_url ? (
-                <img
+                <Image
                   src={appInfo.logo_url}
-                  alt={appInfo.name}
+                  alt={appInfo.name || "App logo"}
+                  width={64}
+                  height={64}
                   className="h-16 w-16 rounded-xl object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">

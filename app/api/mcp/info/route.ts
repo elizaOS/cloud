@@ -14,7 +14,7 @@ export async function GET() {
     version: "1.0.0",
     description:
       "Full access to ElizaOS platform features including credits management, AI generation, conversation management, agent operations, and more.",
-    transport: ["http"],
+    transport: ["streamable-http"],
     endpoint: "/api/mcp",
     authRequired: true,
     tools: [

@@ -4,10 +4,7 @@ import {
   voiceCloningJobs,
   voiceSamples,
 } from "@/db/schemas/user-voices";
-import type {
-  NewUserVoice,
-  NewVoiceCloningJob,
-} from "@/db/schemas/user-voices";
+import type { NewUserVoice, VoiceCloningJob } from "@/db/schemas/user-voices";
 import { eq, and, desc } from "drizzle-orm";
 import { getElevenLabsService } from "./elevenlabs";
 import { logger } from "@/lib/utils/logger";
@@ -35,7 +32,7 @@ export interface CreateVoiceCloneParams {
  */
 export interface VoiceCloneResult {
   userVoice: NewUserVoice;
-  job: NewVoiceCloningJob;
+  job: VoiceCloningJob;
 }
 
 /**
@@ -80,12 +77,14 @@ export class VoiceCloningService {
       fileCount: files.length,
     });
 
+    let job: VoiceCloningJob | undefined;
+
     try {
       // Validate files
       this.validateAudioFiles(files);
 
       // Create job record
-      const [job] = await dbWrite
+      const [createdJob] = await dbWrite
         .insert(voiceCloningJobs)
         .values({
           organizationId,
@@ -101,8 +100,15 @@ export class VoiceCloningService {
           startedAt: new Date(),
         })
         .returning();
+      job = createdJob;
+      if (!job) {
+        throw new Error("Failed to create voice cloning job");
+      }
 
-      logger.info(`[VoiceCloning] Created job ${job.id}`, { jobId: job.id });
+      const jobRecord = job;
+      logger.info(`[VoiceCloning] Created job ${jobRecord.id}`, {
+        jobId: jobRecord.id,
+      });
 
       // Upload files to Vercel Blob for backup/reference (optional - skip if no token)
       const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
@@ -112,7 +118,7 @@ export class VoiceCloningService {
           files.map(async (file) => {
             // Upload to Vercel Blob
             const blob = await put(
-              `voice-samples/${organizationId}/${job.id}/${file.name}`,
+              `voice-samples/${organizationId}/${jobRecord.id}/${file.name}`,
               file,
               {
                 access: "public",
@@ -121,14 +127,14 @@ export class VoiceCloningService {
             );
 
             logger.info("[VoiceCloning] Uploaded sample to blob storage", {
-              jobId: job.id,
+              jobId: jobRecord.id,
               fileName: file.name,
               blobUrl: blob.url,
             });
 
             // Store sample metadata in database
             await dbWrite.insert(voiceSamples).values({
-              jobId: job.id,
+              jobId: jobRecord.id,
               organizationId,
               userId,
               fileName: file.name,
@@ -200,7 +206,7 @@ export class VoiceCloningService {
         .returning();
 
       logger.info("[VoiceCloning] User voice record created", {
-        jobId: job.id,
+        jobId: jobRecord.id,
         userVoiceId: userVoice.id,
       });
 
@@ -215,11 +221,11 @@ export class VoiceCloningService {
           completedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(voiceCloningJobs.id, job.id))
+        .where(eq(voiceCloningJobs.id, jobRecord.id))
         .returning();
 
       logger.info("[VoiceCloning] Voice cloning completed successfully", {
-        jobId: job.id,
+        jobId: jobRecord.id,
         userVoiceId: userVoice.id,
         elevenlabsVoiceId: result.voiceId,
       });
