@@ -182,11 +182,30 @@ class BlooioAutomationService {
     for (const name of secretNames) {
       const secret = existingSecrets.find((s) => s.name === name);
       if (secret) {
-        await secretsService.delete(secret.id, organizationId, audit);
-        logger.info("[BlooioAutomation] Deleted secret", {
-          name,
-          organizationId,
-        });
+        try {
+          await secretsService.delete(secret.id, organizationId, audit);
+          logger.info("[BlooioAutomation] Deleted secret", {
+            name,
+            organizationId,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (
+            message.includes("Secret not found") ||
+            message.includes("Failed to delete secret")
+          ) {
+            logger.debug(
+              "[BlooioAutomation] Secret already removed during disconnect",
+              {
+                name,
+                organizationId,
+              },
+            );
+            continue;
+          }
+          throw error;
+        }
       }
     }
 

@@ -12,8 +12,6 @@ import {
 } from "./eliza-token-price";
 import { createPublicClient, http, parseAbi, type Address } from "viem";
 import { mainnet, base, bsc } from "viem/chains";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import { privateKeyToAccount } from "viem/accounts";
 
 // ============================================================================
@@ -325,6 +323,10 @@ class PayoutStatusService {
 
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const { Connection, PublicKey } =
+      require("@solana/web3.js") as typeof import("@solana/web3.js");
+    const { getAssociatedTokenAddress, getAccount } =
+      require("@solana/spl-token") as typeof import("@solana/spl-token");
     const connection = new Connection(solanaRpc, "confirmed");
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const walletPubkey = new PublicKey(walletAddress);

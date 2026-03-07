@@ -5,7 +5,7 @@
  * Covers: phone number registration, message routing, agent processing, response sending.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
 import { Client } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -168,15 +168,20 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       phoneNumberId = result.rows[0].id;
     });
 
-    afterAll(async () => {
-      await client.query(
-        `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
-        [phoneNumberId],
-      );
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        phoneNumberId,
-      ]);
-      await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
+    afterEach(async () => {
+      if (phoneNumberId) {
+        await client.query(
+          `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
+          [phoneNumberId],
+        );
+        await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
+          phoneNumberId,
+        ]);
+      }
+
+      if (agentId) {
+        await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
+      }
     });
 
     it("should find the correct agent for an incoming message", async () => {

@@ -1,59 +1,106 @@
-import { describe, expect, it, vi, beforeEach } from "bun:test";
-import { provisionServerWallet, executeServerWalletRpc } from "@/lib/services/server-wallets";
+import { describe, expect, it, mock, beforeAll, beforeEach, afterAll } from "bun:test";
 
-vi.mock("@/lib/auth/privy-client", () => ({
-    getPrivyClient: vi.fn(),
-}));
-
-const mockSelectChain = vi.fn().mockReturnValue({
-    from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-        }),
-    }),
+const mockGetPrivyClient = mock();
+const mockSelectLimit = mock().mockResolvedValue([]);
+const mockSelectWhere = mock().mockReturnValue({
+    limit: mockSelectLimit,
 });
+const mockSelectFrom = mock().mockReturnValue({
+    where: mockSelectWhere,
+});
+const mockSelectChain = mock().mockReturnValue({
+    from: mockSelectFrom,
+});
+const mockDbInsert = mock();
+const mockFindFirst = mock();
+const mockVerifyMessage = mock();
+const mockCacheSetIfNotExists = mock().mockResolvedValue(true);
 
-vi.mock("@/db/client", () => ({
-    db: {
-        select: mockSelectChain,
-        insert: vi.fn(),
-        query: {
-            agentServerWallets: {
-                findFirst: vi.fn(),
+beforeAll(async () => {
+    const actualViem = await import("viem");
+    const actualDbClient = await import("@/db/client");
+    const actualCacheModule = await import("@/lib/cache/client");
+
+    mock.module("@/lib/auth/privy-client", () => ({
+        getPrivyClient: mockGetPrivyClient,
+    }));
+
+    mock.module("@/db/client", () => ({
+        ...actualDbClient,
+        db: {
+            select: mockSelectChain,
+            insert: mockDbInsert,
+            query: {
+                agentServerWallets: {
+                    findFirst: mockFindFirst,
+                },
             },
         },
-    },
-}));
+    }));
 
-vi.mock("viem", () => ({
-    verifyMessage: vi.fn(),
-}));
+    mock.module("viem", () => ({
+        ...actualViem,
+        verifyMessage: mockVerifyMessage,
+    }));
 
-vi.mock("@/lib/cache/client", () => ({
-    cache: {
-        setIfNotExists: vi.fn().mockResolvedValue(true),
-    },
-}));
-
-import { getPrivyClient } from "@/lib/auth/privy-client";
-import { db } from "@/db/client";
-import { verifyMessage } from "viem";
+    mock.module("@/lib/cache/client", () => ({
+        ...actualCacheModule,
+        cache: {
+            get: actualCacheModule.cache.get.bind(actualCacheModule.cache),
+            getWithSWR: actualCacheModule.cache.getWithSWR.bind(actualCacheModule.cache),
+            set: actualCacheModule.cache.set.bind(actualCacheModule.cache),
+            setIfNotExists: mockCacheSetIfNotExists,
+            incr: actualCacheModule.cache.incr.bind(actualCacheModule.cache),
+            expire: actualCacheModule.cache.expire.bind(actualCacheModule.cache),
+            getAndDelete: actualCacheModule.cache.getAndDelete.bind(actualCacheModule.cache),
+            del: actualCacheModule.cache.del.bind(actualCacheModule.cache),
+            delPattern: actualCacheModule.cache.delPattern.bind(actualCacheModule.cache),
+            mget: actualCacheModule.cache.mget.bind(actualCacheModule.cache),
+            isAvailable: actualCacheModule.cache.isAvailable.bind(actualCacheModule.cache),
+        },
+    }));
+});
 
 describe("server-wallets service", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        mockGetPrivyClient.mockClear();
+        mockSelectLimit.mockClear().mockResolvedValue([]);
+        mockSelectWhere.mockClear().mockReturnValue({
+            limit: mockSelectLimit,
+        });
+        mockSelectFrom.mockClear().mockReturnValue({
+            where: mockSelectWhere,
+        });
+        mockSelectChain.mockClear().mockReturnValue({
+            from: mockSelectFrom,
+        });
+        mockDbInsert.mockClear();
+        mockFindFirst.mockClear();
+        mockVerifyMessage.mockClear();
+        mockCacheSetIfNotExists.mockClear().mockResolvedValue(true);
+    });
+
+    afterAll(() => {
+        mock.restore();
     });
 
     describe("provisionServerWallet", () => {
         it("should call privy to create wallet and insert to db", async () => {
-            const mockCreate = vi.fn().mockResolvedValue({ id: "pw_123", address: "0xabc" });
-            const mockInsertValues = vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: 1, address: "0xabc" }]) });
+            const { provisionServerWallet } = await import("@/lib/services/server-wallets");
 
-            (getPrivyClient as any).mockReturnValue({
-                walletApi: { create: mockCreate }
+            const mockCreate = mock().mockResolvedValue({
+                id: "pw_123",
+                address: "0xabc",
+            });
+            const mockInsertValues = mock().mockReturnValue({
+                returning: mock().mockResolvedValue([{ id: 1, address: "0xabc" }]),
             });
 
-            (db.insert as any).mockReturnValue({ values: mockInsertValues });
+            mockGetPrivyClient.mockReturnValue({
+                walletApi: { create: mockCreate },
+            });
+
+            mockDbInsert.mockReturnValue({ values: mockInsertValues });
 
             const result = await provisionServerWallet({
                 organizationId: "org1",
@@ -77,14 +124,19 @@ describe("server-wallets service", () => {
 
     describe("executeServerWalletRpc", () => {
         it("should verify signature, lookup wallet, and proxy rpc", async () => {
-            (verifyMessage as any).mockResolvedValue(true);
-            (db.query.agentServerWallets.findFirst as any).mockResolvedValue({
-                privy_wallet_id: "pw_123"
+            const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
+
+            mockVerifyMessage.mockResolvedValue(true);
+            mockFindFirst.mockResolvedValue({
+                privy_wallet_id: "pw_123",
             });
 
-            const mockRpc = vi.fn().mockResolvedValue({ method: "eth_sendTransaction", data: "0xres" });
-            (getPrivyClient as any).mockReturnValue({
-                walletApi: { rpc: mockRpc }
+            const mockRpc = mock().mockResolvedValue({
+                method: "eth_sendTransaction",
+                data: "0xres",
+            });
+            mockGetPrivyClient.mockReturnValue({
+                walletApi: { rpc: mockRpc },
             });
 
             const payload = {
@@ -99,12 +151,12 @@ describe("server-wallets service", () => {
                 signature: "0xSig" as `0x${string}`,
             });
 
-            expect(verifyMessage).toHaveBeenCalledWith({
+            expect(mockVerifyMessage).toHaveBeenCalledWith({
                 address: "0xClient",
                 message: JSON.stringify(payload),
                 signature: "0xSig",
             });
-            expect(db.query.agentServerWallets.findFirst).toHaveBeenCalled();
+            expect(mockFindFirst).toHaveBeenCalled();
 
             expect(mockRpc).toHaveBeenCalledWith(expect.objectContaining({
                 walletId: "pw_123",
@@ -115,7 +167,9 @@ describe("server-wallets service", () => {
         });
 
         it("should throw if signature invalid", async () => {
-            (verifyMessage as any).mockResolvedValue(false);
+            const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
+
+            mockVerifyMessage.mockResolvedValue(false);
 
             await expect(executeServerWalletRpc({
                 clientAddress: "0xClient",
@@ -125,8 +179,10 @@ describe("server-wallets service", () => {
         });
 
         it("should throw if wallet not found", async () => {
-            (verifyMessage as any).mockResolvedValue(true);
-            (db.query.agentServerWallets.findFirst as any).mockResolvedValue(null);
+            const { executeServerWalletRpc } = await import("@/lib/services/server-wallets");
+
+            mockVerifyMessage.mockResolvedValue(true);
+            mockFindFirst.mockResolvedValue(null);
 
             await expect(executeServerWalletRpc({
                 clientAddress: "0xClient",

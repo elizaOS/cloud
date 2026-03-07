@@ -132,10 +132,10 @@ function validateTestData(testData: TestDataSet): void {
   }
 
   // Validate API key format
-  if (!testData.apiKey.key.startsWith("ek_test_")) {
+  if (!testData.apiKey.key.startsWith("eliza_")) {
     throw new Error(
       `[TestRuntime] Invalid test API key format: ${testData.apiKey.keyPrefix}...\n` +
-        "Test API keys must start with 'ek_test_' to ensure they are test keys.",
+        "Test API keys must start with 'eliza_' to match production API key auth.",
     );
   }
 }

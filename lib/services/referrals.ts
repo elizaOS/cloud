@@ -12,6 +12,14 @@ import { appCreditsService } from "./app-credits";
 import { logger } from "@/lib/utils/logger";
 import * as crypto from "crypto";
 
+function isUniqueViolation(error: unknown): boolean {
+  const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
+  return (
+    code === "23505" ||
+    (error instanceof Error && error.message.includes("unique constraint"))
+  );
+}
+
 /**
  * Referral and social share rewards service.
  *
@@ -113,20 +121,36 @@ export class ReferralsService {
     const existing = await referralCodesRepository.findByUserId(userId);
     if (existing) return existing;
 
-    let code = generateReferralCode(userId);
     let attempts = 0;
 
     while (attempts < 10) {
+      let code = generateReferralCode(userId);
       const existingCode = await referralCodesRepository.findByCode(code);
-      if (!existingCode) break;
-      code = generateReferralCode(userId);
-      attempts++;
+      if (existingCode) {
+        attempts++;
+        continue;
+      }
+
+      try {
+        return await referralCodesRepository.create({
+          user_id: userId,
+          code,
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          const concurrentCode =
+            await referralCodesRepository.findByUserId(userId);
+          if (concurrentCode) {
+            return concurrentCode;
+          }
+          attempts++;
+          continue;
+        }
+        throw error;
+      }
     }
 
-    return await referralCodesRepository.create({
-      user_id: userId,
-      code,
-    });
+    throw new Error("Failed to generate a unique referral code");
   }
 
   async getCodeByUser(userId: string): Promise<ReferralCode | null> {
@@ -134,7 +158,7 @@ export class ReferralsService {
   }
 
   async findByCode(code: string): Promise<ReferralCode | null> {
-    return referralCodesRepository.findByCode(code);
+    return referralCodesRepository.findByCode(code.trim().toUpperCase());
   }
 
   async applyReferralCode(
@@ -143,15 +167,21 @@ export class ReferralsService {
     code: string,
     appContext?: AppContext,
   ): Promise<{ success: boolean; message: string; bonusAmount?: number }> {
+    const normalizedCode = code.trim().toUpperCase();
+
     const existingSignup =
       await referralSignupsRepository.findByReferredUserId(referredUserId);
     if (existingSignup) {
+      const existingCode =
+        await referralCodesRepository.findByCode(normalizedCode);
+      if (existingCode && existingSignup.referral_code_id === existingCode.id) {
+        return { success: true, message: "Referral code already applied" };
+      }
       return { success: false, message: "Already used a referral code" };
     }
 
-    const referralCode = await referralCodesRepository.findByCode(
-      code.toUpperCase(),
-    );
+    const referralCode =
+      await referralCodesRepository.findByCode(normalizedCode);
     if (!referralCode) {
       return { success: false, message: "Invalid referral code" };
     }
@@ -169,11 +199,6 @@ export class ReferralsService {
       return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
     }
 
-    // Prevent self-referral abuse via app owner revenue share
-    if (appContext?.appOwnerId === referredUserId) {
-      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
-    }
-
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(referralCode.user_id);
     if (!referrer?.organization_id) {
@@ -184,13 +209,26 @@ export class ReferralsService {
     }
 
     // Create the signup record
-    const signup = await referralSignupsRepository.create({
-      referral_code_id: referralCode.id,
-      referrer_user_id: referralCode.user_id,
-      referred_user_id: referredUserId,
-      app_owner_id: appContext?.appOwnerId || null,
-      creator_id: appContext?.creatorId || referralCode.user_id,
-    });
+    let signup: ReferralSignup;
+    try {
+      signup = await referralSignupsRepository.create({
+        referral_code_id: referralCode.id,
+        referrer_user_id: referralCode.user_id,
+        referred_user_id: referredUserId,
+        app_owner_id: appContext?.appOwnerId || null,
+        creator_id: appContext?.creatorId || referralCode.user_id,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const concurrentSignup =
+          await referralSignupsRepository.findByReferredUserId(referredUserId);
+        if (concurrentSignup?.referral_code_id === referralCode.id) {
+          return { success: true, message: "Referral code already applied" };
+        }
+        return { success: false, message: "Already used a referral code" };
+      }
+      throw error;
+    }
 
     // Award bonus to referred user (app-specific or org balance)
     if (appContext?.appId) {
@@ -207,7 +245,7 @@ export class ReferralsService {
         organizationId,
         amount: REWARDS.REFERRED_BONUS,
         description: "Referral signup bonus",
-        metadata: { referral_code: code, type: "referral_bonus" },
+        metadata: { referral_code: normalizedCode, type: "referral_bonus" },
       });
     }
 
@@ -238,7 +276,7 @@ export class ReferralsService {
     logger.info("[Referrals] Referral code applied", {
       referredUserId,
       referrerId: referralCode.user_id,
-      code,
+      code: normalizedCode,
       referredBonus: REWARDS.REFERRED_BONUS,
       referrerBonus: REWARDS.SIGNUP_BONUS,
       appId: appContext?.appId,
@@ -282,7 +320,11 @@ export class ReferralsService {
     const appOwnerAmount = purchaseAmount * APP_OWNER;
     const baseCreatorAmount = purchaseAmount * CREATOR;
 
-    const splits: Array<{ userId: string; role: "app_owner" | "creator"; amount: number }> = [];
+    const splits: Array<{
+      userId: string;
+      role: "app_owner" | "creator" | "editor";
+      amount: number;
+    }> = [];
 
     if (signup.app_owner_id) {
       splits.push({
@@ -307,7 +349,7 @@ export class ReferralsService {
         });
         splits.push({
           userId: parentCode.user_id,
-          role: "creator",
+          role: "editor",
           amount: purchaseAmount * EDITOR_TIER,
         });
       } else {
@@ -409,6 +451,14 @@ export class ReferralsService {
       return { qualified: false };
     }
 
+    const marked = await referralSignupsRepository.markQualified(
+      signup.id,
+      REWARDS.QUALIFIED_BONUS,
+    );
+    if (!marked) {
+      return { qualified: false };
+    }
+
     // Award qualified bonus to referrer (always org balance - referrer is cloud user)
     await creditsService.addCredits({
       organizationId: referrer.organization_id,
@@ -421,17 +471,10 @@ export class ReferralsService {
       },
     });
 
-    // PERFORMANCE: Mark signup as qualified and update earnings in parallel
-    await Promise.all([
-      referralSignupsRepository.markQualified(
-        signup.id,
-        REWARDS.QUALIFIED_BONUS,
-      ),
-      referralCodesRepository.addQualifiedEarnings(
-        signup.referral_code_id,
-        REWARDS.QUALIFIED_BONUS,
-      ),
-    ]);
+    await referralCodesRepository.addQualifiedEarnings(
+      signup.referral_code_id,
+      REWARDS.QUALIFIED_BONUS,
+    );
 
     logger.info("[Referrals] Referral qualified", {
       referredUserId,

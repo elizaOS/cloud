@@ -26,6 +26,41 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const SIGNUP_ATTRIBUTION_STORAGE_KEYS = {
+  affiliate: "pending_affiliate_code",
+  referral: "pending_referral_code",
+} as const;
+
+function isLegacyAffiliateCode(code: string | null): boolean {
+  return !!code && /^AFF-[A-Z0-9]+$/i.test(code.trim());
+}
+
+function getPendingSignupAttribution(searchParams: {
+  get(name: string): string | null;
+  has(name: string): boolean;
+}) {
+  const hasOAuthState =
+    searchParams.has("state") || searchParams.has("privy_oauth_state");
+  const affiliateCode = searchParams.get("affiliate");
+  const referralCode =
+    searchParams.get("ref") || searchParams.get("referral_code");
+  const legacyCode = searchParams.get("code");
+
+  return {
+    affiliateCode:
+      affiliateCode ||
+      (!hasOAuthState && isLegacyAffiliateCode(legacyCode)
+        ? legacyCode?.trim().toUpperCase() ?? null
+        : null),
+    referralCode: referralCode ? referralCode.trim().toUpperCase() : null,
+  };
+}
+
+const delay = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 function LoginPageContent() {
   const { ready, authenticated, user } = usePrivy();
   const { login } = useLogin();
@@ -46,8 +81,8 @@ function LoginPageContent() {
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
       urlParams.has("privy_oauth_state") ||
-      urlParams.has("code") ||
-      urlParams.has("state");
+      (urlParams.has("code") &&
+        (urlParams.has("state") || urlParams.has("privy_oauth_state")));
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
     return hasOAuthParams || sessionFlag === "true";
   });
@@ -58,44 +93,133 @@ function LoginPageContent() {
   // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
   const loginInProgressRef = useRef(false);
   const lastLoginAttemptRef = useRef<number>(0);
+  const postLoginProcessingRef = useRef(false);
+
+  useEffect(() => {
+    const { affiliateCode, referralCode } = getPendingSignupAttribution(
+      searchParams,
+    );
+
+    if (affiliateCode) {
+      sessionStorage.setItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+        affiliateCode,
+      );
+    }
+
+    if (referralCode) {
+      sessionStorage.setItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+        referralCode,
+      );
+    }
+  }, [searchParams]);
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (ready && authenticated) {
-      // Clear OAuth session flag and guards
+    if (!ready || !authenticated || postLoginProcessingRef.current) {
+      return;
+    }
+
+    postLoginProcessingRef.current = true;
+    let cancelled = false;
+
+    const applyStoredSignupAttribution = async () => {
+      const affiliateCode = sessionStorage.getItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+      );
+      const referralCode = sessionStorage.getItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+      );
+
+      const postAttribution = async (
+        url: string,
+        codeToApply: string,
+        storageKey: string,
+      ) => {
+        try {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code: codeToApply }),
+            });
+
+            if (response.ok || response.status === 400 || response.status === 404 || response.status === 409) {
+              sessionStorage.removeItem(storageKey);
+              return;
+            }
+
+            if (response.status !== 401) {
+              sessionStorage.removeItem(storageKey);
+              return;
+            }
+
+            await delay(300 * (attempt + 1));
+          }
+        } catch (error) {
+          console.error("Failed to apply signup attribution", error);
+        }
+      };
+
+      if (affiliateCode) {
+        await postAttribution(
+          "/api/v1/affiliates/link",
+          affiliateCode,
+          SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+        );
+      }
+
+      if (referralCode) {
+        await postAttribution(
+          "/api/v1/referrals/apply",
+          referralCode,
+          SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+        );
+      }
+    };
+
+    void (async () => {
       sessionStorage.removeItem("oauth_login_pending");
       loginInProgressRef.current = false;
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setLoadingButton(null);
-        setIsProcessingOAuth(false);
-        // Show syncing state before redirect
-        setIsSyncing(true);
-      }, 0);
+      setLoadingButton(null);
+      setIsProcessingOAuth(false);
+      setIsSyncing(true);
 
-      // Small delay to ensure the sync message is visible
-      const timer = setTimeout(() => {
+      await applyStoredSignupAttribution();
+      await delay(100);
+
+      if (!cancelled) {
         router.push("/dashboard");
-      }, 100);
+      }
+    })();
 
-      return () => clearTimeout(timer);
-    } else if (ready && !authenticated) {
-      // If we're ready but not authenticated, ensure guard is cleared
-      // (handles case where user closes modal without connecting)
-      if (loginInProgressRef.current && !loadingButton) {
-        loginInProgressRef.current = false;
-      }
-      // If OAuth processing timed out (ready but not authenticated after callback)
-      // clear the flag after a small delay to allow Privy to finish
-      if (isProcessingOAuth) {
-        const timeout = setTimeout(() => {
-          setIsProcessingOAuth(false);
-          sessionStorage.removeItem("oauth_login_pending");
-        }, 3000); // Give Privy 3 seconds to complete auth
-        return () => clearTimeout(timeout);
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, ready, router, searchParams]);
+
+  useEffect(() => {
+    if (!ready || authenticated) {
+      return;
     }
-  }, [ready, authenticated, router, loadingButton, user, isProcessingOAuth]);
+
+    // If we're ready but not authenticated, ensure guard is cleared
+    // (handles case where user closes modal without connecting)
+    if (loginInProgressRef.current && !loadingButton) {
+      loginInProgressRef.current = false;
+    }
+
+    // If OAuth processing timed out (ready but not authenticated after callback)
+    // clear the flag after a small delay to allow Privy to finish
+    if (isProcessingOAuth) {
+      const timeout = setTimeout(() => {
+        setIsProcessingOAuth(false);
+        sessionStorage.removeItem("oauth_login_pending");
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [authenticated, isProcessingOAuth, loadingButton, ready]);
 
   // Monitor email state to show code input
   useEffect(() => {

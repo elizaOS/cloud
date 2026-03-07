@@ -110,19 +110,17 @@ async function createOAuthSession(
 
 /**
  * Helper to get MCP settings from runtime.
- * MCP settings are now stored in runtime.settings (ephemeral) to avoid DB persistence.
+ * RuntimeFactory injects per-request MCP config into character.settings at runtime.
  */
 function getMcpSettings(runtime: any): { servers?: Record<string, unknown> } | undefined {
-  // Check runtime.settings first (ephemeral settings - where MCP config now lives)
-  // Fall back to character.settings for backwards compatibility
-  return runtime.settings?.mcp || runtime.character?.settings?.mcp;
+  return runtime.character?.settings?.mcp;
 }
 
 describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
   beforeAll(setupEnvironment);
   afterAll(cleanupEnvironment);
 
-  it("should NOT inject MCP plugin when user has no OAuth connections", async () => {
+  it("should not persist user API keys in MCP settings when user has no OAuth connections", async () => {
     // Create context WITHOUT oauth connections
     const userContext = buildUserContext(testData, {
       agentMode: AgentMode.ASSISTANT,
@@ -135,19 +133,18 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
     try {
-      // MCP service should NOT be present (or not have our oauth-based servers)
-      const mcpService = runtime.getService("mcp");
-
-      // The MCP plugin may or may not be loaded depending on character config
-      // What we're testing is that NO oauth-based MCP servers are configured
       const mcpSettings = getMcpSettings(runtime);
 
-      // Should not have google server injected
-      if (mcpSettings?.servers) {
-        expect(mcpSettings.servers.google).toBeUndefined();
+      // Character-level MCP config may exist independently of OAuth state,
+      // but user API keys must never be persisted into these settings.
+      if (mcpSettings?.servers?.google) {
+        const googleServer = mcpSettings.servers.google as {
+          headers?: Record<string, string>;
+        };
+        expect(googleServer.headers?.["X-API-Key"]).toBeUndefined();
       }
 
-      console.log("✅ No OAuth-based MCP servers injected for user without connections");
+      console.log("✅ No user API key persisted in MCP settings for user without OAuth connections");
     } finally {
       await invalidateRuntime(runtime.agentId as string);
     }
@@ -181,7 +178,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
       expect(mcpSettings?.servers?.google).toBeDefined();
 
       const googleServer = mcpSettings?.servers?.google as { url?: string; type?: string };
-      expect(googleServer.url).toContain("/api/mcps/google/mcp");
+      expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
       expect(googleServer.type).toBe("streamable-http");
 
       console.log("✅ Google MCP server injected for user with OAuth connection");
@@ -191,7 +188,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
     }
   }, 60000);
 
-  it("should inject API key header for same-origin MCP servers", async () => {
+  it("should keep API keys out of persisted MCP settings for same-origin MCP servers", async () => {
     const userContext: UserContext = {
       ...buildUserContext(testData, {
         agentMode: AgentMode.ASSISTANT,
@@ -213,12 +210,12 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
         headers?: Record<string, string>;
       };
 
-      // Should have API key header injected for same-origin requests
-      expect(googleServer.headers).toBeDefined();
-      expect(googleServer.headers?.["X-API-Key"]).toBeDefined();
-      expect(googleServer.headers?.["X-API-Key"]).toBe(testData.apiKey.key);
+      // API key injection now happens dynamically in McpService.createHttpTransport()
+      // via runtime.getSetting("ELIZAOS_API_KEY"), so it should not be persisted here.
+      expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
+      expect(googleServer.headers?.["X-API-Key"]).toBeUndefined();
 
-      console.log("✅ API key header injected for same-origin MCP server");
+      console.log("✅ API key is not persisted in MCP settings for same-origin MCP server");
     } finally {
       await invalidateRuntime(runtime.agentId as string);
     }
@@ -231,7 +228,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
         agentMode: AgentMode.ASSISTANT,
         webSearchEnabled: false,
       }),
-      oauthConnections: [{ platform: "linkedin" }], // Not supported
+      oauthConnections: [{ platform: "slack" }], // Not supported
     };
 
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
@@ -239,9 +236,9 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
     try {
       const mcpSettings = getMcpSettings(runtime);
 
-      // Should not have linkedin server (not in config)
+      // Should not have slack server (not in config)
       if (mcpSettings?.servers) {
-        expect(mcpSettings.servers.linkedin).toBeUndefined();
+        expect(mcpSettings.servers.slack).toBeUndefined();
       }
 
       console.log("✅ Unsupported platform OAuth connection does not inject MCP server");

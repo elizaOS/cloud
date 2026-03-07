@@ -18,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
-import { ElizaLogo } from "@/components/brand";
+import { ElizaCloudLockup, ElizaLogo } from "@/components/brand";
 
 interface SidebarProps {
   className?: string;
@@ -69,9 +69,9 @@ function SidebarComponent({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "flex h-full flex-col overflow-hidden transition-all duration-300 ease-in-out",
+          "flex h-full flex-col overflow-hidden border-r border-white/10 bg-black/50 transition-all duration-300 ease-in-out backdrop-blur-sm",
           isMobile
-            ? `fixed bg-neutral-900 x  inset-y-0 left-0 z-50 w-72 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            ? `fixed inset-y-0 left-0 z-50 w-72 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
               ? "w-14 p-1.5"
               : "w-72 p-1.5",
@@ -90,16 +90,22 @@ function SidebarComponent({
               href="/dashboard"
               className="flex items-center gap-2 hover:opacity-80 relative z-10"
             >
-              <ElizaLogo
-                className={`text-white shrink-0 ${isMobile ? "h-4" : "h-5"}`}
+              <ElizaCloudLockup
+                logoClassName={isMobile ? "h-4" : "h-5"}
+                textClassName="text-[9px] md:text-[10px]"
               />
+            </Link>
+          )}
+          {isCollapsed && (
+            <Link href="/dashboard" className="relative z-10">
+              <ElizaLogo className="h-4 text-white" />
             </Link>
           )}
           {/* Collapse Toggle Button (Desktop) */}
           {!isMobile && onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10"
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {isCollapsed ? (
@@ -113,7 +119,7 @@ function SidebarComponent({
           {isMobile && onToggle && (
             <button
               onClick={handleCloseClick}
-              className="rounded-lg p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+              className="relative z-10 border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10 focus:bg-white/10 focus:outline-none"
               aria-label="Close navigation"
             >
               <X className="h-4 w-4 text-white" />

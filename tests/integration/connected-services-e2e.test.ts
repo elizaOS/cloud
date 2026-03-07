@@ -146,8 +146,8 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         signal: AbortSignal.timeout(TIMEOUT),
       });
 
-      // May return redirect or JSON based on implementation
-      expect([200, 302, 400, 500]).toContain(res.status);
+      // May return redirect, validation error, or provider-not-configured response
+      expect([200, 302, 400, 500, 503]).toContain(res.status);
 
       if (res.status === 200) {
         const data = await res.json();
@@ -515,9 +515,9 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       const responses = await Promise.all(requests);
 
-      // Should handle gracefully - some may succeed, some may conflict
+      // Should handle gracefully - some may succeed, some may fail validation or conflict
       for (const res of responses) {
-        expect([200, 409, 500]).toContain(res.status);
+        expect([200, 400, 409, 500]).toContain(res.status);
       }
 
       // Clean up

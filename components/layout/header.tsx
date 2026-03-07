@@ -42,13 +42,13 @@ function HeaderComponent({
   }, [router, pathname]);
 
   return (
-    <header className="flex h-14 md:h-16 items-center justify-between bg-black rounded-2xl px-3 md:px-6">
+    <header className="flex h-14 items-center justify-between border border-white/10 bg-black/70 px-3 md:h-16 md:px-6">
       <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
         {/* Mobile Menu Button */}
         <BrandButton
           variant="ghost"
           size="icon"
-          className="md:hidden shrink-0 size-8"
+          className="size-8 shrink-0 border-white/10 bg-white/5 md:hidden"
           onClick={onToggleSidebar}
           aria-label="Toggle navigation"
         >
@@ -86,7 +86,7 @@ function HeaderComponent({
             <BrandButton
               variant="primary"
               onClick={() => setShowQuickCreate(true)}
-              className="gap-2 items-center h-8 px-3 md:h-10 md:px-4"
+              className="h-8 items-center gap-2 px-3 md:h-10 md:px-4"
             >
               <Plus className="size-4" />
               <span className="hidden md:inline">Create</span>

@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeAll, afterAll } from "bun:test";
+import { describe, expect, it, beforeAll, afterAll, mock } from "bun:test";
 import { dbWrite } from "@/db/client";
 import { users } from "@/db/schemas/users";
+import { organizations } from "@/db/schemas/organizations";
 import { eq } from "drizzle-orm";
-import { referralsService } from "@/lib/services/referrals";
 import { referralCodesRepository, referralSignupsRepository } from "@/db/repositories/referrals";
 
 let userA: any;
@@ -12,13 +12,23 @@ let userD: any; // Creator
 let unreferredUser: any;
 let buyer: any;
 let appOwner: any;
+let referralsService: typeof import("@/lib/services/referrals").referralsService;
 
 const allUserIds: string[] = [];
+const allOrganizationIds: string[] = [];
 
 async function createUser(name: string, email: string) {
     const id = crypto.randomUUID();
     const organization_id = crypto.randomUUID();
     const now = new Date();
+
+    await dbWrite.insert(organizations).values({
+        id: organization_id,
+        name: `${name} Org`,
+        slug: `revenue-splits-${organization_id.slice(0, 12)}`,
+        created_at: now,
+        updated_at: now,
+    });
 
     await dbWrite.insert(users).values({
         id,
@@ -30,6 +40,7 @@ async function createUser(name: string, email: string) {
     });
 
     allUserIds.push(id);
+    allOrganizationIds.push(organization_id);
     return { id, organization_id, email };
 }
 
@@ -37,8 +48,15 @@ async function cleanupUser(id: string) {
     await dbWrite.delete(users).where(eq(users.id, id)).catch(() => { });
 }
 
+async function cleanupOrganization(id: string) {
+    await dbWrite.delete(organizations).where(eq(organizations.id, id)).catch(() => { });
+}
+
 describe.skipIf(!process.env.DATABASE_URL)("Revenue Splits & Multi-Tier Referrals", () => {
     beforeAll(async () => {
+        mock.restore();
+        ({ referralsService } = await import("../../lib/services/referrals"));
+
         userA = await createUser("User A", `usera-${Date.now()}@test.com`);
         userB = await createUser("User B", `userb-${Date.now()}@test.com`);
         userC = await createUser("Editor C", `userc-${Date.now()}@test.com`);
@@ -51,6 +69,9 @@ describe.skipIf(!process.env.DATABASE_URL)("Revenue Splits & Multi-Tier Referral
     afterAll(async () => {
         for (const id of allUserIds) {
             await cleanupUser(id);
+        }
+        for (const id of allOrganizationIds) {
+            await cleanupOrganization(id);
         }
     });
 

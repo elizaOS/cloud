@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardSection } from "@/components/brand";
 import { TelegramConnection } from "../telegram-connection";
 import { DiscordGatewayConnection } from "../discord-gateway-connection";
 import { GoogleConnection } from "../google-connection";
@@ -12,15 +13,11 @@ export function ConnectionsTab() {
     <div className="space-y-8">
       {/* Messaging & Communication Section */}
       <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">
-            Messaging & Communication
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Connect messaging services for AI-powered conversations via SMS,
-            iMessage, and email.
-          </p>
-        </div>
+        <DashboardSection
+          label="Connections"
+          title="Messaging & Communication"
+          description="Connect messaging services for AI-powered conversations via SMS, iMessage, and email."
+        />
 
         <div className="grid gap-4">
           <GoogleConnection />
@@ -32,14 +29,11 @@ export function ConnectionsTab() {
 
       {/* Social Media Section */}
       <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">
-            Social Media Connections
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Connect your social accounts to enable AI-powered conversations.
-          </p>
-        </div>
+        <DashboardSection
+          label="Channels"
+          title="Social Media Connections"
+          description="Connect your social accounts to enable AI-powered conversations."
+        />
 
         <div className="grid gap-4">
           <DiscordGatewayConnection />

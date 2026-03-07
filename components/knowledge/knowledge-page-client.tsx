@@ -24,6 +24,7 @@ import { KnowledgeQuery } from "./knowledge-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
+import { DashboardSection } from "@/components/brand";
 
 import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
@@ -140,7 +141,11 @@ export function KnowledgePageClient({
   if (!pageState.serviceAvailable && !pageState.loading) {
     return (
       <div className="container mx-auto py-8 space-y-4">
-        <h1 className="text-2xl font-bold">File Management</h1>
+        <DashboardSection
+          label="Knowledge"
+          title="File Management"
+          description="Upload, index, and query agent documents from a single surface."
+        />
         <Alert variant="destructive">
           <InfoIcon className="h-4 w-4" />
           <AlertDescription>
@@ -157,13 +162,11 @@ export function KnowledgePageClient({
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold">File Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Upload and manage documents for your agents. These files provide
-            context and information for enhanced AI responses.
-          </p>
-        </div>
+        <DashboardSection
+          label="Knowledge"
+          title="File Management"
+          description="Upload and manage documents for your agents. These files provide context and information for enhanced AI responses."
+        />
 
         {/* Character Selector */}
         {initialCharacters.length > 0 && (

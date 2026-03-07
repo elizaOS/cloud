@@ -13,7 +13,7 @@
  * 2. Database CHECK constraint ensures available_balance >= 0
  * 3. Atomic transactions for all balance operations
  * 4. Full audit trail via `redeemable_earnings_ledger`
- * 5. Unique constraint on earnings source to prevent duplicates
+ * 5. Indexed source IDs support application-level dedupe for retry-safe payouts
  */
 
 import {

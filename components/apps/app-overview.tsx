@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DashboardStatCard } from "@/components/brand";
 
 interface AppOverviewProps {
   app: App;
@@ -513,32 +514,22 @@ function StatCard({
   icon: React.ReactNode;
   color?: "emerald" | "red" | "blue" | "purple" | "orange" | "white";
 }) {
-  const colorClasses = {
-    emerald: "text-emerald-400",
-    red: "text-red-400",
-    blue: "text-blue-400",
-    purple: "text-purple-400",
-    orange: "text-[#FF5800]",
-    white: "text-white",
-  };
+  const accentMap = {
+    emerald: "emerald",
+    red: "red",
+    blue: "blue",
+    purple: "violet",
+    orange: "orange",
+    white: "white",
+  } as const;
 
   return (
-    <div className="bg-neutral-900 rounded-xl p-3 md:p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs text-neutral-500 truncate">{label}</p>
-          <p
-            className={cn(
-              "text-lg md:text-xl font-semibold mt-1 truncate",
-              colorClasses[color],
-            )}
-          >
-            {value}
-          </p>
-        </div>
-        <div className={cn("shrink-0", colorClasses[color])}>{icon}</div>
-      </div>
-    </div>
+    <DashboardStatCard
+      label={label}
+      value={value}
+      icon={icon}
+      accent={accentMap[color]}
+    />
   );
 }
 

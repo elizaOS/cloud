@@ -4,7 +4,8 @@ import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
-import { getProvider } from "@/lib/providers";
+import { GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
+import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
 
@@ -37,13 +38,22 @@ export async function GET(request: NextRequest) {
     const provider = getProvider();
     const response = await provider.listModels();
     const data: OpenAIModelsResponse = await response.json();
+    const mergedData = hasGroqProviderConfigured()
+      ? mergeCatalogModels(data.data || [], GROQ_NATIVE_MODELS)
+      : data.data || [];
 
     // Return OpenAI-compatible format with cache headers
-    return Response.json(data, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+    return Response.json(
+      {
+        ...data,
+        data: mergedData,
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+        },
+      },
+    );
   } catch (error) {
     logger.error("Error fetching models:", error);
     return Response.json(

@@ -111,6 +111,17 @@
 }
 
 @layer utilities {
+  .dashboard-theme :is(
+      .rounded-sm,
+      .rounded-md,
+      .rounded-lg,
+      .rounded-xl,
+      .rounded-2xl,
+      .rounded-3xl
+    ) {
+    border-radius: 0 !important;
+  }
+
   @keyframes slide-in-from-bottom {
     from {
       transform: translateY(1rem);

@@ -15,9 +15,15 @@
  * (encrypted with KMS) — never stored as a plain environment variable in production.
  */
 
-import { createPublicClient, http, type Hex, type PublicClient } from "viem";
+import {
+  createPublicClient,
+  http,
+  type Chain,
+  type Hex,
+  type PublicClient,
+} from "viem";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { base, baseSepolia, mainnet, sepolia } from "viem/chains";
+import { base, baseSepolia, mainnet, sepolia, bsc, bscTestnet } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
 
 // Types
@@ -30,9 +36,7 @@ interface NetworkConfig {
   usdcAddress: Hex;
   usdcDomainName: string;
   rpcUrl: string;
-  chain: Parameters<typeof createPublicClient>[0] extends { chain: infer C }
-    ? C
-    : never;
+  chain: Chain;
 }
 
 /** Payment authorization from the X-PAYMENT header */
@@ -156,6 +160,24 @@ function buildNetworkRegistry(): Record<string, NetworkConfig> {
           : "https://rpc.sepolia.org",
       chain: sepolia,
     },
+    "eip155:56": {
+      chainId: 56,
+      caip2: "eip155:56",
+      name: "bsc",
+      usdcAddress: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", // Official Binance-Peg BUSD/USDC (BEP20 USDC)
+      usdcDomainName: "USD Coin",
+      rpcUrl: "https://bsc-dataseed.binance.org",
+      chain: bsc,
+    },
+    "eip155:97": {
+      chainId: 97,
+      caip2: "eip155:97",
+      name: "bsc-testnet",
+      usdcAddress: "0x64544969ed7EBf5f083679233325356EBe738930", // Standard Testnet USDC
+      usdcDomainName: "USD Coin",
+      rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chain: bscTestnet,
+    },
   };
 }
 
@@ -221,7 +243,7 @@ class X402FacilitatorService {
     this.networks = buildNetworkRegistry();
 
     const enabledStr =
-      process.env.X402_NETWORKS ?? process.env.EVM_NETWORKS ?? "base-sepolia,base";
+      process.env.X402_NETWORKS ?? process.env.EVM_NETWORKS ?? "base-sepolia,base,bsc,bsc-testnet";
     const enabledNames = enabledStr.split(",").map((n) => n.trim());
 
     for (const [caip2, config] of Object.entries(this.networks)) {
@@ -232,7 +254,7 @@ class X402FacilitatorService {
           createPublicClient({
             chain: config.chain,
             transport: http(config.rpcUrl),
-          }) as PublicClient,
+          }),
         );
       }
     }
@@ -595,7 +617,7 @@ class X402FacilitatorService {
     }
   }
 
-    // Private helpers
+  // Private helpers
 
   /**
    * Load the facilitator private key from available sources (priority order):
@@ -631,7 +653,7 @@ class X402FacilitatorService {
       if (process.env.NODE_ENV === "production") {
         logger.warn(
           "[x402-facilitator] Using env var for private key in production. " +
-            "Consider using the secrets service for better security.",
+          "Consider using the secrets service for better security.",
         );
       }
       return envKey;

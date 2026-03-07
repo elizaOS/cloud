@@ -1,13 +1,9 @@
 /**
- * Health Check - Edge Function
+ * Health Check
  *
- * Ultra-fast health check endpoint that runs at the edge.
+ * Lightweight health check endpoint for load balancers and uptime checks.
  * Used by load balancers, monitoring tools, and uptime checks.
- *
- * PERFORMANCE: Edge runtime = ~5ms response vs ~100ms+ Node.js
  */
-
-export const runtime = "edge";
 
 export async function GET() {
   return Response.json(

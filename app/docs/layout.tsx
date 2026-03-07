@@ -10,32 +10,32 @@ import { LlmsTxtBadge } from "@/components/docs/llms-txt-badge";
 
 export const metadata: Metadata = {
   title: {
-    default: "elizaOS Cloud Documentation",
-    template: "%s | elizaOS Cloud",
+    default: "ELIZA CLOUD Documentation",
+    template: "%s | ELIZA CLOUD",
   },
   description:
-    "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
+    "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
   keywords: ["elizaOS", "AI agents", "cloud platform", "documentation", "API"],
   openGraph: {
-    title: "elizaOS Cloud Documentation",
+    title: "ELIZA CLOUD Documentation",
     description:
-      "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
-    siteName: "elizaOS Platform",
+      "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
+    siteName: "ELIZA CLOUD",
     type: "website",
     images: [
       {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "elizaOS Cloud - Make Agents in Seconds",
+        alt: "ELIZA CLOUD - Make Agents in Seconds",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "elizaOS Cloud Documentation",
+    title: "ELIZA CLOUD Documentation",
     description:
-      "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
+      "Documentation for ELIZA CLOUD - The AI Agent Development Platform.",
     images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",
@@ -48,7 +48,7 @@ const navbar = (
       <div className="flex items-center gap-3 pointer-events-none select-none">
         <Image
           src="/cloudlogo-white.svg"
-          alt="Cloud"
+          alt="ELIZA CLOUD"
           width={90}
           height={35}
           priority

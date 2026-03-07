@@ -4,7 +4,7 @@ import { AffiliatesPageWrapper } from "@/components/affiliates/affiliates-page-w
 
 export const metadata: Metadata = {
     title: "Affiliates",
-    description: "Manage your referral link and markup percentage",
+    description: "Manage your affiliate link and markup percentage",
 };
 
 export const dynamic = "force-dynamic";

@@ -2,6 +2,8 @@
  * Solana address validation utilities
  */
 
+import { isValidSolanaAddress } from "./address-validation";
+
 export { isValidSolanaAddress } from "./address-validation";
 
 /**
@@ -13,7 +15,7 @@ export { isValidSolanaAddress } from "./address-validation";
 export function validateSolanaAddress(address: string): void {
   if (!isValidSolanaAddress(address)) {
     throw new Error(
-      "Invalid Solana address. Must be a valid base58-encoded public key (32 bytes)."
+      "Invalid Solana address. Must be a valid base58-encoded public key (32 bytes).",
     );
   }
 }

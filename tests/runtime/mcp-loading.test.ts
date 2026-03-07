@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -32,6 +33,7 @@ let testData: TestDataSet;
 let testRuntimeResult: TestRuntimeResult;
 let testUserContext: TestUserContext;
 const timings: Record<string, number> = {};
+const skipLiveModelSuite = !hasDatabaseUrl || !hasRuntimeModelCredentials;
 
 // Setup function - uses local database (same as running server)
 async function setupTestEnvironment(): Promise<void> {
@@ -86,7 +88,7 @@ async function cleanupTestEnvironment(): Promise<void> {
   console.log("✅ Cleanup complete\n");
 }
 
-describe.skipIf(!hasDatabaseUrl)("MCP Plugin Loading - Production Flow", () => {
+describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () => {
   beforeAll(setupTestEnvironment);
   afterAll(cleanupTestEnvironment);
 

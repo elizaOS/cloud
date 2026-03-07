@@ -1,7 +1,8 @@
 // app/api/v1/models/[...model]/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
-import { getProvider } from "@/lib/providers";
+import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,26 @@ export async function GET(
 
     // Join segments to support both "openai/gpt-4o-mini" and "openai%2Fgpt-4o-mini"
     const model = modelSegments.join("/");
+
+    if (isGroqNativeModel(model)) {
+      if (!hasGroqProviderConfigured()) {
+        return Response.json(
+          {
+            error: {
+              message: `Model '${model}' is not configured on this deployment`,
+              type: "invalid_request_error",
+              code: "model_not_configured",
+            },
+          },
+          { status: 503 },
+        );
+      }
+
+      const groqModel = getGroqCatalogModel(model);
+      if (groqModel) {
+        return Response.json(groqModel);
+      }
+    }
 
     const provider = getProvider();
     const response = await provider.getModel(model);

@@ -114,14 +114,27 @@ describe.skipIf(!process.env.DATABASE_URL)("Affiliate System Services", () => {
         await expect(affiliatesService.linkUserToAffiliateCode(userA.id, affiliateOfA.code)).rejects.toThrow("Users cannot refer themselves");
     });
 
-    test("cannot link user who is already linked", async () => {
+    test("reuses an existing link for the same affiliate code", async () => {
         const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
 
-        // User B was liked in the previous test
-        await expect(affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code)).rejects.toThrow("User is already linked");
+        const firstLink = await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
+        const secondLink = await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
+
+        expect(secondLink.id).toBe(firstLink.id);
+        expect(secondLink.user_id).toBe(userB.id);
+        expect(secondLink.affiliate_code_id).toBe(affiliateOfA.id);
     });
 
     test("can retrieve the referrer for a user correctly", async () => {
+        const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
+        await affiliatesService.updateMarkup(userA.id, 150.5);
+
+        try {
+            await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
+        } catch {
+            // Ignore if the link already exists.
+        }
+
         const referrer = await affiliatesService.getReferrer(userB.id);
 
         expect(referrer).toBeDefined();

@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   createTestDataSet,
@@ -35,6 +36,8 @@ import {
 } from "../../../infrastructure";
 
 // Character with web search enabled
+const skipLiveModelSuite = !hasDatabaseUrl || !hasRuntimeModelCredentials;
+
 const webSearchCharacter = {
   id: "web-search-test-agent-001",
   name: "CryptoResearcher",
@@ -86,7 +89,7 @@ let runtime: TestRuntime;
 let testUser: TestUserContext;
 const timings: Record<string, number> = {};
 
-describe.skipIf(!hasDatabaseUrl)("CloudBootstrapMessageService - Web Search Multi-Step", () => {
+describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search Multi-Step", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(70));
     console.log("MULTI-STEP WEB SEARCH INTEGRATION TESTS");

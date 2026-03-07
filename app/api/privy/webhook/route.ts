@@ -10,6 +10,7 @@ import {
   trackServerEvent,
   identifyServerUser,
 } from "@/lib/analytics/posthog-server";
+import { referralsService } from "@/lib/services/referrals";
 import { getSignupMethod } from "@/lib/analytics/posthog";
 
 // Verify webhook signature from Privy using their recommended method
@@ -117,6 +118,23 @@ async function handlePrivyWebhook(request: NextRequest) {
 
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
+
+        if (payload.type === "user.linked_account") {
+          try {
+            await referralsService.checkAndQualifyReferral(user.id);
+          } catch (qualificationError) {
+            logger.error(
+              "[Privy Webhook] Failed to process referral qualification",
+              {
+                userId: user.id,
+                error:
+                  qualificationError instanceof Error
+                    ? qualificationError.message
+                    : String(qualificationError),
+              },
+            );
+          }
+        }
 
         // Track signup event for new users
         if (payload.type === "user.created") {

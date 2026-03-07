@@ -52,20 +52,6 @@ import {
 } from "viem";
 import { mainnet, base, bsc } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  Transaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import {
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
 import bs58 from "bs58";
 import { payoutAlertsService } from "./payout-alerts";
 
@@ -138,8 +124,8 @@ interface ProcessingStats {
  */
 export class PayoutProcessorService {
   private readonly evmPrivateKey: `0x${string}` | null;
-  private readonly solanaKeypair: Keypair | null;
-  private readonly solanaConnection: Connection | null;
+  private readonly solanaKeypair: import("@solana/web3.js").Keypair | null;
+  private readonly solanaConnection: import("@solana/web3.js").Connection | null;
 
   constructor() {
     // Load EVM private key (support both naming conventions)
@@ -161,11 +147,17 @@ export class PayoutProcessorService {
     const solanaKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
     if (solanaKey) {
       try {
+        const { Connection, Keypair } =
+          require("@solana/web3.js") as typeof import("@solana/web3.js");
         const decoded = bs58.decode(solanaKey);
         this.solanaKeypair = Keypair.fromSecretKey(decoded);
+        const solanaRpc =
+          process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+        this.solanaConnection = new Connection(solanaRpc, "confirmed");
         logger.info("[PayoutProcessor] Solana hot wallet configured");
       } catch (error) {
         this.solanaKeypair = null;
+        this.solanaConnection = null;
         logger.error(
           "[PayoutProcessor] Invalid SOLANA_PAYOUT_PRIVATE_KEY - Solana payouts disabled",
           {
@@ -175,15 +167,11 @@ export class PayoutProcessorService {
       }
     } else {
       this.solanaKeypair = null;
+      this.solanaConnection = null;
       logger.warn(
         "[PayoutProcessor] SOLANA_PAYOUT_PRIVATE_KEY not set - Solana payouts disabled",
       );
     }
-
-    // Solana RPC connection
-    const solanaRpc =
-      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-    this.solanaConnection = new Connection(solanaRpc, "confirmed");
   }
 
   /**
@@ -465,6 +453,18 @@ export class PayoutProcessorService {
       };
     }
 
+    const {
+      PublicKey,
+      Transaction,
+      sendAndConfirmTransaction,
+    } = require("@solana/web3.js") as typeof import("@solana/web3.js");
+    const {
+      createTransferInstruction,
+      getAssociatedTokenAddress,
+      createAssociatedTokenAccountInstruction,
+      getAccount,
+      TokenAccountNotFoundError,
+    } = require("@solana/spl-token") as typeof import("@solana/spl-token");
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const toAddress = new PublicKey(redemption.payout_address);
     const amount = BigInt(
@@ -661,6 +661,10 @@ export class PayoutProcessorService {
 
     // Check Solana wallet
     if (this.solanaKeypair && this.solanaConnection) {
+      const { PublicKey } =
+        require("@solana/web3.js") as typeof import("@solana/web3.js");
+      const { getAssociatedTokenAddress, getAccount } =
+        require("@solana/spl-token") as typeof import("@solana/spl-token");
       const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
       const ata = await getAssociatedTokenAddress(
         mintAddress,

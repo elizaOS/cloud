@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import { elizaAppUserService } from "@/lib/services/eliza-app/user-service";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
@@ -29,12 +29,20 @@ import type { Update, Message } from "telegraf/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
-const { botToken: BOT_TOKEN, webhookSecret: WEBHOOK_SECRET } = elizaAppConfig.telegram;
-const { phoneNumber: BLOOIO_PHONE } = elizaAppConfig.blooio;
+function getTelegramConfig() {
+  return elizaAppConfig.telegram;
+}
+
+function getDefaultAgentId() {
+  return elizaAppConfig.defaultAgentId;
+}
+
+function getBlooioPhoneNumber() {
+  return elizaAppConfig.blooio.phoneNumber;
+}
 
 async function callSendMessage(payload: Record<string, unknown>): Promise<Response> {
-  return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  return fetch(`https://api.telegram.org/bot${getTelegramConfig().botToken}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -49,7 +57,7 @@ function cleanUrlMarkdown(text: string): string {
 
 async function sendTypingIndicator(chatId: number): Promise<void> {
   try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`, {
+    await fetch(`https://api.telegram.org/bot${getTelegramConfig().botToken}/sendChatAction`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, action: "typing" }),
@@ -152,10 +160,11 @@ async function handleMessage(message: Message): Promise<void> {
       return;
     }
     const { organization } = userWithOrg;
+    const defaultAgentId = getDefaultAgentId();
 
     const roomId = generateElizaAppRoomId(
       "telegram",
-      DEFAULT_AGENT_ID,
+      defaultAgentId,
       telegramUserId,
     );
     const entityId = userWithOrg.id;
@@ -165,7 +174,7 @@ async function handleMessage(message: Message): Promise<void> {
     if (!existingRoom) {
       await roomsService.createRoom({
         id: roomId,
-        agentId: DEFAULT_AGENT_ID,
+        agentId: defaultAgentId,
         entityId,
         source: "telegram",
         type: "DM",
@@ -180,7 +189,7 @@ async function handleMessage(message: Message): Promise<void> {
       });
     }
     try {
-      await roomsService.addParticipant(roomId, entityId, DEFAULT_AGENT_ID);
+      await roomsService.addParticipant(roomId, entityId, defaultAgentId);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
@@ -205,8 +214,9 @@ async function handleMessage(message: Message): Promise<void> {
 
     let typing: { stop: () => void } | null = null;
     try {
-      typing = BOT_TOKEN
-        ? createTypingRefresh(message.chat.id, BOT_TOKEN, 4000, (error) => {
+      const { botToken } = getTelegramConfig();
+      typing = botToken
+        ? createTypingRefresh(message.chat.id, botToken, 4000, (error) => {
             logger.debug("[ElizaApp TelegramWebhook] Typing refresh failed", {
               chatId: message.chat.id,
               error: error instanceof Error ? error.message : String(error),
@@ -214,7 +224,7 @@ async function handleMessage(message: Message): Promise<void> {
           })
         : null;
 
-      if (BOT_TOKEN) {
+      if (botToken) {
         await sendTypingIndicator(message.chat.id);
       }
 
@@ -223,7 +233,7 @@ async function handleMessage(message: Message): Promise<void> {
         isAnonymous: false,
         agentMode: AgentMode.ASSISTANT,
       });
-      userContext.characterId = DEFAULT_AGENT_ID;
+      userContext.characterId = defaultAgentId;
       userContext.webSearchEnabled = true;
       userContext.modelPreferences = elizaAppConfig.modelPreferences;
       
@@ -355,7 +365,7 @@ async function handleCommand(message: Message & { text: string }): Promise<void>
       case "/start":
         await sendTelegramMessage(
           chatId,
-          `👋 *Welcome to Eliza!*\n\nI'm your AI assistant. Just send me a message and I'll help you with whatever you need.\n\nYou can also connect via iMessage by texting: \`${BLOOIO_PHONE}\``,
+          `👋 *Welcome to Eliza!*\n\nI'm your AI assistant. Just send me a message and I'll help you with whatever you need.\n\nYou can also connect via iMessage by texting: \`${getBlooioPhoneNumber()}\``,
         );
         break;
 
@@ -402,12 +412,13 @@ async function handleCommand(message: Message & { text: string }): Promise<void>
 }
 
 async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse> {
+  const webhookSecret = getTelegramConfig().webhookSecret;
   // Fail closed: require webhook secret unless explicitly skipped in dev
   const skipVerification =
     process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
     process.env.NODE_ENV !== "production";
 
-  if (!WEBHOOK_SECRET) {
+  if (!webhookSecret) {
     if (skipVerification) {
       logger.warn("[ElizaApp TelegramWebhook] Signature verification skipped (dev mode)");
     } else {
@@ -422,7 +433,7 @@ async function handleTelegramWebhook(request: NextRequest): Promise<NextResponse
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const expectedBuffer = Buffer.from(WEBHOOK_SECRET);
+    const expectedBuffer = Buffer.from(webhookSecret);
     const receivedBuffer = Buffer.from(secretToken);
 
     if (

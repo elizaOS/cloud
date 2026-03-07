@@ -2,8 +2,6 @@ import { ImageResponse } from "next/og";
 import { logger } from "@/lib/utils/logger";
 import { NextRequest } from "next/server";
 
-export const runtime = "edge";
-
 // Brand colors matching the platform design system
 const BRAND_ORANGE = "#FF5800";
 const BRAND_BLUE = "#0B35F1";
@@ -15,7 +13,7 @@ const BRAND_BORDER = "#E1E1E1";
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_BG} 0%, ${BRAND_SURFACE} 100%)`;
 const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A33 100%)`;
 
-// System monospace font stack - works reliably in edge runtime
+// System monospace font stack - works reliably for OG image rendering
 // Optimized for technical/code aesthetic matching platform
 const MONO_FONT =
   "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
@@ -40,7 +38,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const type = searchParams.get("type") || "default";
-    const title = searchParams.get("title") || "elizaOS Platform";
+    const title = searchParams.get("title") || "ELIZA CLOUD";
     const description =
       searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");

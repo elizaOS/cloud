@@ -36,6 +36,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
   });
 
   afterAll(async () => {
+    if (!client || !testData) {
+      return;
+    }
+
     // Clean up all test agents and phone numbers
     for (const agentId of testAgents) {
       await client.query(
@@ -212,9 +216,9 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
       );
 
       expect(result.rows.length).toBe(3);
-      expect(result.rows[0].friendly_name).toBe("iMessage");
-      expect(result.rows[1].friendly_name).toBe("Primary Line");
-      expect(result.rows[2].friendly_name).toBe("Secondary Line");
+      expect(result.rows[0].friendly_name).toBe("Primary Line");
+      expect(result.rows[1].friendly_name).toBe("Secondary Line");
+      expect(result.rows[2].friendly_name).toBe("iMessage");
     });
   });
 

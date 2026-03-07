@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 const mcpDefinitions = [
   {
     id: "eliza-cloud-mcp",
-    name: "elizaOS Cloud MCP",
+    name: "ELIZA CLOUD MCP",
     description:
-      "Core elizaOS Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
+      "Core ELIZA CLOUD platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
     version: "1.0.0",
     endpoint: "/api/mcp",
     category: "platform",

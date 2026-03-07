@@ -7,7 +7,7 @@ import {
   type NewAffiliateCode,
   type NewUserAffiliate,
 } from "@/db/schemas/affiliates";
-import { eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 
 export class AffiliatesRepository {
   async createAffiliateCode(data: NewAffiliateCode): Promise<AffiliateCode> {
@@ -18,27 +18,29 @@ export class AffiliatesRepository {
   async createAffiliateCodeIfNotExists(
     data: NewAffiliateCode,
   ): Promise<AffiliateCode | null> {
-    const existing = await this.getAffiliateCodeByUserId(data.user_id);
-    if (existing) {
-      return existing;
-    }
+    return dbWrite.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`affiliate_code:${data.user_id}`}))`,
+      );
 
-    try {
-      return await this.createAffiliateCode(data);
-    } catch (error: unknown) {
-      const code =
-        error instanceof Error ? Reflect.get(error, "code") : undefined;
-      const isUniqueViolation =
-        code === "23505" ||
-        (error instanceof Error &&
-          error.message.includes("unique constraint"));
+      const [existing] = await tx
+        .select()
+        .from(affiliateCodes)
+        .where(eq(affiliateCodes.user_id, data.user_id))
+        .orderBy(asc(affiliateCodes.created_at))
+        .limit(1);
 
-      if (isUniqueViolation) {
-        return await this.getAffiliateCodeByUserId(data.user_id);
+      if (existing) {
+        return existing;
       }
 
-      throw error;
-    }
+      const [created] = await tx
+        .insert(affiliateCodes)
+        .values(data)
+        .returning();
+
+      return created ?? null;
+    });
   }
 
   async updateAffiliateCode(
@@ -54,10 +56,13 @@ export class AffiliatesRepository {
   }
 
   async getAffiliateCodeByUserId(userId: string): Promise<AffiliateCode | null> {
-    const result = await dbRead.query.affiliateCodes.findFirst({
-      where: eq(affiliateCodes.user_id, userId),
-    });
-    return result || null;
+    const [result] = await dbRead
+      .select()
+      .from(affiliateCodes)
+      .where(eq(affiliateCodes.user_id, userId))
+      .orderBy(asc(affiliateCodes.created_at))
+      .limit(1);
+    return result ?? null;
   }
 
   async getAffiliateCodeByCode(code: string): Promise<AffiliateCode | null> {

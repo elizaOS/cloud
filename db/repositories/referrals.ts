@@ -245,7 +245,12 @@ class ReferralSignupsRepository {
         qualified_bonus_credited: true,
         qualified_bonus_amount: String(amount),
       })
-      .where(eq(referralSignups.id, id))
+      .where(
+        and(
+          eq(referralSignups.id, id),
+          sql`${referralSignups.qualified_at} IS NULL`,
+        ),
+      )
       .returning();
     return result || null;
   }

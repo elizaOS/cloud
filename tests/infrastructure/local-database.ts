@@ -6,19 +6,20 @@
  */
 
 import { Client } from "pg";
+import { resolveDatabaseUrl } from "@/db/database-url";
 
 /** True when DATABASE_URL is set (use with describe.skipIf(!hasDatabaseUrl) for DB-dependent suites). */
 export const hasDatabaseUrl =
-  typeof process.env.DATABASE_URL === "string" && process.env.DATABASE_URL.length > 0;
+  typeof resolveDatabaseUrl(process.env) === "string";
 
 /**
  * Get the connection string from environment
  */
 export function getConnectionString(): string {
-  const url = process.env.DATABASE_URL;
+  const url = resolveDatabaseUrl(process.env);
   if (!url) {
     throw new Error(
-      "DATABASE_URL environment variable is required. Make sure your .env is loaded.",
+      "DATABASE_URL is not configured and local Docker Postgres fallback is unavailable.",
     );
   }
   return url;

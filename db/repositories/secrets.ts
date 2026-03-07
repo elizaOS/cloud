@@ -78,12 +78,13 @@ class SecretsRepository {
       conditions.push(isNull(secrets.environment));
     }
 
-    const [secret] = await db
+    const results = await db
       .select()
       .from(secrets)
-      .where(and(...conditions));
+      .where(and(...conditions))
+      .limit(1);
 
-    return secret;
+    return results[0];
   }
 
   async findByContext(params: FindSecretsParams): Promise<Secret[]> {

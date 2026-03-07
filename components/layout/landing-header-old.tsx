@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ElizaLogo } from "@/components/brand";
+import { ElizaCloudLockup } from "@/components/brand";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/layout/user-menu";
@@ -27,7 +27,7 @@ export default function LandingHeader() {
     <motion.header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto pr-4 sm:pr-[20px] bg-black/40 backdrop-blur-md md:bg-transparent md:backdrop-blur-none">
       <div className="flex h-16 items-center justify-between w-full pl-4">
         <Link href="/" className="flex items-center gap-3">
-          <ElizaLogo className="h-5 sm:h-6 text-white shrink-0" />
+          <ElizaCloudLockup logoClassName="h-5 sm:h-6" />
         </Link>
 
         <div className="flex items-center gap-3">

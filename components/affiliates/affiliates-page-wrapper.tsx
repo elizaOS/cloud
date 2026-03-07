@@ -6,7 +6,7 @@ import { AffiliatesPageClient } from "./affiliates-page-client";
 export function AffiliatesPageWrapper() {
     useSetPageHeader({
         title: "Affiliates",
-        description: "Manage your referral code and customize your markup percentage",
+        description: "Manage your affiliate link and customize your markup percentage",
     });
 
     return <AffiliatesPageClient />;

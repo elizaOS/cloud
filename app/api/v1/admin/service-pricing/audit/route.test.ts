@@ -27,6 +27,7 @@ describe('Service Pricing Audit Route', () => {
     const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing/audit?service_id=solana-rpc');
     vi.mocked(requireAdminWithResponse).mockResolvedValue({
       user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+      isAdmin: true,
       role: 'super_admin',
     });
     vi.mocked(servicePricingRepository.listAuditHistory).mockResolvedValue([

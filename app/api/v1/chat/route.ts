@@ -1,7 +1,7 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { conversationsService } from "@/lib/services/conversations";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
@@ -288,7 +288,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const result = streamText({
-      model: gateway.languageModel(selectedModel),
+      model: getLanguageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: await convertToModelMessages(messages),
@@ -479,7 +479,9 @@ async function handlePOST(req: NextRequest) {
     return new Response(
       JSON.stringify({
         error:
-          status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
+          status === 500
+            ? "Failed to process chat"
+            : getSafeErrorMessage(error),
       }),
       {
         status,

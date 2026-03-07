@@ -19,10 +19,6 @@ import {
 } from "@/lib/services/credits";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 
-fal.config({
-  proxyUrl: "/api/fal/proxy",
-});
-
 export const maxDuration = 300;
 
 interface VideoGenerationRequest {

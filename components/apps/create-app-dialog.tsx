@@ -641,7 +641,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
             <div className="flex-1">
               <Label htmlFor="affiliate">Generate Affiliate Code</Label>
               <p className="text-xs text-white/60 mt-1">
-                Create a unique referral code to track user signups from your
+                Create a unique affiliate code to track user signups from your
                 app
               </p>
             </div>

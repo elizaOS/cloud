@@ -10,6 +10,7 @@
  * @param props.asChild - If true, renders as a child component
  */
 import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "./corner-brackets";
 
@@ -21,7 +22,6 @@ interface BrandCardProps extends React.HTMLAttributes<HTMLDivElement> {
   cornerSize?: "sm" | "md" | "lg" | "xl";
   cornerColor?: string;
   asChild?: boolean;
-  variant?: "default" | "rounded";
 }
 
 export function BrandCard({
@@ -32,25 +32,21 @@ export function BrandCard({
   cornerSize = "md",
   cornerColor = "#E1E1E1",
   asChild = false,
-  variant = "default",
   ...props
 }: BrandCardProps) {
-  const Component = asChild ? "div" : "div";
-  const isRounded = variant === "rounded";
+  const Component = asChild ? Slot : "div";
 
   return (
     <Component
       className={cn(
-        "relative border border-white/10 p-4 md:p-6",
-        isRounded ? "bg-neutral-900 rounded-2xl" : "bg-black/40",
-        hover && "group hover:border-white/30 transition-all duration-300",
+        "relative border border-white/10 bg-black/55 p-4 md:p-6 !rounded-none backdrop-blur-sm",
+        hover &&
+          "group transition-[border-color,background-color,transform] duration-300 hover:border-white/25 hover:bg-black/65",
         className,
       )}
       {...props}
     >
-      {corners && !isRounded && (
-        <CornerBrackets size={cornerSize} color={cornerColor} />
-      )}
+      {corners && <CornerBrackets size={cornerSize} color={cornerColor} />}
       {children}
     </Component>
   );
@@ -78,7 +74,7 @@ export function AgentCard({
     <BrandCard hover className={cn("group", className)}>
       {/* Icon */}
       <div
-        className="mb-4 inline-flex p-3 rounded-lg"
+        className="mb-4 inline-flex border border-current/15 p-3 !rounded-none"
         style={{
           backgroundColor: `${color}20`,
           color: color,

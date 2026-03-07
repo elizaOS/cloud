@@ -578,14 +578,13 @@ describe("Discord Config Structure", () => {
       join(process.cwd(), "lib/services/eliza-app/config.ts"),
       "utf-8",
     );
-    // All Discord config values should use requireEnv
-    const discordBlock = configSource.slice(
-      configSource.indexOf("discord: {"),
-      configSource.indexOf("}", configSource.indexOf("discord: {")) + 1,
+    expect(configSource).toContain('return requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", "")');
+    expect(configSource).toContain(
+      'return requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", "")',
     );
-    expect(discordBlock).toContain('requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN"');
-    expect(discordBlock).toContain('requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID"');
-    expect(discordBlock).toContain('requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET"');
+    expect(configSource).toContain(
+      'return requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", "")',
+    );
   });
 
   test("config includes appUrl for dynamic URLs", () => {

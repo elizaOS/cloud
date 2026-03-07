@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -48,6 +49,7 @@ import { mcpTestCharacter } from "../fixtures/mcp-test-character";
 let connectionString: string;
 let testData: TestDataSet;
 const allTimings: Record<string, number> = {};
+const skipLiveModelSuites = !hasDatabaseUrl || !hasRuntimeModelCredentials;
 
 // Setup function - uses local database (same as running server)
 async function setupEnvironment(): Promise<void> {
@@ -97,7 +99,7 @@ async function cleanupEnvironment(): Promise<void> {
 // CHAT Mode Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - CHAT Mode", () => {
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - CHAT Mode", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -169,7 +171,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - CHAT Mode", () => {
 // ASSISTANT Mode Tests (with MCP)
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -238,7 +240,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => 
 // ASSISTANT Mode with Web Search
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -289,7 +291,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (Web Search)",
 // BUILD Mode Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - BUILD Mode", () => {
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - BUILD Mode", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 

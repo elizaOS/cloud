@@ -10,6 +10,8 @@ import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
 import type { UserCharacter } from "@/db/schemas";
 
+export const dynamic = "force-dynamic";
+
 interface ChatPageProps {
   params: Promise<{
     characterId: string;

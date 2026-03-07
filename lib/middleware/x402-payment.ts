@@ -75,6 +75,10 @@ export function withX402Payment<T = Record<string, string>>(
   ) => Promise<Response>,
   config: X402PaymentConfig,
 ) {
+  type FacilitatorPaymentPayload = Parameters<
+    typeof x402FacilitatorService.verify
+  >[0];
+
   const network = config.network ?? "eip155:8453";
   const description = config.description ?? "Paid API endpoint";
   const mimeType = config.mimeType ?? "application/json";
@@ -125,6 +129,8 @@ export function withX402Payment<T = Record<string, string>>(
     }
 
     // 3. Build payment requirements
+    const parsedPaymentPayload =
+      paymentPayload as unknown as FacilitatorPaymentPayload;
     const paymentRequirements = {
       scheme: "upto",
       network,
@@ -138,7 +144,7 @@ export function withX402Payment<T = Record<string, string>>(
     let verifyResult: VerifyResult;
     try {
       verifyResult = await x402FacilitatorService.verify(
-        paymentPayload as Parameters<typeof x402FacilitatorService.verify>[0],
+        parsedPaymentPayload,
         paymentRequirements,
       );
     } catch (err) {
@@ -173,7 +179,7 @@ export function withX402Payment<T = Record<string, string>>(
     if (autoSettle) {
       try {
         const settleResult = await x402FacilitatorService.settle(
-          paymentPayload as Parameters<typeof x402FacilitatorService.settle>[0],
+          parsedPaymentPayload,
           paymentRequirements,
         );
         txHash = settleResult.transaction;

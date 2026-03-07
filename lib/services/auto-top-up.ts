@@ -216,6 +216,8 @@ export class AutoTopUpService {
     // added = amount. Revenue splits are not run for auto top-up (see Stripe webhook).
     let affiliateFeeAmount = 0;
     let platformFeeAmount = 0;
+    let affiliateOwnerId: string | null = null;
+    let affiliateCodeId: string | null = null;
     let totalAmount: number;
 
     try {
@@ -230,6 +232,8 @@ export class AutoTopUpService {
       if (checkUserId) {
         const referrer = await affiliatesService.getReferrer(checkUserId);
         if (referrer) {
+          affiliateOwnerId = referrer.user_id;
+          affiliateCodeId = referrer.id;
           const affiliatePercent = Number(referrer.markup_percent);
           const platformPercent = 20.0;
 
@@ -249,14 +253,22 @@ export class AutoTopUpService {
 
     const metadata: Record<string, string> = {
       organization_id: organizationId,
-      credits: totalAmount.toFixed(2),
+      credits: amount.toFixed(2),
       type: "auto_top_up",
+      base_amount: amount.toFixed(2),
       total_charged: totalAmount.toFixed(2),
+      platform_fee_amount: platformFeeAmount.toFixed(2),
       fees_included: "true",
     };
 
     if (!trackingId.startsWith("org:")) {
       metadata.user_id = trackingId;
+    }
+
+    if (affiliateFeeAmount > 0 && affiliateOwnerId && affiliateCodeId) {
+      metadata.affiliate_fee_amount = affiliateFeeAmount.toFixed(2);
+      metadata.affiliate_owner_id = affiliateOwnerId;
+      metadata.affiliate_code_id = affiliateCodeId;
     }
 
     logger.info(
@@ -290,7 +302,7 @@ export class AutoTopUpService {
 
       if (paymentIntent.status === "succeeded") {
         const previousBalance = Number(org.credit_balance);
-        const newBalance = previousBalance + totalAmount;
+        const newBalance = previousBalance + amount;
 
       logger.info(
         `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,

@@ -55,6 +55,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { DashboardStatCard } from "@/components/brand";
 
 interface AdminOverview {
   recentViolations: Array<{
@@ -332,50 +333,30 @@ export default function AdminPage() {
       {/* Stats */}
       {overview && (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Violations
-              </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {overview.totalViolations}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Flagged Users
-              </CardTitle>
-              <UserX className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.flaggedUsers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Banned Users
-              </CardTitle>
-              <Ban className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.bannedUsers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Admins</CardTitle>
-              <Shield className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{overview.adminCount}</div>
-            </CardContent>
-          </Card>
+          <DashboardStatCard
+            label="Total Violations"
+            value={overview.totalViolations}
+            icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
+            accent="amber"
+          />
+          <DashboardStatCard
+            label="Flagged Users"
+            value={overview.flaggedUsers}
+            icon={<UserX className="h-4 w-4 text-[#FF5800]" />}
+            accent="orange"
+          />
+          <DashboardStatCard
+            label="Banned Users"
+            value={overview.bannedUsers}
+            icon={<Ban className="h-4 w-4 text-red-500" />}
+            accent="red"
+          />
+          <DashboardStatCard
+            label="Admins"
+            value={overview.adminCount}
+            icon={<Shield className="h-4 w-4 text-blue-400" />}
+            accent="blue"
+          />
         </div>
       )}
 

@@ -47,7 +47,7 @@ export function SidebarBottomPanel({
             onClick={() =>
               router.push(`/login?returnTo=${encodeURIComponent(currentUrl)}`)
             }
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            className="border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10"
             title="Sign Up / Log In"
           >
             <UserPlus className="h-5 w-5 text-white/60" />
@@ -74,7 +74,7 @@ export function SidebarBottomPanel({
               onClick={() =>
                 router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)
               }
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white text-xs font-medium rounded-sm transition-colors"
+              className="flex w-full items-center justify-center gap-1.5 bg-[#FF5800] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#FF5800]/90"
             >
               <UserPlus className="h-3.5 w-3.5" />
               <span>Sign Up</span>
@@ -84,7 +84,7 @@ export function SidebarBottomPanel({
               onClick={() =>
                 router.push(`/login?returnTo=${encodeURIComponent(fullUrl)}`)
               }
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-white/15 hover:bg-white/5 text-white/70 hover:text-white text-xs rounded-sm transition-colors"
+              className="flex w-full items-center justify-center gap-1.5 border border-white/15 px-3 py-2 text-xs text-white/70 transition-colors hover:bg-white/5 hover:text-white"
             >
               <LogIn className="h-3.5 w-3.5" />
               <span>Log In</span>
@@ -112,7 +112,7 @@ export function SidebarBottomPanel({
       <div className={cn("flex justify-center py-3", className)}>
         <button
           onClick={() => router.push("/dashboard/settings")}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10"
           title="Settings"
         >
           <Settings className="h-5 w-5 text-white/60" />

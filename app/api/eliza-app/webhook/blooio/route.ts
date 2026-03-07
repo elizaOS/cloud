@@ -45,16 +45,21 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Extended for ASSISTANT mode multi-step execution
 
 const { defaultAgentId: DEFAULT_AGENT_ID } = elizaAppConfig;
-const { apiKey: BLOOIO_API_KEY, webhookSecret: WEBHOOK_SECRET, phoneNumber: BLOOIO_PHONE_NUMBER } = elizaAppConfig.blooio;
+
+function getBlooioConfig() {
+  return elizaAppConfig.blooio;
+}
 
 async function sendBlooioMessage(
   toPhone: string,
   text: string,
   mediaUrls?: string[],
 ): Promise<boolean> {
+  const { apiKey, phoneNumber } = getBlooioConfig();
+
   try {
     const response = await blooioApiRequest<BlooioSendMessageResponse>(
-      BLOOIO_API_KEY,
+      apiKey,
       "POST",
       `/chats/${encodeURIComponent(toPhone)}/messages`,
       {
@@ -62,7 +67,7 @@ async function sendBlooioMessage(
         attachments: mediaUrls,
       },
       {
-        fromNumber: BLOOIO_PHONE_NUMBER,
+        fromNumber: phoneNumber,
       },
     );
 
@@ -84,9 +89,10 @@ async function sendBlooioMessage(
 async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean> {
   if (!event.sender) return true; // Not applicable, mark as processed
   if (event.is_group) return true; // Not applicable, mark as processed
+  const { apiKey, phoneNumber } = getBlooioConfig();
 
   // Mark the chat as read immediately for better UX (sends read receipt)
-  markChatAsRead(BLOOIO_API_KEY, event.sender, { fromNumber: BLOOIO_PHONE_NUMBER })
+  markChatAsRead(apiKey, event.sender, { fromNumber: phoneNumber })
     .catch((err) => logger.warn("[ElizaApp BlooioWebhook] Failed to mark chat as read", {
       sender: event.sender,
       error: err instanceof Error ? err.message : String(err),
@@ -263,13 +269,14 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
 }
 
 async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> {
+  const webhookSecret = getBlooioConfig().webhookSecret;
   const rawBody = await request.text();
   const skipVerification =
     process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
     process.env.NODE_ENV !== "production";
 
   // Fail closed: require webhook secret unless explicitly skipped in dev
-  if (!WEBHOOK_SECRET) {
+  if (!webhookSecret) {
     if (skipVerification) {
       logger.warn("[ElizaApp BlooioWebhook] Signature verification skipped (dev mode)");
     } else {
@@ -278,7 +285,7 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     }
   } else {
     const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
-    const isValid = await verifyBlooioSignature(WEBHOOK_SECRET, signatureHeader, rawBody);
+    const isValid = await verifyBlooioSignature(webhookSecret, signatureHeader, rawBody);
 
     if (!isValid) {
       logger.warn("[ElizaApp BlooioWebhook] Invalid signature");
@@ -362,6 +369,6 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     status: "ok",
     service: "eliza-app-blooio-webhook",
-    phoneNumber: BLOOIO_PHONE_NUMBER,
+    phoneNumber: getBlooioConfig().phoneNumber,
   });
 }

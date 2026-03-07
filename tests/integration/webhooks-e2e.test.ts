@@ -14,9 +14,144 @@ import {
   cleanupTestData,
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
+import { createEncryptionService } from "@/lib/services/secrets/encryption";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const TWILIO_AUTH_TOKEN = "test_token";
+const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
+const TWILIO_SECRET_NAMES = [
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_PHONE_NUMBER",
+];
+const BLOOIO_SECRET_NAMES = [
+  "BLOOIO_API_KEY",
+  "BLOOIO_WEBHOOK_SECRET",
+  "BLOOIO_FROM_NUMBER",
+];
+const encryptionService = createEncryptionService();
+
+async function deleteSecrets(
+  client: Client,
+  organizationId: string,
+  names: string[],
+): Promise<void> {
+  await client.query(
+    `DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`,
+    [organizationId, names],
+  );
+}
+
+async function upsertSecret(
+  client: Client,
+  organizationId: string,
+  userId: string,
+  name: string,
+  value: string,
+): Promise<void> {
+  const encrypted = await encryptionService.encrypt(value);
+
+  await client.query(
+    `DELETE FROM secrets WHERE organization_id = $1 AND name = $2`,
+    [organizationId, name],
+  );
+
+  await client.query(
+    `INSERT INTO secrets
+      (organization_id, scope, name, encrypted_value, encryption_key_id, encrypted_dek, nonce, auth_tag, created_by)
+     VALUES
+      ($1, 'organization', $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      organizationId,
+      name,
+      encrypted.encryptedValue,
+      encrypted.keyId,
+      encrypted.encryptedDek,
+      encrypted.nonce,
+      encrypted.authTag,
+      userId,
+    ],
+  );
+}
+
+const originalFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+
+function getRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (input instanceof URL) {
+    return input.toString();
+  }
+
+  return input.url;
+}
+
+function createTwilioSignature(
+  url: string,
+  body: URLSearchParams | string,
+): string {
+  const params = typeof body === "string" ? new URLSearchParams(body) : body;
+  const sortedParams = Array.from(params.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}${value}`)
+    .join("");
+
+  return crypto
+    .createHmac("sha1", TWILIO_AUTH_TOKEN)
+    .update(url + sortedParams)
+    .digest("base64");
+}
+
+function createBlooioSignature(rawBody: string, timestamp: number): string {
+  const signature = crypto
+    .createHmac("sha256", BLOOIO_WEBHOOK_SECRET)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  return `t=${timestamp},v1=${signature}`;
+}
+
+const signedWebhookFetch: typeof fetch = (input, init) => {
+  const url = getRequestUrl(input);
+  const method = (
+    init?.method ?? (input instanceof Request ? input.method : "GET")
+  ).toUpperCase();
+
+  if (method !== "POST") {
+    return originalFetch(input, init);
+  }
+
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined),
+  );
+
+  if (headers.get("X-Test-Skip-Signature") === "true") {
+    headers.delete("X-Test-Skip-Signature");
+    return originalFetch(input, { ...init, headers });
+  }
+
+  if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
+    const body = init?.body;
+    if (body instanceof URLSearchParams || typeof body === "string") {
+      headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
+    }
+  }
+
+  if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
+    const body = init?.body;
+    if (typeof body === "string") {
+      headers.set(
+        "X-Blooio-Signature",
+        createBlooioSignature(body, Math.floor(Date.now() / 1000)),
+      );
+    }
+  }
+
+  return originalFetch(input, { ...init, headers });
+};
 
 describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
   let testData: TestDataSet;
@@ -28,6 +163,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
     if (!TEST_DB_URL) {
       throw new Error("DATABASE_URL is required for integration tests");
     }
+
+    globalThis.fetch = signedWebhookFetch;
 
     testData = await createTestDataSet(TEST_DB_URL, {
       organizationName: "Webhook Test Org",
@@ -54,24 +191,51 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
     );
     phoneNumberId = phoneResult.rows[0].id;
 
-    // Setup Twilio credentials
-    await client.query(
-      `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-       VALUES ($1, 'twilio', '{"accountSid": "ACtest123", "authToken": "test_token"}', NOW(), NOW())
-       ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"accountSid": "ACtest123", "authToken": "test_token"}'`,
-      [testData.organization.id],
+    await upsertSecret(
+      client,
+      testData.organization.id,
+      testData.user.id,
+      "TWILIO_ACCOUNT_SID",
+      "ACtest123",
+    );
+    await upsertSecret(
+      client,
+      testData.organization.id,
+      testData.user.id,
+      "TWILIO_AUTH_TOKEN",
+      TWILIO_AUTH_TOKEN,
+    );
+    await upsertSecret(
+      client,
+      testData.organization.id,
+      testData.user.id,
+      "TWILIO_PHONE_NUMBER",
+      "+15551234567",
     );
 
-    // Setup Blooio credentials
-    await client.query(
-      `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-       VALUES ($1, 'blooio', '{"apiKey": "bloo_test_key", "webhookSecret": "webhook_secret_123"}', NOW(), NOW())
-       ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"apiKey": "bloo_test_key", "webhookSecret": "webhook_secret_123"}'`,
-      [testData.organization.id],
+    await upsertSecret(
+      client,
+      testData.organization.id,
+      testData.user.id,
+      "BLOOIO_API_KEY",
+      "bloo_test_key",
+    );
+    await upsertSecret(
+      client,
+      testData.organization.id,
+      testData.user.id,
+      "BLOOIO_WEBHOOK_SECRET",
+      BLOOIO_WEBHOOK_SECRET,
     );
   });
 
   afterAll(async () => {
+    globalThis.fetch = originalFetch;
+
+    if (!client || !testData) {
+      return;
+    }
+
     await client.query(
       `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
       [phoneNumberId],
@@ -80,10 +244,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       phoneNumberId,
     ]);
     await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
-    await client.query(
-      `DELETE FROM platform_credentials WHERE organization_id = $1`,
-      [testData.organization.id],
-    );
+    await deleteSecrets(client, testData.organization.id, TWILIO_SECRET_NAMES);
+    await deleteSecrets(client, testData.organization.id, BLOOIO_SECRET_NAMES);
     await client.end();
     await cleanupTestData(TEST_DB_URL, testData.organization.id);
   });
@@ -242,7 +404,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           message_id: "bloo_" + uuidv4(),
           sender: "+15559876543",
           text: "Hello from iMessage!",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           protocol: "imessage",
           external_id: "ext_123",
           attachments: [],
@@ -270,7 +432,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           message_id: "bloo_" + uuidv4(),
           sender: "+15559876543",
           text: "Check this out!",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           protocol: "imessage",
           attachments: [
             { url: "https://example.com/image.jpg", name: "image.jpg" },
@@ -297,7 +459,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           message_id: "bloo_" + uuidv4(),
           sender: "+15551234567",
           recipient: "+15559876543",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
 
         const response = await fetch(
@@ -318,7 +480,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         const payload = {
           event: "message.delivered",
           message_id: "bloo_" + uuidv4(),
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
 
         const response = await fetch(
@@ -340,7 +502,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           event: "message.failed",
           message_id: "bloo_" + uuidv4(),
           error: "Delivery failed",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
 
         const response = await fetch(
@@ -361,7 +523,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         const payload = {
           event: "message.read",
           message_id: "bloo_" + uuidv4(),
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
 
         const response = await fetch(
@@ -399,7 +561,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           message_id: "bloo_" + uuidv4(),
           sender: "+15559876543",
           text: "",
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           protocol: "imessage",
           attachments: [],
         };
@@ -438,14 +600,14 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
   });
 
   describe("Webhook Security", () => {
-    it("should validate Twilio signature when auth token is available", async () => {
-      // This test validates the signature verification logic
-      // In production, requests without valid signatures would be rejected
+    it("should reject invalid Twilio signatures", async () => {
       const formData = new URLSearchParams();
       formData.append("MessageSid", "SM123");
       formData.append("From", "+15559876543");
       formData.append("To", "+15551234567");
       formData.append("Body", "Test with signature");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
 
       // Send with invalid signature
       const response = await fetch(
@@ -460,18 +622,16 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         },
       );
 
-      // May return 200 (if signature validation is optional in dev)
-      // or 401 (if signature validation is enforced)
-      expect([200, 401]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
 
-    it("should validate Blooio signature when webhook secret is available", async () => {
+    it("should reject invalid Blooio signatures", async () => {
       const payload = {
         event: "message.received",
         message_id: "bloo_123",
         sender: "+15559876543",
         text: "Test with signature",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       // Send with invalid signature
@@ -487,9 +647,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         },
       );
 
-      // May return 200 (if signature validation is optional)
-      // or 401 (if signature validation is enforced)
-      expect([200, 401]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
   });
 
@@ -525,7 +683,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: "bloo_" + uuidv4(),
         sender: "+15559876543",
         text: "Database error test",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         protocol: "imessage",
       };
 
@@ -729,7 +887,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         event: "message.received",
         message_id: "bloo_" + uuidv4(),
         text: "No sender",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         protocol: "imessage",
       };
 
@@ -752,7 +910,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       const payload = {
         event: "unknown.event",
         message_id: "bloo_" + uuidv4(),
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const response = await fetch(
@@ -775,7 +933,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: "bloo_" + uuidv4(),
         sender: "+15559876543",
         text: "",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         protocol: "imessage",
         attachments: [
           { url: "https://example.com/document.pdf", name: "document.pdf" },
@@ -802,7 +960,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: "bloo_" + uuidv4(),
         sender: "+15559876543",
         text: "Group message",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         protocol: "imessage",
         group_id: "grp_123456",
         participants: ["+15559876543", "+15551111111"],
@@ -826,7 +984,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       const payload = {
         event: "typing.started",
         sender: "+15559876543",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const response = await fetch(
@@ -849,7 +1007,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: "bloo_" + uuidv4(),
         sender: "user@icloud.com",
         text: "iMessage from email",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         protocol: "imessage",
       };
 
@@ -875,6 +1033,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("From", "+15559876543");
       formData.append("To", "+15551234567");
       formData.append("Body", "No signature header");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
 
       const response = await fetch(
         `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
@@ -882,14 +1042,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            // No X-Twilio-Signature header
+            "X-Test-Skip-Signature": "true",
           },
           body: formData,
         },
       );
 
-      // Should work in development (signature validation may be skipped)
-      expect([200, 401]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
 
     it("should handle empty signature header for Twilio", async () => {
@@ -898,6 +1057,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("From", "+15559876543");
       formData.append("To", "+15551234567");
       formData.append("Body", "Empty signature");
+      formData.append("AccountSid", "ACtest123");
+      formData.append("NumMedia", "0");
 
       const response = await fetch(
         `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
@@ -911,7 +1072,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         },
       );
 
-      expect([200, 401]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
 
     it("should handle malformed signature for Blooio", async () => {
@@ -920,7 +1081,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: "bloo_" + uuidv4(),
         sender: "+15559876543",
         text: "Malformed signature test",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const response = await fetch(
@@ -936,8 +1097,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         },
       );
 
-      // Should work if no webhook secret configured, or fail validation
-      expect([200, 401]).toContain(response.status);
+      expect(response.status).toBe(401);
     });
   });
 
@@ -1028,7 +1188,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: messageId,
         sender: "+15559876543",
         text: "First delivery",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const payload2 = {
@@ -1036,7 +1196,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         message_id: messageId,
         sender: "+15559876543",
         text: "Duplicate delivery",
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       const response1 = await fetch(

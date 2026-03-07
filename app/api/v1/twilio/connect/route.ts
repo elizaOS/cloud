@@ -11,23 +11,47 @@ import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { logger } from "@/lib/utils/logger";
 import { isE164PhoneNumber } from "@/lib/utils/twilio-api";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+const twilioConnectSchema = z.object({
+  accountSid: z.string().min(1, "Account SID is required"),
+  authToken: z.string().min(1, "Auth Token is required"),
+  phoneNumber: z.string().min(1, "Phone Number is required"),
+});
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    const body = await request.json();
-    const { accountSid, authToken, phoneNumber } = body;
-
-    if (!accountSid || !authToken || !phoneNumber) {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json(
-        { error: "Account SID, Auth Token, and Phone Number are required" },
+        { error: "Invalid JSON body" },
         { status: 400 },
       );
     }
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Request body must be a JSON object" },
+        { status: 400 },
+      );
+    }
+
+    const parsedBody = twilioConnectSchema.safeParse(body);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message || "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const { accountSid, authToken, phoneNumber } = parsedBody.data;
 
     // Validate phone number format
     if (!isE164PhoneNumber(phoneNumber)) {

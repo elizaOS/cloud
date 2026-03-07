@@ -3,6 +3,8 @@
  * Determines API URL based on environment
  */
 
+import { FALLBACK_TEXT_SELECTOR_MODELS } from "@/lib/models";
+
 /**
  * Get the elizaOS Cloud API base URL based on environment
  * - Local: http://localhost:3000/api/v1
@@ -54,25 +56,13 @@ export function getDefaultModels() {
  * Allowed models for chat interface
  * These are the curated models we want to offer to users
  */
-export const ALLOWED_CHAT_MODELS = [
-  // Moonshot AI Models
+export const ALLOWED_CHAT_MODELS: readonly string[] = [
+  ...FALLBACK_TEXT_SELECTOR_MODELS.map((model) => model.modelId),
   "moonshotai/kimi-k2-0905",
   "moonshotai/kimi-k2-turbo",
-  // OpenAI Models
-  "openai/gpt-5",
-  "openai/gpt-5-mini",
-  // Anthropic Claude Models
-  "anthropic/claude-opus-4.5",
-  "anthropic/claude-sonnet-4.5",
-  "anthropic/claude-opus-4.1",
-  // Google Gemini Models
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.5-flash",
-  "google/gemini-3-pro-preview",
-  // DeepSeek Models
   "deepseek/deepseek-v3.2-exp",
   "deepseek/deepseek-r1",
-] as const;
+];
 
 /**
  * ElevenLabs Settings Configuration

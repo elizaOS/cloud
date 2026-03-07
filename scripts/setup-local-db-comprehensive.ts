@@ -3,12 +3,12 @@ import { promisify } from "node:util";
 import pg from "pg";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getLocalDockerDatabaseUrl } from "../db/database-url";
 
 const execAsync = promisify(exec);
 const { Client } = pg;
 
-const LOCAL_DATABASE_URL =
-  "postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev";
+const LOCAL_DATABASE_URL = getLocalDockerDatabaseUrl(process.env);
 
 function log(message: string) {
   console.log(`[Setup] ${message}`);

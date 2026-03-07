@@ -43,33 +43,51 @@ export const elizaAppConfig = {
   // Telegram configuration
   get telegram() {
     return {
-      botToken: requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", ""),
-      webhookSecret: process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "",
+      get botToken() {
+        return requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", "");
+      },
+      get webhookSecret() {
+        return process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "";
+      },
     };
   },
 
   // Blooio (iMessage) configuration
   get blooio() {
     return {
-      apiKey: requireEnv("ELIZA_APP_BLOOIO_API_KEY", ""),
-      webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
-      phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
+      get apiKey() {
+        return requireEnv("ELIZA_APP_BLOOIO_API_KEY", "");
+      },
+      get webhookSecret() {
+        return process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "";
+      },
+      get phoneNumber() {
+        return requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963");
+      },
     };
   },
 
   // Discord configuration
   get discord() {
     return {
-      botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
-      applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
-      clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
+      get botToken() {
+        return requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", "");
+      },
+      get applicationId() {
+        return requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", "");
+      },
+      get clientSecret() {
+        return requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", "");
+      },
     };
   },
 
   // JWT configuration - secret required in all environments
   get jwt() {
     return {
-      secret: requireEnv("ELIZA_APP_JWT_SECRET"),
+      get secret() {
+        return requireEnv("ELIZA_APP_JWT_SECRET");
+      },
     };
   },
 } as const;
@@ -94,8 +112,4 @@ export function validateElizaAppConfig() {
        !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET)) {
     throw new Error("Discord is enabled but required Discord env vars are not set in production");
   }
-}
-
-if (isProduction) {
-  validateElizaAppConfig();
 }

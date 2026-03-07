@@ -22,3 +22,6 @@ export { HUDContainer } from "./hud-container";
 export { BrandCard, AgentCard } from "./brand-card";
 export { PromptCard, PromptCardGrid } from "./prompt-card";
 export { ElizaLogo } from "./eliza-logo";
+export { ElizaCloudLockup } from "./eliza-cloud-lockup";
+export { DashboardStatCard } from "./dashboard-stat-card";
+export { DashboardSection } from "./dashboard-section";

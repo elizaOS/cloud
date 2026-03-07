@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@/components/brand";
 import LandingHeader from "@/components/layout/landing-header";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { generatePageMetadata } from "@/lib/seo";
 export const metadata: Metadata = generatePageMetadata({
   title: "Terms of Service",
   description:
-    "Terms of Service for elizaOS Platform - Read our terms and conditions for using our AI agent development platform.",
+    "Terms of Service for ELIZA CLOUD - Read our terms and conditions for using our AI agent development platform.",
   path: "/terms-of-service",
   keywords: [
     "terms of service",
@@ -60,13 +60,7 @@ export default function TermsOfServicePage() {
 
             {/* Header */}
             <div className="space-y-3 pb-4 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span className="text-white text-xl font-bold">ELIZA</span>
-              </div>
+              <ElizaCloudLockup logoClassName="h-5" textClassName="text-[11px]" />
               <h1 className="text-4xl font-bold tracking-tight text-white">
                 Terms of Service
               </h1>

@@ -45,6 +45,7 @@ import {
   WithdrawDialog,
 } from "./monetization";
 import { cn } from "@/lib/utils";
+import { DashboardStatCard } from "@/components/brand";
 
 interface EarningsSummary {
   totalLifetimeEarnings: number;
@@ -497,25 +498,19 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, icon, color }: StatCardProps) {
-  const colorClasses = {
-    amber: "text-amber-400",
-    emerald: "text-emerald-400",
-    purple: "text-purple-400",
-    orange: "text-[#FF5800]",
-  };
-
   return (
-    <div className="bg-neutral-900 rounded-xl p-3 md:p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs text-neutral-500 truncate">{label}</p>
-          <p className={cn("text-lg md:text-xl font-semibold mt-1 truncate", colorClasses[color])}>
-            ${value.toFixed(2)}
-          </p>
-        </div>
-        <div className={cn("shrink-0", colorClasses[color])}>{icon}</div>
-      </div>
-    </div>
+    <DashboardStatCard
+      label={label}
+      value={`$${value.toFixed(2)}`}
+      icon={icon}
+      accent={
+        color === "purple"
+          ? "violet"
+          : color === "orange"
+            ? "orange"
+            : color
+      }
+    />
   );
 }
 

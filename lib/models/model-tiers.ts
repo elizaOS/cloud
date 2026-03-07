@@ -172,10 +172,10 @@ export const IMAGE_MODELS: ImageModel[] = [
     tier: "pro",
   },
   {
-    id: "gemini-flash-preview",
-    name: "Gemini Flash Preview",
+    id: "gemini-flash-image-preview",
+    name: "Gemini 3.1 Flash Image Preview",
     description: "Most capable for complex images",
-    modelId: "google/gemini-2.5-flash-image-preview",
+    modelId: "google/gemini-3.1-flash-image-preview",
     provider: "google",
     tier: "ultra",
   },

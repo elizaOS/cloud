@@ -10,7 +10,9 @@ import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
+import { isGroqNativeModel } from "@/lib/models";
 import { getProvider } from "@/lib/providers";
+import { hasGroqProviderConfigured } from "@/lib/providers";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +113,16 @@ export async function POST(request: NextRequest) {
         modelId,
         available: false,
         reason: providerCheck.reason,
+      };
+    }
+
+    if (isGroqNativeModel(modelId)) {
+      return {
+        modelId,
+        available: hasGroqProviderConfigured(),
+        reason: hasGroqProviderConfigured()
+          ? undefined
+          : "Groq models are not configured on this deployment",
       };
     }
 

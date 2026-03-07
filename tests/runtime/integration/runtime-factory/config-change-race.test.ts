@@ -40,6 +40,7 @@ import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 // ============================================================================
 
 const TEST_TIMEOUT = 180000; // 3 minutes per test
+const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
 
 // ============================================================================
 // Local Test State
@@ -510,6 +511,11 @@ describe.skipIf(!hasDatabaseUrl)("Concurrent Configuration Changes", () => {
   it(
     "should handle plugin configuration changes during queries",
     async () => {
+      if (!hasTavilyApiKey) {
+        console.log("Skipping plugin config webSearch case: TAVILY_API_KEY not set");
+        return;
+      }
+
       console.log("\n=== PLUGIN CONFIG CHANGE TEST ===");
 
       // Create runtime with web search (different config)

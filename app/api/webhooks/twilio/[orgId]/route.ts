@@ -22,7 +22,7 @@ interface RouteParams {
 
 async function handleTwilioWebhook(
   request: NextRequest,
-  context?: { params: Promise<RouteParams["params"]> },
+  context?: RouteParams,
 ): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 

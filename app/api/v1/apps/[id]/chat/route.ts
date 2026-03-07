@@ -6,7 +6,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getProvider } from "@/lib/providers";
+import { getProviderForModel } from "@/lib/providers";
 import { appsService } from "@/lib/services/apps";
 import { appCreditsService } from "@/lib/services/app-credits";
 import {
@@ -258,7 +258,7 @@ async function handlePOST(
     });
 
     // Forward to provider - wrap in try-catch to refund on failure
-    const providerInstance = getProvider();
+    const providerInstance = getProviderForModel(model);
     let providerResponse: Response;
     try {
       providerResponse = await providerInstance.chatCompletions(chatRequest);

@@ -8,6 +8,7 @@ import { Server, Activity, TrendingUp, AlertCircle } from "lucide-react";
 import { ContainersPageWrapper } from "./containers-page-wrapper";
 import { ContainersEmptyState } from "./containers-empty-state";
 import { DeployFromCLI } from "./deploy-from-cli";
+import { BrandCard, DashboardStatCard } from "@/components/brand";
 
 export const metadata: Metadata = {
   title: "Containers",
@@ -44,24 +45,28 @@ export default async function ContainersPage() {
         {/* Stats Grid - only show when containers exist */}
         {containers.length > 0 && (
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <StatCard
+            <DashboardStatCard
               label="Total Containers"
               value={stats.total}
+              accent="orange"
               icon={<Server className="h-5 w-5 text-[#FF5800]" />}
             />
-            <StatCard
+            <DashboardStatCard
               label="Running"
               value={stats.running}
+              accent="emerald"
               icon={<Activity className="h-5 w-5 text-green-500" />}
             />
-            <StatCard
+            <DashboardStatCard
               label="Building"
               value={stats.building}
+              accent="amber"
               icon={<TrendingUp className="h-5 w-5 text-yellow-500" />}
             />
-            <StatCard
+            <DashboardStatCard
               label="Issues"
               value={stats.failed}
+              accent="red"
               icon={<AlertCircle className="h-5 w-5 text-red-500" />}
             />
           </div>
@@ -76,38 +81,14 @@ export default async function ContainersPage() {
             <DeployFromCLI />
 
             {/* Table */}
-            <div className="bg-neutral-900 rounded-xl p-4 md:p-6">
+            <BrandCard corners={false} className="p-4 md:p-6">
               <Suspense fallback={<ContainersSkeleton />}>
                 <ContainersTable containers={containers} />
               </Suspense>
-            </div>
+            </BrandCard>
           </>
         )}
       </div>
     </ContainersPageWrapper>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="bg-neutral-900 rounded-xl p-3 md:p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-neutral-500">{label}</p>
-          <p className="text-xl md:text-2xl font-semibold text-white mt-1">
-            {value}
-          </p>
-        </div>
-        {icon}
-      </div>
-    </div>
   );
 }

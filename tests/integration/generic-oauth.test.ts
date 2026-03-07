@@ -32,7 +32,7 @@ const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const TIMEOUT = 15000;
 
-describe("Generic OAuth Provider E2E Tests", () => {
+describe.skipIf(!TEST_DB_URL)("Generic OAuth Provider E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
 
@@ -51,6 +51,10 @@ describe("Generic OAuth Provider E2E Tests", () => {
   });
 
   afterAll(async () => {
+    if (!client || !testData) {
+      return;
+    }
+
     await client.query(
       `DELETE FROM platform_credentials WHERE organization_id = $1`,
       [testData.organization.id],
@@ -388,7 +392,7 @@ describe("Generic OAuth Provider E2E Tests", () => {
       expect(location).toContain("oauth_error=unknown_platform");
     });
 
-    it("should redirect with error for legacy provider (Google)", async () => {
+    it("should redirect with error when Google OAuth is not configured", async () => {
       const response = await fetch(
         `${BASE_URL}/api/v1/oauth/google/callback?code=test&state=test`,
         {
@@ -408,7 +412,7 @@ describe("Generic OAuth Provider E2E Tests", () => {
 
       expect(response.status).toBe(307);
       const location = response.headers.get("location");
-      expect(location).toContain("oauth_error=legacy_provider");
+      expect(location).toContain("oauth_error=not_configured");
     });
 
     it("should redirect with error for legacy provider (Twitter)", async () => {

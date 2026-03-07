@@ -53,9 +53,14 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
 
 async function postHandler(
   request: NextRequest,
-  { params }: { params: Promise<{ chain: string }> },
+  context?: { params: Promise<{ chain: string }> },
 ) {
-  const { chain } = await params;
+  const params = await context?.params;
+  if (!params?.chain) {
+    return Response.json({ error: "Missing chain parameter" }, { status: 400 });
+  }
+
+  const { chain } = params;
 
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { organization_id } = authResult.user;

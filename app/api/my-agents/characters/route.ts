@@ -16,7 +16,7 @@
  * 3. DASHBOARD INTEGRATIONS: External dashboards and monitoring tools need to
  *    display agent inventories without requiring Privy session cookies.
  *
- * 4. MULTI-TENANT PLATFORMS: Platforms built on elizaOS Cloud can manage agents
+ * 4. MULTI-TENANT PLATFORMS: Platforms built on ELIZA CLOUD can manage agents
  *    on behalf of their users via API keys.
  */
 

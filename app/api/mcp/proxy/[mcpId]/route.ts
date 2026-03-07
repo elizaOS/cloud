@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { affiliatesService } from "@/lib/services/affiliates";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
@@ -118,15 +119,45 @@ export async function POST(
   // Pre-check and reserve credits before proxying
   // This prevents the request from going through if user has insufficient credits
   const creditsRequired = Number(mcp.credits_per_request || "1");
+  let affiliateFeeCredits = 0;
+  let platformFeeCredits = 0;
+  let affiliateOwnerId: string | undefined;
+  let affiliateCodeId: string | undefined;
+
+  try {
+    const referrer = await affiliatesService.getReferrer(authResult.user.id);
+    if (referrer) {
+      affiliateOwnerId = referrer.user_id;
+      affiliateCodeId = referrer.id;
+      affiliateFeeCredits =
+        creditsRequired * (Number(referrer.markup_percent) / 100);
+      platformFeeCredits = creditsRequired * 0.2;
+    }
+  } catch (error) {
+    logger.error("[MCP Proxy] Failed to resolve affiliate referrer", {
+      mcpId,
+      userId: authResult.user.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const totalCreditsRequired =
+    creditsRequired + affiliateFeeCredits + platformFeeCredits;
 
   const preChargeResult = await creditsService.reserveAndDeductCredits({
     organizationId: authResult.user.organization_id,
-    amount: creditsRequired / CREDITS_PER_DOLLAR, // Convert credits to dollars
+    amount: totalCreditsRequired / CREDITS_PER_DOLLAR,
     description: `MCP: ${mcp.name}`,
     metadata: {
       mcp_id: mcp.id,
       mcp_name: mcp.name,
       reserved: true,
+      base_credits: creditsRequired.toFixed(4),
+      affiliate_fee: affiliateFeeCredits.toFixed(4),
+      platform_fee: platformFeeCredits.toFixed(4),
+      total_credits_charged: totalCreditsRequired.toFixed(4),
+      ...(affiliateOwnerId && { affiliate_owner_id: affiliateOwnerId }),
+      ...(affiliateCodeId && { affiliate_code_id: affiliateCodeId }),
     },
   });
 
@@ -134,7 +165,7 @@ export async function POST(
     return NextResponse.json(
       {
         error: "Insufficient credits",
-        required: creditsRequired,
+        required: totalCreditsRequired,
         balance: preChargeResult.newBalance,
       },
       { status: 402 },
@@ -238,10 +269,17 @@ export async function POST(
         userId: authResult.user.id,
         toolName,
         creditsCharged: creditsRequired,
+        affiliateFeeCredits,
+        platformFeeCredits,
+        affiliateOwnerId,
+        affiliateCodeId,
         metadata: {
           responseTime: Date.now() - startTime,
           success: true,
           preChargeTransactionId: preChargeResult.transaction?.id,
+          totalCreditsCharged: totalCreditsRequired,
+          affiliateFeeCredits,
+          platformFeeCredits,
         },
       });
     } catch (usageError) {
@@ -257,7 +295,7 @@ export async function POST(
     try {
       await creditsService.refundCredits({
         organizationId: authResult.user.organization_id,
-        amount: creditsRequired / CREDITS_PER_DOLLAR,
+        amount: totalCreditsRequired / CREDITS_PER_DOLLAR,
         description: `MCP refund: ${mcp.name} (failed)`,
         metadata: {
           mcp_id: mcp.id,

@@ -68,8 +68,8 @@ const baseUrl =
 
 export const metadata: Metadata = {
   title: {
-    default: "Cloud - AI Agent Development Platform",
-    template: "%s | Cloud",
+    default: "ELIZA CLOUD - AI Agent Development Platform",
+    template: "%s | ELIZA CLOUD",
   },
   description:
     "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
@@ -86,18 +86,18 @@ export const metadata: Metadata = {
     "deployment",
   ],
   authors: [{ name: "elizaOS Team" }],
-  creator: "elizaOS",
-  publisher: "elizaOS",
+  creator: "ELIZA CLOUD",
+  publisher: "ELIZA CLOUD",
   metadataBase: new URL(baseUrl),
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "elizaOS Platform - AI Agent Development Platform",
+    title: "ELIZA CLOUD - AI Agent Development Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
     url: "/",
-    siteName: "elizaOS Platform",
+    siteName: "ELIZA CLOUD",
     type: "website",
     locale: "en_US",
     images: [
@@ -105,13 +105,13 @@ export const metadata: Metadata = {
         url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "elizaOS Cloud - Make Agents in Seconds",
+        alt: "ELIZA CLOUD - Make Agents in Seconds",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "elizaOS Platform",
+    title: "ELIZA CLOUD",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
     images: ["/cloudlogo.png"],

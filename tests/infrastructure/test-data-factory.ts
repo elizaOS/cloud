@@ -117,7 +117,7 @@ export async function createTestDataSet(
 
     // Create API key
     const apiKeyId = uuidv4();
-    const apiKeyValue = `ek_test_${uuidv4().replace(/-/g, "")}`;
+    const apiKeyValue = `eliza_test_${uuidv4().replace(/-/g, "")}`;
     const apiKeyHash = await hashApiKey(apiKeyValue);
     const apiKeyPrefix = apiKeyValue.slice(0, 12);
 

@@ -104,7 +104,7 @@ describe("MCP Registry API", () => {
 
     expect(elizaPlatform).toBeDefined();
     expect(elizaPlatform!.status).toBe("coming_soon");
-    expect(elizaPlatform!.type).toBe("http");
+    expect(elizaPlatform!.type).toBe("streamable-http");
     expect(elizaPlatform!.category).toBe("platform");
     expect(elizaPlatform!.description).toContain("authentication");
   });

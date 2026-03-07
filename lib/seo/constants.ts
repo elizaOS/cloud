@@ -2,9 +2,9 @@
  * SEO constants for site-wide metadata configuration.
  */
 export const SEO_CONSTANTS = {
-  siteName: "elizaOS Platform",
+  siteName: "ELIZA CLOUD",
   twitterHandle: "@elizaos",
-  defaultTitle: "elizaOS Platform - AI Agent Development Platform",
+  defaultTitle: "ELIZA CLOUD - AI Agent Development Platform",
   defaultDescription:
     "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
   defaultKeywords: [
@@ -32,7 +32,7 @@ export const SEO_CONSTANTS = {
  */
 export const ROUTE_METADATA = {
   home: {
-    title: "elizaOS Platform - AI Agent Development Platform",
+    title: "ELIZA CLOUD - AI Agent Development Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
     keywords: [
@@ -46,8 +46,8 @@ export const ROUTE_METADATA = {
   dashboard: {
     title: "Dashboard",
     description:
-      "Manage your AI agents, containers, credits, and platform resources from your elizaOS dashboard.",
-    keywords: ["dashboard", "AI management", "elizaOS dashboard"],
+      "Manage your AI agents, containers, credits, and platform resources from your ELIZA CLOUD dashboard.",
+    keywords: ["dashboard", "AI management", "ELIZA CLOUD dashboard"],
   },
   containers: {
     title: "Containers",
@@ -122,8 +122,8 @@ export const ROUTE_METADATA = {
   apiExplorer: {
     title: "API Explorer",
     description:
-      "Explore and test elizaOS Platform APIs. Interactive documentation and live testing environment.",
-    keywords: ["API explorer", "API docs", "REST API", "elizaOS API"],
+      "Explore and test ELIZA CLOUD APIs. Interactive documentation and live testing environment.",
+    keywords: ["API explorer", "API docs", "REST API", "ELIZA CLOUD API"],
   },
   billing: {
     title: "Billing & Credits",
@@ -134,7 +134,7 @@ export const ROUTE_METADATA = {
   apiKeys: {
     title: "API Keys",
     description:
-      "Generate and manage API keys for programmatic access to elizaOS Platform.",
+      "Generate and manage API keys for programmatic access to ELIZA CLOUD.",
     keywords: ["API keys", "authentication", "API access", "tokens"],
   },
   analytics: {
@@ -158,7 +158,7 @@ export const ROUTE_METADATA = {
   account: {
     title: "Account Settings",
     description:
-      "Manage your account settings, profile, and preferences on elizaOS Platform.",
+      "Manage your account settings, profile, and preferences on ELIZA CLOUD.",
     keywords: ["account", "settings", "profile", "preferences"],
   },
 } as const;

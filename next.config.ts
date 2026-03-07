@@ -27,6 +27,7 @@ const withNextra = nextra({
 });
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       {
@@ -106,6 +107,7 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {
+    root: __dirname,
     // Resolve thread-stream to a synchronous stub to avoid dynamic module names
     // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
     // which cannot be resolved in serverless environments
@@ -139,9 +141,6 @@ const nextConfig: NextConfig = {
     return config;
   },
   transpilePackages: ["next-mdx-remote"],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
   // Use eslint.config.mjs instead
   outputFileTracingRoot: undefined,

@@ -17,6 +17,8 @@ import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Purchase Successful",
   description: "Your credit purchase was successful",

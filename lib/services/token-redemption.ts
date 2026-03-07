@@ -73,8 +73,7 @@ import {
   type Address,
 } from "viem";
 import { mainnet, base, bsc } from "viem/chains";
-import { PublicKey, Connection } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
+import bs58 from "bs58";
 
 // Configuration
 const CONFIG = {
@@ -284,6 +283,10 @@ export class TokenRedemptionService {
   ): Promise<{ available: boolean; balance: number; error?: string }> {
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const { Connection, PublicKey } =
+      require("@solana/web3.js") as typeof import("@solana/web3.js");
+    const { getAssociatedTokenAddress, getAccount } =
+      require("@solana/spl-token") as typeof import("@solana/spl-token");
     const connection = new Connection(solanaRpc, "confirmed");
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const walletPubkey = new PublicKey(walletAddress);
@@ -525,11 +528,14 @@ export class TokenRedemptionService {
     if (network === "solana") {
       // Solana address validation
       try {
-        new PublicKey(address);
-        return { valid: true };
+        if (bs58.decode(address).length === 32) {
+          return { valid: true };
+        }
       } catch {
-        return { valid: false, error: "Invalid Solana address format" };
+        // Fall through to the shared invalid-address response.
       }
+
+      return { valid: false, error: "Invalid Solana address format" };
     } else {
       // EVM address validation
       if (!isAddress(address)) {

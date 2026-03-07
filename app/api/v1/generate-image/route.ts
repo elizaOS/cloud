@@ -54,8 +54,8 @@ const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image";
  */
 const ALLOWED_IMAGE_MODELS = [
   "google/gemini-2.5-flash-image",
-  "google/gemini-2.5-flash-image-preview",
   "google/gemini-3-pro-image",
+  "google/gemini-3.1-flash-image-preview",
   "openai/gpt-5-nano",
   "bfl/flux-kontext-max",
 ];

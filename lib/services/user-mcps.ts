@@ -94,6 +94,10 @@ export interface UseMcpWithoutDeductionParams {
   userId?: string;
   toolName: string;
   creditsCharged: number;
+  affiliateFeeCredits?: number;
+  platformFeeCredits?: number;
+  affiliateOwnerId?: string;
+  affiliateCodeId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -420,9 +424,8 @@ class UserMcpsService {
       }
     }
 
-    // Note: User pays base + platform fee only. Affiliate earns from platform's share (subsidized),
-    // not added to user's bill. This is intentional to keep user pricing competitive.
-    const totalCreditsToDeduct = creditsCharged + platformFeeCredits;
+    const totalCreditsToDeduct =
+      creditsCharged + affiliateFeeCredits + platformFeeCredits;
 
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
@@ -434,7 +437,7 @@ class UserMcpsService {
     if (params.paymentType === "credits" && totalCreditsToDeduct > 0) {
       const deductResult = await creditsService.deductCredits({
         organizationId: params.organizationId,
-        amount: totalCreditsToDeduct,
+        amount: totalCreditsToDeduct / CREDITS_PER_DOLLAR,
         description: `MCP: ${mcp.name} - ${params.toolName}`,
         metadata: {
           mcp_id: mcp.id,
@@ -442,7 +445,8 @@ class UserMcpsService {
           tool_name: params.toolName,
           creator_org_id: mcp.organization_id,
           affiliate_fee: affiliateFeeCredits.toFixed(4),
-          platform_fee: platformFeeCredits.toFixed(4)
+          platform_fee: platformFeeCredits.toFixed(4),
+          total_credits_charged: totalCreditsToDeduct.toFixed(4),
         },
       });
 
@@ -472,7 +476,7 @@ class UserMcpsService {
     if (creatorEarnings > 0) {
       await creditsService.addCredits({
         organizationId: mcp.organization_id,
-        amount: creatorEarnings,
+        amount: creatorEarnings / CREDITS_PER_DOLLAR,
         description: `MCP Revenue: ${mcp.name} - ${params.toolName}`,
         metadata: {
           mcp_id: mcp.id,
@@ -564,13 +568,46 @@ class UserMcpsService {
     }
 
     const creditsCharged = params.creditsCharged;
+    const affiliateFeeCredits = params.affiliateFeeCredits ?? 0;
+    const platformFeeCredits = params.platformFeeCredits ?? 0;
     const creatorSharePct = Number(mcp.creator_share_percentage) / 100;
     const platformSharePct = Number(mcp.platform_share_percentage) / 100;
 
     const creatorEarnings = creditsCharged * creatorSharePct;
-    const platformEarnings = creditsCharged * platformSharePct;
+    const platformEarnings =
+      creditsCharged * platformSharePct + platformFeeCredits;
 
     const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
+
+    if (
+      affiliateFeeCredits > 0 &&
+      params.affiliateOwnerId &&
+      params.affiliateCodeId
+    ) {
+      const sourceSuffix =
+        typeof params.metadata?.preChargeTransactionId === "string"
+          ? params.metadata.preChargeTransactionId
+          : crypto.randomUUID();
+      const result = await redeemableEarningsService.addEarnings({
+        userId: params.affiliateOwnerId,
+        amount: affiliateFeeCredits / CREDITS_PER_DOLLAR,
+        source: "affiliate",
+        sourceId: `affiliate_mcp:${params.affiliateCodeId}:${sourceSuffix}`,
+        dedupeBySourceId: true,
+        description: `API Usage Affiliate Fee: ${mcp.name} - ${params.toolName}`,
+        metadata: {
+          buyer_user_id: params.userId,
+          buyer_org_id: params.organizationId,
+          mcp_id: mcp.id,
+          total_credits_charged:
+            creditsCharged + affiliateFeeCredits + platformFeeCredits,
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to credit affiliate earnings");
+      }
+    }
 
     // Credit the creator's organization credits (for platform operations)
     if (creatorEarnings > 0) {
@@ -583,6 +620,8 @@ class UserMcpsService {
           consumer_org_id: params.organizationId,
           tool_name: params.toolName,
           payment_type: "credits",
+          affiliate_fee: affiliateFeeCredits.toFixed(4),
+          platform_fee: platformFeeCredits.toFixed(4),
         },
       });
 
@@ -601,6 +640,8 @@ class UserMcpsService {
             consumerOrgId: params.organizationId,
             paymentType: "credits",
             creditsEarned: creatorEarnings,
+            affiliateFeeCredits,
+            platformFeeCredits,
           },
         });
 

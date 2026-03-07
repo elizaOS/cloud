@@ -22,9 +22,17 @@ import { entitySettingsCache } from "../../../../lib/services/entity-settings/ca
 import type { UserContext } from "../../../../lib/eliza/user-context";
 import { v4 as uuidv4 } from "uuid";
 
+const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
+
 let connectionString: string;
 let testData: TestDataSet;
 let testData2: TestDataSet;
+
+function hasRuntimeForOrganization(organizationId: string): boolean {
+  return Array.from(_testing.getCacheEntries().keys()).some((key) =>
+    key.includes(`:${organizationId}`),
+  );
+}
 
 async function setupEnvironment(): Promise<void> {
   console.log("\n🔐 OAuth Cache Invalidation Tests");
@@ -99,16 +107,22 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
     const agentId = runtime.agentId as string;
 
     expect(isRuntimeCached(agentId)).toBe(true);
+    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
 
     // Invalidate by organization
     const removed = await invalidateByOrganization(testData.organization.id);
 
     expect(removed).toBe(1);
-    expect(isRuntimeCached(agentId)).toBe(false);
+    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
     console.log("✅ Single runtime removed");
   }, 60000);
 
   it("should remove multiple runtimes for same organization (with/without webSearch)", async () => {
+    if (!hasTavilyApiKey) {
+      console.log("Skipping webSearch invalidation case: TAVILY_API_KEY not set");
+      return;
+    }
+
     // Create runtime without webSearch
     const userContext1 = buildUserContext(testData, {
       agentMode: AgentMode.ASSISTANT,
@@ -131,7 +145,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
 
     // Should have removed at least 1 (may be more if webSearch creates separate entry)
     expect(removed).toBeGreaterThanOrEqual(1);
-    expect(isRuntimeCached(runtime1.agentId as string)).toBe(false);
+    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
     console.log(`✅ Removed ${removed} runtime(s) for organization`);
   }, 90000);
 
@@ -345,11 +359,12 @@ describe.skipIf(!hasDatabaseUrl)("OAuth flow cache invalidation integration", ()
 
     // Verify cached
     expect(isRuntimeCached(agentId)).toBe(true);
+    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
 
     // 2. Simulate OAuth connect by invalidating cache
     const removed = await invalidateByOrganization(testData.organization.id);
     expect(removed).toBe(1);
-    expect(isRuntimeCached(agentId)).toBe(false);
+    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
 
     // 3. Create runtime again WITH OAuth (should get MCP plugin)
     const userContext2: UserContext = {
@@ -382,10 +397,11 @@ describe.skipIf(!hasDatabaseUrl)("OAuth flow cache invalidation integration", ()
       };
       const runtime = await runtimeFactory.createRuntimeForUser(connectContext);
       expect(isRuntimeCached(runtime.agentId as string)).toBe(true);
+      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
 
       // Disconnect (invalidate)
       await invalidateByOrganization(testData.organization.id);
-      expect(isRuntimeCached(runtime.agentId as string)).toBe(false);
+      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
     }
 
     console.log("✅ Rapid connect/disconnect cycles handled");

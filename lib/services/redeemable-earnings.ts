@@ -29,6 +29,7 @@ import {
 import { eq, sql, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import Decimal from "decimal.js";
+import { normalizeLedgerSourceId } from "@/lib/utils/ledger-source-id";
 
 // ============================================================================
 // TYPES
@@ -43,6 +44,7 @@ interface AddEarningsParams {
   sourceId: string;
   description: string;
   metadata?: Record<string, unknown>;
+  dedupeBySourceId?: boolean;
 }
 
 interface AddEarningsResult {
@@ -182,7 +184,15 @@ class RedeemableEarningsService {
    * SECURITY: This is the ONLY way earnings can be added.
    */
   async addEarnings(params: AddEarningsParams): Promise<AddEarningsResult> {
-    const { userId, amount, source, sourceId, description, metadata } = params;
+    const {
+      userId,
+      amount,
+      source,
+      sourceId,
+      description,
+      metadata,
+      dedupeBySourceId = false,
+    } = params;
 
     if (amount <= 0) {
       return {
@@ -195,14 +205,48 @@ class RedeemableEarningsService {
 
     // Use Decimal for precision
     const amountDecimal = new Decimal(amount).toFixed(4);
+    const ledgerSourceId = normalizeLedgerSourceId(sourceId);
+    const ledgerMetadata = normalizeLedgerMetadata({
+      ...(metadata ?? {}),
+      ...(ledgerSourceId !== sourceId ? { original_source_id: sourceId } : {}),
+    });
 
     const result = await dbWrite.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`redeemable_earnings:${userId}`}))`,
+      );
+
       // Get or create earnings record with lock
       let [earnings] = await tx
         .select()
         .from(redeemableEarnings)
         .where(eq(redeemableEarnings.user_id, userId))
         .for("update");
+
+      if (dedupeBySourceId) {
+        const [existingLedger] = await tx
+          .select({
+            id: redeemableEarningsLedger.id,
+          })
+          .from(redeemableEarningsLedger)
+          .where(
+            and(
+              eq(redeemableEarningsLedger.user_id, userId),
+              eq(redeemableEarningsLedger.entry_type, "earning"),
+              eq(redeemableEarningsLedger.earnings_source, source),
+              eq(redeemableEarningsLedger.source_id, ledgerSourceId),
+            ),
+          )
+          .limit(1);
+
+        if (existingLedger) {
+          return {
+            earnings,
+            ledgerEntryId: existingLedger.id,
+            deduplicated: true,
+          };
+        }
+      }
 
       if (!earnings) {
         // Create new earnings record
@@ -260,17 +304,34 @@ class RedeemableEarningsService {
           amount: amountDecimal,
           balance_after: earnings.available_balance,
           earnings_source: source,
-          source_id: sourceId,
+          source_id: ledgerSourceId,
           description,
-          metadata: normalizeLedgerMetadata(metadata),
+          metadata: ledgerMetadata,
         })
         .returning();
 
       return {
         earnings,
         ledgerEntryId: ledgerEntry.id,
+        deduplicated: false,
       };
     });
+
+    if (result.deduplicated) {
+      logger.info("[RedeemableEarnings] Reused existing earning entry", {
+        userId: userId.slice(0, 8) + "...",
+        amount,
+        source,
+        sourceId: sourceId.slice(0, 8) + "...",
+        ledgerEntryId: result.ledgerEntryId,
+      });
+
+      return {
+        success: true,
+        newBalance: Number(result.earnings?.available_balance ?? 0),
+        ledgerEntryId: result.ledgerEntryId,
+      };
+    }
 
     logger.info("[RedeemableEarnings] Added earnings", {
       userId: userId.slice(0, 8) + "...",
@@ -327,8 +388,18 @@ class RedeemableEarningsService {
     }
 
     const amountDecimal = new Decimal(amount).toFixed(4);
+    const ledgerSourceId = normalizeLedgerSourceId(sourceId);
+    const ledgerMetadata = normalizeLedgerMetadata({
+      ...metadata,
+      ...(ledgerSourceId !== sourceId ? { original_source_id: sourceId } : {}),
+      type: "reconciliation_reduction",
+    });
 
     const result = await dbWrite.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`redeemable_earnings:${userId}`}))`,
+      );
+
       // Get earnings with row lock
       const [earnings] = await tx
         .select()
@@ -381,12 +452,9 @@ class RedeemableEarningsService {
           amount: `-${amountDecimal}`, // Negative for reduction
           balance_after: updated.available_balance,
           earnings_source: source,
-          source_id: sourceId,
+          source_id: ledgerSourceId,
           description,
-          metadata: normalizeLedgerMetadata({
-            ...metadata,
-            type: "reconciliation_reduction",
-          }),
+          metadata: ledgerMetadata,
         })
         .returning();
 

@@ -24,7 +24,7 @@ interface RouteParams {
 
 async function handleTelegramWebhook(
   request: NextRequest,
-  context?: { params: Promise<RouteParams["params"]> },
+  context?: RouteParams,
 ): Promise<Response> {
   const { params } = context || { params: Promise.resolve({ orgId: "" }) };
   const { orgId } = await params;

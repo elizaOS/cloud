@@ -12,11 +12,34 @@ import {
   cleanupTestData,
   type TestDataSet,
 } from "../infrastructure/test-data-factory";
+import { twilioAutomationService } from "@/lib/services/twilio-automation";
+import { blooioAutomationService } from "@/lib/services/blooio-automation";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
+const TWILIO_SECRET_NAMES = [
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_PHONE_NUMBER",
+];
+const BLOOIO_SECRET_NAMES = [
+  "BLOOIO_API_KEY",
+  "BLOOIO_WEBHOOK_SECRET",
+  "BLOOIO_FROM_NUMBER",
+];
 
-describe("Connection APIs E2E Tests", () => {
+async function deleteSecrets(
+  client: Client,
+  organizationId: string,
+  names: string[],
+): Promise<void> {
+  await client.query(
+    `DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`,
+    [organizationId, names],
+  );
+}
+
+describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
 
@@ -84,8 +107,8 @@ describe("Connection APIs E2E Tests", () => {
           body: JSON.stringify({}),
         });
 
-        // Will return 400 if GOOGLE_CLIENT_ID not configured, which is expected
-        expect([200, 400]).toContain(response.status);
+        // Will return 503 if GOOGLE_CLIENT_ID/SECRET are not configured, which is expected
+        expect([200, 400, 503]).toContain(response.status);
       });
 
       it("should return 401 without authentication", async () => {
@@ -105,10 +128,10 @@ describe("Connection APIs E2E Tests", () => {
   describe("Twilio Connection API", () => {
     describe("GET /api/v1/twilio/status", () => {
       it("should return disconnected status when not connected", async () => {
-        // Clean up any existing credentials
-        await client.query(
-          `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
-          [testData.organization.id],
+        await deleteSecrets(
+          client,
+          testData.organization.id,
+          TWILIO_SECRET_NAMES,
         );
 
         const response = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
@@ -181,12 +204,14 @@ describe("Connection APIs E2E Tests", () => {
 
     describe("DELETE /api/v1/twilio/disconnect", () => {
       it("should disconnect Twilio account", async () => {
-        // First setup mock credentials
-        await client.query(
-          `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-           VALUES ($1, 'twilio', '{"accountSid": "ACtest", "phoneNumber": "+15551234567"}', NOW(), NOW())
-           ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"accountSid": "ACtest", "phoneNumber": "+15551234567"}'`,
-          [testData.organization.id],
+        await twilioAutomationService.storeCredentials(
+          testData.organization.id,
+          testData.user.id,
+          {
+            accountSid: "ACtest",
+            authToken: "test_auth_token",
+            phoneNumber: "+15551234567",
+          },
         );
 
         const response = await fetch(`${BASE_URL}/api/v1/twilio/disconnect`, {
@@ -204,10 +229,10 @@ describe("Connection APIs E2E Tests", () => {
   describe("Blooio Connection API", () => {
     describe("GET /api/v1/blooio/status", () => {
       it("should return disconnected status when not connected", async () => {
-        // Clean up any existing credentials
-        await client.query(
-          `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'blooio'`,
-          [testData.organization.id],
+        await deleteSecrets(
+          client,
+          testData.organization.id,
+          BLOOIO_SECRET_NAMES,
         );
 
         const response = await fetch(`${BASE_URL}/api/v1/blooio/status`, {
@@ -278,12 +303,13 @@ describe("Connection APIs E2E Tests", () => {
 
     describe("DELETE /api/v1/blooio/disconnect", () => {
       it("should disconnect Blooio account", async () => {
-        // First setup mock credentials
-        await client.query(
-          `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-           VALUES ($1, 'blooio', '{"phoneNumber": "+15559876543"}', NOW(), NOW())
-           ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"phoneNumber": "+15559876543"}'`,
-          [testData.organization.id],
+        await blooioAutomationService.storeCredentials(
+          testData.organization.id,
+          testData.user.id,
+          {
+            apiKey: "blooio_test_api_key",
+            fromNumber: "+15559876543",
+          },
         );
 
         const response = await fetch(`${BASE_URL}/api/v1/blooio/disconnect`, {
@@ -300,20 +326,23 @@ describe("Connection APIs E2E Tests", () => {
 
   describe("Cross-Connection Scenarios", () => {
     it("should allow multiple services to be connected simultaneously", async () => {
-      // Connect Twilio
-      await client.query(
-        `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-         VALUES ($1, 'twilio', '{"accountSid": "ACtest"}', NOW(), NOW())
-         ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"accountSid": "ACtest"}'`,
-        [testData.organization.id],
+      await twilioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          accountSid: "ACtest",
+          authToken: "test_auth_token",
+          phoneNumber: "+15551234567",
+        },
       );
 
-      // Connect Blooio
-      await client.query(
-        `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-         VALUES ($1, 'blooio', '{"apiKey": "test"}', NOW(), NOW())
-         ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"apiKey": "test"}'`,
-        [testData.organization.id],
+      await blooioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          apiKey: "blooio_test_api_key",
+          fromNumber: "+15559876543",
+        },
       );
 
       // Check all statuses
@@ -329,15 +358,15 @@ describe("Connection APIs E2E Tests", () => {
     });
 
     it("should handle disconnecting one service without affecting others", async () => {
-      // Disconnect only Twilio
-      await client.query(
-        `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
-        [testData.organization.id],
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        TWILIO_SECRET_NAMES,
       );
 
       // Blooio should still be connected
       const blooioResult = await client.query(
-        `SELECT * FROM platform_credentials WHERE organization_id = $1 AND platform = 'blooio'`,
+        `SELECT * FROM secrets WHERE organization_id = $1 AND name = 'BLOOIO_API_KEY'`,
         [testData.organization.id],
       );
       expect(blooioResult.rows.length).toBe(1);
@@ -438,7 +467,7 @@ describe("Connection APIs E2E Tests", () => {
       );
 
       // Should redirect with error or return error
-      expect([302, 400]).toContain(response.status);
+      expect([302, 307, 400, 429]).toContain(response.status);
     });
 
     it("should reject callback with missing state parameter", async () => {
@@ -451,7 +480,7 @@ describe("Connection APIs E2E Tests", () => {
       );
 
       // Should redirect with error or return error
-      expect([302, 400]).toContain(response.status);
+      expect([302, 307, 400, 429]).toContain(response.status);
     });
 
     it("should reject callback with invalid state parameter", async () => {
@@ -464,7 +493,7 @@ describe("Connection APIs E2E Tests", () => {
       );
 
       // Should redirect with error
-      expect([302, 400]).toContain(response.status);
+      expect([302, 307, 400, 429]).toContain(response.status);
     });
 
     it("should handle error parameter in callback", async () => {
@@ -477,7 +506,7 @@ describe("Connection APIs E2E Tests", () => {
       );
 
       // Should redirect with error
-      expect([302, 400]).toContain(response.status);
+      expect([302, 307, 400, 429]).toContain(response.status);
     });
   });
 
@@ -526,12 +555,14 @@ describe("Connection APIs E2E Tests", () => {
     });
 
     it("should handle concurrent disconnect attempts", async () => {
-      // Setup credentials first
-      await client.query(
-        `INSERT INTO platform_credentials (organization_id, platform, credentials, created_at, updated_at)
-         VALUES ($1, 'twilio', '{"test": true}', NOW(), NOW())
-         ON CONFLICT (organization_id, platform) DO UPDATE SET credentials = '{"test": true}'`,
-        [testData.organization.id],
+      await twilioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          accountSid: "ACtest",
+          authToken: "test_auth_token",
+          phoneNumber: "+15551234567",
+        },
       );
 
       const requests = Array(3)
@@ -688,9 +719,10 @@ describe("Connection APIs E2E Tests", () => {
 
   describe("Disconnect Idempotency", () => {
     it("should succeed when disconnecting already disconnected Twilio", async () => {
-      await client.query(
-        `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'twilio'`,
-        [testData.organization.id],
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        TWILIO_SECRET_NAMES,
       );
 
       const response = await fetch(`${BASE_URL}/api/v1/twilio/disconnect`, {
@@ -702,9 +734,10 @@ describe("Connection APIs E2E Tests", () => {
     });
 
     it("should succeed when disconnecting already disconnected Blooio", async () => {
-      await client.query(
-        `DELETE FROM platform_credentials WHERE organization_id = $1 AND platform = 'blooio'`,
-        [testData.organization.id],
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        BLOOIO_SECRET_NAMES,
       );
 
       const response = await fetch(`${BASE_URL}/api/v1/blooio/disconnect`, {

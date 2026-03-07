@@ -12,9 +12,19 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { config } from "dotenv";
 
+const preservedDatabaseUrl = process.env.DATABASE_URL;
+const preservedTestDatabaseUrl = process.env.TEST_DATABASE_URL;
+
 // Load environment variables
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
+
+if (preservedDatabaseUrl) {
+  process.env.DATABASE_URL = preservedDatabaseUrl;
+}
+if (preservedTestDatabaseUrl) {
+  process.env.TEST_DATABASE_URL = preservedTestDatabaseUrl;
+}
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;

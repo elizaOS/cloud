@@ -16,6 +16,36 @@ export type {
   NewServicePricingAudit,
 };
 
+type PricingMetadata = NewServicePricing["metadata"];
+
+function normalizeMetadata(
+  metadata?: Record<string, unknown>,
+): PricingMetadata {
+  if (!metadata) {
+    return {};
+  }
+
+  const normalized: NonNullable<PricingMetadata> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    if (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      normalized[key] = value;
+      continue;
+    }
+
+    throw new Error(
+      `Metadata value for key '${key}' must be a string, number, boolean, or null`,
+    );
+  }
+
+  return normalized;
+}
+
 export class ServicePricingRepository {
   async findByServiceAndMethod(
     serviceId: string,
@@ -84,6 +114,7 @@ export class ServicePricingRepository {
     // under concurrent access. No application-level retry needed.
     return await dbWrite.transaction(async (tx) => {
       const costStr = cost.toString();
+      const normalizedMetadata = normalizeMetadata(metadata);
 
       // Atomic upsert with conflict detection via xmax and old cost via subquery.
       // xmax=0 means INSERT (new row), xmax!=0 means UPDATE (conflict resolved).
@@ -96,7 +127,7 @@ export class ServicePricingRepository {
           method,
           cost: costStr,
           description: description ?? null,
-          metadata: metadata ?? {},
+          metadata: normalizedMetadata,
           updated_by: userId,
         })
         .onConflictDoUpdate({
@@ -104,7 +135,7 @@ export class ServicePricingRepository {
           set: {
             cost: costStr,
             description: sql`coalesce(${sql.param(description ?? null)}, ${servicePricing.description})`,
-            metadata: sql`coalesce(${sql.param(metadata ?? null)}::jsonb, ${servicePricing.metadata})`,
+            metadata: sql`coalesce(${sql.param(metadata ? normalizedMetadata : null)}::jsonb, ${servicePricing.metadata})`,
             updated_by: userId,
             updated_at: new Date(),
           },

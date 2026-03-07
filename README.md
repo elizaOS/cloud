@@ -424,6 +424,8 @@ PRIVY_WEBHOOK_SECRET=replace_with_strong_random_secret
 OPENAI_API_KEY=sk-your_openai_key
 # OR
 AI_GATEWAY_API_KEY=your_gateway_key
+# Optional for Groq-native models (groq/compound, groq/compound-mini)
+GROQ_API_KEY=your_groq_key
 ```
 
 **Eliza App variables** (for Telegram, iMessage, and Discord integrations):
@@ -519,13 +521,13 @@ npm run bootstrapper:build  # Build container bootstrapper
 
 Tests are split by kind; use the right script for what you want to run:
 
-| Script | Directory | What it runs | Needs |
-|--------|-----------|--------------|--------|
-| `bun run test:unit` | `tests/unit/` | Unit tests (mocked deps, fast) | Env preload only; some skip without `DATABASE_URL` |
-| `bun run test:integration` | `tests/integration/` | API/DB/E2E integration tests | `DATABASE_URL` (+ migrations); some need a running server |
-| `bun run test:runtime` | `tests/runtime/` | Runtime/factory and perf tests | `DATABASE_URL` (+ migrations), heavier |
-| `bun run test` | all of the above | Full suite in one run | Same as integration + runtime for those layers |
-| `bun run test:playwright` | `tests/playwright/` | Playwright E2E (optional) | `@playwright/test` installed |
+| Script                     | Directory            | What it runs                   | Needs                                                     |
+| -------------------------- | -------------------- | ------------------------------ | --------------------------------------------------------- |
+| `bun run test:unit`        | `tests/unit/`        | Unit tests (mocked deps, fast) | Env preload only; some skip without `DATABASE_URL`        |
+| `bun run test:integration` | `tests/integration/` | API/DB/E2E integration tests   | `DATABASE_URL` (+ migrations); some need a running server |
+| `bun run test:runtime`     | `tests/runtime/`     | Runtime/factory and perf tests | `DATABASE_URL` (+ migrations), heavier                    |
+| `bun run test`             | all of the above     | Full suite in one run          | Same as integration + runtime for those layers            |
+| `bun run test:playwright`  | `tests/playwright/`  | Playwright E2E (optional)      | `@playwright/test` installed                              |
 
 Env is loaded from `.env`, `.env.local`, and `.env.test` via preload. See `docs/test-failure-assessment.md` for skip behavior and remaining failure categories.
 

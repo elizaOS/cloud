@@ -23,3 +23,19 @@ export {
   getTierDisplayInfo,
   STORAGE_KEY,
 } from "./model-tiers";
+
+export {
+  type CatalogModel,
+  type SelectorModel,
+  GROQ_NATIVE_MODELS,
+  GROQ_NATIVE_MODEL_ID_MAP,
+  FALLBACK_TEXT_SELECTOR_MODELS,
+  isGroqNativeModel,
+  getGroqApiModelId,
+  mergeCatalogModels,
+  isSelectableTextModel,
+  sortSelectorModels,
+  toSelectorModel,
+  getGroqCatalogModel,
+  formatSelectorProvider,
+} from "./catalog";

@@ -1,0 +1,345 @@
+export interface CatalogModel {
+  id: string;
+  object: "model";
+  created: number;
+  owned_by: string;
+  released?: number;
+  name?: string;
+  description?: string;
+  context_window?: number;
+  max_tokens?: number;
+  type?: string;
+  tags?: string[];
+  pricing?: Record<string, unknown>;
+}
+
+export interface SelectorModel {
+  id: string;
+  name: string;
+  description: string;
+  modelId: string;
+  provider: string;
+}
+
+// Verified against the public provider catalogs on 2026-03-07:
+// - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/models
+// - Groq docs: https://console.groq.com/docs/models
+const OPENAI_TEXT_MODEL_IDS = [
+  "openai/codex-mini",
+  "openai/gpt-3.5-turbo",
+  "openai/gpt-4-turbo",
+  "openai/gpt-4.1",
+  "openai/gpt-4.1-mini",
+  "openai/gpt-4.1-nano",
+  "openai/gpt-4o",
+  "openai/gpt-4o-mini",
+  "openai/gpt-4o-mini-search-preview",
+  "openai/gpt-5",
+  "openai/gpt-5-chat",
+  "openai/gpt-5-codex",
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
+  "openai/gpt-5-pro",
+  "openai/gpt-5.1-codex",
+  "openai/gpt-5.1-codex-max",
+  "openai/gpt-5.1-codex-mini",
+  "openai/gpt-5.1-instant",
+  "openai/gpt-5.1-thinking",
+  "openai/gpt-5.2",
+  "openai/gpt-5.2-chat",
+  "openai/gpt-5.2-codex",
+  "openai/gpt-5.2-pro",
+  "openai/gpt-5.3-chat",
+  "openai/gpt-5.3-codex",
+  "openai/gpt-5.4",
+  "openai/gpt-5.4-pro",
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "openai/o1",
+  "openai/o3",
+  "openai/o3-deep-research",
+  "openai/o3-mini",
+  "openai/o3-pro",
+  "openai/o4-mini",
+] as const;
+
+const ANTHROPIC_TEXT_MODEL_IDS = [
+  "anthropic/claude-3-haiku",
+  "anthropic/claude-3-opus",
+  "anthropic/claude-3.5-haiku",
+  "anthropic/claude-3.5-sonnet",
+  "anthropic/claude-3.5-sonnet-20240620",
+  "anthropic/claude-3.7-sonnet",
+  "anthropic/claude-haiku-4.5",
+  "anthropic/claude-opus-4",
+  "anthropic/claude-opus-4.1",
+  "anthropic/claude-opus-4.5",
+  "anthropic/claude-opus-4.6",
+  "anthropic/claude-sonnet-4",
+  "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-sonnet-4.6",
+] as const;
+
+const GOOGLE_TEXT_MODEL_IDS = [
+  "google/gemini-2.0-flash",
+  "google/gemini-2.0-flash-lite",
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash-lite-preview-09-2025",
+  "google/gemini-2.5-flash-preview-09-2025",
+  "google/gemini-2.5-pro",
+  "google/gemini-3-flash",
+  "google/gemini-3-pro-preview",
+  "google/gemini-3.1-flash-lite-preview",
+  "google/gemini-3.1-pro-preview",
+] as const;
+
+function formatProviderLabel(provider: string): string {
+  switch (provider) {
+    case "groq":
+      return "Groq";
+    case "openai":
+      return "OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "google":
+      return "Google";
+    default:
+      return provider;
+  }
+}
+
+function titleCase(value: string): string {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => {
+      if (part === "4o") return "4o";
+      if (part === "o1") return "o1";
+      if (part === "o3") return "o3";
+      if (part === "o4") return "o4";
+      if (/^\d+(\.\d+)?[a-z]*$/i.test(part)) {
+        return part.toUpperCase();
+      }
+      if (part === "gpt") return "GPT";
+      if (part === "codex") return "Codex";
+      if (part === "oss") return "OSS";
+      if (part === "claude") return "Claude";
+      if (part === "gemini") return "Gemini";
+      if (part === "flash") return "Flash";
+      if (part === "lite") return "Lite";
+      if (part === "mini") return "Mini";
+      if (part === "nano") return "Nano";
+      if (part === "pro") return "Pro";
+      if (part === "instant") return "Instant";
+      if (part === "thinking") return "Thinking";
+      if (part === "deep") return "Deep";
+      if (part === "research") return "Research";
+      if (part === "search") return "Search";
+      if (part === "preview") return "Preview";
+      if (part === "sonnet") return "Sonnet";
+      if (part === "opus") return "Opus";
+      if (part === "haiku") return "Haiku";
+      if (part === "chat") return "Chat";
+      if (part === "compound") return "Compound";
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function buildSelectorName(modelId: string): string {
+  const [provider, rawName] = modelId.includes("/")
+    ? modelId.split("/", 2)
+    : ["", modelId];
+
+  if (!rawName) {
+    return modelId;
+  }
+
+  if (provider === "anthropic") {
+    return titleCase(rawName.replace(/^claude-/, "claude-"));
+  }
+
+  if (provider === "google" || provider === "groq" || provider === "openai") {
+    return titleCase(rawName);
+  }
+
+  return titleCase(rawName);
+}
+
+function buildSelectorDescription(modelId: string): string {
+  const id = modelId.toLowerCase();
+
+  if (id.includes("codex")) return "Coding-focused model";
+  if (id.includes("deep-research")) return "Research-focused reasoning model";
+  if (id.includes("thinking")) return "Extended reasoning model";
+  if (id.includes("search-preview")) return "Search-specialized preview model";
+  if (id.includes("opus")) return "Highest-capability Claude model";
+  if (id.includes("sonnet")) return "Balanced Claude model";
+  if (id.includes("haiku")) return "Fast Claude model";
+  if (id.includes("flash-lite")) return "Lowest-latency Gemini option";
+  if (id.includes("flash")) return "Fast general-purpose model";
+  if (id.includes("pro")) return "Highest-capability option";
+  if (id.includes("mini")) return "Faster, lower-cost option";
+  if (id.includes("nano")) return "Smallest, lowest-cost option";
+  if (id.includes("oss")) return "Open-weight reasoning model";
+  if (/\/o[134]/.test(id) || id.endsWith("/o1"))
+    return "Reasoning-focused model";
+  if (id.includes("compound")) return "Groq compound system model";
+  if (id.includes("4o")) return "General-purpose multimodal model";
+  if (id.includes("4.1")) return "Reliable general-purpose model";
+  if (id.includes("5")) return "Latest-generation reasoning model";
+  return "General-purpose language model";
+}
+
+function buildCatalogModel(modelId: string): CatalogModel {
+  const provider = modelId.split("/")[0] || "unknown";
+  return {
+    id: modelId,
+    object: "model",
+    created: 0,
+    owned_by: provider,
+    name: buildSelectorName(modelId),
+    description: buildSelectorDescription(modelId),
+    type: "language",
+  };
+}
+
+export const GROQ_NATIVE_MODELS: CatalogModel[] = [
+  {
+    id: "groq/compound",
+    object: "model",
+    created: 0,
+    owned_by: "groq",
+    name: "Compound",
+    description: "Groq compound system model",
+    type: "language",
+    tags: ["reasoning", "tool-use"],
+  },
+  {
+    id: "groq/compound-mini",
+    object: "model",
+    created: 0,
+    owned_by: "groq",
+    name: "Compound Mini",
+    description: "Smaller Groq compound system model",
+    type: "language",
+    tags: ["reasoning", "tool-use"],
+  },
+] as const;
+
+export const GROQ_NATIVE_MODEL_ID_MAP: Record<string, string> = {
+  "groq/compound": "compound-beta",
+  "groq/compound-mini": "compound-beta-mini",
+};
+
+const FALLBACK_TEXT_MODELS = [
+  ...OPENAI_TEXT_MODEL_IDS,
+  ...ANTHROPIC_TEXT_MODEL_IDS,
+  ...GOOGLE_TEXT_MODEL_IDS,
+  ...GROQ_NATIVE_MODELS.map((model) => model.id),
+].map(buildCatalogModel);
+
+export function isGroqNativeModel(modelId: string): boolean {
+  return modelId in GROQ_NATIVE_MODEL_ID_MAP;
+}
+
+export function getGroqApiModelId(modelId: string): string {
+  return GROQ_NATIVE_MODEL_ID_MAP[modelId] ?? modelId;
+}
+
+export function mergeCatalogModels(
+  baseModels: CatalogModel[],
+  supplementalModels: CatalogModel[],
+): CatalogModel[] {
+  const merged = new Map<string, CatalogModel>();
+
+  for (const model of baseModels) {
+    merged.set(model.id, model);
+  }
+
+  for (const model of supplementalModels) {
+    if (!merged.has(model.id)) {
+      merged.set(model.id, model);
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
+export function isSelectableTextModel(model: CatalogModel): boolean {
+  if (model.type && model.type !== "language") {
+    return false;
+  }
+
+  const modelId = model.id.toLowerCase();
+
+  if (modelId === "openai/gpt-3.5-turbo-instruct") {
+    return false;
+  }
+
+  if (
+    modelId.includes("embedding") ||
+    modelId.includes("guard") ||
+    modelId.includes("safeguard") ||
+    modelId.includes("imagen-") ||
+    modelId.includes("veo-")
+  ) {
+    return false;
+  }
+
+  if (modelId.startsWith("google/") && modelId.includes("image")) {
+    return false;
+  }
+
+  return true;
+}
+
+function getProviderSortIndex(provider: string): number {
+  switch (provider) {
+    case "groq":
+      return 0;
+    case "openai":
+      return 1;
+    case "anthropic":
+      return 2;
+    case "google":
+      return 3;
+    default:
+      return 99;
+  }
+}
+
+export function sortSelectorModels(models: SelectorModel[]): SelectorModel[] {
+  return [...models].sort((a, b) => {
+    const providerDelta =
+      getProviderSortIndex(a.provider) - getProviderSortIndex(b.provider);
+    if (providerDelta !== 0) {
+      return providerDelta;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function toSelectorModel(model: CatalogModel): SelectorModel {
+  return {
+    id: model.id,
+    modelId: model.id,
+    provider: model.owned_by,
+    name: model.name || buildSelectorName(model.id),
+    description: model.description || buildSelectorDescription(model.id),
+  };
+}
+
+export const FALLBACK_TEXT_SELECTOR_MODELS = sortSelectorModels(
+  FALLBACK_TEXT_MODELS.filter(isSelectableTextModel).map(toSelectorModel),
+);
+
+export function getGroqCatalogModel(modelId: string): CatalogModel | null {
+  return GROQ_NATIVE_MODELS.find((model) => model.id === modelId) ?? null;
+}
+
+export function formatSelectorProvider(provider: string): string {
+  return formatProviderLabel(provider);
+}

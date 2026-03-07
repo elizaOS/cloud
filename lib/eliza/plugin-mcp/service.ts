@@ -9,6 +9,24 @@ import {
 // We attempt a dynamic import at startup; if unavailable, per-entity connection
 // keying is skipped (safe fallback — connections use the base serverName).
 let getRequestContext: (() => { entityId?: string } | undefined) | undefined;
+const shouldLogMcpBootstrap = process.env.NODE_ENV === "development";
+
+const logMcpBootstrap = (
+  level: "info" | "warn",
+  message: string,
+): void => {
+  if (!shouldLogMcpBootstrap) {
+    return;
+  }
+
+  if (level === "warn") {
+    logger.warn(message);
+    return;
+  }
+
+  logger.info(message);
+};
+
 const requestContextReady = (async () => {
   try {
     const mod = await import("@elizaos/core");
@@ -17,16 +35,19 @@ const requestContextReady = (async () => {
       typeof mod.getRequestContext === "function"
     ) {
       getRequestContext = mod.getRequestContext as typeof getRequestContext;
-      logger.info(
+      logMcpBootstrap(
+        "info",
         "[MCP] Per-user connection isolation enabled (getRequestContext available)",
       );
     } else {
-      logger.warn(
+      logMcpBootstrap(
+        "warn",
         "[MCP] getRequestContext not exported by @elizaos/core — per-user connection isolation disabled",
       );
     }
   } catch {
-    logger.warn(
+    logMcpBootstrap(
+      "warn",
       "[MCP] Could not import getRequestContext — per-user connection isolation disabled",
     );
   }

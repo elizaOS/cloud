@@ -118,7 +118,7 @@ export default function DashboardLayout({
   return (
     <OnboardingProvider>
       <PageHeaderProvider>
-        <div className="flex h-screen w-full bg-neutral-900 x ">
+        <div className="dashboard-theme flex h-screen w-full bg-neutral-950">
           {/* Sidebar */}
           <Sidebar
             isOpen={sidebarOpen}
@@ -136,7 +136,7 @@ export default function DashboardLayout({
             />
 
             {/* Main Content Area */}
-            <ScrollArea className="flex-1 bg-black rounded-2xl min-w-0">
+            <ScrollArea className="flex-1 min-w-0 border border-white/10 bg-black/80">
               <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">
                 {children}
               </main>

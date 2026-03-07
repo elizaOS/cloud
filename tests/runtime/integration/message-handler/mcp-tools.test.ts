@@ -15,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -46,7 +47,9 @@ import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 // MCP Plugin Loading Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("MCP Plugin Loading - Production Flow", () => {
+const skipLiveModelSuite = !hasDatabaseUrl || !hasRuntimeModelCredentials;
+
+describe.skipIf(skipLiveModelSuite)("MCP Plugin Loading - Production Flow", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;
@@ -207,7 +210,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP Plugin Loading - Production Flow", () => {
 // MCP Assistant Trending Tokens Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("MCP Assistant - Trending Tokens Query", () => {
+describe.skipIf(skipLiveModelSuite)("MCP Assistant - Trending Tokens Query", () => {
   // Local test state (isolated to this describe block)
   let connectionString: string;
   let testData: TestDataSet;

@@ -7,7 +7,7 @@
  * @param props.creditBalance - Current credit balance
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandCard } from "@/components/brand";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { AnalyticsData } from "@/lib/actions/analytics";
@@ -46,34 +46,35 @@ export function CostInsightsCard({
         : `${costTrending.daysUntilBalanceZero}d`;
 
   return (
-    <Card className="border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent shadow-md dark:from-amber-500/10">
-      <CardHeader className="gap-2 p-6 pb-4">
+    <BrandCard
+      corners={false}
+      className="border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent shadow-md dark:from-amber-500/10"
+    >
+      <div className="flex flex-col gap-2 p-6 pb-4">
         <div className="flex items-center gap-3">
-          <CardTitle className="text-base font-semibold">
-            Cost outlook
-          </CardTitle>
+          <h3 className="text-base font-semibold text-white">Cost outlook</h3>
           <Badge
             variant="outline"
-            className="border-transparent bg-amber-500/10 text-xs font-medium text-amber-600 dark:text-amber-200"
+            className="border-amber-500/20 bg-amber-500/10 text-xs font-medium text-amber-300"
           >
             {costTrending.burnChangePercent > 0 ? "+" : ""}
             {costTrending.burnChangePercent.toFixed(1)}%
           </Badge>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5 p-6 pt-2">
+      </div>
+      <div className="flex flex-col gap-5 p-6 pt-2">
         <div className="grid gap-4">
-          <div className="grid gap-2 rounded-xl border border-amber-500/20 bg-background/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+          <div className="grid gap-2 border border-amber-500/20 bg-black/35 p-4">
+            <p className="text-xs uppercase tracking-wide text-white/50">
               Daily burn
             </p>
-            <p className="text-2xl font-semibold text-foreground">
+            <p className="text-2xl font-semibold text-white">
               {currencyFormatter.format(costTrending.currentDailyBurn)}
             </p>
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground/80">
+            <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/50">
               <span>Monthly projection</span>
               <span>
                 {currencyFormatter.format(costTrending.projectedMonthlyBurn)}
@@ -83,19 +84,19 @@ export function CostInsightsCard({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-amber-500/20 bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+            <div className="border border-amber-500/20 bg-black/35 p-3">
+              <p className="text-xs uppercase tracking-wide text-white/50">
                 Runway
               </p>
-              <p className="text-lg font-semibold text-foreground">
+              <p className="text-lg font-semibold text-white">
                 {runwayLabel}
               </p>
             </div>
-            <div className="rounded-xl border border-amber-500/20 bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+            <div className="border border-amber-500/20 bg-black/35 p-3">
+              <p className="text-xs uppercase tracking-wide text-white/50">
                 Balance
               </p>
-              <p className="text-lg font-semibold text-foreground">
+              <p className="text-lg font-semibold text-white">
                 {currencyFormatter.format(creditBalance)}
               </p>
             </div>
@@ -103,7 +104,7 @@ export function CostInsightsCard({
         </div>
 
         <CostAlerts costTrending={costTrending} creditBalance={creditBalance} />
-      </CardContent>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }

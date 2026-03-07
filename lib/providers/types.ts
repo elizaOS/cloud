@@ -121,6 +121,14 @@ export interface OpenAIModel {
   object: "model";
   created: number;
   owned_by: string;
+  released?: number;
+  name?: string;
+  description?: string;
+  context_window?: number;
+  max_tokens?: number;
+  type?: string;
+  tags?: string[];
+  pricing?: Record<string, unknown>;
 }
 
 /**

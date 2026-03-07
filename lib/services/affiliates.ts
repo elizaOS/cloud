@@ -11,6 +11,18 @@ export const ERRORS = {
   SELF_REFERRAL: "Users cannot refer themselves",
 } as const;
 
+function normalizeAffiliateCode(code: string): string {
+  return code.trim().toUpperCase();
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
+  return (
+    code === "23505" ||
+    (error instanceof Error && error.message.includes("unique constraint"))
+  );
+}
+
 /**
  * Affiliate (revenue-share) service. WHY separate from referrals: Referrals split
  * purchase revenue (50/40/10) at signup attribution; affiliates get a markup added
@@ -26,9 +38,9 @@ export class AffiliatesService {
     return affiliatesRepository.getAffiliateCodeByUserId(userId);
   }
 
-    /**
-     * Generates or returns an existing affiliate code for the user.
-     */
+  /**
+   * Generates or returns an existing affiliate code for the user.
+   */
   async getOrCreateAffiliateCode(
     userId: string,
     markupPercent?: number,
@@ -49,25 +61,50 @@ export class AffiliatesService {
     if (markup < 0 || markup > 1000) {
       throw new Error("Markup percent must be between 0 and 1000");
     }
+    let attempts = 0;
+    while (attempts < 10) {
+      const code = `AFF-${nanoid(8).toUpperCase()}`;
 
-    const code = `AFF-${nanoid(8).toUpperCase()}`;
+      try {
+        affiliateCode = await affiliatesRepository.createAffiliateCodeIfNotExists({
+          user_id: userId,
+          code,
+          markup_percent: markup.toFixed(2) as string,
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          affiliateCode =
+            await affiliatesRepository.getAffiliateCodeByUserId(userId);
+          if (affiliateCode) {
+            logger.info("[Affiliates] Using concurrently created affiliate code", {
+              userId,
+            });
+            break;
+          }
+          attempts++;
+          continue;
+        }
+        throw error;
+      }
 
-    affiliateCode = await affiliatesRepository.createAffiliateCodeIfNotExists({
-      user_id: userId,
-      code,
-      markup_percent: markup.toFixed(2) as string,
-    });
-
-    if (!affiliateCode) {
-      affiliateCode = await affiliatesRepository.getAffiliateCodeByUserId(userId);
       if (!affiliateCode) {
+        affiliateCode =
+          await affiliatesRepository.getAffiliateCodeByUserId(userId);
+        if (affiliateCode) {
+          logger.info("[Affiliates] Using concurrently created affiliate code", {
+            userId,
+          });
+          break;
+        }
         throw new Error("Failed to create or retrieve affiliate code");
       }
-      logger.info("[Affiliates] Using concurrently created affiliate code", {
-        userId,
-      });
-    } else {
+
       logger.info("[Affiliates] Created new affiliate code", { userId, code });
+      break;
+    }
+
+    if (!affiliateCode) {
+      throw new Error("Failed to generate a unique affiliate code");
     }
 
     if (
@@ -109,13 +146,14 @@ export class AffiliatesService {
    * Links a user to an affiliate code (invoked during signup)
    */
   async linkUserToAffiliateCode(userId: string, code: string): Promise<UserAffiliate> {
-    const existingLink = await affiliatesRepository.getUserAffiliate(userId);
-    if (existingLink) {
-      throw new Error(ERRORS.ALREADY_LINKED);
+    const normalizedCode = normalizeAffiliateCode(code);
+    const affiliateCode =
+      await affiliatesRepository.getAffiliateCodeByCode(normalizedCode);
+    if (!affiliateCode) {
+      throw new Error(ERRORS.INVALID_CODE);
     }
 
-    const affiliateCode = await affiliatesRepository.getAffiliateCodeByCode(code);
-    if (!affiliateCode) {
+    if (!affiliateCode.is_active) {
       throw new Error(ERRORS.INVALID_CODE);
     }
 
@@ -123,12 +161,35 @@ export class AffiliatesService {
       throw new Error(ERRORS.SELF_REFERRAL);
     }
 
-    const link = await affiliatesRepository.linkUserToAffiliate({
-      user_id: userId,
-      affiliate_code_id: affiliateCode.id,
-    });
+    const existingLink = await affiliatesRepository.getUserAffiliate(userId);
+    if (existingLink) {
+      if (existingLink.affiliate_code_id === affiliateCode.id) {
+        return existingLink;
+      }
+      throw new Error(ERRORS.ALREADY_LINKED);
+    }
 
-    logger.info("[Affiliates] Linked user to affiliate code", { userId, code });
+    let link: UserAffiliate;
+    try {
+      link = await affiliatesRepository.linkUserToAffiliate({
+        user_id: userId,
+        affiliate_code_id: affiliateCode.id,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const concurrentLink = await affiliatesRepository.getUserAffiliate(userId);
+        if (concurrentLink?.affiliate_code_id === affiliateCode.id) {
+          return concurrentLink;
+        }
+        throw new Error(ERRORS.ALREADY_LINKED);
+      }
+      throw error;
+    }
+
+    logger.info("[Affiliates] Linked user to affiliate code", {
+      userId,
+      code: normalizedCode,
+    });
     return link;
   }
 
@@ -141,7 +202,10 @@ export class AffiliatesService {
     if (!link) {
       return null;
     }
-    return affiliatesRepository.getAffiliateCodeById(link.affiliate_code_id);
+    const affiliateCode = await affiliatesRepository.getAffiliateCodeById(
+      link.affiliate_code_id,
+    );
+    return affiliateCode?.is_active ? affiliateCode : null;
   }
 }
 

@@ -1,25 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { BrandButton } from "@/components/brand";
-import {
-  Sparkles,
-  ArrowRight,
-  Bot,
-  Workflow,
-  Puzzle,
-  Grid3x3,
-  X,
-} from "lucide-react";
-
 export type EntityType = "agent" | "workflow" | "service";
 
 interface PostCreationAppPromptProps {
@@ -31,57 +11,9 @@ interface PostCreationAppPromptProps {
   onSkip?: () => void;
 }
 
-const ENTITY_CONFIG: Record<
-  EntityType,
-  {
-    icon: typeof Bot;
-    color: string;
-    label: string;
-    description: string;
-    appSuggestion: string;
-  }
-> = {
-  agent: {
-    icon: Bot,
-    color: "#0B35F1",
-    label: "Agent",
-    description: "Your agent is ready! Create an app to give it a home.",
-    appSuggestion:
-      "Build a chat interface, dashboard, or custom UI for your agent.",
-  },
-  workflow: {
-    icon: Workflow,
-    color: "#22C55E",
-    label: "Workflow",
-    description:
-      "Your workflow is ready! Create an app to visualize and control it.",
-    appSuggestion:
-      "Build a dashboard to monitor, trigger, and manage your workflow.",
-  },
-  service: {
-    icon: Puzzle,
-    color: "#06B6D4",
-    label: "Service",
-    description: "Your service is ready! Create an app to showcase and use it.",
-    appSuggestion:
-      "Build a demo app, documentation site, or integration hub for your service.",
-  },
-};
-
-export function PostCreationAppPrompt({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  open,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onOpenChange,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  entityType,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  entityId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  entityName,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSkip,
-}: PostCreationAppPromptProps) {
+export function PostCreationAppPrompt(
+  _props: PostCreationAppPromptProps,
+) {
   return null;
 
   /* App creation disabled - original component body commented out below:

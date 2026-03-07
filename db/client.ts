@@ -52,6 +52,7 @@ import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
 import { Pool as PgPool } from "pg";
 import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
 import * as schema from "./schemas";
+import { applyDatabaseUrlFallback } from "./database-url";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
@@ -207,11 +208,10 @@ function getDatabaseUrl(
  * Get the primary database URL (always required)
  */
 function getPrimaryDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL;
+  const url = applyDatabaseUrlFallback(process.env);
   if (!url) {
     throw new Error(
-      "DATABASE_URL environment variable is not set. " +
-        "Make sure you have a .env.local file with DATABASE_URL defined.",
+      "DATABASE_URL environment variable is not set and local Docker Postgres fallback is unavailable.",
     );
   }
   return url;

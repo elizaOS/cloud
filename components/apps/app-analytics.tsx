@@ -38,6 +38,7 @@ import {
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { DashboardStatCard } from "@/components/brand";
 
 interface AppAnalyticsProps {
   appId: string;
@@ -867,17 +868,7 @@ function StatCard({
   value: string;
   icon: React.ReactNode;
 }) {
-  return (
-    <div className="bg-neutral-900 rounded-xl p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-neutral-500">{label}</p>
-          <p className="text-xl font-semibold text-white mt-1">{value}</p>
-        </div>
-        {icon}
-      </div>
-    </div>
-  );
+  return <DashboardStatCard label={label} value={value} icon={icon} />;
 }
 
 function MiniStatCard({

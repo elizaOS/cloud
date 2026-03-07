@@ -248,9 +248,9 @@ export default function UserMenu() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="relative h-8 w-8 md:h-10 md:w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+            className="relative h-8 w-8 border-white/10 bg-white/5 p-0 hover:border-[#FF5800]/50 hover:bg-white/10 md:h-10 md:w-10"
           >
-            <Avatar className="h-8 w-8 md:h-10 md:w-10">
+            <Avatar className="h-8 w-8 md:h-10 md:w-10 rounded-none">
               {userProfile?.avatar && (
                 <AvatarImage
                   src={userProfile.avatar}
@@ -258,7 +258,7 @@ export default function UserMenu() {
                   className="object-cover"
                 />
               )}
-              <AvatarFallback className="bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 text-white font-semibold">
+              <AvatarFallback className="rounded-none bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 font-semibold text-white">
                 {getInitials()}
               </AvatarFallback>
             </Avatar>
@@ -278,7 +278,7 @@ export default function UserMenu() {
           <DropdownMenuSeparator />
           <div className="px-2 py-2">
             {loadingCredits && creditBalance === null ? (
-              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted">
+              <div className="flex items-center gap-2 border border-white/10 bg-white/5 px-2 py-1.5">
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
                   Loading...

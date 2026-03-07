@@ -85,6 +85,20 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
           { status: 404, headers: corsHeaders },
         );
       }
+
+      if (error.message === AFFILIATE_ERRORS.SELF_REFERRAL) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400, headers: corsHeaders },
+        );
+      }
+
+      if (error.message === AFFILIATE_ERRORS.ALREADY_LINKED) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 409, headers: corsHeaders },
+        );
+      }
     }
 
     return NextResponse.json(

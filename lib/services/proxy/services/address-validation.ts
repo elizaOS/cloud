@@ -17,7 +17,7 @@
  * - User experience: fast feedback on typos vs slow upstream errors
  */
 
-import { PublicKey } from "@solana/web3.js";
+import bs58 from "bs58";
 
 const SUPPORTED_CHAINS = new Set([
   "solana",
@@ -94,8 +94,7 @@ export function isValidSolanaAddress(address: string): boolean {
   }
 
   try {
-    new PublicKey(address);
-    return true;
+    return bs58.decode(address).length === 32;
   } catch {
     return false;
   }

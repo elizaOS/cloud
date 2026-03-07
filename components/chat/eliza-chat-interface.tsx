@@ -69,7 +69,9 @@ import {
   IMAGE_TIERS,
   ADDITIONAL_IMAGE_MODELS,
   DEFAULT_IMAGE_MODEL,
+  formatSelectorProvider,
 } from "@/lib/models";
+import { useAvailableModels } from "./hooks/use-available-models";
 import { useModelAvailability } from "./hooks/use-model-availability";
 import { usePrivy } from "@privy-io/react-auth";
 import { ContentType, type Media } from "@elizaos/core";
@@ -328,6 +330,11 @@ export function ElizaChatInterface({
   const [modelSelectorTab, setModelSelectorTab] = useState<"text" | "image">(
     "text",
   );
+  const {
+    models: availableTextModels,
+    isLoading: isLoadingTextModels,
+    error: availableTextModelsError,
+  } = useAvailableModels();
 
   // Model availability check - shows which models are currently available
   const allImageModelIds = useMemo(
@@ -389,6 +396,22 @@ export function ElizaChatInterface({
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
+  const tierModelIds = useMemo(
+    () => new Set(tiers.map((tier) => tier.modelId)),
+    [tiers],
+  );
+  const moreTextModels = useMemo(
+    () =>
+      (availableTextModels.length > 0 ? availableTextModels : ADDITIONAL_MODELS)
+        .filter((model) => !tierModelIds.has(model.modelId))
+        .filter(
+          (model, index, models) =>
+            models.findIndex(
+              (candidate) => candidate.modelId === model.modelId,
+            ) === index,
+        ),
+    [availableTextModels, tierModelIds],
+  );
 
   // Reset message limit state when user authenticates (e.g., signs up via modal)
   useEffect(() => {
@@ -1881,7 +1904,18 @@ export function ElizaChatInterface({
                                 viewportClassName="max-h-80"
                               >
                                 <div className="p-1.5">
-                                  {ADDITIONAL_MODELS.map((model) => (
+                                  {isLoadingTextModels && (
+                                    <div className="px-3 py-2 text-[12px] text-white/40">
+                                      Loading current model catalog...
+                                    </div>
+                                  )}
+                                  {!isLoadingTextModels &&
+                                    availableTextModelsError && (
+                                      <div className="px-3 py-2 text-[12px] text-white/40">
+                                        {availableTextModelsError}
+                                      </div>
+                                    )}
+                                  {moreTextModels.map((model) => (
                                     <DropdownMenuItem
                                       key={model.id}
                                       className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer data-[highlighted]:bg-white/5 focus:bg-white/5"
@@ -1897,6 +1931,11 @@ export function ElizaChatInterface({
                                         <div className="flex items-center gap-2">
                                           <span className="text-[13px] font-medium text-white">
                                             {model.name}
+                                          </span>
+                                          <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.08em] text-white/40">
+                                            {formatSelectorProvider(
+                                              model.provider,
+                                            )}
                                           </span>
                                           <span className="text-[10px] text-white/30 font-mono">
                                             {model.modelId.split("/")[1]}

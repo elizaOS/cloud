@@ -11,6 +11,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -43,12 +44,13 @@ import { mcpTestCharacter } from "../../../fixtures/mcp-test-character";
 let connectionString: string;
 let testData: TestDataSet;
 const timings: Record<string, number> = {};
+const skipLiveModelSuite = !hasDatabaseUrl || !hasRuntimeModelCredentials;
 
 // ============================================================================
 // ASSISTANT Mode with MCP Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
+describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
 
@@ -163,7 +165,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (MCP)", () => 
 // ASSISTANT Mode with Web Search Tests
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
+describe.skipIf(skipLiveModelSuite)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
   let runtime: TestRuntime;
   let testUser: TestUserContext;
   let localConnectionString: string;

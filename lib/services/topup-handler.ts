@@ -89,6 +89,7 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
             amount: split.amount,
             source,
             sourceId: `x402_crypto_split_${sourceIdBase}:${split.userId}`,
+            dedupeBySourceId: true,
             description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / amount) * 100).toFixed(0)}%) for $${amount} crypto topup`,
             metadata: {
               buyer_user_id: user.id,

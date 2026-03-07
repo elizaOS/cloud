@@ -256,15 +256,16 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
 
     const runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
 
-    // Check User 1 has MCP settings with THEIR API key
+    // Check User 1 has Google MCP enabled without persisting their API key
     const mcp1 = getMcpSettings(runtime1);
     expect(mcp1).toBeDefined();
     expect((mcp1 as any)?.servers?.google).toBeDefined();
 
     const googleServer1 = (mcp1 as any)?.servers?.google;
-    expect(googleServer1?.headers?.["X-API-Key"]).toBe(testDataUser1.apiKey.key);
+    expect(googleServer1?.url).toContain("/api/mcps/google/streamable-http");
+    expect(googleServer1?.headers?.["X-API-Key"]).toBeUndefined();
 
-    console.log("✅ User 1 (with OAuth) has MCP settings with their API key");
+    console.log("✅ User 1 (with OAuth) has Google MCP enabled without persisted API key");
 
     await invalidateRuntime(runtime1.agentId as string);
 
@@ -281,13 +282,13 @@ describe.skipIf(!hasDatabaseUrl)("User Context Isolation", () => {
       // Check User 2 does NOT have MCP settings (even though User 1 did)
       const mcp2 = getMcpSettings(runtime2);
 
-      // MCP should either be undefined/null or have no servers
+      // MCP should either be undefined/null or have no Google server
       const hasGoogleServer = mcp2 && (mcp2 as any)?.servers?.google;
 
       if (hasGoogleServer) {
-        // If somehow MCP exists, it should NOT have User 1's API key
+        // If somehow MCP exists, it still must not carry any user API key.
         const googleServer2 = (mcp2 as any).servers.google;
-        expect(googleServer2?.headers?.["X-API-Key"]).not.toBe(testDataUser1.apiKey.key);
+        expect(googleServer2?.headers?.["X-API-Key"]).toBeUndefined();
       }
 
       console.log("✅ User 2 (no OAuth) does not have User 1's MCP settings");

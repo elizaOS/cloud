@@ -54,6 +54,8 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ## Chat Models
 
+The `/api/v1/models` response is the source of truth for the full live catalog. The tables below are representative examples, not an exhaustive list.
+
 ### OpenAI
 
 | Model         | Context | Best For                |
@@ -93,7 +95,7 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 | Model                                   | Provider | Speed  | Best For                 |
 | --------------------------------------- | -------- | ------ | ------------------------ |
 | `google/gemini-2.5-flash-image`         | Google   | Fast   | General use (default)    |
-| `google/gemini-2.5-flash-image-preview` | Google   | Fast   | Preview/testing          |
+| `google/gemini-3.1-flash-image-preview` | Google   | Fast   | Preview/testing          |
 | `google/gemini-3-pro-image`             | Google   | Medium | Higher quality           |
 | `openai/gpt-5-nano`                     | OpenAI   | Medium | OpenAI image generation  |
 | `bfl/flux-kontext-max`                  | BFL      | Medium | Context-aware generation |

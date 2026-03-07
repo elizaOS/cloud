@@ -15,8 +15,8 @@ import {
   type UIMessage,
   convertToModelMessages,
 } from "ai";
-import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { appsService } from "@/lib/services/apps";
 import { appCreditsService } from "@/lib/services/app-credits";
@@ -457,7 +457,7 @@ async function handleStreamingRequest(
   });
 
   const result = streamText({
-    model: gateway.languageModel(model),
+    model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     ...safeParams,
@@ -619,7 +619,7 @@ async function handleNonStreamingRequest(
   });
 
   const result = await generateText({
-    model: gateway.languageModel(model),
+    model: getLanguageModel(model),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     ...safeParamsNonStream,

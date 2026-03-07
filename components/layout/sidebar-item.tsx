@@ -49,7 +49,7 @@ export function SidebarNavigationItem({
     return (
       <div
         className={cn(
-          "relative flex items-center gap-3 rounded-lg px-3 py-2.5",
+          "relative flex items-center gap-3 border border-white/10 bg-white/[0.03] px-3 py-2.5",
           "text-white/40 cursor-default select-none opacity-50",
         )}
         style={{
@@ -63,7 +63,7 @@ export function SidebarNavigationItem({
         <Icon className="h-4 w-4 shrink-0" />
         <span className="flex-1 whitespace-nowrap">{item.label}</span>
         <span
-          className="text-[10px] font-medium uppercase tracking-wider text-white/40 bg-white/10 px-1.5 py-0.5 rounded"
+          className="bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/40"
           style={{
             fontFamily: "var(--font-roboto-mono)",
           }}
@@ -87,8 +87,8 @@ export function SidebarNavigationItem({
           router.push(`/login?returnTo=${encodeURIComponent(item.href)}`);
         }}
         className={cn(
-          "relative flex w-full items-center rounded-lg transition-all duration-200",
-          "hover:bg-white/5 hover:text-white/80",
+          "relative flex w-full items-center border border-transparent transition-all duration-200",
+          "hover:border-white/10 hover:bg-white/[0.04] hover:text-white/80",
           "text-white/40 cursor-pointer",
           isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
         )}
@@ -131,12 +131,14 @@ export function SidebarNavigationItem({
   const linkElement = (
     <Link
       href={item.href}
-      className={cn(
-        "relative flex items-center rounded-lg transition-all duration-200",
-        "hover:bg-white/5 hover:text-white",
-        isActive ? "bg-white/10 text-white" : "text-white/60",
-        isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-      )}
+        className={cn(
+          "relative flex items-center border transition-all duration-200",
+          "hover:border-white/10 hover:bg-white/[0.04] hover:text-white",
+          isActive
+            ? "border-[#FF5800]/25 bg-[#FF5800]/10 text-white"
+            : "border-transparent text-white/60",
+          isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
+        )}
       style={{
         fontFamily: "var(--font-roboto-mono)",
         fontWeight: 400,
@@ -151,7 +153,7 @@ export function SidebarNavigationItem({
           <span className="flex-1 whitespace-nowrap">{item.label}</span>
           {item.isNew && (
             <span
-              className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
               style={{
                 backgroundColor: "#FF580020",
                 color: "#FF5800",
@@ -162,7 +164,7 @@ export function SidebarNavigationItem({
             </span>
           )}
           {item.badge && !item.isNew && (
-            <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/60">
+            <span className="bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/60">
               {item.badge}
             </span>
           )}

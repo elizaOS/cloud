@@ -19,7 +19,8 @@ import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
-import { getProvider } from "@/lib/providers";
+import { isGroqNativeModel } from "@/lib/models";
+import { getProviderForModel } from "@/lib/providers";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
@@ -683,15 +684,17 @@ async function handlePOST(req: NextRequest) {
       delete safeRequest.temperature;
     }
 
-    const providerInstance = getProvider();
-    const requestWithProvider = {
-      ...safeRequest,
-      providerOptions: {
-        gateway: {
-          order: ["groq"], // Use Groq as preferred provider
-        },
-      },
-    };
+    const providerInstance = getProviderForModel(model);
+    const requestWithProvider = isGroqNativeModel(model)
+      ? safeRequest
+      : {
+          ...safeRequest,
+          providerOptions: {
+            gateway: {
+              order: ["groq"], // Use Groq as preferred provider
+            },
+          },
+        };
     const providerResponse =
       await providerInstance.chatCompletions(requestWithProvider);
 

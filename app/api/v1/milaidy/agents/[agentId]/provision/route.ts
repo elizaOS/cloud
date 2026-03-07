@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 
 export const dynamic = "force-dynamic";
 // Sandbox provisioning can take up to 60s (Neon DB + Vercel Sandbox + health check)

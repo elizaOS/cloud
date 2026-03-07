@@ -277,7 +277,7 @@ async function handleStripeWebhook(req: NextRequest) {
             }
           }
 
-          // Revenue splits: run even when isDuplicate so retries can complete failed splits; addEarnings is idempotent by sourceId
+          // Revenue splits: run even when isDuplicate so retries can complete failed splits; dedupeBySourceId keeps payout inserts idempotent
           if (!isAppPurchase && userId) {
             const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
             if (splits.length > 0) {
@@ -292,6 +292,7 @@ async function handleStripeWebhook(req: NextRequest) {
                     amount: split.amount,
                     source,
                     sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+                    dedupeBySourceId: true,
                     description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / credits) * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
                     metadata: {
                       buyer_user_id: userId,
@@ -306,7 +307,7 @@ async function handleStripeWebhook(req: NextRequest) {
                     error: splitError instanceof Error ? splitError.message : String(splitError),
                     amount: split.amount,
                     paymentIntentId,
-                    sourceId: `${paymentIntentId}:${split.userId}`,
+                    sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
                     retryable: true,
                   });
                   trackServerEvent(userId, "revenue_split_failed", {
@@ -448,19 +449,41 @@ async function handleStripeWebhook(req: NextRequest) {
           );
         }
 
+        const affiliateFeeStr = paymentIntent.metadata?.affiliate_fee_amount;
+        const affiliateFeeAmount = affiliateFeeStr
+          ? Number.parseFloat(affiliateFeeStr)
+          : 0;
+        const affiliateOwnerId = paymentIntent.metadata?.affiliate_owner_id;
+        const affiliateCodeId = paymentIntent.metadata?.affiliate_code_id;
+
+        if (
+          affiliateFeeStr &&
+          (!Number.isFinite(affiliateFeeAmount) || affiliateFeeAmount <= 0)
+        ) {
+          logger.warn(
+            `[Stripe Webhook] Permanent failure - Invalid affiliate metadata in payment intent ${paymentIntent.id}`,
+            { affiliateFeeStr },
+          );
+          return NextResponse.json(
+            {
+              received: true,
+              error: "Invalid affiliate metadata",
+              skipped: true,
+            },
+            { status: 200 },
+          );
+        }
+
         // Check for duplicate transaction
         const existingTransaction =
           await creditsService.getTransactionByStripePaymentIntent(
             paymentIntent.id,
           );
+        const isDuplicate = !!existingTransaction;
 
-        if (existingTransaction) {
+        if (isDuplicate) {
           logger.debug(
             `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntent.id} already processed`,
-          );
-          return NextResponse.json(
-            { received: true, duplicate: true },
-            { status: 200 },
           );
         }
 
@@ -470,45 +493,114 @@ async function handleStripeWebhook(req: NextRequest) {
             ? `Auto top-up - $${credits.toFixed(2)}`
             : `One-time purchase - $${credits.toFixed(2)}`;
 
-        // Add credits
-        await creditsService.addCredits({
-          organizationId,
-          amount: credits,
-          description,
-          metadata: {
-            type: purchaseType,
-            payment_intent_id: paymentIntent.id,
-          },
-          stripePaymentIntentId: paymentIntent.id,
-        });
+        if (!isDuplicate) {
+          // Add credits
+          await creditsService.addCredits({
+            organizationId,
+            amount: credits,
+            description,
+            metadata: {
+              type: purchaseType,
+              payment_intent_id: paymentIntent.id,
+            },
+            stripePaymentIntentId: paymentIntent.id,
+          });
 
-        logger.info(
-          `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
-        );
+          logger.info(
+            `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
+          );
 
-        // Log payment to Discord (fire and forget)
-        organizationsRepository.findById(organizationId).then((org) => {
-          discordService
-            .logPaymentReceived({
-              paymentId: paymentIntent.id,
-              amount: credits,
-              currency: paymentIntent.currency,
-              credits,
-              organizationId,
-              organizationName: org?.name,
-              paymentMethod: "stripe",
-              paymentType:
-                purchaseType === "auto_top_up"
-                  ? "Auto Top-up"
-                  : "One-time Purchase",
-            })
-            .catch((err) => {
-              logger.error(
-                "[Stripe Webhook] Failed to log payment to Discord",
-                { error: err },
-              );
+          // Log payment to Discord (fire and forget)
+          organizationsRepository.findById(organizationId).then((org) => {
+            discordService
+              .logPaymentReceived({
+                paymentId: paymentIntent.id,
+                amount: credits,
+                currency: paymentIntent.currency,
+                credits,
+                organizationId,
+                organizationName: org?.name,
+                paymentMethod: "stripe",
+                paymentType:
+                  purchaseType === "auto_top_up"
+                    ? "Auto Top-up"
+                    : "One-time Purchase",
+              })
+              .catch((err) => {
+                logger.error(
+                  "[Stripe Webhook] Failed to log payment to Discord",
+                  { error: err },
+                );
+              });
+          });
+        }
+
+        if (
+          purchaseType === "auto_top_up" &&
+          affiliateFeeAmount > 0 &&
+          affiliateOwnerId &&
+          affiliateCodeId
+        ) {
+          try {
+            const { redeemableEarningsService } = await import(
+              "@/lib/services/redeemable-earnings"
+            );
+            const result = await redeemableEarningsService.addEarnings({
+              userId: affiliateOwnerId,
+              amount: affiliateFeeAmount,
+              source: "affiliate",
+              sourceId: `affiliate_auto_topup:${paymentIntent.id}:${affiliateCodeId}`,
+              dedupeBySourceId: true,
+              description: `Auto top-up affiliate fee for $${credits.toFixed(2)} purchase`,
+              metadata: {
+                buyer_user_id: paymentIntent.metadata?.user_id,
+                buyer_org_id: organizationId,
+                payment_intent_id: paymentIntent.id,
+                total_charged: paymentIntent.metadata?.total_charged,
+              },
             });
-        });
+
+            if (!result.success) {
+              logger.error(
+                `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
+                { error: result.error, affiliateOwnerId, affiliateCodeId },
+              );
+              return NextResponse.json(
+                {
+                  error: "Failed to process auto top-up affiliate payout",
+                  retryable: true,
+                },
+                { status: 500 },
+              );
+            }
+          } catch (affiliateError) {
+            logger.error(
+              `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
+              {
+                error:
+                  affiliateError instanceof Error
+                    ? affiliateError.message
+                    : String(affiliateError),
+                affiliateOwnerId,
+                affiliateCodeId,
+              },
+            );
+            return NextResponse.json(
+              {
+                error: "Failed to process auto top-up affiliate payout",
+                retryable: true,
+              },
+              { status: 500 },
+            );
+          }
+        }
+
+        if (isDuplicate) {
+          return NextResponse.json(
+            { received: true, duplicate: true },
+            { status: 200 },
+          );
+        }
 
         try {
           // Type-safe handling of invoice property using type guard
@@ -723,4 +815,3 @@ export const POST = withRateLimit(
   handleStripeWebhook,
   RateLimitPresets.AGGRESSIVE,
 );
-

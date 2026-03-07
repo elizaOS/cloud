@@ -139,6 +139,8 @@ export default function PrivyProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const hasLoggedPrivyConfigError = useRef(false);
+
   // Memoize the config to prevent unnecessary re-renders (must be before early return)
   // PrivyClientConfig accepts partial configurations at runtime, but the type is strict.
   // We define the exact shape we're providing and cast to the expected interface.
@@ -178,11 +180,26 @@ export default function PrivyProvider({
   // Check if Privy App ID is configured
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
+  const hasValidAppId = typeof appId === "string" && appId.trim().length === 25;
+  const hasValidClientId =
+    typeof clientId === "string" && clientId.trim().length > 0;
 
-  if (!appId || !clientId) {
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      (hasValidAppId && hasValidClientId) ||
+      hasLoggedPrivyConfigError.current
+    ) {
+      return;
+    }
+
+    hasLoggedPrivyConfigError.current = true;
     console.error(
-      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is not set!",
+      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is missing or invalid!",
     );
+  }, [hasValidAppId, hasValidClientId]);
+
+  if (!hasValidAppId || !hasValidClientId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">

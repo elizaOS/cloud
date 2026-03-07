@@ -9,6 +9,7 @@ export {
   verifyConnection,
   getDatabaseInfo,
 } from "./local-database";
+export { hasRuntimeModelCredentials } from "./runtime-model-access";
 
 // Test data factory
 export {

@@ -71,7 +71,7 @@ export function CreditPackCard({
         <div>
           <div className="text-4xl font-bold text-white">${price}</div>
           <div className="text-sm text-white/50">
-            ${pricePerCredit} per dollar
+            ${pricePerCredit} per credit
           </div>
         </div>
 

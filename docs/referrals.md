@@ -47,13 +47,15 @@ Defined in `lib/services/referrals.ts` as `REFERRAL_REVENUE_SPLITS`:
 - **Stripe**: `checkout.session.completed` webhook adds credits to the buyer, then runs `calculateRevenueSplits(userId, credits)` and credits app_owner/creator via redeemable earnings.  
   **WHY not in `payment_intent.succeeded`:** Auto top-up uses PaymentIntent only; we don’t run referral splits on auto top-up (no referrer context there by design). So splits run only for checkout sessions (user-initiated credit purchases).
 - **x402 top-up**: Routes apply referral code if present (first-touch), add credits, then run `calculateRevenueSplits(user.id, AMOUNT)` and credit splits. Same 100% redistribution.
+- **Login/signup attribution**: The login page stores `?ref=` / `?referral_code=` and applies them post-auth through `/api/v1/referrals/apply`, so referral links survive the auth redirect.
 
 ### API (referrals)
 
 - `getOrCreateCode(userId)` — get or create referral code for user.
 - `applyReferralCode(referredUserId, organizationId, code, appContext?)` — apply at signup; `appContext` can pass `appId`, `appOwnerId`, `creatorId` for 50/40/10.
+- `POST /api/v1/referrals/apply` — authenticated route used by the login flow to apply a pending referral code after signup/auth completes.
 - `calculateRevenueSplits(userId, purchaseAmount)` — returns `{ elizaCloudAmount, splits }`; used by Stripe webhook and x402.
-- `checkAndQualifyReferral(referredUserId)` — call when referred user links social; awards qualified bonus to referrer.
+- `checkAndQualifyReferral(referredUserId)` — called when Privy reports `user.linked_account`; awards the qualified bonus to the referrer once.
 - `getReferralStats(userId)` — code, counts, earnings for dashboard.
 
 ---
@@ -63,7 +65,7 @@ Defined in `lib/services/referrals.ts` as `REFERRAL_REVENUE_SPLITS`:
 ### Flow
 
 1. **Code**: User A creates an affiliate code via `affiliatesService.getOrCreateAffiliateCode(userA.id, markupPercent?)` (default 20%).
-2. **Link**: User B signs up or is linked via `linkUserToAffiliateCode(B.id, code)`.
+2. **Link**: User B signs up or is linked via `linkUserToAffiliateCode(B.id, code)`. The web login flow preserves `?affiliate=` and applies it after auth completes.
 3. **Charges**: When B’s org uses **auto top-up** or **MCP**, we look up `affiliatesService.getReferrer(B.id)`. If present, we **add** affiliate % (and platform %) to the amount the customer pays; we don’t carve it from the base. Affiliate is paid their share from that markup.
 
 **WHY markup instead of split:** So the platform doesn’t eat the cost. Customer pays base + affiliate% + platform%; we pay the affiliate from that; we keep the rest. Revenue is never over-allocated.

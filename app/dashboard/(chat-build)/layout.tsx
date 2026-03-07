@@ -41,7 +41,7 @@ export default function ChatBuildLayout({
   }, []);
 
   return (
-    <div className="flex h-screen w-full bg-neutral-900 x  overflow-hidden">
+    <div className="dashboard-theme flex h-screen w-full overflow-hidden bg-neutral-950">
       {/* Chat Sidebar - hidden in build mode */}
       {!isBuildPage && (
         <ChatSidebar
@@ -58,7 +58,7 @@ export default function ChatBuildLayout({
         {!isBuildPage && (
           <button
             onClick={handleToggleSidebar}
-            className="md:hidden fixed top-4 left-4 z-30 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+            className="fixed left-4 top-4 z-30 border border-white/10 bg-white/5 p-2 transition-colors hover:border-white/20 hover:bg-white/10 md:hidden"
             aria-label="Toggle navigation"
           >
             <Menu className="h-5 w-5 text-white" />

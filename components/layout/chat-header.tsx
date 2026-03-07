@@ -598,7 +598,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   );
 
   return (
-    <header className="flex h-16 items-center justify-between backdrop-blur-3xl px-2 md:px-3">
+    <header className="flex h-16 items-center justify-between border border-white/10 bg-black/65 px-2 backdrop-blur-3xl md:px-3">
       <div className="flex items-center gap-1.5">
         {/* Mobile Menu Button */}
         {onToggleSidebar && (

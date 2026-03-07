@@ -193,6 +193,7 @@ const publicPaths = [
   "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
   "/api/v1/twitter/callback", // Twitter OAuth callback
   "/api/v1/oauth/providers", // Public endpoint - list available OAuth providers
+  "/api/v1/oauth/callback", // Legacy OAuth callback wrapper (redirects from providers)
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",

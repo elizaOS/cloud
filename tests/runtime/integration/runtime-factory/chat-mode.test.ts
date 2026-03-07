@@ -11,6 +11,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   // Local database
   hasDatabaseUrl,
+  hasRuntimeModelCredentials,
   getConnectionString,
   verifyConnection,
   // Test data
@@ -44,8 +45,9 @@ let testData: TestDataSet;
 let runtime: TestRuntime;
 let testUser: TestUserContext;
 const timings: Record<string, number> = {};
+const skipLiveModelSuite = !hasDatabaseUrl || !hasRuntimeModelCredentials;
 
-describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - CHAT Mode", () => {
+describe.skipIf(skipLiveModelSuite)("RuntimeFactory - CHAT Mode", () => {
   beforeAll(async () => {
     console.log("\n" + "=".repeat(60));
     console.log("SETTING UP CHAT MODE TEST ENVIRONMENT");

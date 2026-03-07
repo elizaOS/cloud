@@ -21,24 +21,45 @@ export function AffiliatesPageClient() {
     const [affiliateData, setAffiliateData] = useState<AffiliateData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const [markupPercent, setMarkupPercent] = useState<string>("0.00");
+    const [markupPercent, setMarkupPercent] = useState<string>("20.00");
     const [isSaving, setIsSaving] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    const createAffiliateCode = useCallback(async (initialMarkup = 20) => {
+        const res = await fetch("/api/v1/affiliates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markupPercent: initialMarkup }),
+        });
+
+        if (!res.ok) {
+            throw new Error("Failed to create affiliate code");
+        }
+
+        const data = await res.json();
+        setAffiliateData(data.code);
+        setMarkupPercent(data.code.markup_percent);
+        return data.code as AffiliateData;
+    }, []);
 
     const fetchAffiliateData = useCallback(async () => {
         try {
             const res = await fetch("/api/v1/affiliates");
             if (res.ok) {
                 const data = await res.json();
-                setAffiliateData(data.code);
-                setMarkupPercent(data.code ? data.code.markup_percent : "0.00");
+                if (data.code) {
+                    setAffiliateData(data.code);
+                    setMarkupPercent(data.code.markup_percent);
+                } else {
+                    await createAffiliateCode();
+                }
             }
         } catch (e) {
             console.error("Failed to load affiliate data", e);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [createAffiliateCode]);
 
     useEffect(() => {
         fetchAffiliateData();
@@ -46,7 +67,7 @@ export function AffiliatesPageClient() {
 
     const handleCopyLink = () => {
         if (!affiliateData) return;
-        const url = `${window.location.origin}/login?code=${affiliateData.code}`;
+        const url = `${window.location.origin}/login?affiliate=${affiliateData.code}`;
         navigator.clipboard.writeText(url);
         setCopied(true);
         toast.success("Link copied to clipboard!");
@@ -63,7 +84,7 @@ export function AffiliatesPageClient() {
         setIsSaving(true);
         try {
             const res = await fetch("/api/v1/affiliates", {
-                method: "PUT",
+                method: affiliateData ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ markupPercent: numericValue }),
             });
@@ -104,7 +125,7 @@ export function AffiliatesPageClient() {
                             Affiliate Program
                         </h3>
                         <p className="text-sm text-white/60 mb-2">
-                            Share your customized referral link with your users and partners to earn a percentage of all their credit purchases and elizaOS Agent usage.
+                            Share your customized affiliate link with your users and partners to earn a percentage of their marked-up top-ups and MCP usage.
                         </p>
                         <p className="text-sm text-white/60">
                             When a user signs up using your link, you get a direct cut (your markup percentage) of their activity forever. You can track this revenue in your
@@ -117,9 +138,9 @@ export function AffiliatesPageClient() {
                 </div>
             </BrandCard>
 
-            {/* Referral Link */}
+            {/* Affiliate Link */}
             <BrandCard corners={false}>
-                <h3 className="text-lg font-semibold text-white mb-1">Your Referral Link</h3>
+                <h3 className="text-lg font-semibold text-white mb-1">Your Affiliate Link</h3>
                 <p className="text-sm text-white/60 mb-4">
                     Copy this link and share it anywhere. Users who create an account using this link will be automatically tracked as your referrals.
                 </p>
@@ -127,7 +148,7 @@ export function AffiliatesPageClient() {
                 <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-3">
                     <LinkIcon className="h-5 w-5 text-white/40 shrink-0" />
                     <div className="flex-1 font-mono text-white/80 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                        {typeof window !== "undefined" ? `${window.location.origin}/login?code=${affiliateData?.code}` : `${getAppUrl()}/login?code=${affiliateData?.code}`}
+                        {typeof window !== "undefined" ? `${window.location.origin}/login?affiliate=${affiliateData?.code}` : `${getAppUrl()}/login?affiliate=${affiliateData?.code}`}
                     </div>
                     <Button
                         variant="secondary"

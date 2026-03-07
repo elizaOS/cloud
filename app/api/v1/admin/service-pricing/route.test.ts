@@ -54,6 +54,7 @@ describe('Service Pricing Admin Routes', () => {
       const request = new NextRequest('http://localhost:3000/api/v1/admin/service-pricing?service_id=solana-rpc');
       vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        isAdmin: true,
         role: 'super_admin',
       });
       vi.mocked(servicePricingRepository.listByService).mockResolvedValue([
@@ -100,6 +101,7 @@ describe('Service Pricing Admin Routes', () => {
       });
       vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        isAdmin: true,
         role: 'admin',
       });
 
@@ -119,6 +121,7 @@ describe('Service Pricing Admin Routes', () => {
       });
       vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        isAdmin: true,
         role: 'admin',
       });
       vi.mocked(servicePricingRepository.upsert).mockResolvedValue({
@@ -153,6 +156,7 @@ describe('Service Pricing Admin Routes', () => {
       });
       vi.mocked(requireAdminWithResponse).mockResolvedValue({
         user: { id: 'user-1', wallet_address: 'wallet-1', organization_id: 'org-1' } as any,
+        isAdmin: true,
         role: 'admin',
       });
       vi.mocked(servicePricingRepository.upsert).mockResolvedValue({

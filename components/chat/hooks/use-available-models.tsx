@@ -1,41 +1,48 @@
-/**
- * Hook to fetch available models from the gateway API.
- * Filters to only show curated models from ALLOWED_CHAT_MODELS configuration.
- *
- * @returns {object} Models array, loading state, and error state
- */
 "use client";
 
-import { useState, useEffect } from "react";
-import { ALLOWED_CHAT_MODELS } from "@/lib/eliza/config";
+import { useEffect, useState } from "react";
+import {
+  ADDITIONAL_MODELS,
+  type CatalogModel,
+  FALLBACK_TEXT_SELECTOR_MODELS,
+  isSelectableTextModel,
+  sortSelectorModels,
+  toSelectorModel,
+  type SelectorModel,
+} from "@/lib/models";
 
-export interface Model {
-  id: string;
+interface ModelsResponse {
   object: string;
-  created: number;
-  owned_by: string;
+  data: CatalogModel[];
 }
 
-export interface ModelsResponse {
-  object: string;
-  data: Model[];
-}
+const FALLBACK_MODELS: SelectorModel[] = sortSelectorModels([
+  ...FALLBACK_TEXT_SELECTOR_MODELS.filter((model) => model.provider !== "groq"),
+  ...ADDITIONAL_MODELS.map((model) => ({
+    id: model.id,
+    name: model.name,
+    description: model.description,
+    modelId: model.modelId,
+    provider: model.provider,
+  })),
+]).filter(
+  (model, index, models) =>
+    models.findIndex((candidate) => candidate.modelId === model.modelId) ===
+    index,
+);
 
-/**
- * Hook to fetch available models from the gateway
- * Filters to only show curated models from ALLOWED_CHAT_MODELS
- */
 export function useAvailableModels() {
-  const [models, setModels] = useState<Model[]>([]);
+  const [models, setModels] = useState<SelectorModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchModels() {
       setIsLoading(true);
+
       try {
         const response = await fetch("/api/v1/models", {
-          credentials: "include", // Include session cookies for auth
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -43,27 +50,15 @@ export function useAvailableModels() {
         }
 
         const data: ModelsResponse = await response.json();
-
-        // Filter to only allowed models
-        const filteredModels = (data.data || []).filter((model) =>
-          ALLOWED_CHAT_MODELS.includes(
-            model.id as (typeof ALLOWED_CHAT_MODELS)[number],
-          ),
+        const filteredModels = sortSelectorModels(
+          (data.data || []).filter(isSelectableTextModel).map(toSelectorModel),
         );
 
-        // If no models match from API, use fallback curated list
         if (filteredModels.length === 0) {
           console.warn(
-            "[useAvailableModels] No allowed models found in API response, using defaults",
+            "[useAvailableModels] No selectable text models found in API response, using fallback catalog",
           );
-          setModels(
-            ALLOWED_CHAT_MODELS.map((id) => ({
-              id,
-              object: "model",
-              created: 0,
-              owned_by: id.split("/")[0] || "unknown",
-            })),
-          );
+          setModels(FALLBACK_MODELS);
         } else {
           setModels(filteredModels);
         }
@@ -72,7 +67,6 @@ export function useAvailableModels() {
       } catch (err) {
         console.error("[useAvailableModels] Error fetching models:", err);
 
-        // Handle authentication errors gracefully
         const errorMessage =
           err instanceof Error ? err.message : "Failed to load models";
         if (
@@ -84,22 +78,13 @@ export function useAvailableModels() {
           setError(errorMessage);
         }
 
-        // Set curated default models as fallback
-        // This ensures the UI is functional even if the API call fails
-        setModels(
-          ALLOWED_CHAT_MODELS.map((id) => ({
-            id,
-            object: "model",
-            created: 0,
-            owned_by: id.split("/")[0] || "unknown",
-          })),
-        );
+        setModels(FALLBACK_MODELS);
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchModels();
+    void fetchModels();
   }, []);
 
   return { models, isLoading, error };

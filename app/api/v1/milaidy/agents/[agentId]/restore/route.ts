@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";

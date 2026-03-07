@@ -1,8 +1,9 @@
 /**
  * Embedding Initialization Performance Test
  *
- * Tests that embedding dimension is only fetched once from the API,
- * and subsequent runtime creations skip the ~500ms embedding call.
+ * Validates that repeated runtime creation stays stable once the embedding
+ * dimension is known. Runtime startup now uses static dimension lookup, so
+ * we no longer expect a dramatic "cold vs warm" speedup from this path alone.
  *
  * Run with: bun test tests/runtime/integration/performance/embedding-init.test.ts
  */
@@ -60,10 +61,10 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
   });
 
   it(
-    "should be fast on second runtime creation (embedding dimension cached)",
+    "should keep repeated runtime creation stable once embedding dimension is known",
     async () => {
       console.log(
-        "\n--- First Runtime Creation (cold - may call embedding API) ---",
+        "\n--- First Runtime Creation (baseline) ---",
       );
 
       const firstStart = performance.now();
@@ -78,7 +79,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       console.log(`First runtime created in ${firstDuration.toFixed(0)}ms`);
       console.log(`  Agent ID: ${firstRuntime.agentId}`);
 
-      // Invalidate the runtime but keep the embedding dimension in DB
+      // Invalidate the runtime and recreate it to compare repeated startup cost.
       await firstRuntime.cleanup();
       runtimes.pop();
 
@@ -86,7 +87,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       await new Promise((r) => setTimeout(r, 100));
 
       console.log(
-        "\n--- Second Runtime Creation (warm - should skip embedding API) ---",
+        "\n--- Second Runtime Creation (repeat) ---",
       );
 
       const secondStart = performance.now();
@@ -101,7 +102,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       console.log(`Second runtime created in ${secondDuration.toFixed(0)}ms`);
       console.log(`  Agent ID: ${secondRuntime.agentId}`);
 
-      // Third runtime to confirm consistent fast times
+      // Third runtime to confirm consistent repeated startup times.
       await secondRuntime.cleanup();
       runtimes.pop();
       await new Promise((r) => setTimeout(r, 100));
@@ -130,23 +131,25 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       const avgWarm = (secondDuration + thirdDuration) / 2;
       const savings = firstDuration - avgWarm;
       const savingsPercent = (savings / firstDuration) * 100;
+      const warmVariance = Math.abs(secondDuration - thirdDuration);
 
       console.log(`\nAverage warm: ${avgWarm.toFixed(0)}ms`);
       console.log(
         `Savings: ${savings.toFixed(0)}ms (${savingsPercent.toFixed(1)}%)`,
       );
+      console.log(`Warm variance: ${warmVariance.toFixed(0)}ms`);
 
       if (savings > 300) {
         console.log(
-          `\n✅ SUCCESS: Warm starts are ${savings.toFixed(0)}ms faster (embedding cached)`,
+          `\n✅ SUCCESS: Repeated starts are ${savings.toFixed(0)}ms faster`,
         );
-      } else if (firstDuration < 500) {
+      } else if (warmVariance < 500) {
         console.log(
-          `\n✅ SUCCESS: All starts fast (<500ms) - embedding may already be cached`,
+          `\n✅ SUCCESS: Repeated starts are stable even without a large speedup`,
         );
       } else {
         console.log(
-          `\n⚠️ WARNING: Warm starts not significantly faster - check embedding caching`,
+          `\n⚠️ WARNING: Repeated starts varied more than expected`,
         );
       }
       console.log("=".repeat(60));
@@ -156,11 +159,10 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       expect(secondDuration).toBeGreaterThan(0);
       expect(thirdDuration).toBeGreaterThan(0);
 
-      // If first was slow (>500ms), subsequent should be faster
-      // If first was already fast, embedding was pre-cached
-      if (firstDuration > 500) {
-        expect(avgWarm).toBeLessThan(firstDuration * 0.8); // At least 20% faster
-      }
+      // Repeated startup should stay within a reasonable band of the baseline
+      // even when there is no dramatic "warm" speedup from embedding setup.
+      expect(avgWarm).toBeLessThan(firstDuration * 1.15);
+      expect(warmVariance).toBeLessThan(500);
     },
     { timeout: 180000 },
   );
