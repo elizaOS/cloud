@@ -8,7 +8,8 @@
 import { logger } from "@/lib/utils/logger";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import { appsRepository } from "@/db/repositories/apps";
-import type { UserDatabaseStatus } from "@/db/schemas/apps";
+import type { UserDatabaseStatus, App } from "@/db/schemas/apps";
+import { fieldEncryption } from "./field-encryption";
 
 /**
  * Result from provisioning a user database.
@@ -91,9 +92,12 @@ export class UserDatabaseService {
     // Already has a database?
     if (app.user_database_status === "ready" && app.user_database_uri) {
       logger.info("App already has database", { appId });
+      const decryptedUri = await fieldEncryption.decryptIfNeeded(
+        app.user_database_uri,
+      );
       return {
         success: true,
-        connectionUri: app.user_database_uri,
+        connectionUri: decryptedUri || undefined,
         projectId: app.user_database_project_id || undefined,
         branchId: app.user_database_branch_id || undefined,
         region: app.user_database_region || region,
@@ -118,9 +122,12 @@ export class UserDatabaseService {
         logger.info("Database was provisioned by concurrent request", {
           appId,
         });
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(
+          currentApp.user_database_uri,
+        );
         return {
           success: true,
-          connectionUri: currentApp.user_database_uri,
+          connectionUri: decryptedUri || undefined,
           projectId: currentApp.user_database_project_id || undefined,
           branchId: currentApp.user_database_branch_id || undefined,
           region: currentApp.user_database_region || region,
@@ -152,9 +159,15 @@ export class UserDatabaseService {
       // Track the project ID for potential cleanup
       createdProjectId = result.projectId;
 
-      // Store credentials
+      // Encrypt the connection URI before storing
+      const encryptedUri = await fieldEncryption.encrypt(
+        app.organization_id,
+        result.connectionUri,
+      );
+
+      // Store credentials (URI is now encrypted)
       await appsRepository.update(appId, {
-        user_database_uri: result.connectionUri,
+        user_database_uri: encryptedUri,
         user_database_project_id: result.projectId,
         user_database_branch_id: result.branchId,
         user_database_status: "ready",
@@ -263,16 +276,16 @@ export class UserDatabaseService {
    * Get connection URI for an app.
    *
    * @param appId App ID
-   * @returns Connection URI or null if no database
+   * @returns Decrypted connection URI or null if no database
    */
   async getConnectionUri(appId: string): Promise<string | null> {
     const app = await appsRepository.findById(appId);
 
-    if (!app || app.user_database_status !== "ready") {
+    if (!app || app.user_database_status !== "ready" || !app.user_database_uri) {
       return null;
     }
 
-    return app.user_database_uri || null;
+    return fieldEncryption.decryptIfNeeded(app.user_database_uri);
   }
 
   /**
@@ -300,7 +313,9 @@ export class UserDatabaseService {
     };
 
     if (includeUri && app.user_database_uri) {
-      status.connectionUri = app.user_database_uri;
+      status.connectionUri =
+        (await fieldEncryption.decryptIfNeeded(app.user_database_uri)) ||
+        undefined;
     }
 
     return status;
@@ -332,9 +347,12 @@ export class UserDatabaseService {
     // Only retry if in error state
     if (app.user_database_status !== "error") {
       if (app.user_database_status === "ready") {
+        const decryptedUri = await fieldEncryption.decryptIfNeeded(
+          app.user_database_uri,
+        );
         return {
           success: true,
-          connectionUri: app.user_database_uri || undefined,
+          connectionUri: decryptedUri || undefined,
           projectId: app.user_database_project_id || undefined,
           branchId: app.user_database_branch_id || undefined,
           region: app.user_database_region || region,
@@ -364,3 +382,21 @@ export class UserDatabaseService {
 
 // Singleton export
 export const userDatabaseService = new UserDatabaseService();
+
+/**
+ * Get decrypted database connection URI for an app.
+ *
+ * This helper handles both encrypted (enc:v1:...) and legacy plaintext URIs
+ * for backward compatibility during migration.
+ *
+ * @param app - The app object with user_database_uri field
+ * @returns Decrypted connection URI or null if no database
+ */
+export async function getDecryptedDatabaseUri(
+  app: App,
+): Promise<string | null> {
+  if (!app.user_database_uri) {
+    return null;
+  }
+  return fieldEncryption.decryptIfNeeded(app.user_database_uri);
+}

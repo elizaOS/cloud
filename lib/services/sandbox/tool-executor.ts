@@ -4,6 +4,7 @@
 
 import { logger } from "@/lib/utils/logger";
 import { appsRepository } from "@/db/repositories/apps";
+import { getDecryptedDatabaseUri } from "@/lib/services/user-database";
 import type { SandboxInstance } from "./types";
 import { isCommandAllowed } from "./security";
 import { readFileViaSh, writeFileViaSh, listFilesViaSh } from "./file-ops";
@@ -207,13 +208,17 @@ export async function executeToolCall(
               app?.user_database_status === "ready" &&
               app.user_database_uri
             ) {
-              commandEnv = { DATABASE_URL: app.user_database_uri };
+              // Decrypt the connection URI (handles both encrypted and legacy plaintext)
+              const decryptedUri = await getDecryptedDatabaseUri(app);
+              if (decryptedUri) {
+                commandEnv = { DATABASE_URL: decryptedUri };
 
-              logger.info("Injecting DATABASE_URL for database command", {
-                sandboxId,
-                appId,
-                command: command.substring(0, 80),
-              });
+                logger.info("Injecting DATABASE_URL for database command", {
+                  sandboxId,
+                  appId,
+                  command: command.substring(0, 80),
+                });
+              }
             } else if (app?.user_database_status === "provisioning") {
               return "Error: Database is still provisioning. Please wait a moment and try again.";
             } else if (!app?.user_database_uri) {

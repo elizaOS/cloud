@@ -6,6 +6,7 @@
 import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { organizationInvites } from "./organization-invites";
+import { organizationEncryptionKeys } from "./organization-encryption-keys";
 import { users } from "./users";
 import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
@@ -19,11 +20,28 @@ import { cryptoPayments } from "./crypto-payments";
 /**
  * Organizations table relations.
  */
-export const organizationsRelations = relations(organizations, ({ many }) => ({
-  users: many(users),
-  invites: many(organizationInvites),
-  apps: many(apps),
-}));
+export const organizationsRelations = relations(
+  organizations,
+  ({ one, many }) => ({
+    users: many(users),
+    invites: many(organizationInvites),
+    apps: many(apps),
+    encryptionKey: one(organizationEncryptionKeys),
+  }),
+);
+
+/**
+ * Organization encryption keys table relations.
+ */
+export const organizationEncryptionKeysRelations = relations(
+  organizationEncryptionKeys,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationEncryptionKeys.organization_id],
+      references: [organizations.id],
+    }),
+  }),
+);
 
 /**
  * Users table relations.
