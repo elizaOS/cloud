@@ -51,6 +51,8 @@ export interface SendMessageInput {
   organizationId: string;
   streaming?: boolean;
   attachments?: Attachment[];
+  /** Optional character/agent ID to use a specific agent instead of the default */
+  characterId?: string;
 }
 
 /**
@@ -294,7 +296,7 @@ class AgentsService {
    * For web chat, use the streaming endpoint directly
    */
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
-    const { roomId, message, streaming, attachments } = input;
+    const { roomId, message, streaming, attachments, characterId } = input;
 
     // Acquire distributed lock with retry
     const lock = await distributedLocks.acquireRoomLockWithRetry(
@@ -314,7 +316,11 @@ class AgentsService {
     }
 
     try {
-      const runtime = await agentRuntime.getRuntime();
+      // Use specific character runtime if provided (e.g., from WhatsApp/SMS routing),
+      // otherwise fall back to the default system runtime.
+      const runtime = characterId
+        ? await agentRuntime.getRuntimeForCharacter(characterId)
+        : await agentRuntime.getRuntime();
 
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
 
@@ -329,10 +335,11 @@ class AgentsService {
               : ContentType.DOCUMENT,
         })) ?? [];
       const { message: agentMessage, usage: messageUsage } =
-        await agentRuntime.handleMessage(roomId, {
-          text: message,
-          attachments: mediaAttachments,
-        });
+        await agentRuntime.handleMessage(
+          roomId,
+          { text: message, attachments: mediaAttachments },
+          characterId,
+        );
 
       await agentEventEmitter.emitResponseComplete(
         roomId,

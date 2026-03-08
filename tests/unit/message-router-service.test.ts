@@ -160,6 +160,18 @@ describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "
 
       expect(result).toHaveProperty("success");
     });
+
+    it("handles WhatsApp message type", async () => {
+      const result = await messageRouterService.routeIncomingMessage({
+        from: "14245071234",
+        to: "+14245074963",
+        body: "WhatsApp message",
+        provider: "whatsapp",
+        messageType: "whatsapp",
+      });
+
+      expect(result).toHaveProperty("success");
+    });
   });
 
   describe("sendMessage", () => {
@@ -195,6 +207,19 @@ describe.skipIf(!process.env.DATABASE_URL || process.env.SKIP_DB_DEPENDENT === "
         from: "+15559876543",
         body: "Test message",
         provider: "blooio",
+        organizationId: testOrgId,
+      });
+
+      // Will fail due to missing credentials
+      expect(result).toBe(false);
+    });
+
+    it("handles WhatsApp provider (fails without credentials)", async () => {
+      const result = await messageRouterService.sendMessage({
+        to: "14245071234",
+        from: "+14245074963",
+        body: "Test WhatsApp message",
+        provider: "whatsapp",
         organizationId: testOrgId,
       });
 

@@ -7,6 +7,7 @@ import { GoogleConnection } from "../google-connection";
 import { MicrosoftConnection } from "../microsoft-connection";
 import { BlooioConnection } from "../blooio-connection";
 import { TwilioConnection } from "../twilio-connection";
+import { WhatsAppConnection } from "../whatsapp-connection";
 
 export function ConnectionsTab() {
   return (
@@ -16,7 +17,7 @@ export function ConnectionsTab() {
         <DashboardSection
           label="Connections"
           title="Messaging & Communication"
-          description="Connect messaging services for AI-powered conversations via SMS, iMessage, and email."
+          description="Connect messaging services for AI-powered conversations via SMS, iMessage, WhatsApp, and email."
         />
 
         <div className="grid gap-4">
@@ -24,6 +25,7 @@ export function ConnectionsTab() {
           <MicrosoftConnection />
           <TwilioConnection />
           <BlooioConnection />
+          <WhatsAppConnection />
         </div>
       </div>
 

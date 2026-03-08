@@ -20,7 +20,7 @@ export function generateDeterministicUUID(input: string): string {
  * Generate room ID for Eliza App conversations
  */
 export function generateElizaAppRoomId(
-  channel: "telegram" | "imessage" | "discord",
+  channel: "telegram" | "imessage" | "discord" | "whatsapp",
   agentId: string,
   identifier: string,
 ): string {
@@ -31,7 +31,7 @@ export function generateElizaAppRoomId(
  * Generate entity ID for Eliza App users
  */
 export function generateElizaAppEntityId(
-  channel: "telegram" | "imessage" | "discord",
+  channel: "telegram" | "imessage" | "discord" | "whatsapp",
   identifier: string,
 ): string {
   return generateDeterministicUUID(`eliza-app:${channel}:user:${identifier}`);

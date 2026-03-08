@@ -63,10 +63,10 @@ export interface IncomingMessage {
   from: string;
   to: string;
   body: string;
-  provider: "twilio" | "blooio";
+  provider: "twilio" | "blooio" | "whatsapp";
   providerMessageId?: string;
   mediaUrls?: string[];
-  messageType?: "sms" | "mms" | "voice" | "imessage";
+  messageType?: "sms" | "mms" | "voice" | "imessage" | "whatsapp";
   metadata?: Record<string, unknown>;
 }
 
@@ -88,7 +88,7 @@ export interface SendMessageParams {
   to: string;
   from: string;
   body: string;
-  provider: "twilio" | "blooio";
+  provider: "twilio" | "blooio" | "whatsapp";
   mediaUrls?: string[];
   organizationId: string;
 }
@@ -232,7 +232,9 @@ class MessageRouterService {
         url,
       }));
 
-      // Send message to agent via the standard interface
+      // Send message to agent via the standard interface.
+      // Pass agentId as characterId so the runtime loads the correct character
+      // (e.g., "Dr. Alex Chen") instead of the default "Eliza" agent.
       const response = await agentsService.sendMessage({
         roomId,
         entityId,
@@ -240,6 +242,7 @@ class MessageRouterService {
         organizationId,
         streaming: false,
         attachments,
+        characterId: agentId,
       });
 
       if (response) {
@@ -284,36 +287,45 @@ class MessageRouterService {
   }
 
   /**
-   * Generate a deterministic entity ID for a phone number
+   * Generate a deterministic entity ID for a phone number.
+   * Returns a valid UUID derived from the phone number hash.
    */
   private generateEntityId(phoneNumber: string): string {
     const normalized = normalizePhoneNumber(phoneNumber);
-    // Use a simple hash to create a UUID-like ID
-    const hash = this.secureHash(normalized);
-    return `phone-${hash}`;
+    return this.hashToUuid(`entity:${normalized}`);
   }
 
   /**
-   * Generate a deterministic room ID for a phone conversation
+   * Generate a deterministic room ID for a phone conversation.
+   * Returns a valid UUID derived from the agent + phone numbers hash.
    */
   private generateRoomId(agentId: string, from: string, to: string): string {
     const normalizedFrom = normalizePhoneNumber(from);
     const normalizedTo = normalizePhoneNumber(to);
     // Sort to ensure consistency regardless of direction
     const sorted = [normalizedFrom, normalizedTo].sort().join("-");
-    const hash = this.secureHash(`${agentId}:${sorted}`);
-    return `room-phone-${hash}`;
+    return this.hashToUuid(`room:${agentId}:${sorted}`);
   }
 
   /**
-   * Secure hash function for generating deterministic IDs
-   * Uses SHA-256 for collision resistance and unpredictability
+   * Generate a deterministic UUID from a string input.
+   * Uses SHA-256 and formats the first 32 hex chars as a UUID v4-like string.
+   * The version nibble is set to 4 and the variant bits to 10xx for RFC 4122 compliance.
    */
-  private secureHash(str: string): string {
-    return createHash("sha256")
-      .update(str)
-      .digest("hex")
-      .substring(0, 16);
+  private hashToUuid(str: string): string {
+    const hex = createHash("sha256").update(str).digest("hex").substring(0, 32);
+    // Format as UUID: 8-4-4-4-12
+    // Set version nibble (position 12) to 4 and variant bits (position 16) to 8-b
+    const chars = hex.split("");
+    chars[12] = "4"; // version 4
+    chars[16] = ((parseInt(chars[16], 16) & 0x3) | 0x8).toString(16); // variant 10xx
+    return [
+      chars.slice(0, 8).join(""),
+      chars.slice(8, 12).join(""),
+      chars.slice(12, 16).join(""),
+      chars.slice(16, 20).join(""),
+      chars.slice(20, 32).join(""),
+    ].join("-");
   }
 
   /**
@@ -344,6 +356,8 @@ class MessageRouterService {
         return await this.sendViaTwilio(params);
       } else if (params.provider === "blooio") {
         return await this.sendViaBlooio(params);
+      } else if (params.provider === "whatsapp") {
+        return await this.sendViaWhatsApp(params);
       }
 
       logger.error("[MessageRouter] Unknown provider", {
@@ -454,6 +468,50 @@ class MessageRouterService {
   }
 
   /**
+   * Send message via WhatsApp Cloud API.
+   * Tries org-specific credentials from secrets service first,
+   * falls back to global elizaAppConfig for the public bot.
+   */
+  private async sendViaWhatsApp(params: SendMessageParams): Promise<boolean> {
+    try {
+      const { sendWhatsAppMessage } = await import("@/lib/utils/whatsapp-api");
+      const { secretsService } = await import("@/lib/services/secrets");
+      const { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } = await import("@/lib/constants/secrets");
+
+      // Try org-specific credentials first (from secrets service)
+      let accessToken = await secretsService.get(params.organizationId, WHATSAPP_ACCESS_TOKEN);
+      let phoneNumberId = await secretsService.get(params.organizationId, WHATSAPP_PHONE_NUMBER_ID);
+
+      // Fall back to global config (for eliza-app public bot)
+      if (!accessToken || !phoneNumberId) {
+        const { elizaAppConfig } = await import("@/lib/services/eliza-app/config");
+        accessToken = accessToken || elizaAppConfig.whatsapp.accessToken;
+        phoneNumberId = phoneNumberId || elizaAppConfig.whatsapp.phoneNumberId;
+      }
+
+      if (!accessToken || !phoneNumberId) {
+        logger.error("[MessageRouter] Missing WhatsApp credentials", {
+          organizationId: params.organizationId,
+        });
+        return false;
+      }
+
+      await sendWhatsAppMessage(accessToken, phoneNumberId, params.to, params.body);
+
+      logger.info("[MessageRouter] WhatsApp message sent successfully", {
+        organizationId: params.organizationId,
+      });
+      return true;
+    } catch (error) {
+      logger.error("[MessageRouter] WhatsApp send error", {
+        organizationId: params.organizationId,
+        error,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Log a message to the phone_message_log table
    */
   private async logMessage(params: {
@@ -538,8 +596,8 @@ class MessageRouterService {
     organizationId: string;
     agentId: string;
     phoneNumber: string;
-    provider: "twilio" | "blooio";
-    phoneType?: "sms" | "voice" | "both" | "imessage";
+    provider: "twilio" | "blooio" | "whatsapp";
+    phoneType?: "sms" | "voice" | "both" | "imessage" | "whatsapp";
     friendlyName?: string;
     capabilities?: {
       canSendSms?: boolean;
