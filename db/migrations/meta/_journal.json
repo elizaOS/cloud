@@ -316,6 +316,13 @@
       "when": 1772873400000,
       "tag": "0044_add_whatsapp_identity_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1772969400000,
+      "tag": "0045_add_redeemable_earnings_breakdown_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,8 @@ import {
   test,
 } from "bun:test";
 import { NextRequest } from "next/server";
+import { cache } from "@/lib/cache/client";
+import { logger } from "@/lib/utils/logger";
 import { jsonRequest } from "../unit/api/route-test-helpers";
 
 const mockRequireAuthOrApiKey = mock();
@@ -18,6 +20,13 @@ const mockProviderGetModel = mock();
 const mockCacheGetWithSWR = mock();
 const mockCacheSet = mock();
 const mockCacheIsAvailable = mock();
+const originalCacheGetWithSWR = cache.getWithSWR.bind(cache);
+const originalCacheSet = cache.set.bind(cache);
+const originalCacheIsAvailable = cache.isAvailable.bind(cache);
+const originalLoggerInfo = logger.info;
+const originalLoggerWarn = logger.warn;
+const originalLoggerError = logger.error;
+const originalLoggerDebug = logger.debug;
 
 type CachedEntry<T> = {
   data: T;
@@ -80,23 +89,6 @@ mock.module("@/lib/providers", () => ({
   hasGroqProviderConfigured: () => false,
 }));
 
-mock.module("@/lib/cache/client", () => ({
-  cache: {
-    getWithSWR: mockCacheGetWithSWR,
-    set: mockCacheSet,
-    isAvailable: mockCacheIsAvailable,
-  },
-}));
-
-mock.module("@/lib/utils/logger", () => ({
-  logger: {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
-  },
-}));
-
 import { GET as getModels } from "@/app/api/v1/models/route";
 import { POST as getModelStatus } from "@/app/api/v1/models/status/route";
 import { GET as getModelDetail } from "@/app/api/v1/models/[...model]/route";
@@ -133,6 +125,14 @@ describe("Model catalog cache E2E", () => {
     mockCacheGetWithSWR.mockReset();
     mockCacheSet.mockReset();
     mockCacheIsAvailable.mockReset();
+
+    cache.getWithSWR = mockCacheGetWithSWR;
+    cache.set = mockCacheSet;
+    cache.isAvailable = mockCacheIsAvailable;
+    logger.info = () => {};
+    logger.warn = () => {};
+    logger.error = () => {};
+    logger.debug = () => {};
 
     mockRequireAuthOrApiKey.mockResolvedValue({
       user: { id: "user-1", organization_id: "org-1" },
@@ -199,6 +199,13 @@ describe("Model catalog cache E2E", () => {
   });
 
   afterAll(() => {
+    cache.getWithSWR = originalCacheGetWithSWR;
+    cache.set = originalCacheSet;
+    cache.isAvailable = originalCacheIsAvailable;
+    logger.info = originalLoggerInfo;
+    logger.warn = originalLoggerWarn;
+    logger.error = originalLoggerError;
+    logger.debug = originalLoggerDebug;
     delete process.env.CRON_SECRET;
     mock.restore();
   });

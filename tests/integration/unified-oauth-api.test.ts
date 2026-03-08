@@ -35,7 +35,9 @@ import { createEncryptionService } from "@/lib/services/secrets/encryption";
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
-const TIMEOUT = 15000;
+// Use a wider request timeout because these E2E tests run against a managed
+// Next dev server that may restart or recompile routes between requests.
+const TIMEOUT = 30000;
 const CACHE_CONFIGURED =
   !!process.env.KV_REST_API_URL &&
   !!process.env.KV_REST_API_TOKEN &&

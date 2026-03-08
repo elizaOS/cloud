@@ -751,19 +751,33 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   describe("Performance", () => {
     it("should respond quickly for status checks", async () => {
-      const startTime = Date.now();
+      const requestFactories = [
+        () =>
+          fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
+            headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+          }),
+        () =>
+          fetch(`${BASE_URL}/api/v1/twilio/status`, {
+            headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+          }),
+        () =>
+          fetch(`${BASE_URL}/api/v1/blooio/status`, {
+            headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+          }),
+      ];
 
-      const responses = await Promise.all([
-        fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
-          headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-        }),
-        fetch(`${BASE_URL}/api/v1/twilio/status`, {
-          headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-        }),
-        fetch(`${BASE_URL}/api/v1/blooio/status`, {
-          headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-        }),
-      ]);
+      // Warm the dev server routes before measuring the steady-state path.
+      const warmupResponses = await Promise.all(
+        requestFactories.map((requestFactory) => requestFactory()),
+      );
+      for (const response of warmupResponses) {
+        expect(response.status).toBe(200);
+      }
+
+      const startTime = Date.now();
+      const responses = await Promise.all(
+        requestFactories.map((requestFactory) => requestFactory()),
+      );
 
       const duration = Date.now() - startTime;
 

@@ -8,17 +8,9 @@
  * - SKIP_SERVER_CHECK=true: Skip the local server check (for unit tests in CI)
  */
 
+import "./load-env";
+
 const LOCAL_SERVER_URL = "http://localhost:3000";
-
-// Set NODE_ENV to test - this makes getElizaCloudApiUrl() return localhost
-process.env.NODE_ENV = "test";
-
-// Explicitly set the cloud base URL to localhost for safety
-// This is a belt-and-suspenders approach - getElizaCloudApiUrl() checks this first
-process.env.ELIZAOS_CLOUD_BASE_URL = `${LOCAL_SERVER_URL}/api/v1`;
-
-// Block anonymous sessions in tests by default
-process.env.TEST_BLOCK_ANONYMOUS = "true";
 
 /**
  * Verify local server is running before any tests execute

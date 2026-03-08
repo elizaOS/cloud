@@ -3,10 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockGetTopupRecipient = mock();
 const originalX402RecipientAddress = process.env.X402_RECIPIENT_ADDRESS;
-const mockOrganizationsService = {
-    create: mock(),
-    updateCreditBalance: mock(),
-};
+const mockUpdateCreditBalance = mock();
 const mockApplyReferralCode = mock();
 const mockCalculateRevenueSplits = mock();
 let referralsServiceForTest: {
@@ -15,10 +12,16 @@ let referralsServiceForTest: {
 } | null = null;
 let originalApplyReferralCode: unknown;
 let originalCalculateRevenueSplits: unknown;
+let organizationsServiceForTest: {
+    updateCreditBalance: typeof mockUpdateCreditBalance;
+} | null = null;
+let originalUpdateCreditBalance: unknown;
 
-const mockRedeemableEarningsService = {
-    addEarnings: mock().mockResolvedValue(true),
-};
+const mockAddEarnings = mock().mockResolvedValue(true);
+let redeemableEarningsServiceForTest: {
+    addEarnings: typeof mockAddEarnings;
+} | null = null;
+let originalAddEarnings: unknown;
 
 describe("x402 Topup Endpoints", () => {
     const mockWallet = "0x1234567890abcdef1234567890abcdef12345678";
@@ -27,11 +30,21 @@ describe("x402 Topup Endpoints", () => {
 
     beforeAll(async () => {
         const actualReferralsModule = await import("@/lib/services/referrals");
+        const actualOrganizationsModule = await import("@/lib/services/organizations");
+        const actualRedeemableEarningsModule = await import("@/lib/services/redeemable-earnings");
         referralsServiceForTest = actualReferralsModule.referralsService as typeof referralsServiceForTest;
         originalApplyReferralCode = referralsServiceForTest.applyReferralCode;
         originalCalculateRevenueSplits = referralsServiceForTest.calculateRevenueSplits;
         referralsServiceForTest.applyReferralCode = mockApplyReferralCode;
         referralsServiceForTest.calculateRevenueSplits = mockCalculateRevenueSplits;
+        organizationsServiceForTest =
+            actualOrganizationsModule.organizationsService as typeof organizationsServiceForTest;
+        originalUpdateCreditBalance = organizationsServiceForTest.updateCreditBalance;
+        organizationsServiceForTest.updateCreditBalance = mockUpdateCreditBalance;
+        redeemableEarningsServiceForTest =
+            actualRedeemableEarningsModule.redeemableEarningsService as typeof redeemableEarningsServiceForTest;
+        originalAddEarnings = redeemableEarningsServiceForTest.addEarnings;
+        redeemableEarningsServiceForTest.addEarnings = mockAddEarnings;
 
         mock.module("x402-next", () => ({
             withX402: (handler: any) => handler,
@@ -40,24 +53,16 @@ describe("x402 Topup Endpoints", () => {
         mock.module("@/lib/services/topup", () => ({
             getTopupRecipient: mockGetTopupRecipient,
         }));
-
-        mock.module("@/lib/services/organizations", () => ({
-            organizationsService: mockOrganizationsService,
-        }));
-
-        mock.module("@/lib/services/redeemable-earnings", () => ({
-            redeemableEarningsService: mockRedeemableEarningsService,
-        }));
     });
 
     beforeEach(() => {
         process.env.X402_RECIPIENT_ADDRESS = mockWallet;
-        mockOrganizationsService.updateCreditBalance.mockResolvedValue({ success: true, newBalance: 10 });
+        mockUpdateCreditBalance.mockResolvedValue({ success: true, newBalance: 10 });
         mockApplyReferralCode.mockReset();
         mockApplyReferralCode.mockResolvedValue({ success: true, message: "Referral code already applied" });
         mockCalculateRevenueSplits.mockReset();
         mockCalculateRevenueSplits.mockResolvedValue({ splits: [] });
-        mockRedeemableEarningsService.addEarnings.mockClear();
+        mockAddEarnings.mockClear();
         mockGetTopupRecipient.mockImplementation((_req: NextRequest, body: { walletAddress?: string }) => {
             if (!body?.walletAddress?.trim()) {
                 return Promise.reject(new Error("walletAddress is required (body or wallet signature headers)"));
@@ -75,7 +80,7 @@ describe("x402 Topup Endpoints", () => {
     });
 
     afterEach(() => {
-        mockOrganizationsService.updateCreditBalance.mockClear();
+        mockUpdateCreditBalance.mockClear();
     });
 
     afterAll(() => {
@@ -83,6 +88,14 @@ describe("x402 Topup Endpoints", () => {
             referralsServiceForTest.applyReferralCode = originalApplyReferralCode as typeof mockApplyReferralCode;
             referralsServiceForTest.calculateRevenueSplits =
                 originalCalculateRevenueSplits as typeof mockCalculateRevenueSplits;
+        }
+        if (organizationsServiceForTest) {
+            organizationsServiceForTest.updateCreditBalance =
+                originalUpdateCreditBalance as typeof mockUpdateCreditBalance;
+        }
+        if (redeemableEarningsServiceForTest) {
+            redeemableEarningsServiceForTest.addEarnings =
+                originalAddEarnings as typeof mockAddEarnings;
         }
         if (originalX402RecipientAddress === undefined) {
             delete process.env.X402_RECIPIENT_ADDRESS;
@@ -106,7 +119,7 @@ describe("x402 Topup Endpoints", () => {
         expect(data.success).toBe(true);
         expect(data.amount).toBe(10);
 
-        expect(mockOrganizationsService.updateCreditBalance).toHaveBeenCalledWith(mockOrgId, 10);
+        expect(mockUpdateCreditBalance).toHaveBeenCalledWith(mockOrgId, 10);
     });
 
     it("should topup 50 credits successfully for an existing user", async () => {
@@ -123,7 +136,7 @@ describe("x402 Topup Endpoints", () => {
         expect(data.success).toBe(true);
         expect(data.amount).toBe(50);
 
-        expect(mockOrganizationsService.updateCreditBalance).toHaveBeenCalledWith(mockOrgId, 50);
+        expect(mockUpdateCreditBalance).toHaveBeenCalledWith(mockOrgId, 50);
     });
 
     it("should apply referral attribution and credit revenue splits from query params", async () => {
@@ -152,7 +165,7 @@ describe("x402 Topup Endpoints", () => {
             { appOwnerId: "owner-1" },
         );
         expect(mockCalculateRevenueSplits).toHaveBeenCalledWith(mockUserId, 10);
-        expect(mockRedeemableEarningsService.addEarnings).toHaveBeenCalledWith(
+        expect(mockAddEarnings).toHaveBeenCalledWith(
             expect.objectContaining({
                 userId: "creator-user",
                 amount: 5,

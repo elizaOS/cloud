@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { DebugTrace, DebugRenderView } from "../../lib/debug";
 
 // Import server check - this must complete before tests run
-import { serverCheck } from "../setup";
+import { serverReady } from "../e2e/setup-server";
 
 // Re-export the production RuntimeFactory directly
 export {
@@ -153,7 +153,7 @@ export async function createTestRuntime(
   options: CreateTestRuntimeOptions,
 ): Promise<TestRuntimeResult> {
   // Ensure local server is running before proceeding
-  await serverCheck;
+  await serverReady;
 
   // Validate test data
   validateTestData(options.testData);

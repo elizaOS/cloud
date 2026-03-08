@@ -157,6 +157,7 @@ const publicPaths = [
   "/payment/success",
   "/dashboard/chat",
   "/chat",
+  "/api/health",
   "/api/eliza",
   "/api/models",
   "/api/fal/proxy",

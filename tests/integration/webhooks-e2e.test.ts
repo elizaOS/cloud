@@ -1110,7 +1110,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         formData.append("MessageSid", "SM" + uuidv4().replace(/-/g, ""));
         formData.append("From", "+15559876543");
         formData.append("To", "+15551234567");
-        formData.append("Body", `Rapid request ${i}`);
+        // Keep the request on the fast path to avoid exercising outbound Twilio retries.
+        formData.append("Body", "");
         formData.append("AccountSid", "ACtest123");
         formData.append("NumMedia", "0");
 

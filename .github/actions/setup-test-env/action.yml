@@ -1,0 +1,40 @@
+name: Setup Test Environment
+description: Common setup for Bun-based test jobs with optional local services.
+
+inputs:
+  setup-db:
+    description: Start postgres/redis and run migrations.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    - name: Start postgres and redis
+      if: inputs.setup-db == 'true'
+      shell: bash
+      run: |
+        docker compose up -d postgres redis
+        timeout 60 bash -c 'until docker compose exec -T postgres pg_isready -U eliza_dev -d eliza_dev >/dev/null 2>&1; do sleep 1; done'
+
+    - name: Enable postgres extensions
+      if: inputs.setup-db == 'true'
+      shell: bash
+      env:
+        PGPASSWORD: local_dev_password
+      run: |
+        docker compose exec -T postgres psql -U eliza_dev -d eliza_dev -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+    - name: Run database migrations
+      if: inputs.setup-db == 'true'
+      shell: bash
+      env:
+        DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+        TEST_DATABASE_URL: postgresql://eliza_dev:local_dev_password@localhost:5432/eliza_dev
+      run: bun run db:migrate
