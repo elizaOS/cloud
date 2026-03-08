@@ -92,6 +92,7 @@ const CRUCIAL_TOOLS: Record<string, string[]> = {
     "twitter_status",
     "twitter_get_me",
     "twitter_get_my_tweets",
+    "twitter_get_mentions",
     "twitter_create_tweet",
     "twitter_search_tweets",
   ],

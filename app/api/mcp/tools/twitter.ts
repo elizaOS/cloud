@@ -27,22 +27,12 @@ async function getTwitterClient(): Promise<TwitterApi> {
   }
 
   const { user } = getAuthContext();
+  let result;
 
   try {
-    const result = await oauthService.getValidTokenByPlatform({
+    result = await oauthService.getValidTokenByPlatform({
       organizationId: user.organization_id,
       platform: "twitter",
-    });
-
-    if (!result.accessTokenSecret) {
-      throw new Error("Twitter access token secret is missing. Reconnect Twitter in Settings > Connections.");
-    }
-
-    return new TwitterApi({
-      appKey: TWITTER_API_KEY,
-      appSecret: TWITTER_API_SECRET_KEY,
-      accessToken: result.accessToken,
-      accessSecret: result.accessTokenSecret,
     });
   } catch (error) {
     logger.warn("[TwitterMCP] Failed to get token", {
@@ -51,6 +41,22 @@ async function getTwitterClient(): Promise<TwitterApi> {
     });
     throw new Error("Twitter account not connected. Connect in Settings > Connections.");
   }
+
+  if (!result.accessTokenSecret) {
+    logger.warn("[TwitterMCP] Access token secret missing", {
+      organizationId: user.organization_id,
+    });
+    throw new Error(
+      "Twitter access token secret is missing. Reconnect Twitter in Settings > Connections.",
+    );
+  }
+
+  return new TwitterApi({
+    appKey: TWITTER_API_KEY,
+    appSecret: TWITTER_API_SECRET_KEY,
+    accessToken: result.accessToken,
+    accessSecret: result.accessTokenSecret,
+  });
 }
 
 const userIdCache = new Map<string, { id: string; expiry: number }>();
@@ -98,6 +104,22 @@ async function resolveUserIdFromUsername(client: TwitterApi, username: string): 
   return user.data.id;
 }
 
+async function resolveTargetUserId(
+  client: TwitterApi,
+  targetUserId?: string,
+  username?: string,
+): Promise<string> {
+  if (targetUserId) {
+    return targetUserId;
+  }
+
+  if (!username) {
+    throw new Error("Provide either targetUserId or username");
+  }
+
+  return await resolveUserIdFromUsername(client, username);
+}
+
 function extractTweetIdFromUrl(url: string): string | null {
   const match = url.match(/(?:(?:mobile\.)?twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
   return match ? match[1] : null;
@@ -112,7 +134,38 @@ const USER_PROFILE_FIELDS = ["description", "public_metrics", "profile_image_url
 const USER_SUMMARY_FIELDS = ["description", "public_metrics", "profile_image_url", "verified"];
 
 // ── Shared mappers ───────────────────────────────────────────────────────────
-function mapTweetSummary(t: Record<string, unknown>): Record<string, unknown> {
+type TweetSummaryRecord = {
+  id: string;
+  text: string;
+  created_at?: string;
+  public_metrics?: unknown;
+  author_id?: string;
+  referenced_tweets?: unknown;
+};
+
+type UserProfileRecord = {
+  id: string;
+  username: string;
+  name: string;
+  description?: string | null;
+  profile_image_url?: string | null;
+  public_metrics?: unknown;
+  created_at?: string;
+  location?: string | null;
+  url?: string | null;
+  verified?: boolean;
+};
+
+type UserSummaryRecord = {
+  id: string;
+  username: string;
+  name: string;
+  description?: string | null;
+  public_metrics?: unknown;
+  verified?: boolean;
+};
+
+function mapTweetSummary(t: TweetSummaryRecord): Record<string, unknown> {
   const mapped: Record<string, unknown> = {
     id: t.id,
     text: t.text,
@@ -124,7 +177,7 @@ function mapTweetSummary(t: Record<string, unknown>): Record<string, unknown> {
   return mapped;
 }
 
-function mapUserProfile(data: Record<string, unknown>): Record<string, unknown> {
+function mapUserProfile(data: UserProfileRecord): Record<string, unknown> {
   return {
     id: data.id,
     username: data.username,
@@ -139,7 +192,7 @@ function mapUserProfile(data: Record<string, unknown>): Record<string, unknown> 
   };
 }
 
-function mapUserSummary(u: Record<string, unknown>): Record<string, unknown> {
+function mapUserSummary(u: UserSummaryRecord): Record<string, unknown> {
   return {
     id: u.id,
     username: u.username,
@@ -608,10 +661,8 @@ export function registerTwitterTools(server: McpServer): void {
           return errorResponse("Provide either targetUserId or username");
         }
         const client = await getTwitterClient();
-        // biome-ignore lint/style/noNonNullAssertion: guarded by !targetUserId && !username check above
-        const resolvedUsername = username!;
         const [resolvedId, userId] = await Promise.all([
-          targetUserId ? Promise.resolve(targetUserId) : resolveUserIdFromUsername(client, resolvedUsername),
+          resolveTargetUserId(client, targetUserId, username),
           getAuthenticatedUserId(client),
         ]);
         const result = await client.v2.follow(userId, resolvedId);
@@ -639,10 +690,8 @@ export function registerTwitterTools(server: McpServer): void {
           return errorResponse("Provide either targetUserId or username");
         }
         const client = await getTwitterClient();
-        // biome-ignore lint/style/noNonNullAssertion: guarded by !targetUserId && !username check above
-        const resolvedUsername = username!;
         const [resolvedId, userId] = await Promise.all([
-          targetUserId ? Promise.resolve(targetUserId) : resolveUserIdFromUsername(client, resolvedUsername),
+          resolveTargetUserId(client, targetUserId, username),
           getAuthenticatedUserId(client),
         ]);
         const result = await client.v2.unfollow(userId, resolvedId);
