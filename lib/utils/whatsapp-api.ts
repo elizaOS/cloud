@@ -125,7 +125,7 @@ export function verifyWhatsAppSignature(
   signatureHeader: string,
   rawBody: string,
 ): boolean {
-  if (!signatureHeader || !appSecret) {
+  if (!signatureHeader || !appSecret || !signatureHeader.startsWith("sha256=")) {
     return false;
   }
 

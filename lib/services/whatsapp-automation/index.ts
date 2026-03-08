@@ -192,14 +192,13 @@ class WhatsAppAutomationService {
       }
     };
 
-    const previousValues = new Map<string, string | null>(
-      await Promise.all(
-        secretEntries.map(async ([name]) => [
-          name,
-          await secretsService.get(organizationId, name),
-        ]),
-      ),
+    const previousValueEntries = await Promise.all(
+      secretEntries.map(async ([name]): Promise<[string, string | null]> => [
+        name,
+        await secretsService.get(organizationId, name),
+      ]),
     );
+    const previousValues = new Map<string, string | null>(previousValueEntries);
 
     try {
       for (const [name, value] of secretEntries) {

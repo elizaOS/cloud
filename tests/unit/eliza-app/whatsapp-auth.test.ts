@@ -10,7 +10,7 @@
 
 import { describe, test, expect } from "bun:test";
 import { createHmac } from "crypto";
-import { verifyWhatsAppSignature } from "../../lib/utils/whatsapp-api";
+import { verifyWhatsAppSignature } from "../../../lib/utils/whatsapp-api";
 
 const TEST_APP_SECRET = "test_whatsapp_app_secret_abc123";
 const TEST_VERIFY_TOKEN = "my_verify_token_xyz";
