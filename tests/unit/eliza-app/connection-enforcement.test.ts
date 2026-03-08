@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 const mockGenerateText = mock();
 const mockGetConnectedPlatforms = mock();
@@ -47,6 +47,10 @@ import {
   connectionEnforcementService,
   detectProviderFromMessage,
 } from "@/lib/services/eliza-app/connection-enforcement";
+
+afterEach(() => {
+  mock.restore();
+});
 
 beforeEach(() => {
   cacheStore.clear();

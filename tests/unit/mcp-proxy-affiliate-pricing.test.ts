@@ -121,6 +121,7 @@ describe("MCP proxy affiliate pricing", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    mock.restore();
   });
 
   test("charges affiliate and platform fees on top of the base MCP price", async () => {
