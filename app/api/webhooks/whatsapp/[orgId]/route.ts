@@ -39,7 +39,7 @@ interface RouteParams {
 
 async function handleWhatsAppWebhook(
   request: NextRequest,
-  context?: { params: Promise<RouteParams["params"]> },
+  context?: RouteParams,
 ): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
@@ -170,7 +170,7 @@ async function handleWhatsAppWebhook(
 
 async function handleWhatsAppVerification(
   request: NextRequest,
-  context?: { params: Promise<RouteParams["params"]> },
+  context?: RouteParams,
 ): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
