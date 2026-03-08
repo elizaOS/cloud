@@ -17,11 +17,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import {
+  elizaAppUserService,
+  connectionEnforcementService,
+} from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
-import { normalizePhoneNumber, isValidE164 } from "@/lib/utils/phone-normalization";
-import { isValidEmail, normalizeEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
+import {
+  normalizePhoneNumber,
+  isValidE164,
+} from "@/lib/utils/phone-normalization";
+import {
+  isValidEmail,
+  normalizeEmail,
+  maskEmailForLogging,
+} from "@/lib/utils/email-validation";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import {
   verifyBlooioSignature,
@@ -86,17 +96,21 @@ async function sendBlooioMessage(
   }
 }
 
-async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean> {
+async function handleIncomingMessage(
+  event: BlooioWebhookEvent,
+): Promise<boolean> {
   if (!event.sender) return true; // Not applicable, mark as processed
   if (event.is_group) return true; // Not applicable, mark as processed
   const { apiKey, phoneNumber } = getBlooioConfig();
 
   // Mark the chat as read immediately for better UX (sends read receipt)
-  markChatAsRead(apiKey, event.sender, { fromNumber: phoneNumber })
-    .catch((err) => logger.warn("[ElizaApp BlooioWebhook] Failed to mark chat as read", {
-      sender: event.sender,
-      error: err instanceof Error ? err.message : String(err),
-    }));
+  markChatAsRead(apiKey, event.sender, { fromNumber: phoneNumber }).catch(
+    (err) =>
+      logger.warn("[ElizaApp BlooioWebhook] Failed to mark chat as read", {
+        sender: event.sender,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+  );
 
   const text = event.text?.trim();
   const mediaUrls = extractBlooioMediaUrls(event.attachments);
@@ -106,8 +120,12 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   const senderRaw = event.sender.trim();
   const isEmailSender = senderRaw.includes("@");
 
-  let userWithOrg: Awaited<ReturnType<typeof elizaAppUserService.findOrCreateByPhone>>["user"];
-  let organization: Awaited<ReturnType<typeof elizaAppUserService.findOrCreateByPhone>>["organization"];
+  let userWithOrg: Awaited<
+    ReturnType<typeof elizaAppUserService.findOrCreateByPhone>
+  >["user"];
+  let organization: Awaited<
+    ReturnType<typeof elizaAppUserService.findOrCreateByPhone>
+  >["organization"];
   let isNew: boolean;
   let senderIdentifier: string;
 
@@ -149,7 +167,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
     }
 
     logger.info("[ElizaApp BlooioWebhook] Auto-provisioning user by phone", {
-      phoneNumber: `***${phoneNumber.slice(-4)}`
+      phoneNumber: `***${phoneNumber.slice(-4)}`,
     });
     const result = await elizaAppUserService.findOrCreateByPhone(phoneNumber);
     userWithOrg = result.user;
@@ -164,7 +182,24 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
     });
   }
 
-  const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, senderIdentifier);
+  const hasRequiredConnection =
+    await connectionEnforcementService.hasRequiredConnection(organization.id);
+  if (!hasRequiredConnection) {
+    const nudgeText = await connectionEnforcementService.generateNudgeResponse({
+      userMessage: text || "",
+      platform: "imessage",
+      organizationId: organization.id,
+      userId: userWithOrg.id,
+    });
+    await sendBlooioMessage(senderIdentifier, nudgeText);
+    return true;
+  }
+
+  const roomId = generateElizaAppRoomId(
+    "imessage",
+    DEFAULT_AGENT_ID,
+    senderIdentifier,
+  );
   const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
   const existingRoom = await roomsService.getRoomSummary(roomId);
@@ -191,7 +226,11 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   } catch (error) {
     // Ignore "already exists" errors, re-throw others
     const msg = error instanceof Error ? error.message : String(error);
-    if (!msg.includes("already") && !msg.includes("duplicate") && !msg.includes("exists")) {
+    if (
+      !msg.includes("already") &&
+      !msg.includes("duplicate") &&
+      !msg.includes("exists")
+    ) {
       throw error;
     }
   }
@@ -210,7 +249,9 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   });
 
   if (!lock) {
-    logger.error("[ElizaApp BlooioWebhook] Failed to acquire room lock", { roomId });
+    logger.error("[ElizaApp BlooioWebhook] Failed to acquire room lock", {
+      roomId,
+    });
     return false; // Don't mark as processed - allow retry
   }
 
@@ -268,7 +309,9 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   }
 }
 
-async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> {
+async function handleBlooioWebhook(
+  request: NextRequest,
+): Promise<NextResponse> {
   const webhookSecret = getBlooioConfig().webhookSecret;
   const rawBody = await request.text();
   const skipVerification =
@@ -278,14 +321,23 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
   // Fail closed: require webhook secret unless explicitly skipped in dev
   if (!webhookSecret) {
     if (skipVerification) {
-      logger.warn("[ElizaApp BlooioWebhook] Signature verification skipped (dev mode)");
+      logger.warn(
+        "[ElizaApp BlooioWebhook] Signature verification skipped (dev mode)",
+      );
     } else {
       logger.error("[ElizaApp BlooioWebhook] WEBHOOK_SECRET is required");
-      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Webhook not configured" },
+        { status: 500 },
+      );
     }
   } else {
     const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
-    const isValid = await verifyBlooioSignature(webhookSecret, signatureHeader, rawBody);
+    const isValid = await verifyBlooioSignature(
+      webhookSecret,
+      signatureHeader,
+      rawBody,
+    );
 
     if (!isValid) {
       logger.warn("[ElizaApp BlooioWebhook] Invalid signature");
@@ -329,7 +381,9 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
   if (payload.message_id) {
     const idempotencyKey = `blooio:eliza-app:${payload.message_id}`;
     if (await isAlreadyProcessed(idempotencyKey)) {
-      logger.info("[ElizaApp BlooioWebhook] Skipping duplicate", { messageId: payload.message_id });
+      logger.info("[ElizaApp BlooioWebhook] Skipping duplicate", {
+        messageId: payload.message_id,
+      });
       return NextResponse.json({ success: true, status: "already_processed" });
     }
   }
@@ -342,28 +396,38 @@ async function handleBlooioWebhook(request: NextRequest): Promise<NextResponse> 
     });
     processed = await handleIncomingMessage(payload);
   } else if (payload.event === "message.failed") {
-    logger.error("[ElizaApp BlooioWebhook] Delivery failed", { messageId: payload.message_id });
+    logger.error("[ElizaApp BlooioWebhook] Delivery failed", {
+      messageId: payload.message_id,
+    });
   } else {
-    logger.info("[ElizaApp BlooioWebhook] Ignoring event type", { event: payload.event });
+    logger.info("[ElizaApp BlooioWebhook] Ignoring event type", {
+      event: payload.event,
+    });
   }
 
   // Only mark as processed if handler succeeded (prevents lost messages on lock failure)
   if (processed && payload.message_id) {
-    await markAsProcessed(`blooio:eliza-app:${payload.message_id}`, "blooio-eliza-app");
+    await markAsProcessed(
+      `blooio:eliza-app:${payload.message_id}`,
+      "blooio-eliza-app",
+    );
   }
 
   // Return 503 on lock failure to trigger webhook retry from Blooio
   if (!processed) {
     return NextResponse.json(
       { success: false, error: "Service temporarily unavailable" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
   return NextResponse.json({ success: true });
 }
 
-export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handleBlooioWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);
 
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json({

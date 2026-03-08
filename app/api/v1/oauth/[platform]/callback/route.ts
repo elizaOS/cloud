@@ -25,6 +25,7 @@ import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
+import { connectionEnforcementService } from "@/lib/services/eliza-app";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -37,6 +38,7 @@ const ALLOWED_REDIRECT_PATHS = [
   "/dashboard/agents",
   "/settings",
   "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
+  "/api/eliza-app/auth/connection-success",
 ];
 
 interface RouteParams {
@@ -177,7 +179,8 @@ async function handleCallback(
     const result = await handleOAuth2Callback(provider, code, state);
 
     // Validate redirect URL
-    let redirectUrl = result.redirectUrl || "/dashboard/settings?tab=connections";
+    let redirectUrl =
+      result.redirectUrl || "/dashboard/settings?tab=connections";
 
     if (!isValidRedirectUrl(redirectUrl, baseUrl)) {
       logger.error(
@@ -208,9 +211,14 @@ async function handleCallback(
         entitySettingsCache.invalidateUser(result.userId),
         edgeRuntimeCache.bumpMcpVersion(result.organizationId),
         incrementOAuthVersion(result.organizationId, platformLower),
+        connectionEnforcementService.invalidateRequiredConnectionCache(
+          result.organizationId,
+        ),
       ]);
     } catch (e) {
-      logger.warn(`[OAuth ${platform}] Cache invalidation failed`, { error: String(e) });
+      logger.warn(`[OAuth ${platform}] Cache invalidation failed`, {
+        error: String(e),
+      });
     }
 
     logger.info(`[OAuth ${platform}] Callback successful`, {

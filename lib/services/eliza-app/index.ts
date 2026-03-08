@@ -14,8 +14,14 @@ export {
   type SessionResult,
   type ValidatedSession,
 } from "./session-service";
-export {
-  elizaAppUserService,
-  type FindOrCreateResult,
-} from "./user-service";
+export { elizaAppUserService, type FindOrCreateResult } from "./user-service";
 export { elizaAppConfig } from "./config";
+export {
+  connectionEnforcementService,
+  detectProviderFromMessage,
+  REQUIRED_PLATFORMS,
+  NUDGE_INTERVAL,
+  type MessagingPlatform,
+  type NudgeParams,
+  type RequiredPlatform,
+} from "./connection-enforcement";

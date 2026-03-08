@@ -12,9 +12,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { withInternalAuth } from "@/lib/auth/internal-api";
-import { elizaAppUserService } from "@/lib/services/eliza-app";
+import {
+  elizaAppUserService,
+  connectionEnforcementService,
+} from "@/lib/services/eliza-app";
 import { roomsService } from "@/lib/services/agents/rooms";
-import { tryClaimForProcessing, releaseProcessingClaim } from "@/lib/utils/idempotency";
+import {
+  tryClaimForProcessing,
+  releaseProcessingClaim,
+} from "@/lib/utils/idempotency";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
@@ -86,7 +92,9 @@ async function sendDiscordMessage(
   const { botToken } = elizaAppConfig.discord;
 
   if (!botToken) {
-    logger.error("[ElizaApp DiscordWebhook] Cannot send message - bot token not configured");
+    logger.error(
+      "[ElizaApp DiscordWebhook] Cannot send message - bot token not configured",
+    );
     return false;
   }
 
@@ -105,12 +113,14 @@ async function sendDiscordMessage(
     return fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
-        "Authorization": `Bot ${botToken}`,
+        Authorization: `Bot ${botToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         content: truncatedContent,
-        message_reference: replyToMessageId ? { message_id: replyToMessageId } : undefined,
+        message_reference: replyToMessageId
+          ? { message_id: replyToMessageId }
+          : undefined,
       }),
     });
   };
@@ -130,16 +140,25 @@ async function sendDiscordMessage(
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
       const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : 1000;
-      logger.warn("[ElizaApp DiscordWebhook] Rate limited, retrying", { channelId, waitMs, attempt });
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+      logger.warn("[ElizaApp DiscordWebhook] Rate limited, retrying", {
+        channelId,
+        waitMs,
+        attempt,
+      });
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
       continue;
     }
 
     // Server error - exponential backoff
     if (response.status >= 500) {
       const waitMs = Math.min(1000 * Math.pow(2, attempt), 10000);
-      logger.warn("[ElizaApp DiscordWebhook] Server error, retrying", { channelId, status: response.status, waitMs, attempt });
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+      logger.warn("[ElizaApp DiscordWebhook] Server error, retrying", {
+        channelId,
+        status: response.status,
+        waitMs,
+        attempt,
+      });
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
       continue;
     }
 
@@ -153,7 +172,10 @@ async function sendDiscordMessage(
     return false;
   }
 
-  logger.error("[ElizaApp DiscordWebhook] Failed after retries", { channelId, lastError });
+  logger.error("[ElizaApp DiscordWebhook] Failed after retries", {
+    channelId,
+    lastError,
+  });
   return false;
 }
 
@@ -166,7 +188,9 @@ function processDiscordAttachments(data: DiscordMessageData): Media[] {
       attachments.push({
         id: att.id || att.url,
         url: att.url,
-        contentType: att.content_type ? getContentTypeFromMimeType(att.content_type) : undefined,
+        contentType: att.content_type
+          ? getContentTypeFromMimeType(att.content_type)
+          : undefined,
         title: att.filename,
       });
     }
@@ -178,7 +202,9 @@ function processDiscordAttachments(data: DiscordMessageData): Media[] {
       attachments.push({
         id: va.url,
         url: va.url,
-        contentType: va.content_type ? getContentTypeFromMimeType(va.content_type) : undefined,
+        contentType: va.content_type
+          ? getContentTypeFromMimeType(va.content_type)
+          : undefined,
         title: va.filename,
       });
     }
@@ -200,7 +226,7 @@ async function sendDiscordTypingAction(channelId: string): Promise<void> {
     await fetch(`https://discord.com/api/v10/channels/${channelId}/typing`, {
       method: "POST",
       headers: {
-        "Authorization": `Bot ${botToken}`,
+        Authorization: `Bot ${botToken}`,
       },
     });
   } catch (error) {
@@ -222,7 +248,9 @@ function startDiscordTypingIndicator(channelId: string): () => void {
   return () => clearInterval(interval);
 }
 
-async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse> {
+async function handleDiscordWebhook(
+  request: NextRequest,
+): Promise<NextResponse> {
   const payload: DiscordEventPayload = await request.json();
 
   // Only handle MESSAGE_CREATE events
@@ -243,7 +271,11 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   }
 
   // Skip empty messages (unless they have attachments)
-  if (!data.content.trim() && !data.attachments?.length && !data.voice_attachments?.length) {
+  if (
+    !data.content.trim() &&
+    !data.attachments?.length &&
+    !data.voice_attachments?.length
+  ) {
     return NextResponse.json({ ok: true, status: "empty_message_skipped" });
   }
 
@@ -256,17 +288,28 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
   // Validate Discord user data
   if (!discordUserId?.trim()) {
     logger.warn("[ElizaApp DiscordWebhook] Missing Discord user ID");
-    return NextResponse.json({ ok: false, error: "Invalid user data" }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "Invalid user data" },
+      { status: 400 },
+    );
   }
   if (!discordUsername?.trim()) {
-    logger.warn("[ElizaApp DiscordWebhook] Missing Discord username", { discordUserId });
-    return NextResponse.json({ ok: false, error: "Invalid username" }, { status: 400 });
+    logger.warn("[ElizaApp DiscordWebhook] Missing Discord username", {
+      discordUserId,
+    });
+    return NextResponse.json(
+      { ok: false, error: "Invalid username" },
+      { status: 400 },
+    );
   }
 
   // Atomic idempotency claim - prevents duplicate processing from concurrent requests.
   // Uses INSERT ... ON CONFLICT DO NOTHING so only one caller wins the race.
   const idempotencyKey = `discord:eliza-app:${payload.event_id}`;
-  const claimed = await tryClaimForProcessing(idempotencyKey, "discord-eliza-app");
+  const claimed = await tryClaimForProcessing(
+    idempotencyKey,
+    "discord-eliza-app",
+  );
   if (!claimed) {
     logger.info("[ElizaApp DiscordWebhook] Duplicate event skipped", {
       eventId: payload.event_id,
@@ -291,8 +334,26 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
     }
     const { organization } = userWithOrg;
 
+    const hasRequiredConnection =
+      await connectionEnforcementService.hasRequiredConnection(organization.id);
+    if (!hasRequiredConnection) {
+      const nudgeText =
+        await connectionEnforcementService.generateNudgeResponse({
+          userMessage: text,
+          platform: "discord",
+          organizationId: organization.id,
+          userId: userWithOrg.id,
+        });
+      await sendDiscordMessage(data.channel_id, nudgeText, data.id);
+      return NextResponse.json({ ok: true });
+    }
+
     // Generate room ID (deterministic)
-    const roomId = generateElizaAppRoomId("discord", DEFAULT_AGENT_ID, discordUserId);
+    const roomId = generateElizaAppRoomId(
+      "discord",
+      DEFAULT_AGENT_ID,
+      discordUserId,
+    );
     const entityId = userWithOrg.id; // Use userId as entityId for unified memory
 
     // Create room with participant atomically (prevents race condition)
@@ -315,7 +376,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
               organizationId: organization.id,
             },
           },
-          entityId
+          entityId,
         );
       } catch (error) {
         // Handle unique constraint violation (room already created by concurrent request)
@@ -324,22 +385,31 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
           await releaseProcessingClaim(idempotencyKey);
           throw error;
         }
-        logger.debug("[ElizaApp DiscordWebhook] Room already exists (concurrent creation)", { roomId });
+        logger.debug(
+          "[ElizaApp DiscordWebhook] Room already exists (concurrent creation)",
+          { roomId },
+        );
       }
     }
 
-    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, ROOM_LOCK_TTL_MS, {
-      maxRetries: 10,
-      initialDelayMs: 100,
-      maxDelayMs: 2000,
-    });
+    const lock = await distributedLocks.acquireRoomLockWithRetry(
+      roomId,
+      ROOM_LOCK_TTL_MS,
+      {
+        maxRetries: 10,
+        initialDelayMs: 100,
+        maxDelayMs: 2000,
+      },
+    );
 
     if (!lock) {
-      logger.error("[ElizaApp DiscordWebhook] Failed to acquire room lock", { roomId });
+      logger.error("[ElizaApp DiscordWebhook] Failed to acquire room lock", {
+        roomId,
+      });
       await releaseProcessingClaim(idempotencyKey);
       return NextResponse.json(
         { ok: false, error: "Service temporarily unavailable" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -397,7 +467,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
       await releaseProcessingClaim(idempotencyKey);
       return NextResponse.json(
         { ok: false, error: "Agent processing failed" },
-        { status: 500 }
+        { status: 500 },
       );
     } finally {
       stopTyping();

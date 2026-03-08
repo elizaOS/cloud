@@ -99,7 +99,9 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   const client = getRedis();
   if (!client) return null;
   try {
-    const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
+    const cached = await client.get<CachedAuth | string>(
+      `proxy:auth:${hashToken(token)}`,
+    );
     if (!cached) return null;
     // Handle both old string format and new object format
     if (typeof cached === "string") {
@@ -110,7 +112,11 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
       return JSON.parse(cached);
     }
     // Validate it's actually a CachedAuth object
-    if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
+    if (
+      typeof cached === "object" &&
+      "valid" in cached &&
+      "cachedAt" in cached
+    ) {
       return cached;
     }
     return null;
@@ -138,7 +144,10 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
     );
   } catch (error) {
     // Log Redis write errors but don't block auth - caching is best-effort
-    console.warn("[Proxy] Redis cache write failed:", error instanceof Error ? error.message : String(error));
+    console.warn(
+      "[Proxy] Redis cache write failed:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -174,6 +183,7 @@ const publicPaths = [
   "/api/v1/generate-video",
   "/api/v1/chat",
   "/api/v1/chat/completions",
+  "/api/v1/messages",
   "/api/v1/responses",
   "/api/v1/embeddings",
   "/api/v1/models",
@@ -270,8 +280,13 @@ export async function proxy(request: NextRequest) {
     // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
     const walletSig = request.headers.get("X-Wallet-Signature");
     const allowWalletPassthrough =
-      pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
-    if (apiKey || (walletSig && allowWalletPassthrough) || (bearerToken && bearerToken.startsWith("eliza_"))) {
+      pathname.startsWith("/api/v1/topup") ||
+      pathname.startsWith("/api/v1/user/wallets");
+    if (
+      apiKey ||
+      (walletSig && allowWalletPassthrough) ||
+      (bearerToken && bearerToken.startsWith("eliza_"))
+    ) {
       return middlewareNext({
         headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
       });

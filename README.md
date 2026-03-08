@@ -38,6 +38,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 - **Text & Chat**:
   - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
   - Real-time streaming responses
+  - Anthropic-compatible `/api/v1/messages` endpoint for Claude Code and Anthropic SDK clients
   - Conversation persistence with full history
   - Model selection and configuration
 

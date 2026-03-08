@@ -168,10 +168,7 @@ export function getProviderFromModel(model: string): string {
  */
 export function isReasoningModel(model: string): boolean {
   const name = normalizeModelName(model);
-  return (
-    name.startsWith("claude-opus") ||
-    /^o[13](-|$)/.test(name)
-  );
+  return name.startsWith("claude-opus") || /^o[13](-|$)/.test(name);
 }
 
 /**
@@ -184,6 +181,7 @@ export function getSafeModelParams(
   params: {
     temperature?: number;
     topP?: number;
+    topK?: number;
     frequencyPenalty?: number;
     presencePenalty?: number;
     stopSequences?: string[];
@@ -191,6 +189,7 @@ export function getSafeModelParams(
 ): {
   temperature?: number;
   topP?: number;
+  topK?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
   stopSequences?: string[];
@@ -201,6 +200,8 @@ export function getSafeModelParams(
   if (provider === "anthropic") {
     delete result.frequencyPenalty;
     delete result.presencePenalty;
+  } else {
+    delete result.topK;
   }
 
   if (isReasoningModel(model)) {

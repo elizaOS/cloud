@@ -13,6 +13,20 @@ Stay up to date with the latest changes to elizaOS Cloud.
 
 ## March 2026
 
+### Mar 8, 2026
+
+**Anthropic Messages API compatibility**
+
+- Added `POST /api/v1/messages`, an Anthropic Messages API-compatible endpoint for Claude Code and Anthropic SDK clients.
+- Streaming now emits Anthropic-style SSE events for both text and tool use blocks.
+- Added docs for the new Messages endpoint and exposed it as a public API-key route in the proxy.
+
+**Eliza App connection enforcement**
+
+- Telegram, Discord, and iMessage Eliza App channels now require one connected data source before the agent processes messages.
+- Added an in-character connection nudge flow plus a post-OAuth success page that returns users to their messaging channel.
+- OAuth callback handling now invalidates the connection-enforcement cache immediately after a successful connection.
+
 ### Mar 4, 2026
 
 **Wallet API — SIWE, wallet header auth, topup, docs**
