@@ -19,6 +19,7 @@ import {
 } from "@/db/schemas";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { shouldBlockDevnetBypass } from "@/lib/config/deployment-environment";
 
 // Default anvil wallet - admin in devnet only
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -33,7 +34,7 @@ function isDevnet(): boolean {
 // CRITICAL: Startup validation to prevent production misconfiguration
 // The anvil wallet bypass (lines 42-47) would grant admin access to a well-known
 // public key if DEVNET=true in production. This check fails fast at module load.
-if (process.env.NODE_ENV === "production" && process.env.DEVNET === "true") {
+if (shouldBlockDevnetBypass(process.env)) {
   throw new Error(
     "FATAL: NODE_ENV=production cannot be used with DEVNET=true. " +
     "The anvil wallet admin bypass would expose production to unauthorized access. " +

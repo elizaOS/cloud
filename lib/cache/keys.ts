@@ -109,6 +109,11 @@ export const CacheKeys = {
     /** Pattern for invalidating all discovery cache */
     pattern: () => `discovery:*`,
   },
+  models: {
+    /** Cache upstream gateway model catalog for selector/detail/status routes */
+    gatewayCatalog: () => `models:gateway-catalog:v1`,
+    pattern: () => `models:*`,
+  },
   /**
    * Code Agent cache keys
    * Used for caching session data and analytics
@@ -263,6 +268,9 @@ export const CacheTTL = {
   discovery: {
     list: 180, // 3 minutes - discovery results
   },
+  models: {
+    catalog: 3600, // 1 hour - upstream model catalogs change infrequently
+  },
   /**
    * Code Agent cache TTLs
    * Short TTLs since sessions are actively used
@@ -327,6 +335,9 @@ export const CacheStaleTTL = {
   },
   discovery: {
     list: 120, // Serve stale discovery results after 2 minutes
+  },
+  models: {
+    catalog: 900, // Serve stale model catalogs after 15 minutes
   },
   codeAgent: {
     session: 30, // Serve stale after 30 seconds

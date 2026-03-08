@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/compute-metrics",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/v1/cron/refresh-model-catalog",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

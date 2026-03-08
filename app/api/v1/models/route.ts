@@ -4,9 +4,7 @@ import {
   getAnonymousUser,
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
-import { GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
-import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
-import type { OpenAIModelsResponse } from "@/lib/providers/types";
+import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import type { NextRequest } from "next/server";
 
 // This route uses cookies for auth, so it must be dynamic
@@ -35,18 +33,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const provider = getProvider();
-    const response = await provider.listModels();
-    const data: OpenAIModelsResponse = await response.json();
-    const mergedData = hasGroqProviderConfigured()
-      ? mergeCatalogModels(data.data || [], GROQ_NATIVE_MODELS)
-      : data.data || [];
-
     // Return OpenAI-compatible format with cache headers
     return Response.json(
       {
-        ...data,
-        data: mergedData,
+        object: "list",
+        data: await getCachedMergedModelCatalog(),
       },
       {
         headers: {

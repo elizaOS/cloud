@@ -5,6 +5,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { shouldBlockDevnetBypass } from "@/lib/config/deployment-environment";
 
 /**
  * Error information for a validation failure.
@@ -252,7 +253,7 @@ export function requireValidEnvironment(): void {
   }
 
   // CRITICAL: Prevent production from running with devnet admin bypass
-  if (process.env.NODE_ENV === "production" && process.env.DEVNET === "true") {
+  if (shouldBlockDevnetBypass(process.env)) {
     console.error("");
     console.error("🚨 SECURITY ERROR: Production environment with DEVNET=true");
     console.error("   This enables admin bypass for anvil wallet (0xf39F...)");

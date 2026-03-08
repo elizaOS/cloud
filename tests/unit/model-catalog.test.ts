@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
 import {
   getGroqApiModelId,
   isGroqNativeModel,
@@ -138,5 +139,14 @@ describe("catalog merging", () => {
       "openai/gpt-5",
       "groq/compound",
     ]);
+  });
+});
+
+describe("model catalog caching", () => {
+  test("uses a dedicated SWR cache key and timings", () => {
+    expect(CacheKeys.models.gatewayCatalog()).toBe("models:gateway-catalog:v1");
+    expect(CacheTTL.models.catalog).toBe(3600);
+    expect(CacheStaleTTL.models.catalog).toBe(900);
+    expect(CacheStaleTTL.models.catalog).toBeLessThan(CacheTTL.models.catalog);
   });
 });

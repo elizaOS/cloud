@@ -23,6 +23,12 @@ beforeAll(async () => {
 
     mock.module("@/lib/auth/privy-client", () => ({
         getPrivyClient: mockGetPrivyClient,
+        privyClient: mockGetPrivyClient,
+        verifyAuthTokenCached: mock().mockResolvedValue(null),
+        invalidatePrivyTokenCache: mock().mockResolvedValue(undefined),
+        invalidateAllPrivyTokenCaches: mock().mockResolvedValue(undefined),
+        getUserFromIdToken: mock().mockResolvedValue(null),
+        getUserById: mock().mockResolvedValue(null),
     }));
 
     mock.module("@/db/client", () => ({

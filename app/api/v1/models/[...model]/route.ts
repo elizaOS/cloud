@@ -1,6 +1,7 @@
 // app/api/v1/models/[...model]/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
+import { getCachedGatewayModelById } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
 import type { NextRequest } from "next/server";
@@ -61,6 +62,18 @@ export async function GET(
       if (groqModel) {
         return Response.json(groqModel);
       }
+    }
+
+    try {
+      const cachedModel = await getCachedGatewayModelById(model);
+      if (cachedModel) {
+        return Response.json(cachedModel);
+      }
+    } catch (error) {
+      logger.warn("Error reading cached model catalog, falling back to provider", {
+        model,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     const provider = getProvider();

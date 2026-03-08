@@ -23,6 +23,7 @@ const mockListByOrganizationAndStatus = mock();
 const mockProviderListModels = mock();
 const mockGetAnonymousUser = mock();
 const mockGetOrCreateAnonymousUser = mock();
+const mockGetCachedMergedModelCatalog = mock();
 
 mock.module("@/lib/auth", () => ({
   requireAuth: mockRequireAuth,
@@ -63,6 +64,10 @@ mock.module("@/lib/providers", () => ({
 mock.module("@/lib/auth-anonymous", () => ({
   getAnonymousUser: mockGetAnonymousUser,
   getOrCreateAnonymousUser: mockGetOrCreateAnonymousUser,
+}));
+
+mock.module("@/lib/services/model-catalog", () => ({
+  getCachedMergedModelCatalog: mockGetCachedMergedModelCatalog,
 }));
 
 mock.module("@/lib/middleware/rate-limit", () => ({
@@ -151,6 +156,7 @@ beforeEach(() => {
   mockProviderListModels.mockReset();
   mockGetAnonymousUser.mockReset();
   mockGetOrCreateAnonymousUser.mockReset();
+  mockGetCachedMergedModelCatalog.mockReset();
 
   mockRequireAuth.mockResolvedValue(baseUser);
   mockRequireAuthWithOrg.mockResolvedValue(baseUser);
@@ -186,6 +192,14 @@ beforeEach(() => {
       data: [{ id: "gpt-4o-mini", object: "model" }],
     }),
   );
+  mockGetCachedMergedModelCatalog.mockResolvedValue([
+    {
+      id: "openai/gpt-4o-mini",
+      object: "model",
+      created: 0,
+      owned_by: "openai",
+    },
+  ]);
   mockGetAnonymousUser.mockResolvedValue({
     user: { id: "anon-1" },
     session: { id: "session-1" },
@@ -494,7 +508,7 @@ describe("Models API", () => {
     expect(response.headers.get("Cache-Control")).toContain("s-maxage=3600");
 
     const body = await response.json();
-    expect(body.data[0].id).toBe("gpt-4o-mini");
+    expect(body.data[0].id).toBe("openai/gpt-4o-mini");
   });
 
   test("GET creates an anonymous session when auth is missing", async () => {

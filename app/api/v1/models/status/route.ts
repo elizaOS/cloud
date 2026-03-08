@@ -11,8 +11,8 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
-import { getProvider } from "@/lib/providers";
 import { hasGroqProviderConfigured } from "@/lib/providers";
+import { getCachedGatewayModelCatalog } from "@/lib/services/model-catalog";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -97,12 +97,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const provider = getProvider();
-
-  // Get all models from gateway catalog
-  const listResponse = await provider.listModels();
-  const listData = (await listResponse.json()) as { data?: { id: string }[] };
-  const gatewayModelIds = new Set(listData.data?.map((m) => m.id) || []);
+  const gatewayModelIds = new Set(
+    (await getCachedGatewayModelCatalog()).map((model) => model.id),
+  );
 
   // Check availability for each requested model
   const results: ModelAvailability[] = modelIds.map((modelId) => {

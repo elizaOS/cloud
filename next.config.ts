@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
 import path from "path";
+import { shouldBlockUnsafeWebhookSkip } from "./lib/config/deployment-environment";
 
 // =============================================================================
 // CRITICAL SECURITY VALIDATION
@@ -10,8 +11,7 @@ import path from "path";
 // NEVER be enabled in production environments.
 // =============================================================================
 if (
-  process.env.NODE_ENV === "production" &&
-  process.env.SKIP_WEBHOOK_VERIFICATION === "true"
+  shouldBlockUnsafeWebhookSkip(process.env)
 ) {
   throw new Error(
     "FATAL: SKIP_WEBHOOK_VERIFICATION cannot be enabled in production. " +
