@@ -65,6 +65,7 @@ export * from "./entity-settings";
 export * from "./affiliates";
 export * from "./agent-server-wallets";
 export * from "./milady-sandboxes";
+export * from "./docker-nodes";
 export * from "./n8n-credential-mappings";
 export * from "./daily-metrics";
 export * from "./retention-cohorts";

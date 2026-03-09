@@ -1,0 +1,203 @@
+/**
+ * Docker Sandbox Utilities
+ *
+ * Pure utility functions extracted from DockerSandboxProvider for reusability
+ * and testability. These functions handle shell quoting, validation, port
+ * allocation, and node configuration parsing.
+ */
+
+import { logger } from "@/lib/utils/logger";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface DockerNodeEnv {
+  nodeId: string;
+  hostname: string;
+  capacity: number;
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Sensitive environment variable keys — values are redacted from logs.
+ * Checked via exact match (SENSITIVE_KEYS.has(key)) and substring matching
+ * (key.includes("SECRET") etc.) in the create() logging path.
+ */
+export const SENSITIVE_KEYS = new Set([
+  "TS_AUTHKEY",
+  "DATABASE_URL",
+  "API_KEY",
+  "SECRET",
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "VERCEL_TOKEN",
+  "MILADY_SSH_KEY_PATH",
+  "PASSWORD",
+  "PRIVATE_KEY",
+]);
+
+/** Min/max for random port allocation. */
+export const BRIDGE_PORT_MIN = 18790;
+export const BRIDGE_PORT_MAX = 19790;
+export const WEBUI_PORT_MIN = 20000;
+export const WEBUI_PORT_MAX = 25000;
+
+// ---------------------------------------------------------------------------
+// Shell Quoting
+// ---------------------------------------------------------------------------
+
+/**
+ * Shell-escape a single value by wrapping in single-quotes and escaping
+ * embedded single-quotes.
+ */
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate an agent ID before using it in shell commands.
+ * Must be a UUID (hex + hyphens) or alphanumeric with hyphens/underscores.
+ */
+export function validateAgentId(agentId: string): void {
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(agentId)) {
+    throw new Error(
+      `Invalid agent ID "${agentId}": must be 1-128 chars, alphanumeric / hyphens / underscores only.`,
+    );
+  }
+}
+
+/** Validate an agent name: printable characters, 1-64 chars, no shell metacharacters. */
+export function validateAgentName(name: string): void {
+  if (!name || name.length > 64) {
+    throw new Error(
+      `Invalid agent name: must be 1-64 characters.`,
+    );
+  }
+  // Block characters that could break shell commands even inside quotes
+  if (/[\x00-\x1f\x7f]/.test(name)) {
+    throw new Error(
+      `Invalid agent name "${name}": contains control characters.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Port Allocation
+// ---------------------------------------------------------------------------
+
+/**
+ * Pick a random port in [min, max) that is not in the exclusion set.
+ * TOCTOU safety: the DB has a partial UNIQUE index on (node_id, bridge_port)
+ * for active sandboxes, so a duplicate insert will fail and the caller
+ * should retry the entire provisioning flow.
+ */
+export function allocatePort(min: number, max: number, excluded: Set<number>): number {
+  const range = max - min;
+  if (excluded.size >= range) {
+    throw new Error(
+      `[docker-sandbox] No available ports in range [${min}, ${max}). All ${range} ports are allocated.`,
+    );
+  }
+  let port: number;
+  let attempts = 0;
+  do {
+    port = min + Math.floor(Math.random() * range);
+    attempts++;
+    if (attempts > range * 2) {
+      throw new Error(
+        `[docker-sandbox] Failed to find an available port in range [${min}, ${max}) after ${attempts} attempts.`,
+      );
+    }
+  } while (excluded.has(port));
+  return port;
+}
+
+// ---------------------------------------------------------------------------
+// Container Naming & Paths
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a deterministic container name from an agent ID.
+ * Uses the full agentId to avoid collisions (truncated UUIDs share prefix
+ * patterns and can collide on the same node).
+ */
+export function getContainerName(agentId: string): string {
+  return `milady-${agentId}`;
+}
+
+/** Volume path on the Docker host for persistent agent data. */
+export function getVolumePath(agentId: string): string {
+  validateAgentId(agentId);
+  return `/data/agents/${agentId}`;
+}
+
+// ---------------------------------------------------------------------------
+// Node Configuration Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the `MILADY_DOCKER_NODES` env var.
+ * Format: `nodeId:hostname:capacity,nodeId2:hostname2:capacity2`
+ *
+ * Result is cached at module level to avoid re-parsing on every call.
+ */
+let _cachedDockerNodes: DockerNodeEnv[] | null = null;
+let _cachedDockerNodesRaw: string | undefined;
+
+export function parseDockerNodes(): DockerNodeEnv[] {
+  const raw = process.env.MILADY_DOCKER_NODES;
+  if (!raw) {
+    throw new Error(
+      "[docker-sandbox] MILADY_DOCKER_NODES env var is not set. " +
+        'Expected format: "nodeId:hostname:capacity,..."',
+    );
+  }
+
+  // Return cached result if env var hasn't changed
+  if (_cachedDockerNodes && _cachedDockerNodesRaw === raw) {
+    return _cachedDockerNodes;
+  }
+
+  const nodes: DockerNodeEnv[] = [];
+  for (const segment of raw.split(",")) {
+    const trimmed = segment.trim();
+    if (!trimmed) continue;
+
+    const parts = trimmed.split(":");
+    if (parts.length < 3) {
+      logger.warn(
+        `[docker-sandbox] Skipping malformed node entry: "${trimmed}"`,
+      );
+      continue;
+    }
+
+    const [nodeId, hostname, capacityStr] = parts;
+    const capacity = parseInt(capacityStr!, 10);
+    if (!nodeId || !hostname || isNaN(capacity) || capacity <= 0) {
+      logger.warn(
+        `[docker-sandbox] Skipping invalid node entry: "${trimmed}"`,
+      );
+      continue;
+    }
+
+    nodes.push({ nodeId, hostname, capacity });
+  }
+
+  if (nodes.length === 0) {
+    throw new Error(
+      "[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES",
+    );
+  }
+
+  _cachedDockerNodes = nodes;
+  _cachedDockerNodesRaw = raw;
+  return nodes;
+}

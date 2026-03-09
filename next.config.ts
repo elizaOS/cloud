@@ -170,6 +170,8 @@ const nextConfig: NextConfig = {
     // jsdom ESM dependencies break when bundled - keep external for Node.js loading
     "jsdom",
     "isomorphic-dompurify",
+    // ssh2 ships non-ECMAScript assets that Turbopack cannot place into ESM chunks
+    "ssh2",
     // NOTE: pino and thread-stream are NOT external - they get bundled with
     // the thread-stream alias to our synchronous stub, preventing dynamic
     // worker module loading (pino-28069d5257187539) that fails in serverless
