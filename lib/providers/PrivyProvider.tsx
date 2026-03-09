@@ -41,6 +41,20 @@ const getSolanaConnectors = (): SolanaConnectors => {
   return connectors;
 };
 
+function isPlaceholderPrivyValue(value: string | undefined): boolean {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.length === 0 ||
+    normalized.includes("your_privy_") ||
+    normalized.includes("your-privy-") ||
+    normalized.includes("replace_with")
+  );
+}
+
 /**
  * Wrapper component to handle post-authentication logic
  * Handles migration of anonymous user data after successful authentication
@@ -180,26 +194,28 @@ export default function PrivyProvider({
   // Check if Privy App ID is configured
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
-  const hasValidAppId = typeof appId === "string" && appId.trim().length === 25;
-  const hasValidClientId =
-    typeof clientId === "string" && clientId.trim().length > 0;
+  const resolvedClientId = isPlaceholderPrivyValue(clientId)
+    ? undefined
+    : clientId?.trim();
+  const hasValidAppId =
+    typeof appId === "string" &&
+    appId.trim().length === 25 &&
+    !isPlaceholderPrivyValue(appId);
 
   useEffect(() => {
     if (
       typeof window === "undefined" ||
-      (hasValidAppId && hasValidClientId) ||
+      hasValidAppId ||
       hasLoggedPrivyConfigError.current
     ) {
       return;
     }
 
     hasLoggedPrivyConfigError.current = true;
-    console.error(
-      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is missing or invalid!",
-    );
-  }, [hasValidAppId, hasValidClientId]);
+    console.error("NEXT_PUBLIC_PRIVY_APP_ID is missing or invalid!");
+  }, [hasValidAppId]);
 
-  if (!hasValidAppId || !hasValidClientId) {
+  if (!hasValidAppId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -208,8 +224,7 @@ export default function PrivyProvider({
           </h1>
           <p className="mt-2">Privy configuration is missing.</p>
           <p className="text-sm text-gray-500 mt-1">
-            Please set NEXT_PUBLIC_PRIVY_APP_ID and NEXT_PUBLIC_PRIVY_CLIENT_ID
-            in your environment variables.
+            Please set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.
           </p>
         </div>
       </div>
@@ -219,7 +234,7 @@ export default function PrivyProvider({
   return (
     <PrivyProviderReactAuth
       appId={appId}
-      clientId={clientId}
+      clientId={resolvedClientId}
       config={privyConfig}
     >
       <PrivyAuthWrapper>{children}</PrivyAuthWrapper>

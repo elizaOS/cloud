@@ -283,15 +283,15 @@ async function trackSessionActivity(
     const errorDetails =
       error instanceof Error
         ? {
-          message: error.message,
-          name: error.name,
-          // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
-          code: (error as Error & { code?: string }).code,
-          // Additional context from Drizzle/PostgreSQL
-          detail: (error as Error & { detail?: string }).detail,
-          constraint: (error as Error & { constraint?: string }).constraint,
-          cause: error.cause,
-        }
+            message: error.message,
+            name: error.name,
+            // PostgreSQL errors have a 'code' property (e.g., '23503' for FK violation)
+            code: (error as Error & { code?: string }).code,
+            // Additional context from Drizzle/PostgreSQL
+            detail: (error as Error & { detail?: string }).detail,
+            constraint: (error as Error & { constraint?: string }).constraint,
+            cause: error.cause,
+          }
         : error;
     logger.warn("[AUTH] Session tracking failed:", errorDetails);
   }
@@ -417,9 +417,10 @@ export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
   // Try wallet signature authentication first (if headers present)
-  const hasWalletHeaders = request.headers.get("X-Wallet-Address") && 
-                          request.headers.get("X-Wallet-Signature") && 
-                          request.headers.get("X-Timestamp");
+  const hasWalletHeaders =
+    request.headers.get("X-Wallet-Address") &&
+    request.headers.get("X-Wallet-Signature") &&
+    request.headers.get("X-Timestamp");
 
   // Note: When wallet headers are present, we fail closed — API key/session fallback is intentionally skipped
   // to prevent clients from bypassing wallet auth by sending stale wallet headers alongside valid API keys
@@ -436,7 +437,10 @@ export async function requireAuthOrApiKey(
       };
     } catch (e) {
       // Always fail closed when wallet headers are present
-      logger.error("[AUTH] Wallet auth failed with headers present - failing closed:", e);
+      logger.error(
+        "[AUTH] Wallet auth failed with headers present - failing closed:",
+        e,
+      );
       // Preserve service errors but clean auth errors for security
       if (e instanceof Error && e.message.includes("Service temporarily")) {
         throw e; // Propagate service outage errors
@@ -653,7 +657,9 @@ export async function requireAdmin(
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   if (!user.wallet_address) {
-    throw new AuthenticationError("Wallet connection required for admin access");
+    throw new AuthenticationError(
+      "Wallet connection required for admin access",
+    );
   }
 
   const isAdmin = await adminService.isAdmin(user.wallet_address);

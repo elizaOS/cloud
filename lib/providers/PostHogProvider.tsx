@@ -35,6 +35,7 @@ function PageViewTracker(): null {
 
 function UserIdentifier(): null {
   const { ready, authenticated, user } = usePrivy();
+  const pathname = usePathname();
   const identifiedRef = useRef(false);
   const previousAuthState = useRef<boolean | null>(null);
 
@@ -49,6 +50,13 @@ function UserIdentifier(): null {
       resetUser();
       identifiedRef.current = false;
       trackEvent("logout_completed");
+    }
+
+    if (pathname === "/login") {
+      previousAuthState.current = authenticated;
+      return () => {
+        abortController.abort();
+      };
     }
 
     // Handle login - fetch internal user ID for consistent identification
@@ -70,7 +78,9 @@ function UserIdentifier(): null {
         github: user.github
           ? { username: user.github.username ?? undefined }
           : null,
-        wallet: user.wallet ? { address: user.wallet.address ?? undefined } : null,
+        wallet: user.wallet
+          ? { address: user.wallet.address ?? undefined }
+          : null,
       };
       const email =
         authInfo.email?.address ??
@@ -84,7 +94,11 @@ function UserIdentifier(): null {
       const isFirstLogin = previousAuthState.current === false;
 
       // Fetch internal user ID from API
-      fetch("/api/v1/user", { signal: abortController.signal })
+      fetch("/api/v1/user", {
+        signal: abortController.signal,
+        credentials: "include",
+        cache: "no-store",
+      })
         .then((res) => res.json())
         .then((data) => {
           // identifiedRef prevents duplicate identification
@@ -118,7 +132,7 @@ function UserIdentifier(): null {
     return () => {
       abortController.abort();
     };
-  }, [ready, authenticated, user]);
+  }, [ready, authenticated, pathname, user]);
 
   return null;
 }

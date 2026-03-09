@@ -56,7 +56,8 @@
     "test:oauth:manual": "./tests/manual/oauth-manual-test.sh",
     "test:e2e:api": "bun test --preload ./tests/e2e/preload.ts tests/e2e/api --timeout 120000",
     "test": "bun run test:repo-unit:bulk && bun run test:repo-unit:special",
-    "test:playwright": "bun test tests/playwright"
+    "test:playwright": "playwright test",
+    "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.37",

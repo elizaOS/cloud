@@ -45,13 +45,15 @@ const ENV_VARS = {
   NEXT_PUBLIC_PRIVY_APP_ID: {
     required: true,
     description: "Privy application ID",
-    validate: (value: string) => value.length > 0,
+    validate: (value: string) =>
+      value.trim().length > 0 && !value.includes("your_privy_app_id_here"),
     errorMessage: "Must be a valid Privy app ID",
   },
   PRIVY_APP_SECRET: {
     required: true,
     description: "Privy application secret",
-    validate: (value: string) => value.length > 0,
+    validate: (value: string) =>
+      value.trim().length > 0 && !value.includes("your_privy_app_secret_here"),
     errorMessage: "Must be a valid Privy app secret",
   },
   PRIVY_WEBHOOK_SECRET: {

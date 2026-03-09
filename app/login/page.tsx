@@ -30,6 +30,7 @@ const SIGNUP_ATTRIBUTION_STORAGE_KEYS = {
   affiliate: "pending_affiliate_code",
   referral: "pending_referral_code",
 } as const;
+const POST_LOGIN_SESSION_SYNC_DELAYS_MS = [250, 500, 1000, 1500, 2000] as const;
 
 function isLegacyAffiliateCode(code: string | null): boolean {
   return !!code && /^AFF-[A-Z0-9]+$/i.test(code.trim());
@@ -50,10 +51,19 @@ function getPendingSignupAttribution(searchParams: {
     affiliateCode:
       affiliateCode ||
       (!hasOAuthState && isLegacyAffiliateCode(legacyCode)
-        ? legacyCode?.trim().toUpperCase() ?? null
+        ? (legacyCode?.trim().toUpperCase() ?? null)
         : null),
     referralCode: referralCode ? referralCode.trim().toUpperCase() : null,
   };
+}
+
+function getSafeReturnTo(searchParams: {
+  get(name: string): string | null;
+}): string {
+  const returnTo = searchParams.get("returnTo");
+  return returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+    ? returnTo
+    : "/dashboard";
 }
 
 const delay = (ms: number) =>
@@ -62,7 +72,7 @@ const delay = (ms: number) =>
   });
 
 function LoginPageContent() {
-  const { ready, authenticated, user } = usePrivy();
+  const { ready, authenticated, getAccessToken } = usePrivy();
   const { login } = useLogin();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
@@ -89,16 +99,16 @@ function LoginPageContent() {
 
   // Check if this is a signup intent (from "Get Started" button)
   const isSignupIntent = searchParams.get("intent") === "signup";
+  const isAuthenticated = authenticated;
+  const isAuthReady = ready;
 
-  // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
   const loginInProgressRef = useRef(false);
   const lastLoginAttemptRef = useRef<number>(0);
   const postLoginProcessingRef = useRef(false);
 
   useEffect(() => {
-    const { affiliateCode, referralCode } = getPendingSignupAttribution(
-      searchParams,
-    );
+    const { affiliateCode, referralCode } =
+      getPendingSignupAttribution(searchParams);
 
     if (affiliateCode) {
       sessionStorage.setItem(
@@ -117,12 +127,53 @@ function LoginPageContent() {
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    if (!ready || !authenticated || postLoginProcessingRef.current) {
+    if (!isAuthReady || !isAuthenticated || postLoginProcessingRef.current) {
       return;
     }
 
     postLoginProcessingRef.current = true;
     let cancelled = false;
+    const redirectUrl = getSafeReturnTo(searchParams);
+
+    const waitForServerSession = async () => {
+      for (const waitMs of POST_LOGIN_SESSION_SYNC_DELAYS_MS) {
+        if (cancelled) {
+          return false;
+        }
+
+        if (waitMs > 0) {
+          await delay(waitMs);
+        }
+
+        await getAccessToken().catch(() => null);
+
+        if (cancelled) {
+          return false;
+        }
+
+        try {
+          const response = await fetch("/api/v1/user", {
+            cache: "no-store",
+            credentials: "include",
+            headers: {
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+              Pragma: "no-cache",
+            },
+          });
+
+          if (response.ok || response.status === 403) {
+            return true;
+          }
+        } catch (error) {
+          if (cancelled) {
+            return false;
+          }
+          console.warn("Waiting for authenticated session to sync", error);
+        }
+      }
+
+      return false;
+    };
 
     const applyStoredSignupAttribution = async () => {
       const affiliateCode = sessionStorage.getItem(
@@ -145,7 +196,12 @@ function LoginPageContent() {
               body: JSON.stringify({ code: codeToApply }),
             });
 
-            if (response.ok || response.status === 400 || response.status === 404 || response.status === 409) {
+            if (
+              response.ok ||
+              response.status === 400 ||
+              response.status === 404 ||
+              response.status === 409
+            ) {
               sessionStorage.removeItem(storageKey);
               return;
             }
@@ -186,21 +242,22 @@ function LoginPageContent() {
       setIsProcessingOAuth(false);
       setIsSyncing(true);
 
+      await waitForServerSession();
       await applyStoredSignupAttribution();
       await delay(100);
 
       if (!cancelled) {
-        router.push("/dashboard");
+        router.replace(redirectUrl);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [authenticated, ready, router, searchParams]);
+  }, [getAccessToken, isAuthenticated, isAuthReady, router, searchParams]);
 
   useEffect(() => {
-    if (!ready || authenticated) {
+    if (!isAuthReady || isAuthenticated) {
       return;
     }
 
@@ -219,7 +276,7 @@ function LoginPageContent() {
       }, 3000);
       return () => clearTimeout(timeout);
     }
-  }, [authenticated, isProcessingOAuth, loadingButton, ready]);
+  }, [isAuthReady, isAuthenticated, isProcessingOAuth, loadingButton]);
 
   // Monitor email state to show code input
   useEffect(() => {
@@ -316,7 +373,7 @@ function LoginPageContent() {
   };
 
   // Show loading state while checking authentication or processing OAuth callback
-  if (!ready || isProcessingOAuth) {
+  if (!isAuthReady || isProcessingOAuth) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}
@@ -377,7 +434,7 @@ function LoginPageContent() {
   }
 
   // Don't render login page if already authenticated (redirecting)
-  if (authenticated || isSyncing) {
+  if (isAuthenticated || isSyncing) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
         {/* Header */}

@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePrivy } from "@privy-io/react-auth";
+import { usePathname } from "next/navigation";
 import { logger } from "@/lib/utils/logger";
 
 interface CreditsContextValue {
@@ -36,6 +37,7 @@ const MAX_AUTH_ERRORS = 3;
 
 export function CreditsProvider({ children }: { children: ReactNode }) {
   const { authenticated, ready, getAccessToken, logout } = usePrivy();
+  const pathname = usePathname();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +53,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const lastFetchTimeRef = useRef<number>(0);
   // Flag to prevent race conditions during logout - ensures no fetches fire during logout flow
   const isLoggingOutRef = useRef(false);
+  const shouldDeferAuthenticatedFetches = pathname === "/login";
 
   // Store Privy functions in refs to avoid recreating callbacks on every render
   const getAccessTokenRef = useRef(getAccessToken);
@@ -92,6 +95,13 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
           setCreditBalance(null);
           setError(null);
         }
+      }
+      return;
+    }
+
+    if (shouldDeferAuthenticatedFetches) {
+      if (isMountedRef.current) {
+        setIsLoading(false);
       }
       return;
     }
@@ -200,7 +210,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       });
     }
-  }, [authenticated, stopPolling]);
+  }, [authenticated, shouldDeferAuthenticatedFetches, stopPolling]);
 
   // Setup BroadcastChannel for cross-tab sync
   useEffect(() => {
@@ -248,7 +258,12 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (ready && authenticated && !isPollingPausedRef.current) {
+    if (
+      ready &&
+      authenticated &&
+      !isPollingPausedRef.current &&
+      !shouldDeferAuthenticatedFetches
+    ) {
       // Defer initial fetch to avoid cascading renders
       queueMicrotask(() => {
         fetchBalance();
@@ -274,7 +289,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         pollIntervalRef.current = null;
       }
     };
-  }, [ready, authenticated, fetchBalance]);
+  }, [ready, authenticated, fetchBalance, shouldDeferAuthenticatedFetches]);
 
   const value = useMemo<CreditsContextValue>(
     () => ({

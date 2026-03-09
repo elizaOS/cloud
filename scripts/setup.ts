@@ -59,6 +59,10 @@ function isPlaceholderValue(value: string | undefined): boolean {
   if (!value) return false;
 
   return (
+    value === "your_privy_app_id_here" ||
+    value === "your_privy_client_id_here" ||
+    value === "your_privy_app_secret_here" ||
+    value === "replace_with_strong_random_secret" ||
     value.includes("your-redis.upstash.io") ||
     value.includes("default:token@your-redis.upstash.io") ||
     value === "your_upstash_token_here" ||
@@ -105,7 +109,12 @@ async function checkConfiguration(
   }
 
   // Auth (Privy)
-  if (env.NEXT_PUBLIC_PRIVY_APP_ID && env.PRIVY_APP_SECRET) {
+  if (
+    env.NEXT_PUBLIC_PRIVY_APP_ID &&
+    env.PRIVY_APP_SECRET &&
+    !isPlaceholderValue(env.NEXT_PUBLIC_PRIVY_APP_ID) &&
+    !isPlaceholderValue(env.PRIVY_APP_SECRET)
+  ) {
     status.auth.configured = true;
   }
 
@@ -223,7 +232,9 @@ async function promptForMissing(env: Record<string, string>): Promise<void> {
     { key: "PRIVY_APP_SECRET", hint: "From Privy dashboard" },
   ];
 
-  const missing = required.filter((r) => !env[r.key]);
+  const missing = required.filter(
+    (r) => !env[r.key] || isPlaceholderValue(env[r.key]),
+  );
 
   if (missing.length > 0) {
     console.log("\n⚠️  Required configuration missing:");
