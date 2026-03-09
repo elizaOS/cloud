@@ -187,11 +187,13 @@ describe("Financial Invariants (Property-Based)", () => {
 
                 const finalBalance = Number(org?.credit_balance);
 
-                // INVARIANT: Calculated balance should match actual
-                // Use tolerance for floating point (0.02 to account for cumulative errors)
-                expect(Math.abs(finalBalance - expectedBalance)).toBeLessThan(
-                  0.02,
+                // INVARIANT: Calculated balance should match actual.
+                // Round the drift itself to avoid binary floating-point noise
+                // turning an allowed 0.02 tolerance into 0.020000000000038654.
+                const balanceDrift = Number(
+                  Math.abs(finalBalance - expectedBalance).toFixed(6),
                 );
+                expect(balanceDrift).toBeLessThanOrEqual(0.02);
 
                 return true;
               } finally {
