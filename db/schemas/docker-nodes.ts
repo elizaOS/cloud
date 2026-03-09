@@ -18,6 +18,7 @@ export const dockerNodes = pgTable(
     allocated_count: integer("allocated_count").notNull().default(0),
     last_health_check: timestamp("last_health_check", { withTimezone: true }),
     ssh_user: text("ssh_user").notNull().default("root"),
+    host_key_fingerprint: text("host_key_fingerprint"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

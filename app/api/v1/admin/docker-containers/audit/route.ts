@@ -53,27 +53,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const auditResults: {
-      nodeId: string;
-      hostname: string;
-      ghostContainers: string[];
-      orphanRecords: Array<{ id: string; containerName: string | null }>;
-      error?: string;
-    }[] = [];
+    // Audit all nodes in parallel
+    const settledResults = await Promise.allSettled(
+      nodes.map(async (node) => {
+        const result = {
+          nodeId: node.node_id,
+          hostname: node.hostname,
+          ghostContainers: [] as string[],
+          orphanRecords: [] as Array<{ id: string; containerName: string | null }>,
+          error: undefined as string | undefined,
+        };
 
-    let totalGhosts = 0;
-    let totalOrphans = 0;
-
-    for (const node of nodes) {
-      const result = {
-        nodeId: node.node_id,
-        hostname: node.hostname,
-        ghostContainers: [] as string[],
-        orphanRecords: [] as Array<{ id: string; containerName: string | null }>,
-        error: undefined as string | undefined,
-      };
-
-      try {
         // Get containers tracked in DB for this node
         const dbContainers = await dbRead
           .select({
@@ -94,17 +84,22 @@ export async function POST(request: NextRequest) {
           hostname: node.hostname,
           port: node.ssh_port,
           username: node.ssh_user,
+          hostKeyFingerprint: node.host_key_fingerprint ?? undefined,
         });
 
         let actualContainers: string[] = [];
         try {
           const psOutput = await ssh.exec(
-            "docker ps --format '{{.Names}}' 2>/dev/null || true",
+            "docker ps --filter name=milady- --format '{{.Names}}' 2>/dev/null || true",
           );
           actualContainers = psOutput
             .trim()
             .split("\n")
             .filter(Boolean);
+        } catch (sshError) {
+          // SSH connection failed — mark node offline
+          await dockerNodesRepository.updateStatus(node.node_id, "offline");
+          throw sshError;
         } finally {
           try {
             await ssh.disconnect();
@@ -137,18 +132,47 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        return result;
+      }),
+    );
+
+    // Collect results from settled promises
+    const auditResults: {
+      nodeId: string;
+      hostname: string;
+      ghostContainers: string[];
+      orphanRecords: Array<{ id: string; containerName: string | null }>;
+      error?: string;
+    }[] = [];
+
+    let totalGhosts = 0;
+    let totalOrphans = 0;
+
+    for (let i = 0; i < settledResults.length; i++) {
+      const settled = settledResults[i];
+      if (settled.status === "fulfilled") {
+        const result = settled.value;
         totalGhosts += result.ghostContainers.length;
         totalOrphans += result.orphanRecords.length;
-      } catch (error) {
-        result.error =
-          error instanceof Error ? error.message : "Failed to audit node";
+        auditResults.push(result);
+      } else {
+        const node = nodes[i];
+        const errorMsg =
+          settled.reason instanceof Error
+            ? settled.reason.message
+            : "Failed to audit node";
         logger.warn("[Admin Docker Audit] Node audit failed", {
           nodeId: node.node_id,
-          error: result.error,
+          error: errorMsg,
+        });
+        auditResults.push({
+          nodeId: node.node_id,
+          hostname: node.hostname,
+          ghostContainers: [],
+          orphanRecords: [],
+          error: errorMsg,
         });
       }
-
-      auditResults.push(result);
     }
 
     logger.info("[Admin Docker Audit] Audit completed", {

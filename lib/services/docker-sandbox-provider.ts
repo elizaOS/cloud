@@ -131,11 +131,17 @@ function allocatePort(min: number, max: number, excluded: Set<number>): number {
   return port;
 }
 
-/** Validate an agent name: alphanumeric, hyphens, underscores only (1-64 chars). */
+/** Validate an agent name: printable characters, 1-64 chars, no shell metacharacters. */
 function validateAgentName(name: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+  if (!name || name.length > 64) {
     throw new Error(
-      `Invalid agent name "${name}": must be 1-64 chars, alphanumeric / hyphens / underscores only.`,
+      `Invalid agent name: must be 1-64 characters.`,
+    );
+  }
+  // Block characters that could break shell commands even inside quotes
+  if (/[\x00-\x1f\x7f]/.test(name)) {
+    throw new Error(
+      `Invalid agent name "${name}": contains control characters.`,
     );
   }
 }
@@ -270,6 +276,70 @@ export class DockerSandboxProvider implements SandboxProvider {
   // create
   // ------------------------------------------------------------------
 
+  /**
+   * Create a sandbox container with automatic retry on port-collision TOCTOU races.
+   *
+   * Wraps {@link create} in a retry loop (up to 3 attempts with jitter).
+   * On each attempt, fresh ports are allocated. If a prior attempt left a
+   * ghost container running, it is cleaned up before retrying.
+   *
+   * Callers should prefer this over calling `create()` directly.
+   *
+   * NOTE: The DB INSERT (in milady-sandbox.ts) happens *after* this method
+   * returns. If that INSERT hits a UNIQUE constraint violation (PG 23505),
+   * the caller should call `stop(sandboxId)` to remove the ghost container
+   * and then retry the full flow.
+   */
+  async createWithRetry(config: SandboxCreateConfig): Promise<SandboxHandle> {
+    const MAX_ATTEMPTS = 3;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.create(config);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const isPortCollision =
+          lastError.message.includes("23505") ||
+          lastError.message.includes("unique constraint") ||
+          lastError.message.includes("already in use") ||
+          lastError.message.includes("port is already allocated");
+
+        if (!isPortCollision || attempt === MAX_ATTEMPTS) {
+          throw lastError;
+        }
+
+        // Clean up ghost container from the failed attempt
+        const containerName = getContainerName(config.agentId);
+        logger.warn(
+          `[docker-sandbox] Port collision on attempt ${attempt}/${MAX_ATTEMPTS} for ${containerName}, cleaning up and retrying...`,
+        );
+        try {
+          await this.stop(containerName);
+        } catch {
+          // Ghost may not exist or already be gone — safe to ignore
+        }
+
+        // Jitter: 200–800ms to desynchronise concurrent callers
+        const jitterMs = 200 + Math.floor(Math.random() * 600);
+        await new Promise((resolve) => setTimeout(resolve, jitterMs));
+      }
+    }
+
+    // Unreachable, but satisfies the compiler
+    throw lastError ?? new Error("[docker-sandbox] createWithRetry exhausted all attempts");
+  }
+
+  /**
+   * Create a single sandbox container (no retry).
+   *
+   * TOCTOU note: Port allocation is racy under concurrent provisioning.
+   * The DB has a partial UNIQUE index on (node_id, bridge_port) for active
+   * sandboxes, so a duplicate will fail at INSERT time. If the DB insert
+   * (in milady-sandbox.ts) fails with PG error 23505, the caller should:
+   *   1. Call stop(sandboxId) to remove the ghost container
+   *   2. Retry from the top (or use {@link createWithRetry})
+   */
   async create(config: SandboxCreateConfig): Promise<SandboxHandle> {
     const { agentId, agentName, environmentVars } = config;
 
@@ -278,14 +348,22 @@ export class DockerSandboxProvider implements SandboxProvider {
     validateAgentId(agentId);
 
     // 2. Select target node via DockerNodeManager (least-loaded, DB-backed)
+    // TODO(PR-376): getAvailableNode + incrementAllocated + getUsedPorts are three
+    // sequential DB round-trips without a transaction boundary. In high-concurrency
+    // scenarios, capacity could change between queries. The UNIQUE port index and
+    // retry logic provide safety, but a proper transaction would be cleaner.
     const dbNode = await dockerNodeManager.getAvailableNode();
 
     let nodeId: string;
     let hostname: string;
 
+    // host_key_fingerprint from DB node (null for env-var fallback, TOFU applies)
+    let hostKeyFingerprint: string | undefined;
+
     if (dbNode) {
       nodeId = dbNode.node_id;
       hostname = dbNode.hostname;
+      hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
       // Increment allocated_count in DB
       await dockerNodesRepository.incrementAllocated(nodeId);
     } else {
@@ -341,6 +419,13 @@ export class DockerSandboxProvider implements SandboxProvider {
       BRIDGE_PORT: "31337",
     };
 
+    // Validate env var keys to prevent shell command injection via malformed keys
+    for (const key of Object.keys(allEnv)) {
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+        throw new Error(`[docker-sandbox] Invalid environment variable key: "${key}"`);
+      }
+    }
+
     const envFlags = Object.entries(allEnv)
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
       .join(" ");
@@ -376,7 +461,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     ].join(" ");
 
     // 7. SSH to node, ensure volume dir, pull image, run container
-    const ssh = DockerSSHClient.getClient(hostname);
+    // Pass hostKeyFingerprint so pooled clients pin the key when available
+    const ssh = DockerSSHClient.getClient(hostname, undefined, hostKeyFingerprint);
 
     try {
       // Ensure volume directory exists

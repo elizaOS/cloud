@@ -24,10 +24,17 @@ function validateAgentId(agentId: string): void {
   }
 }
 
+/** Validate an agent name: printable characters, 1-64 chars, no control characters. */
 function validateAgentName(name: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+  if (!name || name.length > 64) {
     throw new Error(
-      `Invalid agent name "${name}": must be 1-64 chars, alphanumeric / hyphens / underscores only.`,
+      `Invalid agent name: must be 1-64 characters.`,
+    );
+  }
+  // Block characters that could break shell commands even inside quotes
+  if (/[\x00-\x1f\x7f]/.test(name)) {
+    throw new Error(
+      `Invalid agent name "${name}": contains control characters.`,
     );
   }
 }
@@ -243,16 +250,28 @@ describe("Docker Infrastructure - Pure Functions", () => {
       expect(() => validateAgentName(name)).toThrow(/Invalid agent name/);
     });
 
-    test("throws for spaces", () => {
-      expect(() => validateAgentName("my agent")).toThrow(/Invalid agent name/);
+    test("now accepts spaces (relaxed for existing agents)", () => {
+      expect(() => validateAgentName("my agent")).not.toThrow();
     });
 
-    test("throws for dots", () => {
-      expect(() => validateAgentName("my.agent")).toThrow(/Invalid agent name/);
+    test("now accepts dots (relaxed for existing agents)", () => {
+      expect(() => validateAgentName("my.agent")).not.toThrow();
     });
 
-    test("throws for shell special chars", () => {
-      expect(() => validateAgentName("agent;drop")).toThrow(/Invalid agent name/);
+    test("now accepts semicolons (shell-safe via quoting)", () => {
+      expect(() => validateAgentName("agent;drop")).not.toThrow();
+    });
+
+    test("throws for control characters (null byte)", () => {
+      expect(() => validateAgentName("agent\x00name")).toThrow(/control characters/);
+    });
+
+    test("throws for control characters (newline)", () => {
+      expect(() => validateAgentName("agent\nname")).toThrow(/control characters/);
+    });
+
+    test("throws for control characters (tab)", () => {
+      expect(() => validateAgentName("agent\tname")).toThrow(/control characters/);
     });
   });
 

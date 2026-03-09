@@ -75,7 +75,7 @@ interface DockerNode {
   allocatedCount: number;
   availableSlots: number;
   enabled: boolean;
-  status: "online" | "offline" | "degraded" | "unknown";
+  status: "healthy" | "offline" | "degraded" | "unknown";
   lastHealthCheck: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
@@ -149,7 +149,7 @@ function formatRelativeTime(iso: string | null): string {
 
 function NodeStatusBadge({ status }: { status: DockerNode["status"] }) {
   const map = {
-    online: { label: "Online", variant: "default" as const, icon: CheckCircle2, className: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" },
+    healthy: { label: "Healthy", variant: "default" as const, icon: CheckCircle2, className: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" },
     degraded: { label: "Degraded", variant: "secondary" as const, icon: AlertTriangle, className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
     offline: { label: "Offline", variant: "destructive" as const, icon: XCircle, className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
     unknown: { label: "Unknown", variant: "outline" as const, icon: Clock, className: "" },
@@ -447,7 +447,7 @@ export function InfrastructureDashboard() {
   // Overview stats
   // ---------------------------------------------------------------------------
 
-  const nodesOnline = nodes.filter((n) => n.status === "online").length;
+  const nodesOnline = nodes.filter((n) => n.status === "healthy").length;
   const nodesOffline = nodes.filter((n) => n.status === "offline" || n.status === "degraded").length;
   const totalCapacity = nodes.reduce((s, n) => s + n.capacity, 0);
   const totalAllocated = nodes.reduce((s, n) => s + n.allocatedCount, 0);

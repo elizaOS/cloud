@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS docker_nodes (
   allocated_count INTEGER NOT NULL DEFAULT 0,
   last_health_check TIMESTAMPTZ,
   ssh_user TEXT NOT NULL DEFAULT 'root',
+  host_key_fingerprint TEXT,
   metadata JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

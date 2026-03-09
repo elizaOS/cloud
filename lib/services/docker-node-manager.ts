@@ -109,7 +109,7 @@ export class DockerNodeManager {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined);
+        const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined, node.host_key_fingerprint ?? undefined);
         await ssh.connect();
         const dockerId = await ssh.exec("docker info --format '{{.ID}}'", 10_000);
 
@@ -225,7 +225,7 @@ export class DockerNodeManager {
     node: DockerNode,
   ): Promise<{ name: string; id: string; state: string; status: string }[] | null> {
     try {
-      const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined);
+      const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined, node.host_key_fingerprint ?? undefined);
       await ssh.connect();
 
       const output = await ssh.exec(

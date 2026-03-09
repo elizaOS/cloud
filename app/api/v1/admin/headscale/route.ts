@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     const filteredMachines = HEADSCALE_USER
       ? machines.filter(
           (m) =>
-            m.user?.name === HEADSCALE_USER || !HEADSCALE_USER,
+            m.user?.name === HEADSCALE_USER || !m.user?.name,
         )
       : machines;
 

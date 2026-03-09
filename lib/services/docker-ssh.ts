@@ -74,10 +74,11 @@ export class DockerSSHClient {
    * Pool key includes hostname + port to avoid collisions when two nodes
    * share a hostname but use different SSH ports.
    *
-   * Note: pooled clients use TOFU (trust-on-first-use) for host keys.
-   * For fingerprint verification, construct DockerSSHClient directly with hostKeyFingerprint.
+   * When hostKeyFingerprint is provided, the pooled client will reject
+   * connections if the remote key doesn't match. When omitted, TOFU
+   * (trust-on-first-use) applies: the fingerprint is logged on first connect.
    */
-  static getClient(hostname: string, port?: number): DockerSSHClient {
+  static getClient(hostname: string, port?: number, hostKeyFingerprint?: string): DockerSSHClient {
     const effectivePort = port ?? DEFAULT_SSH_PORT;
     const poolKey = `${hostname}:${effectivePort}`;
     let client = DockerSSHClient.pool.get(poolKey);
@@ -91,7 +92,7 @@ export class DockerSSHClient {
       }
     }
     if (!client) {
-      client = new DockerSSHClient({ hostname, port: effectivePort });
+      client = new DockerSSHClient({ hostname, port: effectivePort, hostKeyFingerprint });
       DockerSSHClient.pool.set(poolKey, client);
     }
     return client;
@@ -115,12 +116,22 @@ export class DockerSSHClient {
 
   // ---- Constructor -----------------------------------------------------
 
+  private readonly privateKey: Buffer;
+
   constructor(config: DockerSSHConfig) {
     this.hostname = config.hostname;
     this.port = config.port ?? DEFAULT_SSH_PORT;
     this.username = config.username ?? DEFAULT_SSH_USERNAME;
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
+
+    try {
+      this.privateKey = fs.readFileSync(this.privateKeyPath);
+    } catch (err) {
+      throw new Error(
+        `[docker-ssh] Failed to read SSH key at ${this.privateKeyPath}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ---- Public API ------------------------------------------------------
@@ -132,16 +143,6 @@ export class DockerSSHClient {
   async connect(): Promise<void> {
     if (this.connected && this.client) {
       return;
-    }
-
-    // Read private key
-    let privateKey: Buffer;
-    try {
-      privateKey = fs.readFileSync(this.privateKeyPath);
-    } catch (err) {
-      throw new Error(
-        `[docker-ssh] Failed to read SSH key at ${this.privateKeyPath}: ${err instanceof Error ? err.message : String(err)}`,
-      );
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -186,7 +187,7 @@ export class DockerSSHClient {
         host: this.hostname,
         port: this.port,
         username: this.username,
-        privateKey,
+        privateKey: this.privateKey,
         readyTimeout: CONNECTION_TIMEOUT_MS,
         hostVerifier: (key: Buffer) => {
           const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
