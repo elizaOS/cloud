@@ -421,8 +421,8 @@ async function getGoogleMcpHandler() {
               ...(summary && { summary }),
               ...(description !== undefined && { description }),
               ...(location !== undefined && { location }),
-              ...(start && { start: applyTimeZone(start, tz) }),
-              ...(end && { end: applyTimeZone(end, tz) }),
+              ...(start && { start: { ...existing.start, ...applyTimeZone(start, tz), date: undefined } }),
+              ...(end && { end: { ...existing.end, ...applyTimeZone(end, tz), date: undefined } }),
             };
 
             const res = await googleFetch(orgId, `${baseUrl}?sendUpdates=${sendUpdates}`, {
