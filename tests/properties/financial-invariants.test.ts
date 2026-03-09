@@ -48,6 +48,10 @@ const PROPERTY_TEST_RUNS = 10;
 const MAX_OPERATIONS = 15;
 const TEST_TIMEOUT = 180000;
 
+function normalizeDrift(value: number): number {
+  return Number(value.toFixed(6));
+}
+
 function isExpectedRedemptionGuardError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -113,9 +117,10 @@ describe("Financial Invariants (Property-Based)", () => {
                 });
 
                 const finalBalance = Number(org?.credit_balance);
+                const normalizedFinalBalance = normalizeDrift(finalBalance);
 
                 // INVARIANT: Balance must never be negative
-                expect(finalBalance).toBeGreaterThanOrEqual(0);
+                expect(normalizedFinalBalance).toBeGreaterThanOrEqual(0);
 
                 return true;
               } finally {
@@ -190,8 +195,8 @@ describe("Financial Invariants (Property-Based)", () => {
                 // INVARIANT: Calculated balance should match actual.
                 // Round the drift itself to avoid binary floating-point noise
                 // turning an allowed 0.02 tolerance into 0.020000000000038654.
-                const balanceDrift = Number(
-                  Math.abs(finalBalance - expectedBalance).toFixed(6),
+                const balanceDrift = normalizeDrift(
+                  Math.abs(finalBalance - expectedBalance),
                 );
                 expect(balanceDrift).toBeLessThanOrEqual(0.02);
 
@@ -256,13 +261,14 @@ describe("Financial Invariants (Property-Based)", () => {
                 const budget = await agentBudgetService.getBudget(agentId);
                 const allocated = Number(budget!.allocated_budget);
                 const spent = Number(budget!.spent_budget);
-                const available = allocated - spent;
+                const available = normalizeDrift(allocated - spent);
+                const allocationDrift = normalizeDrift(spent - allocated);
 
                 // INVARIANT: Available balance must never be negative
                 expect(available).toBeGreaterThanOrEqual(0);
 
                 // INVARIANT: Spent must never exceed allocated
-                expect(spent).toBeLessThanOrEqual(allocated);
+                expect(allocationDrift).toBeLessThanOrEqual(0);
 
                 return true;
               } finally {
@@ -333,7 +339,8 @@ describe("Financial Invariants (Property-Based)", () => {
                 const limit = Number(budget!.daily_limit);
 
                 // INVARIANT: Daily spent must not exceed daily limit
-                expect(dailySpent).toBeLessThanOrEqual(limit + 0.01); // Small tolerance
+                const dailyLimitDrift = normalizeDrift(dailySpent - limit);
+                expect(dailyLimitDrift).toBeLessThanOrEqual(0.01);
 
                 return true;
               } finally {
@@ -427,21 +434,26 @@ describe("Financial Invariants (Property-Based)", () => {
 
                 if (balance) {
                   // INVARIANT: Available balance must never be negative
-                  expect(balance.availableBalance).toBeGreaterThanOrEqual(0);
+                  expect(
+                    normalizeDrift(balance.availableBalance),
+                  ).toBeGreaterThanOrEqual(0);
 
                   // INVARIANT: total_earned >= total_redeemed + total_pending
-                  expect(balance.totalEarned).toBeGreaterThanOrEqual(
-                    balance.totalRedeemed + balance.totalPending - 0.01,
+                  const earningsCoverageDrift = normalizeDrift(
+                    balance.totalEarned -
+                      (balance.totalRedeemed + balance.totalPending),
                   );
+                  expect(earningsCoverageDrift).toBeGreaterThanOrEqual(-0.01);
 
                   // INVARIANT: available = earned - redeemed - pending
                   const calculatedAvailable =
                     balance.totalEarned -
                     balance.totalRedeemed -
                     balance.totalPending;
-                  expect(
+                  const availableBalanceDrift = normalizeDrift(
                     Math.abs(balance.availableBalance - calculatedAvailable),
-                  ).toBeLessThan(0.01);
+                  );
+                  expect(availableBalanceDrift).toBeLessThanOrEqual(0.01);
                 }
 
                 return true;
@@ -511,9 +523,10 @@ describe("Financial Invariants (Property-Based)", () => {
                     balance.breakdown.mcps;
 
                   // INVARIANT: Sum of sources = total earned
-                  expect(
+                  const sourceBreakdownDrift = normalizeDrift(
                     Math.abs(sumOfSources - balance.totalEarned),
-                  ).toBeLessThan(0.01);
+                  );
+                  expect(sourceBreakdownDrift).toBeLessThanOrEqual(0.01);
                 }
 
                 return true;
@@ -585,13 +598,16 @@ describe("Financial Invariants (Property-Based)", () => {
                 const budgetAllocated = Number(budget?.allocated_budget || 0);
 
                 // Allow a small tolerance for cumulative 4-decimal numeric rounding.
-                expect(orgBalance + budgetAllocated).toBeLessThanOrEqual(
-                  initialOrgBalance + 0.02,
+                const allocationTotalDrift = normalizeDrift(
+                  orgBalance + budgetAllocated - initialOrgBalance,
                 );
+                expect(allocationTotalDrift).toBeLessThanOrEqual(0.02);
 
                 // INVARIANT: Neither can be negative
-                expect(orgBalance).toBeGreaterThanOrEqual(0);
-                expect(budgetAllocated).toBeGreaterThanOrEqual(0);
+                expect(normalizeDrift(orgBalance)).toBeGreaterThanOrEqual(0);
+                expect(normalizeDrift(budgetAllocated)).toBeGreaterThanOrEqual(
+                  0,
+                );
 
                 return true;
               } finally {
