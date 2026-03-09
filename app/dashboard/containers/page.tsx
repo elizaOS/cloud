@@ -2,9 +2,11 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
+import { milaidySandboxService } from "@/lib/services/milaidy-sandbox";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
-import { Server, Activity, TrendingUp, AlertCircle } from "lucide-react";
+import { MilaidySandboxesTable } from "@/components/containers/milaidy-sandboxes-table";
+import { Server, Activity, TrendingUp, AlertCircle, Bot } from "lucide-react";
 import { ContainersPageWrapper } from "./containers-page-wrapper";
 import { ContainersEmptyState } from "./containers-empty-state";
 import { DeployFromCLI } from "./deploy-from-cli";
@@ -19,11 +21,18 @@ export const dynamic = "force-dynamic";
 
 /**
  * Containers page displaying all containers deployed by the authenticated user's organization.
- * Shows statistics (total, running, building, failed) and a table of containers.
+ * Shows two sections:
+ *  1. ECS Containers (AWS-backed, deployed via CLI)
+ *  2. AI Agent Sandboxes (Milaidy sandboxes — Docker-backed or Vercel-backed)
  */
 export default async function ContainersPage() {
   const user = await requireAuthWithOrg();
-  const containers = await listContainers(user.organization_id);
+
+  // Fetch both ECS containers and milaidy agent sandboxes in parallel
+  const [containers, sandboxes] = await Promise.all([
+    listContainers(user.organization_id),
+    milaidySandboxService.listAgents(user.organization_id),
+  ]);
 
   const stats = {
     total: containers.length,
@@ -38,50 +47,110 @@ export default async function ContainersPage() {
     ).length,
   };
 
+  const sandboxStats = {
+    total: sandboxes.length,
+    running: sandboxes.filter((s) => s.status === "running").length,
+    docker: sandboxes.filter((s) => !!s.node_id).length,
+    error: sandboxes.filter((s) => s.status === "error").length,
+  };
+
+  const hasAnything = containers.length > 0 || sandboxes.length > 0;
+
   return (
     <ContainersPageWrapper>
-      <div className="mx-auto w-full max-w-[1400px] space-y-6">
-        {/* Stats Grid - only show when containers exist */}
-        {containers.length > 0 && (
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total Containers"
-              value={stats.total}
-              icon={<Server className="h-5 w-5 text-[#FF5800]" />}
-            />
-            <StatCard
-              label="Running"
-              value={stats.running}
-              icon={<Activity className="h-5 w-5 text-green-500" />}
-            />
-            <StatCard
-              label="Building"
-              value={stats.building}
-              icon={<TrendingUp className="h-5 w-5 text-yellow-500" />}
-            />
-            <StatCard
-              label="Issues"
-              value={stats.failed}
-              icon={<AlertCircle className="h-5 w-5 text-red-500" />}
-            />
-          </div>
-        )}
+      <div className="mx-auto w-full max-w-[1400px] space-y-8">
 
-        {/* Containers Table or Empty State */}
-        {containers.length === 0 ? (
-          <ContainersEmptyState />
-        ) : (
-          <>
-            {/* Deploy from CLI helper */}
-            <DeployFromCLI />
-
-            {/* Table */}
-            <div className="bg-neutral-900 rounded-xl p-4 md:p-6">
-              <Suspense fallback={<ContainersSkeleton />}>
-                <ContainersTable containers={containers} />
-              </Suspense>
+        {/* ── ECS Containers section ── */}
+        <div className="space-y-6">
+          {/* Stats Grid - only show when containers exist */}
+          {containers.length > 0 && (
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Total Containers"
+                value={stats.total}
+                icon={<Server className="h-5 w-5 text-[#FF5800]" />}
+              />
+              <StatCard
+                label="Running"
+                value={stats.running}
+                icon={<Activity className="h-5 w-5 text-green-500" />}
+              />
+              <StatCard
+                label="Building"
+                value={stats.building}
+                icon={<TrendingUp className="h-5 w-5 text-yellow-500" />}
+              />
+              <StatCard
+                label="Issues"
+                value={stats.failed}
+                icon={<AlertCircle className="h-5 w-5 text-red-500" />}
+              />
             </div>
-          </>
+          )}
+
+          {/* ECS Containers Table or Empty State */}
+          {containers.length === 0 && sandboxes.length === 0 ? (
+            <ContainersEmptyState />
+          ) : containers.length > 0 ? (
+            <>
+              {/* Deploy from CLI helper */}
+              <DeployFromCLI />
+
+              {/* Table */}
+              <div className="bg-neutral-900 rounded-xl p-4 md:p-6">
+                <Suspense fallback={<ContainersSkeleton />}>
+                  <ContainersTable containers={containers} />
+                </Suspense>
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {/* ── AI Agent Sandboxes section ── */}
+        {sandboxes.length > 0 && (
+          <div className="space-y-4">
+            {/* Section header + stats */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-[#FF5800]" />
+                  AI Agent Sandboxes
+                </h2>
+                <p className="text-sm text-neutral-500 mt-0.5">
+                  Milaidy-powered agents — Docker and Vercel sandbox backends
+                </p>
+              </div>
+            </div>
+
+            {/* Sandbox stats */}
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Total Agents"
+                value={sandboxStats.total}
+                icon={<Bot className="h-5 w-5 text-[#FF5800]" />}
+              />
+              <StatCard
+                label="Running"
+                value={sandboxStats.running}
+                icon={<Activity className="h-5 w-5 text-green-500" />}
+              />
+              <StatCard
+                label="Docker-backed"
+                value={sandboxStats.docker}
+                icon={<Server className="h-5 w-5 text-blue-400" />}
+              />
+              <StatCard
+                label="Errors"
+                value={sandboxStats.error}
+                icon={<AlertCircle className="h-5 w-5 text-red-500" />}
+              />
+            </div>
+
+            {/* Sandboxes table */}
+            <div className="bg-neutral-900 rounded-xl p-4 md:p-6">
+              <MilaidySandboxesTable sandboxes={sandboxes} />
+            </div>
+          </div>
         )}
       </div>
     </ContainersPageWrapper>

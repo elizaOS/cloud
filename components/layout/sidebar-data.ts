@@ -195,6 +195,15 @@ export const sidebarSections: SidebarSection[] = [
         adminOnly: true,
         superAdminOnly: true,
       },
+      {
+        id: "admin-infrastructure",
+        label: "Infrastructure",
+        href: "/dashboard/admin/infrastructure",
+        icon: Server,
+        freeAllowed: false,
+        adminOnly: true,
+        superAdminOnly: true,
+      },
     ],
   },
 ];
