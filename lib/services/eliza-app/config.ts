@@ -1,8 +1,9 @@
 /**
  * Eliza App Configuration
  *
- * Centralized configuration with production validation.
- * All required env vars must be set in production.
+ * Channel integrations are optional in Preview and should not fail the build
+ * when their runtime secrets are absent. Only the JWT secret is treated as
+ * required for core session flows.
  */
 
 import { getPromptPreset, type PromptPreset } from "@/lib/eliza/prompt-presets";
@@ -18,6 +19,10 @@ function requireEnv(name: string, fallback?: string): string {
     throw new Error(`[ElizaApp] Required env var ${name} is not set`);
   }
   return fallback || "";
+}
+
+function optionalRuntimeEnv(name: string, fallback = ""): string {
+  return process.env[name] || (!isProduction ? fallback : "");
 }
 
 export const elizaAppConfig = {
@@ -38,35 +43,28 @@ export const elizaAppConfig = {
 
   // Telegram configuration
   telegram: {
-    botToken: requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", ""),
+    botToken: optionalRuntimeEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN"),
     webhookSecret: process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "",
   },
 
   // Blooio (iMessage) configuration
   blooio: {
-    apiKey: requireEnv("ELIZA_APP_BLOOIO_API_KEY", ""),
+    apiKey: optionalRuntimeEnv("ELIZA_APP_BLOOIO_API_KEY"),
     webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
-    phoneNumber: requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
+    phoneNumber: optionalRuntimeEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
   },
 
   // Discord configuration
   discord: {
-    botToken: requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", ""),
-    applicationId: requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", ""),
-    clientSecret: requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", ""),
+    botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN"),
+    applicationId: optionalRuntimeEnv("ELIZA_APP_DISCORD_APPLICATION_ID"),
+    clientSecret: optionalRuntimeEnv("ELIZA_APP_DISCORD_CLIENT_SECRET"),
   },
 
   // JWT configuration - secret required in all environments
   jwt: {
-    secret: requireEnv("ELIZA_APP_JWT_SECRET"),
+    get secret() {
+      return requireEnv("ELIZA_APP_JWT_SECRET");
+    },
   },
 } as const;
-
-// Validate on import in production
-if (isProduction) {
-  // These will throw if not set
-  elizaAppConfig.telegram.botToken;
-  elizaAppConfig.blooio.apiKey;
-  elizaAppConfig.blooio.phoneNumber;
-  elizaAppConfig.jwt.secret;
-}
