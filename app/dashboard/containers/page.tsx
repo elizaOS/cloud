@@ -2,9 +2,11 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services/containers";
+import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
-import { Server, Activity, TrendingUp, AlertCircle } from "lucide-react";
+import { MiladySandboxesTable } from "@/components/containers/milady-sandboxes-table";
+import { Server, Activity, TrendingUp, AlertCircle, Box } from "lucide-react";
 import { ContainersPageWrapper } from "./containers-page-wrapper";
 import { ContainersEmptyState } from "./containers-empty-state";
 import { DeployFromCLI } from "./deploy-from-cli";
@@ -25,6 +27,7 @@ export const dynamic = "force-dynamic";
 export default async function ContainersPage() {
   const user = await requireAuthWithOrg();
   const containers = await listContainers(user.organization_id);
+  const sandboxes = await miladySandboxService.listAgents(user.organization_id);
 
   const stats = {
     total: containers.length,
@@ -88,6 +91,17 @@ export default async function ContainersPage() {
             </BrandCard>
           </>
         )}
+
+        {/* Milady Sandboxes (Docker-provisioned agents) */}
+        <BrandCard corners={false} className="p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Box className="h-5 w-5 text-[#FF5800]" />
+            <h2 className="text-lg font-semibold">Milady Sandboxes</h2>
+          </div>
+          <Suspense fallback={<ContainersSkeleton />}>
+            <MiladySandboxesTable sandboxes={sandboxes} />
+          </Suspense>
+        </BrandCard>
       </div>
     </ContainersPageWrapper>
   );

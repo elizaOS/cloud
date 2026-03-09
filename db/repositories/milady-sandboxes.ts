@@ -5,7 +5,7 @@ import {
   type MiladySandboxBackup, type NewMiladySandboxBackup,
   type MiladySandboxStatus, type MiladyBackupSnapshotType,
 } from "@/db/schemas/milady-sandboxes";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, notInArray } from "drizzle-orm";
 
 export type {
   MiladySandbox, NewMiladySandbox,
@@ -30,6 +30,22 @@ export class MiladySandboxesRepository {
   async listByOrganization(orgId: string): Promise<MiladySandbox[]> {
     return dbRead.select().from(miladySandboxes)
       .where(eq(miladySandboxes.organization_id, orgId)).orderBy(desc(miladySandboxes.created_at));
+  }
+
+  async findBySandboxId(sandboxId: string): Promise<MiladySandbox | undefined> {
+    const [r] = await dbRead.select().from(miladySandboxes)
+      .where(eq(miladySandboxes.sandbox_id, sandboxId)).limit(1);
+    return r;
+  }
+
+  /** List active (non-terminal) sandboxes on a specific docker node. */
+  async listByNodeId(nodeId: string): Promise<MiladySandbox[]> {
+    const terminalStatuses: MiladySandboxStatus[] = ["stopped", "error"];
+    return dbRead.select().from(miladySandboxes)
+      .where(and(
+        eq(miladySandboxes.node_id, nodeId),
+        notInArray(miladySandboxes.status, terminalStatuses),
+      ));
   }
 
   async findRunningSandbox(id: string, orgId: string): Promise<MiladySandbox | undefined> {

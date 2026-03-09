@@ -33,6 +33,13 @@ export const miladySandboxes = pgTable(
     error_message: text("error_message"),
     error_count: integer("error_count").notNull().default(0),
     environment_vars: jsonb("environment_vars").$type<Record<string, string>>().notNull().default({}),
+    // Docker infrastructure columns (added by 0034_docker_nodes migration)
+    node_id: text("node_id"),
+    container_name: text("container_name"),
+    bridge_port: integer("bridge_port"),
+    web_ui_port: integer("web_ui_port"),
+    headscale_ip: text("headscale_ip"),
+    docker_image: text("docker_image"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
