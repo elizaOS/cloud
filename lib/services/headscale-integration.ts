@@ -15,8 +15,11 @@
 import { logger } from "@/lib/utils/logger";
 import { headscaleClient, HeadscaleClient } from "./headscale-client";
 
-/** Default polling interval when waiting for VPN registration (ms). */
-const POLL_INTERVAL_MS = 2_000;
+/** Initial polling interval when waiting for VPN registration (ms). */
+const POLL_INTERVAL_INITIAL_MS = 1_000;
+
+/** Maximum polling interval after exponential backoff (ms). */
+const POLL_INTERVAL_MAX_MS = 8_000;
 
 /** Default timeout for VPN registration (ms). */
 const DEFAULT_REGISTRATION_TIMEOUT_MS = 60_000;
@@ -105,6 +108,7 @@ export class HeadscaleIntegration {
     );
 
     const deadline = Date.now() + timeoutMs;
+    let interval = POLL_INTERVAL_INITIAL_MS;
 
     while (Date.now() < deadline) {
       try {
@@ -132,8 +136,13 @@ export class HeadscaleIntegration {
         );
       }
 
-      // Sleep before next poll
-      await sleep(POLL_INTERVAL_MS);
+      // Exponential backoff with jitter to avoid thundering-herd on
+      // Headscale during bulk container provisioning.
+      const jitter = Math.floor(Math.random() * interval * 0.3);
+      const sleepMs = Math.min(interval + jitter, deadline - Date.now());
+      if (sleepMs <= 0) break;
+      await sleep(sleepMs);
+      interval = Math.min(interval * 1.5, POLL_INTERVAL_MAX_MS);
     }
 
     logger.warn(

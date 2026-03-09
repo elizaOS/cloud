@@ -17,11 +17,6 @@ const HEADSCALE_USER = process.env.HEADSCALE_USER || "milady";
 /** Default timeout for API requests (ms) */
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-// TODO(PR-376): VPN registration polling loop with exponential backoff lives in
-// headscale-integration.ts (assigned to separate worker). That loop should add
-// jitter + exponential backoff to avoid thundering-herd on Headscale during
-// bulk container provisioning.
-
 /** Timeout for health checks (ms) */
 const HEALTH_TIMEOUT_MS = 5_000;
 

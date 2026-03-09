@@ -8,7 +8,7 @@
  * Reference: milady-cloud/backend/services/container-orchestrator.ts (executeSSH)
  */
 
-import { Client as SSHClient } from "ssh2";
+import { Client as SSHClient, type ClientChannel } from "ssh2";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
@@ -239,19 +239,32 @@ export class DockerSSHClient {
     return new Promise<string>((resolve, reject) => {
       let output = "";
       let settled = false;
+      // Stream ref captured by the timeout closure so it can signal the
+      // remote process to terminate (prevents leaked server-side processes).
+      let stream: ClientChannel | undefined;
+
+      // Redact command in error messages to avoid leaking secrets
+      // (e.g. env vars passed via `docker run -e`). Show only the first
+      // token (the binary name) for operator diagnostics.
+      const cmdFirstToken = command.split(/\s+/)[0] ?? "unknown";
 
       const timer = setTimeout(() => {
         if (!settled) {
           settled = true;
+          // Close the SSH channel to signal the remote process (SIGHUP)
+          // and prevent orphaned server-side processes after timeout.
+          try { stream?.close(); } catch { /* best-effort */ }
           reject(
             new Error(
-              `[docker-ssh] Command timed out after ${effectiveTimeout}ms on ${this.hostname}: ${command.slice(0, 120)}`,
+              `[docker-ssh] Command timed out after ${effectiveTimeout}ms on ${this.hostname}: ${cmdFirstToken} [redacted]`,
             ),
           );
         }
       }, effectiveTimeout);
 
-      client.exec(command, (err, stream) => {
+      client.exec(command, (err, s) => {
+        stream = s;
+
         if (err) {
           clearTimeout(timer);
           if (!settled) {
