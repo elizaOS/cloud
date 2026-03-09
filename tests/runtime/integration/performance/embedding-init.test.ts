@@ -162,7 +162,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       // Repeated startup should stay within a reasonable band of the baseline
       // even when there is no dramatic "warm" speedup from embedding setup.
       expect(avgWarm).toBeLessThan(
-        Math.max(firstDuration * 2, firstDuration + 15),
+        Math.max(firstDuration * 1.5, firstDuration + 40),
       );
       expect(warmVariance).toBeLessThan(500);
     },
