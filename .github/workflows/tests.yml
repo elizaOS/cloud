@@ -46,6 +46,7 @@ jobs:
             bulk_tests+=("$test_file")
           done < <(
             find tests/unit -name '*.test.ts' \
+              ! -path 'tests/unit/admin-service-pricing-route.test.ts' \
               ! -path 'tests/unit/credits.test.ts' \
               ! -path 'tests/unit/eliza-app/telegram-ux-helpers.test.ts' \
               ! -path 'tests/unit/eliza-app/discord-auth.test.ts' \
@@ -72,6 +73,10 @@ jobs:
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --preload ./tests/load-env.ts \
             tests/unit/mcp-twitter-tools.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/admin-service-pricing-route.test.ts
 
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --max-concurrency=1 \
