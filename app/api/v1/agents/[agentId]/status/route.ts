@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { miladySandboxService } from "@/lib/services/milaidy-sandbox";
+import { toCompatStatus } from "@/lib/api/compat-envelope";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/agents/[agentId]/status
  *
- * Service-to-service: return agent status for waifu.fun control-plane sync.
+ * S2S: return agent status. Uses canonical CompatStatusShape.
  * Auth: X-Service-Key header.
  */
 export async function GET(
@@ -31,13 +32,5 @@ export async function GET(
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    status: agent.status,
-    lastHeartbeat: agent.last_heartbeat_at?.toISOString?.() ?? agent.last_heartbeat_at ?? null,
-    bridgeUrl: agent.bridge_url ?? null,
-    webUiUrl: null, // Not yet exposed via sandbox record
-    currentNode: agent.node_id ?? null,
-    creditsSnapshot: null, // Billing not yet tracked per-agent
-    suspendedReason: agent.error_message ?? null,
-  });
+  return NextResponse.json(toCompatStatus(agent));
 }
