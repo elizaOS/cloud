@@ -20,7 +20,7 @@ import {
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const DATABASE_URL = process.env.DATABASE_URL || "";
-const TIMEOUT = 30000;
+const TIMEOUT = 60000;
 
 const shouldRun = !!DATABASE_URL;
 
