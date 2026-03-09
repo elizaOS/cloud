@@ -49,8 +49,14 @@ jobs:
               ! -path 'tests/unit/credits.test.ts' \
               ! -path 'tests/unit/eliza-app/telegram-ux-helpers.test.ts' \
               ! -path 'tests/unit/eliza-app/discord-auth.test.ts' \
+              ! -path 'tests/unit/eliza-app/connection-enforcement.test.ts' \
+              ! -path 'tests/unit/engagement-metrics/compute-metrics-cron.test.ts' \
               ! -path 'tests/unit/mcp-google-tools.test.ts' \
+              ! -path 'tests/unit/mcp-tools.test.ts' \
+              ! -path 'tests/unit/mcp-twitter-tools.test.ts' \
               ! -path 'tests/unit/mcp-proxy-affiliate-pricing.test.ts' \
+              ! -path 'tests/unit/proxy-engine.test.ts' \
+              ! -path 'tests/unit/proxy-pricing.test.ts' \
               ! -path 'tests/unit/wallet-auth.test.ts' \
               | sort
           )
@@ -58,6 +64,14 @@ jobs:
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --preload ./tests/load-env.ts \
             tests/unit/mcp-google-tools.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/mcp-tools.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/mcp-twitter-tools.test.ts
 
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --max-concurrency=1 \
@@ -72,6 +86,22 @@ jobs:
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --preload ./tests/load-env.ts \
             tests/unit/mcp-proxy-affiliate-pricing.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/proxy-engine.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/proxy-pricing.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/eliza-app/connection-enforcement.test.ts
+
+          SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
+            --preload ./tests/load-env.ts \
+            tests/unit/engagement-metrics/compute-metrics-cron.test.ts
 
           SKIP_DB_DEPENDENT=1 SKIP_SERVER_CHECK=true bun test \
             --preload ./tests/load-env.ts \
