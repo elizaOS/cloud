@@ -38,6 +38,5 @@ jobs:
         run: cd services/gateway-webhook && bun install --frozen-lockfile
 
       - name: Run service tests
-        run: bun test services/gateway-webhook/__tests__/ --timeout 60000
-        env:
-          SKIP_SERVER_CHECK: "true"
+        working-directory: services/gateway-webhook
+        run: bun test __tests__/ --timeout 60000
