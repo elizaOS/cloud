@@ -12,21 +12,6 @@ runs:
   steps:
     - uses: oven-sh/setup-bun@v2
 
-    - name: Increase Node heap for CI
-      shell: bash
-      run: |
-        case " ${NODE_OPTIONS:-} " in
-          *" --max-old-space-size="*)
-            echo "NODE_OPTIONS=${NODE_OPTIONS}" >> "$GITHUB_ENV"
-            ;;
-          "")
-            echo "NODE_OPTIONS=--max-old-space-size=4096" >> "$GITHUB_ENV"
-            ;;
-          *)
-            echo "NODE_OPTIONS=${NODE_OPTIONS} --max-old-space-size=4096" >> "$GITHUB_ENV"
-            ;;
-        esac
-
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
