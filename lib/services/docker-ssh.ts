@@ -5,6 +5,20 @@
  * cleanup.  Designed for orchestrating Docker containers on remote Hetzner
  * VPS nodes via SSH.
  *
+ * ## SSH Key Loading (cloud-deployable)
+ *
+ * The client supports two mechanisms for loading SSH private keys, checked
+ * in order of precedence:
+ *
+ * 1. **Environment variable (recommended for Vercel/serverless):**
+ *    `MILADY_SSH_KEY` — base64-encoded private key material.
+ *    Set this in Vercel environment variables or your secrets manager.
+ *    Generate with: `base64 -w0 < ~/.ssh/id_ed25519`
+ *
+ * 2. **Filesystem path (traditional servers):**
+ *    `MILADY_SSH_KEY_PATH` — path to the PEM file on disk.
+ *    Defaults to `~/.ssh/id_ed25519` if neither env var is set.
+ *
  * Reference: milady-cloud/backend/services/container-orchestrator.ts (executeSSH)
  */
 
@@ -23,9 +37,18 @@ const DEFAULT_SSH_PORT = 22;
 const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
 
 /**
+ * Base64-encoded SSH private key for authenticating to Docker nodes.
+ * Preferred over MILADY_SSH_KEY_PATH for serverless / Vercel deployments
+ * where the filesystem is ephemeral or read-only.
+ *
+ * Generate with: base64 -w0 < ~/.ssh/id_ed25519
+ */
+const SSH_KEY_ENV = process.env.MILADY_SSH_KEY;
+
+/**
  * Path to the SSH private key for authenticating to Docker nodes.
- * Set via MILADY_SSH_KEY_PATH environment variable.
- * Defaults to ~/.ssh/id_ed25519 if not specified.
+ * Only used when MILADY_SSH_KEY is not set.
+ * Defaults to ~/.ssh/id_ed25519 if neither env var is specified.
  */
 const DEFAULT_SSH_KEY_PATH =
   process.env.MILADY_SSH_KEY_PATH ||
@@ -46,6 +69,8 @@ export interface DockerSSHConfig {
   port?: number;
   username?: string;
   privateKeyPath?: string;
+  /** Raw private key buffer — takes precedence over privateKeyPath when provided. */
+  privateKey?: Buffer;
   /** Expected host key fingerprint (SHA256 base64). If set, connections to hosts with mismatched keys are rejected. */
   hostKeyFingerprint?: string;
 }
@@ -138,11 +163,49 @@ export class DockerSSHClient {
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
 
+    this.privateKey = config.privateKey ?? DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
+  }
+
+  // ---- Private key resolution ------------------------------------------
+
+  /**
+   * Resolve the SSH private key from available sources.
+   *
+   * Priority:
+   * 1. MILADY_SSH_KEY env var (base64-encoded) — works on Vercel/serverless
+   * 2. Filesystem path (MILADY_SSH_KEY_PATH or default ~/.ssh/id_ed25519)
+   *
+   * Never logs or includes the key material in error messages.
+   */
+  private static resolvePrivateKey(keyPath: string): Buffer {
+    // 1. Try env var first (serverless-friendly)
+    if (SSH_KEY_ENV) {
+      try {
+        const decoded = Buffer.from(SSH_KEY_ENV, "base64");
+        if (decoded.length === 0) {
+          throw new Error("Decoded key is empty");
+        }
+        logger.info("[docker-ssh] SSH key loaded from MILADY_SSH_KEY env var");
+        return decoded;
+      } catch (err) {
+        throw new Error(
+          `[docker-ssh] Failed to decode MILADY_SSH_KEY env var (expected base64): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // 2. Fall back to filesystem
     try {
-      this.privateKey = fs.readFileSync(this.privateKeyPath);
+      const key = fs.readFileSync(keyPath);
+      logger.info("[docker-ssh] SSH key loaded from filesystem");
+      return key;
     } catch (err) {
+      // Redact the full path in production — only show the basename
+      const safePath = keyPath.split("/").pop() ?? "unknown";
       throw new Error(
-        `[docker-ssh] Failed to read SSH key at ${this.privateKeyPath}: ${err instanceof Error ? err.message : String(err)}`,
+        `[docker-ssh] Failed to load SSH key (file: .../${safePath}). ` +
+        `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
+        `(${err instanceof Error ? err.message : String(err)})`,
       );
     }
   }
