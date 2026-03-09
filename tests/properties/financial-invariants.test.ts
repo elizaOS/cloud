@@ -43,13 +43,30 @@ import { getConnectionString } from "@/tests/helpers/local-database";
  *
  * Keep runs moderate - each run creates a full test data set in the DB.
  * 10 runs × 7 tests = ~70 test data sets total
+ *
+ * IMPORTANT: The DB credit_balance column is numeric(10,2), so values are
+ * rounded to 2 decimal places.  All amount arbitraries must be rounded to
+ * match, otherwise cumulative rounding drift causes false failures and
+ * fast-check wastes the entire timeout budget on shrinking.
  */
 const PROPERTY_TEST_RUNS = 10;
 const MAX_OPERATIONS = 15;
-const TEST_TIMEOUT = 180000;
+const TEST_TIMEOUT = 300000; // 5 min — leaves room for fast-check shrinking if a real invariant breaks
 
 function normalizeDrift(value: number): number {
   return Number(value.toFixed(6));
+}
+
+/**
+ * Generate an amount rounded to 2 decimal places, matching the DB
+ * numeric(10,2) precision.  This prevents cumulative rounding drift
+ * between JS float accumulation and PostgreSQL storage.
+ */
+function dbSafeAmount(min: number, max: number): fc.Arbitrary<number> {
+  return fc
+    .double({ min, max, noNaN: true })
+    .map((v) => Math.round(v * 100) / 100)
+    .filter((v) => v >= min); // ensure rounding didn't push below min
 }
 
 function isExpectedRedemptionGuardError(error: unknown): boolean {
@@ -81,11 +98,11 @@ describe("Financial Invariants (Property-Based)", () => {
             fc.array(
               fc.record({
                 type: fc.constantFrom("add", "deduct"),
-                amount: fc.double({ min: 0.01, max: 50, noNaN: true }),
+                amount: dbSafeAmount(0.01, 50),
               }),
               { minLength: 1, maxLength: MAX_OPERATIONS },
             ),
-            fc.double({ min: 10, max: 100, noNaN: true }), // Initial balance
+            dbSafeAmount(10, 100), // Initial balance (rounded to match DB)
             async (operations, initialBalance) => {
               // Setup
               const testData = await createTestDataSet(connectionString, {
@@ -146,7 +163,7 @@ describe("Financial Invariants (Property-Based)", () => {
             fc.array(
               fc.record({
                 type: fc.constantFrom("add", "deduct"),
-                amount: fc.double({ min: 1, max: 20, noNaN: true }),
+                amount: dbSafeAmount(1, 20),
               }),
               { minLength: 1, maxLength: 10 },
             ),
@@ -226,7 +243,7 @@ describe("Financial Invariants (Property-Based)", () => {
       async () => {
         await fc.assert(
           fc.asyncProperty(
-            fc.array(fc.double({ min: 0.5, max: 10, noNaN: true }), {
+            fc.array(dbSafeAmount(0.5, 10), {
               minLength: 1,
               maxLength: 20,
             }),
@@ -297,11 +314,11 @@ describe("Financial Invariants (Property-Based)", () => {
       async () => {
         await fc.assert(
           fc.asyncProperty(
-            fc.array(fc.double({ min: 0.1, max: 5, noNaN: true }), {
+            fc.array(dbSafeAmount(0.1, 5), {
               minLength: 1,
               maxLength: 15,
             }),
-            fc.double({ min: 5, max: 20, noNaN: true }), // Daily limit
+            dbSafeAmount(5, 20), // Daily limit
             async (deductions, dailyLimit) => {
               const testData = await createTestDataSet(connectionString, {
                 creditBalance: 200,
@@ -377,7 +394,7 @@ describe("Financial Invariants (Property-Based)", () => {
             fc.array(
               fc.record({
                 type: fc.constantFrom("earn", "lock"),
-                amount: fc.double({ min: 1, max: 20, noNaN: true }),
+                amount: dbSafeAmount(1, 20),
                 source: fc.constantFrom(
                   "miniapp",
                   "agent",
@@ -484,7 +501,7 @@ describe("Financial Invariants (Property-Based)", () => {
           fc.asyncProperty(
             fc.array(
               fc.record({
-                amount: fc.double({ min: 1, max: 30, noNaN: true }),
+                amount: dbSafeAmount(1, 30),
                 source: fc.constantFrom(
                   "miniapp",
                   "agent",
@@ -561,7 +578,7 @@ describe("Financial Invariants (Property-Based)", () => {
       async () => {
         await fc.assert(
           fc.asyncProperty(
-            fc.array(fc.double({ min: 5, max: 30, noNaN: true }), {
+            fc.array(dbSafeAmount(5, 30), {
               minLength: 1,
               maxLength: 5,
             }),
