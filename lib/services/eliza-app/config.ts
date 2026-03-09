@@ -1,8 +1,9 @@
 /**
  * Eliza App Configuration
  *
- * Centralized configuration with production validation.
- * All required env vars must be set in production.
+ * Channel integrations are optional in Preview and should not fail the build
+ * when their runtime secrets are absent. Only the JWT secret is treated as
+ * required for core session flows.
  */
 
 import { getPromptPreset, type PromptPreset } from "@/lib/eliza/prompt-presets";
@@ -24,6 +25,10 @@ function requireEnv(name: string, fallback?: string): string {
   throw new Error(`Required env var ${name} is not set`);
 }
 
+function optionalRuntimeEnv(name: string, fallback = ""): string {
+  return process.env[name] || (!isProduction ? fallback : "");
+}
+
 export const elizaAppConfig = {
   // Frontend URL (the consumer-facing app, e.g. eliza.app)
   appUrl: process.env.ELIZA_APP_URL || "https://eliza.app",
@@ -43,72 +48,44 @@ export const elizaAppConfig = {
   // Telegram configuration
   get telegram() {
     return {
-      get botToken() {
-        return requireEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN", "");
-      },
-      get webhookSecret() {
-        return process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "";
-      },
+      botToken: optionalRuntimeEnv("ELIZA_APP_TELEGRAM_BOT_TOKEN"),
+      webhookSecret: process.env.ELIZA_APP_TELEGRAM_WEBHOOK_SECRET || "",
     };
   },
 
   // Blooio (iMessage) configuration
   get blooio() {
     return {
-      get apiKey() {
-        return requireEnv("ELIZA_APP_BLOOIO_API_KEY", "");
-      },
-      get webhookSecret() {
-        return process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "";
-      },
-      get phoneNumber() {
-        return requireEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963");
-      },
+      apiKey: optionalRuntimeEnv("ELIZA_APP_BLOOIO_API_KEY"),
+      webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
+      phoneNumber: optionalRuntimeEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
     };
   },
 
   // WhatsApp configuration
   get whatsapp() {
     return {
-      get accessToken() {
-        return requireEnv("ELIZA_APP_WHATSAPP_ACCESS_TOKEN", "");
-      },
-      get phoneNumberId() {
-        return requireEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID", "");
-      },
-      get appSecret() {
-        return requireEnv("ELIZA_APP_WHATSAPP_APP_SECRET", "");
-      },
-      get verifyToken() {
-        return requireEnv("ELIZA_APP_WHATSAPP_VERIFY_TOKEN", "");
-      },
-      get phoneNumber() {
-        return requireEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER", "");
-      },
+      accessToken: optionalRuntimeEnv("ELIZA_APP_WHATSAPP_ACCESS_TOKEN"),
+      phoneNumberId: optionalRuntimeEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER_ID"),
+      appSecret: optionalRuntimeEnv("ELIZA_APP_WHATSAPP_APP_SECRET"),
+      verifyToken: optionalRuntimeEnv("ELIZA_APP_WHATSAPP_VERIFY_TOKEN"),
+      phoneNumber: optionalRuntimeEnv("ELIZA_APP_WHATSAPP_PHONE_NUMBER"),
     };
   },
 
   // Discord configuration
   get discord() {
     return {
-      get botToken() {
-        return requireEnv("ELIZA_APP_DISCORD_BOT_TOKEN", "");
-      },
-      get applicationId() {
-        return requireEnv("ELIZA_APP_DISCORD_APPLICATION_ID", "");
-      },
-      get clientSecret() {
-        return requireEnv("ELIZA_APP_DISCORD_CLIENT_SECRET", "");
-      },
+      botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN"),
+      applicationId: optionalRuntimeEnv("ELIZA_APP_DISCORD_APPLICATION_ID"),
+      clientSecret: optionalRuntimeEnv("ELIZA_APP_DISCORD_CLIENT_SECRET"),
     };
   },
 
   // JWT configuration - secret required in all environments
   get jwt() {
     return {
-      get secret() {
-        return requireEnv("ELIZA_APP_JWT_SECRET");
-      },
+      secret: requireEnv("ELIZA_APP_JWT_SECRET"),
     };
   },
 } as const;
