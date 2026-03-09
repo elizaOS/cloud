@@ -1,6 +1,8 @@
+version: "3.8"
+
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg17
     container_name: eliza-local-db
     restart: unless-stopped
     ports:
@@ -9,11 +11,6 @@ services:
       POSTGRES_USER: eliza_dev
       POSTGRES_PASSWORD: local_dev_password
       POSTGRES_DB: eliza_dev
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eliza_dev -d eliza_dev"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
@@ -27,6 +24,19 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+
+  redis-rest:
+    image: hiett/serverless-redis-http:latest
+    container_name: eliza-local-redis-rest
+    restart: unless-stopped
+    ports:
+      - "8079:80"
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local_dev_token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    depends_on:
+      - redis
 
 volumes:
   postgres_data:

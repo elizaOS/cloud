@@ -1,0 +1,23 @@
+{
+  "name": "@elizaos/agent-server",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts"
+  },
+  "dependencies": {
+    "@elizaos/core": "2.0.0-alpha.2",
+    "@elizaos/plugin-sql": "2.0.0-alpha.2",
+    "@elizaos/plugin-openai": "2.0.0-alpha.2",
+    "@elizaos/plugin-elizacloud": "2.0.0-alpha.7",
+    "elysia": "^1.1.0",
+    "@elysiajs/cors": "^1.1.0",
+    "ioredis": "^5.4.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.9.3"
+  }
+}
