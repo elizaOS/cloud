@@ -24,7 +24,13 @@
  * - A pre-connected Google account for token tests
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import {
+  describe,
+  it as bunIt,
+  expect,
+  beforeAll,
+  afterAll,
+} from "bun:test";
 import { Client } from "pg";
 import {
   createTestDataSet,
@@ -74,6 +80,8 @@ function hasUsableCacheConfig(): boolean {
 const CACHE_CONFIGURED = hasUsableCacheConfig();
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
+const it = (name: string, fn: () => unknown | Promise<unknown>) =>
+  bunIt(name, fn, TIMEOUT);
 
 describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   let testData: TestDataSet;
