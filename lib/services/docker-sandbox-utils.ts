@@ -22,25 +22,8 @@ export interface DockerNodeEnv {
 // Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Sensitive environment variable keys — values are redacted from logs.
- * Checked via exact match (SENSITIVE_KEYS.has(key)) and substring matching
- * (key.includes("SECRET") etc.) in the create() logging path.
- */
-export const SENSITIVE_KEYS = new Set([
-  "TS_AUTHKEY",
-  "DATABASE_URL",
-  "API_KEY",
-  "SECRET",
-  "OPENAI_API_KEY",
-  "ANTHROPIC_API_KEY",
-  "VERCEL_TOKEN",
-  "MILADY_SSH_KEY_PATH",
-  "PASSWORD",
-  "PRIVATE_KEY",
-]);
 
-/** Min/max for random port allocation. */
+
 export const BRIDGE_PORT_MIN = 18790;
 export const BRIDGE_PORT_MAX = 19790;
 export const WEBUI_PORT_MIN = 20000;
@@ -157,7 +140,7 @@ export function parseDockerNodes(): DockerNodeEnv[] {
   if (!raw) {
     throw new Error(
       "[docker-sandbox] MILADY_DOCKER_NODES env var is not set. " +
-        'Expected format: "nodeId:hostname:capacity,..."',
+      'Expected format: "nodeId:hostname:capacity,..."',
     );
   }
 

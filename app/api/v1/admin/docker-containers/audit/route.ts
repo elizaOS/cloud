@@ -181,10 +181,27 @@ export async function POST(request: NextRequest) {
       totalOrphans,
     });
 
+    // Build flat arrays matching the UI AuditResult interface
+    const ghostContainers: Array<{ nodeId: string; hostname: string; names: string[] }> = [];
+    const allOrphanRecords: Array<{ id: string; containerName: string | null }> = [];
+
+    for (const result of auditResults) {
+      if (result.ghostContainers.length > 0) {
+        ghostContainers.push({
+          nodeId: result.nodeId,
+          hostname: result.hostname,
+          names: result.ghostContainers,
+        });
+      }
+      allOrphanRecords.push(...result.orphanRecords);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         nodesChecked: nodes.length,
+        ghostContainers,
+        orphanRecords: allOrphanRecords,
         totalGhostContainers: totalGhosts,
         totalOrphanRecords: totalOrphans,
         nodes: auditResults,

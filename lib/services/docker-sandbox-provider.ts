@@ -319,7 +319,7 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     // 7. SSH to node, ensure volume dir, pull image, run container
     // Pass hostKeyFingerprint so pooled clients pin the key when available
-    const ssh = DockerSSHClient.getClient(hostname, undefined, hostKeyFingerprint);
+    const ssh = DockerSSHClient.getClient(hostname, sshPort, hostKeyFingerprint);
 
     try {
       // Ensure volume directory exists
@@ -349,7 +349,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     } catch (err) {
       // Rollback allocated_count on failure
       if (dbNode) {
-        await dockerNodesRepository.decrementAllocated(nodeId).catch(() => {});
+        await dockerNodesRepository.decrementAllocated(nodeId).catch(() => { });
       }
       // Clean up Headscale pre-auth key if VPN was prepared
       if (headscaleEnabled) {
