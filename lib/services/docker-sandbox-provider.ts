@@ -232,6 +232,28 @@ async function getUsedPorts(nodeId: string): Promise<Set<number>> {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Sensitive environment variable keys — values are redacted from logs.
+ * Checked via exact match (SENSITIVE_KEYS.has(key)) and substring matching
+ * (key.includes("SECRET") etc.) in the create() logging path.
+ */
+const SENSITIVE_KEYS = new Set([
+  "TS_AUTHKEY",
+  "DATABASE_URL",
+  "API_KEY",
+  "SECRET",
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "VERCEL_TOKEN",
+  "MILADY_SSH_KEY_PATH",
+  "PASSWORD",
+  "PRIVATE_KEY",
+]);
+
+// ---------------------------------------------------------------------------
 // DockerSandboxProvider
 // ---------------------------------------------------------------------------
 
@@ -286,7 +308,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     // 3. Allocate ports (check DB for existing assignments to avoid collisions)
     const usedPorts = await getUsedPorts(nodeId);
     const bridgePort = allocatePort(BRIDGE_PORT_MIN, BRIDGE_PORT_MAX, usedPorts);
-    usedPorts.add(bridgePort);
+    // No need to add bridgePort to exclusion set — web UI port range [20000,25000)
+    // never overlaps bridge range [18790,19790)
     const webUiPort = allocatePort(WEBUI_PORT_MIN, WEBUI_PORT_MAX, usedPorts);
     const containerName = getContainerName(agentId);
     const volumePath = getVolumePath(agentId);
@@ -318,30 +341,33 @@ export class DockerSandboxProvider implements SandboxProvider {
       BRIDGE_PORT: "31337",
     };
 
-    // Sensitive env vars that should not appear in logs
-    const SENSITIVE_KEYS = new Set(["TS_AUTHKEY", "DATABASE_URL", "API_KEY", "SECRET"]);
-
     const envFlags = Object.entries(allEnv)
       .map(([key, value]) => `-e ${shellQuote(`${key}=${value}`)}`)
       .join(" ");
 
-    // Redacted version for logging
+    // Redacted version for logging (SENSITIVE_KEYS is at module level)
     const envFlagsRedacted = Object.entries(allEnv)
       .map(([key, value]) => {
-        const redacted = SENSITIVE_KEYS.has(key) || key.includes("SECRET") || key.includes("PASSWORD")
-          ? "[REDACTED]"
-          : value;
+        const redacted =
+          SENSITIVE_KEYS.has(key) ||
+          key.includes("SECRET") ||
+          key.includes("PASSWORD") ||
+          key.includes("API_KEY") ||
+          key.includes("TOKEN") ||
+          key.includes("PRIVATE_KEY")
+            ? "[REDACTED]"
+            : value;
         return `-e ${key}=${redacted}`;
       })
       .join(" ");
 
     // 6. Build docker run command
+    // Only add NET_ADMIN and /dev/net/tun when headscale is actually enabled
     const dockerRunCmd = [
       "docker run -d",
       `--name ${shellQuote(containerName)}`,
       "--restart unless-stopped",
-      "--cap-add=NET_ADMIN",
-      "--device /dev/net/tun",
+      ...(headscaleEnabled ? ["--cap-add=NET_ADMIN", "--device /dev/net/tun"] : []),
       `-v ${shellQuote(volumePath)}:/app/data`,
       `-p ${bridgePort}:31337`,
       `-p ${webUiPort}:2138`,
@@ -540,6 +566,11 @@ export class DockerSandboxProvider implements SandboxProvider {
         await new Promise((resolve) =>
           setTimeout(resolve, HEALTH_CHECK_POLL_INTERVAL_MS),
         );
+      } else if (remaining > 0) {
+        // One last attempt after a short wait
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(remaining, 1000)),
+        );
       } else {
         break;
       }
@@ -613,16 +644,24 @@ export class DockerSandboxProvider implements SandboxProvider {
         }
 
         if (hostname) {
+          const bridgePort = sandbox.bridge_port ?? 0;
+          const webUiPort = sandbox.web_ui_port ?? 0;
+          if (!bridgePort || !webUiPort) {
+            logger.warn(
+              `[docker-sandbox] Missing port data for "${sandboxId}": bridge=${bridgePort}, webUi=${webUiPort}`,
+            );
+          }
+
           const meta: ContainerMeta = {
             nodeId: sandbox.node_id,
             hostname,
             containerName: sandbox.container_name,
-            bridgePort: sandbox.bridge_port ?? 0,
-            webUiPort: sandbox.web_ui_port ?? 0,
-            agentId: sandbox.id,
+            bridgePort,
+            webUiPort,
+            agentId: sandbox.id, // sandbox.id IS the agent ID (PK = agent identifier throughout the system)
           };
 
-          // Cache for next time
+          // Cache key is sandboxId which equals containerName (set in create() return value)
           this.containers.set(sandboxId, meta);
           logger.info(
             `[docker-sandbox] Hydrated container "${sandboxId}" from DB → node ${meta.nodeId} (${meta.hostname})`,

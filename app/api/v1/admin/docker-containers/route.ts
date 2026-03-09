@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { dbRead } from "@/db/helpers";
 import { miladySandboxes, type MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
-import { isNotNull, eq, desc, and, type SQL } from "drizzle-orm";
+import { isNotNull, eq, desc, and, sql, type SQL } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +61,14 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(miladySandboxes.node_id, nodeFilter));
     }
 
+    // Get the actual total count matching filters (not bounded by limit)
+    const [countResult] = await dbRead
+      .select({ count: sql<number>`count(*)::int` })
+      .from(miladySandboxes)
+      .where(and(...conditions));
+
+    const totalCount = countResult?.count ?? 0;
+
     const containers = await dbRead
       .select({
         id: miladySandboxes.id,
@@ -92,7 +100,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         containers,
-        total: containers.length,
+        total: totalCount,          // actual total matching filters
+        returned: containers.length, // number returned in this page
         filters: {
           status: statusFilter,
           nodeId: nodeFilter,

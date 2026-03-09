@@ -100,36 +100,37 @@ export class DockerNodeManager {
   /**
    * Health-check a single node via SSH.
    * Verifies Docker daemon is running by executing `docker info --format '{{.ID}}'`.
+   * Retries up to MAX_RETRIES times before marking the node offline.
    */
   async healthCheckNode(node: DockerNode): Promise<DockerNodeStatus> {
-    let status: DockerNodeStatus = "offline";
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 3_000;
+    let lastError: string = "";
 
-    try {
-      const ssh = DockerSSHClient.getClient(node.hostname);
-      await ssh.connect();
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined);
+        await ssh.connect();
+        const dockerId = await ssh.exec("docker info --format '{{.ID}}'", 10_000);
 
-      // Quick check: can Docker respond?
-      const dockerId = await ssh.exec(
-        "docker info --format '{{.ID}}'",
-        10_000,
-      );
-
-      if (dockerId.trim()) {
-        status = "healthy";
-      } else {
-        status = "degraded";
-        logger.warn(
-          `[docker-node-manager] Node ${node.node_id}: Docker returned empty ID`,
-        );
+        if (dockerId.trim()) {
+          await dockerNodesRepository.updateStatus(node.node_id, "healthy");
+          return "healthy";
+        } else {
+          lastError = "Docker returned empty ID";
+        }
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error.message : String(error);
+        if (attempt < MAX_RETRIES) {
+          logger.warn(`[docker-node-manager] Health check attempt ${attempt}/${MAX_RETRIES} failed for ${node.node_id}: ${lastError}, retrying in ${RETRY_DELAY_MS}ms`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        }
       }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(
-        `[docker-node-manager] Health check failed for ${node.node_id}: ${msg}`,
-      );
-      status = "offline";
     }
 
+    // All retries exhausted
+    logger.warn(`[docker-node-manager] Health check failed for ${node.node_id} after ${MAX_RETRIES} attempts: ${lastError}`);
+    const status: DockerNodeStatus = lastError.includes("empty ID") ? "degraded" : "offline";
     await dockerNodesRepository.updateStatus(node.node_id, status);
     return status;
   }
@@ -224,7 +225,7 @@ export class DockerNodeManager {
     node: DockerNode,
   ): Promise<{ name: string; id: string; state: string; status: string }[] | null> {
     try {
-      const ssh = DockerSSHClient.getClient(node.hostname);
+      const ssh = DockerSSHClient.getClient(node.hostname, node.ssh_port ?? undefined);
       await ssh.connect();
 
       const output = await ssh.exec(

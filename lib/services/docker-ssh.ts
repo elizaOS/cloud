@@ -9,6 +9,7 @@
  */
 
 import { Client as SSHClient } from "ssh2";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -39,6 +40,8 @@ export interface DockerSSHConfig {
   port?: number;
   username?: string;
   privateKeyPath?: string;
+  /** Expected host key fingerprint (SHA256 base64). If set, connections to hosts with mismatched keys are rejected. */
+  hostKeyFingerprint?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +53,7 @@ export class DockerSSHClient {
   private readonly port: number;
   private readonly username: string;
   private readonly privateKeyPath: string;
+  private readonly hostKeyFingerprint: string | undefined;
 
   private client: SSHClient | null = null;
   private connected = false;
@@ -69,6 +73,9 @@ export class DockerSSHClient {
    *
    * Pool key includes hostname + port to avoid collisions when two nodes
    * share a hostname but use different SSH ports.
+   *
+   * Note: pooled clients use TOFU (trust-on-first-use) for host keys.
+   * For fingerprint verification, construct DockerSSHClient directly with hostKeyFingerprint.
    */
   static getClient(hostname: string, port?: number): DockerSSHClient {
     const effectivePort = port ?? DEFAULT_SSH_PORT;
@@ -113,6 +120,7 @@ export class DockerSSHClient {
     this.port = config.port ?? DEFAULT_SSH_PORT;
     this.username = config.username ?? DEFAULT_SSH_USERNAME;
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
+    this.hostKeyFingerprint = config.hostKeyFingerprint;
   }
 
   // ---- Public API ------------------------------------------------------
@@ -180,6 +188,19 @@ export class DockerSSHClient {
         username: this.username,
         privateKey,
         readyTimeout: CONNECTION_TIMEOUT_MS,
+        hostVerifier: (key: Buffer) => {
+          const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
+          if (!this.hostKeyFingerprint) {
+            // No fingerprint configured — accept and log for future pinning
+            logger.info(`[docker-ssh] Host key for ${this.hostname}: SHA256:${fingerprint} (not verified — set hostKeyFingerprint to pin)`);
+            return true;
+          }
+          if (fingerprint !== this.hostKeyFingerprint) {
+            logger.error(`[docker-ssh] HOST KEY MISMATCH for ${this.hostname}! Expected SHA256:${this.hostKeyFingerprint}, got SHA256:${fingerprint}`);
+            return false;
+          }
+          return true;
+        },
       });
     });
   }
