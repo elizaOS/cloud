@@ -25,6 +25,13 @@ function requireEnv(name: string, fallback?: string): string {
   throw new Error(`Required env var ${name} is not set`);
 }
 
+/**
+ * Read an optional env var at call time, returning `fallback` in non-production
+ * when the variable is unset.  Because each channel section is wrapped in a
+ * top-level getter (`get telegram()`, etc.), `optionalRuntimeEnv` is invoked on
+ * every property access, not at module-init time.  Tests that set `process.env`
+ * after import will therefore see the updated values.
+ */
 function optionalRuntimeEnv(name: string, fallback = ""): string {
   return process.env[name] || (!isProduction ? fallback : "");
 }

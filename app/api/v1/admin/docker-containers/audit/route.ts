@@ -27,13 +27,10 @@ export const dynamic = "force-dynamic";
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
+  const { role } = await requireAdmin(request);
+  if (role !== "super_admin") {
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Super admin access required" },
       { status: 403 },
     );
   }
@@ -53,7 +50,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Audit all nodes in parallel
+    // Audit all nodes in parallel.  For deployments with many nodes, consider
+    // adding a concurrency limiter (e.g. p-limit) to cap simultaneous SSH
+    // connections.  Current usage is typically < 10 nodes, so unbounded
+    // parallelism is acceptable.
     const settledResults = await Promise.allSettled(
       nodes.map(async (node) => {
         const result = {

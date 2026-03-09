@@ -1,133 +1,20 @@
 /**
  * Unit Tests — Docker Infrastructure Pure Functions
  *
- * These functions are not exported from their source modules, so they are
- * copied here for testing purposes.
- * Source: lib/services/docker-sandbox-provider.ts
+ * Tests the utility functions extracted to docker-sandbox-utils.ts.
  */
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-
-// ---------------------------------------------------------------------------
-// Copied pure functions from lib/services/docker-sandbox-provider.ts
-// ---------------------------------------------------------------------------
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function validateAgentId(agentId: string): void {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(agentId)) {
-    throw new Error(
-      `Invalid agent ID "${agentId}": must be 1-128 chars, alphanumeric / hyphens / underscores only.`,
-    );
-  }
-}
-
-/** Validate an agent name: printable characters, 1-64 chars, no control characters. */
-function validateAgentName(name: string): void {
-  if (!name || name.length > 64) {
-    throw new Error(
-      `Invalid agent name: must be 1-64 characters.`,
-    );
-  }
-  // Block characters that could break shell commands even inside quotes
-  if (/[\x00-\x1f\x7f]/.test(name)) {
-    throw new Error(
-      `Invalid agent name "${name}": contains control characters.`,
-    );
-  }
-}
-
-function allocatePort(min: number, max: number, excluded: Set<number>): number {
-  const range = max - min;
-  if (excluded.size >= range) {
-    throw new Error(
-      `[docker-sandbox] No available ports in range [${min}, ${max}). All ${range} ports are allocated.`,
-    );
-  }
-  let port: number;
-  let attempts = 0;
-  do {
-    port = min + Math.floor(Math.random() * range);
-    attempts++;
-    if (attempts > range * 2) {
-      throw new Error(
-        `[docker-sandbox] Failed to find an available port in range [${min}, ${max}) after ${attempts} attempts.`,
-      );
-    }
-  } while (excluded.has(port));
-  return port;
-}
-
-function getContainerName(agentId: string): string {
-  return `milady-${agentId}`;
-}
-
-function getVolumePath(agentId: string): string {
-  validateAgentId(agentId);
-  return `/data/agents/${agentId}`;
-}
-
-// ---------------------------------------------------------------------------
-// Copied parseDockerNodes from lib/services/docker-sandbox-provider.ts
-// Cache variables are local to this module so tests can reset state.
-// ---------------------------------------------------------------------------
-
-interface DockerNodeEnv {
-  nodeId: string;
-  hostname: string;
-  capacity: number;
-}
-
-let _cachedDockerNodes: DockerNodeEnv[] | null = null;
-let _cachedDockerNodesRaw: string | undefined;
-
-function parseDockerNodes(): DockerNodeEnv[] {
-  const raw = process.env.MILADY_DOCKER_NODES;
-  if (!raw) {
-    throw new Error(
-      "[docker-sandbox] MILADY_DOCKER_NODES env var is not set. " +
-        'Expected format: "nodeId:hostname:capacity,..."',
-    );
-  }
-
-  // Return cached result if env var hasn't changed
-  if (_cachedDockerNodes && _cachedDockerNodesRaw === raw) {
-    return _cachedDockerNodes;
-  }
-
-  const nodes: DockerNodeEnv[] = [];
-  for (const segment of raw.split(",")) {
-    const trimmed = segment.trim();
-    if (!trimmed) continue;
-
-    const parts = trimmed.split(":");
-    if (parts.length < 3) {
-      // Skipping malformed entry (logger.warn in real impl)
-      continue;
-    }
-
-    const [nodeId, hostname, capacityStr] = parts;
-    const capacity = parseInt(capacityStr!, 10);
-    if (!nodeId || !hostname || isNaN(capacity) || capacity <= 0) {
-      // Skipping invalid entry
-      continue;
-    }
-
-    nodes.push({ nodeId, hostname, capacity });
-  }
-
-  if (nodes.length === 0) {
-    throw new Error(
-      "[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES",
-    );
-  }
-
-  _cachedDockerNodes = nodes;
-  _cachedDockerNodesRaw = raw;
-  return nodes;
-}
+import {
+  shellQuote,
+  validateAgentId,
+  validateAgentName,
+  allocatePort,
+  getContainerName,
+  getVolumePath,
+  parseDockerNodes,
+  type DockerNodeEnv,
+} from "@/lib/services/docker-sandbox-utils";
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -371,9 +258,6 @@ describe("Docker Infrastructure - Pure Functions", () => {
 
     beforeEach(() => {
       savedEnv = process.env.MILADY_DOCKER_NODES;
-      // Reset cache so each test parses fresh
-      _cachedDockerNodes = null;
-      _cachedDockerNodesRaw = undefined;
     });
 
     afterEach(() => {
@@ -382,9 +266,6 @@ describe("Docker Infrastructure - Pure Functions", () => {
       } else {
         process.env.MILADY_DOCKER_NODES = savedEnv;
       }
-      // Reset cache after each test
-      _cachedDockerNodes = null;
-      _cachedDockerNodesRaw = undefined;
     });
 
     test("parses a single valid node", () => {

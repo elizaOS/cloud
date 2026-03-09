@@ -21,6 +21,12 @@ import { logger } from "@/lib/utils/logger";
 
 const DEFAULT_SSH_PORT = 22;
 const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
+
+/**
+ * Path to the SSH private key for authenticating to Docker nodes.
+ * Set via MILADY_SSH_KEY_PATH environment variable.
+ * Defaults to ~/.ssh/id_ed25519 if not specified.
+ */
 const DEFAULT_SSH_KEY_PATH =
   process.env.MILADY_SSH_KEY_PATH ||
   path.join(os.homedir(), ".ssh", "id_ed25519");
@@ -86,6 +92,13 @@ export class DockerSSHClient {
       // Evict stale connections (handles serverless cold-start reconnections)
       if (client.connected && Date.now() - client.lastActivityMs > DockerSSHClient.IDLE_TIMEOUT_MS) {
         logger.info(`[docker-ssh] Evicting idle connection for ${poolKey}`);
+        client.disconnect().catch(() => {});
+        DockerSSHClient.pool.delete(poolKey);
+        client = undefined;
+      }
+      // Evict if fingerprint requirements changed
+      if (client && hostKeyFingerprint && client.pinnedFingerprint !== hostKeyFingerprint) {
+        logger.info(`[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`);
         client.disconnect().catch(() => {});
         DockerSSHClient.pool.delete(poolKey);
         client = undefined;
@@ -310,5 +323,10 @@ export class DockerSSHClient {
   /** Whether the underlying SSH session is open. */
   get isConnected(): boolean {
     return this.connected;
+  }
+
+  /** The pinned host key fingerprint (if configured). */
+  get pinnedFingerprint(): string | undefined {
+    return this.hostKeyFingerprint;
   }
 }

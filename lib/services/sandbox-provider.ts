@@ -49,7 +49,11 @@ export function createSandboxProvider(): SandboxProvider {
 
   switch (providerName) {
     case "vercel": {
-      // Lazy-import to avoid pulling Vercel SDK when using Docker provider
+      // Synchronous require() is intentional: this factory is called in a
+      // constructor (MiladySandboxService), which cannot be async.  Dynamic
+      // import() would require converting the constructor to a static async
+      // factory method across all call-sites.  The lazy require keeps the
+      // Vercel SDK out of the Docker bundle without that refactor.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { VercelSandboxProvider } = require("./vercel-sandbox-provider") as typeof import("./vercel-sandbox-provider");
       return new VercelSandboxProvider();

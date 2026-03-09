@@ -11,11 +11,12 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json({ success: false, error: message }, { status: 403 });
+  const { role } = await requireAdmin(request);
+  if (role !== "super_admin") {
+    return NextResponse.json(
+      { success: false, error: "Super admin access required" },
+      { status: 403 },
+    );
   }
 
   try {

@@ -23,13 +23,10 @@ type RouteParams = { params: Promise<{ nodeId: string }> };
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
+  const { role } = await requireAdmin(request);
+  if (role !== "super_admin") {
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Super admin access required" },
       { status: 403 },
     );
   }

@@ -20,13 +20,10 @@ export const dynamic = "force-dynamic";
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
+  const { role } = await requireAdmin(request);
+  if (role !== "super_admin") {
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Super admin access required" },
       { status: 403 },
     );
   }
@@ -80,13 +77,10 @@ const createNodeSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin(request);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
+  const { role } = await requireAdmin(request);
+  if (role !== "super_admin") {
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Super admin access required" },
       { status: 403 },
     );
   }
