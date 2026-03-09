@@ -62,12 +62,17 @@ export class DockerSSHClient {
    * Get (or create) a pooled client for the given hostname.
    * Uses default SSH port / user / key unless the pool entry was created
    * with different settings earlier.
+   *
+   * Pool key includes hostname + port to avoid collisions when two nodes
+   * share a hostname but use different SSH ports.
    */
-  static getClient(hostname: string): DockerSSHClient {
-    let client = DockerSSHClient.pool.get(hostname);
+  static getClient(hostname: string, port?: number): DockerSSHClient {
+    const effectivePort = port ?? DEFAULT_SSH_PORT;
+    const poolKey = `${hostname}:${effectivePort}`;
+    let client = DockerSSHClient.pool.get(poolKey);
     if (!client) {
-      client = new DockerSSHClient({ hostname });
-      DockerSSHClient.pool.set(hostname, client);
+      client = new DockerSSHClient({ hostname, port: effectivePort });
+      DockerSSHClient.pool.set(poolKey, client);
     }
     return client;
   }

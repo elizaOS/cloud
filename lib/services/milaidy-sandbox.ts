@@ -12,6 +12,7 @@ import {
 } from "@/db/repositories/milaidy-sandboxes";
 import type { MilaidyBackupStateData } from "@/db/schemas/milaidy-sandboxes";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
+import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -152,14 +153,15 @@ export class MilaidySandboxService {
       error_message: null,
     };
 
-    // For docker provider, also persist docker-specific fields from metadata
-    if (handle.metadata) {
-      if (handle.metadata.nodeId) updateData.node_id = handle.metadata.nodeId as string;
-      if (handle.metadata.containerName) updateData.container_name = handle.metadata.containerName as string;
-      if (handle.metadata.bridgePort) updateData.bridge_port = handle.metadata.bridgePort as number;
-      if (handle.metadata.webUiPort) updateData.web_ui_port = handle.metadata.webUiPort as number;
-      if (handle.metadata.headscaleIp) updateData.headscale_ip = handle.metadata.headscaleIp as string;
-      if (handle.metadata.dockerImage) updateData.docker_image = handle.metadata.dockerImage as string;
+    // For docker provider, persist docker-specific fields from typed metadata
+    if (handle.metadata && "nodeId" in handle.metadata) {
+      const dockerMeta = handle.metadata as unknown as DockerSandboxMetadata;
+      if (dockerMeta.nodeId) updateData.node_id = dockerMeta.nodeId;
+      if (dockerMeta.containerName) updateData.container_name = dockerMeta.containerName;
+      if (dockerMeta.bridgePort) updateData.bridge_port = dockerMeta.bridgePort;
+      if (dockerMeta.webUiPort) updateData.web_ui_port = dockerMeta.webUiPort;
+      if (dockerMeta.headscaleIp) updateData.headscale_ip = dockerMeta.headscaleIp;
+      if (dockerMeta.dockerImage) updateData.docker_image = dockerMeta.dockerImage;
     }
 
     const updated = await milaidySandboxesRepository.update(rec.id, updateData);
