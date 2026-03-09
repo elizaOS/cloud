@@ -106,7 +106,7 @@ const updateNodeSchema = z
     capacity: z.number().int().min(1).optional(),
     sshPort: z.number().int().min(1).max(65535).optional(),
     sshUser: z.string().min(1).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, {
     message: "At least one field must be provided for update",

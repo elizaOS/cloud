@@ -90,11 +90,11 @@ export async function POST(request: NextRequest) {
           );
 
         // Get actual running containers on the node via SSH
-        const ssh = new DockerSSHClient(
-          node.hostname,
-          node.ssh_port,
-          node.ssh_user,
-        );
+        const ssh = new DockerSSHClient({
+          hostname: node.hostname,
+          port: node.ssh_port,
+          username: node.ssh_user,
+        });
 
         let actualContainers: string[] = [];
         try {

@@ -10,37 +10,7 @@
 
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
-
-// ---------------------------------------------------------------------------
-// Interface types (inline so we don't depend on Worker 1's file existing yet)
-// ---------------------------------------------------------------------------
-
-export interface SandboxProvider {
-  create(config: SandboxCreateConfig): Promise<SandboxHandle>;
-  stop(sandboxId: string): Promise<void>;
-  checkHealth(healthUrl: string): Promise<boolean>;
-  runCommand?(
-    sandboxId: string,
-    cmd: string,
-    args?: string[],
-  ): Promise<string>;
-}
-
-export interface SandboxHandle {
-  sandboxId: string;
-  bridgeUrl: string;
-  healthUrl: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface SandboxCreateConfig {
-  agentId: string;
-  agentName: string;
-  environmentVars: Record<string, string>;
-  snapshotId?: string;
-  resources?: { vcpus?: number; memoryMb?: number };
-  timeout?: number;
-}
+import type { SandboxProvider, SandboxHandle, SandboxCreateConfig } from "./sandbox-provider";
 
 // ---------------------------------------------------------------------------
 // Internal types

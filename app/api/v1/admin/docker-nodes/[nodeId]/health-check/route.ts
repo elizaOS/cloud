@@ -112,7 +112,7 @@ async function runNodeHealthCheck(node: {
   try {
     // 1. SSH connectivity check
     const sshStart = Date.now();
-    ssh = new DockerSSHClient(node.hostname, node.ssh_port, node.ssh_user);
+    ssh = new DockerSSHClient({ hostname: node.hostname, port: node.ssh_port, username: node.ssh_user });
     await ssh.exec("echo ok");
     checks.ssh = { ok: true, latencyMs: Date.now() - sshStart };
   } catch (error) {

@@ -55,10 +55,9 @@ export function createSandboxProvider(): SandboxProvider {
     }
 
     case "docker": {
-      // Docker provider will be implemented in Worker 2
-      throw new Error(
-        "Docker sandbox provider is not yet implemented. Set MILAIDY_SANDBOX_PROVIDER=vercel or wait for the docker-sandbox-provider module.",
-      );
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { DockerSandboxProvider } = require("./docker-sandbox-provider") as typeof import("./docker-sandbox-provider");
+      return new DockerSandboxProvider();
     }
 
     default:

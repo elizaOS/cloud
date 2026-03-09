@@ -113,7 +113,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     cmd += ` ${container.containerName} 2>&1`;
 
     // SSH to node and fetch logs
-    const ssh = new DockerSSHClient(node.hostname, node.ssh_port, node.ssh_user);
+    const ssh = new DockerSSHClient({ hostname: node.hostname, port: node.ssh_port, username: node.ssh_user });
     let logOutput: string;
 
     try {
