@@ -55,7 +55,7 @@ export async function resolveIdentity(
       organizationId: data.organizationId,
       agentId: data.agentId,
     };
-    await redis.set(cacheKey, JSON.stringify(identity), {
+    await redis.set(cacheKey, identity, {
       ex: IDENTITY_CACHE_TTL_SECONDS,
     });
     return identity;

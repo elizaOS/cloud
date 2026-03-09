@@ -1,5 +1,6 @@
 import HashRing from "hashring";
 import { readFileSync } from "fs";
+import { logger } from "./logger";
 
 const REFRESH_MS = 5_000;
 
@@ -14,22 +15,30 @@ const rings = new Map<string, RingState>();
 let k8sToken: string | null = null;
 let k8sCaCert: string | null = null;
 
-function getK8sToken(): string {
-  if (k8sToken !== null) return k8sToken;
-  k8sToken = readFileSync(
-    "/var/run/secrets/kubernetes.io/serviceaccount/token",
-    "utf-8",
-  ).trim();
-  return k8sToken;
+function getK8sToken(): string | null {
+  if (k8sToken !== null) return k8sToken || null;
+  try {
+    k8sToken = readFileSync(
+      "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "utf-8",
+    ).trim();
+  } catch {
+    k8sToken = "";
+  }
+  return k8sToken || null;
 }
 
-function getK8sCaCert(): string {
-  if (k8sCaCert !== null) return k8sCaCert;
-  k8sCaCert = readFileSync(
-    "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-    "utf-8",
-  );
-  return k8sCaCert;
+function getK8sCaCert(): string | null {
+  if (k8sCaCert !== null) return k8sCaCert || null;
+  try {
+    k8sCaCert = readFileSync(
+      "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+      "utf-8",
+    );
+  } catch {
+    k8sCaCert = "";
+  }
+  return k8sCaCert || null;
 }
 
 function parseServerUrl(serverUrl: string): {
@@ -64,10 +73,13 @@ async function resolvePodIPs(
 ): Promise<string[]> {
   const apiUrl = `https://kubernetes.default.svc/apis/discovery.k8s.io/v1/namespaces/${namespace}/endpointslices?labelSelector=kubernetes.io/service-name=${serviceName}`;
 
+  const token = getK8sToken();
+  if (!token) return [];
+
   try {
     const res = await fetch(apiUrl, {
-      headers: { Authorization: `Bearer ${getK8sToken()}` },
-      tls: { ca: getK8sCaCert() },
+      headers: { Authorization: `Bearer ${token}` },
+      tls: { ca: getK8sCaCert() ?? undefined },
     } as RequestInit);
 
     if (!res.ok) return [];
@@ -84,9 +96,10 @@ async function resolvePodIPs(
     }
     return ips;
   } catch (err) {
-    console.error(
-      `[hash-router] EndpointSlice resolution failed for ${serviceName}: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error("[hash-router] EndpointSlice resolution failed", {
+      serviceName,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }
@@ -105,7 +118,9 @@ function updateRing(
 ): RingState | undefined {
   if (podIPs.length === 0) {
     if (existing) {
-      console.log(`[hash-router] ${serviceName} all pods gone, clearing ring`);
+      logger.info("[hash-router] All pods gone, clearing ring", {
+        serviceName,
+      });
       rings.delete(serviceName);
     }
     return undefined;
@@ -119,11 +134,12 @@ function updateRing(
   const added = podIPs.filter((ip) => !existing?.podIPs.includes(ip));
   const removed = existing?.podIPs.filter((ip) => !podIPs.includes(ip)) ?? [];
   if (added.length > 0 || removed.length > 0) {
-    console.log(
-      `[hash-router] ${serviceName} ring updated: ${podIPs.length} pods` +
-        (added.length > 0 ? ` +${added.join(",")}` : "") +
-        (removed.length > 0 ? ` -${removed.join(",")}` : ""),
-    );
+    logger.info("[hash-router] Ring updated", {
+      serviceName,
+      pods: podIPs.length,
+      added: added.length > 0 ? added : undefined,
+      removed: removed.length > 0 ? removed : undefined,
+    });
   }
 
   const state: RingState = {

@@ -113,6 +113,11 @@ export const CacheKeys = {
     /** Pattern for invalidating all discovery cache */
     pattern: () => `discovery:*`,
   },
+  models: {
+    /** Cache upstream gateway model catalog for selector/detail/status routes */
+    gatewayCatalog: () => `models:gateway-catalog:v1`,
+    pattern: () => `models:*`,
+  },
   /**
    * Code Agent cache keys
    * Used for caching session data and analytics
@@ -166,6 +171,17 @@ export const CacheKeys = {
     workflow: (workflowId: string) => `n8n:workflow:${workflowId}:v1`,
     /** Pattern for invalidating all workflow cache for an org */
     orgPattern: (orgId: string) => `n8n:workflows:${orgId}:*`,
+  },
+  /**
+   * SIWE (Sign-In With Ethereum) nonce cache.
+   * Single-use nonces stored by value; consumed on verify.
+   */
+  siwe: {
+    nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
+    pattern: () => `siwe:*`,
+  },
+  walletAuth: {
+    user: (address: string) => `wallet-auth:user:${address}:v1`,
   },
   userMetrics: {
     overview: (rangeDays?: number) =>
@@ -259,6 +275,9 @@ export const CacheTTL = {
   discovery: {
     list: 180, // 3 minutes - discovery results
   },
+  models: {
+    catalog: 3600, // 1 hour - upstream model catalogs change infrequently
+  },
   /**
    * Code Agent cache TTLs
    * Short TTLs since sessions are actively used
@@ -292,6 +311,12 @@ export const CacheTTL = {
     list: 60, // 1 minute - workflow list
     workflow: 120, // 2 minutes - single workflow details
   },
+  walletAuth: {
+    user: 30, // 30 seconds - avoid DB upsert on every wallet-authenticated request
+  },
+  siwe: {
+    nonce: 300, // 5 minutes - one-time nonce TTL
+  },
   userMetrics: {
     overview: 300, // 5 minutes - live query summary
     daily: 3600, // 1 hour - pre-computed data changes once per day
@@ -317,6 +342,9 @@ export const CacheStaleTTL = {
   },
   discovery: {
     list: 120, // Serve stale discovery results after 2 minutes
+  },
+  models: {
+    catalog: 900, // Serve stale model catalogs after 15 minutes
   },
   codeAgent: {
     session: 30, // Serve stale after 30 seconds

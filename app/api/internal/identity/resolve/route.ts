@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { elizaAppUserService } from "@/lib/services/eliza-app";
 import { withCache } from "@/lib/cache/service-cache";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export const dynamic = "force-dynamic";
 
@@ -102,44 +103,48 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
   }
 
   const typedPlatform = platform as Platform;
-  const cacheKey = `identity:${platform}:${platformId}`;
+  const cacheKey = CacheKeys.identity.resolve(typedPlatform, platformId);
 
-  const result = await withCache(cacheKey, 300, async () => {
-    let user = await lookupUser(typedPlatform, platformId);
+  const result = await withCache(
+    cacheKey,
+    CacheTTL.identity.resolve,
+    async () => {
+      let user = await lookupUser(typedPlatform, platformId);
 
-    if (!user) {
-      logger.info("[Identity] User not found, auto-creating", {
-        platform,
-        platformId,
-      });
-      try {
-        const created = await autoCreateUser(
-          typedPlatform,
-          platformId,
-          platformName,
-        );
-        // findOrCreate returns { user: User, organization }, build UserWithOrganization shape
-        user = {
-          ...created.user,
-          organization: created.organization,
-        } as UserWithOrganization;
-      } catch (err) {
-        logger.error("[Identity] Auto-create failed", {
+      if (!user) {
+        logger.info("[Identity] User not found, auto-creating", {
           platform,
           platformId,
-          error: err instanceof Error ? err.message : String(err),
         });
-        return null;
+        try {
+          const created = await autoCreateUser(
+            typedPlatform,
+            platformId,
+            platformName,
+          );
+          // findOrCreate returns { user: User, organization }, build UserWithOrganization shape
+          user = {
+            ...created.user,
+            organization: created.organization,
+          } as UserWithOrganization;
+        } catch (err) {
+          logger.error("[Identity] Auto-create failed", {
+            platform,
+            platformId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        }
       }
-    }
 
-    return {
-      userId: user.id,
-      organizationId: user.organization_id,
-      agentId: elizaAppConfig.defaultAgentId,
-      platformData: extractPlatformData(typedPlatform, user),
-    };
-  });
+      return {
+        userId: user.id,
+        organizationId: user.organization_id,
+        agentId: elizaAppConfig.defaultAgentId,
+        platformData: extractPlatformData(typedPlatform, user),
+      };
+    },
+  );
 
   if (!result) {
     return NextResponse.json(

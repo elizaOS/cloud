@@ -1258,7 +1258,9 @@ export class GatewayManager {
       );
 
       if (response) {
-        await message.reply(response);
+        const truncated =
+          response.length > 2000 ? response.slice(0, 2000) : response;
+        await message.reply(truncated);
       }
 
       conn.eventsRouted++;
