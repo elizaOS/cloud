@@ -74,6 +74,7 @@ const createNodeSchema = z.object({
   sshPort: z.number().int().min(1).max(65535).optional().default(22),
   capacity: z.number().int().min(1).optional().default(8),
   sshUser: z.string().min(1).optional().default("root"),
+  hostKeyFingerprint: z.string().min(1).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { nodeId, hostname, sshPort, capacity, sshUser } = parsed.data;
+  const { nodeId, hostname, sshPort, capacity, sshUser, hostKeyFingerprint } = parsed.data;
 
   try {
     // Check for duplicate nodeId
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
       ssh_port: sshPort,
       capacity,
       ssh_user: sshUser,
+      host_key_fingerprint: hostKeyFingerprint ?? null,
     });
 
     logger.info("[Admin Docker Nodes] Node registered", {
@@ -133,21 +135,40 @@ export async function POST(request: NextRequest) {
       capacity,
     });
 
+    const responseData: {
+      id: string;
+      nodeId: string;
+      hostname: string;
+      sshPort: number;
+      sshUser: string;
+      capacity: number;
+      allocatedCount: number;
+      enabled: boolean;
+      status: string;
+      createdAt: Date;
+      warning?: string;
+    } = {
+      id: node.id,
+      nodeId: node.node_id,
+      hostname: node.hostname,
+      sshPort: node.ssh_port,
+      sshUser: node.ssh_user,
+      capacity: node.capacity,
+      allocatedCount: node.allocated_count,
+      enabled: node.enabled,
+      status: node.status,
+      createdAt: node.created_at,
+    };
+
+    // Add warning if host key fingerprint is missing
+    if (!hostKeyFingerprint) {
+      responseData.warning = "No host key fingerprint set. SSH connections to this node are vulnerable to MITM attacks. Set host_key_fingerprint to pin the host key.";
+    }
+
     return NextResponse.json(
       {
         success: true,
-        data: {
-          id: node.id,
-          nodeId: node.node_id,
-          hostname: node.hostname,
-          sshPort: node.ssh_port,
-          sshUser: node.ssh_user,
-          capacity: node.capacity,
-          allocatedCount: node.allocated_count,
-          enabled: node.enabled,
-          status: node.status,
-          createdAt: node.created_at,
-        },
+        data: responseData,
       },
       { status: 201 },
     );

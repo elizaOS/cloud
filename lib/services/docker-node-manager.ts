@@ -105,6 +105,7 @@ export class DockerNodeManager {
   async healthCheckNode(node: DockerNode): Promise<DockerNodeStatus> {
     const MAX_RETRIES = 3;
     const RETRY_DELAY_MS = 3_000;
+    // Worst-case per node: MAX_RETRIES * (SSH_TIMEOUT + RETRY_DELAY) ≈ 39s with defaults
     let lastError: string = "";
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

@@ -126,59 +126,105 @@ export class MiladySandboxService {
       dbUri = db.connectionUri!;
     }
 
-    // 2. Sandbox (via provider)
-    let handle;
-    try {
-      handle = await this.provider.create({
-        agentId: rec.id,
-        agentName: rec.agent_name ?? "CloudAgent",
-        environmentVars: {
-          ...((rec.environment_vars as Record<string, string>) ?? {}),
-          DATABASE_URL: dbUri,
-        },
-        snapshotId: rec.snapshot_id ?? undefined,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      await this.markError(rec, `Sandbox creation failed: ${msg}`);
-      return { success: false, sandboxRecord: await miladySandboxesRepository.findById(rec.id), error: msg };
+    // 2-5. Sandbox creation + DB persistence with retry for port collision
+    // TOCTOU race: Port allocation happens in-memory (provider allocates next available port),
+    // but persistence to DB (unique constraint on node_id + bridge_port) happens later.
+    // If two concurrent provisions pick the same port, one will fail with PG 23505.
+    // Solution: Retry loop catches unique constraint errors, cleans up ghost container, and retries.
+    const MAX_PROVISION_ATTEMPTS = 3;
+    let lastError: string = "Unknown error";
+    
+    for (let attempt = 1; attempt <= MAX_PROVISION_ATTEMPTS; attempt++) {
+      let handle;
+      
+      try {
+        // 2. Sandbox (via provider)
+        handle = await this.provider.create({
+          agentId: rec.id,
+          agentName: rec.agent_name ?? "CloudAgent",
+          environmentVars: {
+            ...((rec.environment_vars as Record<string, string>) ?? {}),
+            DATABASE_URL: dbUri,
+          },
+          snapshotId: rec.snapshot_id ?? undefined,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await this.markError(rec, `Sandbox creation failed: ${msg}`);
+        return { success: false, sandboxRecord: await miladySandboxesRepository.findById(rec.id), error: msg };
+      }
+
+      try {
+        // 3. Health check (via provider)
+        if (!(await this.provider.checkHealth(handle.healthUrl))) {
+          throw new Error("Sandbox health check timed out");
+        }
+
+        // 4. Restore from backup
+        const backup = await miladySandboxesRepository.getLatestBackup(rec.id);
+        if (backup) await this.pushState(handle.bridgeUrl, backup.state_data as MiladyBackupStateData);
+
+        // 5. Mark running + persist provider-specific metadata
+        const updateData: Parameters<typeof miladySandboxesRepository.update>[1] = {
+          status: "running",
+          sandbox_id: handle.sandboxId,
+          bridge_url: handle.bridgeUrl,
+          health_url: handle.healthUrl,
+          last_heartbeat_at: new Date(),
+          error_message: null,
+        };
+
+        // For docker provider, persist docker-specific fields from typed metadata
+        if (handle.metadata?.provider === "docker") {
+          const dockerMeta = handle.metadata as unknown as DockerSandboxMetadata;
+          if (dockerMeta.nodeId) updateData.node_id = dockerMeta.nodeId;
+          if (dockerMeta.containerName) updateData.container_name = dockerMeta.containerName;
+          if (dockerMeta.bridgePort) updateData.bridge_port = dockerMeta.bridgePort;
+          if (dockerMeta.webUiPort) updateData.web_ui_port = dockerMeta.webUiPort;
+          if (dockerMeta.headscaleIp) updateData.headscale_ip = dockerMeta.headscaleIp;
+          if (dockerMeta.dockerImage) updateData.docker_image = dockerMeta.dockerImage;
+        }
+
+        const updated = await miladySandboxesRepository.update(rec.id, updateData);
+
+        logger.info("[milady-sandbox] Provisioned", { agentId: rec.id, sandboxId: handle.sandboxId, provider: handle.metadata ? "docker" : "vercel", attempt });
+        return { success: true, sandboxRecord: updated!, bridgeUrl: handle.bridgeUrl, healthUrl: handle.healthUrl };
+        
+      } catch (err) {
+        // Ghost container cleanup: provider.create() succeeded but DB update or health check failed
+        const msg = err instanceof Error ? err.message : String(err);
+        lastError = msg;
+        
+        logger.warn("[milady-sandbox] Post-create failure, cleaning up container", { 
+          agentId: rec.id, sandboxId: handle.sandboxId, attempt, error: msg 
+        });
+        
+        await this.provider.stop(handle.sandboxId).catch((stopErr) => {
+          logger.error("[milady-sandbox] Ghost container cleanup failed", { 
+            sandboxId: handle.sandboxId, 
+            error: stopErr instanceof Error ? stopErr.message : String(stopErr) 
+          });
+        });
+
+        // Check if it's a unique constraint error (port collision) -> retry
+        const isUniqueConstraintError = 
+          msg.includes("23505") || 
+          msg.toLowerCase().includes("unique") || 
+          msg.toLowerCase().includes("duplicate");
+        
+        if (isUniqueConstraintError && attempt < MAX_PROVISION_ATTEMPTS) {
+          logger.info("[milady-sandbox] Port collision detected, retrying", { attempt, nextAttempt: attempt + 1 });
+          continue; // Retry
+        }
+        
+        // Non-retryable error or max attempts reached -> fail
+        break;
+      }
     }
-
-    // 3. Health check (via provider)
-    if (!(await this.provider.checkHealth(handle.healthUrl))) {
-      await this.markError(rec, "Sandbox health check timed out");
-      return { success: false, sandboxRecord: await miladySandboxesRepository.findById(rec.id), error: "Health check timed out" };
-    }
-
-    // 4. Restore from backup
-    const backup = await miladySandboxesRepository.getLatestBackup(rec.id);
-    if (backup) await this.pushState(handle.bridgeUrl, backup.state_data as MiladyBackupStateData);
-
-    // 5. Mark running + persist provider-specific metadata
-    const updateData: Parameters<typeof miladySandboxesRepository.update>[1] = {
-      status: "running",
-      sandbox_id: handle.sandboxId,
-      bridge_url: handle.bridgeUrl,
-      health_url: handle.healthUrl,
-      last_heartbeat_at: new Date(),
-      error_message: null,
-    };
-
-    // For docker provider, persist docker-specific fields from typed metadata
-    if (handle.metadata && "nodeId" in handle.metadata) {
-      const dockerMeta = handle.metadata as unknown as DockerSandboxMetadata;
-      if (dockerMeta.nodeId) updateData.node_id = dockerMeta.nodeId;
-      if (dockerMeta.containerName) updateData.container_name = dockerMeta.containerName;
-      if (dockerMeta.bridgePort) updateData.bridge_port = dockerMeta.bridgePort;
-      if (dockerMeta.webUiPort) updateData.web_ui_port = dockerMeta.webUiPort;
-      if (dockerMeta.headscaleIp) updateData.headscale_ip = dockerMeta.headscaleIp;
-      if (dockerMeta.dockerImage) updateData.docker_image = dockerMeta.dockerImage;
-    }
-
-    const updated = await miladySandboxesRepository.update(rec.id, updateData);
-
-    logger.info("[milady-sandbox] Provisioned", { agentId: rec.id, sandboxId: handle.sandboxId, provider: handle.metadata ? "docker" : "vercel" });
-    return { success: true, sandboxRecord: updated!, bridgeUrl: handle.bridgeUrl, healthUrl: handle.healthUrl };
+    
+    // All attempts exhausted
+    await this.markError(rec, `Provisioning failed after ${MAX_PROVISION_ATTEMPTS} attempts: ${lastError}`);
+    return { success: false, sandboxRecord: await miladySandboxesRepository.findById(rec.id), error: lastError };
   }
 
   // Bridge

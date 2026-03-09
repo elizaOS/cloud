@@ -35,3 +35,8 @@ CREATE INDEX IF NOT EXISTS milady_sandboxes_node_id_idx ON milady_sandboxes(node
 CREATE UNIQUE INDEX IF NOT EXISTS milady_sandboxes_node_bridge_port_uniq
   ON milady_sandboxes (node_id, bridge_port)
   WHERE status IN ('running', 'provisioning', 'pending');
+
+-- Prevent web UI port collisions: same pattern as bridge_port
+CREATE UNIQUE INDEX IF NOT EXISTS milady_sandboxes_node_webui_port_uniq
+  ON milady_sandboxes (node_id, web_ui_port)
+  WHERE status IN ('running', 'provisioning', 'pending');

@@ -37,6 +37,7 @@ import {
 
 /** Typed metadata returned by DockerSandboxProvider in SandboxHandle.metadata */
 export interface DockerSandboxMetadata {
+  provider: "docker";
   nodeId: string;
   hostname: string;
   containerName: string;
@@ -162,6 +163,7 @@ export class DockerSandboxProvider implements SandboxProvider {
           `[docker-sandbox] Port collision on attempt ${attempt}/${MAX_ATTEMPTS} for ${containerName}, cleaning up and retrying...`,
         );
         try {
+          // sandboxId === containerName for Docker provider (both are `milady-${agentId}`)
           await this.stop(containerName);
         } catch {
           // Ghost may not exist or already be gone — safe to ignore
@@ -345,6 +347,14 @@ export class DockerSandboxProvider implements SandboxProvider {
       if (dbNode) {
         await dockerNodesRepository.decrementAllocated(nodeId).catch(() => {});
       }
+      // Clean up Headscale pre-auth key if VPN was prepared
+      if (headscaleEnabled) {
+        await headscaleIntegration.cleanupContainerVPN(agentId).catch((cleanupErr) => {
+          logger.warn(
+            `[docker-sandbox] Headscale cleanup failed during rollback for ${agentId}: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+          );
+        });
+      }
       throw new Error(
         `[docker-sandbox] Failed to create container on ${nodeId}: ${err instanceof Error ? err.message : String(err)}`,
       );
@@ -385,6 +395,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     const targetHost = headscaleIp || hostname;
 
     const metadata: DockerSandboxMetadata = {
+      provider: "docker",
       nodeId,
       hostname,
       containerName,
