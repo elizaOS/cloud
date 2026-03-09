@@ -1,6 +1,6 @@
 /**
  * Milaidy Sandbox Service — orchestrates cloud agent lifecycle:
- * Neon DB provisioning, Vercel Sandbox creation, bridge proxy, backups, heartbeat.
+ * Neon DB provisioning, sandbox creation (via pluggable provider), bridge proxy, backups, heartbeat.
  */
 
 import { logger } from "@/lib/utils/logger";
@@ -11,6 +11,7 @@ import {
   type MilaidyBackupSnapshotType,
 } from "@/db/repositories/milaidy-sandboxes";
 import type { MilaidyBackupStateData } from "@/db/schemas/milaidy-sandboxes";
+import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 export interface CreateAgentParams {
   organizationId: string;
@@ -44,18 +45,14 @@ export interface SnapshotResult {
   error?: string;
 }
 
-// Set MILAIDY_AGENT_TEMPLATE_URL to override the default template repo.
-// The template must contain package.json + entrypoint.ts (see milaidy/deploy/cloud-agent-template/).
-const CLOUD_AGENT_TEMPLATE_URL = process.env.MILAIDY_AGENT_TEMPLATE_URL ?? "https://github.com/elizaos/milaidy-cloud-agent-template.git";
-const SANDBOX_TIMEOUT_MS = 30 * 60 * 1000;
-const SANDBOX_VCPUS = 4;
-const SANDBOX_HEALTH_PORT = 2138;
-const SANDBOX_BRIDGE_PORT = 18790;
-const HEALTH_CHECK_TIMEOUT_MS = 60_000;
-const HEALTH_CHECK_INTERVAL_MS = 2_000;
 const MAX_BACKUPS = 10;
 
 export class MilaidySandboxService {
+  private provider: SandboxProvider;
+
+  constructor(provider?: SandboxProvider) {
+    this.provider = provider ?? createSandboxProvider();
+  }
 
   // Agent CRUD
 
@@ -85,7 +82,11 @@ export class MilaidySandboxService {
     if (!rec) return false;
     logger.info("[milaidy-sandbox] Deleting agent", { agentId, neon: rec.neon_project_id, sandbox: rec.sandbox_id });
     if (rec.neon_project_id) await this.cleanupNeon(rec.neon_project_id);
-    if (rec.sandbox_id && rec.status === "running") await this.stopSandbox(rec.sandbox_id);
+    if (rec.sandbox_id && rec.status === "running") {
+      await this.provider.stop(rec.sandbox_id).catch((e) => {
+        logger.warn("[milaidy-sandbox] Stop failed during delete", { error: e instanceof Error ? e.message : String(e) });
+      });
+    }
     return milaidySandboxesRepository.delete(agentId, orgId);
   }
 
@@ -113,31 +114,42 @@ export class MilaidySandboxService {
       dbUri = db.connectionUri!;
     }
 
-    // 2. Sandbox
-    const sb = await this.createSandbox(rec, dbUri);
-    if (!sb.success) {
-      await this.markError(rec, `Sandbox creation failed: ${sb.error}`);
-      return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: sb.error ?? "Unknown sandbox error" };
+    // 2. Sandbox (via provider)
+    let handle;
+    try {
+      handle = await this.provider.create({
+        agentId: rec.id,
+        agentName: rec.agent_name ?? "CloudAgent",
+        environmentVars: {
+          ...((rec.environment_vars as Record<string, string>) ?? {}),
+          DATABASE_URL: dbUri,
+        },
+        snapshotId: rec.snapshot_id ?? undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await this.markError(rec, `Sandbox creation failed: ${msg}`);
+      return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: msg };
     }
 
-    // 3. Health check
-    if (!(await this.waitForHealth(sb.healthUrl!))) {
+    // 3. Health check (via provider)
+    if (!(await this.provider.checkHealth(handle.healthUrl))) {
       await this.markError(rec, "Sandbox health check timed out");
       return { success: false, sandboxRecord: await milaidySandboxesRepository.findById(rec.id), error: "Health check timed out" };
     }
 
     // 4. Restore from backup
     const backup = await milaidySandboxesRepository.getLatestBackup(rec.id);
-    if (backup) await this.pushState(sb.bridgeUrl!, backup.state_data as MilaidyBackupStateData);
+    if (backup) await this.pushState(handle.bridgeUrl, backup.state_data as MilaidyBackupStateData);
 
     // 5. Mark running
     const updated = await milaidySandboxesRepository.update(rec.id, {
-      status: "running", sandbox_id: sb.sandboxId, bridge_url: sb.bridgeUrl,
-      health_url: sb.healthUrl, last_heartbeat_at: new Date(), error_message: null,
+      status: "running", sandbox_id: handle.sandboxId, bridge_url: handle.bridgeUrl,
+      health_url: handle.healthUrl, last_heartbeat_at: new Date(), error_message: null,
     });
 
-    logger.info("[milaidy-sandbox] Provisioned", { agentId: rec.id, sandboxId: sb.sandboxId });
-    return { success: true, sandboxRecord: updated!, bridgeUrl: sb.bridgeUrl!, healthUrl: sb.healthUrl! };
+    logger.info("[milaidy-sandbox] Provisioned", { agentId: rec.id, sandboxId: handle.sandboxId });
+    return { success: true, sandboxRecord: updated!, bridgeUrl: handle.bridgeUrl, healthUrl: handle.healthUrl };
   }
 
   // Bridge
@@ -245,7 +257,11 @@ export class MilaidySandboxService {
         logger.warn("[milaidy-sandbox] Pre-shutdown backup failed", { error: e instanceof Error ? e.message : String(e) });
       });
     }
-    if (rec.sandbox_id) await this.stopSandbox(rec.sandbox_id);
+    if (rec.sandbox_id) {
+      await this.provider.stop(rec.sandbox_id).catch((e) => {
+        logger.warn("[milaidy-sandbox] Stop failed during shutdown", { error: e instanceof Error ? e.message : String(e) });
+      });
+    }
     await milaidySandboxesRepository.update(rec.id, { status: "stopped", sandbox_id: null, bridge_url: null, health_url: null });
     logger.info("[milaidy-sandbox] Shutdown complete", { agentId });
     return { success: true };
@@ -285,65 +301,6 @@ export class MilaidySandboxService {
     await getNeonClient().deleteProject(projectId).catch((e) => {
       logger.warn("[milaidy-sandbox] Neon cleanup failed", { projectId, error: e instanceof Error ? e.message : String(e) });
     });
-  }
-
-  private async createSandbox(rec: MilaidySandbox, dbUri: string): Promise<{
-    success: boolean; sandboxId?: string; bridgeUrl?: string; healthUrl?: string; error?: string;
-  }> {
-    const { Sandbox } = await import("@vercel/sandbox");
-    const creds = this.getSandboxCreds();
-    if (!creds.hasOIDC && !creds.hasAccessToken) return { success: false, error: "Vercel Sandbox credentials not configured" };
-
-    const env: Record<string, string> = {
-      ...((rec.environment_vars as Record<string, string>) ?? {}),
-      DATABASE_URL: dbUri, AGENT_NAME: rec.agent_name ?? "CloudAgent",
-      PORT: String(SANDBOX_HEALTH_PORT), BRIDGE_PORT: String(SANDBOX_BRIDGE_PORT),
-    };
-
-    const opts: Record<string, unknown> = {
-      source: rec.snapshot_id ? { type: "snapshot", snapshotId: rec.snapshot_id } : { url: CLOUD_AGENT_TEMPLATE_URL, type: "git" },
-      resources: { vcpus: SANDBOX_VCPUS }, timeout: SANDBOX_TIMEOUT_MS,
-      ports: [SANDBOX_HEALTH_PORT, SANDBOX_BRIDGE_PORT], runtime: "node24", env,
-    };
-    if (creds.hasAccessToken) { opts.teamId = creds.teamId; opts.projectId = creds.projectId; opts.token = creds.token; }
-
-    type SB = { sandboxId?: string; domain: (port: number) => string };
-    const sb = (await Sandbox.create(opts)) as SB;
-    const id = sb.sandboxId ?? `sandbox-${crypto.randomUUID().slice(0, 8)}`;
-
-    // Write .env.local as a fallback — some SDK versions ignore the env create option
-    const envContent = Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
-    const sbWithShell = sb as SB & { runCommand?: (opts: { cmd: string; args: string[]; env?: Record<string, string> }) => Promise<unknown> };
-    if (typeof sbWithShell.runCommand === "function") {
-      await sbWithShell.runCommand({ cmd: "sh", args: ["-c", `cat > /app/.env.local << 'ENVEOF'\n${envContent}\nENVEOF`] });
-    }
-
-    return { success: true, sandboxId: id, bridgeUrl: `https://${sb.domain(SANDBOX_BRIDGE_PORT)}`, healthUrl: `https://${sb.domain(SANDBOX_HEALTH_PORT)}` };
-  }
-
-  private async stopSandbox(sandboxId: string) {
-    const { Sandbox } = await import("@vercel/sandbox");
-    const creds = this.getSandboxCreds();
-    const opts: Record<string, unknown> = {};
-    if (creds.hasAccessToken) { opts.teamId = creds.teamId; opts.projectId = creds.projectId; opts.token = creds.token; }
-    const sb = await Sandbox.get({ sandboxId, ...opts }) as { shutdown?: () => Promise<void>; close?: () => Promise<void> };
-    if (typeof sb.shutdown === "function") await sb.shutdown();
-    else if (typeof sb.close === "function") await sb.close();
-  }
-
-  private getSandboxCreds() {
-    const hasOIDC = !!process.env.VERCEL_OIDC_TOKEN;
-    const { VERCEL_TEAM_ID: teamId, VERCEL_PROJECT_ID: projectId, VERCEL_TOKEN: token } = process.env;
-    return { hasOIDC, hasAccessToken: !!(teamId && projectId && token), teamId, projectId, token };
-  }
-
-  private async waitForHealth(url: string): Promise<boolean> {
-    const deadline = Date.now() + HEALTH_CHECK_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      if (await fetch(`${url}/health`, { signal: AbortSignal.timeout(5_000) }).then((r) => r.ok).catch(() => false)) return true;
-      await new Promise((r) => setTimeout(r, HEALTH_CHECK_INTERVAL_MS));
-    }
-    return false;
   }
 
   private async pushState(bridgeUrl: string, state: MilaidyBackupStateData) {
