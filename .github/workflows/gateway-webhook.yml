@@ -37,6 +37,8 @@ jobs:
       - name: Install service dependencies
         run: cd services/gateway-webhook && bun install --frozen-lockfile
 
-      - name: Run service tests
+      - name: Run unit tests (isolated — mock.module is process-global in bun)
         working-directory: services/gateway-webhook
-        run: bun test __tests__/ --timeout 60000
+        run: |
+          bun test __tests__/project-config.test.ts --timeout 60000
+          bun test __tests__/webhook-config.test.ts __tests__/webhook-handler.test.ts __tests__/adapters/ --timeout 60000
