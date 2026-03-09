@@ -3,7 +3,13 @@
  * Verifies all tools register without import/config errors
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
+
+mock.module("isomorphic-dompurify", () => ({
+  default: {
+    sanitize: (value: string) => value,
+  },
+}));
 
 describe("MCP Tools Registration", () => {
   test(
