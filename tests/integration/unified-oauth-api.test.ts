@@ -37,7 +37,7 @@ const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 // Use a wider request timeout because these E2E tests run against a managed
 // Next dev server that may restart or recompile routes between requests.
-const TIMEOUT = 30000;
+const TIMEOUT = 60000;
 
 function isPlaceholderCredential(value: string | undefined): boolean {
   if (!value) return false;
