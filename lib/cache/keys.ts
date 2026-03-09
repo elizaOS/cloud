@@ -60,6 +60,10 @@ export const CacheKeys = {
     byEmail: (email: string) => `user:email:${email}:v1`,
     pattern: () => `user:*`,
   },
+  identity: {
+    resolve: (platform: string, platformId: string) =>
+      `identity:${platform}:${platformId}`,
+  },
   memory: {
     item: (orgId: string, memoryId: string) => `memory:${orgId}:${memoryId}:v1`,
     roomRecent: (orgId: string, roomId: string) =>
@@ -108,11 +112,6 @@ export const CacheKeys = {
     list: (filterHash: string) => `discovery:list:${filterHash}:v2`,
     /** Pattern for invalidating all discovery cache */
     pattern: () => `discovery:*`,
-  },
-  models: {
-    /** Cache upstream gateway model catalog for selector/detail/status routes */
-    gatewayCatalog: () => `models:gateway-catalog:v1`,
-    pattern: () => `models:*`,
   },
   /**
    * Code Agent cache keys
@@ -167,17 +166,6 @@ export const CacheKeys = {
     workflow: (workflowId: string) => `n8n:workflow:${workflowId}:v1`,
     /** Pattern for invalidating all workflow cache for an org */
     orgPattern: (orgId: string) => `n8n:workflows:${orgId}:*`,
-  },
-  /**
-   * SIWE (Sign-In With Ethereum) nonce cache.
-   * Single-use nonces stored by value; consumed on verify.
-   */
-  siwe: {
-    nonce: (nonce: string) => `siwe:nonce:${nonce}:v1`,
-    pattern: () => `siwe:*`,
-  },
-  walletAuth: {
-    user: (address: string) => `wallet-auth:user:${address}:v1`,
   },
   userMetrics: {
     overview: (rangeDays?: number) =>
@@ -235,6 +223,9 @@ export const CacheTTL = {
   user: {
     byEmail: 600, // 10 minutes (was 300s)
   },
+  identity: {
+    resolve: 300, // 5 minutes
+  },
   memory: {
     item: 1440, // 24 minutes (unchanged - memory is critical)
     roomRecent: 300, // 5 minutes
@@ -267,9 +258,6 @@ export const CacheTTL = {
    */
   discovery: {
     list: 180, // 3 minutes - discovery results
-  },
-  models: {
-    catalog: 3600, // 1 hour - upstream model catalogs change infrequently
   },
   /**
    * Code Agent cache TTLs
@@ -304,12 +292,6 @@ export const CacheTTL = {
     list: 60, // 1 minute - workflow list
     workflow: 120, // 2 minutes - single workflow details
   },
-  walletAuth: {
-    user: 30, // 30 seconds - avoid DB upsert on every wallet-authenticated request
-  },
-  siwe: {
-    nonce: 300, // 5 minutes - one-time nonce TTL
-  },
   userMetrics: {
     overview: 300, // 5 minutes - live query summary
     daily: 3600, // 1 hour - pre-computed data changes once per day
@@ -335,9 +317,6 @@ export const CacheStaleTTL = {
   },
   discovery: {
     list: 120, // Serve stale discovery results after 2 minutes
-  },
-  models: {
-    catalog: 900, // Serve stale model catalogs after 15 minutes
   },
   codeAgent: {
     session: 30, // Serve stale after 30 seconds

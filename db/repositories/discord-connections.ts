@@ -24,6 +24,7 @@ interface DecryptedAssignment {
   applicationId: string;
   botToken: string;
   intents: number;
+  characterId: string | null;
 }
 
 /** Valid connection status values (matches migration CHECK constraint) */
@@ -403,6 +404,7 @@ export const discordConnectionsRepository = {
             applicationId: conn.application_id,
             botToken,
             intents: conn.intents ?? DISCORD_DEFAULT_INTENTS,
+            characterId: conn.character_id ?? null,
           };
         } catch (error) {
           const errorMessage =
@@ -426,10 +428,14 @@ export const discordConnectionsRepository = {
               })
               .where(eq(discordConnections.id, conn.id));
           } catch (dbError) {
-            logger.error("[DiscordConnections] Failed to mark connection as error", {
-              connectionId: conn.id,
-              error: dbError instanceof Error ? dbError.message : String(dbError),
-            });
+            logger.error(
+              "[DiscordConnections] Failed to mark connection as error",
+              {
+                connectionId: conn.id,
+                error:
+                  dbError instanceof Error ? dbError.message : String(dbError),
+              },
+            );
           }
 
           return null;
