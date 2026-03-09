@@ -129,6 +129,9 @@ interface AuditResult {
   nodesChecked: number;
   ghostContainers: Array<{ nodeId: string; hostname: string; names: string[] }>;
   orphanRecords: Array<{ id: string; containerName: string | null }>;
+  totalGhostContainers?: number;
+  totalOrphanRecords?: number;
+  auditedAt?: string;
   message?: string;
 }
 
@@ -170,6 +173,8 @@ function ContainerStatusBadge({ status }: { status: string }) {
     stopped: { variant: "secondary", className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" },
     error: { variant: "destructive", className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
     provisioning: { variant: "outline", className: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30" },
+    pending: { variant: "outline", className: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30" },
+    disconnected: { variant: "secondary", className: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30" },
   };
   const cfg = map[status] ?? { variant: "outline" as const, className: "" };
   return (
@@ -449,11 +454,13 @@ export function InfrastructureDashboard() {
 
   const nodesOnline = nodes.filter((n) => n.status === "healthy").length;
   const nodesOffline = nodes.filter((n) => n.status === "offline" || n.status === "degraded").length;
+  const nodesUnknown = nodes.filter((n) => n.status === "unknown").length;
   const totalCapacity = nodes.reduce((s, n) => s + n.capacity, 0);
   const totalAllocated = nodes.reduce((s, n) => s + n.allocatedCount, 0);
   const containersRunning = containers.filter((c) => c.status === "running").length;
   const containersStopped = containers.filter((c) => c.status === "stopped").length;
   const containersError = containers.filter((c) => c.status === "error").length;
+  const containersDisconnected = containers.filter((c) => c.status === "disconnected").length;
   const utilizationPct = totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0;
 
   // ---------------------------------------------------------------------------
@@ -501,6 +508,9 @@ export function InfrastructureDashboard() {
               {nodesOffline > 0 && (
                 <span className="ml-2 text-red-500">{nodesOffline} offline</span>
               )}
+              {nodesUnknown > 0 && (
+                <span className="ml-2 text-muted-foreground">{nodesUnknown} unchecked</span>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -520,6 +530,9 @@ export function InfrastructureDashboard() {
               )}
               {containersError > 0 && (
                 <span className="ml-2 text-red-500">{containersError} error</span>
+              )}
+              {containersDisconnected > 0 && (
+                <span className="ml-2 text-orange-500">{containersDisconnected} disconnected</span>
               )}
             </p>
           </CardContent>
@@ -751,6 +764,8 @@ export function InfrastructureDashboard() {
                     <SelectItem value="stopped">Stopped</SelectItem>
                     <SelectItem value="error">Error</SelectItem>
                     <SelectItem value="provisioning">Provisioning</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="disconnected">Disconnected</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={containerNodeFilter} onValueChange={setContainerNodeFilter}>
@@ -1223,6 +1238,9 @@ export function InfrastructureDashboard() {
                 Checked {auditResult.nodesChecked} node{auditResult.nodesChecked !== 1 ? "s" : ""}.
                 {auditResult.message && ` ${auditResult.message}`}
               </p>
+                {auditResult.auditedAt && (
+                  <span className="ml-2">· {formatRelativeTime(auditResult.auditedAt)}</span>
+                )}
 
               {/* Ghost containers */}
               <div>
